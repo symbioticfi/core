@@ -6,5 +6,5 @@ interface IMigratableEntityProxy {
      * @notice Get a proxy admin.
      * @return address of the proxy admin
      */
-    function proxyAdmin() external view returns (address);
+    function proxyAdmin() external returns (address);
 }

@@ -63,7 +63,10 @@ contract MigratablesRegistry is Factory, Ownable, IMigratablesRegistry {
 
         _versions[entity_] = currentVersion + 1;
 
-        ProxyAdmin(IMigratableEntityProxy(entity_).proxyAdmin()).upgradeAndCall(
+        address proxyAdmin = abi.decode(
+            entity_.functionStaticCall(abi.encodeWithSelector(IMigratableEntityProxy.proxyAdmin.selector)), (address)
+        );
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
             ITransparentUpgradeableProxy(entity_),
             _whitelistedImplementations.at(currentVersion),
             abi.encodeWithSelector(MigratableEntity.migrate.selector, data)

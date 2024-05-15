@@ -15,7 +15,7 @@ contract MigratableEntityProxy is TransparentUpgradeableProxy, IMigratableEntity
     /**
      * @inheritdoc IMigratableEntityProxy
      */
-    function proxyAdmin() external view returns (address) {
+    function proxyAdmin() external returns (address) {
         return _proxyAdmin();
     }
 }
