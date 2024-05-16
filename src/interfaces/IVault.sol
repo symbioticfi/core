@@ -27,6 +27,7 @@ interface IVault {
     error NetworkAlreadyOptedIn();
     error NetworkNotOptedIn();
     error OperatorAlreadyOptedIn();
+    error ExceedsMaxNetworkLimit();
     error OperatorNotOptedIn();
     error NoRewardsToClaim();
     error InvalidHintsLength();
@@ -241,6 +242,8 @@ interface IVault {
 
     function operatorOptOutAt(address operator) external view returns (uint48);
 
+    function maxNetworkLimit(address network, address resolver) external view returns (uint256);
+
     function networkLimit(address network, address resolver) external view returns (uint256);
 
     function nextNetworkLimit(address network, address resolver) external view returns (uint256, uint48);
@@ -276,7 +279,7 @@ interface IVault {
 
     function vetoSlash(uint256 slashIndex) external;
 
-    function optInNetwork(address resolver) external;
+    function optInNetwork(address resolver, uint256 maxNetworkLimit) external;
 
     function optOutNetwork(address resolver) external;
 

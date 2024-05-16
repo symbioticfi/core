@@ -117,12 +117,17 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    mapping(address network => mapping(address resolver => bool)) public isNetworkOptedIn;
+    mapping(address network => mapping(address resolver => bool value)) public isNetworkOptedIn;
 
     /**
      * @inheritdoc IVault
      */
     mapping(address operator => uint48 timestamp) public operatorOptOutAt;
+
+    /**
+     * @inheritdoc IVault
+     */
+    mapping(address network => mapping(address resolver => uint256 amount)) public maxNetworkLimit;
 
     /**
      * @inheritdoc IVault
@@ -651,7 +656,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    function optInNetwork(address resolver) external onlyNetwork {
+    function optInNetwork(address resolver, uint256 maxNetworkLimit_) external onlyNetwork {
         if (isNetworkOptedIn[msg.sender][resolver]) {
             revert NetworkAlreadyOptedIn();
         }
@@ -660,6 +665,8 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
 
         _networkLimit[msg.sender][resolver].amount = 0;
         nextNetworkLimit[msg.sender][resolver].timestamp = 0;
+
+        maxNetworkLimit[msg.sender][resolver] = maxNetworkLimit_;
 
         emit OptInNetwork(msg.sender, resolver);
     }
@@ -678,6 +685,8 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
 
         nextNetworkLimit[msg.sender][resolver].amount = 0;
         nextNetworkLimit[msg.sender][resolver].timestamp = currentEpochStart() + 2 * epochDuration;
+
+        maxNetworkLimit[msg.sender][resolver] = 0;
 
         emit OptOutNetwork(msg.sender, resolver);
     }
@@ -830,6 +839,10 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     ) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (!isNetworkOptedIn[network][resolver]) {
             revert NetworkNotOptedIn();
+        }
+
+        if (amount > maxNetworkLimit[network][resolver]) {
+            revert ExceedsMaxNetworkLimit();
         }
 
         _setLimit(_networkLimit[network][resolver], nextNetworkLimit[network][resolver], amount);

@@ -546,7 +546,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -618,7 +618,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -667,7 +667,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -716,7 +716,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -761,7 +761,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -810,7 +810,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -861,7 +861,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -912,7 +912,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -963,7 +963,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1073,7 +1073,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1127,7 +1127,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1178,7 +1178,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1232,7 +1232,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1288,7 +1288,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1344,7 +1344,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1421,7 +1421,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1472,7 +1472,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1523,7 +1523,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1577,7 +1577,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _optInOperator(operator);
 
@@ -1668,7 +1668,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         assertTrue(vault.isNetworkOptedIn(network, resolver));
         (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
@@ -1699,7 +1699,7 @@ contract VaultTest is Test {
         assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart());
         assertEq(vault.networkLimit(network, resolver), 0);
 
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         assertTrue(vault.isNetworkOptedIn(network, resolver));
         (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
@@ -1735,10 +1735,10 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         vm.expectRevert(IVault.NetworkAlreadyOptedIn.selector);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
     }
 
     function test_OptInNetworkRevertNotNetwork() public {
@@ -1750,7 +1750,7 @@ contract VaultTest is Test {
 
         address resolver = address(1);
         vm.expectRevert(IVault.NotNetwork.selector);
-        _optInNetwork(address(0), resolver);
+        _optInNetwork(address(0), resolver, type(uint256).max);
     }
 
     function test_OptOutNetworkRevertNotNetwork() public {
@@ -1764,7 +1764,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         vm.expectRevert(IVault.NotNetwork.selector);
         _optOutNetwork(address(0), resolver);
@@ -1902,7 +1902,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         _setNetworkLimit(alice, network, resolver, amount1);
 
@@ -2004,7 +2004,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver);
+        _optInNetwork(network, resolver, type(uint256).max);
 
         vm.expectRevert();
         _setNetworkLimit(bob, network, resolver, amount1);
@@ -2695,9 +2695,9 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _optInNetwork(address user, address resolver) internal {
+    function _optInNetwork(address user, address resolver, uint256 maxNetworkLimit) internal {
         vm.startPrank(user);
-        vault.optInNetwork(resolver);
+        vault.optInNetwork(resolver, maxNetworkLimit);
         vm.stopPrank();
     }
 
