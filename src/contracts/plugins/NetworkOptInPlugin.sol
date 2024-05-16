@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INetworkOptInExtension} from "src/interfaces/extensions/INetworkOptInExtension.sol";
+import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
 
-import {Extension} from "src/contracts/Extension.sol";
+import {Plugin} from "src/contracts/Plugin.sol";
 import {ERC6372} from "src/contracts/utils/ERC6372.sol";
 
-contract NetworkOptInExtension is Extension, ERC6372, INetworkOptInExtension {
+contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
     /**
-     * @inheritdoc INetworkOptInExtension
+     * @inheritdoc INetworkOptInPlugin
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc INetworkOptInExtension
+     * @inheritdoc INetworkOptInPlugin
      */
     mapping(address operator => mapping(address network => bool value)) public isOperatorOptedIn;
 
     /**
-     * @inheritdoc INetworkOptInExtension
+     * @inheritdoc INetworkOptInPlugin
      */
     mapping(address operator => mapping(address network => uint48 timestamp)) public lastOperatorOptOut;
 
@@ -30,12 +30,12 @@ contract NetworkOptInExtension is Extension, ERC6372, INetworkOptInExtension {
         _;
     }
 
-    constructor(address operatorRegistry, address networkRegistry) Extension(operatorRegistry) {
+    constructor(address operatorRegistry, address networkRegistry) Plugin(operatorRegistry) {
         NETWORK_REGISTRY = networkRegistry;
     }
 
     /**
-     * @inheritdoc INetworkOptInExtension
+     * @inheritdoc INetworkOptInPlugin
      */
     function optIn(address network) external onlyEntity isNetwork(network) {
         if (isOperatorOptedIn[msg.sender][network]) {
@@ -46,7 +46,7 @@ contract NetworkOptInExtension is Extension, ERC6372, INetworkOptInExtension {
     }
 
     /**
-     * @inheritdoc INetworkOptInExtension
+     * @inheritdoc INetworkOptInPlugin
      */
     function optOut(address network) external onlyEntity isNetwork(network) {
         if (!isOperatorOptedIn[msg.sender][network]) {

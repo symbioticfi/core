@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IExtension} from "src/interfaces/IExtension.sol";
+import {IPlugin} from "src/interfaces/IPlugin.sol";
 
-interface IMiddlewareExtension is IExtension {
+interface IMiddlewarePlugin is IPlugin {
     /**
      * @notice Emitted when a middleware is set for an entity.
      * @param entity address of the entity

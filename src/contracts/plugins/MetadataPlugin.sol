@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMetadataExtension} from "src/interfaces/extensions/IMetadataExtension.sol";
+import {IMetadataPlugin} from "src/interfaces/plugins/IMetadataPlugin.sol";
 
-import {Extension} from "src/contracts/Extension.sol";
+import {Plugin} from "src/contracts/Plugin.sol";
 
-contract MetadataExtension is Extension, IMetadataExtension {
+contract MetadataPlugin is Plugin, IMetadataPlugin {
     /**
-     * @inheritdoc IMetadataExtension
+     * @inheritdoc IMetadataPlugin
      */
     mapping(address entity => string value) public metadataURL;
 
-    constructor(address registry) Extension(registry) {}
+    constructor(address registry) Plugin(registry) {}
 
     /**
-     * @inheritdoc IMetadataExtension
+     * @inheritdoc IMetadataPlugin
      */
     function setMetadataURL(string calldata metadataURL_) external onlyEntity {
         metadataURL[msg.sender] = metadataURL_;

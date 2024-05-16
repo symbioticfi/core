@@ -4,8 +4,8 @@ pragma solidity 0.8.25;
 import {IVault} from "src/interfaces/IVault.sol";
 import {ICollateral} from "src/interfaces/ICollateral.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
-import {IMiddlewareExtension} from "src/interfaces/extensions/IMiddlewareExtension.sol";
-import {INetworkOptInExtension} from "src/interfaces/extensions/INetworkOptInExtension.sol";
+import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
+import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 
 import {MigratableEntity} from "./MigratableEntity.sol";
 import {ERC6372} from "./utils/ERC6372.sol";
@@ -57,12 +57,12 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    address public immutable NETWORK_MIDDLEWARE_EXTENSION;
+    address public immutable NETWORK_MIDDLEWARE_PLUGIN;
 
     /**
      * @inheritdoc IVault
      */
-    address public immutable NETWORK_OPT_IN_EXTENSION;
+    address public immutable NETWORK_OPT_IN_PLUGIN;
 
     /**
      * @inheritdoc IVault
@@ -190,7 +190,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     }
 
     modifier onlyNetworkMiddleware(address network) {
-        if (IMiddlewareExtension(NETWORK_MIDDLEWARE_EXTENSION).middleware(network) != msg.sender) {
+        if (IMiddlewarePlugin(NETWORK_MIDDLEWARE_PLUGIN).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
         _;
@@ -213,13 +213,13 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     constructor(
         address networkRegistry,
         address operatorRegistry,
-        address networkMiddlewareExtension,
-        address networkOptInExtension
+        address networkMiddlewarePlugin,
+        address networkOptInPlugin
     ) {
         NETWORK_REGISTRY = networkRegistry;
         OPERATOR_REGISTRY = operatorRegistry;
-        NETWORK_MIDDLEWARE_EXTENSION = networkMiddlewareExtension;
-        NETWORK_OPT_IN_EXTENSION = networkOptInExtension;
+        NETWORK_MIDDLEWARE_PLUGIN = networkMiddlewarePlugin;
+        NETWORK_OPT_IN_PLUGIN = networkOptInPlugin;
     }
 
     /**
@@ -512,9 +512,8 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
             revert NetworkNotOptedIn();
         }
 
-        bool optedInNetwork = INetworkOptInExtension(NETWORK_OPT_IN_EXTENSION).isOperatorOptedIn(operator, network);
-        uint48 lastOperatorOptOut =
-            INetworkOptInExtension(NETWORK_OPT_IN_EXTENSION).lastOperatorOptOut(operator, network);
+        bool optedInNetwork = INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).isOperatorOptedIn(operator, network);
+        uint48 lastOperatorOptOut = INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).lastOperatorOptOut(operator, network);
         if (!optedInNetwork && lastOperatorOptOut < block.timestamp - epochDuration) {
             revert OperatorNotOptedInNetwork();
         }

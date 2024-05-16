@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IExtension} from "src/interfaces/IExtension.sol";
+import {IPlugin} from "src/interfaces/IPlugin.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
 
-contract Extension is IExtension {
+contract Plugin is IPlugin {
     /**
-     * @inheritdoc IExtension
+     * @inheritdoc IPlugin
      */
     address public immutable REGISTRY;
 

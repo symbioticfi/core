@@ -5,9 +5,9 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {MigratablesRegistry} from "src/contracts/MigratablesRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/NonMigratablesRegistry.sol";
-import {MetadataExtension} from "src/contracts/extensions/MetadataExtension.sol";
-import {MiddlewareExtension} from "src/contracts/extensions/MiddlewareExtension.sol";
-import {NetworkOptInExtension} from "src/contracts/extensions/NetworkOptInExtension.sol";
+import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
+import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
+import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
@@ -30,10 +30,10 @@ contract VaultTest is Test {
     NonMigratablesRegistry operatorRegistry;
     MigratablesRegistry vaultRegistry;
     NonMigratablesRegistry networkRegistry;
-    MetadataExtension operatorMetadataExtension;
-    MetadataExtension networkMetadataExtension;
-    MiddlewareExtension networkMiddlewareExtension;
-    NetworkOptInExtension networkOptInExtension;
+    MetadataPlugin operatorMetadataPlugin;
+    MetadataPlugin networkMetadataPlugin;
+    MiddlewarePlugin networkMiddlewarePlugin;
+    NetworkOptInPlugin networkOptInPlugin;
 
     IVault vault;
 
@@ -47,18 +47,18 @@ contract VaultTest is Test {
         operatorRegistry = new NonMigratablesRegistry();
         vaultRegistry = new MigratablesRegistry(owner);
         networkRegistry = new NonMigratablesRegistry();
-        operatorMetadataExtension = new MetadataExtension(address(operatorRegistry));
-        networkMetadataExtension = new MetadataExtension(address(networkRegistry));
-        networkMiddlewareExtension = new MiddlewareExtension(address(networkRegistry));
-        networkOptInExtension = new NetworkOptInExtension(address(operatorRegistry), address(networkRegistry));
+        operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
+        networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
+        networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
+        networkOptInPlugin = new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry));
 
         vaultRegistry.whitelist(
             address(
                 new Vault(
                     address(networkRegistry),
                     address(operatorRegistry),
-                    address(networkMiddlewareExtension),
-                    address(networkOptInExtension)
+                    address(networkMiddlewarePlugin),
+                    address(networkOptInPlugin)
                 )
             )
         );
@@ -2641,7 +2641,7 @@ contract VaultTest is Test {
     function _registerNetwork(address user, address middleware) internal {
         vm.startPrank(user);
         networkRegistry.register();
-        networkMiddlewareExtension.setMiddleware(middleware);
+        networkMiddlewarePlugin.setMiddleware(middleware);
         vm.stopPrank();
     }
 
@@ -2763,13 +2763,13 @@ contract VaultTest is Test {
 
     function _networkOptIn(address user, address network) internal {
         vm.startPrank(user);
-        networkOptInExtension.optIn(network);
+        networkOptInPlugin.optIn(network);
         vm.stopPrank();
     }
 
     function _networkOptOut(address user, address network) internal {
         vm.startPrank(user);
-        networkOptInExtension.optOut(network);
+        networkOptInPlugin.optOut(network);
         vm.stopPrank();
     }
 }

@@ -154,9 +154,9 @@ interface IVault {
      */
     function OPERATOR_REGISTRY() external view returns (address);
 
-    function NETWORK_MIDDLEWARE_EXTENSION() external view returns (address);
+    function NETWORK_MIDDLEWARE_PLUGIN() external view returns (address);
 
-    function NETWORK_OPT_IN_EXTENSION() external view returns (address);
+    function NETWORK_OPT_IN_PLUGIN() external view returns (address);
 
     /**
      * @notice Get a URL with a vault's metadata.

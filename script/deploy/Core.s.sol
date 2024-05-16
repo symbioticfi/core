@@ -5,9 +5,9 @@ import "forge-std/Script.sol";
 
 import {MigratablesRegistry} from "src/contracts/MigratablesRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/NonMigratablesRegistry.sol";
-import {MetadataExtension} from "src/contracts/extensions/MetadataExtension.sol";
-import {MiddlewareExtension} from "src/contracts/extensions/MiddlewareExtension.sol";
-import {NetworkOptInExtension} from "src/contracts/extensions/NetworkOptInExtension.sol";
+import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
+import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
+import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 
@@ -21,18 +21,18 @@ contract CoreScript is Script {
         NonMigratablesRegistry operatorRegistry = new NonMigratablesRegistry();
         MigratablesRegistry vaultRegistry = new MigratablesRegistry(owner);
         NonMigratablesRegistry networkRegistry = new NonMigratablesRegistry();
-        MetadataExtension operatorMetadataExtension = new MetadataExtension(address(operatorRegistry));
-        MetadataExtension networkMetadataExtension = new MetadataExtension(address(networkRegistry));
-        MiddlewareExtension networkMiddlewareExtension = new MiddlewareExtension(address(networkRegistry));
-        NetworkOptInExtension networkOptInExtension =
-            new NetworkOptInExtension(address(operatorRegistry), address(networkRegistry));
+        MetadataPlugin operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
+        MetadataPlugin networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
+        MiddlewarePlugin networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
+        NetworkOptInPlugin networkOptInPlugin =
+            new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry));
 
         address vault = address(
             new Vault(
                 address(networkRegistry),
                 address(operatorRegistry),
-                address(networkMiddlewareExtension),
-                address(networkOptInExtension)
+                address(networkMiddlewarePlugin),
+                address(networkOptInPlugin)
             )
         );
         vaultRegistry.whitelist(vault);
