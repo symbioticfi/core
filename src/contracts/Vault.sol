@@ -661,6 +661,10 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
             revert NetworkAlreadyOptedIn();
         }
 
+        if (maxNetworkLimit_ == 0) {
+            revert InvalidMaxNetworkLimit();
+        }
+
         isNetworkOptedIn[msg.sender][resolver] = true;
 
         _networkLimit[msg.sender][resolver].amount = 0;

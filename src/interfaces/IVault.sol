@@ -25,6 +25,7 @@ interface IVault {
     error NotResolver();
     error VetoPeriodEnded();
     error NetworkAlreadyOptedIn();
+    error InvalidMaxNetworkLimit();
     error NetworkNotOptedIn();
     error OperatorAlreadyOptedIn();
     error ExceedsMaxNetworkLimit();
