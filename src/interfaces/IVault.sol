@@ -29,10 +29,11 @@ interface IVault {
     error OperatorAlreadyOptedIn();
     error OperatorNotOptedIn();
     error NoRewardsToClaim();
+    error InvalidHintsLength();
     error InsufficientLimit();
     error InsufficientReward();
     error InvalidRewardTimestamp();
-    error NoTokens();
+    error NoRewardClaims();
     error NotEqualLengths();
     error NoDeposits();
     error AlreadySet();
@@ -47,6 +48,11 @@ interface IVault {
         uint48 slashDuration;
         uint48 vetoDuration;
         bool hasDepositWhitelist;
+    }
+
+    struct Cache {
+        bool isSet;
+        uint256 amount;
     }
 
     struct Limit {
@@ -72,6 +78,12 @@ interface IVault {
         uint256 amount;
         uint48 timestamp;
         uint48 creation;
+    }
+
+    struct RewardClaim {
+        address token;
+        uint256 amountIndexes;
+        uint32[] activeSharesOfHints;
     }
 
     event Deposit(address indexed depositor, address indexed onBehalfOf, uint256 amount, uint256 shares);
@@ -279,7 +291,7 @@ interface IVault {
         uint48 timestamp
     ) external returns (uint256 rewardIndex);
 
-    function claimRewards(address recipient, address[] calldata tokens, uint256[] calldata amountsIndexes) external;
+    function claimRewards(address recipient, RewardClaim[] calldata rewardClaims) external;
 
     function setNetworkLimit(address network, address resolver, uint256 amount) external;
 

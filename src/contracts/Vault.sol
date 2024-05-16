@@ -167,9 +167,13 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
 
     mapping(address operator => bool value) private _isOperatorOptedIn;
 
-    mapping(address network => mapping(address resolver => Limit)) private _networkLimit;
+    mapping(address network => mapping(address resolver => Limit limit)) private _networkLimit;
 
-    mapping(address operator => mapping(address network => Limit)) private _operatorLimit;
+    mapping(address operator => mapping(address network => Limit limit)) private _operatorLimit;
+
+    mapping(uint48 timestamp => Cache cache) private _activeSharesCache;
+
+    mapping(uint48 timestamp => Cache cache) private _activeSuppliesCache;
 
     modifier isNetwork(address account) {
         if (!IFactory(NETWORK_REGISTRY).isEntity(account)) {
@@ -734,20 +738,25 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
 
         rewards[token].push(RewardDistribution({amount: amount, timestamp: timestamp, creation: clock()}));
 
+        if (!_activeSharesCache[timestamp].isSet) {
+            _activeSharesCache[timestamp].isSet = true;
+            _activeSharesCache[timestamp].amount = activeSharesAt(timestamp);
+        }
+        if (!_activeSuppliesCache[timestamp].isSet) {
+            _activeSuppliesCache[timestamp].isSet = true;
+            _activeSuppliesCache[timestamp].amount = activeSupplyAt(timestamp);
+        }
+
         emit DistributeReward(token, rewardIndex, network, amount, timestamp);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function claimRewards(address recipient, address[] calldata tokens, uint256[] calldata amountsIndexes) external {
-        uint256 tokensLen = tokens.length;
+    function claimRewards(address recipient, RewardClaim[] calldata rewardClaims) external {
+        uint256 tokensLen = rewardClaims.length;
         if (tokensLen == 0) {
-            revert NoTokens();
-        }
-
-        if (tokensLen != amountsIndexes.length) {
-            revert NotEqualLengths();
+            revert NoRewardClaims();
         }
 
         uint48 firstDepositAt_ = firstDepositAt[msg.sender];
@@ -758,35 +767,50 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
         mapping(address => uint256) storage lastUnclaimedRewardByUser = lastUnclaimedReward[msg.sender];
 
         for (uint256 i; i < tokensLen; ++i) {
-            address token = tokens[i];
-            uint256 amountIndexes = amountsIndexes[i];
+            RewardClaim calldata rewardClaim = rewardClaims[i];
+            address token = rewardClaim.token;
 
             RewardDistribution[] storage rewardsByToken = rewards[token];
-            uint256 firstIndex = lastUnclaimedRewardByUser[token];
-            if (firstIndex == 0) {
-                firstIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_ - 1);
+            uint256 rewardIndex = lastUnclaimedRewardByUser[token];
+            if (rewardIndex == 0) {
+                rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_ - 1);
+            }
+
+            uint256 rewardsToClaim = rewardsByToken.length - rewardIndex;
+            if (rewardsToClaim > rewardClaim.amountIndexes) {
+                rewardsToClaim = rewardClaim.amountIndexes;
+            }
+
+            if (rewardsToClaim == 0) {
+                revert NoRewardsToClaim();
+            }
+
+            uint256 activeSharesOfHintsLen = rewardClaim.activeSharesOfHints.length;
+            if (activeSharesOfHintsLen != 0 && activeSharesOfHintsLen != rewardsToClaim) {
+                revert InvalidHintsLength();
             }
 
             uint256 amount;
-            uint256 rewardIndex = firstIndex;
-            while (rewardIndex < rewardsByToken.length && rewardIndex - firstIndex < amountIndexes) {
+            for (uint256 j; j < rewardsToClaim; ++j) {
                 RewardDistribution storage reward = rewardsByToken[rewardIndex];
 
                 uint256 claimedAmount;
-                if (reward.timestamp >= firstDepositAt_) {
-                    claimedAmount = activeBalanceOfAt(msg.sender, reward.timestamp).mulDiv(
-                        reward.amount, activeSupplyAt(reward.timestamp)
-                    );
+                uint48 timestamp = reward.timestamp;
+                if (timestamp >= firstDepositAt_) {
+                    uint256 activeShares_ = _activeSharesCache[timestamp].amount;
+                    uint256 activeSupply_ = _activeSuppliesCache[timestamp].amount;
+                    uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
+                        ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, rewardClaim.activeSharesOfHints[j])
+                        : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
+                    uint256 activeBalanceOf_ = _previewRedeem(activeSharesOf_, activeSupply_, activeShares_);
+
+                    claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
                     amount += claimedAmount;
                 }
 
                 emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
 
                 ++rewardIndex;
-            }
-
-            if (rewardIndex == firstIndex) {
-                revert NoRewardsToClaim();
             }
 
             lastUnclaimedRewardByUser[token] = rewardIndex;

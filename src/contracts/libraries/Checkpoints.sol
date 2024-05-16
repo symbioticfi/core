@@ -50,6 +50,19 @@ library Checkpoints {
         return self._trace.upperLookupRecent(key);
     }
 
+    function upperLookupRecent(Trace208 storage self, uint48 key, uint32 hint) internal view returns (uint208) {
+        Checkpoint208 memory hintCheckpoint = at(self, hint);
+        if (hintCheckpoint._key == key) {
+            return hintCheckpoint._value;
+        }
+
+        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return hintCheckpoint._value;
+        }
+
+        return upperLookupRecent(self, key);
+    }
+
     function latest(Trace208 storage self) internal view returns (uint208) {
         return self._trace.latest();
     }
@@ -91,6 +104,19 @@ library Checkpoints {
             return 0;
         }
         return self._values[idx];
+    }
+
+    function upperLookupRecent(Trace256 storage self, uint48 key, uint32 hint) internal view returns (uint256) {
+        Checkpoint256 memory hintCheckpoint = at(self, hint);
+        if (hintCheckpoint._key == key) {
+            return hintCheckpoint._value;
+        }
+
+        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return hintCheckpoint._value;
+        }
+
+        return upperLookupRecent(self, key);
     }
 
     function latest(Trace256 storage self) internal view returns (uint256) {
@@ -140,6 +166,19 @@ library Checkpoints {
             return bytes32(0);
         }
         return self._values[idx];
+    }
+
+    function upperLookupRecent(TraceBytes32 storage self, uint48 key, uint32 hint) internal view returns (bytes32) {
+        CheckpointBytes32 memory hintCheckpoint = at(self, hint);
+        if (hintCheckpoint._key == key) {
+            return hintCheckpoint._value;
+        }
+
+        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return hintCheckpoint._value;
+        }
+
+        return upperLookupRecent(self, key);
     }
 
     function latest(TraceBytes32 storage self) internal view returns (bytes32) {

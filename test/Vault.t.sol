@@ -2287,17 +2287,116 @@ contract VaultTest is Test {
         uint48 timestamp = 3;
         _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(token);
-        uint256[] memory amountsIndexes = new uint256[](1);
-        amountsIndexes[0] = type(uint256).max;
+        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
+        rewardClaims[0] = IVault.RewardClaim({
+            token: address(token),
+            amountIndexes: type(uint256).max,
+            activeSharesOfHints: new uint32[](1)
+        });
 
         uint256 balanceBefore = token.balanceOf(alice);
-        _claimRewards(alice, tokens, amountsIndexes);
+        _claimRewards(alice, rewardClaims);
         assertEq(token.balanceOf(alice) - balanceBefore, ditributeAmount);
 
         assertEq(vault.lastUnclaimedReward(alice, address(token)), 1);
     }
+
+    // function test_ClaimRewardsManyWithoutHints(uint256 amount, uint256 ditributeAmount) public {
+    //     amount = bound(amount, 1, 100 * 10 ** 18);
+    //     ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+
+    //     string memory metadataURL = "";
+    //     uint48 epochDuration = 1;
+    //     uint48 slashDuration = 1;
+    //     uint48 vetoDuration = 0;
+    //     vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
+
+    //     address network = bob;
+    //     _registerNetwork(network, bob);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+
+    //     for (uint256 i; i < 105; ++i) {
+    //         _deposit(alice, amount);
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     IERC20 token = IERC20(new Token("Token"));
+    //     token.transfer(bob, 100_000 * 1e18);
+    //     vm.startPrank(bob);
+    //     token.approve(address(vault), type(uint256).max);
+    //     vm.stopPrank();
+
+    //     uint256 numRewards = 50;
+    //     for (uint48 i = 1; i < numRewards + 1; ++i) {
+    //         _ditributeReward(bob, network, address(token), ditributeAmount, i);
+    //     }
+
+    //     IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
+    //     uint32[] memory activeSharesOfHints = new uint32[](0);
+    //     rewardClaims[0] = IVault.RewardClaim({
+    //         token: address(token),
+    //         amountIndexes: type(uint256).max,
+    //         activeSharesOfHints: activeSharesOfHints
+    //     });
+
+    //     uint256 gasLeft = gasleft();
+    //     _claimRewards(alice, rewardClaims);
+    //     uint256 gasLeft2 = gasleft();
+    //     console2.log("Gas1", gasLeft - gasLeft2 - 100);
+    // }
+
+    // function test_ClaimRewardsManyWithHints(uint256 amount, uint256 ditributeAmount) public {
+    //     amount = bound(amount, 1, 100 * 10 ** 18);
+    //     ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+
+    //     string memory metadataURL = "";
+    //     uint48 epochDuration = 1;
+    //     uint48 slashDuration = 1;
+    //     uint48 vetoDuration = 0;
+    //     vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
+
+    //     address network = bob;
+    //     _registerNetwork(network, bob);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+
+    //     for (uint256 i; i < 105; ++i) {
+    //         _deposit(alice, amount);
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     IERC20 token = IERC20(new Token("Token"));
+    //     token.transfer(bob, 100_000 * 1e18);
+    //     vm.startPrank(bob);
+    //     token.approve(address(vault), type(uint256).max);
+    //     vm.stopPrank();
+
+    //     uint256 numRewards = 50;
+    //     for (uint48 i = 1; i < numRewards + 1; ++i) {
+    //         _ditributeReward(bob, network, address(token), ditributeAmount, i);
+    //     }
+
+    //     IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
+    //     uint32[] memory activeSharesOfHints = new uint32[](numRewards);
+    //     for (uint32 i; i < numRewards; ++i) {
+    //         activeSharesOfHints[i] = i;
+    //     }
+    //     rewardClaims[0] = IVault.RewardClaim({
+    //         token: address(token),
+    //         amountIndexes: type(uint256).max,
+    //         activeSharesOfHints: activeSharesOfHints
+    //     });
+
+    //     uint256 gasLeft = gasleft();
+    //     _claimRewards(alice, rewardClaims);
+    //     uint256 gasLeft2 = gasleft();
+    //     console2.log("Gas2", gasLeft - gasLeft2 - 100);
+    // }
 
     function test_ClaimRewardsRevertNoRewardsToClaim(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
@@ -2320,16 +2419,18 @@ contract VaultTest is Test {
 
         IERC20 token = IERC20(new Token("Token"));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(token);
-        uint256[] memory amountsIndexes = new uint256[](1);
-        amountsIndexes[0] = type(uint256).max;
+        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
+        rewardClaims[0] = IVault.RewardClaim({
+            token: address(token),
+            amountIndexes: type(uint256).max,
+            activeSharesOfHints: new uint32[](1)
+        });
 
         vm.expectRevert(IVault.NoRewardsToClaim.selector);
-        _claimRewards(alice, tokens, amountsIndexes);
+        _claimRewards(alice, rewardClaims);
     }
 
-    function test_ClaimRewardsRevertNoTokens(uint256 amount, uint256 ditributeAmount) public {
+    function test_ClaimRewardsRevertNoRewardClaims(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
@@ -2360,52 +2461,10 @@ contract VaultTest is Test {
         uint48 timestamp = 3;
         _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
-        address[] memory tokens = new address[](0);
-        uint256[] memory amountsIndexes = new uint256[](1);
-        amountsIndexes[0] = type(uint256).max;
+        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](0);
 
-        vm.expectRevert(IVault.NoTokens.selector);
-        _claimRewards(alice, tokens, amountsIndexes);
-    }
-
-    function test_ClaimRewardsRevertNotEqualLengths(uint256 amount, uint256 ditributeAmount) public {
-        amount = bound(amount, 1, 100 * 10 ** 18);
-        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
-
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 slashDuration = 1;
-        uint48 vetoDuration = 0;
-        vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
-
-        for (uint256 i; i < 10; ++i) {
-            _deposit(alice, amount);
-
-            blockTimestamp = blockTimestamp + 1;
-            vm.warp(blockTimestamp);
-        }
-
-        IERC20 token = IERC20(new Token("Token"));
-        token.transfer(bob, 100_000 * 1e18);
-        vm.startPrank(bob);
-        token.approve(address(vault), type(uint256).max);
-        vm.stopPrank();
-
-        uint48 timestamp = 3;
-        _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
-
-        address[] memory tokens = new address[](2);
-        tokens[0] = address(token);
-        uint256[] memory amountsIndexes = new uint256[](1);
-        amountsIndexes[0] = type(uint256).max;
-
-        vm.expectRevert(IVault.NotEqualLengths.selector);
-        _claimRewards(alice, tokens, amountsIndexes);
+        vm.expectRevert(IVault.NoRewardClaims.selector);
+        _claimRewards(alice, rewardClaims);
     }
 
     function test_ClaimRewardsRevertNoDeposits(uint256 amount, uint256 ditributeAmount) public {
@@ -2437,13 +2496,15 @@ contract VaultTest is Test {
         uint48 timestamp = 3;
         _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(token);
-        uint256[] memory amountsIndexes = new uint256[](1);
-        amountsIndexes[0] = type(uint256).max;
+        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
+        rewardClaims[0] = IVault.RewardClaim({
+            token: address(token),
+            amountIndexes: type(uint256).max,
+            activeSharesOfHints: new uint32[](1)
+        });
 
         vm.expectRevert(IVault.NoDeposits.selector);
-        _claimRewards(alice, tokens, amountsIndexes);
+        _claimRewards(alice, rewardClaims);
     }
 
     function test_SetHasDepositWhitelist() public {
@@ -2682,9 +2743,9 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _claimRewards(address user, address[] memory tokens, uint256[] memory amountsIndexes) internal {
+    function _claimRewards(address user, IVault.RewardClaim[] memory rewardClaims) internal {
         vm.startPrank(user);
-        vault.claimRewards(user, tokens, amountsIndexes);
+        vault.claimRewards(user, rewardClaims);
         vm.stopPrank();
     }
 
