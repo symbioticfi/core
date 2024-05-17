@@ -42,6 +42,10 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
+    bytes32 public constant DEPOSIT_WHITELIST_ROLE = keccak256("DEPOSIT_WHITELIST_ROLE");
+    /**
+     * @inheritdoc IVault
+     */
     bytes32 public constant DEPOSITOR_WHITELIST_ROLE = keccak256("DEPOSITOR_WHITELIST_ROLE");
 
     /**
@@ -77,7 +81,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    uint48 public epochStart;
+    uint48 public epochDurationInit;
 
     /**
      * @inheritdoc IVault
@@ -87,12 +91,12 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    uint48 public slashDuration;
+    uint48 public vetoDuration;
 
     /**
      * @inheritdoc IVault
      */
-    uint48 public vetoDuration;
+    uint48 public slashDuration;
 
     /**
      * @inheritdoc IVault
@@ -157,7 +161,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    bool public hasDepositWhitelist;
+    bool public depositWhitelist;
 
     /**
      * @inheritdoc IVault
@@ -176,9 +180,9 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
 
     mapping(address operator => mapping(address network => Limit limit)) private _operatorLimit;
 
-    mapping(uint48 timestamp => Cache cache) private _activeSharesCache;
+    mapping(uint48 timestamp => uint256 amount) private _activeSharesCache;
 
-    mapping(uint48 timestamp => Cache cache) private _activeSuppliesCache;
+    mapping(uint48 timestamp => uint256 amount) private _activeSuppliesCache;
 
     modifier isNetwork(address account) {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(account)) {
@@ -288,6 +292,13 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
+    function withdrawalsBalanceOf(uint256 epoch, address account) public view returns (uint256) {
+        return _previewRedeem(withdrawalsSharesOf[epoch][account], withdrawals[epoch], withdrawalsShares[epoch]);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function activeBalanceOf(address account) public view returns (uint256) {
         return _previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
     }
@@ -321,14 +332,14 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
      * @inheritdoc IVault
      */
     function currentEpoch() public view returns (uint256) {
-        return (clock() - epochStart) / epochDuration;
+        return (clock() - epochDurationInit) / epochDuration;
     }
 
     /**
      * @inheritdoc IVault
      */
     function currentEpochStart() public view returns (uint48) {
-        return uint48(epochStart + currentEpoch() * epochDuration);
+        return uint48(epochDurationInit + currentEpoch() * epochDuration);
     }
 
     /**
@@ -392,18 +403,19 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
             revert InvalidSlashDuration();
         }
 
-        epochStart = clock();
+        epochDurationInit = clock();
         epochDuration = params.epochDuration;
 
-        slashDuration = params.slashDuration;
         vetoDuration = params.vetoDuration;
+        slashDuration = params.slashDuration;
 
-        hasDepositWhitelist = params.hasDepositWhitelist;
+        depositWhitelist = params.depositWhitelist;
 
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
         _grantRole(NETWORK_LIMIT_SET_ROLE, params.owner);
         _grantRole(OPERATOR_LIMIT_SET_ROLE, params.owner);
-        if (params.hasDepositWhitelist) {
+        _grantRole(DEPOSIT_WHITELIST_ROLE, params.owner);
+        if (params.depositWhitelist) {
             _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
         }
     }
@@ -419,7 +431,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
      * @inheritdoc IVault
      */
     function deposit(address onBehalfOf, uint256 amount) external returns (uint256 shares) {
-        if (hasDepositWhitelist && !isDepositorWhitelisted[msg.sender]) {
+        if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
 
@@ -485,7 +497,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
             revert InvalidEpoch();
         }
 
-        amount = _previewRedeem(withdrawalsSharesOf[epoch][msg.sender], withdrawals[epoch], withdrawalsShares[epoch]);
+        amount = withdrawalsBalanceOf(epoch, msg.sender);
 
         if (amount == 0) {
             revert InsufficientClaim();
@@ -746,18 +758,21 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
             revert InsufficientReward();
         }
 
+        if (_activeSharesCache[timestamp] == 0) {
+            uint256 activeShares_ = activeSharesAt(timestamp);
+            uint256 activeSupply_ = activeSupplyAt(timestamp);
+
+            if (activeShares_ == 0 || activeSupply_ == 0) {
+                revert InvalidRewardTimestamp();
+            }
+
+            _activeSharesCache[timestamp] = activeShares_;
+            _activeSuppliesCache[timestamp] = activeSupply_;
+        }
+
         rewardIndex = rewards[token].length;
 
         rewards[token].push(RewardDistribution({amount: amount, timestamp: timestamp, creation: clock()}));
-
-        if (!_activeSharesCache[timestamp].isSet) {
-            _activeSharesCache[timestamp].isSet = true;
-            _activeSharesCache[timestamp].amount = activeSharesAt(timestamp);
-        }
-        if (!_activeSuppliesCache[timestamp].isSet) {
-            _activeSuppliesCache[timestamp].isSet = true;
-            _activeSuppliesCache[timestamp].amount = activeSupplyAt(timestamp);
-        }
 
         emit DistributeReward(token, rewardIndex, network, amount, timestamp);
     }
@@ -789,8 +804,8 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
             }
 
             uint256 rewardsToClaim = rewardsByToken.length - rewardIndex;
-            if (rewardsToClaim > rewardClaim.amountIndexes) {
-                rewardsToClaim = rewardClaim.amountIndexes;
+            if (rewardsToClaim > rewardClaim.maxRewards) {
+                rewardsToClaim = rewardClaim.maxRewards;
             }
 
             if (rewardsToClaim == 0) {
@@ -809,8 +824,8 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
                 uint256 claimedAmount;
                 uint48 timestamp = reward.timestamp;
                 if (timestamp >= firstDepositAt_) {
-                    uint256 activeShares_ = _activeSharesCache[timestamp].amount;
-                    uint256 activeSupply_ = _activeSuppliesCache[timestamp].amount;
+                    uint256 activeShares_ = _activeSharesCache[timestamp];
+                    uint256 activeSupply_ = _activeSuppliesCache[timestamp];
                     uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
                         ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, rewardClaim.activeSharesOfHints[j])
                         : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
@@ -883,31 +898,31 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    function setHasDepositWhitelist(bool value) external onlyOwner {
-        if (value == hasDepositWhitelist) {
+    function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_ROLE) {
+        if (status == depositWhitelist) {
             revert AlreadySet();
         }
 
-        hasDepositWhitelist = value;
+        depositWhitelist = status;
 
-        emit SetHasDepositWhitelist(value);
+        emit SetDepositWhitelist(status);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function setDepositorWhitelistStatus(address account, bool value) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
-        if (value && !hasDepositWhitelist) {
+    function setDepositorWhitelistStatus(address account, bool status) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+        if (status && !depositWhitelist) {
             revert NoDepositWhitelist();
         }
 
-        if (isDepositorWhitelisted[account] == value) {
+        if (isDepositorWhitelisted[account] == status) {
             revert AlreadySet();
         }
 
-        isDepositorWhitelisted[account] = value;
+        isDepositorWhitelisted[account] = status;
 
-        emit SetDepositorWhitelistStatus(account, value);
+        emit SetDepositorWhitelistStatus(account, status);
     }
 
     /**
