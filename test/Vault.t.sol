@@ -168,7 +168,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 tokensBefore = collateral.balanceOf(address(vault));
         uint256 shares1 = amount1 * 10 ** 3;
@@ -222,7 +222,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares1 = amount1 * 10 ** 3;
         assertEq(_deposit(alice, amount1), shares1);
@@ -279,7 +279,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -408,7 +408,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -440,7 +440,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -468,7 +468,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -498,7 +498,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -534,7 +534,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -606,7 +606,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -655,7 +655,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -704,7 +704,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -749,7 +749,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -798,7 +798,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -849,7 +849,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -900,7 +900,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -951,7 +951,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares1 = _deposit(alice, amount1);
 
@@ -1061,7 +1061,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -1115,7 +1115,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -1166,7 +1166,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -1220,7 +1220,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -1276,7 +1276,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -1332,7 +1332,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -1409,7 +1409,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -1460,7 +1460,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -1511,7 +1511,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -1565,7 +1565,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -1666,7 +1666,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1818,7 +1818,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address operator = bob;
         _registerOperator(operator);
@@ -1922,7 +1922,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -2065,8 +2065,6 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
-
         address network = bob;
         _registerNetwork(network, bob);
 
@@ -2086,7 +2084,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address operator = bob;
         _registerOperator(operator);
@@ -2215,7 +2213,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);
@@ -2257,7 +2255,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);
@@ -2288,7 +2286,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);
@@ -2321,7 +2319,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);
@@ -2366,7 +2364,7 @@ contract VaultTest is Test {
     //     address network = bob;
     //     _registerNetwork(network, bob);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
     //     for (uint256 i; i < 105; ++i) {
     //         _deposit(alice, amount);
@@ -2413,7 +2411,7 @@ contract VaultTest is Test {
     //     address network = bob;
     //     _registerNetwork(network, bob);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
     //     for (uint256 i; i < 105; ++i) {
     //         _deposit(alice, amount);
@@ -2460,7 +2458,7 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         vault = _getVault(metadataURL, epochDuration, slashDuration, vetoDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);
@@ -2495,7 +2493,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);
@@ -2532,7 +2530,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             blockTimestamp = blockTimestamp + 1;
@@ -2572,7 +2570,7 @@ contract VaultTest is Test {
         address network = bob;
         _registerNetwork(network, bob);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         for (uint256 i; i < 10; ++i) {
             _deposit(alice, amount);

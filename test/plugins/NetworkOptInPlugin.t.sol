@@ -30,7 +30,7 @@ contract NetworkOptInPluginTest is Test {
         networkRegistry = new NonMigratablesRegistry();
     }
 
-    function test_Create(address middleware) public {
+    function test_Create() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
 
@@ -38,8 +38,7 @@ contract NetworkOptInPluginTest is Test {
         assertEq(plugin.isOperatorOptedIn(alice, alice), false);
         assertEq(plugin.lastOperatorOptOut(alice, alice), 0);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
-
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         address operator = alice;
         address network = bob;
 
@@ -92,11 +91,9 @@ contract NetworkOptInPluginTest is Test {
         assertEq(plugin.lastOperatorOptOut(operator, network), blockTimestamp);
     }
 
-    function test_SetNumberRevertNotEntity(address middleware) public {
+    function test_SetNumberRevertNotEntity() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
 
         address operator = alice;
         address network = bob;
@@ -111,11 +108,9 @@ contract NetworkOptInPluginTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetNumberRevertNotNetwork(address middleware) public {
+    function test_SetNumberRevertNotNetwork() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
 
         address operator = alice;
         address network = bob;
@@ -130,11 +125,9 @@ contract NetworkOptInPluginTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetNumberRevertOperatorAlreadyOptedIn(address middleware) public {
+    function test_SetNumberRevertOperatorAlreadyOptedIn() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
 
         address operator = alice;
         address network = bob;
@@ -157,11 +150,9 @@ contract NetworkOptInPluginTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetNumberRevertOperatorNotOptedIn(address middleware) public {
+    function test_SetNumberRevertOperatorNotOptedIn() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp;
 
         address operator = alice;
         address network = bob;

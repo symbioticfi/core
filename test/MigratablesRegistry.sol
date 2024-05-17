@@ -109,7 +109,7 @@ contract MigratablesRegistryTest is Test {
         registry.whitelist(implV2);
 
         vm.startPrank(bob);
-        vm.expectRevert(IMigratablesRegistry.ImproperOwner.selector);
+        vm.expectRevert(IMigratablesRegistry.NotOwner.selector);
         registry.migrate(entity, "");
         vm.stopPrank();
     }

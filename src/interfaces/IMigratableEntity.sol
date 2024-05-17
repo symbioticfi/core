@@ -4,6 +4,12 @@ pragma solidity 0.8.25;
 interface IMigratableEntity {
     error NotProxyAdmin();
 
+    struct MigratableEntityStorage {
+        address _proxyAdmin;
+    }
+
+    function proxyAdmin() external view returns (address);
+
     /**
      * @notice Initialize this entity contract using a given data.
      * @param data some data to use
