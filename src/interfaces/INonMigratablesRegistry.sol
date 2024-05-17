@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IFactory} from "./IFactory.sol";
+import {IRegistry} from "./IRegistry.sol";
 
-interface INonMigratablesRegistry is IFactory {
+interface INonMigratablesRegistry is IRegistry {
     error EntityAlreadyRegistered();
 
     /**

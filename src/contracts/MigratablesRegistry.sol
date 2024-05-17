@@ -6,7 +6,7 @@ import {IMigratableEntityProxy} from "src/interfaces/IMigratableEntityProxy.sol"
 
 import {MigratableEntityProxy} from "./MigratableEntityProxy.sol";
 import {MigratableEntity} from "./MigratableEntity.sol";
-import {Factory} from "./Factory.sol";
+import {Registry} from "./Registry.sol";
 
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -14,7 +14,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
-contract MigratablesRegistry is Factory, Ownable, IMigratablesRegistry {
+contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     using Address for address;
     using EnumerableSet for EnumerableSet.AddressSet;
 

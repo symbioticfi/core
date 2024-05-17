@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
-import {IFactory} from "src/interfaces/IFactory.sol";
+import {IRegistry} from "src/interfaces/IRegistry.sol";
 
 import {Plugin} from "src/contracts/Plugin.sol";
 import {ERC6372} from "src/contracts/utils/ERC6372.sol";
@@ -24,7 +24,7 @@ contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
     mapping(address operator => mapping(address network => uint48 timestamp)) public lastOperatorOptOut;
 
     modifier isNetwork(address network) {
-        if (!IFactory(NETWORK_REGISTRY).isEntity(network)) {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
             revert NotNetwork();
         }
         _;

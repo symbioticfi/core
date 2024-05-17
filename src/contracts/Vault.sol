@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {IVault} from "src/interfaces/IVault.sol";
 import {ICollateral} from "src/interfaces/ICollateral.sol";
-import {IFactory} from "src/interfaces/IFactory.sol";
+import {IRegistry} from "src/interfaces/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 
@@ -181,14 +181,14 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     mapping(uint48 timestamp => Cache cache) private _activeSuppliesCache;
 
     modifier isNetwork(address account) {
-        if (!IFactory(NETWORK_REGISTRY).isEntity(account)) {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(account)) {
             revert NotNetwork();
         }
         _;
     }
 
     modifier onlyNetwork() {
-        if (!IFactory(NETWORK_REGISTRY).isEntity(msg.sender)) {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
         _;
@@ -202,14 +202,14 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     }
 
     modifier isOperator(address account) {
-        if (!IFactory(OPERATOR_REGISTRY).isEntity(account)) {
+        if (!IRegistry(OPERATOR_REGISTRY).isEntity(account)) {
             revert NotOperator();
         }
         _;
     }
 
     modifier onlyOperator() {
-        if (!IFactory(OPERATOR_REGISTRY).isEntity(msg.sender)) {
+        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
             revert NotOperator();
         }
         _;

@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import {INonMigratablesRegistry} from "src/interfaces/INonMigratablesRegistry.sol";
 
-import {Factory} from "./Factory.sol";
+import {Registry} from "./Registry.sol";
 
-contract NonMigratablesRegistry is Factory, INonMigratablesRegistry {
+contract NonMigratablesRegistry is Registry, INonMigratablesRegistry {
     constructor() {}
 
     /**

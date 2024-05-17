@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IFactory} from "src/interfaces/IFactory.sol";
+import {IRegistry} from "src/interfaces/IRegistry.sol";
 
-interface IDefaultCollateralFactory is IFactory {
+interface IDefaultCollateralFactory is IRegistry {
     /**
      * @notice Create a default collateral with a given asset.
      * @param asset address of the underlying asset
