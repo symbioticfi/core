@@ -29,52 +29,65 @@ contract MigratablesRegistryTest is Test {
     }
 
     function test_Create() public {
-        assertEq(registry.maxVersion(), 0);
+        assertEq(registry.lastVersion(), 0);
         vm.expectRevert();
-        registry.version(alice);
+        registry.implementation(0);
 
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
-        assertEq(registry.maxVersion(), 1);
+        assertEq(registry.lastVersion(), 1);
+        assertEq(registry.implementation(1), impl);
+
+        impl = address(new SimpleMigratableEntity());
+        registry.whitelist(impl);
+
+        assertEq(registry.lastVersion(), 2);
+        assertEq(registry.implementation(2), impl);
 
         assertEq(registry.isEntity(alice), false);
-        address entity = registry.create(1, abi.encode(alice));
+        address entity = registry.create(2, abi.encode(alice));
         assertEq(registry.isEntity(entity), true);
-        assertEq(registry.version(entity), 1);
+        assertEq(IMigratableEntity(entity).version(), 2);
 
         vm.startPrank(alice);
         vm.expectRevert();
-        registry.migrate(alice, "");
+        registry.migrate(alice, abi.encode(0));
         vm.stopPrank();
     }
 
-    function test_Migrate() public {
+    function test_Migrate(uint256 a1, uint256 a2, uint256 b1, uint256 b2) public {
+        a2 = bound(a2, 0, type(uint256).max - 1);
+
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
-        address entity = registry.create(1, abi.encode(alice));
+        impl = address(new SimpleMigratableEntity());
+        registry.whitelist(impl);
+
+        address entity = registry.create(2, abi.encode(alice));
 
         address implV2 = address(new SimpleMigratableEntityV2());
         registry.whitelist(implV2);
 
-        assertEq(registry.maxVersion(), 2);
+        assertEq(registry.lastVersion(), 3);
+        assertEq(registry.implementation(3), implV2);
 
-        SimpleMigratableEntity(entity).setA(42);
-        assertEq(SimpleMigratableEntity(entity).a(), 42);
+        SimpleMigratableEntity(entity).setA(a1);
+        assertEq(SimpleMigratableEntity(entity).a(), a1);
 
         vm.startPrank(alice);
-        registry.migrate(entity, "");
+        registry.migrate(entity, abi.encode(b1));
         vm.stopPrank();
 
-        assertEq(registry.version(entity), 2);
-        assertEq(SimpleMigratableEntityV2(entity).a(), 42);
-        assertEq(SimpleMigratableEntityV2(entity).b(), 0);
+        assertEq(IMigratableEntity(entity).version(), 3);
+        assertEq(SimpleMigratableEntityV2(entity).a(), a1);
+        assertEq(SimpleMigratableEntityV2(entity).b(), b1);
 
-        SimpleMigratableEntityV2(entity).setA(43);
-        SimpleMigratableEntityV2(entity).setB(44);
-        assertEq(SimpleMigratableEntityV2(entity).a(), 44);
-        assertEq(SimpleMigratableEntityV2(entity).b(), 44);
+        SimpleMigratableEntityV2(entity).setA(a2);
+        SimpleMigratableEntityV2(entity).setB(b2);
+        assertEq(SimpleMigratableEntityV2(entity).a(), a2 + 1);
+        assertEq(SimpleMigratableEntityV2(entity).b(), b2);
     }
 
     function test_WhitelistRevertAlreadyWhitelisted() public {
@@ -85,7 +98,7 @@ contract MigratablesRegistryTest is Test {
         registry.whitelist(impl);
     }
 
-    function test_CreateRevertInvalidVersion() public {
+    function test_CreateRevertInvalidVersion1() public {
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
@@ -110,11 +123,11 @@ contract MigratablesRegistryTest is Test {
 
         vm.startPrank(bob);
         vm.expectRevert(IMigratablesRegistry.NotOwner.selector);
-        registry.migrate(entity, "");
+        registry.migrate(entity, abi.encode(0));
         vm.stopPrank();
     }
 
-    function test_MigrateRevertAlreadyUpToDate() public {
+    function test_MigrateRevertInvalidVersion2() public {
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
@@ -124,12 +137,12 @@ contract MigratablesRegistryTest is Test {
         registry.whitelist(implV2);
 
         vm.startPrank(alice);
-        registry.migrate(entity, "");
+        registry.migrate(entity, abi.encode(0));
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(IMigratablesRegistry.AlreadyUpToDate.selector);
-        registry.migrate(entity, "");
+        vm.expectRevert(IMigratablesRegistry.InvalidVersion.selector);
+        registry.migrate(entity, abi.encode(0));
         vm.stopPrank();
     }
 
@@ -143,12 +156,12 @@ contract MigratablesRegistryTest is Test {
         registry.whitelist(implV2);
 
         vm.startPrank(alice);
-        registry.migrate(entity, "");
+        registry.migrate(entity, abi.encode(0));
         vm.stopPrank();
 
         vm.startPrank(alice);
         vm.expectRevert(IMigratableEntity.NotProxyAdmin.selector);
-        IMigratableEntity(entity).migrate("");
+        IMigratableEntity(entity).migrate(abi.encode(0));
         vm.stopPrank();
     }
 }

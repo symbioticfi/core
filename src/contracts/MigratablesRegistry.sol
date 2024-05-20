@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {IMigratablesRegistry} from "src/interfaces/IMigratablesRegistry.sol";
+import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";
 
 import {MigratableEntity} from "./MigratableEntity.sol";
 import {Registry} from "./Registry.sol";
@@ -16,28 +17,33 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
-    mapping(address entity => uint256 version) _versions;
+    modifier isValidVersion(uint64 version) {
+        if (version == 0 || version > lastVersion()) {
+            revert InvalidVersion();
+        }
+        _;
+    }
 
     constructor(address owner_) Ownable(owner_) {}
 
     /**
      * @inheritdoc IMigratablesRegistry
      */
-    function version(address entity_) external view override checkEntity(entity_) returns (uint256) {
-        return _versions[entity_];
+    function lastVersion() public view returns (uint64) {
+        return uint64(_whitelistedImplementations.length());
     }
 
     /**
      * @inheritdoc IMigratablesRegistry
      */
-    function maxVersion() public view override returns (uint256) {
-        return _whitelistedImplementations.length();
+    function implementation(uint64 version) public view isValidVersion(version) returns (address) {
+        return _whitelistedImplementations.at(version - 1);
     }
 
     /**
      * @inheritdoc IMigratablesRegistry
      */
-    function whitelist(address entityImplementation) external override onlyOwner {
+    function whitelist(address entityImplementation) external onlyOwner {
         if (!_whitelistedImplementations.add(entityImplementation)) {
             revert AlreadyWhitelisted();
         }
@@ -46,21 +52,14 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     /**
      * @inheritdoc IMigratablesRegistry
      */
-    function create(uint256 version_, bytes memory data) external returns (address entity_) {
-        uint256 maxVersion_ = maxVersion();
-        if (version_ == 0 || version_ > maxVersion_) {
-            revert InvalidVersion();
-        }
-
+    function create(uint64 version, bytes memory data) external isValidVersion(version) returns (address entity_) {
         entity_ = address(
             new ERC1967Proxy(
-                _whitelistedImplementations.at(version_ - 1),
-                abi.encodeWithSelector(MigratableEntity.initialize.selector, data)
+                implementation(version), abi.encodeWithSelector(MigratableEntity.initialize.selector, version, data)
             )
         );
 
         _addEntity(entity_);
-        _versions[entity_] = version_;
     }
 
     /**
@@ -71,16 +70,8 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
             revert NotOwner();
         }
 
-        uint256 currentVersion = _versions[entity_];
-        uint256 newestVersion = _whitelistedImplementations.length();
-        if (currentVersion == newestVersion) {
-            revert AlreadyUpToDate();
-        }
-
-        _versions[entity_] = currentVersion + 1;
-
         UUPSUpgradeable(entity_).upgradeToAndCall(
-            _whitelistedImplementations.at(currentVersion),
+            implementation(IMigratableEntity(entity_).version() + 1),
             abi.encodeWithSelector(MigratableEntity.migrate.selector, data)
         );
     }

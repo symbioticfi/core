@@ -69,7 +69,7 @@ contract InstantRepayCollateral is ERC20, ICollateral {
         return DECIMALS;
     }
 
-    function deposit(uint256 amount) public {
+    function deposit(uint256 amount) external {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
 
         if (amount == 0) {
@@ -92,7 +92,7 @@ contract InstantRepayCollateral is ERC20, ICollateral {
     /**
      * @inheritdoc ICollateral
      */
-    function issueDebt(address recipient, uint256 amount) external override {
+    function issueDebt(address recipient, uint256 amount) external {
         if (amount == 0) {
             revert();
         }

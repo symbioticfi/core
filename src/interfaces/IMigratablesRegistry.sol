@@ -5,24 +5,22 @@ import {IRegistry} from "./IRegistry.sol";
 
 interface IMigratablesRegistry is IRegistry {
     error AlreadyWhitelisted();
-    error AlreadyUpToDate();
     error NotOwner();
     error InvalidVersion();
 
     /**
-     * @notice Get a given entity's version.
-     * @param entity address of the entity
-     * @return version of the entity
-     * @dev Starts from 1.
-     */
-    function version(address entity) external view returns (uint256);
-
-    /**
-     * @notice Get a maximum whitelisted version.
-     * @return maximum version
+     * @notice Get the last availiable version.
+     * @return version of the last implementation
      * @dev If zero, no implementations whitelisted.
      */
-    function maxVersion() external view returns (uint256);
+    function lastVersion() external view returns (uint64);
+
+    /**
+     * @notice Get the implementation for a given version.
+     * @param version version to get the implementation for
+     * @return address of the implementation
+     */
+    function implementation(uint64 version) external view returns (address);
 
     /**
      * @notice Whitelist a new implementation for entities.
@@ -43,5 +41,5 @@ interface IMigratablesRegistry is IRegistry {
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint256 version, bytes memory data) external returns (address);
+    function create(uint64 version, bytes memory data) external returns (address);
 }

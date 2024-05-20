@@ -18,8 +18,6 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-import {Test, console2} from "forge-std/Test.sol";
-
 contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
@@ -386,11 +384,12 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc MigratableEntity
      */
-    function initialize(bytes memory data) public override initializer {
+    function initialize(uint64 version, bytes memory data) public override reinitializer(version) {
         __ReentrancyGuard_init();
 
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
-        super.initialize(abi.encode(params.owner));
+
+        _initialize(params.owner);
 
         metadataURL = params.metadataURL;
         collateral = params.collateral;

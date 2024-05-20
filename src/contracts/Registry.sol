@@ -20,21 +20,21 @@ abstract contract Registry is IRegistry {
     /**
      * @inheritdoc IRegistry
      */
-    function isEntity(address entity_) public view override returns (bool) {
+    function isEntity(address entity_) public view returns (bool) {
         return _entities.contains(entity_);
     }
 
     /**
      * @inheritdoc IRegistry
      */
-    function totalEntities() public view override returns (uint256) {
+    function totalEntities() public view returns (uint256) {
         return _entities.length();
     }
 
     /**
      * @inheritdoc IRegistry
      */
-    function entity(uint256 index) public view override returns (address) {
+    function entity(uint256 index) public view returns (address) {
         return _entities.at(index);
     }
 

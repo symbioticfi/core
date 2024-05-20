@@ -80,7 +80,7 @@ contract SimpleCollateral is ERC20, ICollateral {
     /**
      * @inheritdoc ICollateral
      */
-    function issueDebt(address recipient, uint256 amount) external override {
+    function issueDebt(address recipient, uint256 amount) external {
         if (amount == 0) {
             revert();
         }

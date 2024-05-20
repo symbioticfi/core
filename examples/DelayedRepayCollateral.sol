@@ -71,7 +71,7 @@ contract DelayedRepayCollateral is ERC20, Ownable, ICollateral {
         return DECIMALS;
     }
 
-    function mint(uint256 amount) public onlyOwner {
+    function mint(uint256 amount) external onlyOwner {
         if (amount == 0) {
             revert();
         }
@@ -82,7 +82,7 @@ contract DelayedRepayCollateral is ERC20, Ownable, ICollateral {
     /**
      * @inheritdoc ICollateral
      */
-    function issueDebt(address recipient, uint256 amount) external override {
+    function issueDebt(address recipient, uint256 amount) external {
         if (amount == 0) {
             revert();
         }

@@ -83,7 +83,7 @@ contract VaultTest is Test {
         string memory metadataURL = "";
         vault = IVault(
             vaultRegistry.create(
-                vaultRegistry.maxVersion(),
+                vaultRegistry.lastVersion(),
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,
@@ -1605,11 +1605,11 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
 
         string memory metadataURL = "";
-        uint256 maxVersion = vaultRegistry.maxVersion();
+        uint64 lastVersion = vaultRegistry.lastVersion();
         vm.expectRevert(IVault.InvalidEpochDuration.selector);
         vault = IVault(
             vaultRegistry.create(
-                maxVersion,
+                lastVersion,
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,
@@ -1636,11 +1636,11 @@ contract VaultTest is Test {
         vm.assume(vetoDuration + slashDuration > epochDuration);
 
         string memory metadataURL = "";
-        uint256 maxVersion = vaultRegistry.maxVersion();
+        uint64 lastVersion = vaultRegistry.lastVersion();
         vm.expectRevert(IVault.InvalidSlashDuration.selector);
         vault = IVault(
             vaultRegistry.create(
-                maxVersion,
+                lastVersion,
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,
@@ -2710,7 +2710,7 @@ contract VaultTest is Test {
     ) internal returns (IVault) {
         return IVault(
             vaultRegistry.create(
-                vaultRegistry.maxVersion(),
+                vaultRegistry.lastVersion(),
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,
