@@ -6,8 +6,6 @@ import {INonMigratablesRegistry} from "src/interfaces/INonMigratablesRegistry.so
 import {Registry} from "./Registry.sol";
 
 contract NonMigratablesRegistry is Registry, INonMigratablesRegistry {
-    constructor() {}
-
     /**
      * @inheritdoc INonMigratablesRegistry
      */

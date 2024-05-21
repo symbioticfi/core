@@ -107,6 +107,21 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
+    bool public depositWhitelist;
+
+    /**
+     * @inheritdoc IVault
+     */
+    mapping(address account => bool value) public isDepositorWhitelisted;
+
+    /**
+     * @inheritdoc IVault
+     */
+    mapping(address account => uint48 timestamp) public firstDepositAt;
+
+    /**
+     * @inheritdoc IVault
+     */
     mapping(uint256 epoch => uint256 amount) public withdrawals;
 
     /**
@@ -122,7 +137,17 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    mapping(address account => uint48 timestamp) public firstDepositAt;
+    SlashRequest[] public slashRequests;
+
+    /**
+     * @inheritdoc IVault
+     */
+    mapping(address token => RewardDistribution[] rewards_) public rewards;
+
+    /**
+     * @inheritdoc IVault
+     */
+    mapping(address account => mapping(address token => uint256 rewardIndex)) public lastUnclaimedReward;
 
     /**
      * @inheritdoc IVault
@@ -149,46 +174,21 @@ contract Vault is
      */
     mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorLimit;
 
-    /**
-     * @inheritdoc IVault
-     */
-    SlashRequest[] public slashRequests;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address token => RewardDistribution[] rewards_) public rewards;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address account => mapping(address token => uint256 rewardIndex)) public lastUnclaimedReward;
-
-    /**
-     * @inheritdoc IVault
-     */
-    bool public depositWhitelist;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address account => bool value) public isDepositorWhitelisted;
-
     Checkpoints.Trace256 private _activeShares;
 
     Checkpoints.Trace256 private _activeSupplies;
 
     mapping(address account => Checkpoints.Trace256 shares) private _activeSharesOf;
 
+    mapping(uint48 timestamp => uint256 amount) private _activeSharesCache;
+
+    mapping(uint48 timestamp => uint256 amount) private _activeSuppliesCache;
+
     mapping(address operator => bool value) private _isOperatorOptedIn;
 
     mapping(address network => mapping(address resolver => Limit limit)) private _networkLimit;
 
     mapping(address operator => mapping(address network => Limit limit)) private _operatorLimit;
-
-    mapping(uint48 timestamp => uint256 amount) private _activeSharesCache;
-
-    mapping(uint48 timestamp => uint256 amount) private _activeSuppliesCache;
 
     modifier isNetwork(address account) {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(account)) {
@@ -328,17 +328,7 @@ contract Vault is
      * @inheritdoc IVault
      */
     function maxSlash(address network, address resolver, address operator) public view returns (uint256) {
-        uint256 networkLimit_ = networkLimit(network, resolver);
-        uint256 operatorLimit_ = operatorLimit(operator, network);
-
-        uint256 amount = totalSupply();
-        if (networkLimit_ != type(uint256).max) {
-            amount = Math.min(amount, networkLimit_);
-        }
-        if (operatorLimit_ != type(uint256).max) {
-            amount = Math.min(amount, operatorLimit_);
-        }
-        return amount;
+        return Math.min(totalSupply(), Math.min(networkLimit(network, resolver), operatorLimit(operator, network)));
     }
 
     function slashRequestsLength() public view returns (uint256) {
@@ -447,6 +437,8 @@ contract Vault is
      */
     function setMetadataURL(string calldata metadataURL_) external onlyOwner {
         metadataURL = metadataURL_;
+
+        emit SetMetadataURL(metadataURL_);
     }
 
     /**

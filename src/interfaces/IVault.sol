@@ -126,6 +126,12 @@ interface IVault {
     }
 
     /**
+     * @notice Emitted when a metadata URL is set.
+     * @param metadataURL metadata URL of the vault
+     */
+    event SetMetadataURL(string metadataURL);
+
+    /**
      * @notice Emitted when a deposit is made.
      * @param depositor account that made the deposit
      * @param onBehalfOf account that the deposit was made on behalf of
