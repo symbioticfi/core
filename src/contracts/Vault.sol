@@ -655,86 +655,6 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function optInNetwork(address resolver, uint256 maxNetworkLimit_) external {
-        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
-            revert NotNetwork();
-        }
-
-        if (isNetworkOptedIn[msg.sender][resolver]) {
-            revert NetworkAlreadyOptedIn();
-        }
-
-        if (maxNetworkLimit_ == 0) {
-            revert InvalidMaxNetworkLimit();
-        }
-
-        isNetworkOptedIn[msg.sender][resolver] = true;
-
-        _networkLimit[msg.sender][resolver].amount = 0;
-        nextNetworkLimit[msg.sender][resolver].timestamp = 0;
-
-        maxNetworkLimit[msg.sender][resolver] = maxNetworkLimit_;
-
-        emit OptInNetwork(msg.sender, resolver);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function optOutNetwork(address resolver) external {
-        if (!isNetworkOptedIn[msg.sender][resolver]) {
-            revert NetworkNotOptedIn();
-        }
-
-        _updateLimit(_networkLimit[msg.sender][resolver], nextNetworkLimit[msg.sender][resolver]);
-
-        isNetworkOptedIn[msg.sender][resolver] = false;
-
-        nextNetworkLimit[msg.sender][resolver].amount = 0;
-        nextNetworkLimit[msg.sender][resolver].timestamp = currentEpochStart() + 2 * epochDuration;
-
-        maxNetworkLimit[msg.sender][resolver] = 0;
-
-        emit OptOutNetwork(msg.sender, resolver);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function optInOperator() external {
-        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
-            revert NotOperator();
-        }
-
-        if (isOperatorOptedIn(msg.sender)) {
-            revert OperatorAlreadyOptedIn();
-        }
-
-        if (!_isOperatorOptedIn[msg.sender]) {
-            _isOperatorOptedIn[msg.sender] = true;
-        } else {
-            operatorOptOutAt[msg.sender] = 0;
-        }
-
-        emit OptInOperator(msg.sender);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function optOutOperator() external {
-        if (!isOperatorOptedIn(msg.sender)) {
-            revert OperatorNotOptedIn();
-        }
-
-        operatorOptOutAt[msg.sender] = currentEpochStart() + 2 * epochDuration;
-
-        emit OptOutOperator(msg.sender);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function distributeReward(
         address network,
         address token,
@@ -847,6 +767,86 @@ contract Vault is
                 IERC20(token).safeTransfer(recipient, amount);
             }
         }
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function optInNetwork(address resolver, uint256 maxNetworkLimit_) external {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
+        }
+
+        if (isNetworkOptedIn[msg.sender][resolver]) {
+            revert NetworkAlreadyOptedIn();
+        }
+
+        if (maxNetworkLimit_ == 0) {
+            revert InvalidMaxNetworkLimit();
+        }
+
+        isNetworkOptedIn[msg.sender][resolver] = true;
+
+        _networkLimit[msg.sender][resolver].amount = 0;
+        nextNetworkLimit[msg.sender][resolver].timestamp = 0;
+
+        maxNetworkLimit[msg.sender][resolver] = maxNetworkLimit_;
+
+        emit OptInNetwork(msg.sender, resolver);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function optOutNetwork(address resolver) external {
+        if (!isNetworkOptedIn[msg.sender][resolver]) {
+            revert NetworkNotOptedIn();
+        }
+
+        _updateLimit(_networkLimit[msg.sender][resolver], nextNetworkLimit[msg.sender][resolver]);
+
+        isNetworkOptedIn[msg.sender][resolver] = false;
+
+        nextNetworkLimit[msg.sender][resolver].amount = 0;
+        nextNetworkLimit[msg.sender][resolver].timestamp = currentEpochStart() + 2 * epochDuration;
+
+        maxNetworkLimit[msg.sender][resolver] = 0;
+
+        emit OptOutNetwork(msg.sender, resolver);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function optInOperator() external {
+        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
+            revert NotOperator();
+        }
+
+        if (isOperatorOptedIn(msg.sender)) {
+            revert OperatorAlreadyOptedIn();
+        }
+
+        if (!_isOperatorOptedIn[msg.sender]) {
+            _isOperatorOptedIn[msg.sender] = true;
+        } else {
+            operatorOptOutAt[msg.sender] = 0;
+        }
+
+        emit OptInOperator(msg.sender);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function optOutOperator() external {
+        if (!isOperatorOptedIn(msg.sender)) {
+            revert OperatorNotOptedIn();
+        }
+
+        operatorOptOutAt[msg.sender] = currentEpochStart() + 2 * epochDuration;
+
+        emit OptOutOperator(msg.sender);
     }
 
     /**
