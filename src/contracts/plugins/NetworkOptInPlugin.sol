@@ -23,13 +23,6 @@ contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
      */
     mapping(address operator => mapping(address network => uint48 timestamp)) public lastOperatorOptOut;
 
-    modifier isNetwork(address network) {
-        if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
-            revert NotNetwork();
-        }
-        _;
-    }
-
     constructor(address operatorRegistry, address networkRegistry) Plugin(operatorRegistry) {
         NETWORK_REGISTRY = networkRegistry;
     }
@@ -37,7 +30,11 @@ contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
     /**
      * @inheritdoc INetworkOptInPlugin
      */
-    function optIn(address network) external onlyEntity isNetwork(network) {
+    function optIn(address network) external onlyEntity {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
+            revert NotNetwork();
+        }
+
         if (isOperatorOptedIn[msg.sender][network]) {
             revert OperatorAlreadyOptedIn();
         }

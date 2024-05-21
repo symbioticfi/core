@@ -192,34 +192,6 @@ contract Vault is
 
     mapping(address operator => mapping(address network => Limit limit)) private _operatorLimit;
 
-    modifier isNetwork(address account) {
-        if (!IRegistry(NETWORK_REGISTRY).isEntity(account)) {
-            revert NotNetwork();
-        }
-        _;
-    }
-
-    modifier onlyNetwork() {
-        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
-            revert NotNetwork();
-        }
-        _;
-    }
-
-    modifier onlyNetworkMiddleware(address network) {
-        if (IMiddlewarePlugin(NETWORK_MIDDLEWARE_PLUGIN).middleware(network) != msg.sender) {
-            revert NotNetworkMiddleware();
-        }
-        _;
-    }
-
-    modifier onlyOperator() {
-        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
-            revert NotOperator();
-        }
-        _;
-    }
-
     constructor(
         address networkRegistry,
         address operatorRegistry,
@@ -533,7 +505,11 @@ contract Vault is
         address resolver,
         address operator,
         uint256 amount
-    ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
+    ) external returns (uint256 slashIndex) {
+        if (IMiddlewarePlugin(NETWORK_MIDDLEWARE_PLUGIN).middleware(network) != msg.sender) {
+            revert NotNetworkMiddleware();
+        }
+
         uint256 maxSlash_ = maxSlash(network, resolver, operator);
 
         if (amount == 0 || maxSlash_ == 0) {
@@ -679,7 +655,11 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function optInNetwork(address resolver, uint256 maxNetworkLimit_) external onlyNetwork {
+    function optInNetwork(address resolver, uint256 maxNetworkLimit_) external {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
+        }
+
         if (isNetworkOptedIn[msg.sender][resolver]) {
             revert NetworkAlreadyOptedIn();
         }
@@ -721,7 +701,11 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function optInOperator() external onlyOperator {
+    function optInOperator() external {
+        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
+            revert NotOperator();
+        }
+
         if (isOperatorOptedIn(msg.sender)) {
             revert OperatorAlreadyOptedIn();
         }
@@ -756,7 +740,11 @@ contract Vault is
         address token,
         uint256 amount,
         uint48 timestamp
-    ) external nonReentrant isNetwork(network) returns (uint256 rewardIndex) {
+    ) external nonReentrant returns (uint256 rewardIndex) {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
+            revert NotNetwork();
+        }
+
         if (timestamp >= clock()) {
             revert InvalidRewardTimestamp();
         }
