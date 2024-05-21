@@ -13,6 +13,7 @@ import {Checkpoints} from "./libraries/Checkpoints.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -32,6 +33,7 @@ contract Vault is
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
     using Math for uint256;
+    using Strings for string;
 
     address private constant DEAD = address(0xdEaD);
 
@@ -436,6 +438,10 @@ contract Vault is
      * @inheritdoc IVault
      */
     function setMetadataURL(string calldata metadataURL_) external onlyOwner {
+        if (metadataURL.equal(metadataURL_)) {
+            revert AlreadySet();
+        }
+
         metadataURL = metadataURL_;
 
         emit SetMetadataURL(metadataURL_);
@@ -457,13 +463,12 @@ contract Vault is
 
         uint256 activeSupply_ = activeSupply();
         uint256 activeShares_ = activeShares();
-        uint256 activeSharesOf_ = activeSharesOf(onBehalfOf);
 
         shares = _previewDeposit(amount, activeShares_, activeSupply_);
 
         _activeSupplies.push(clock(), activeSupply_ + amount);
         _activeShares.push(clock(), activeShares_ + shares);
-        _activeSharesOf[onBehalfOf].push(clock(), activeSharesOf_ + shares);
+        _activeSharesOf[onBehalfOf].push(clock(), activeSharesOf(onBehalfOf) + shares);
 
         if (firstDepositAt[onBehalfOf] == 0) {
             firstDepositAt[onBehalfOf] = clock();
@@ -494,10 +499,13 @@ contract Vault is
         _activeSharesOf[msg.sender].push(clock(), activeSharesOf_ - burnedShares);
 
         uint256 epoch = currentEpoch() + 1;
-        mintedShares = _previewDeposit(amount, withdrawalsShares[epoch], withdrawals[epoch]);
+        uint256 withdrawals_ = withdrawals[epoch];
+        uint256 withdrawalsShares_ = withdrawalsShares[epoch];
 
-        withdrawals[epoch] += amount;
-        withdrawalsShares[epoch] += mintedShares;
+        mintedShares = _previewDeposit(amount, withdrawalsShares_, withdrawals_);
+
+        withdrawals[epoch] = withdrawals_ + amount;
+        withdrawalsShares[epoch] = withdrawalsShares_ + mintedShares;
         withdrawalsSharesOf[epoch][claimer] += mintedShares;
 
         emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
@@ -543,9 +551,11 @@ contract Vault is
             revert NetworkNotOptedIn();
         }
 
-        bool optedInNetwork = INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).isOperatorOptedIn(operator, network);
-        uint48 lastOperatorOptOut = INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).lastOperatorOptOut(operator, network);
-        if (!optedInNetwork && lastOperatorOptOut < block.timestamp - epochDuration) {
+        if (
+            !INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).isOperatorOptedIn(operator, network)
+                && INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).lastOperatorOptOut(operator, network)
+                    < block.timestamp - epochDuration
+        ) {
             revert OperatorNotOptedInNetwork();
         }
 
@@ -603,11 +613,6 @@ contract Vault is
 
         slashedAmount = Math.min(request.amount, maxSlash(request.network, request.resolver, request.operator));
 
-        if (slashedAmount == 0) {
-            emit ExecuteSlash(slashIndex, 0);
-            return 0;
-        }
-
         uint256 epoch = currentEpoch();
         uint256 totalSupply_ = totalSupply();
         uint256 activeSupply_ = activeSupply();
@@ -621,9 +626,8 @@ contract Vault is
         uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed - withdrawalsSlashed;
         if (nextWithdrawals_ < nextWithdrawalsSlashed) {
             nextWithdrawalsSlashed = nextWithdrawals_;
+            slashedAmount = activeSlashed + withdrawalsSlashed + nextWithdrawalsSlashed;
         }
-
-        slashedAmount = activeSlashed + withdrawalsSlashed + nextWithdrawalsSlashed;
 
         emit ExecuteSlash(slashIndex, slashedAmount);
 
@@ -814,13 +818,10 @@ contract Vault is
             RewardDistribution[] storage rewardsByToken = rewards[token];
             uint256 rewardIndex = lastUnclaimedRewardByUser[token];
             if (rewardIndex == 0) {
-                rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_ - 1);
+                rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_);
             }
 
-            uint256 rewardsToClaim = rewardsByToken.length - rewardIndex;
-            if (rewardsToClaim > rewardClaim.maxRewards) {
-                rewardsToClaim = rewardClaim.maxRewards;
-            }
+            uint256 rewardsToClaim = Math.min(rewardClaim.maxRewards, rewardsByToken.length - rewardIndex);
 
             if (rewardsToClaim == 0) {
                 revert NoRewardsToClaim();
@@ -832,7 +833,7 @@ contract Vault is
             }
 
             uint256 amount;
-            for (uint256 j; j < rewardsToClaim; ++j) {
+            for (uint256 j; j < rewardsToClaim;) {
                 RewardDistribution storage reward = rewardsByToken[rewardIndex];
 
                 uint256 claimedAmount;
@@ -851,7 +852,10 @@ contract Vault is
 
                 emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
 
-                ++rewardIndex;
+                unchecked {
+                    ++j;
+                    ++rewardIndex;
+                }
             }
 
             lastUnclaimedRewardByUser[token] = rewardIndex;
@@ -946,35 +950,38 @@ contract Vault is
         revert();
     }
 
+    /**
+     * @dev Searches a sorted by creation time `array` and returns the first index that contains
+     * a RewardDistribution structure with `creation` greater or equal to `unclaimedFrom`. If no such index exists (i.e. all
+     * structures in the array are with `creation` strictly less than `unclaimedFrom`), the array length is
+     * returned.
+     */
     function _firstUnclaimedReward(
         RewardDistribution[] storage array,
-        uint48 claimedUntil
+        uint48 unclaimedFrom
     ) private view returns (uint256) {
-        uint256 low = 0;
-        uint256 high = array.length;
-        uint48 element = claimedUntil + 1;
-
-        if (high == 0) {
+        uint256 len = array.length;
+        if (len == 0) {
             return 0;
         }
+
+        uint256 low = 0;
+        uint256 high = len;
 
         while (low < high) {
             uint256 mid = Math.average(low, high);
 
-            // Note that mid will always be strictly less than high (i.e. it will be a valid array index)
-            // because Math.average rounds towards zero (it does integer division with truncation).
-            if (array[mid].creation > element) {
-                high = mid;
-            } else {
+            if (array[mid].creation < unclaimedFrom) {
                 low = mid + 1;
+            } else {
+                high = mid;
             }
         }
 
-        // At this point `low` is the exclusive upper bound. We will return the inclusive upper bound.
-        if (low > 0 && array[low - 1].creation == element) {
-            return low - 1;
-        } else {
+        if (low < len && array[low].creation >= unclaimedFrom) {
             return low;
+        } else {
+            return len;
         }
     }
 

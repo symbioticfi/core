@@ -17,6 +17,10 @@ contract MiddlewarePlugin is Plugin, IMiddlewarePlugin {
      * @inheritdoc IMiddlewarePlugin
      */
     function setMiddleware(address middleware_) external onlyEntity {
+        if (middleware[msg.sender] == middleware_) {
+            revert AlreadySet();
+        }
+
         middleware[msg.sender] = middleware_;
 
         emit SetMiddleware(msg.sender, middleware_);

@@ -29,6 +29,8 @@ contract MiddlewarePluginTest is Test {
     }
 
     function test_Create(address middleware) public {
+        vm.assume(middleware != address(0));
+
         plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
 
         assertEq(plugin.middleware(alice), address(0));
@@ -44,11 +46,32 @@ contract MiddlewarePluginTest is Test {
         assertEq(plugin.middleware(alice), middleware);
     }
 
-    function test_SetNumberRevertNotEntity(address middleware) public {
+    function test_SetMiddlewareRevertNotEntity(address middleware) public {
+        vm.assume(middleware != address(0));
+
         plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
 
         vm.startPrank(alice);
         vm.expectRevert(IPlugin.NotEntity.selector);
+        plugin.setMiddleware(middleware);
+        vm.stopPrank();
+    }
+
+    function test_SetMiddlewareRevertAlreadySet(address middleware) public {
+        vm.assume(middleware != address(0));
+
+        plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
+
+        vm.startPrank(alice);
+        registry.register();
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        plugin.setMiddleware(middleware);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(IMiddlewarePlugin.AlreadySet.selector);
         plugin.setMiddleware(middleware);
         vm.stopPrank();
     }

@@ -91,7 +91,7 @@ contract NetworkOptInPluginTest is Test {
         assertEq(plugin.lastOperatorOptOut(operator, network), blockTimestamp);
     }
 
-    function test_SetNumberRevertNotEntity() public {
+    function test_OptInRevertNotEntity() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
 
@@ -108,7 +108,7 @@ contract NetworkOptInPluginTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetNumberRevertNotNetwork() public {
+    function test_OptInRevertNotNetwork() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
 
@@ -125,7 +125,7 @@ contract NetworkOptInPluginTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetNumberRevertOperatorAlreadyOptedIn() public {
+    function test_OptInRevertOperatorAlreadyOptedIn() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
 
@@ -150,7 +150,7 @@ contract NetworkOptInPluginTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetNumberRevertOperatorNotOptedIn() public {
+    function test_OptOutRevertOperatorNotOptedIn() public {
         plugin =
             INetworkOptInPlugin(address(new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry))));
 

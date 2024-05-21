@@ -17,9 +17,11 @@ import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
 import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract VaultTest is Test {
     using Math for uint256;
+    using Strings for string;
 
     address owner;
     address alice;
@@ -159,6 +161,32 @@ contract VaultTest is Test {
         vm.stopPrank();
 
         assertEq(vault.metadataURL(), metadataURL1);
+    }
+
+    function test_SetMetadataURLRevertAlreadySet(string memory metadataURL) public {
+        vm.assume(!metadataURL.equal(""));
+
+        vault = IVault(
+            vaultRegistry.create(
+                vaultRegistry.lastVersion(),
+                abi.encode(
+                    IVault.InitParams({
+                        owner: alice,
+                        metadataURL: metadataURL,
+                        collateral: address(collateral),
+                        epochDuration: 1,
+                        vetoDuration: 0,
+                        slashDuration: 1,
+                        depositWhitelist: false
+                    })
+                )
+            )
+        );
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.AlreadySet.selector);
+        vault.setMetadataURL(metadataURL);
+        vm.stopPrank();
     }
 
     function test_DepositTwice(uint256 amount1, uint256 amount2) public {

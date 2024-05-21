@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 import {IPlugin} from "src/interfaces/IPlugin.sol";
 
 interface IMetadataPlugin is IPlugin {
+    error AlreadySet();
+
     /**
      * @notice Emitted when a metadata URL is set for an entity.
      * @param entity address of the entity
