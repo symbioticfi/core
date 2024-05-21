@@ -48,7 +48,7 @@ abstract contract MigratableEntity is Initializable, UUPSUpgradeable, OwnableUpg
     /**
      * @inheritdoc IMigratableEntity
      */
-    function migrate(bytes memory) public virtual {
+    function migrate(bytes memory) public virtual reinitializer(_getInitializedVersion() + 1) {
         _migrate();
     }
 
@@ -60,7 +60,7 @@ abstract contract MigratableEntity is Initializable, UUPSUpgradeable, OwnableUpg
         $._proxyAdmin = msg.sender;
     }
 
-    function _migrate() internal onlyProxyAdmin reinitializer(_getInitializedVersion() + 1) {}
+    function _migrate() internal onlyProxyAdmin {}
 
     function _authorizeUpgrade(address newImplementation) internal override onlyProxyAdmin {}
 

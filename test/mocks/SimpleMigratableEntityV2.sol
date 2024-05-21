@@ -18,7 +18,7 @@ contract SimpleMigratableEntityV2 is MigratableEntity {
     /**
      * @inheritdoc MigratableEntity
      */
-    function migrate(bytes memory data) public override {
+    function migrate(bytes memory data) public override reinitializer(_getInitializedVersion() + 1) {
         _migrate();
 
         uint256 b_ = abi.decode(data, (uint256));
