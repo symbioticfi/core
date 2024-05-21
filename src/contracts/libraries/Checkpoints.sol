@@ -95,7 +95,6 @@ library Checkpoints {
      */
     function push(Trace256 storage self, uint48 key, uint256 value) internal returns (uint256, uint256) {
         if (self._values.length == 0) {
-            self._trace.push(0, 0);
             self._values.push(0);
         }
 
@@ -112,10 +111,7 @@ library Checkpoints {
      */
     function upperLookupRecent(Trace256 storage self, uint48 key) internal view returns (uint256) {
         uint208 idx = self._trace.upperLookupRecent(key);
-        if (idx == 0) {
-            return 0;
-        }
-        return self._values[idx];
+        return idx != 0 ? self._values[idx] : 0;
     }
 
     /**
@@ -143,25 +139,21 @@ library Checkpoints {
      */
     function latest(Trace256 storage self) internal view returns (uint256) {
         uint208 idx = self._trace.latest();
-        if (idx == 0) {
-            return 0;
-        }
-        return self._values[idx];
+        return idx != 0 ? self._values[idx] : 0;
     }
 
     /**
      * @dev Returns the number of checkpoint.
      */
     function length(Trace256 storage self) internal view returns (uint256) {
-        uint256 len = self._trace.length();
-        return len == 0 ? 0 : len - 1;
+        return self._trace.length();
     }
 
     /**
      * @dev Returns checkpoint at given position.
      */
     function at(Trace256 storage self, uint32 pos) internal view returns (Checkpoint256 memory) {
-        OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos + 1);
+        OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos);
         return Checkpoint256({_key: checkpoint._key, _value: self._values[checkpoint._value]});
     }
 }

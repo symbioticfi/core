@@ -16,9 +16,17 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessControlUpgradeable, IVault {
+contract Vault is
+    MigratableEntity,
+    ERC6372,
+    ReentrancyGuardUpgradeable,
+    MulticallUpgradeable,
+    AccessControlUpgradeable,
+    IVault
+{
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -282,6 +290,21 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
+    function activeSharesOfCheckpointsLength(address account) public view returns (uint256) {
+        return _activeSharesOf[account].length();
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeSharesOfCheckpoint(address account, uint32 pos) public view returns (uint48, uint256) {
+        Checkpoints.Checkpoint256 memory checkpoint = _activeSharesOf[account].at(pos);
+        return (checkpoint._key, checkpoint._value);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function activeBalanceOfAt(address account, uint48 timestamp) public view returns (uint256) {
         return
             _previewRedeem(activeSharesOfAt(account, timestamp), activeSupplyAt(timestamp), activeSharesAt(timestamp));
@@ -290,15 +313,15 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
     /**
      * @inheritdoc IVault
      */
-    function withdrawalsBalanceOf(uint256 epoch, address account) public view returns (uint256) {
-        return _previewRedeem(withdrawalsSharesOf[epoch][account], withdrawals[epoch], withdrawalsShares[epoch]);
+    function activeBalanceOf(address account) public view returns (uint256) {
+        return _previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
     }
 
     /**
      * @inheritdoc IVault
      */
-    function activeBalanceOf(address account) public view returns (uint256) {
-        return _previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
+    function withdrawalsBalanceOf(uint256 epoch, address account) public view returns (uint256) {
+        return _previewRedeem(withdrawalsSharesOf[epoch][account], withdrawals[epoch], withdrawalsShares[epoch]);
     }
 
     /**
@@ -744,7 +767,7 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
         address token,
         uint256 amount,
         uint48 timestamp
-    ) external isNetwork(network) returns (uint256 rewardIndex) {
+    ) external nonReentrant isNetwork(network) returns (uint256 rewardIndex) {
         if (timestamp >= clock()) {
             revert InvalidRewardTimestamp();
         }
@@ -823,12 +846,12 @@ contract Vault is MigratableEntity, ERC6372, ReentrancyGuardUpgradeable, AccessC
                 uint256 claimedAmount;
                 uint48 timestamp = reward.timestamp;
                 if (timestamp >= firstDepositAt_) {
-                    uint256 activeShares_ = _activeSharesCache[timestamp];
                     uint256 activeSupply_ = _activeSuppliesCache[timestamp];
                     uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
                         ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, rewardClaim.activeSharesOfHints[j])
                         : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
-                    uint256 activeBalanceOf_ = _previewRedeem(activeSharesOf_, activeSupply_, activeShares_);
+                    uint256 activeBalanceOf_ =
+                        _previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCache[timestamp]);
 
                     claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
                     amount += claimedAmount;

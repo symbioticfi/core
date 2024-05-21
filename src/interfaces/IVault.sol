@@ -411,6 +411,22 @@ interface IVault {
     function activeSharesOf(address account) external view returns (uint256);
 
     /**
+     * @notice Get a total number of the activeSharesOf checkpoints for a particular account.
+     * @param account account to get the total number of the activeSharesOf checkpoints for
+     * @return total number of the activeSharesOf checkpoints for the account
+     */
+    function activeSharesOfCheckpointsLength(address account) external view returns (uint256);
+
+    /**
+     * @notice Get an activeSharesOf checkpoint for a particular account at a given index.
+     * @param account account to get the activeSharesOf checkpoint for
+     * @param pos index of the checkpoint
+     * @return timestamp time point of the checkpoint
+     * @return amount of active shares at the checkpoint
+     */
+    function activeSharesOfCheckpoint(address account, uint32 pos) external view returns (uint48, uint256);
+
+    /**
      * @notice Get an active balance for a particular account at a given timestamp.
      * @param account account to get the active balance for
      * @param timestamp time point to get the active balance for the account at
