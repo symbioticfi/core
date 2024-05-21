@@ -213,13 +213,6 @@ contract Vault is
         _;
     }
 
-    modifier isOperator(address account) {
-        if (!IRegistry(OPERATOR_REGISTRY).isEntity(account)) {
-            revert NotOperator();
-        }
-        _;
-    }
-
     modifier onlyOperator() {
         if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
             revert NotOperator();
@@ -540,7 +533,7 @@ contract Vault is
         address resolver,
         address operator,
         uint256 amount
-    ) external isNetwork(network) onlyNetworkMiddleware(network) isOperator(operator) returns (uint256 slashIndex) {
+    ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
         uint256 maxSlash_ = maxSlash(network, resolver, operator);
 
         if (amount == 0 || maxSlash_ == 0) {
@@ -708,7 +701,7 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function optOutNetwork(address resolver) external onlyNetwork {
+    function optOutNetwork(address resolver) external {
         if (!isNetworkOptedIn[msg.sender][resolver]) {
             revert NetworkNotOptedIn();
         }
@@ -745,7 +738,7 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function optOutOperator() external onlyOperator {
+    function optOutOperator() external {
         if (!isOperatorOptedIn(msg.sender)) {
             revert OperatorNotOptedIn();
         }
@@ -790,7 +783,9 @@ contract Vault is
 
         rewardIndex = rewards[token].length;
 
-        rewards[token].push(RewardDistribution({amount: amount, timestamp: timestamp, creation: clock()}));
+        rewards[token].push(
+            RewardDistribution({network: network, amount: amount, timestamp: timestamp, creation: clock()})
+        );
 
         emit DistributeReward(token, rewardIndex, network, amount, timestamp);
     }

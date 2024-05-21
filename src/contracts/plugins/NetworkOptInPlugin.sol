@@ -48,7 +48,7 @@ contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
     /**
      * @inheritdoc INetworkOptInPlugin
      */
-    function optOut(address network) external onlyEntity isNetwork(network) {
+    function optOut(address network) external {
         if (!isOperatorOptedIn[msg.sender][network]) {
             revert OperatorNotOptedIn();
         }

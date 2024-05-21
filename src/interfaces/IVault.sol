@@ -103,11 +103,13 @@ interface IVault {
 
     /**
      * @notice Structure for a reward distribution.
+     * @param network network on behalf of which the reward is distributed
      * @param amount amount of tokens to be distributed
      * @param timestamp time point stakes must taken into account at
      * @param creation timestamp when the reward distribution was created
      */
     struct RewardDistribution {
+        address network;
         uint256 amount;
         uint48 timestamp;
         uint48 creation;
@@ -534,6 +536,7 @@ interface IVault {
      * @notice Get a reward distribution.
      * @param token address of the token
      * @param rewardIndex index of the reward distribution
+     * @return network network on behalf of which the reward is distributed
      * @return amount amount of tokens to be distributed
      * @return timestamp time point stakes must taken into account at
      * @return creation timestamp when the reward distribution was created
@@ -541,7 +544,7 @@ interface IVault {
     function rewards(
         address token,
         uint256 rewardIndex
-    ) external view returns (uint256 amount, uint48 timestamp, uint48 creation);
+    ) external view returns (address network, uint256 amount, uint48 timestamp, uint48 creation);
 
     /**
      * @notice Get a first index of the unclaimed rewards using a particular token by a given account.

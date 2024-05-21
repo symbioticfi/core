@@ -645,55 +645,6 @@ contract VaultTest is Test {
         assertEq(completed_, false);
     }
 
-    function test_RequestSlashRevertNotNetwork(
-        uint256 amount1,
-        uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
-        uint256 toSlash
-    ) public {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
-        toSlash = bound(toSlash, 1, type(uint256).max);
-
-        string memory metadataURL = "";
-        uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
-        uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
-        uint256 shares = _deposit(alice, amount1);
-
-        shares += _deposit(bob, amount2);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
-
-        _optInOperator(operator);
-
-        _setNetworkLimit(alice, network, resolver, networkLimit);
-
-        _setOperatorLimit(alice, operator, network, operatorLimit);
-
-        _networkOptIn(operator, network);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        vm.expectRevert(IVault.NotNetwork.selector);
-        _requestSlash(bob, address(0), resolver, operator, toSlash);
-    }
-
     function test_RequestSlashRevertNotNetworkMiddleware(
         uint256 amount1,
         uint256 amount2,
@@ -741,55 +692,6 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.NotNetworkMiddleware.selector);
         _requestSlash(alice, network, resolver, operator, toSlash);
-    }
-
-    function test_RequestSlashRevertNotOperator(
-        uint256 amount1,
-        uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
-        uint256 toSlash
-    ) public {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
-        toSlash = bound(toSlash, 1, type(uint256).max);
-
-        string memory metadataURL = "";
-        uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
-        uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
-        uint256 shares = _deposit(alice, amount1);
-
-        shares += _deposit(bob, amount2);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
-
-        _optInOperator(operator);
-
-        _setNetworkLimit(alice, network, resolver, networkLimit);
-
-        _setOperatorLimit(alice, operator, network, operatorLimit);
-
-        _networkOptIn(operator, network);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        vm.expectRevert(IVault.NotOperator.selector);
-        _requestSlash(bob, network, resolver, address(0), toSlash);
     }
 
     function test_RequestSlashRevertInsufficientSlash(
@@ -1845,23 +1747,6 @@ contract VaultTest is Test {
         _optInNetwork(address(0), resolver, type(uint256).max);
     }
 
-    function test_OptOutNetworkRevertNotNetwork() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
-
-        vm.expectRevert(IVault.NotNetwork.selector);
-        _optOutNetwork(address(0), resolver);
-    }
-
     function test_OptInNetworkRevertNetworkNotOptedIn() public {
         string memory metadataURL = "";
         uint48 epochDuration = 1;
@@ -1961,22 +1846,6 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.OperatorNotOptedIn.selector);
         _optOutOperator(operator);
-    }
-
-    function test_OptOutOperatorRevertNotOperator() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        _optInOperator(operator);
-
-        vm.expectRevert(IVault.NotOperator.selector);
-        _optOutOperator(address(0));
     }
 
     function test_SetNetworkLimit(uint48 epochDuration, uint256 amount1, uint256 amount2, uint256 amount3) public {
@@ -2302,7 +2171,9 @@ contract VaultTest is Test {
         assertEq(balanceBeforeBob - feeOnTransferToken.balanceOf(bob), ditributeAmount);
 
         assertEq(vault.rewardsLength(address(feeOnTransferToken)), 1);
-        (uint256 amount_, uint48 timestamp_, uint48 creation) = vault.rewards(address(feeOnTransferToken), 0);
+        (address network_, uint256 amount_, uint48 timestamp_, uint48 creation) =
+            vault.rewards(address(feeOnTransferToken), 0);
+        assertEq(network_, network);
         assertEq(amount_, ditributeAmount - 1);
         assertEq(timestamp_, timestamp);
         assertEq(creation, blockTimestamp);
