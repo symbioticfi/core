@@ -12,9 +12,9 @@ abstract contract MigratableEntity is Initializable, UUPSUpgradeable, OwnableUpg
     bytes32 private constant MigratableEntityStorageLocation =
         0x22b5f4baea4997f81f8aeb6360e0bdae13f074e0e55c27a8a6fab78cbad46200;
 
-    modifier onlyProxyAdmin() {
-        if (msg.sender != proxyAdmin()) {
-            revert NotProxyAdmin();
+    modifier onlyRegistry() {
+        if (msg.sender != registry()) {
+            revert NotRegistry();
         }
         _;
     }
@@ -26,8 +26,8 @@ abstract contract MigratableEntity is Initializable, UUPSUpgradeable, OwnableUpg
     /**
      * @inheritdoc IMigratableEntity
      */
-    function proxyAdmin() public view returns (address) {
-        return _getMigratableEntityStorage()._proxyAdmin;
+    function registry() public view returns (address) {
+        return _getMigratableEntityStorage()._registry;
     }
 
     /**
@@ -57,12 +57,12 @@ abstract contract MigratableEntity is Initializable, UUPSUpgradeable, OwnableUpg
         __UUPSUpgradeable_init();
 
         MigratableEntityStorage storage $ = _getMigratableEntityStorage();
-        $._proxyAdmin = msg.sender;
+        $._registry = msg.sender;
     }
 
-    function _migrate() internal onlyProxyAdmin {}
+    function _migrate() internal onlyRegistry {}
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyProxyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRegistry {}
 
     function _getMigratableEntityStorage() private pure returns (MigratableEntityStorage storage $) {
         assembly {
