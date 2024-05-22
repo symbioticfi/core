@@ -5,12 +5,22 @@ import {IVaultDelegation} from "src/interfaces/IVaultDelegation.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
+import {MigratableEntity} from "./base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract VaultDelegation is VaultStorage, IVaultDelegation {
+contract VaultDelegation is
+    VaultStorage,
+    MigratableEntity,
+    AccessControlUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IVaultDelegation
+{
     using Strings for string;
 
     constructor(
@@ -43,6 +53,51 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
      */
     function operatorLimit(address operator, address network) public view returns (uint256) {
         return _getLimit(_operatorLimit[operator][network], nextOperatorLimit[operator][network]);
+    }
+
+    /**
+     * @inheritdoc IMigratableEntity
+     */
+    function initialize(
+        uint64 version_,
+        bytes memory data
+    ) public override(MigratableEntity, IMigratableEntity) reinitializer(version_) {
+        (IVaultDelegation.InitParams memory params) = abi.decode(data, (IVaultDelegation.InitParams));
+
+        if (params.epochDuration == 0) {
+            revert InvalidEpochDuration();
+        }
+
+        if (params.vetoDuration + params.slashDuration > params.epochDuration) {
+            revert InvalidSlashDuration();
+        }
+
+        if (params.adminFee > ADMIN_FEE_BASE) {
+            revert InvalidAdminFee();
+        }
+
+        __ReentrancyGuard_init();
+
+        _initialize(params.owner);
+
+        metadataURL = params.metadataURL;
+        collateral = params.collateral;
+
+        epochDurationInit = clock();
+        epochDuration = params.epochDuration;
+
+        vetoDuration = params.vetoDuration;
+        slashDuration = params.slashDuration;
+
+        adminFee = params.adminFee;
+        depositWhitelist = params.depositWhitelist;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
+        _grantRole(NETWORK_LIMIT_SET_ROLE, params.owner);
+        _grantRole(OPERATOR_LIMIT_SET_ROLE, params.owner);
+        if (params.depositWhitelist) {
+            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
+        }
     }
 
     /**
@@ -198,6 +253,13 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
         }
 
         emit SetOperatorLimit(operator, network, amount);
+    }
+
+    /**
+     * @inheritdoc IMigratableEntity
+     */
+    function migrate(bytes memory) public override(MigratableEntity, IMigratableEntity) {
+        revert();
     }
 
     function _getLimit(Limit storage limit, DelayedLimit storage nextLimit) private view returns (uint256) {

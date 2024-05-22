@@ -183,18 +183,17 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert InsufficientSlash();
         }
 
-        uint256 edgeTimestamp = previousEpochStart();
-
         if (
             !IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
-                && IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < edgeTimestamp
+                && IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < previousEpochStart()
         ) {
             revert OperatorNotOptedInNetwork();
         }
 
         if (
             !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(operator, address(this))
-                && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(operator, address(this)) < edgeTimestamp
+                && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(operator, address(this))
+                    < previousEpochStart()
         ) {
             revert OperatorNotOptedInVault();
         }
@@ -245,12 +244,10 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert SlashCompleted();
         }
 
-        uint256 edgeTimestamp = previousEpochStart();
-
         if (
             !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(request.operator, address(this))
                 && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(request.operator, address(this))
-                    < edgeTimestamp
+                    < previousEpochStart()
         ) {
             revert OperatorNotOptedInVault();
         }

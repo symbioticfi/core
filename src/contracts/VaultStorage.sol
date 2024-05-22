@@ -2,17 +2,11 @@
 pragma solidity 0.8.25;
 
 import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
-import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
-import {MigratableEntity} from "./base/MigratableEntity.sol";
 import {ERC6372} from "./utils/ERC6372.sol";
 import {Checkpoints} from "./libraries/Checkpoints.sol";
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-
-contract VaultStorage is // TODO
-    MigratableEntity, ERC6372, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVaultStorage {
+contract VaultStorage is ERC6372, IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
 
     /**
@@ -304,57 +298,5 @@ contract VaultStorage is // TODO
      */
     function rewardsLength(address token) public view returns (uint256) {
         return rewards[token].length;
-    }
-
-    /**
-     * @inheritdoc IMigratableEntity
-     */
-    function initialize(
-        uint64 version_,
-        bytes memory data
-    ) public override(MigratableEntity, IMigratableEntity) reinitializer(version_) {
-        (IVaultStorage.InitParams memory params) = abi.decode(data, (IVaultStorage.InitParams));
-
-        if (params.epochDuration == 0) {
-            revert InvalidEpochDuration();
-        }
-
-        if (params.vetoDuration + params.slashDuration > params.epochDuration) {
-            revert InvalidSlashDuration();
-        }
-
-        if (params.adminFee > ADMIN_FEE_BASE) {
-            revert InvalidAdminFee();
-        }
-
-        __ReentrancyGuard_init();
-
-        _initialize(params.owner);
-
-        metadataURL = params.metadataURL;
-        collateral = params.collateral;
-
-        epochDurationInit = clock();
-        epochDuration = params.epochDuration;
-
-        vetoDuration = params.vetoDuration;
-        slashDuration = params.slashDuration;
-
-        adminFee = params.adminFee;
-        depositWhitelist = params.depositWhitelist;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
-        _grantRole(NETWORK_LIMIT_SET_ROLE, params.owner);
-        _grantRole(OPERATOR_LIMIT_SET_ROLE, params.owner);
-        if (params.depositWhitelist) {
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
-        }
-    }
-
-    /**
-     * @inheritdoc IMigratableEntity
-     */
-    function migrate(bytes memory) public override(MigratableEntity, IMigratableEntity) {
-        revert();
     }
 }

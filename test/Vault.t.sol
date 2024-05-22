@@ -98,7 +98,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVaultStorage.InitParams({
+                    IVaultDelegation.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -207,7 +207,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVaultStorage.InitParams({
+                    IVaultDelegation.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: 1,
@@ -1629,12 +1629,12 @@ contract VaultTest is Test {
 
         string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVaultStorage.InvalidEpochDuration.selector);
+        vm.expectRevert(IVaultDelegation.InvalidEpochDuration.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVaultStorage.InitParams({
+                    IVaultDelegation.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -1661,12 +1661,12 @@ contract VaultTest is Test {
 
         string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVaultStorage.InvalidSlashDuration.selector);
+        vm.expectRevert(IVaultDelegation.InvalidSlashDuration.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVaultStorage.InitParams({
+                    IVaultDelegation.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -1690,12 +1690,12 @@ contract VaultTest is Test {
 
         string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVaultStorage.InvalidAdminFee.selector);
+        vm.expectRevert(IVaultDelegation.InvalidAdminFee.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVaultStorage.InitParams({
+                    IVaultDelegation.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -2636,7 +2636,7 @@ contract VaultTest is Test {
         vm.assume(adminFee > vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
-        vm.expectRevert(IVaultStorage.InvalidAdminFee.selector);
+        vm.expectRevert(IVaultDelegation.InvalidAdminFee.selector);
         _setAdminFee(alice, adminFee);
     }
 
@@ -2756,7 +2756,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVaultStorage.InitParams({
+                    IVaultDelegation.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,

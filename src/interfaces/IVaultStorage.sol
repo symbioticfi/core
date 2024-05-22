@@ -1,36 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
-
-interface IVaultStorage is IMigratableEntity {
-    error InvalidEpochDuration();
-    error InvalidSlashDuration();
-    error InvalidAdminFee();
-
-    /**
-     * @notice Initial parameters needed for a vault deployment.
-     * @param owner owner of the vault (can set metadata and enable/disable deposit whitelist)
-     * The metadata should contain: name, description, external_url, image.
-     * @param collateral underlying vault collateral
-     * @param epochDuration duration of an vault epoch
-     * @param vetoDuration duration of the veto period for a slash request
-     * @param slashDuration duration of the slash period for a slash request (after veto period)
-     * @param metadataURL URL with metadata of the vault
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
-     * @param depositWhitelist enable/disable deposit whitelist
-     */
-    struct InitParams {
-        address owner;
-        address collateral;
-        uint48 epochDuration;
-        uint48 vetoDuration;
-        uint48 slashDuration;
-        string metadataURL;
-        uint256 adminFee;
-        bool depositWhitelist;
-    }
-
+interface IVaultStorage {
     /**
      * @notice Structure for a slashing limit.
      * @param amount amount of the collateral that can be slashed
