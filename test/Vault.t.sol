@@ -11,6 +11,7 @@ import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
+import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
@@ -89,7 +90,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVault.InitParams({
+                    IVaultStorage.InitParams({
                         owner: alice,
                         metadataURL: metadataURL,
                         collateral: address(collateral),
@@ -176,7 +177,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVault.InitParams({
+                    IVaultStorage.InitParams({
                         owner: alice,
                         metadataURL: metadataURL,
                         collateral: address(collateral),
@@ -1581,12 +1582,12 @@ contract VaultTest is Test {
 
         string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVault.InvalidEpochDuration.selector);
+        vm.expectRevert(IVaultStorage.InvalidEpochDuration.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVault.InitParams({
+                    IVaultStorage.InitParams({
                         owner: alice,
                         metadataURL: metadataURL,
                         collateral: address(collateral),
@@ -1613,12 +1614,12 @@ contract VaultTest is Test {
 
         string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVault.InvalidSlashDuration.selector);
+        vm.expectRevert(IVaultStorage.InvalidSlashDuration.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVault.InitParams({
+                    IVaultStorage.InitParams({
                         owner: alice,
                         metadataURL: metadataURL,
                         collateral: address(collateral),
@@ -1642,12 +1643,12 @@ contract VaultTest is Test {
 
         string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVault.InvalidAdminFee.selector);
+        vm.expectRevert(IVaultStorage.InvalidAdminFee.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVault.InitParams({
+                    IVaultStorage.InitParams({
                         owner: alice,
                         metadataURL: metadataURL,
                         collateral: address(collateral),
@@ -2293,6 +2294,45 @@ contract VaultTest is Test {
         _distributeReward(bob, network, address(feeOnTransferToken), 1, timestamp, acceptedAdminFee);
     }
 
+    function test_DistributeRewardRevertUnacceptedAdminFee(uint256 amount, uint256 adminFee) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
+
+        _grantAdminFeeSetRole(alice, alice);
+        _setAdminFee(alice, adminFee);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        for (uint256 i; i < 10; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
+        feeOnTransferToken.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        feeOnTransferToken.approve(address(vault), type(uint256).max);
+        vm.stopPrank();
+
+        uint48 timestamp = 3;
+        uint256 acceptedAdminFee = adminFee - 1;
+        vm.expectRevert(IVault.UnacceptedAdminFee.selector);
+        _distributeReward(
+            bob, network, address(feeOnTransferToken), uint48(blockTimestamp), timestamp, acceptedAdminFee
+        );
+    }
+
     function test_ClaimRewards(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
@@ -2690,7 +2730,7 @@ contract VaultTest is Test {
         vm.assume(adminFee > vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
-        vm.expectRevert(IVault.InvalidAdminFee.selector);
+        vm.expectRevert(IVaultStorage.InvalidAdminFee.selector);
         _setAdminFee(alice, adminFee);
     }
 
@@ -2810,7 +2850,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVault.InitParams({
+                    IVaultStorage.InitParams({
                         owner: alice,
                         metadataURL: metadataURL,
                         collateral: address(collateral),

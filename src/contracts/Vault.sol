@@ -7,8 +7,7 @@ import {IRegistry} from "src/interfaces/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 
-import {MigratableEntity} from "./base/MigratableEntity.sol";
-import {ERC6372} from "./utils/ERC6372.sol";
+import {VaultStorage} from "./VaultStorage.sol";
 import {Checkpoints} from "./libraries/Checkpoints.sol";
 import {ERC4626Math} from "./libraries/ERC4626Math.sol";
 
@@ -16,216 +15,33 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-contract Vault is
-    MigratableEntity,
-    ERC6372,
-    ReentrancyGuardUpgradeable,
-    MulticallUpgradeable,
-    AccessControlUpgradeable,
-    IVault
-{
-    using Checkpoints for Checkpoints.Trace208;
+contract Vault is VaultStorage, MulticallUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
-    using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
     using Math for uint256;
     using Strings for string;
-
-    /**
-     * @dev Some dead address to transfer slashed tokens to.
-     */
-    address private constant DEAD = address(0xdEaD);
-
-    /**
-     * @inheritdoc IVault
-     */
-    uint256 public constant ADMIN_FEE_BASE = 10_000;
-
-    /**
-     * @inheritdoc IVault
-     */
-    bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVault
-     */
-    bytes32 public constant OPERATOR_LIMIT_SET_ROLE = keccak256("OPERATOR_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVault
-     */
-    bytes32 public constant ADMIN_FEE_SET_ROLE = keccak256("ADMIN_FEE_SET_ROLE");
-
-    /**
-     * @inheritdoc IVault
-     */
-    bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
-    /**
-     * @inheritdoc IVault
-     */
-    bytes32 public constant DEPOSITOR_WHITELIST_ROLE = keccak256("DEPOSITOR_WHITELIST_ROLE");
-
-    /**
-     * @inheritdoc IVault
-     */
-    address public immutable NETWORK_REGISTRY;
-
-    /**
-     * @inheritdoc IVault
-     */
-    address public immutable OPERATOR_REGISTRY;
-
-    /**
-     * @inheritdoc IVault
-     */
-    address public immutable NETWORK_MIDDLEWARE_PLUGIN;
-
-    /**
-     * @inheritdoc IVault
-     */
-    address public immutable NETWORK_OPT_IN_PLUGIN;
-
-    /**
-     * @inheritdoc IVault
-     */
-    string public metadataURL;
-
-    /**
-     * @inheritdoc IVault
-     */
-    address public collateral;
-
-    /**
-     * @inheritdoc IVault
-     */
-    uint48 public epochDurationInit;
-
-    /**
-     * @inheritdoc IVault
-     */
-    uint48 public epochDuration;
-
-    /**
-     * @inheritdoc IVault
-     */
-    uint48 public vetoDuration;
-
-    /**
-     * @inheritdoc IVault
-     */
-    uint48 public slashDuration;
-
-    /**
-     * @inheritdoc IVault
-     */
-    uint256 public adminFee;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address token => uint256 amount) public claimableAdminFee;
-
-    /**
-     * @inheritdoc IVault
-     */
-    bool public depositWhitelist;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address account => bool value) public isDepositorWhitelisted;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address account => uint48 timestamp) public firstDepositAt;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(uint256 epoch => uint256 amount) public withdrawals;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(uint256 epoch => uint256 amount) public withdrawalsShares;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(uint256 epoch => mapping(address account => uint256 amount)) public withdrawalsSharesOf;
-
-    /**
-     * @inheritdoc IVault
-     */
-    SlashRequest[] public slashRequests;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address token => RewardDistribution[] rewards_) public rewards;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address account => mapping(address token => uint256 rewardIndex)) public lastUnclaimedReward;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address network => mapping(address resolver => bool value)) public isNetworkOptedIn;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address operator => uint48 timestamp) public operatorOptOutAt;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address network => mapping(address resolver => uint256 amount)) public maxNetworkLimit;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address network => mapping(address resolver => DelayedLimit)) public nextNetworkLimit;
-
-    /**
-     * @inheritdoc IVault
-     */
-    mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorLimit;
-
-    Checkpoints.Trace256 private _activeShares;
-
-    Checkpoints.Trace256 private _activeSupplies;
-
-    mapping(address account => Checkpoints.Trace256 shares) private _activeSharesOf;
-
-    mapping(uint48 timestamp => uint256 amount) private _activeSharesCache;
-
-    mapping(uint48 timestamp => uint256 amount) private _activeSuppliesCache;
-
-    mapping(address operator => bool value) private _isOperatorOptedIn;
-
-    mapping(address network => mapping(address resolver => Limit limit)) private _networkLimit;
-
-    mapping(address operator => mapping(address network => Limit limit)) private _operatorLimit;
 
     constructor(
         address networkRegistry,
         address operatorRegistry,
         address networkMiddlewarePlugin,
         address networkOptInPlugin
-    ) {
-        NETWORK_REGISTRY = networkRegistry;
-        OPERATOR_REGISTRY = operatorRegistry;
-        NETWORK_MIDDLEWARE_PLUGIN = networkMiddlewarePlugin;
-        NETWORK_OPT_IN_PLUGIN = networkOptInPlugin;
+    ) VaultStorage(networkRegistry, operatorRegistry, networkMiddlewarePlugin, networkOptInPlugin) {}
+
+    /**
+     * @inheritdoc IVault
+     */
+    function currentEpoch() public view returns (uint256) {
+        return (clock() - epochDurationInit) / epochDuration;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function currentEpochStart() public view returns (uint48) {
+        return uint48(epochDurationInit + currentEpoch() * epochDuration);
     }
 
     /**
@@ -335,15 +151,8 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function currentEpoch() public view returns (uint256) {
-        return (clock() - epochDurationInit) / epochDuration;
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function currentEpochStart() public view returns (uint48) {
-        return uint48(epochDurationInit + currentEpoch() * epochDuration);
+    function isNetworkOptedIn(address network, address resolver) public view returns (bool) {
+        return _isNetworkOptedIn[network][resolver];
     }
 
     /**
@@ -363,83 +172,14 @@ contract Vault is
      * @inheritdoc IVault
      */
     function networkLimit(address network, address resolver) public view returns (uint256) {
-        DelayedLimit storage nextLimit = nextNetworkLimit[network][resolver];
-        if (nextLimit.timestamp == 0) {
-            return _networkLimit[network][resolver].amount;
-        }
-        if (clock() < nextLimit.timestamp) {
-            return _networkLimit[network][resolver].amount;
-        }
-        return nextLimit.amount;
+        return _getLimit(_networkLimit[network][resolver], nextNetworkLimit[network][resolver]);
     }
 
     /**
      * @inheritdoc IVault
      */
     function operatorLimit(address operator, address network) public view returns (uint256) {
-        DelayedLimit storage nextLimit = nextOperatorLimit[operator][network];
-        if (nextLimit.timestamp == 0) {
-            return _operatorLimit[operator][network].amount;
-        }
-        if (clock() < nextLimit.timestamp) {
-            return _operatorLimit[operator][network].amount;
-        }
-        return nextLimit.amount;
-    }
-
-    /**
-     * @inheritdoc MigratableEntity
-     */
-    function initialize(uint64 version, bytes memory data) public override reinitializer(version) {
-        (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
-
-        if (params.epochDuration == 0) {
-            revert InvalidEpochDuration();
-        }
-
-        if (params.vetoDuration + params.slashDuration > params.epochDuration) {
-            revert InvalidSlashDuration();
-        }
-
-        if (params.adminFee > ADMIN_FEE_BASE) {
-            revert InvalidAdminFee();
-        }
-
-        __ReentrancyGuard_init();
-
-        _initialize(params.owner);
-
-        metadataURL = params.metadataURL;
-        collateral = params.collateral;
-
-        epochDurationInit = clock();
-        epochDuration = params.epochDuration;
-
-        vetoDuration = params.vetoDuration;
-        slashDuration = params.slashDuration;
-
-        adminFee = params.adminFee;
-        depositWhitelist = params.depositWhitelist;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
-        _grantRole(NETWORK_LIMIT_SET_ROLE, params.owner);
-        _grantRole(OPERATOR_LIMIT_SET_ROLE, params.owner);
-        if (params.depositWhitelist) {
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
-        }
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function setMetadataURL(string calldata metadataURL_) external onlyOwner {
-        if (metadataURL.equal(metadataURL_)) {
-            revert AlreadySet();
-        }
-
-        metadataURL = metadataURL_;
-
-        emit SetMetadataURL(metadataURL_);
+        return _getLimit(_operatorLimit[operator][network], nextOperatorLimit[operator][network]);
     }
 
     /**
@@ -546,8 +286,12 @@ contract Vault is
             revert InsufficientSlash();
         }
 
-        if (!isNetworkOptedIn[network][resolver]) {
+        if (!isNetworkOptedIn(network, resolver)) {
             revert NetworkNotOptedIn();
+        }
+
+        if (!isOperatorOptedIn(operator)) {
+            revert OperatorNotOptedInVault();
         }
 
         if (
@@ -556,10 +300,6 @@ contract Vault is
                     < block.timestamp - epochDuration
         ) {
             revert OperatorNotOptedInNetwork();
-        }
-
-        if (!isOperatorOptedIn(operator)) {
-            revert OperatorNotOptedInVault();
         }
 
         uint256 slashAmount = Math.min(amount, maxSlash_);
@@ -813,7 +553,7 @@ contract Vault is
             revert NotNetwork();
         }
 
-        if (isNetworkOptedIn[msg.sender][resolver]) {
+        if (isNetworkOptedIn(msg.sender, resolver)) {
             revert NetworkAlreadyOptedIn();
         }
 
@@ -821,7 +561,7 @@ contract Vault is
             revert InvalidMaxNetworkLimit();
         }
 
-        isNetworkOptedIn[msg.sender][resolver] = true;
+        _isNetworkOptedIn[msg.sender][resolver] = true;
 
         _networkLimit[msg.sender][resolver].amount = 0;
         nextNetworkLimit[msg.sender][resolver].timestamp = 0;
@@ -835,13 +575,13 @@ contract Vault is
      * @inheritdoc IVault
      */
     function optOutNetwork(address resolver) external {
-        if (!isNetworkOptedIn[msg.sender][resolver]) {
+        if (!isNetworkOptedIn(msg.sender, resolver)) {
             revert NetworkNotOptedIn();
         }
 
         _updateLimit(_networkLimit[msg.sender][resolver], nextNetworkLimit[msg.sender][resolver]);
 
-        isNetworkOptedIn[msg.sender][resolver] = false;
+        _isNetworkOptedIn[msg.sender][resolver] = false;
 
         nextNetworkLimit[msg.sender][resolver].amount = 0;
         nextNetworkLimit[msg.sender][resolver].timestamp = currentEpochStart() + 2 * epochDuration;
@@ -888,48 +628,14 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function setNetworkLimit(
-        address network,
-        address resolver,
-        uint256 amount
-    ) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
-        if (!isNetworkOptedIn[network][resolver]) {
-            revert NetworkNotOptedIn();
+    function setMetadataURL(string calldata metadataURL_) external onlyOwner {
+        if (metadataURL.equal(metadataURL_)) {
+            revert AlreadySet();
         }
 
-        if (amount > maxNetworkLimit[network][resolver]) {
-            revert ExceedsMaxNetworkLimit();
-        }
+        metadataURL = metadataURL_;
 
-        _setLimit(_networkLimit[network][resolver], nextNetworkLimit[network][resolver], amount);
-
-        emit SetNetworkLimit(network, resolver, amount);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function setOperatorLimit(
-        address operator,
-        address network,
-        uint256 amount
-    ) external onlyRole(OPERATOR_LIMIT_SET_ROLE) {
-        Limit storage limit = _operatorLimit[operator][network];
-        DelayedLimit storage nextLimit = nextOperatorLimit[operator][network];
-
-        if (!isOperatorOptedIn(operator)) {
-            if (amount != 0) {
-                revert OperatorNotOptedIn();
-            } else {
-                limit.amount = 0;
-                nextLimit.amount = 0;
-                nextLimit.timestamp = 0;
-            }
-        } else {
-            _setLimit(limit, nextLimit, amount);
-        }
-
-        emit SetOperatorLimit(operator, network, amount);
+        emit SetMetadataURL(metadataURL_);
     }
 
     /**
@@ -993,10 +699,50 @@ contract Vault is
     }
 
     /**
-     * @inheritdoc MigratableEntity
+     * @inheritdoc IVault
      */
-    function migrate(bytes memory) public override {
-        revert();
+    function setNetworkLimit(
+        address network,
+        address resolver,
+        uint256 amount
+    ) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
+        if (!isNetworkOptedIn(network, resolver)) {
+            revert NetworkNotOptedIn();
+        }
+
+        if (amount > maxNetworkLimit[network][resolver]) {
+            revert ExceedsMaxNetworkLimit();
+        }
+
+        _setLimit(_networkLimit[network][resolver], nextNetworkLimit[network][resolver], amount);
+
+        emit SetNetworkLimit(network, resolver, amount);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setOperatorLimit(
+        address operator,
+        address network,
+        uint256 amount
+    ) external onlyRole(OPERATOR_LIMIT_SET_ROLE) {
+        Limit storage limit = _operatorLimit[operator][network];
+        DelayedLimit storage nextLimit = nextOperatorLimit[operator][network];
+
+        if (!isOperatorOptedIn(operator)) {
+            if (amount != 0) {
+                revert OperatorNotOptedIn();
+            } else {
+                limit.amount = 0;
+                nextLimit.amount = 0;
+                nextLimit.timestamp = 0;
+            }
+        } else {
+            _setLimit(limit, nextLimit, amount);
+        }
+
+        emit SetOperatorLimit(operator, network, amount);
     }
 
     /**
@@ -1032,6 +778,13 @@ contract Vault is
         } else {
             return len;
         }
+    }
+
+    function _getLimit(Limit storage limit, DelayedLimit storage nextLimit) private view returns (uint256) {
+        if (nextLimit.timestamp == 0 || clock() < nextLimit.timestamp) {
+            return limit.amount;
+        }
+        return nextLimit.amount;
     }
 
     function _setLimit(Limit storage limit, DelayedLimit storage nextLimit, uint256 amount) private {
