@@ -4,12 +4,12 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
-import {IMigratablesRegistry} from "src/interfaces/IMigratablesRegistry.sol";
+import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
 
-import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
-import {SimpleMigratableEntity} from "./mocks/SimpleMigratableEntity.sol";
-import {SimpleMigratableEntityV2} from "./mocks/SimpleMigratableEntityV2.sol";
+import {SimpleMigratableEntity} from "test/mocks/SimpleMigratableEntity.sol";
+import {SimpleMigratableEntityV2} from "test/mocks/SimpleMigratableEntityV2.sol";
 
 contract MigratablesRegistryTest is Test {
     address owner;

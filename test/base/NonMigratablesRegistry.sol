@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {INonMigratablesRegistry} from "src/interfaces/INonMigratablesRegistry.sol";
+import {INonMigratablesRegistry} from "src/interfaces/base/INonMigratablesRegistry.sol";
 
 contract NonMigratablesRegistryTest is Test {
     address owner;

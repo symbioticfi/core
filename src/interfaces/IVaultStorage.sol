@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
 interface IVaultStorage is IMigratableEntity {
     error InvalidEpochDuration();

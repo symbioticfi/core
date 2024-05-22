@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ICollateral} from "src/interfaces/ICollateral.sol";
+import {ICollateral} from "src/interfaces/base/ICollateral.sol";
 
 interface IDefaultCollateral is ICollateral {
     error NotLimitIncreaser();

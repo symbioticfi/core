@@ -4,9 +4,9 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {IPlugin} from "src/interfaces/IPlugin.sol";
+import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
-import {SimplePlugin} from "./mocks/SimplePlugin.sol";
+import {SimplePlugin} from "test/mocks/SimplePlugin.sol";
 
 contract PluginTest is Test {
     address owner;

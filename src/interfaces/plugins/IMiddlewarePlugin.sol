@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPlugin} from "src/interfaces/IPlugin.sol";
+import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 interface IMiddlewarePlugin is IPlugin {
     error AlreadySet();

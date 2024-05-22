@@ -2,8 +2,8 @@
 pragma solidity 0.8.25;
 
 import {IVault} from "src/interfaces/IVault.sol";
-import {ICollateral} from "src/interfaces/ICollateral.sol";
-import {IRegistry} from "src/interfaces/IRegistry.sol";
+import {ICollateral} from "src/interfaces/base/ICollateral.sol";
+import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 

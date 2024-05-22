@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
-import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
 import {MigratableEntity} from "./base/MigratableEntity.sol";
 import {ERC6372} from "./utils/ERC6372.sol";

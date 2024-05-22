@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPlugin} from "src/interfaces/IPlugin.sol";
-import {IRegistry} from "src/interfaces/IRegistry.sol";
+import {IPlugin} from "src/interfaces/base/IPlugin.sol";
+import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 abstract contract Plugin is IPlugin {
     /**

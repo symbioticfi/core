@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMigratablesRegistry} from "src/interfaces/IMigratablesRegistry.sol";
-import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";
+import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
 import {Registry} from "./Registry.sol";
 

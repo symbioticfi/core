@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {IPlugin} from "src/interfaces/IPlugin.sol";
+import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";

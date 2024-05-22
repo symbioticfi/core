@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {SimpleRegistry} from "./mocks/SimpleRegistry.sol";
+import {SimpleRegistry} from "test/mocks/SimpleRegistry.sol";
 
 contract FactoryTest is Test {
     address owner;
