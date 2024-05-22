@@ -18,6 +18,8 @@ contract VaultStorage is
     ReentrancyGuardUpgradeable,
     IVaultStorage
 {
+    using Checkpoints for Checkpoints.Trace256;
+
     /**
      * @dev Some dead address to transfer slashed tokens to.
      */
@@ -205,6 +207,91 @@ contract VaultStorage is
         OPERATOR_REGISTRY = operatorRegistry;
         NETWORK_MIDDLEWARE_PLUGIN = networkMiddlewarePlugin;
         NETWORK_OPT_IN_PLUGIN = networkOptInPlugin;
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function currentEpoch() public view returns (uint256) {
+        return (clock() - epochDurationInit) / epochDuration;
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function currentEpochStart() public view returns (uint48) {
+        return uint48(epochDurationInit + currentEpoch() * epochDuration);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSharesAt(uint48 timestamp) public view returns (uint256) {
+        return _activeShares.upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeShares() public view returns (uint256) {
+        return _activeShares.latest();
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSupplyAt(uint48 timestamp) public view returns (uint256) {
+        return _activeSupplies.upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSupply() public view returns (uint256) {
+        return _activeSupplies.latest();
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSharesOfAt(address account, uint48 timestamp) public view returns (uint256) {
+        return _activeSharesOf[account].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSharesOf(address account) public view returns (uint256) {
+        return _activeSharesOf[account].latest();
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSharesOfCheckpointsLength(address account) public view returns (uint256) {
+        return _activeSharesOf[account].length();
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSharesOfCheckpoint(address account, uint32 pos) public view returns (uint48, uint256) {
+        Checkpoints.Checkpoint256 memory checkpoint = _activeSharesOf[account].at(pos);
+        return (checkpoint._key, checkpoint._value);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function slashRequestsLength() public view returns (uint256) {
+        return slashRequests.length;
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function rewardsLength(address token) public view returns (uint256) {
+        return rewards[token].length;
     }
 
     /**

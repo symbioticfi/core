@@ -158,6 +158,18 @@ interface IVaultStorage is IMigratableEntity {
     function epochDuration() external view returns (uint48);
 
     /**
+     * @notice Get a current vault epoch.
+     * @return current epoch
+     */
+    function currentEpoch() external view returns (uint256);
+
+    /**
+     * @notice Get a start of the current vault epoch.
+     * @return start of the current epoch
+     */
+    function currentEpochStart() external view returns (uint48);
+
+    /**
      * @notice Get a duration during which resolvers can veto slash requests.
      * @return duration of the veto period
      */
@@ -203,6 +215,63 @@ interface IVaultStorage is IMigratableEntity {
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
+     * @notice Get a total amount of the active shares in the vault at a given timestamp.
+     * @param timestamp time point to get the total amount of the active shares at
+     * @return total amount of the active shares at the timestamp
+     */
+    function activeSharesAt(uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of the active shares in the vault.
+     * @return total amount of the active shares
+     */
+    function activeShares() external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of the active supply in the vault at a given timestamp.
+     * @param timestamp time point to get the total active supply at
+     * @return total amount of the active supply at the timestamp
+     */
+    function activeSupplyAt(uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of the active supply in the vault.
+     * @return total amount of the active supply
+     */
+    function activeSupply() external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of the active shares for a particular account at a given timestamp.
+     * @param account account to get the amount of the active shares for
+     * @param timestamp time point to get the amount of the active shares for the account at
+     * @return total amount of the active shares for the account at the timestamp
+     */
+    function activeSharesOfAt(address account, uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get an amount of the active shares for a particular account.
+     * @param account account to get the amount of the active shares for
+     * @return amount of the active shares for the account
+     */
+    function activeSharesOf(address account) external view returns (uint256);
+
+    /**
+     * @notice Get a total number of the activeSharesOf checkpoints for a particular account.
+     * @param account account to get the total number of the activeSharesOf checkpoints for
+     * @return total number of the activeSharesOf checkpoints for the account
+     */
+    function activeSharesOfCheckpointsLength(address account) external view returns (uint256);
+
+    /**
+     * @notice Get an activeSharesOf checkpoint for a particular account at a given index.
+     * @param account account to get the activeSharesOf checkpoint for
+     * @param pos index of the checkpoint
+     * @return timestamp time point of the checkpoint
+     * @return amount of active shares at the checkpoint
+     */
+    function activeSharesOfCheckpoint(address account, uint32 pos) external view returns (uint48, uint256);
+
+    /**
      * @notice Get a total amount of the withdrawals at a given epoch.
      * @param epoch epoch to get the total amount of the withdrawals at
      * @return total amount of the withdrawals at the epoch
@@ -232,6 +301,12 @@ interface IVaultStorage is IMigratableEntity {
     function firstDepositAt(address account) external view returns (uint48);
 
     /**
+     * @notice Get a total number of slash requests.
+     * @return total number of slash requests
+     */
+    function slashRequestsLength() external view returns (uint256);
+
+    /**
      * @notice Get a slash request.
      * @param slashIndex index of the slash request
      * @return network network which requested the slash
@@ -254,6 +329,13 @@ interface IVaultStorage is IMigratableEntity {
             uint48 slashDeadline,
             bool completed
         );
+
+    /**
+     * @notice Get a total number of rewards using a particular token.
+     * @param token address of the token
+     * @return total number of rewards using the token
+     */
+    function rewardsLength(address token) external view returns (uint256);
 
     /**
      * @notice Get a reward distribution.

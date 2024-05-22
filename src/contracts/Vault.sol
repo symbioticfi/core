@@ -33,80 +33,9 @@ contract Vault is VaultStorage, MulticallUpgradeable, IVault {
     /**
      * @inheritdoc IVault
      */
-    function currentEpoch() public view returns (uint256) {
-        return (clock() - epochDurationInit) / epochDuration;
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function currentEpochStart() public view returns (uint48) {
-        return uint48(epochDurationInit + currentEpoch() * epochDuration);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function totalSupply() public view returns (uint256) {
         uint256 epoch = currentEpoch();
         return activeSupply() + withdrawals[epoch] + withdrawals[epoch + 1];
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSharesAt(uint48 timestamp) public view returns (uint256) {
-        return _activeShares.upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeShares() public view returns (uint256) {
-        return _activeShares.latest();
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSupplyAt(uint48 timestamp) public view returns (uint256) {
-        return _activeSupplies.upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSupply() public view returns (uint256) {
-        return _activeSupplies.latest();
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSharesOfAt(address account, uint48 timestamp) public view returns (uint256) {
-        return _activeSharesOf[account].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSharesOf(address account) public view returns (uint256) {
-        return _activeSharesOf[account].latest();
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSharesOfCheckpointsLength(address account) public view returns (uint256) {
-        return _activeSharesOf[account].length();
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeSharesOfCheckpoint(address account, uint32 pos) public view returns (uint48, uint256) {
-        Checkpoints.Checkpoint256 memory checkpoint = _activeSharesOf[account].at(pos);
-        return (checkpoint._key, checkpoint._value);
     }
 
     /**
@@ -138,14 +67,6 @@ contract Vault is VaultStorage, MulticallUpgradeable, IVault {
      */
     function maxSlash(address network, address resolver, address operator) public view returns (uint256) {
         return Math.min(totalSupply(), Math.min(networkLimit(network, resolver), operatorLimit(operator, network)));
-    }
-
-    function slashRequestsLength() public view returns (uint256) {
-        return slashRequests.length;
-    }
-
-    function rewardsLength(address token) public view returns (uint256) {
-        return rewards[token].length;
     }
 
     /**
