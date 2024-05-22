@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Plugin} from "src/contracts/Plugin.sol";
+import {Plugin} from "src/contracts/base/Plugin.sol";
 
 contract SimplePlugin is Plugin {
     mapping(address entity => uint256 value) public number;

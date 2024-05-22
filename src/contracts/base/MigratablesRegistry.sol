@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {IMigratablesRegistry} from "src/interfaces/IMigratablesRegistry.sol";
 import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";
 
-import {MigratableEntity} from "./MigratableEntity.sol";
 import {Registry} from "./Registry.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -55,7 +54,7 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     function create(uint64 version, bytes memory data) external isValidVersion(version) returns (address entity_) {
         entity_ = address(
             new ERC1967Proxy(
-                implementation(version), abi.encodeWithSelector(MigratableEntity.initialize.selector, version, data)
+                implementation(version), abi.encodeWithSelector(IMigratableEntity.initialize.selector, version, data)
             )
         );
 
@@ -66,13 +65,13 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
      * @inheritdoc IMigratablesRegistry
      */
     function migrate(address entity_, bytes memory data) external checkEntity(entity_) {
-        if (msg.sender != MigratableEntity(entity_).owner()) {
+        if (msg.sender != Ownable(entity_).owner()) {
             revert NotOwner();
         }
 
         UUPSUpgradeable(entity_).upgradeToAndCall(
             implementation(IMigratableEntity(entity_).version() + 1),
-            abi.encodeWithSelector(MigratableEntity.migrate.selector, data)
+            abi.encodeWithSelector(IMigratableEntity.migrate.selector, data)
         );
     }
 }

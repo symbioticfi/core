@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Registry} from "src/contracts/Registry.sol";
+import {Registry} from "src/contracts/base/Registry.sol";
 import {DefaultCollateral} from "./DefaultCollateral.sol";
 import {IDefaultCollateralFactory} from "src/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 

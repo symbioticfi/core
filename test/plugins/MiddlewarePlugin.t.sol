@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {NonMigratablesRegistry} from "src/contracts/NonMigratablesRegistry.sol";
+import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 import {IPlugin} from "src/interfaces/IPlugin.sol";
 
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";

@@ -7,9 +7,10 @@ import {IRegistry} from "src/interfaces/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 
-import {MigratableEntity} from "./MigratableEntity.sol";
+import {MigratableEntity} from "./base/MigratableEntity.sol";
 import {ERC6372} from "./utils/ERC6372.sol";
 import {Checkpoints} from "./libraries/Checkpoints.sol";
+import {ERC4626Math} from "./libraries/ERC4626Math.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -296,22 +297,24 @@ contract Vault is
      * @inheritdoc IVault
      */
     function activeBalanceOfAt(address account, uint48 timestamp) public view returns (uint256) {
-        return
-            _previewRedeem(activeSharesOfAt(account, timestamp), activeSupplyAt(timestamp), activeSharesAt(timestamp));
+        return ERC4626Math.previewRedeem(
+            activeSharesOfAt(account, timestamp), activeSupplyAt(timestamp), activeSharesAt(timestamp)
+        );
     }
 
     /**
      * @inheritdoc IVault
      */
     function activeBalanceOf(address account) public view returns (uint256) {
-        return _previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
+        return ERC4626Math.previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
     }
 
     /**
      * @inheritdoc IVault
      */
     function withdrawalsBalanceOf(uint256 epoch, address account) public view returns (uint256) {
-        return _previewRedeem(withdrawalsSharesOf[epoch][account], withdrawals[epoch], withdrawalsShares[epoch]);
+        return
+            ERC4626Math.previewRedeem(withdrawalsSharesOf[epoch][account], withdrawals[epoch], withdrawalsShares[epoch]);
     }
 
     /**
@@ -456,7 +459,7 @@ contract Vault is
         uint256 activeSupply_ = activeSupply();
         uint256 activeShares_ = activeShares();
 
-        shares = _previewDeposit(amount, activeShares_, activeSupply_);
+        shares = ERC4626Math.previewDeposit(amount, activeShares_, activeSupply_);
 
         _activeSupplies.push(clock(), activeSupply_ + amount);
         _activeShares.push(clock(), activeShares_ + shares);
@@ -481,7 +484,7 @@ contract Vault is
         uint256 activeShares_ = activeShares();
         uint256 activeSharesOf_ = activeSharesOf(msg.sender);
 
-        burnedShares = _previewWithdraw(amount, activeShares_, activeSupply_);
+        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeSupply_);
         if (burnedShares > activeSharesOf_) {
             revert TooMuchWithdraw();
         }
@@ -494,7 +497,7 @@ contract Vault is
         uint256 withdrawals_ = withdrawals[epoch];
         uint256 withdrawalsShares_ = withdrawalsShares[epoch];
 
-        mintedShares = _previewDeposit(amount, withdrawalsShares_, withdrawals_);
+        mintedShares = ERC4626Math.previewDeposit(amount, withdrawalsShares_, withdrawals_);
 
         withdrawals[epoch] = withdrawals_ + amount;
         withdrawalsShares[epoch] = withdrawalsShares_ + mintedShares;
@@ -780,7 +783,8 @@ contract Vault is
                 uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
                     ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, activeSharesOfHints[j])
                     : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
-                uint256 activeBalanceOf_ = _previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCache[timestamp]);
+                uint256 activeBalanceOf_ =
+                    ERC4626Math.previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCache[timestamp]);
 
                 claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
                 amount += claimedAmount;
@@ -1049,49 +1053,5 @@ contract Vault is
             nextLimit.timestamp = 0;
             nextLimit.amount = 0;
         }
-    }
-
-    function _previewDeposit(uint256 assets, uint256 totalShares, uint256 totalAssets) private pure returns (uint256) {
-        return _convertToShares(assets, totalShares, totalAssets, Math.Rounding.Floor);
-    }
-
-    function _previewWithdraw(
-        uint256 assets,
-        uint256 totalShares,
-        uint256 totalAssets
-    ) private pure returns (uint256) {
-        return _convertToShares(assets, totalShares, totalAssets, Math.Rounding.Ceil);
-    }
-
-    function _previewRedeem(uint256 shares, uint256 totalAssets, uint256 totalShares) private pure returns (uint256) {
-        return _convertToAssets(shares, totalAssets, totalShares, Math.Rounding.Floor);
-    }
-
-    /**
-     * @dev Internal conversion function (from assets to shares) with support for rounding direction.
-     */
-    function _convertToShares(
-        uint256 assets,
-        uint256 totalShares,
-        uint256 totalAssets,
-        Math.Rounding rounding
-    ) private pure returns (uint256) {
-        return assets.mulDiv(totalShares + 10 ** _decimalsOffset(), totalAssets + 1, rounding);
-    }
-
-    /**
-     * @dev Internal conversion function (from shares to assets) with support for rounding direction.
-     */
-    function _convertToAssets(
-        uint256 shares,
-        uint256 totalAssets,
-        uint256 totalShares,
-        Math.Rounding rounding
-    ) private pure returns (uint256) {
-        return shares.mulDiv(totalAssets + 1, totalShares + 10 ** _decimalsOffset(), rounding);
-    }
-
-    function _decimalsOffset() private pure returns (uint8) {
-        return 3;
     }
 }

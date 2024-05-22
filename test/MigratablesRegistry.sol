@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {MigratablesRegistry} from "src/contracts/MigratablesRegistry.sol";
+import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
 import {IMigratablesRegistry} from "src/interfaces/IMigratablesRegistry.sol";
 
 import {IMigratableEntity} from "src/interfaces/IMigratableEntity.sol";

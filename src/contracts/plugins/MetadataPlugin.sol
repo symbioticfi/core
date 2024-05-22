@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {IMetadataPlugin} from "src/interfaces/plugins/IMetadataPlugin.sol";
 
-import {Plugin} from "src/contracts/Plugin.sol";
+import {Plugin} from "src/contracts/base/Plugin.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
