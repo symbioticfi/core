@@ -11,22 +11,22 @@ interface IVaultStorage is IMigratableEntity {
     /**
      * @notice Initial parameters needed for a vault deployment.
      * @param owner owner of the vault (can set metadata and enable/disable deposit whitelist)
-     * @param metadataURL URL with metadata of the vault
      * The metadata should contain: name, description, external_url, image.
      * @param collateral underlying vault collateral
      * @param epochDuration duration of an vault epoch
      * @param vetoDuration duration of the veto period for a slash request
      * @param slashDuration duration of the slash period for a slash request (after veto period)
+     * @param metadataURL URL with metadata of the vault
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist enable/disable deposit whitelist
      */
     struct InitParams {
         address owner;
-        string metadataURL;
         address collateral;
         uint48 epochDuration;
         uint48 vetoDuration;
         uint48 slashDuration;
+        string metadataURL;
         uint256 adminFee;
         bool depositWhitelist;
     }

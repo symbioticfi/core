@@ -93,11 +93,11 @@ contract VaultTest is Test {
                 abi.encode(
                     IVaultStorage.InitParams({
                         owner: alice,
-                        metadataURL: metadataURL,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        metadataURL: metadataURL,
                         adminFee: adminFee,
                         depositWhitelist: depositWhitelist
                     })
@@ -180,11 +180,11 @@ contract VaultTest is Test {
                 abi.encode(
                     IVaultStorage.InitParams({
                         owner: alice,
-                        metadataURL: metadataURL,
                         collateral: address(collateral),
                         epochDuration: 1,
                         vetoDuration: 0,
                         slashDuration: 1,
+                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1590,11 +1590,11 @@ contract VaultTest is Test {
                 abi.encode(
                     IVaultStorage.InitParams({
                         owner: alice,
-                        metadataURL: metadataURL,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1622,11 +1622,11 @@ contract VaultTest is Test {
                 abi.encode(
                     IVaultStorage.InitParams({
                         owner: alice,
-                        metadataURL: metadataURL,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1651,11 +1651,11 @@ contract VaultTest is Test {
                 abi.encode(
                     IVaultStorage.InitParams({
                         owner: alice,
-                        metadataURL: metadataURL,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        metadataURL: metadataURL,
                         adminFee: adminFee,
                         depositWhitelist: false
                     })
@@ -2853,11 +2853,11 @@ contract VaultTest is Test {
                 abi.encode(
                     IVaultStorage.InitParams({
                         owner: alice,
-                        metadataURL: metadataURL,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
