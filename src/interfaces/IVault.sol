@@ -9,6 +9,7 @@ interface IVault {
     error NotOperatorOwner();
     error InvalidEpochDuration();
     error InvalidSlashDuration();
+    error InvalidAdminFee();
     error NotWhitelistedDepositor();
     error InsufficientDeposit();
     error InsufficientWithdrawal();
@@ -35,10 +36,11 @@ interface IVault {
     error InsufficientLimit();
     error InsufficientReward();
     error InvalidRewardTimestamp();
-    error NoRewardClaims();
+    error UnacceptedAdminFee();
     error NotEqualLengths();
     error NoDeposits();
     error AlreadySet();
+    error InsufficientAdminFee();
     error NoDepositWhitelist();
 
     /**
@@ -50,6 +52,7 @@ interface IVault {
      * @param epochDuration duration of an vault epoch
      * @param vetoDuration duration of the veto period for a slash request
      * @param slashDuration duration of the slash period for a slash request (after veto period)
+     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist enable/disable deposit whitelist
      */
     struct InitParams {
@@ -59,6 +62,7 @@ interface IVault {
         uint48 epochDuration;
         uint48 vetoDuration;
         uint48 slashDuration;
+        uint256 adminFee;
         bool depositWhitelist;
     }
 
@@ -104,7 +108,7 @@ interface IVault {
     /**
      * @notice Structure for a reward distribution.
      * @param network network on behalf of which the reward is distributed
-     * @param amount amount of tokens to be distributed
+     * @param amount amount of tokens to be distributed (admin fee is excluded)
      * @param timestamp time point stakes must taken into account at
      * @param creation timestamp when the reward distribution was created
      */
@@ -113,18 +117,6 @@ interface IVault {
         uint256 amount;
         uint48 timestamp;
         uint48 creation;
-    }
-
-    /**
-     * @notice Structure for a reward claim.
-     * @param token address of the token to be claimed
-     * @param maxRewards max amount of rewards to be processed
-     * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
-     */
-    struct RewardClaim {
-        address token;
-        uint256 maxRewards;
-        uint32[] activeSharesOfHints;
     }
 
     /**
@@ -226,7 +218,7 @@ interface IVault {
      * @param token address of the token to be distributed
      * @param rewardIndex index of the reward distribution
      * @param network network on behalf of which the reward is distributed
-     * @param amount amount of tokens distributed
+     * @param amount amount of tokens distributed (admin fee is included)
      * @param timestamp time point stakes must taken into account at
      */
     event DistributeReward(
@@ -266,6 +258,19 @@ interface IVault {
     event SetOperatorLimit(address indexed operator, address indexed network, uint256 amount);
 
     /**
+     * @notice Emitted when an admin fee is set.
+     * @param adminFee admin fee
+     */
+    event SetAdminFee(uint256 adminFee);
+
+    /**
+     * @notice Emitted when an admin fee is claimed.
+     * @param recipient account that received the fee
+     * @param amount amount of the fee claimed
+     */
+    event ClaimAdminFee(address indexed recipient, uint256 amount);
+
+    /**
      * @notice Emitted when deposit whitelist status is set.
      * @param depositWhitelist enable/disable deposit whitelist
      */
@@ -279,6 +284,12 @@ interface IVault {
     event SetDepositorWhitelistStatus(address indexed account, bool value);
 
     /**
+     * @notice Get the maximum admin fee (= 100%).
+     * @return maximum admin fee
+     */
+    function ADMIN_FEE_BASE() external view returns (uint256);
+
+    /**
      * @notice Get the network limit setter's role.
      */
     function NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
@@ -289,9 +300,14 @@ interface IVault {
     function OPERATOR_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
+     * @notice Get the admin fee setter's role.
+     */
+    function ADMIN_FEE_SET_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Get the deposit whitelist enabler/disabler's role.
      */
-    function DEPOSIT_WHITELIST_ROLE() external view returns (bytes32);
+    function DEPOSIT_WHITELIST_SET_ROLE() external view returns (bytes32);
 
     /**
      * @notice Get the depositor whitelist status setter's role.
@@ -616,6 +632,19 @@ interface IVault {
     function nextOperatorLimit(address operator, address network) external view returns (uint256, uint48);
 
     /**
+     * @notice Get an admin fee.
+     * @return admin fee
+     */
+    function adminFee() external view returns (uint256);
+
+    /**
+     * @notice Get a claimable fee amount for a particular token.
+     * @param token address of the token
+     * @return claimable fee
+     */
+    function claimableAdminFee(address token) external view returns (uint256);
+
+    /**
      * @notice Get if the deposit whitelist is enabled.
      * @return if the deposit whitelist is enabled
      */
@@ -632,6 +661,7 @@ interface IVault {
      * @notice Set a new metadata URL for this vault.
      * @param metadataURL metadata URL of the vault
      * The metadata should contain: name, description, external_url, image.
+     * @dev Only owner can call this function.
      */
     function setMetadataURL(string calldata metadataURL) external;
 
@@ -722,21 +752,30 @@ interface IVault {
      * @param token address of the token
      * @param amount amount of tokens to distribute
      * @param timestamp time point stakes must taken into account at
+     * @param acceptedAdminFee maximum accepted admin fee
      * @return rewardIndex index of the reward distribution
      */
     function distributeReward(
         address network,
         address token,
         uint256 amount,
-        uint48 timestamp
+        uint48 timestamp,
+        uint256 acceptedAdminFee
     ) external returns (uint256 rewardIndex);
 
     /**
-     * @notice Claim rewards using a given reward claims.
-     * @param recipient account that receives the rewards
-     * @param rewardClaims reward claims to process
+     * @notice Claim rewards for a particular token.
+     * @param recipient account that will receive the rewards
+     * @param token address of the token
+     * @param maxRewards max amount of rewards to process
+     * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
      */
-    function claimRewards(address recipient, RewardClaim[] calldata rewardClaims) external;
+    function claimRewards(
+        address recipient,
+        address token,
+        uint256 maxRewards,
+        uint32[] calldata activeSharesOfHints
+    ) external;
 
     /**
      * @notice Set a network limit for a particular network and resolver.
@@ -757,9 +796,23 @@ interface IVault {
     function setOperatorLimit(address operator, address network, uint256 amount) external;
 
     /**
+     * @notice Set an admin fee.
+     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @dev Only ADMIN_FEE_SET_ROLE holder can call this function.
+     */
+    function setAdminFee(uint256 adminFee) external;
+
+    /**
+     * @notice Claim admin fee.
+     * @param recipient account that receives the fee
+     * @dev Only owner can call this function.
+     */
+    function claimAdminFee(address recipient, address token) external;
+
+    /**
      * @notice Enable/disable deposit whitelist.
      * @param status enable/disable deposit whitelist
-     * @dev Only DEPOSIT_WHITELIST_ROLE holder can call this function.
+     * @dev Only DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
     function setDepositWhitelist(bool status) external;
 

@@ -75,12 +75,14 @@ contract VaultTest is Test {
         uint48 epochDuration,
         uint48 vetoDuration,
         uint48 slashDuration,
+        uint256 adminFee,
         bool depositWhitelist
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         slashDuration = uint48(bound(slashDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration + slashDuration <= epochDuration);
+        adminFee = bound(adminFee, 0, 10_000);
 
         string memory metadataURL = "";
         vault = IVault(
@@ -94,12 +96,14 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        adminFee: adminFee,
                         depositWhitelist: depositWhitelist
                     })
                 )
             )
         );
 
+        assertEq(vault.ADMIN_FEE_BASE(), 10_000);
         assertEq(vault.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
         assertEq(vault.OPERATOR_LIMIT_SET_ROLE(), keccak256("OPERATOR_LIMIT_SET_ROLE"));
         assertEq(vault.NETWORK_REGISTRY(), address(networkRegistry));
@@ -151,6 +155,8 @@ contract VaultTest is Test {
             vault.nextOperatorLimit(address(0), address(0));
         assertEq(nextOperatorLimitAmount, 0);
         assertEq(nextOperatorLimitTimestamp, 0);
+        assertEq(vault.adminFee(), adminFee);
+        assertEq(vault.claimableAdminFee(alice), 0);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
 
@@ -177,6 +183,7 @@ contract VaultTest is Test {
                         epochDuration: 1,
                         vetoDuration: 0,
                         slashDuration: 1,
+                        adminFee: 0,
                         depositWhitelist: false
                     })
                 )
@@ -1586,6 +1593,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        adminFee: 0,
                         depositWhitelist: false
                     })
                 )
@@ -1617,6 +1625,36 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        adminFee: 0,
+                        depositWhitelist: false
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertInvalidAdminFee(uint256 adminFee) public {
+        vm.assume(adminFee > 10_000);
+
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        string memory metadataURL = "";
+        uint64 lastVersion = vaultRegistry.lastVersion();
+        vm.expectRevert(IVault.InvalidAdminFee.selector);
+        vault = IVault(
+            vaultRegistry.create(
+                lastVersion,
+                abi.encode(
+                    IVault.InitParams({
+                        owner: alice,
+                        metadataURL: metadataURL,
+                        collateral: address(collateral),
+                        epochDuration: epochDuration,
+                        vetoDuration: vetoDuration,
+                        slashDuration: slashDuration,
+                        adminFee: adminFee,
                         depositWhitelist: false
                     })
                 )
@@ -2135,7 +2173,7 @@ contract VaultTest is Test {
         _setOperatorLimit(alice, operator, network, amount1);
     }
 
-    function test_DistributeReward(uint256 amount, uint256 ditributeAmount) public {
+    function test_DistributeReward(uint256 amount, uint256 ditributeAmount, uint256 adminFee) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 2, 100 * 10 ** 18);
 
@@ -2144,6 +2182,10 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
+
+        _grantAdminFeeSetRole(alice, alice);
+        _setAdminFee(alice, adminFee);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -2166,7 +2208,7 @@ contract VaultTest is Test {
         uint256 balanceBefore = feeOnTransferToken.balanceOf(address(vault));
         uint256 balanceBeforeBob = feeOnTransferToken.balanceOf(bob);
         uint48 timestamp = 3;
-        _ditributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, timestamp);
+        _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, timestamp, vault.ADMIN_FEE_BASE());
         assertEq(feeOnTransferToken.balanceOf(address(vault)) - balanceBefore, ditributeAmount - 1);
         assertEq(balanceBeforeBob - feeOnTransferToken.balanceOf(bob), ditributeAmount);
 
@@ -2174,9 +2216,13 @@ contract VaultTest is Test {
         (address network_, uint256 amount_, uint48 timestamp_, uint48 creation) =
             vault.rewards(address(feeOnTransferToken), 0);
         assertEq(network_, network);
-        assertEq(amount_, ditributeAmount - 1);
+        uint256 amount__ = ditributeAmount - 1;
+        uint256 adminFeeAmount = amount__.mulDiv(adminFee, vault.ADMIN_FEE_BASE());
+        amount__ -= adminFeeAmount;
+        assertEq(amount_, amount__);
         assertEq(timestamp_, timestamp);
         assertEq(creation, blockTimestamp);
+        assertEq(vault.claimableAdminFee(address(feeOnTransferToken)), adminFeeAmount);
     }
 
     function test_DistributeRewardRevertInvalidRewardTimestamp(uint256 amount, uint256 ditributeAmount) public {
@@ -2207,8 +2253,11 @@ contract VaultTest is Test {
         feeOnTransferToken.approve(address(vault), type(uint256).max);
         vm.stopPrank();
 
+        uint256 acceptedAdminFee = vault.ADMIN_FEE_BASE();
         vm.expectRevert(IVault.InvalidRewardTimestamp.selector);
-        _ditributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, uint48(blockTimestamp));
+        _distributeReward(
+            bob, network, address(feeOnTransferToken), ditributeAmount, uint48(blockTimestamp), acceptedAdminFee
+        );
     }
 
     function test_DistributeRewardRevertInsufficientReward(uint256 amount) public {
@@ -2239,8 +2288,9 @@ contract VaultTest is Test {
         vm.stopPrank();
 
         uint48 timestamp = 3;
+        uint256 acceptedAdminFee = vault.ADMIN_FEE_BASE();
         vm.expectRevert(IVault.InsufficientReward.selector);
-        _ditributeReward(bob, network, address(feeOnTransferToken), 1, timestamp);
+        _distributeReward(bob, network, address(feeOnTransferToken), 1, timestamp, acceptedAdminFee);
     }
 
     function test_ClaimRewards(uint256 amount, uint256 ditributeAmount) public {
@@ -2272,17 +2322,11 @@ contract VaultTest is Test {
         vm.stopPrank();
 
         uint48 timestamp = 3;
-        _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
-
-        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
-        rewardClaims[0] = IVault.RewardClaim({
-            token: address(token),
-            maxRewards: type(uint256).max,
-            activeSharesOfHints: new uint32[](1)
-        });
+        _distributeReward(bob, network, address(token), ditributeAmount, timestamp, vault.ADMIN_FEE_BASE());
 
         uint256 balanceBefore = token.balanceOf(alice);
-        _claimRewards(alice, rewardClaims);
+        uint32[] memory activeSharesOfHints = new uint32[](1);
+        _claimRewards(alice, address(token), 1, activeSharesOfHints);
         assertEq(token.balanceOf(alice) - balanceBefore, ditributeAmount);
 
         assertEq(vault.lastUnclaimedReward(alice, address(token)), 1);
@@ -2318,19 +2362,13 @@ contract VaultTest is Test {
 
     //     uint256 numRewards = 50;
     //     for (uint48 i = 1; i < numRewards + 1; ++i) {
-    //         _ditributeReward(bob, network, address(token), ditributeAmount, i);
+    //         _distributeReward(bob, network, address(token), ditributeAmount, i, vault.ADMIN_FEE_BASE());
     //     }
 
-    //     IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
     //     uint32[] memory activeSharesOfHints = new uint32[](0);
-    //     rewardClaims[0] = IVault.RewardClaim({
-    //         token: address(token),
-    //         maxRewards: type(uint256).max,
-    //         activeSharesOfHints: activeSharesOfHints
-    //     });
 
     //     uint256 gasLeft = gasleft();
-    //     _claimRewards(alice, rewardClaims);
+    //     _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
     //     uint256 gasLeft2 = gasleft();
     //     console2.log("Gas1", gasLeft - gasLeft2 - 100);
     // }
@@ -2365,27 +2403,21 @@ contract VaultTest is Test {
 
     //     uint256 numRewards = 50;
     //     for (uint48 i = 1; i < numRewards + 1; ++i) {
-    //         _ditributeReward(bob, network, address(token), ditributeAmount, i);
+    //         _distributeReward(bob, network, address(token), ditributeAmount, i, vault.ADMIN_FEE_BASE());
     //     }
 
-    //     IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
     //     uint32[] memory activeSharesOfHints = new uint32[](numRewards);
     //     for (uint32 i; i < numRewards; ++i) {
     //         activeSharesOfHints[i] = i;
     //     }
-    //     rewardClaims[0] = IVault.RewardClaim({
-    //         token: address(token),
-    //         maxRewards: type(uint256).max,
-    //         activeSharesOfHints: activeSharesOfHints
-    //     });
 
     //     uint256 gasLeft = gasleft();
-    //     _claimRewards(alice, rewardClaims);
+    //     _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
     //     uint256 gasLeft2 = gasleft();
     //     console2.log("Gas2", gasLeft - gasLeft2 - 100);
     // }
 
-    function test_ClaimRewardsRevertNoRewardsToClaim(uint256 amount, uint256 ditributeAmount) public {
+    function test_ClaimRewardsRevertNoRewardsToClaim1(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
@@ -2406,18 +2438,12 @@ contract VaultTest is Test {
 
         IERC20 token = IERC20(new Token("Token"));
 
-        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
-        rewardClaims[0] = IVault.RewardClaim({
-            token: address(token),
-            maxRewards: type(uint256).max,
-            activeSharesOfHints: new uint32[](1)
-        });
-
+        uint32[] memory activeSharesOfHints = new uint32[](1);
         vm.expectRevert(IVault.NoRewardsToClaim.selector);
-        _claimRewards(alice, rewardClaims);
+        _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
     }
 
-    function test_ClaimRewardsRevertNoRewardClaims(uint256 amount, uint256 ditributeAmount) public {
+    function test_ClaimRewardsRevertNoRewardsToClaim2(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
@@ -2426,9 +2452,6 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -2440,18 +2463,10 @@ contract VaultTest is Test {
         }
 
         IERC20 token = IERC20(new Token("Token"));
-        token.transfer(bob, 100_000 * 1e18);
-        vm.startPrank(bob);
-        token.approve(address(vault), type(uint256).max);
-        vm.stopPrank();
 
-        uint48 timestamp = 3;
-        _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
-
-        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](0);
-
-        vm.expectRevert(IVault.NoRewardClaims.selector);
-        _claimRewards(alice, rewardClaims);
+        uint32[] memory activeSharesOfHints = new uint32[](1);
+        vm.expectRevert(IVault.NoRewardsToClaim.selector);
+        _claimRewards(alice, address(token), 0, activeSharesOfHints);
     }
 
     function test_ClaimRewardsRevertNoDeposits(uint256 amount, uint256 ditributeAmount) public {
@@ -2483,17 +2498,11 @@ contract VaultTest is Test {
         vm.stopPrank();
 
         uint48 timestamp = 3;
-        _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
+        _distributeReward(bob, network, address(token), ditributeAmount, timestamp, vault.ADMIN_FEE_BASE());
 
-        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
-        rewardClaims[0] = IVault.RewardClaim({
-            token: address(token),
-            maxRewards: type(uint256).max,
-            activeSharesOfHints: new uint32[](1)
-        });
-
+        uint32[] memory activeSharesOfHints = new uint32[](1);
         vm.expectRevert(IVault.NoDeposits.selector);
-        _claimRewards(alice, rewardClaims);
+        _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
     }
 
     function test_ClaimRewardsRevertInvalidHintsLength(uint256 amount, uint256 ditributeAmount) public {
@@ -2525,17 +2534,164 @@ contract VaultTest is Test {
         vm.stopPrank();
 
         uint48 timestamp = 3;
-        _ditributeReward(bob, network, address(token), ditributeAmount, timestamp);
+        _distributeReward(bob, network, address(token), ditributeAmount, timestamp, vault.ADMIN_FEE_BASE());
 
-        IVault.RewardClaim[] memory rewardClaims = new IVault.RewardClaim[](1);
-        rewardClaims[0] = IVault.RewardClaim({
-            token: address(token),
-            maxRewards: type(uint256).max,
-            activeSharesOfHints: new uint32[](2)
-        });
-
+        uint32[] memory activeSharesOfHints = new uint32[](2);
         vm.expectRevert(IVault.InvalidHintsLength.selector);
-        _claimRewards(alice, rewardClaims);
+        _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
+    }
+
+    function test_ClaimAdminFee(uint256 amount, uint256 ditributeAmount, uint256 adminFee) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
+
+        _grantAdminFeeSetRole(alice, alice);
+        _setAdminFee(alice, adminFee);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        for (uint256 i; i < 10; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 token = IERC20(new Token("Token"));
+        token.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        token.approve(address(vault), type(uint256).max);
+        vm.stopPrank();
+
+        uint48 timestamp = 3;
+        _distributeReward(bob, network, address(token), ditributeAmount, timestamp, vault.ADMIN_FEE_BASE());
+
+        uint256 adminFeeAmount = ditributeAmount.mulDiv(adminFee, vault.ADMIN_FEE_BASE());
+        vm.assume(adminFeeAmount != 0);
+        uint256 balanceBefore = token.balanceOf(address(vault));
+        uint256 balanceBeforeAlice = token.balanceOf(alice);
+        _claimAdminFee(alice, address(token));
+        assertEq(balanceBefore - token.balanceOf(address(vault)), adminFeeAmount);
+        assertEq(token.balanceOf(alice) - balanceBeforeAlice, adminFeeAmount);
+        assertEq(vault.claimableAdminFee(address(token)), 0);
+    }
+
+    function test_ClaimAdminFeeRevertInsufficientAdminFee(
+        uint256 amount,
+        uint256 ditributeAmount,
+        uint256 adminFee
+    ) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
+
+        _grantAdminFeeSetRole(alice, alice);
+        _setAdminFee(alice, adminFee);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        for (uint256 i; i < 10; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 token = IERC20(new Token("Token"));
+        token.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        token.approve(address(vault), type(uint256).max);
+        vm.stopPrank();
+
+        uint48 timestamp = 3;
+        _distributeReward(bob, network, address(token), ditributeAmount, timestamp, vault.ADMIN_FEE_BASE());
+
+        vm.assume(vault.claimableAdminFee(address(token)) != 0);
+        _claimAdminFee(alice, address(token));
+
+        vm.expectRevert(IVault.InsufficientAdminFee.selector);
+        _claimAdminFee(alice, address(token));
+    }
+
+    function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee1 = bound(adminFee1, 1, vault.ADMIN_FEE_BASE());
+        adminFee2 = bound(adminFee2, 0, vault.ADMIN_FEE_BASE());
+        vm.assume(adminFee1 != adminFee2);
+
+        _grantAdminFeeSetRole(alice, alice);
+        _setAdminFee(alice, adminFee1);
+        assertEq(vault.adminFee(), adminFee1);
+
+        _setAdminFee(alice, adminFee2);
+        assertEq(vault.adminFee(), adminFee2);
+    }
+
+    function test_SetAdminFeeReverUnauthorized(uint256 adminFee) public {
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
+
+        vm.expectRevert();
+        _setAdminFee(bob, adminFee);
+    }
+
+    function test_SetAdminFeeRevertAlreadySet(uint256 adminFee) public {
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
+
+        _grantAdminFeeSetRole(alice, alice);
+        _setAdminFee(alice, adminFee);
+
+        vm.expectRevert(IVault.AlreadySet.selector);
+        _setAdminFee(alice, adminFee);
+    }
+
+    function test_SetAdminFeeRevertInvalidAdminFee(uint256 adminFee) public {
+        string memory metadataURL = "";
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vm.assume(adminFee > vault.ADMIN_FEE_BASE());
+
+        _grantAdminFeeSetRole(alice, alice);
+        vm.expectRevert(IVault.InvalidAdminFee.selector);
+        _setAdminFee(alice, adminFee);
     }
 
     function test_SetDepositWhitelist() public {
@@ -2546,6 +2702,7 @@ contract VaultTest is Test {
 
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
+        _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
         assertEq(vault.depositWhitelist(), true);
 
@@ -2563,6 +2720,7 @@ contract VaultTest is Test {
 
         _deposit(alice, 1);
 
+        _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
 
         vm.startPrank(alice);
@@ -2579,6 +2737,7 @@ contract VaultTest is Test {
 
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
+        _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
 
         vm.expectRevert(IVault.AlreadySet.selector);
@@ -2593,6 +2752,7 @@ contract VaultTest is Test {
 
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
+        _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
 
         _grantDepositorWhitelistRole(alice, alice);
@@ -2629,6 +2789,7 @@ contract VaultTest is Test {
 
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
+        _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
 
         _grantDepositorWhitelistRole(alice, alice);
@@ -2656,6 +2817,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        adminFee: 0,
                         depositWhitelist: false
                     })
                 )
@@ -2679,6 +2841,18 @@ contract VaultTest is Test {
     function _grantDepositorWhitelistRole(address user, address account) internal {
         vm.startPrank(user);
         Vault(address(vault)).grantRole(vault.DEPOSITOR_WHITELIST_ROLE(), account);
+        vm.stopPrank();
+    }
+
+    function _grantAdminFeeSetRole(address user, address account) internal {
+        vm.startPrank(user);
+        Vault(address(vault)).grantRole(vault.ADMIN_FEE_SET_ROLE(), account);
+        vm.stopPrank();
+    }
+
+    function _grantDepositWhitelistSetRole(address user, address account) internal {
+        vm.startPrank(user);
+        Vault(address(vault)).grantRole(vault.DEPOSIT_WHITELIST_SET_ROLE(), account);
         vm.stopPrank();
     }
 
@@ -2762,21 +2936,39 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _ditributeReward(
+    function _distributeReward(
         address user,
         address network,
         address token,
         uint256 amount,
-        uint48 timestamp
+        uint48 timestamp,
+        uint256 acceptedAdminFee
     ) internal {
         vm.startPrank(user);
-        vault.distributeReward(network, token, amount, timestamp);
+        vault.distributeReward(network, token, amount, timestamp, acceptedAdminFee);
         vm.stopPrank();
     }
 
-    function _claimRewards(address user, IVault.RewardClaim[] memory rewardClaims) internal {
+    function _claimRewards(
+        address user,
+        address token,
+        uint256 maxRewards,
+        uint32[] memory activeSharesOfHints
+    ) internal {
         vm.startPrank(user);
-        vault.claimRewards(user, rewardClaims);
+        vault.claimRewards(user, token, maxRewards, activeSharesOfHints);
+        vm.stopPrank();
+    }
+
+    function _setAdminFee(address user, uint256 adminFee) internal {
+        vm.startPrank(user);
+        vault.setAdminFee(adminFee);
+        vm.stopPrank();
+    }
+
+    function _claimAdminFee(address user, address token) internal {
+        vm.startPrank(user);
+        vault.claimAdminFee(user, token);
         vm.stopPrank();
     }
 

@@ -32,6 +32,7 @@ interface IMigratablesRegistry is IRegistry {
      * @notice Migrate a given entity to the next version.
      * @param entity address of the entity to migrate
      * @param data some data to reinitialize the contract with
+     * @dev Only entity's owner can call this function.
      */
     function migrate(address entity, bytes memory data) external;
 

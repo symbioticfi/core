@@ -35,7 +35,15 @@ contract Vault is
     using Math for uint256;
     using Strings for string;
 
+    /**
+     * @dev Some dead address to transfer slashed tokens to.
+     */
     address private constant DEAD = address(0xdEaD);
+
+    /**
+     * @inheritdoc IVault
+     */
+    uint256 public constant ADMIN_FEE_BASE = 10_000;
 
     /**
      * @inheritdoc IVault
@@ -50,7 +58,12 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    bytes32 public constant DEPOSIT_WHITELIST_ROLE = keccak256("DEPOSIT_WHITELIST_ROLE");
+    bytes32 public constant ADMIN_FEE_SET_ROLE = keccak256("ADMIN_FEE_SET_ROLE");
+
+    /**
+     * @inheritdoc IVault
+     */
+    bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
     /**
      * @inheritdoc IVault
      */
@@ -105,6 +118,16 @@ contract Vault is
      * @inheritdoc IVault
      */
     uint48 public slashDuration;
+
+    /**
+     * @inheritdoc IVault
+     */
+    uint256 public adminFee;
+
+    /**
+     * @inheritdoc IVault
+     */
+    mapping(address token => uint256 amount) public claimableAdminFee;
 
     /**
      * @inheritdoc IVault
@@ -365,14 +388,7 @@ contract Vault is
      * @inheritdoc MigratableEntity
      */
     function initialize(uint64 version, bytes memory data) public override reinitializer(version) {
-        __ReentrancyGuard_init();
-
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
-
-        _initialize(params.owner);
-
-        metadataURL = params.metadataURL;
-        collateral = params.collateral;
 
         if (params.epochDuration == 0) {
             revert InvalidEpochDuration();
@@ -382,18 +398,29 @@ contract Vault is
             revert InvalidSlashDuration();
         }
 
+        if (params.adminFee > ADMIN_FEE_BASE) {
+            revert InvalidAdminFee();
+        }
+
+        __ReentrancyGuard_init();
+
+        _initialize(params.owner);
+
+        metadataURL = params.metadataURL;
+        collateral = params.collateral;
+
         epochDurationInit = clock();
         epochDuration = params.epochDuration;
 
         vetoDuration = params.vetoDuration;
         slashDuration = params.slashDuration;
 
+        adminFee = params.adminFee;
         depositWhitelist = params.depositWhitelist;
 
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
         _grantRole(NETWORK_LIMIT_SET_ROLE, params.owner);
         _grantRole(OPERATOR_LIMIT_SET_ROLE, params.owner);
-        _grantRole(DEPOSIT_WHITELIST_ROLE, params.owner);
         if (params.depositWhitelist) {
             _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
         }
@@ -659,7 +686,8 @@ contract Vault is
         address network,
         address token,
         uint256 amount,
-        uint48 timestamp
+        uint48 timestamp,
+        uint256 acceptedAdminFee
     ) external nonReentrant returns (uint256 rewardIndex) {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
             revert NotNetwork();
@@ -669,12 +697,8 @@ contract Vault is
             revert InvalidRewardTimestamp();
         }
 
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        amount = IERC20(token).balanceOf(address(this)) - balanceBefore;
-
-        if (amount == 0) {
-            revert InsufficientReward();
+        if (acceptedAdminFee < adminFee) {
+            revert UnacceptedAdminFee();
         }
 
         if (_activeSharesCache[timestamp] == 0) {
@@ -689,10 +713,26 @@ contract Vault is
             _activeSuppliesCache[timestamp] = activeSupply_;
         }
 
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        amount = IERC20(token).balanceOf(address(this)) - balanceBefore;
+
+        if (amount == 0) {
+            revert InsufficientReward();
+        }
+
+        uint256 adminFeeAmount = amount.mulDiv(adminFee, ADMIN_FEE_BASE);
+        claimableAdminFee[token] += adminFeeAmount;
+
         rewardIndex = rewards[token].length;
 
         rewards[token].push(
-            RewardDistribution({network: network, amount: amount, timestamp: timestamp, creation: clock()})
+            RewardDistribution({
+                network: network,
+                amount: amount - adminFeeAmount,
+                timestamp: timestamp,
+                creation: clock()
+            })
         );
 
         emit DistributeReward(token, rewardIndex, network, amount, timestamp);
@@ -701,71 +741,63 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function claimRewards(address recipient, RewardClaim[] calldata rewardClaims) external {
-        uint256 tokensLen = rewardClaims.length;
-        if (tokensLen == 0) {
-            revert NoRewardClaims();
-        }
-
+    function claimRewards(
+        address recipient,
+        address token,
+        uint256 maxRewards,
+        uint32[] calldata activeSharesOfHints
+    ) external {
         uint48 firstDepositAt_ = firstDepositAt[msg.sender];
         if (firstDepositAt_ == 0) {
             revert NoDeposits();
         }
 
-        mapping(address => uint256) storage lastUnclaimedRewardByUser = lastUnclaimedReward[msg.sender];
+        RewardDistribution[] storage rewardsByToken = rewards[token];
+        uint256 rewardIndex = lastUnclaimedReward[msg.sender][token];
+        if (rewardIndex == 0) {
+            rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_);
+        }
 
-        for (uint256 i; i < tokensLen; ++i) {
-            RewardClaim calldata rewardClaim = rewardClaims[i];
-            address token = rewardClaim.token;
+        uint256 rewardsToClaim = Math.min(maxRewards, rewardsByToken.length - rewardIndex);
 
-            RewardDistribution[] storage rewardsByToken = rewards[token];
-            uint256 rewardIndex = lastUnclaimedRewardByUser[token];
-            if (rewardIndex == 0) {
-                rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_);
+        if (rewardsToClaim == 0) {
+            revert NoRewardsToClaim();
+        }
+
+        uint256 activeSharesOfHintsLen = activeSharesOfHints.length;
+        if (activeSharesOfHintsLen != 0 && activeSharesOfHintsLen != rewardsToClaim) {
+            revert InvalidHintsLength();
+        }
+
+        uint256 amount;
+        for (uint256 j; j < rewardsToClaim;) {
+            RewardDistribution storage reward = rewardsByToken[rewardIndex];
+
+            uint256 claimedAmount;
+            uint48 timestamp = reward.timestamp;
+            if (timestamp >= firstDepositAt_) {
+                uint256 activeSupply_ = _activeSuppliesCache[timestamp];
+                uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
+                    ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, activeSharesOfHints[j])
+                    : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
+                uint256 activeBalanceOf_ = _previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCache[timestamp]);
+
+                claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
+                amount += claimedAmount;
             }
 
-            uint256 rewardsToClaim = Math.min(rewardClaim.maxRewards, rewardsByToken.length - rewardIndex);
+            emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
 
-            if (rewardsToClaim == 0) {
-                revert NoRewardsToClaim();
+            unchecked {
+                ++j;
+                ++rewardIndex;
             }
+        }
 
-            uint256 activeSharesOfHintsLen = rewardClaim.activeSharesOfHints.length;
-            if (activeSharesOfHintsLen != 0 && activeSharesOfHintsLen != rewardsToClaim) {
-                revert InvalidHintsLength();
-            }
+        lastUnclaimedReward[msg.sender][token] = rewardIndex;
 
-            uint256 amount;
-            for (uint256 j; j < rewardsToClaim;) {
-                RewardDistribution storage reward = rewardsByToken[rewardIndex];
-
-                uint256 claimedAmount;
-                uint48 timestamp = reward.timestamp;
-                if (timestamp >= firstDepositAt_) {
-                    uint256 activeSupply_ = _activeSuppliesCache[timestamp];
-                    uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
-                        ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, rewardClaim.activeSharesOfHints[j])
-                        : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
-                    uint256 activeBalanceOf_ =
-                        _previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCache[timestamp]);
-
-                    claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
-                    amount += claimedAmount;
-                }
-
-                emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
-
-                unchecked {
-                    ++j;
-                    ++rewardIndex;
-                }
-            }
-
-            lastUnclaimedRewardByUser[token] = rewardIndex;
-
-            if (amount != 0) {
-                IERC20(token).safeTransfer(recipient, amount);
-            }
+        if (amount != 0) {
+            IERC20(token).safeTransfer(recipient, amount);
         }
     }
 
@@ -899,8 +931,38 @@ contract Vault is
     /**
      * @inheritdoc IVault
      */
-    function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_ROLE) {
-        if (status == depositWhitelist) {
+    function setAdminFee(uint256 adminFee_) external onlyRole(ADMIN_FEE_SET_ROLE) {
+        if (adminFee == adminFee_) {
+            revert AlreadySet();
+        }
+
+        if (adminFee_ > ADMIN_FEE_BASE) {
+            revert InvalidAdminFee();
+        }
+
+        adminFee = adminFee_;
+
+        emit SetAdminFee(adminFee_);
+    }
+
+    function claimAdminFee(address recipient, address token) external onlyOwner {
+        uint256 claimableAdminFee_ = claimableAdminFee[token];
+        if (claimableAdminFee_ == 0) {
+            revert InsufficientAdminFee();
+        }
+
+        claimableAdminFee[token] = 0;
+
+        IERC20(token).safeTransfer(recipient, claimableAdminFee_);
+
+        emit ClaimAdminFee(token, claimableAdminFee_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+        if (depositWhitelist == status) {
             revert AlreadySet();
         }
 
