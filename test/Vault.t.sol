@@ -12,6 +12,7 @@ import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
 import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
+import {IVaultDelegation} from "src/interfaces/IVaultDelegation.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
@@ -192,7 +193,7 @@ contract VaultTest is Test {
         );
 
         vm.startPrank(alice);
-        vm.expectRevert(IVault.AlreadySet.selector);
+        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
         vault.setMetadataURL(metadataURL);
         vm.stopPrank();
     }
@@ -794,7 +795,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVault.NetworkNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.NetworkNotOptedIn.selector);
         _requestSlash(bob, network, resolver, operator, toSlash);
     }
 
@@ -896,7 +897,7 @@ contract VaultTest is Test {
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration();
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVault.OperatorNotOptedInVault.selector);
+        vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
         _requestSlash(bob, network, resolver, operator, toSlash);
     }
 
@@ -1285,7 +1286,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVault.OperatorNotOptedInVault.selector);
+        vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
         _executeSlash(address(1), slashIndex);
     }
 
@@ -1753,7 +1754,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        vm.expectRevert(IVault.InvalidMaxNetworkLimit.selector);
+        vm.expectRevert(IVaultDelegation.InvalidMaxNetworkLimit.selector);
         _optInNetwork(network, resolver, 0);
     }
 
@@ -1770,7 +1771,7 @@ contract VaultTest is Test {
         address resolver = address(1);
         _optInNetwork(network, resolver, type(uint256).max);
 
-        vm.expectRevert(IVault.NetworkAlreadyOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.NetworkAlreadyOptedIn.selector);
         _optInNetwork(network, resolver, type(uint256).max);
     }
 
@@ -1782,7 +1783,7 @@ contract VaultTest is Test {
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
         address resolver = address(1);
-        vm.expectRevert(IVault.NotNetwork.selector);
+        vm.expectRevert(IVaultDelegation.NotNetwork.selector);
         _optInNetwork(address(0), resolver, type(uint256).max);
     }
 
@@ -1797,7 +1798,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        vm.expectRevert(IVault.NetworkNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.NetworkNotOptedIn.selector);
         _optOutNetwork(network, resolver);
     }
 
@@ -1858,7 +1859,7 @@ contract VaultTest is Test {
 
         _optInOperator(operator);
 
-        vm.expectRevert(IVault.OperatorAlreadyOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.OperatorAlreadyOptedIn.selector);
         _optInOperator(operator);
     }
 
@@ -1869,7 +1870,7 @@ contract VaultTest is Test {
         uint48 slashDuration = 1;
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
-        vm.expectRevert(IVault.NotOperator.selector);
+        vm.expectRevert(IVaultDelegation.NotOperator.selector);
         _optInOperator(address(0));
     }
 
@@ -1883,7 +1884,7 @@ contract VaultTest is Test {
         address operator = bob;
         _registerOperator(operator);
 
-        vm.expectRevert(IVault.OperatorNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
         _optOutOperator(operator);
     }
 
@@ -2021,7 +2022,7 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        vm.expectRevert(IVault.NetworkNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.NetworkNotOptedIn.selector);
         _setNetworkLimit(alice, network, resolver, amount1);
     }
 
@@ -2045,7 +2046,7 @@ contract VaultTest is Test {
         address resolver = address(1);
         _optInNetwork(network, resolver, maxNetworkLimit);
 
-        vm.expectRevert(IVault.ExceedsMaxNetworkLimit.selector);
+        vm.expectRevert(IVaultDelegation.ExceedsMaxNetworkLimit.selector);
         _setNetworkLimit(alice, network, resolver, amount1);
     }
 
@@ -2169,7 +2170,7 @@ contract VaultTest is Test {
 
         address network = address(1);
         if (amount1 > 0) {
-            vm.expectRevert(IVault.OperatorNotOptedIn.selector);
+            vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
         }
         _setOperatorLimit(alice, operator, network, amount1);
     }
@@ -2716,7 +2717,7 @@ contract VaultTest is Test {
         _grantAdminFeeSetRole(alice, alice);
         _setAdminFee(alice, adminFee);
 
-        vm.expectRevert(IVault.AlreadySet.selector);
+        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
         _setAdminFee(alice, adminFee);
     }
 
@@ -2780,7 +2781,7 @@ contract VaultTest is Test {
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
 
-        vm.expectRevert(IVault.AlreadySet.selector);
+        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
         _setDepositWhitelist(alice, true);
     }
 
@@ -2817,7 +2818,7 @@ contract VaultTest is Test {
 
         _grantDepositorWhitelistRole(alice, alice);
 
-        vm.expectRevert(IVault.NoDepositWhitelist.selector);
+        vm.expectRevert(IVaultDelegation.NoDepositWhitelist.selector);
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
@@ -2836,7 +2837,7 @@ contract VaultTest is Test {
 
         _setDepositorWhitelistStatus(alice, bob, true);
 
-        vm.expectRevert(IVault.AlreadySet.selector);
+        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
