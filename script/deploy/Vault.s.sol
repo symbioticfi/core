@@ -24,20 +24,20 @@ contract VaultScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         IMigratablesRegistry(vaultRegistry).create(
-                IMigratablesRegistry(vaultRegistry).lastVersion(),
-                abi.encode(
-                    IVaultStorage.InitParams({
-                        owner: owner,
-                        collateral: collateral,
-                        epochDuration: epochDuration,
-                        vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
-                        metadataURL: metadataURL,
-                        adminFee: adminFee,
-                        depositWhitelist: depositWhitelist
-                    })
-                )
+            IMigratablesRegistry(vaultRegistry).lastVersion(),
+            abi.encode(
+                IVaultStorage.InitParams({
+                    owner: owner,
+                    collateral: collateral,
+                    epochDuration: epochDuration,
+                    vetoDuration: vetoDuration,
+                    slashDuration: slashDuration,
+                    metadataURL: metadataURL,
+                    adminFee: adminFee,
+                    depositWhitelist: depositWhitelist
+                })
             )
+        );
 
         vm.stopBroadcast();
     }
