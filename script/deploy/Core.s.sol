@@ -7,7 +7,7 @@ import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
+import {OptInPlugin} from "src/contracts/plugins/OptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 
@@ -24,8 +24,7 @@ contract CoreScript is Script {
         MetadataPlugin operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
         MetadataPlugin networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
         MiddlewarePlugin networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
-        NetworkOptInPlugin networkOptInPlugin =
-            new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry));
+        OptInPlugin networkOptInPlugin = new OptInPlugin(address(operatorRegistry), address(networkRegistry));
 
         address vault = address(
             new Vault(

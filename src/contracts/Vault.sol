@@ -5,7 +5,7 @@ import {IVault} from "src/interfaces/IVault.sol";
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
-import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
+import {IOptInPlugin} from "src/interfaces/plugins/IOptInPlugin.sol";
 
 import {VaultDelegation} from "./VaultDelegation.sol";
 import {ERC4626Math} from "./libraries/ERC4626Math.sol";
@@ -180,9 +180,8 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
         }
 
         if (
-            !INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).isOperatorOptedIn(operator, network)
-                && INetworkOptInPlugin(NETWORK_OPT_IN_PLUGIN).lastOperatorOptOut(operator, network)
-                    < block.timestamp - epochDuration
+            !IOptInPlugin(NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
+                && IOptInPlugin(NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < block.timestamp - epochDuration
         ) {
             revert OperatorNotOptedInNetwork();
         }

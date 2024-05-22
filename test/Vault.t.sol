@@ -7,7 +7,7 @@ import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
+import {OptInPlugin} from "src/contracts/plugins/OptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
@@ -37,7 +37,7 @@ contract VaultTest is Test {
     MetadataPlugin operatorMetadataPlugin;
     MetadataPlugin networkMetadataPlugin;
     MiddlewarePlugin networkMiddlewarePlugin;
-    NetworkOptInPlugin networkOptInPlugin;
+    OptInPlugin networkOptInPlugin;
 
     IVault vault;
 
@@ -54,7 +54,7 @@ contract VaultTest is Test {
         operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
         networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
         networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
-        networkOptInPlugin = new NetworkOptInPlugin(address(operatorRegistry), address(networkRegistry));
+        networkOptInPlugin = new OptInPlugin(address(operatorRegistry), address(networkRegistry));
 
         vaultRegistry.whitelist(
             address(
