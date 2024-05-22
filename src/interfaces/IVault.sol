@@ -60,8 +60,8 @@ interface IVault is IVaultDelegation {
      * @notice Emitted when a slash request is made.
      * @param slashIndex index of the slash request
      * @param network network which requested the slash
-     * @param resolver resolver who can veto the slash
-     * @param operator operator who could be slashed
+     * @param resolver resolver which can veto the slash
+     * @param operator operator which could be slashed
      * @param slashAmount maximum amount of the collateral to be slashed
      * @param vetoDeadline deadline for the resolver to veto the slash
      * @param slashDeadline deadline to execute slash

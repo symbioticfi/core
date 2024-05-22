@@ -11,13 +11,8 @@ import {Checkpoints} from "./libraries/Checkpoints.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract VaultStorage is
-    MigratableEntity,
-    ERC6372,
-    AccessControlUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IVaultStorage
-{
+contract VaultStorage is // TODO
+    MigratableEntity, ERC6372, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
 
     /**
@@ -72,7 +67,17 @@ contract VaultStorage is
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable NETWORK_OPT_IN_PLUGIN;
+    address public immutable NETWORK_VAULT_OPT_IN_PLUGIN;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public immutable OPERATOR_VAULT_OPT_IN_PLUGIN;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public immutable OPERATOR_NETWORK_OPT_IN_PLUGIN;
 
     /**
      * @inheritdoc IVaultStorage
@@ -189,10 +194,6 @@ contract VaultStorage is
 
     mapping(uint48 timestamp => uint256 amount) internal _activeSuppliesCache;
 
-    mapping(address network => mapping(address resolver => bool value)) internal _isNetworkOptedIn;
-
-    mapping(address operator => bool value) internal _isOperatorOptedIn;
-
     mapping(address network => mapping(address resolver => Limit limit)) internal _networkLimit;
 
     mapping(address operator => mapping(address network => Limit limit)) internal _operatorLimit;
@@ -201,12 +202,16 @@ contract VaultStorage is
         address networkRegistry,
         address operatorRegistry,
         address networkMiddlewarePlugin,
-        address networkOptInPlugin
+        address networkVaultOptInPlugin,
+        address operatorVaultOptInPlugin,
+        address operatorNetworkOptInPlugin
     ) {
         NETWORK_REGISTRY = networkRegistry;
         OPERATOR_REGISTRY = operatorRegistry;
         NETWORK_MIDDLEWARE_PLUGIN = networkMiddlewarePlugin;
-        NETWORK_OPT_IN_PLUGIN = networkOptInPlugin;
+        NETWORK_VAULT_OPT_IN_PLUGIN = networkVaultOptInPlugin;
+        OPERATOR_VAULT_OPT_IN_PLUGIN = operatorVaultOptInPlugin;
+        OPERATOR_NETWORK_OPT_IN_PLUGIN = operatorNetworkOptInPlugin;
     }
 
     /**
@@ -221,6 +226,13 @@ contract VaultStorage is
      */
     function currentEpochStart() public view returns (uint48) {
         return uint48(epochDurationInit + currentEpoch() * epochDuration);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function previousEpochStart() public view returns (uint48) {
+        return currentEpoch() != 0 ? currentEpochStart() - epochDuration : currentEpochStart();
     }
 
     /**

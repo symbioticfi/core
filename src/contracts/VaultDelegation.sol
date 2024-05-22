@@ -3,6 +3,8 @@ pragma solidity 0.8.25;
 
 import {IVaultDelegation} from "src/interfaces/IVaultDelegation.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
+import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
+import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
 
 import {VaultStorage} from "./VaultStorage.sol";
 
@@ -15,28 +17,19 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
         address networkRegistry,
         address operatorRegistry,
         address networkMiddlewarePlugin,
-        address networkOptInPlugin
-    ) VaultStorage(networkRegistry, operatorRegistry, networkMiddlewarePlugin, networkOptInPlugin) {}
-
-    /**
-     * @inheritdoc IVaultDelegation
-     */
-    function isNetworkOptedIn(address network, address resolver) public view returns (bool) {
-        return _isNetworkOptedIn[network][resolver];
-    }
-
-    /**
-     * @inheritdoc IVaultDelegation
-     */
-    function isOperatorOptedIn(address operator) public view returns (bool) {
-        if (operatorOptOutAt[operator] == 0) {
-            return _isOperatorOptedIn[operator];
-        }
-        if (clock() < operatorOptOutAt[operator]) {
-            return true;
-        }
-        return false;
-    }
+        address networkVaultOptInPlugin,
+        address operatorVaultOptInPlugin,
+        address operatorNetworkOptInPlugin
+    )
+        VaultStorage(
+            networkRegistry,
+            operatorRegistry,
+            networkMiddlewarePlugin,
+            networkVaultOptInPlugin,
+            operatorVaultOptInPlugin,
+            operatorNetworkOptInPlugin
+        )
+    {}
 
     /**
      * @inheritdoc IVaultDelegation
@@ -55,81 +48,32 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
     /**
      * @inheritdoc IVaultDelegation
      */
-    function optInNetwork(address resolver, uint256 maxNetworkLimit_) external {
+    function setMaxNetworkLimit(address resolver, uint256 amount) external {
+        if (maxNetworkLimit[msg.sender][resolver] == amount) {
+            revert AlreadySet();
+        }
+
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
 
-        if (isNetworkOptedIn(msg.sender, resolver)) {
-            revert NetworkAlreadyOptedIn();
+        maxNetworkLimit[msg.sender][resolver] = amount;
+
+        Limit storage limit = _networkLimit[msg.sender][resolver];
+        DelayedLimit storage nextLimit = nextNetworkLimit[msg.sender][resolver];
+
+        _updateLimit(limit, nextLimit);
+
+        if (limit.amount > amount) {
+            limit.amount = amount;
+        }
+        if (nextLimit.timestamp != 0) {
+            if (nextLimit.amount > amount) {
+                nextLimit.amount = amount;
+            }
         }
 
-        if (maxNetworkLimit_ == 0) {
-            revert InvalidMaxNetworkLimit();
-        }
-
-        _isNetworkOptedIn[msg.sender][resolver] = true;
-
-        _networkLimit[msg.sender][resolver].amount = 0;
-        nextNetworkLimit[msg.sender][resolver].timestamp = 0;
-
-        maxNetworkLimit[msg.sender][resolver] = maxNetworkLimit_;
-
-        emit OptInNetwork(msg.sender, resolver);
-    }
-
-    /**
-     * @inheritdoc IVaultDelegation
-     */
-    function optOutNetwork(address resolver) external {
-        if (!isNetworkOptedIn(msg.sender, resolver)) {
-            revert NetworkNotOptedIn();
-        }
-
-        _updateLimit(_networkLimit[msg.sender][resolver], nextNetworkLimit[msg.sender][resolver]);
-
-        _isNetworkOptedIn[msg.sender][resolver] = false;
-
-        nextNetworkLimit[msg.sender][resolver].amount = 0;
-        nextNetworkLimit[msg.sender][resolver].timestamp = currentEpochStart() + 2 * epochDuration;
-
-        maxNetworkLimit[msg.sender][resolver] = 0;
-
-        emit OptOutNetwork(msg.sender, resolver);
-    }
-
-    /**
-     * @inheritdoc IVaultDelegation
-     */
-    function optInOperator() external {
-        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
-            revert NotOperator();
-        }
-
-        if (isOperatorOptedIn(msg.sender)) {
-            revert OperatorAlreadyOptedIn();
-        }
-
-        if (!_isOperatorOptedIn[msg.sender]) {
-            _isOperatorOptedIn[msg.sender] = true;
-        } else {
-            operatorOptOutAt[msg.sender] = 0;
-        }
-
-        emit OptInOperator(msg.sender);
-    }
-
-    /**
-     * @inheritdoc IVaultDelegation
-     */
-    function optOutOperator() external {
-        if (!isOperatorOptedIn(msg.sender)) {
-            revert OperatorNotOptedIn();
-        }
-
-        operatorOptOutAt[msg.sender] = currentEpochStart() + 2 * epochDuration;
-
-        emit OptOutOperator(msg.sender);
+        emit SetMaxNetworkLimit(msg.sender, resolver, amount);
     }
 
     /**
@@ -179,12 +123,12 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
      * @inheritdoc IVaultDelegation
      */
     function setDepositorWhitelistStatus(address account, bool status) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
-        if (status && !depositWhitelist) {
-            revert NoDepositWhitelist();
-        }
-
         if (isDepositorWhitelisted[account] == status) {
             revert AlreadySet();
+        }
+
+        if (status && !depositWhitelist) {
+            revert NoDepositWhitelist();
         }
 
         isDepositorWhitelisted[account] = status;
@@ -200,15 +144,28 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
         address resolver,
         uint256 amount
     ) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
-        if (!isNetworkOptedIn(network, resolver)) {
-            revert NetworkNotOptedIn();
-        }
-
         if (amount > maxNetworkLimit[network][resolver]) {
             revert ExceedsMaxNetworkLimit();
         }
 
-        _setLimit(_networkLimit[network][resolver], nextNetworkLimit[network][resolver], amount);
+        Limit storage limit = _networkLimit[network][resolver];
+        DelayedLimit storage nextLimit = nextNetworkLimit[network][resolver];
+
+        if (
+            INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).isOptedIn(network, resolver, address(this))
+                || INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).lastOptOut(network, resolver, address(this))
+                    >= previousEpochStart()
+        ) {
+            _setLimit(limit, nextLimit, amount);
+        } else {
+            if (amount != 0) {
+                revert NetworkNotOptedInVault();
+            } else {
+                limit.amount = 0;
+                nextLimit.amount = 0;
+                nextLimit.timestamp = 0;
+            }
+        }
 
         emit SetNetworkLimit(network, resolver, amount);
     }
@@ -224,16 +181,20 @@ contract VaultDelegation is VaultStorage, IVaultDelegation {
         Limit storage limit = _operatorLimit[operator][network];
         DelayedLimit storage nextLimit = nextOperatorLimit[operator][network];
 
-        if (!isOperatorOptedIn(operator)) {
+        if (
+            IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(operator, address(this))
+                || IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(operator, address(this))
+                    >= previousEpochStart()
+        ) {
+            _setLimit(limit, nextLimit, amount);
+        } else {
             if (amount != 0) {
-                revert OperatorNotOptedIn();
+                revert OperatorNotOptedInVault();
             } else {
                 limit.amount = 0;
                 nextLimit.amount = 0;
                 nextLimit.timestamp = 0;
             }
-        } else {
-            _setLimit(limit, nextLimit, amount);
         }
 
         emit SetOperatorLimit(operator, network, amount);

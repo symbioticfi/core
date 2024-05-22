@@ -7,7 +7,8 @@ import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {OptInPlugin} from "src/contracts/plugins/OptInPlugin.sol";
+import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
+import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 
@@ -24,17 +25,25 @@ contract CoreScript is Script {
         MetadataPlugin operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
         MetadataPlugin networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
         MiddlewarePlugin networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
-        OptInPlugin networkOptInPlugin = new OptInPlugin(address(operatorRegistry), address(networkRegistry));
+        NetworkOptInPlugin networkVaultOptInPlugin =
+            new NetworkOptInPlugin(address(networkRegistry), address(vaultRegistry));
+        OperatorOptInPlugin operatorVaultOptInPlugin =
+            new OperatorOptInPlugin(address(operatorRegistry), address(vaultRegistry));
+        OperatorOptInPlugin operatorNetworkOptInPlugin =
+            new OperatorOptInPlugin(address(operatorRegistry), address(networkRegistry));
 
-        address vault = address(
-            new Vault(
-                address(networkRegistry),
-                address(operatorRegistry),
-                address(networkMiddlewarePlugin),
-                address(networkOptInPlugin)
+        vaultRegistry.whitelist(
+            address(
+                new Vault(
+                    address(networkRegistry),
+                    address(operatorRegistry),
+                    address(networkMiddlewarePlugin),
+                    address(networkVaultOptInPlugin),
+                    address(operatorVaultOptInPlugin),
+                    address(operatorNetworkOptInPlugin)
+                )
             )
         );
-        vaultRegistry.whitelist(vault);
         vaultRegistry.transferOwnership(owner);
 
         vm.stopBroadcast();

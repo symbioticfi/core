@@ -5,7 +5,8 @@ import {IVault} from "src/interfaces/IVault.sol";
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
-import {IOptInPlugin} from "src/interfaces/plugins/IOptInPlugin.sol";
+import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
+import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
 
 import {VaultDelegation} from "./VaultDelegation.sol";
 import {ERC4626Math} from "./libraries/ERC4626Math.sol";
@@ -25,8 +26,19 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
         address networkRegistry,
         address operatorRegistry,
         address networkMiddlewarePlugin,
-        address networkOptInPlugin
-    ) VaultDelegation(networkRegistry, operatorRegistry, networkMiddlewarePlugin, networkOptInPlugin) {}
+        address networkVaultOptInPlugin,
+        address operatorVaultOptInPlugin,
+        address operatorNetworkOptInPlugin
+    )
+        VaultDelegation(
+            networkRegistry,
+            operatorRegistry,
+            networkMiddlewarePlugin,
+            networkVaultOptInPlugin,
+            operatorVaultOptInPlugin,
+            operatorNetworkOptInPlugin
+        )
+    {}
 
     /**
      * @inheritdoc IVault
@@ -171,19 +183,24 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert InsufficientSlash();
         }
 
-        if (!isNetworkOptedIn(network, resolver)) {
-            revert NetworkNotOptedIn();
-        }
+        uint256 edgeTimestamp = previousEpochStart();
 
-        if (!isOperatorOptedIn(operator)) {
-            revert OperatorNotOptedIn();
+        if (
+            !IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
+                && IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < edgeTimestamp
+        ) {
+            revert OperatorNotOptedInNetwork();
         }
 
         if (
-            !IOptInPlugin(NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
-                && IOptInPlugin(NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < block.timestamp - epochDuration
+            !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(operator, address(this))
+                && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(operator, address(this)) < edgeTimestamp
         ) {
-            revert OperatorNotOptedInNetwork();
+            revert OperatorNotOptedInVault();
+        }
+
+        if (!INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).isOptedIn(network, resolver, address(this))) {
+            revert NetworkNotOptedInVault();
         }
 
         uint256 slashAmount = Math.min(amount, maxSlash_);
@@ -228,8 +245,14 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert SlashCompleted();
         }
 
-        if (!isOperatorOptedIn(request.operator)) {
-            revert OperatorNotOptedIn();
+        uint256 edgeTimestamp = previousEpochStart();
+
+        if (
+            !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(request.operator, address(this))
+                && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(request.operator, address(this))
+                    < edgeTimestamp
+        ) {
+            revert OperatorNotOptedInVault();
         }
 
         request.completed = true;

@@ -1,34 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IOptInPlugin} from "src/interfaces/plugins/IOptInPlugin.sol";
+import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Plugin} from "src/contracts/base/Plugin.sol";
 import {ERC6372} from "src/contracts/utils/ERC6372.sol";
 
-contract OptInPlugin is Plugin, ERC6372, IOptInPlugin {
+contract OperatorOptInPlugin is Plugin, ERC6372, IOperatorOptInPlugin {
     /**
-     * @inheritdoc IOptInPlugin
+     * @inheritdoc IOperatorOptInPlugin
      */
     address public immutable WHERE_REGISTRY;
 
     /**
-     * @inheritdoc IOptInPlugin
+     * @inheritdoc IOperatorOptInPlugin
      */
-    mapping(address who => mapping(address where => bool value)) public isOptedIn;
+    mapping(address operator => mapping(address where => bool value)) public isOptedIn;
 
     /**
-     * @inheritdoc IOptInPlugin
+     * @inheritdoc IOperatorOptInPlugin
      */
-    mapping(address who => mapping(address where => uint48 timestamp)) public lastOptOut;
+    mapping(address operator => mapping(address where => uint48 timestamp)) public lastOptOut;
 
-    constructor(address whoRegistry, address whereRegistry) Plugin(whoRegistry) {
+    constructor(address operatorRegistry, address whereRegistry) Plugin(operatorRegistry) {
         WHERE_REGISTRY = whereRegistry;
     }
 
     /**
-     * @inheritdoc IOptInPlugin
+     * @inheritdoc IOperatorOptInPlugin
      */
     function optIn(address where) external onlyEntity {
         if (!IRegistry(WHERE_REGISTRY).isEntity(where)) {
@@ -45,7 +45,7 @@ contract OptInPlugin is Plugin, ERC6372, IOptInPlugin {
     }
 
     /**
-     * @inheritdoc IOptInPlugin
+     * @inheritdoc IOperatorOptInPlugin
      */
     function optOut(address where) external {
         if (!isOptedIn[msg.sender][where]) {

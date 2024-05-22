@@ -52,8 +52,8 @@ interface IVaultStorage is IMigratableEntity {
     /**
      * @notice Structure for a slash request.
      * @param network network which requested the slash
-     * @param resolver resolver who can veto the slash
-     * @param operator operator who could be slashed
+     * @param resolver resolver which can veto the slash
+     * @param operator operator which could be slashed
      * @param amount maximum amount of the collateral to be slashed
      * @param vetoDeadline deadline for the resolver to veto the slash
      * @param slashDeadline deadline to execute slash
@@ -134,10 +134,22 @@ interface IVaultStorage is IMigratableEntity {
     function NETWORK_MIDDLEWARE_PLUGIN() external view returns (address);
 
     /**
-     * @notice Get the network opt-in plugin's address.
-     * @return address of the network opt-in plugin
+     * @notice Get the network-vault opt-in plugin's address.
+     * @return address of the network-vault opt-in plugin
      */
-    function NETWORK_OPT_IN_PLUGIN() external view returns (address);
+    function NETWORK_VAULT_OPT_IN_PLUGIN() external view returns (address);
+
+    /**
+     * @notice Get the operator-vault opt-in plugin's address.
+     * @return address of the operator-vault opt-in plugin
+     */
+    function OPERATOR_VAULT_OPT_IN_PLUGIN() external view returns (address);
+
+    /**
+     * @notice Get the operator-network opt-in plugin's address.
+     * @return address of the operator-network opt-in plugin
+     */
+    function OPERATOR_NETWORK_OPT_IN_PLUGIN() external view returns (address);
 
     /**
      * @notice Get a vault collateral.
@@ -168,6 +180,12 @@ interface IVaultStorage is IMigratableEntity {
      * @return start of the current epoch
      */
     function currentEpochStart() external view returns (uint48);
+
+    /**
+     * @notice Get a start of the previous vault epoch.
+     * @return start of the previous epoch
+     */
+    function previousEpochStart() external view returns (uint48);
 
     /**
      * @notice Get a duration during which resolvers can veto slash requests.
@@ -310,8 +328,8 @@ interface IVaultStorage is IMigratableEntity {
      * @notice Get a slash request.
      * @param slashIndex index of the slash request
      * @return network network which requested the slash
-     * @return resolver resolver who can veto the slash
-     * @return operator operator who could be slashed
+     * @return resolver resolver which can veto the slash
+     * @return operator operator which could be slashed
      * @return amount maximum amount of the collateral to be slashed
      * @return vetoDeadline deadline for the resolver to veto the slash
      * @return slashDeadline deadline to execute slash

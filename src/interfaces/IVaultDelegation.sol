@@ -6,40 +6,19 @@ import {IVaultStorage} from "./IVaultStorage.sol";
 interface IVaultDelegation is IVaultStorage {
     error NotNetwork();
     error NotOperator();
-    error NetworkAlreadyOptedIn();
-    error InvalidMaxNetworkLimit();
-    error NetworkNotOptedIn();
-    error OperatorAlreadyOptedIn();
+    error NetworkNotOptedInVault();
     error ExceedsMaxNetworkLimit();
-    error OperatorNotOptedIn();
+    error OperatorNotOptedInVault();
     error AlreadySet();
     error NoDepositWhitelist();
 
     /**
-     * @notice Emitted when a network opts in.
-     * @param network network which opted in
-     * @param resolver resolver who can veto the the network's slash requests
+     * @notice Emitted when a maximum network limit is set.
+     * @param network network for which the maximum limit is set
+     * @param resolver resolver for which the maximum limit is set
+     * @param amount maximum possible amount of the collateral that can be slashed
      */
-    event OptInNetwork(address indexed network, address indexed resolver);
-
-    /**
-     * @notice Emitted when a network opts out.
-     * @param network network which opted out
-     * @param resolver resolver who could veto the the network's slash requests
-     */
-    event OptOutNetwork(address indexed network, address indexed resolver);
-
-    /**
-     * @notice Emitted when an operator opts in.
-     * @param operator operator who opted in
-     */
-    event OptInOperator(address indexed operator);
-
-    /**
-     * @notice Emitted when an operator opts out.
-     * @param operator operator who opted out
-     */
-    event OptOutOperator(address indexed operator);
+    event SetMaxNetworkLimit(address indexed network, address indexed resolver, uint256 amount);
 
     /**
      * @notice Emitted when a metadata URL is set.
@@ -83,18 +62,6 @@ interface IVaultDelegation is IVaultStorage {
     event SetOperatorLimit(address indexed operator, address indexed network, uint256 amount);
 
     /**
-     * @notice Get if a given network-resolver pair is opted in.
-     * @return if the network-resolver pair is opted in
-     */
-    function isNetworkOptedIn(address network, address resolver) external view returns (bool);
-
-    /**
-     * @notice Get if a given operator is opted in.
-     * @return if the operator is opted in
-     */
-    function isOperatorOptedIn(address operator) external view returns (bool);
-
-    /**
      * @notice Get a network limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
@@ -111,31 +78,12 @@ interface IVaultDelegation is IVaultStorage {
     function operatorLimit(address operator, address network) external view returns (uint256);
 
     /**
-     * @notice Opt in a network with a given resolver.
+     * @notice Set a maximum network limit.
      * @param resolver address of the resolver
-     * @param maxNetworkLimit maximum network limit
+     * @param amount maximum amount of the collateral that can be slashed
      * @dev Only network can call this function.
      */
-    function optInNetwork(address resolver, uint256 maxNetworkLimit) external;
-
-    /**
-     * @notice Opt out a network with a given resolver.
-     * @param resolver address of the resolver
-     * @dev Only network can call this function.
-     */
-    function optOutNetwork(address resolver) external;
-
-    /**
-     * @notice Opt in an operator.
-     * @dev Only operator can call this function.
-     */
-    function optInOperator() external;
-
-    /**
-     * @notice Opt out an operator.
-     * @dev Only operator can call this function.
-     */
-    function optOutOperator() external;
+    function setMaxNetworkLimit(address resolver, uint256 amount) external;
 
     /**
      * @notice Set a new metadata URL for this vault.

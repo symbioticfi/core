@@ -7,7 +7,8 @@ import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {OptInPlugin} from "src/contracts/plugins/OptInPlugin.sol";
+import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
+import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
@@ -37,7 +38,9 @@ contract VaultTest is Test {
     MetadataPlugin operatorMetadataPlugin;
     MetadataPlugin networkMetadataPlugin;
     MiddlewarePlugin networkMiddlewarePlugin;
-    OptInPlugin networkOptInPlugin;
+    NetworkOptInPlugin networkVaultOptInPlugin;
+    OperatorOptInPlugin operatorVaultOptInPlugin;
+    OperatorOptInPlugin operatorNetworkOptInPlugin;
 
     IVault vault;
 
@@ -54,7 +57,9 @@ contract VaultTest is Test {
         operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
         networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
         networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
-        networkOptInPlugin = new OptInPlugin(address(operatorRegistry), address(networkRegistry));
+        networkVaultOptInPlugin = new NetworkOptInPlugin(address(networkRegistry), address(vaultRegistry));
+        operatorVaultOptInPlugin = new OperatorOptInPlugin(address(operatorRegistry), address(vaultRegistry));
+        operatorNetworkOptInPlugin = new OperatorOptInPlugin(address(operatorRegistry), address(networkRegistry));
 
         vaultRegistry.whitelist(
             address(
@@ -62,7 +67,9 @@ contract VaultTest is Test {
                     address(networkRegistry),
                     address(operatorRegistry),
                     address(networkMiddlewarePlugin),
-                    address(networkOptInPlugin)
+                    address(networkVaultOptInPlugin),
+                    address(operatorVaultOptInPlugin),
+                    address(operatorNetworkOptInPlugin)
                 )
             )
         );
@@ -80,7 +87,7 @@ contract VaultTest is Test {
         uint256 adminFee,
         bool depositWhitelist
     ) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         slashDuration = uint48(bound(slashDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration + slashDuration <= epochDuration);
@@ -105,6 +112,8 @@ contract VaultTest is Test {
             )
         );
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
         assertEq(vault.ADMIN_FEE_BASE(), 10_000);
         assertEq(vault.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
         assertEq(vault.OPERATOR_LIMIT_SET_ROLE(), keccak256("OPERATOR_LIMIT_SET_ROLE"));
@@ -113,23 +122,24 @@ contract VaultTest is Test {
 
         assertEq(vault.metadataURL(), metadataURL);
         assertEq(vault.collateral(), address(collateral));
-        assertEq(vault.epochDurationInit(), block.timestamp);
+        assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.currentEpoch(), 0);
-        assertEq(vault.currentEpochStart(), block.timestamp);
+        assertEq(vault.currentEpochStart(), blockTimestamp);
+        assertEq(vault.previousEpochStart(), blockTimestamp);
         assertEq(vault.vetoDuration(), vetoDuration);
         assertEq(vault.slashDuration(), slashDuration);
         assertEq(vault.totalSupply(), 0);
-        assertEq(vault.activeSharesAt(uint48(block.timestamp)), 0);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), 0);
         assertEq(vault.activeShares(), 0);
-        assertEq(vault.activeSupplyAt(uint48(block.timestamp)), 0);
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), 0);
         assertEq(vault.activeSupply(), 0);
-        assertEq(vault.activeSharesOfAt(alice, uint48(block.timestamp)), 0);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), 0);
         assertEq(vault.activeSharesOf(alice), 0);
         assertEq(vault.activeSharesOfCheckpointsLength(alice), 0);
         vm.expectRevert();
         vault.activeSharesOfCheckpoint(alice, 0);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(block.timestamp)), 0);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), 0);
         assertEq(vault.activeBalanceOf(alice), 0);
         assertEq(vault.withdrawals(0), 0);
         assertEq(vault.withdrawalsShares(0), 0);
@@ -143,8 +153,6 @@ contract VaultTest is Test {
         vm.expectRevert();
         vault.rewards(address(0), 0);
         assertEq(vault.lastUnclaimedReward(alice, address(0)), 0);
-        assertEq(vault.isNetworkOptedIn(address(0), address(0)), false);
-        assertEq(vault.isOperatorOptedIn(address(0)), false);
         assertEq(vault.operatorOptOutAt(address(0)), 0);
         assertEq(vault.maxNetworkLimit(address(0), address(0)), 0);
         assertEq(vault.networkLimit(address(0), address(0)), 0);
@@ -169,6 +177,27 @@ contract VaultTest is Test {
         vm.stopPrank();
 
         assertEq(vault.metadataURL(), metadataURL1);
+
+        blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.currentEpoch(), 0);
+        assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
+        assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.currentEpoch(), 1);
+        assertEq(vault.currentEpochStart(), blockTimestamp);
+        assertEq(vault.previousEpochStart(), blockTimestamp - vault.epochDuration());
+
+        blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.currentEpoch(), 1);
+        assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
+        assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
     }
 
     function test_SetMetadataURLRevertAlreadySet(string memory metadataURL) public {
@@ -614,15 +643,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -686,15 +716,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -731,15 +762,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -780,22 +812,23 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
-        _optOutNetwork(network, resolver);
+        _optOutNetworkVault(network, resolver);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVaultDelegation.NetworkNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.NetworkNotOptedInVault.selector);
         _requestSlash(bob, network, resolver, operator, toSlash);
     }
 
@@ -831,19 +864,20 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
-        _networkOptOut(operator, network);
+        _optOutOperatorNetwork(operator, network);
 
-        blockTimestamp = blockTimestamp + vault.epochDuration() + 1;
+        blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration();
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IVault.OperatorNotOptedInNetwork.selector);
@@ -882,26 +916,27 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
-        _optOutOperator(operator);
+        _optOutOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration();
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.OperatorNotOptedInVault.selector);
         _requestSlash(bob, network, resolver, operator, toSlash);
     }
 
-    function test_ExecuteSlash1(
+    function test_ExecuteSlash(
         uint256 amount1,
         uint256 amount2,
         uint256 networkLimit,
@@ -933,15 +968,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1051,15 +1087,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1105,15 +1142,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1156,15 +1194,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1210,15 +1249,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1266,17 +1306,18 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
-        _optOutOperator(operator);
+        _optOutOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 2 * vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -1286,7 +1327,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
+        vm.expectRevert(IVaultDelegation.OperatorNotOptedInVault.selector);
         _executeSlash(address(1), slashIndex);
     }
 
@@ -1322,15 +1363,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1399,15 +1441,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1450,15 +1493,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1501,15 +1545,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1555,15 +1600,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setNetworkLimit(alice, network, resolver, networkLimit);
 
         _setOperatorLimit(alice, operator, network, operatorLimit);
 
-        _networkOptIn(operator, network);
+        _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1664,230 +1710,6 @@ contract VaultTest is Test {
         );
     }
 
-    function test_OptInNetwork(uint256 networkLimit, uint256 maxNetworkLimit) public {
-        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
-        vm.assume(networkLimit <= maxNetworkLimit);
-
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address resolver = address(1);
-        _optInNetwork(network, resolver, maxNetworkLimit);
-
-        assertTrue(vault.isNetworkOptedIn(network, resolver));
-        (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
-        assertEq(vault.networkLimit(network, resolver), 0);
-        assertEq(vault.maxNetworkLimit(network, resolver), maxNetworkLimit);
-
-        _setNetworkLimit(alice, network, resolver, networkLimit);
-
-        assertEq(vault.networkLimit(network, resolver), networkLimit);
-        assertEq(vault.maxNetworkLimit(network, resolver), maxNetworkLimit);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        _optOutNetwork(network, resolver);
-
-        assertTrue(!vault.isNetworkOptedIn(network, resolver));
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
-        assertEq(vault.networkLimit(network, resolver), networkLimit);
-        assertEq(vault.maxNetworkLimit(network, resolver), 0);
-
-        blockTimestamp = blockTimestamp + 2;
-        vm.warp(blockTimestamp);
-
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart());
-        assertEq(vault.networkLimit(network, resolver), 0);
-        assertEq(vault.maxNetworkLimit(network, resolver), 0);
-
-        _optInNetwork(network, resolver, type(uint256).max);
-
-        assertTrue(vault.isNetworkOptedIn(network, resolver));
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
-        assertEq(vault.networkLimit(network, resolver), 0);
-        assertEq(vault.maxNetworkLimit(network, resolver), type(uint256).max);
-
-        blockTimestamp = blockTimestamp + 3;
-        vm.warp(blockTimestamp);
-
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
-        assertEq(vault.networkLimit(network, resolver), 0);
-        assertEq(vault.maxNetworkLimit(network, resolver), type(uint256).max);
-
-        _optOutNetwork(network, resolver);
-
-        assertTrue(!vault.isNetworkOptedIn(network, resolver));
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
-        assertEq(vault.networkLimit(network, resolver), 0);
-        assertEq(vault.maxNetworkLimit(network, resolver), 0);
-    }
-
-    function test_OptInNetworkRevertInvalidMaxNetworkLimit() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address resolver = address(1);
-        vm.expectRevert(IVaultDelegation.InvalidMaxNetworkLimit.selector);
-        _optInNetwork(network, resolver, 0);
-    }
-
-    function test_OptInNetworkRevertNetworkAlreadyOptedIn() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
-
-        vm.expectRevert(IVaultDelegation.NetworkAlreadyOptedIn.selector);
-        _optInNetwork(network, resolver, type(uint256).max);
-    }
-
-    function test_OptInNetworkRevertNotNetwork() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address resolver = address(1);
-        vm.expectRevert(IVaultDelegation.NotNetwork.selector);
-        _optInNetwork(address(0), resolver, type(uint256).max);
-    }
-
-    function test_OptInNetworkRevertNetworkNotOptedIn() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address resolver = address(1);
-        vm.expectRevert(IVaultDelegation.NetworkNotOptedIn.selector);
-        _optOutNetwork(network, resolver);
-    }
-
-    function test_OptInOperator() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        _optInOperator(operator);
-
-        assertTrue(vault.isOperatorOptedIn(operator));
-        assertEq(vault.operatorOptOutAt(operator), 0);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        _optOutOperator(operator);
-
-        assertTrue(vault.isOperatorOptedIn(operator));
-        assertEq(vault.operatorOptOutAt(operator), blockTimestamp + 2);
-
-        blockTimestamp = blockTimestamp + 2;
-        vm.warp(blockTimestamp);
-
-        assertTrue(!vault.isOperatorOptedIn(operator));
-        assertEq(vault.operatorOptOutAt(operator), blockTimestamp);
-
-        _optInOperator(operator);
-
-        assertTrue(vault.isOperatorOptedIn(operator));
-        assertEq(vault.operatorOptOutAt(operator), 0);
-
-        blockTimestamp = blockTimestamp + 3;
-        vm.warp(blockTimestamp);
-
-        _optOutOperator(operator);
-
-        assertTrue(vault.isOperatorOptedIn(operator));
-        assertEq(vault.operatorOptOutAt(operator), blockTimestamp + 2);
-    }
-
-    function test_OptInOperatorRevertOperatorAlreadyOptedIn() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        _optInOperator(operator);
-
-        vm.expectRevert(IVaultDelegation.OperatorAlreadyOptedIn.selector);
-        _optInOperator(operator);
-    }
-
-    function test_OptInOperatorRevertNotOperator() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        vm.expectRevert(IVaultDelegation.NotOperator.selector);
-        _optInOperator(address(0));
-    }
-
-    function test_OptOutOperatorRevertOperatorNotOptedIn() public {
-        string memory metadataURL = "";
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
-        _optOutOperator(operator);
-    }
-
     function test_SetNetworkLimit(uint48 epochDuration, uint256 amount1, uint256 amount2, uint256 amount3) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         vm.assume(amount3 < amount2);
@@ -1903,7 +1725,8 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
         _setNetworkLimit(alice, network, resolver, amount1);
 
@@ -1970,12 +1793,12 @@ contract VaultTest is Test {
         assertEq(nextNetworkLimitAmount, 0);
         assertEq(nextNetworkLimitTimestamp, 0);
 
-        _optOutNetwork(network, resolver);
+        _optOutNetworkVault(network, resolver);
 
+        assertEq(vault.networkLimit(network, resolver), amount2);
         (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
         assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
-        assertEq(vault.networkLimit(network, resolver), amount2);
+        assertEq(nextNetworkLimitTimestamp, 0);
 
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -1983,15 +1806,15 @@ contract VaultTest is Test {
         assertEq(vault.networkLimit(network, resolver), amount2);
         (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
         assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + vault.epochDuration());
+        assertEq(nextNetworkLimitTimestamp, 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.networkLimit(network, resolver), 0);
+        assertEq(vault.networkLimit(network, resolver), amount2);
         (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
         assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart());
+        assertEq(nextNetworkLimitTimestamp, 0);
     }
 
     function test_SetNetworkLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
@@ -2005,13 +1828,16 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, type(uint256).max);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _optInNetworkVault(network, resolver);
 
         vm.expectRevert();
         _setNetworkLimit(bob, network, resolver, amount1);
     }
 
     function test_SetNetworkLimitRevertNetworkNotOptedIn(uint48 epochDuration, uint256 amount1) public {
+        amount1 = bound(amount1, 1, type(uint256).max);
+
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         string memory metadataURL = "";
         uint48 vetoDuration = 0;
@@ -2022,7 +1848,9 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        vm.expectRevert(IVaultDelegation.NetworkNotOptedIn.selector);
+        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+
+        vm.expectRevert(IVaultDelegation.NetworkNotOptedInVault.selector);
         _setNetworkLimit(alice, network, resolver, amount1);
     }
 
@@ -2044,7 +1872,8 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _optInNetwork(network, resolver, maxNetworkLimit);
+        _setMaxNetworkLimit(network, resolver, maxNetworkLimit);
+        _optInNetworkVault(network, resolver);
 
         vm.expectRevert(IVaultDelegation.ExceedsMaxNetworkLimit.selector);
         _setNetworkLimit(alice, network, resolver, amount1);
@@ -2065,7 +1894,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address network = address(1);
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         _setOperatorLimit(alice, operator, network, amount1);
 
@@ -2133,7 +1962,7 @@ contract VaultTest is Test {
         assertEq(nextOperatorLimitAmount, 0);
         assertEq(nextOperatorLimitTimestamp, 0);
 
-        _optOutOperator(operator);
+        _optOutOperatorVault(operator);
 
         assertEq(vault.operatorLimit(operator, network), amount2);
         (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
@@ -2152,7 +1981,7 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address network = address(1);
-        _optInOperator(operator);
+        _optInOperatorVault(operator);
 
         vm.expectRevert();
         _setOperatorLimit(bob, operator, network, amount1);
@@ -2170,7 +1999,7 @@ contract VaultTest is Test {
 
         address network = address(1);
         if (amount1 > 0) {
-            vm.expectRevert(IVaultDelegation.OperatorNotOptedIn.selector);
+            vm.expectRevert(IVaultDelegation.OperatorNotOptedInVault.selector);
         }
         _setOperatorLimit(alice, operator, network, amount1);
     }
@@ -2673,6 +2502,82 @@ contract VaultTest is Test {
         _claimAdminFee(alice, address(token));
     }
 
+    function test_SetMaxNetworkLimit(uint256 amount1, uint256 amount2, uint256 networkLimit) public {
+        amount1 = bound(amount1, 1, type(uint256).max);
+        vm.assume(amount1 != amount2);
+        networkLimit = bound(networkLimit, 1, amount1);
+
+        string memory metadataURL = "";
+        uint48 epochDuration = 3;
+        uint48 slashDuration = 1;
+        uint48 vetoDuration = 1;
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        address resolver = alice;
+
+        _setMaxNetworkLimit(network, resolver, amount1);
+        assertEq(vault.maxNetworkLimit(network, resolver), amount1);
+
+        _optInNetworkVault(network, resolver);
+
+        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkLimit(alice, network, resolver, networkLimit - 1);
+
+        _setMaxNetworkLimit(network, resolver, amount2);
+
+        assertEq(vault.maxNetworkLimit(network, resolver), amount2);
+        assertEq(vault.networkLimit(network, resolver), Math.min(networkLimit, amount2));
+        (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
+        assertEq(nextNetworkLimitAmount, Math.min(networkLimit - 1, amount2));
+        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
+    }
+
+    function test_SetMaxNetworkLimitRevertAlreadySet(uint256 amount) public {
+        amount = bound(amount, 1, type(uint256).max);
+
+        string memory metadataURL = "";
+        uint48 epochDuration = 3;
+        uint48 slashDuration = 1;
+        uint48 vetoDuration = 1;
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        address resolver = alice;
+
+        _setMaxNetworkLimit(network, resolver, amount);
+
+        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
+        _setMaxNetworkLimit(network, resolver, amount);
+    }
+
+    function test_SetMaxNetworkLimitRevertNotNetwork(uint256 amount) public {
+        amount = bound(amount, 1, type(uint256).max);
+
+        string memory metadataURL = "";
+        uint48 epochDuration = 3;
+        uint48 slashDuration = 1;
+        uint48 vetoDuration = 1;
+        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = bob;
+
+        address resolver = alice;
+
+        vm.expectRevert(IVaultDelegation.NotNetwork.selector);
+        _setMaxNetworkLimit(network, resolver, amount);
+    }
+
     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
         string memory metadataURL = "";
         uint48 epochDuration = 1;
@@ -2941,27 +2846,45 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _optInNetwork(address user, address resolver, uint256 maxNetworkLimit) internal {
+    function _setMaxNetworkLimit(address user, address resolver, uint256 maxNetworkLimit) internal {
         vm.startPrank(user);
-        vault.optInNetwork(resolver, maxNetworkLimit);
+        vault.setMaxNetworkLimit(resolver, maxNetworkLimit);
         vm.stopPrank();
     }
 
-    function _optOutNetwork(address user, address resolver) internal {
+    function _optInNetworkVault(address user, address resolver) internal {
         vm.startPrank(user);
-        vault.optOutNetwork(resolver);
+        networkVaultOptInPlugin.optIn(resolver, address(vault));
         vm.stopPrank();
     }
 
-    function _optInOperator(address user) internal {
+    function _optOutNetworkVault(address user, address resolver) internal {
         vm.startPrank(user);
-        vault.optInOperator();
+        networkVaultOptInPlugin.optOut(resolver, address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperator(address user) internal {
+    function _optInOperatorVault(address user) internal {
         vm.startPrank(user);
-        vault.optOutOperator();
+        operatorVaultOptInPlugin.optIn(address(vault));
+        vm.stopPrank();
+    }
+
+    function _optOutOperatorVault(address user) internal {
+        vm.startPrank(user);
+        operatorVaultOptInPlugin.optOut(address(vault));
+        vm.stopPrank();
+    }
+
+    function _optInOperatorNetwork(address user, address network) internal {
+        vm.startPrank(user);
+        operatorNetworkOptInPlugin.optIn(network);
+        vm.stopPrank();
+    }
+
+    function _optOutOperatorNetwork(address user, address network) internal {
+        vm.startPrank(user);
+        operatorNetworkOptInPlugin.optOut(network);
         vm.stopPrank();
     }
 
@@ -3022,18 +2945,6 @@ contract VaultTest is Test {
     function _setDepositorWhitelistStatus(address user, address depositor, bool status) internal {
         vm.startPrank(user);
         vault.setDepositorWhitelistStatus(depositor, status);
-        vm.stopPrank();
-    }
-
-    function _networkOptIn(address user, address network) internal {
-        vm.startPrank(user);
-        networkOptInPlugin.optIn(network);
-        vm.stopPrank();
-    }
-
-    function _networkOptOut(address user, address network) internal {
-        vm.startPrank(user);
-        networkOptInPlugin.optOut(network);
         vm.stopPrank();
     }
 }
