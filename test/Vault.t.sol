@@ -12,7 +12,7 @@ import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
-import {IVaultDelegation} from "src/interfaces/IVaultDelegation.sol";
+import {IVault} from "src/interfaces/IVault.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
@@ -96,7 +96,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVaultDelegation.InitParams({
+                    IVault.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -769,7 +769,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVaultDelegation.NetworkNotOptedInVault.selector);
+        vm.expectRevert(IVault.NetworkNotOptedInVault.selector);
         _requestSlash(bob, network, resolver, operator, toSlash);
     }
 
@@ -871,7 +871,7 @@ contract VaultTest is Test {
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration();
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVaultDelegation.OperatorNotOptedInVault.selector);
+        vm.expectRevert(IVault.OperatorNotOptedInVault.selector);
         _requestSlash(bob, network, resolver, operator, toSlash);
     }
 
@@ -1500,12 +1500,12 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
 
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVaultDelegation.InvalidEpochDuration.selector);
+        vm.expectRevert(IVault.InvalidEpochDuration.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVaultDelegation.InitParams({
+                    IVault.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -1530,12 +1530,12 @@ contract VaultTest is Test {
         vm.assume(vetoDuration + slashDuration > epochDuration);
 
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVaultDelegation.InvalidSlashDuration.selector);
+        vm.expectRevert(IVault.InvalidSlashDuration.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVaultDelegation.InitParams({
+                    IVault.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -1557,12 +1557,12 @@ contract VaultTest is Test {
         uint48 vetoDuration = 0;
 
         uint64 lastVersion = vaultRegistry.lastVersion();
-        vm.expectRevert(IVaultDelegation.InvalidAdminFee.selector);
+        vm.expectRevert(IVault.InvalidAdminFee.selector);
         vault = IVault(
             vaultRegistry.create(
                 lastVersion,
                 abi.encode(
-                    IVaultDelegation.InitParams({
+                    IVault.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
@@ -1720,7 +1720,7 @@ contract VaultTest is Test {
         _setMaxNetworkLimit(network, resolver, maxNetworkLimit);
         _optInNetworkVault(network, resolver);
 
-        vm.expectRevert(IVaultDelegation.ExceedsMaxNetworkLimit.selector);
+        vm.expectRevert(IVault.ExceedsMaxNetworkLimit.selector);
         _setNetworkLimit(alice, network, resolver, amount1);
     }
 
@@ -1878,7 +1878,7 @@ contract VaultTest is Test {
 
         _setMaxNetworkLimit(network, resolver, amount);
 
-        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
+        vm.expectRevert(IVault.AlreadySet.selector);
         _setMaxNetworkLimit(network, resolver, amount);
     }
 
@@ -1894,7 +1894,7 @@ contract VaultTest is Test {
 
         address resolver = alice;
 
-        vm.expectRevert(IVaultDelegation.NotNetwork.selector);
+        vm.expectRevert(IVault.NotNetwork.selector);
         _setMaxNetworkLimit(network, resolver, amount);
     }
 
@@ -1939,7 +1939,7 @@ contract VaultTest is Test {
         _grantAdminFeeSetRole(alice, alice);
         _setAdminFee(alice, adminFee);
 
-        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
+        vm.expectRevert(IVault.AlreadySet.selector);
         _setAdminFee(alice, adminFee);
     }
 
@@ -1952,7 +1952,7 @@ contract VaultTest is Test {
         vm.assume(adminFee > vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
-        vm.expectRevert(IVaultDelegation.InvalidAdminFee.selector);
+        vm.expectRevert(IVault.InvalidAdminFee.selector);
         _setAdminFee(alice, adminFee);
     }
 
@@ -1999,7 +1999,7 @@ contract VaultTest is Test {
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
 
-        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
+        vm.expectRevert(IVault.AlreadySet.selector);
         _setDepositWhitelist(alice, true);
     }
 
@@ -2034,7 +2034,7 @@ contract VaultTest is Test {
 
         _grantDepositorWhitelistRole(alice, alice);
 
-        vm.expectRevert(IVaultDelegation.NoDepositWhitelist.selector);
+        vm.expectRevert(IVault.NoDepositWhitelist.selector);
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
@@ -2052,7 +2052,7 @@ contract VaultTest is Test {
 
         _setDepositorWhitelistStatus(alice, bob, true);
 
-        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
+        vm.expectRevert(IVault.AlreadySet.selector);
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
@@ -2061,7 +2061,7 @@ contract VaultTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVaultDelegation.InitParams({
+                    IVault.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,

@@ -13,7 +13,7 @@ import {RewardsPlugin} from "src/contracts/plugins/RewardsPlugin.sol";
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
-import {IVaultDelegation} from "src/interfaces/IVaultDelegation.sol";
+import {IVault} from "src/interfaces/IVault.sol";
 import {IRewardsPlugin} from "src/interfaces/plugins/IRewardsPlugin.sol";
 
 import {Token} from "test/mocks/Token.sol";
@@ -654,7 +654,7 @@ contract RewardsPluginTest is Test {
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
                 abi.encode(
-                    IVaultDelegation.InitParams({
+                    IVault.InitParams({
                         owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,

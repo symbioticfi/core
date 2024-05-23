@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Script.sol";
 
 import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
-import {IVaultDelegation} from "src/interfaces/IVaultDelegation.sol";
+import {IVault} from "src/interfaces/IVault.sol";
 
 contract VaultScript is Script {
     function run(
@@ -25,7 +25,7 @@ contract VaultScript is Script {
         IMigratablesRegistry(vaultRegistry).create(
             IMigratablesRegistry(vaultRegistry).lastVersion(),
             abi.encode(
-                IVaultDelegation.InitParams({
+                IVault.InitParams({
                     owner: owner,
                     collateral: collateral,
                     epochDuration: epochDuration,
