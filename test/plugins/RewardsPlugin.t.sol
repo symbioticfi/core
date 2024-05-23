@@ -21,11 +21,9 @@ import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
 import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract RewardsPluginTest is Test {
     using Math for uint256;
-    using Strings for string;
 
     address owner;
     address alice;

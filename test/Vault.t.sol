@@ -15,15 +15,11 @@ import {IVault} from "src/interfaces/IVault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
 
 import {Token} from "./mocks/Token.sol";
-import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
 import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract VaultTest is Test {
     using Math for uint256;
-    using Strings for string;
 
     address owner;
     address alice;
