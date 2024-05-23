@@ -32,31 +32,44 @@ interface INetworkOptInPlugin is IPlugin {
 
     /**
      * @notice Check if network is opted-in to "where" entity.
-     * @param network address of the network which can opt-in
+     * @param network address of the network
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-in
+     * @param where address of the entity to opt-in to
      */
     function isOptedIn(address network, address resolver, address where) external view returns (bool);
 
     /**
      * @notice Get the timestamp of the last opt-out of network from "where" entity.
-     * @param network address of the network which can opt-out
+     * @param network address of the network
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-out
+     * @param where address of the entity to opt-out from
      */
     function lastOptOut(address network, address resolver, address where) external view returns (uint48);
 
     /**
+     * @notice Check if network was opted-in to "where" entity after the edge timestamp inclusively.
+     * @param network address of the network
+     * @param where address of the entity to opt-in to
+     * @param edgeTimestamp timestamp to check if network was opted-in after
+     */
+    function wasOptedIn(
+        address network,
+        address resolver,
+        address where,
+        uint256 edgeTimestamp
+    ) external view returns (bool);
+
+    /**
      * @notice Opt-in a calling network to a particular "where" entity.
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-in
+     * @param where address of the entity to opt-in to
      */
     function optIn(address resolver, address where) external;
 
     /**
      * @notice Opt-out a calling network from a particular "where" entity.
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-out
+     * @param where address of the entity to opt-out from
      */
     function optOut(address resolver, address where) external;
 }

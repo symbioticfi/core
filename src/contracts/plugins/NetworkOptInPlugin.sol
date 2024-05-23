@@ -32,6 +32,18 @@ contract NetworkOptInPlugin is Plugin, INetworkOptInPlugin {
     /**
      * @inheritdoc INetworkOptInPlugin
      */
+    function wasOptedIn(
+        address network,
+        address resolver,
+        address where,
+        uint256 edgeTimestamp
+    ) external view returns (bool) {
+        return isOptedIn[network][resolver][where] || lastOptOut[network][resolver][where] >= edgeTimestamp;
+    }
+
+    /**
+     * @inheritdoc INetworkOptInPlugin
+     */
     function optIn(address resolver, address where) external onlyEntity {
         if (!IRegistry(WHERE_REGISTRY).isEntity(where)) {
             revert NotWhereEntity();

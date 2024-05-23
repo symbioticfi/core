@@ -30,27 +30,35 @@ interface IOperatorOptInPlugin is IPlugin {
 
     /**
      * @notice Check if operator is opted-in to "where" entity.
-     * @param operator address of the operator which can opt-in
-     * @param where address of the entity to opt-in
+     * @param operator address of the operator
+     * @param where address of the entity to opt-in to
      */
     function isOptedIn(address operator, address where) external view returns (bool);
 
     /**
      * @notice Get the timestamp of the last opt-out of operator from "where" entity.
-     * @param operator address of the operator which can opt-out
-     * @param where address of the entity to opt-out
+     * @param operator address of the operator
+     * @param where address of the entity to opt-out from
      */
     function lastOptOut(address operator, address where) external view returns (uint48);
 
     /**
+     * @notice Check if operator was opted-in to "where" entity after the edge timestamp inclusively.
+     * @param operator address of the operator
+     * @param where address of the entity to opt-in to
+     * @param edgeTimestamp timestamp to check if operator was opted-in after
+     */
+    function wasOptedIn(address operator, address where, uint256 edgeTimestamp) external view returns (bool);
+
+    /**
      * @notice Opt-in a calling operator to a particular "where" entity.
-     * @param where address of the entity to opt-in
+     * @param where address of the entity to opt-in to
      */
     function optIn(address where) external;
 
     /**
      * @notice Opt-out a calling operator from a particular "where" entity.
-     * @param where address of the entity to opt-out
+     * @param where address of the entity to opt-out from
      */
     function optOut(address where) external;
 }

@@ -31,6 +31,13 @@ contract OperatorOptInPlugin is Plugin, IOperatorOptInPlugin {
     /**
      * @inheritdoc IOperatorOptInPlugin
      */
+    function wasOptedIn(address operator, address where, uint256 edgeTimestamp) external view returns (bool) {
+        return isOptedIn[operator][where] || lastOptOut[operator][where] >= edgeTimestamp;
+    }
+
+    /**
+     * @inheritdoc IOperatorOptInPlugin
+     */
     function optIn(address where) external onlyEntity {
         if (!IRegistry(WHERE_REGISTRY).isEntity(where)) {
             revert NotWhereEntity();

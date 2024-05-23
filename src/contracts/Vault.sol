@@ -243,17 +243,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         if (
-            !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(operator, address(this))
-                && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(operator, address(this))
-                    < previousEpochStart()
+            !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).wasOptedIn(operator, address(this), previousEpochStart())
         ) {
             revert OperatorNotOptedInVault();
         }
 
-        if (
-            !IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
-                && IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < previousEpochStart()
-        ) {
+        if (!IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).wasOptedIn(operator, network, previousEpochStart())) {
             revert OperatorNotOptedInNetwork();
         }
 
