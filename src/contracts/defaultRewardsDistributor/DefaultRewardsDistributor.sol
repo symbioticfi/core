@@ -124,7 +124,7 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
             })
         );
 
-        emit DistributeReward(token, network, amount, timestamp);
+        emit DistributeReward(network, token, amount, timestamp);
     }
 
     /**

@@ -6,12 +6,12 @@ import {IRewardsDistributorBase} from "./IRewardsDistributorBase.sol";
 interface IRewardsDistributor is IRewardsDistributorBase {
     /**
      * @notice Emitted when a reward is distributed.
-     * @param token address of the token to be distributed
      * @param network network on behalf of which the reward is distributed
+     * @param token address of the token to be distributed
      * @param amount amount of tokens distributed
      * @param timestamp time point stakes must taken into account at
      */
-    event DistributeReward(address indexed token, address indexed network, uint256 amount, uint48 timestamp);
+    event DistributeReward(address indexed network, address indexed token, uint256 amount, uint48 timestamp);
 
     /**
      * @notice Distribute rewards on behalf of a particular network using a given token.
