@@ -72,7 +72,6 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
 
         _initialize(params.owner);
 
-        metadataURL = params.metadataURL;
         collateral = params.collateral;
 
         epochDurationInit = Time.timestamp();
@@ -121,19 +120,6 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
         }
 
         emit SetMaxNetworkLimit(msg.sender, resolver, amount);
-    }
-
-    /**
-     * @inheritdoc IVaultDelegation
-     */
-    function setMetadataURL(string calldata metadataURL_) external onlyOwner {
-        if (metadataURL.equal(metadataURL_)) {
-            revert AlreadySet();
-        }
-
-        metadataURL = metadataURL_;
-
-        emit SetMetadataURL(metadataURL_);
     }
 
     /**

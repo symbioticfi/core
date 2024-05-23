@@ -102,11 +102,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    string public metadataURL;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint256 public adminFee;
 
     /**

@@ -92,7 +92,6 @@ contract VaultTest is Test {
         vm.assume(vetoDuration + slashDuration <= epochDuration);
         adminFee = bound(adminFee, 0, 10_000);
 
-        string memory metadataURL = "";
         vault = IVault(
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
@@ -103,7 +102,6 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
-                        metadataURL: metadataURL,
                         adminFee: adminFee,
                         depositWhitelist: depositWhitelist
                     })
@@ -119,7 +117,6 @@ contract VaultTest is Test {
         assertEq(vault.NETWORK_REGISTRY(), address(networkRegistry));
         assertEq(vault.OPERATOR_REGISTRY(), address(operatorRegistry));
 
-        assertEq(vault.metadataURL(), metadataURL);
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
@@ -163,14 +160,6 @@ contract VaultTest is Test {
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
 
-        string memory metadataURL1 = "1";
-
-        vm.startPrank(alice);
-        vault.setMetadataURL(metadataURL1);
-        vm.stopPrank();
-
-        assertEq(vault.metadataURL(), metadataURL1);
-
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
@@ -193,42 +182,14 @@ contract VaultTest is Test {
         assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
     }
 
-    function test_SetMetadataURLRevertAlreadySet(string memory metadataURL) public {
-        vm.assume(!metadataURL.equal(""));
-
-        vault = IVault(
-            vaultRegistry.create(
-                vaultRegistry.lastVersion(),
-                abi.encode(
-                    IVaultDelegation.InitParams({
-                        owner: alice,
-                        collateral: address(collateral),
-                        epochDuration: 1,
-                        vetoDuration: 0,
-                        slashDuration: 1,
-                        metadataURL: metadataURL,
-                        adminFee: 0,
-                        depositWhitelist: false
-                    })
-                )
-            )
-        );
-
-        vm.startPrank(alice);
-        vm.expectRevert(IVaultDelegation.AlreadySet.selector);
-        vault.setMetadataURL(metadataURL);
-        vm.stopPrank();
-    }
-
     function test_DepositTwice(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -289,11 +250,10 @@ contract VaultTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -336,11 +296,10 @@ contract VaultTest is Test {
     }
 
     function test_DepositRevertInsufficientDeposit() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         vm.startPrank(alice);
         vm.expectRevert(IVault.InsufficientDeposit.selector);
@@ -354,11 +313,10 @@ contract VaultTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -459,11 +417,10 @@ contract VaultTest is Test {
     function test_WithdrawRevertInsufficientWithdrawal(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _deposit(alice, amount1);
 
@@ -474,11 +431,10 @@ contract VaultTest is Test {
     function test_WithdrawRevertTooMuchWithdraw(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _deposit(alice, amount1);
 
@@ -491,11 +447,10 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -523,11 +478,10 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -551,11 +505,10 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -581,11 +534,10 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -617,11 +569,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -690,11 +641,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -736,11 +686,10 @@ contract VaultTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -786,11 +735,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -838,11 +786,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -890,11 +837,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -942,11 +888,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1061,11 +1006,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1116,11 +1060,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1168,11 +1111,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1223,11 +1165,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1280,11 +1221,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1337,11 +1277,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1415,11 +1354,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1467,11 +1405,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1519,11 +1456,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1574,11 +1510,10 @@ contract VaultTest is Test {
         operatorLimit = bound(operatorLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1620,7 +1555,6 @@ contract VaultTest is Test {
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
         vm.expectRevert(IVaultDelegation.InvalidEpochDuration.selector);
         vault = IVault(
@@ -1633,7 +1567,6 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
-                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1652,7 +1585,6 @@ contract VaultTest is Test {
         slashDuration = uint48(bound(slashDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration + slashDuration > epochDuration);
 
-        string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
         vm.expectRevert(IVaultDelegation.InvalidSlashDuration.selector);
         vault = IVault(
@@ -1665,7 +1597,6 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
-                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1681,7 +1612,6 @@ contract VaultTest is Test {
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        string memory metadataURL = "";
         uint64 lastVersion = vaultRegistry.lastVersion();
         vm.expectRevert(IVaultDelegation.InvalidAdminFee.selector);
         vault = IVault(
@@ -1694,7 +1624,6 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
-                        metadataURL: metadataURL,
                         adminFee: adminFee,
                         depositWhitelist: false
                     })
@@ -1707,10 +1636,9 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         vm.assume(amount3 < amount2);
 
-        string memory metadataURL = "";
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1812,10 +1740,10 @@ contract VaultTest is Test {
 
     function test_SetNetworkLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        string memory metadataURL = "";
+
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1832,10 +1760,10 @@ contract VaultTest is Test {
         amount1 = bound(amount1, 1, type(uint256).max);
 
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        string memory metadataURL = "";
+
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1856,10 +1784,9 @@ contract VaultTest is Test {
         maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
         vm.assume(amount1 > maxNetworkLimit);
 
-        string memory metadataURL = "";
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1876,10 +1803,9 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         vm.assume(amount3 < amount2);
 
-        string memory metadataURL = "";
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1965,10 +1891,10 @@ contract VaultTest is Test {
 
     function test_SetOperatorLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        string memory metadataURL = "";
+
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address operator = bob;
         _registerOperator(operator);
@@ -1982,10 +1908,10 @@ contract VaultTest is Test {
 
     function test_SetOperatorLimitRevertOperatorNotOptedIn(uint48 epochDuration, uint256 amount1) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        string memory metadataURL = "";
+
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address operator = bob;
         _registerOperator(operator);
@@ -2002,11 +1928,10 @@ contract VaultTest is Test {
         vm.assume(amount1 != amount2);
         networkLimit = bound(networkLimit, 1, amount1);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -2033,11 +1958,10 @@ contract VaultTest is Test {
     function test_SetMaxNetworkLimitRevertAlreadySet(uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -2053,11 +1977,10 @@ contract VaultTest is Test {
     function test_SetMaxNetworkLimitRevertNotNetwork(uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         address network = bob;
 
@@ -2068,12 +1991,11 @@ contract VaultTest is Test {
     }
 
     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee1 = bound(adminFee1, 1, vault.ADMIN_FEE_BASE());
         adminFee2 = bound(adminFee2, 0, vault.ADMIN_FEE_BASE());
         vm.assume(adminFee1 != adminFee2);
@@ -2087,12 +2009,11 @@ contract VaultTest is Test {
     }
 
     function test_SetAdminFeeReverUnauthorized(uint256 adminFee) public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         vm.expectRevert();
@@ -2100,12 +2021,11 @@ contract VaultTest is Test {
     }
 
     function test_SetAdminFeeRevertAlreadySet(uint256 adminFee) public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
@@ -2116,12 +2036,11 @@ contract VaultTest is Test {
     }
 
     function test_SetAdminFeeRevertInvalidAdminFee(uint256 adminFee) public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         vm.assume(adminFee > vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
@@ -2130,12 +2049,11 @@ contract VaultTest is Test {
     }
 
     function test_SetDepositWhitelist() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2146,12 +2064,11 @@ contract VaultTest is Test {
     }
 
     function test_SetDepositWhitelistRevertNotWhitelistedDepositor() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _deposit(alice, 1);
 
@@ -2165,12 +2082,11 @@ contract VaultTest is Test {
     }
 
     function test_SetDepositWhitelistRevertAlreadySet() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2180,12 +2096,11 @@ contract VaultTest is Test {
     }
 
     function test_SetDepositorWhitelistStatus() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2203,12 +2118,11 @@ contract VaultTest is Test {
     }
 
     function test_SetDepositorWhitelistStatusRevertNoDepositWhitelist() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _grantDepositorWhitelistRole(alice, alice);
 
@@ -2217,12 +2131,11 @@ contract VaultTest is Test {
     }
 
     function test_SetDepositorWhitelistStatusRevertAlreadySet() public {
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2235,12 +2148,7 @@ contract VaultTest is Test {
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
-    function _getVault(
-        string memory metadataURL,
-        uint48 epochDuration,
-        uint48 vetoDuration,
-        uint48 slashDuration
-    ) internal returns (IVault) {
+    function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 slashDuration) internal returns (IVault) {
         return IVault(
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
@@ -2251,7 +2159,6 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
-                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })

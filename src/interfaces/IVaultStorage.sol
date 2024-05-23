@@ -157,13 +157,6 @@ interface IVaultStorage {
     function slashDuration() external view returns (uint48);
 
     /**
-     * @notice Get a URL with a vault's metadata.
-     * The metadata should contain: name, description, external_url, image.
-     * @return metadata URL of the vault
-     */
-    function metadataURL() external view returns (string memory);
-
-    /**
      * @notice Get an admin fee.
      * @return admin fee
      */

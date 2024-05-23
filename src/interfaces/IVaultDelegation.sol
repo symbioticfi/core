@@ -24,7 +24,6 @@ interface IVaultDelegation is IVaultStorage, IMigratableEntity {
      * @param epochDuration duration of an vault epoch
      * @param vetoDuration duration of the veto period for a slash request
      * @param slashDuration duration of the slash period for a slash request (after veto period)
-     * @param metadataURL URL with metadata of the vault
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist enable/disable deposit whitelist
      */
@@ -34,7 +33,6 @@ interface IVaultDelegation is IVaultStorage, IMigratableEntity {
         uint48 epochDuration;
         uint48 vetoDuration;
         uint48 slashDuration;
-        string metadataURL;
         uint256 adminFee;
         bool depositWhitelist;
     }
@@ -46,12 +44,6 @@ interface IVaultDelegation is IVaultStorage, IMigratableEntity {
      * @param amount maximum possible amount of the collateral that can be slashed
      */
     event SetMaxNetworkLimit(address indexed network, address indexed resolver, uint256 amount);
-
-    /**
-     * @notice Emitted when a metadata URL is set.
-     * @param metadataURL metadata URL of the vault
-     */
-    event SetMetadataURL(string metadataURL);
 
     /**
      * @notice Emitted when an admin fee is set.
@@ -111,14 +103,6 @@ interface IVaultDelegation is IVaultStorage, IMigratableEntity {
      * @dev Only network can call this function.
      */
     function setMaxNetworkLimit(address resolver, uint256 amount) external;
-
-    /**
-     * @notice Set a new metadata URL for this vault.
-     * @param metadataURL metadata URL of the vault
-     * The metadata should contain: name, description, external_url, image.
-     * @dev Only owner can call this function.
-     */
-    function setMetadataURL(string calldata metadataURL) external;
 
     /**
      * @notice Set an admin fee.

@@ -101,11 +101,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 2, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         plugin = _getPlugin();
@@ -155,11 +154,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 2, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         plugin = _getPlugin();
@@ -195,11 +193,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 2, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -231,11 +228,10 @@ contract RewardsPluginTest is Test {
     function test_DistributeRewardRevertInsufficientReward(uint256 amount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -266,11 +262,10 @@ contract RewardsPluginTest is Test {
     function test_DistributeRewardRevertUnacceptedAdminFee(uint256 amount, uint256 adminFee) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         plugin = _getPlugin();
@@ -308,11 +303,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -349,11 +343,11 @@ contract RewardsPluginTest is Test {
     //     amount = bound(amount, 1, 100 * 10 ** 18);
     //     ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-    //     string memory metadataURL = "";
+    //
     //     uint48 epochDuration = 1;
     //     uint48 slashDuration = 1;
     //     uint48 vetoDuration = 0;
-    //     vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+    //     vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
     //     plugin = _getPlugin();
 
@@ -392,11 +386,11 @@ contract RewardsPluginTest is Test {
     //     amount = bound(amount, 1, 100 * 10 ** 18);
     //     ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-    //     string memory metadataURL = "";
+    //
     //     uint48 epochDuration = 1;
     //     uint48 slashDuration = 1;
     //     uint48 vetoDuration = 0;
-    //     vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+    //     vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
     //     plugin = _getPlugin();
 
@@ -438,11 +432,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -466,11 +459,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -494,11 +486,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -532,11 +523,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
         plugin = _getPlugin();
 
@@ -570,11 +560,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         plugin = _getPlugin();
@@ -621,11 +610,10 @@ contract RewardsPluginTest is Test {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-        string memory metadataURL = "";
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
-        vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         plugin = _getPlugin();
@@ -661,12 +649,7 @@ contract RewardsPluginTest is Test {
         _claimAdminFee(alice, address(token));
     }
 
-    function _getVault(
-        string memory metadataURL,
-        uint48 epochDuration,
-        uint48 vetoDuration,
-        uint48 slashDuration
-    ) internal returns (IVault) {
+    function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 slashDuration) internal returns (IVault) {
         return IVault(
             vaultRegistry.create(
                 vaultRegistry.lastVersion(),
@@ -677,7 +660,6 @@ contract RewardsPluginTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
-                        metadataURL: metadataURL,
                         adminFee: 0,
                         depositWhitelist: false
                     })
