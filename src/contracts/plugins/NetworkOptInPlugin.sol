@@ -5,9 +5,10 @@ import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.so
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Plugin} from "src/contracts/base/Plugin.sol";
-import {ERC6372} from "src/contracts/utils/ERC6372.sol";
 
-contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+
+contract NetworkOptInPlugin is Plugin, INetworkOptInPlugin {
     /**
      * @inheritdoc INetworkOptInPlugin
      */
@@ -54,7 +55,7 @@ contract NetworkOptInPlugin is Plugin, ERC6372, INetworkOptInPlugin {
         }
 
         isOptedIn[msg.sender][resolver][where] = false;
-        lastOptOut[msg.sender][resolver][where] = clock();
+        lastOptOut[msg.sender][resolver][where] = Time.timestamp();
 
         emit OptOut(msg.sender, resolver, where);
     }

@@ -8,15 +8,15 @@ import {IVault} from "src/interfaces/IVault.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {Plugin} from "src/contracts/base/Plugin.sol";
-import {ERC6372} from "src/contracts/utils/ERC6372.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract RewardsPlugin is Plugin, ERC6372, ReentrancyGuard, IRewardsPlugin {
+contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -78,7 +78,7 @@ contract RewardsPlugin is Plugin, ERC6372, ReentrancyGuard, IRewardsPlugin {
             revert NotNetwork();
         }
 
-        if (timestamp >= clock()) {
+        if (timestamp >= Time.timestamp()) {
             revert InvalidRewardTimestamp();
         }
 
@@ -116,7 +116,7 @@ contract RewardsPlugin is Plugin, ERC6372, ReentrancyGuard, IRewardsPlugin {
                 network: network,
                 amount: amount - adminFeeAmount,
                 timestamp: timestamp,
-                creation: clock()
+                creation: Time.timestamp()
             })
         );
 

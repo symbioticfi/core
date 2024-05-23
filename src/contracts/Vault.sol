@@ -14,9 +14,9 @@ import {Checkpoints} from "./libraries/Checkpoints.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
+contract Vault is VaultDelegation, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
@@ -96,12 +96,12 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
 
         shares = ERC4626Math.previewDeposit(amount, activeShares_, activeSupply_);
 
-        _activeSupplies.push(clock(), activeSupply_ + amount);
-        _activeShares.push(clock(), activeShares_ + shares);
-        _activeSharesOf[onBehalfOf].push(clock(), activeSharesOf(onBehalfOf) + shares);
+        _activeSupplies.push(Time.timestamp(), activeSupply_ + amount);
+        _activeShares.push(Time.timestamp(), activeShares_ + shares);
+        _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + shares);
 
         if (firstDepositAt[onBehalfOf] == 0) {
-            firstDepositAt[onBehalfOf] = clock();
+            firstDepositAt[onBehalfOf] = Time.timestamp();
         }
 
         emit Deposit(msg.sender, onBehalfOf, amount, shares);
@@ -124,9 +124,9 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert TooMuchWithdraw();
         }
 
-        _activeSupplies.push(clock(), activeSupply_ - amount);
-        _activeShares.push(clock(), activeShares_ - burnedShares);
-        _activeSharesOf[msg.sender].push(clock(), activeSharesOf_ - burnedShares);
+        _activeSupplies.push(Time.timestamp(), activeSupply_ - amount);
+        _activeShares.push(Time.timestamp(), activeShares_ - burnedShares);
+        _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf_ - burnedShares);
 
         uint256 epoch = currentEpoch() + 1;
         uint256 withdrawals_ = withdrawals[epoch];
@@ -203,7 +203,7 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
         if (amount > maxSlash_) {
             amount = maxSlash_;
         }
-        uint48 vetoDeadline = clock() + vetoDuration;
+        uint48 vetoDeadline = Time.timestamp() + vetoDuration;
         uint48 slashDeadline = vetoDeadline + slashDuration;
 
         slashIndex = slashRequests.length;
@@ -232,11 +232,11 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        if (request.vetoDeadline > clock()) {
+        if (request.vetoDeadline > Time.timestamp()) {
             revert VetoPeriodNotEnded();
         }
 
-        if (request.slashDeadline <= clock()) {
+        if (request.slashDeadline <= Time.timestamp()) {
             revert SlashPeriodEnded();
         }
 
@@ -278,7 +278,7 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             return 0;
         }
 
-        _activeSupplies.push(clock(), activeSupply_ - activeSlashed);
+        _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
         withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
         withdrawals[epoch + 1] = nextWithdrawals_ - nextWithdrawalsSlashed;
 
@@ -313,7 +313,7 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert NotResolver();
         }
 
-        if (request.vetoDeadline <= clock()) {
+        if (request.vetoDeadline <= Time.timestamp()) {
             revert VetoPeriodEnded();
         }
 

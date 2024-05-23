@@ -11,6 +11,7 @@ import {MigratableEntity} from "./base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVaultDelegation {
@@ -74,7 +75,7 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
         metadataURL = params.metadataURL;
         collateral = params.collateral;
 
-        epochDurationInit = clock();
+        epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
         vetoDuration = params.vetoDuration;
@@ -254,7 +255,7 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
     }
 
     function _getLimit(Limit storage limit, DelayedLimit storage nextLimit) private view returns (uint256) {
-        if (nextLimit.timestamp == 0 || clock() < nextLimit.timestamp) {
+        if (nextLimit.timestamp == 0 || Time.timestamp() < nextLimit.timestamp) {
             return limit.amount;
         }
         return nextLimit.amount;
@@ -274,7 +275,7 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
     }
 
     function _updateLimit(Limit storage limit, DelayedLimit storage nextLimit) internal {
-        if (nextLimit.timestamp != 0 && nextLimit.timestamp <= clock()) {
+        if (nextLimit.timestamp != 0 && nextLimit.timestamp <= Time.timestamp()) {
             limit.amount = nextLimit.amount;
             nextLimit.timestamp = 0;
             nextLimit.amount = 0;

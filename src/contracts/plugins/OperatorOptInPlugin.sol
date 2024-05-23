@@ -5,9 +5,10 @@ import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Plugin} from "src/contracts/base/Plugin.sol";
-import {ERC6372} from "src/contracts/utils/ERC6372.sol";
 
-contract OperatorOptInPlugin is Plugin, ERC6372, IOperatorOptInPlugin {
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+
+contract OperatorOptInPlugin is Plugin, IOperatorOptInPlugin {
     /**
      * @inheritdoc IOperatorOptInPlugin
      */
@@ -53,7 +54,7 @@ contract OperatorOptInPlugin is Plugin, ERC6372, IOperatorOptInPlugin {
         }
 
         isOptedIn[msg.sender][where] = false;
-        lastOptOut[msg.sender][where] = clock();
+        lastOptOut[msg.sender][where] = Time.timestamp();
 
         emit OptOut(msg.sender, where);
     }

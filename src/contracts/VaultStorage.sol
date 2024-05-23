@@ -3,10 +3,11 @@ pragma solidity 0.8.25;
 
 import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
 
-import {ERC6372} from "./utils/ERC6372.sol";
 import {Checkpoints} from "./libraries/Checkpoints.sol";
 
-contract VaultStorage is ERC6372, IVaultStorage {
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+
+contract VaultStorage is IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
 
     /**
@@ -188,7 +189,7 @@ contract VaultStorage is ERC6372, IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     function currentEpoch() public view returns (uint256) {
-        return (clock() - epochDurationInit) / epochDuration;
+        return (Time.timestamp() - epochDurationInit) / epochDuration;
     }
 
     /**
