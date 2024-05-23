@@ -146,7 +146,7 @@ contract MigratablesRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function test_MigrateRevertNotRegistry() public {
+    function test_MigrateRevertNotProxyAdmin() public {
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
@@ -160,7 +160,7 @@ contract MigratablesRegistryTest is Test {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(IMigratableEntity.NotRegistry.selector);
+        vm.expectRevert(IMigratableEntity.NotProxyAdmin.selector);
         IMigratableEntity(entity).migrate(abi.encode(0));
         vm.stopPrank();
     }

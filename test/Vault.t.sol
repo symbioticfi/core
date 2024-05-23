@@ -2009,8 +2009,6 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
         address network = bob;
         _registerNetwork(network, bob);
 
@@ -2042,8 +2040,6 @@ contract VaultTest is Test {
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
         address network = bob;
         _registerNetwork(network, bob);
 
@@ -2063,8 +2059,6 @@ contract VaultTest is Test {
         uint48 slashDuration = 1;
         uint48 vetoDuration = 1;
         vault = _getVault(metadataURL, epochDuration, vetoDuration, slashDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address network = bob;
 

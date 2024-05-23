@@ -3,16 +3,18 @@ pragma solidity 0.8.25;
 
 import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
+import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
 
 import {Registry} from "./Registry.sol";
+import {MigratableEntityProxy} from "./MigratableEntityProxy.sol";
 
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Address for address;
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
@@ -51,9 +53,9 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     /**
      * @inheritdoc IMigratablesRegistry
      */
-    function create(uint64 version, bytes memory data) external isValidVersion(version) returns (address entity_) {
+    function create(uint64 version, bytes memory data) external returns (address entity_) {
         entity_ = address(
-            new ERC1967Proxy(
+            new MigratableEntityProxy(
                 implementation(version), abi.encodeWithSelector(IMigratableEntity.initialize.selector, version, data)
             )
         );
@@ -69,7 +71,7 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
             revert NotOwner();
         }
 
-        UUPSUpgradeable(entity_).upgradeToAndCall(
+        IMigratableEntityProxy(entity_).upgradeToAndCall(
             implementation(IMigratableEntity(entity_).version() + 1),
             abi.encodeWithSelector(IMigratableEntity.migrate.selector, data)
         );

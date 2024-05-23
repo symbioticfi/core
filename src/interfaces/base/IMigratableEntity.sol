@@ -2,19 +2,7 @@
 pragma solidity 0.8.25;
 
 interface IMigratableEntity {
-    error NotRegistry();
-    error InvalidMigrateCall();
-
-    /// @custom:storage-location erc7201:symbiotic.storage.MigratableEntity
-    struct MigratableEntityStorage {
-        address _registry;
-    }
-
-    /**
-     * @notice Get the entity's registry.
-     * @return registry of the entity
-     */
-    function registry() external view returns (address);
+    error NotProxyAdmin();
 
     /**
      * @notice Get a the entity's version.
