@@ -13,7 +13,7 @@ contract SimpleRewardsDistributor is RewardsDistributor {
     /**
      * @inheritdoc IRewardsDistributorBase
      */
-    function VAULT() public view override(RewardsDistributorBase, IRewardsDistributorBase) returns (address) {
+    function VAULT() public pure override(RewardsDistributorBase, IRewardsDistributorBase) returns (address) {
         return address(1);
     }
 
