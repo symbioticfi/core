@@ -1,101 +1,107 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IRewardsPlugin} from "src/interfaces/plugins/IRewardsPlugin.sol";
+import {RewardsDistributorBase} from "src/contracts/base/RewardsDistributorBase.sol";
+import {RewardsDistributor} from "src/contracts/base/RewardsDistributor.sol";
+
+import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
+import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
+import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
 import {IVault} from "src/interfaces/IVault.sol";
 
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
-import {Plugin} from "src/contracts/base/Plugin.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
+contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgradeable, IDefaultRewardsDistributor {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
     /**
-     * @inheritdoc IRewardsPlugin
-     */
-    mapping(address vault => mapping(address token => RewardDistribution[] rewards_)) public rewards;
-
-    /**
-     * @inheritdoc IRewardsPlugin
-     */
-    mapping(address vault => mapping(address account => mapping(address token => uint256 rewardIndex))) public
-        lastUnclaimedReward;
-
-    /**
-     * @inheritdoc IRewardsPlugin
-     */
-    mapping(address vault => mapping(address token => uint256 amount)) public claimableAdminFee;
-
-    mapping(address vault => mapping(uint48 timestamp => uint256 amount)) internal _activeSharesCache;
-
-    mapping(address vault => mapping(uint48 timestamp => uint256 amount)) internal _activeSuppliesCache;
-
-    /**
-     * @inheritdoc IRewardsPlugin
+     * @inheritdoc IDefaultRewardsDistributor
      */
     address public immutable VAULT_REGISTRY;
 
-    modifier isVault(address account) {
-        if (!IRegistry(VAULT_REGISTRY).isEntity(account)) {
-            revert NotVault();
-        }
-        _;
-    }
+    address private _VAULT;
 
-    constructor(address networkRegistry, address vaultRegistry) Plugin(networkRegistry) {
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    mapping(address token => RewardDistribution[] rewards_) public rewards;
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    mapping(address account => mapping(address token => uint256 rewardIndex)) public lastUnclaimedReward;
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    mapping(address token => uint256 amount) public claimableAdminFee;
+
+    mapping(uint48 timestamp => uint256 amount) internal _activeSharesCache;
+
+    mapping(uint48 timestamp => uint256 amount) internal _activeSuppliesCache;
+
+    constructor(address networkRegistry, address vaultRegistry) RewardsDistributor(networkRegistry) {
+        _disableInitializers();
+
         VAULT_REGISTRY = vaultRegistry;
     }
 
     /**
-     * @inheritdoc IRewardsPlugin
+     * @inheritdoc IRewardsDistributorBase
      */
-    function rewardsLength(address vault, address token) external view isVault(vault) returns (uint256) {
-        return rewards[vault][token].length;
+    function VAULT() public view override(RewardsDistributorBase, IRewardsDistributorBase) returns (address) {
+        return _VAULT;
+    }
+
+    function initialize(address vault) external initializer {
+        if (!IRegistry(VAULT_REGISTRY).isEntity(vault)) {
+            revert NotVault();
+        }
+
+        __ReentrancyGuard_init();
+
+        _VAULT = vault;
     }
 
     /**
-     * @inheritdoc IRewardsPlugin
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    function rewardsLength(address token) external view returns (uint256) {
+        return rewards[token].length;
+    }
+
+    /**
+     * @inheritdoc IRewardsDistributor
      */
     function distributeReward(
-        address vault,
         address network,
         address token,
         uint256 amount,
-        uint48 timestamp,
-        uint256 acceptedAdminFee
-    ) external nonReentrant isVault(vault) returns (uint256 rewardIndex) {
-        if (!IRegistry(REGISTRY).isEntity(network)) {
-            revert NotNetwork();
-        }
-
+        uint48 timestamp
+    ) external override(RewardsDistributor, IRewardsDistributor) nonReentrant checkNetwork(network) {
         if (timestamp >= Time.timestamp()) {
             revert InvalidRewardTimestamp();
         }
 
-        if (acceptedAdminFee < IVault(vault).adminFee()) {
-            revert UnacceptedAdminFee();
-        }
-
-        if (_activeSharesCache[vault][timestamp] == 0) {
-            uint256 activeShares_ = IVault(vault).activeSharesAt(timestamp);
-            uint256 activeSupply_ = IVault(vault).activeSupplyAt(timestamp);
+        if (_activeSharesCache[timestamp] == 0) {
+            uint256 activeShares_ = IVault(VAULT()).activeSharesAt(timestamp);
+            uint256 activeSupply_ = IVault(VAULT()).activeSupplyAt(timestamp);
 
             if (activeShares_ == 0 || activeSupply_ == 0) {
                 revert InvalidRewardTimestamp();
             }
 
-            _activeSharesCache[vault][timestamp] = activeShares_;
-            _activeSuppliesCache[vault][timestamp] = activeSupply_;
+            _activeSharesCache[timestamp] = activeShares_;
+            _activeSuppliesCache[timestamp] = activeSupply_;
         }
 
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
@@ -106,12 +112,10 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             revert InsufficientReward();
         }
 
-        uint256 adminFeeAmount = amount.mulDiv(IVault(vault).adminFee(), IVault(vault).ADMIN_FEE_BASE());
-        claimableAdminFee[vault][token] += adminFeeAmount;
+        uint256 adminFeeAmount = amount.mulDiv(IVault(VAULT()).adminFee(), IVault(VAULT()).ADMIN_FEE_BASE());
+        claimableAdminFee[token] += adminFeeAmount;
 
-        rewardIndex = rewards[vault][token].length;
-
-        rewards[vault][token].push(
+        rewards[token].push(
             RewardDistribution({
                 network: network,
                 amount: amount - adminFeeAmount,
@@ -120,26 +124,25 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             })
         );
 
-        emit DistributeReward(vault, token, rewardIndex, network, amount, timestamp);
+        emit DistributeReward(token, network, amount, timestamp);
     }
 
     /**
-     * @inheritdoc IRewardsPlugin
+     * @inheritdoc IDefaultRewardsDistributor
      */
     function claimRewards(
-        address vault,
         address recipient,
         address token,
         uint256 maxRewards,
         uint32[] calldata activeSharesOfHints
     ) external {
-        uint48 firstDepositAt_ = IVault(vault).firstDepositAt(msg.sender);
+        uint48 firstDepositAt_ = IVault(VAULT()).firstDepositAt(msg.sender);
         if (firstDepositAt_ == 0) {
             revert NoDeposits();
         }
 
-        RewardDistribution[] storage rewardsByToken = rewards[vault][token];
-        uint256 rewardIndex = lastUnclaimedReward[vault][msg.sender][token];
+        RewardDistribution[] storage rewardsByToken = rewards[token];
+        uint256 rewardIndex = lastUnclaimedReward[msg.sender][token];
         if (rewardIndex == 0) {
             rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_);
         }
@@ -155,8 +158,8 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             revert InvalidHintsLength();
         }
 
-        mapping(uint48 => uint256) storage _activeSharesCacheByVault = _activeSharesCache[vault];
-        mapping(uint48 => uint256) storage _activeSuppliesCacheByVault = _activeSuppliesCache[vault];
+        mapping(uint48 => uint256) storage _activeSharesCacheByVault = _activeSharesCache;
+        mapping(uint48 => uint256) storage _activeSuppliesCacheByVault = _activeSuppliesCache;
 
         uint256 amount;
         for (uint256 j; j < rewardsToClaim;) {
@@ -166,8 +169,8 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             if (reward.timestamp >= firstDepositAt_) {
                 uint256 activeSupply_ = _activeSuppliesCacheByVault[reward.timestamp];
                 uint256 activeSharesOf_ = hasHints
-                    ? IVault(vault).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
-                    : IVault(vault).activeSharesOfAt(msg.sender, reward.timestamp);
+                    ? IVault(VAULT()).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
+                    : IVault(VAULT()).activeSharesOfAt(msg.sender, reward.timestamp);
                 uint256 activeBalanceOf_ = ERC4626Math.previewRedeem(
                     activeSharesOf_, activeSupply_, _activeSharesCacheByVault[reward.timestamp]
                 );
@@ -176,7 +179,7 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
                 amount += claimedAmount;
             }
 
-            emit ClaimReward(vault, token, rewardIndex, msg.sender, recipient, claimedAmount);
+            emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
 
             unchecked {
                 ++j;
@@ -184,7 +187,7 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             }
         }
 
-        lastUnclaimedReward[vault][msg.sender][token] = rewardIndex;
+        lastUnclaimedReward[msg.sender][token] = rewardIndex;
 
         if (amount != 0) {
             IERC20(token).safeTransfer(recipient, amount);
@@ -192,23 +195,23 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
     }
 
     /**
-     * @inheritdoc IRewardsPlugin
+     * @inheritdoc IDefaultRewardsDistributor
      */
-    function claimAdminFee(address vault, address recipient, address token) external {
-        if (Ownable(vault).owner() != msg.sender) {
+    function claimAdminFee(address recipient, address token) external {
+        if (Ownable(VAULT()).owner() != msg.sender) {
             revert NotOwner();
         }
 
-        uint256 claimableAdminFee_ = claimableAdminFee[vault][token];
+        uint256 claimableAdminFee_ = claimableAdminFee[token];
         if (claimableAdminFee_ == 0) {
             revert InsufficientAdminFee();
         }
 
-        claimableAdminFee[vault][token] = 0;
+        claimableAdminFee[token] = 0;
 
         IERC20(token).safeTransfer(recipient, claimableAdminFee_);
 
-        emit ClaimAdminFee(vault, token, claimableAdminFee_);
+        emit ClaimAdminFee(token, claimableAdminFee_);
     }
 
     /**

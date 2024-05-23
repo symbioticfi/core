@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {IDAIPermit} from "permit2/src/interfaces/IDAIPermit.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
+import {IDAIPermit} from "permit2/src/interfaces/IDAIPermit.sol";
 import {SafeCast160} from "permit2/src/libraries/SafeCast160.sol";
 
 /// @title Permit2Lib

@@ -14,6 +14,7 @@ contract VaultScript is Script {
         uint48 epochDuration,
         uint48 vetoDuration,
         uint48 slashDuration,
+        address rewardsDistributor,
         uint256 adminFee,
         bool depositWhitelist
     ) public {
@@ -31,6 +32,7 @@ contract VaultScript is Script {
                     epochDuration: epochDuration,
                     vetoDuration: vetoDuration,
                     slashDuration: slashDuration,
+                    rewardsDistributor: rewardsDistributor,
                     adminFee: adminFee,
                     depositWhitelist: depositWhitelist
                 })

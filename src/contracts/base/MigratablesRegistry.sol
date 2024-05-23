@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
-import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
-import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
-
-import {Registry} from "./Registry.sol";
 import {MigratableEntityProxy} from "./MigratableEntityProxy.sol";
+import {Registry} from "./Registry.sol";
+
+import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
+import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";

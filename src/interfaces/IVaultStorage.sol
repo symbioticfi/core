@@ -48,14 +48,9 @@ interface IVaultStorage {
     function ADMIN_FEE_BASE() external view returns (uint256);
 
     /**
-     * @notice Get the network-resolver limit setter's role.
+     * @notice Get the rewards distributor setter's role.
      */
-    function NETWORK_RESOLVER_LIMIT_SET_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get the operator-network limit setter's role.
-     */
-    function OPERATOR_NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
+    function REWARDS_DISTRIBUTOR_SET_ROLE() external view returns (bytes32);
 
     /**
      * @notice Get the admin fee setter's role.
@@ -73,8 +68,18 @@ interface IVaultStorage {
     function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
 
     /**
+     * @notice Get the network-resolver limit setter's role.
+     */
+    function NETWORK_RESOLVER_LIMIT_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get the operator-network limit setter's role.
+     */
+    function OPERATOR_NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Get the network registry's address.
-     * @return address of the registry
+     * @return address of the network registry
      */
     function NETWORK_REGISTRY() external view returns (address);
 
@@ -155,6 +160,12 @@ interface IVaultStorage {
      * @return duration of the slash period
      */
     function slashDuration() external view returns (uint48);
+
+    /**
+     * @notice Get a rewards distributor.
+     * @return address of the rewards distributor
+     */
+    function rewardsDistributor() external view returns (address);
 
     /**
      * @notice Get an admin fee.

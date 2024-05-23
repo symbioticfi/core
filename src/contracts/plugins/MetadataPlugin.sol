@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMetadataPlugin} from "src/interfaces/plugins/IMetadataPlugin.sol";
-
 import {Plugin} from "src/contracts/base/Plugin.sol";
+
+import {IMetadataPlugin} from "src/interfaces/plugins/IMetadataPlugin.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 

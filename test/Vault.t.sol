@@ -79,6 +79,7 @@ contract VaultTest is Test {
         uint48 epochDuration,
         uint48 vetoDuration,
         uint48 slashDuration,
+        address rewardsDistributor,
         uint256 adminFee,
         bool depositWhitelist
     ) public {
@@ -98,6 +99,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        rewardsDistributor: rewardsDistributor,
                         adminFee: adminFee,
                         depositWhitelist: depositWhitelist
                     })
@@ -1507,6 +1509,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1537,6 +1540,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
                     })
@@ -1564,6 +1568,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        rewardsDistributor: address(0),
                         adminFee: adminFee,
                         depositWhitelist: false
                     })
@@ -2093,6 +2098,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
                         slashDuration: slashDuration,
+                        rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
                     })

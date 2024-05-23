@@ -9,7 +9,6 @@ import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
 import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
 import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
-import {RewardsPlugin} from "src/contracts/plugins/RewardsPlugin.sol";
 import {Vault} from "src/contracts/Vault.sol";
 
 contract CoreScript is Script {
@@ -31,7 +30,6 @@ contract CoreScript is Script {
             new OperatorOptInPlugin(address(operatorRegistry), address(vaultRegistry));
         OperatorOptInPlugin operatorNetworkOptInPlugin =
             new OperatorOptInPlugin(address(operatorRegistry), address(networkRegistry));
-        RewardsPlugin operatorRewardsPlugin = new RewardsPlugin(address(networkRegistry), address(vaultRegistry));
 
         vaultRegistry.whitelist(
             address(

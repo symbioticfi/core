@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INonMigratablesRegistry} from "src/interfaces/base/INonMigratablesRegistry.sol";
-
 import {Registry} from "./Registry.sol";
+
+import {INonMigratablesRegistry} from "src/interfaces/base/INonMigratablesRegistry.sol";
 
 contract NonMigratablesRegistry is Registry, INonMigratablesRegistry {
     /**

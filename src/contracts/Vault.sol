@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IVault} from "src/interfaces/IVault.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
+import {MigratableEntity} from "./base/MigratableEntity.sol";
+import {VaultStorage} from "./VaultStorage.sol";
+
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
+import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
+import {IRegistry} from "src/interfaces/base/IRegistry.sol";
+import {IVault} from "src/interfaces/IVault.sol";
 
-import {VaultStorage} from "./VaultStorage.sol";
-import {MigratableEntity} from "./base/MigratableEntity.sol";
-
-import {ERC4626Math} from "./libraries/ERC4626Math.sol";
 import {Checkpoints} from "./libraries/Checkpoints.sol";
+import {ERC4626Math} from "./libraries/ERC4626Math.sol";
 
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
@@ -95,7 +95,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             operatorVaultOptInPlugin,
             operatorNetworkOptInPlugin
         )
-    {}
+    {
+        _disableInitializers();
+    }
 
     /**
      * @inheritdoc IMigratableEntity
@@ -125,6 +127,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         vetoDuration = params.vetoDuration;
         slashDuration = params.slashDuration;
 
+        rewardsDistributor = params.rewardsDistributor;
         adminFee = params.adminFee;
         depositWhitelist = params.depositWhitelist;
 
@@ -401,6 +404,19 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         emit SetMaxNetworkResolverLimit(msg.sender, resolver, amount);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setRewardsDistributor(address rewardsDistributor_) external onlyRole(REWARDS_DISTRIBUTOR_SET_ROLE) {
+        if (rewardsDistributor == rewardsDistributor_) {
+            revert AlreadySet();
+        }
+
+        rewardsDistributor = rewardsDistributor_;
+
+        emit SetRewardsDistributor(rewardsDistributor_);
     }
 
     /**

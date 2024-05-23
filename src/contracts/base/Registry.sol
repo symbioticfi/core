@@ -10,10 +10,8 @@ abstract contract Registry is IRegistry {
 
     EnumerableSet.AddressSet private _entities;
 
-    modifier checkEntity(address entity_) {
-        if (!isEntity(entity_)) {
-            revert EntityNotExist();
-        }
+    modifier checkEntity(address account) {
+        _checkEntity(account);
         _;
     }
 
@@ -42,5 +40,11 @@ abstract contract Registry is IRegistry {
         _entities.add(entity_);
 
         emit AddEntity(entity_);
+    }
+
+    function _checkEntity(address account) internal view {
+        if (!isEntity(account)) {
+            revert EntityNotExist();
+        }
     }
 }

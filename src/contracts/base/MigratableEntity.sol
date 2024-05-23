@@ -4,8 +4,8 @@ pragma solidity 0.8.25;
 import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigratableEntity {
     constructor() {

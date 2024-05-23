@@ -37,6 +37,7 @@ interface IVault is IVaultStorage {
      * @param epochDuration duration of the vault epoch
      * @param vetoDuration duration of the veto period for a slash request
      * @param slashDuration duration of the slash period for a slash request (after veto period)
+     * @param rewardsDistributor address of the rewards distributor
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist enable/disable deposit whitelist
      */
@@ -46,6 +47,7 @@ interface IVault is IVaultStorage {
         uint48 epochDuration;
         uint48 vetoDuration;
         uint48 slashDuration;
+        address rewardsDistributor;
         uint256 adminFee;
         bool depositWhitelist;
     }
@@ -119,6 +121,12 @@ interface IVault is IVaultStorage {
      * @param amount maximum possible amount of the collateral that can be slashed
      */
     event SetMaxNetworkResolverLimit(address indexed network, address indexed resolver, uint256 amount);
+
+    /**
+     * @notice Emitted when a rewards distributor is set.
+     * @param rewardsDistributor address of the rewards distributor
+     */
+    event SetRewardsDistributor(address rewardsDistributor);
 
     /**
      * @notice Emitted when an admin fee is set.
@@ -270,6 +278,13 @@ interface IVault is IVaultStorage {
      * @dev Only a network can call this function.
      */
     function setMaxNetworkResolverLimit(address resolver, uint256 amount) external;
+
+    /**
+     * @notice Set a rewards distributor.
+     * @param rewardsDistributor address of the rewards distributor
+     * @dev Only the REWARDS_DISTRIBUTOR_SET_ROLE holder can call this function.
+     */
+    function setRewardsDistributor(address rewardsDistributor) external;
 
     /**
      * @notice Set an admin fee.

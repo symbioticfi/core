@@ -23,12 +23,7 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
+    bytes32 public constant REWARDS_DISTRIBUTOR_SET_ROLE = keccak256("REWARDS_DISTRIBUTOR_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
@@ -43,6 +38,16 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     bytes32 public constant DEPOSITOR_WHITELIST_ROLE = keccak256("DEPOSITOR_WHITELIST_ROLE");
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
@@ -98,6 +103,11 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     uint48 public slashDuration;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public rewardsDistributor;
 
     /**
      * @inheritdoc IVaultStorage

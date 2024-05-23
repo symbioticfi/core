@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
-
 import {Plugin} from "src/contracts/base/Plugin.sol";
+
+import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
 
 contract MiddlewarePlugin is Plugin, IMiddlewarePlugin {
     /**

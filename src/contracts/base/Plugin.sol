@@ -11,13 +11,17 @@ abstract contract Plugin is IPlugin {
     address public immutable REGISTRY;
 
     modifier onlyEntity() {
-        if (!IRegistry(REGISTRY).isEntity(msg.sender)) {
-            revert NotEntity();
-        }
+        _checkEntity(msg.sender);
         _;
     }
 
     constructor(address registry) {
         REGISTRY = registry;
+    }
+
+    function _checkEntity(address account) internal view {
+        if (!IRegistry(REGISTRY).isEntity(account)) {
+            revert NotEntity();
+        }
     }
 }
