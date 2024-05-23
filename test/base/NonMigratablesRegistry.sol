@@ -36,4 +36,17 @@ contract NonMigratablesRegistryTest is Test {
 
         assertEq(registry.isEntity(alice), true);
     }
+
+    function test_RegisterRevertEntityAlreadyRegistered() public {
+        registry = new NonMigratablesRegistry();
+
+        vm.startPrank(alice);
+        registry.register();
+        vm.stopPrank();
+
+        vm.expectRevert(INonMigratablesRegistry.EntityAlreadyRegistered.selector);
+        vm.startPrank(alice);
+        registry.register();
+        vm.stopPrank();
+    }
 }
