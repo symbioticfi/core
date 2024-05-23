@@ -23,12 +23,12 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
+    bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant OPERATOR_LIMIT_SET_ROLE = keccak256("OPERATOR_LIMIT_SET_ROLE");
+    bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
@@ -142,17 +142,17 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address network => mapping(address resolver => uint256 amount)) public maxNetworkLimit;
+    mapping(address network => mapping(address resolver => uint256 amount)) public maxNetworkResolverLimit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address network => mapping(address resolver => DelayedLimit)) public nextNetworkLimit;
+    mapping(address network => mapping(address resolver => DelayedLimit)) public nextNetworkResolverLimit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorLimit;
+    mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorNetworkLimit;
 
     Checkpoints.Trace256 internal _activeShares;
 
@@ -160,9 +160,9 @@ contract VaultStorage is IVaultStorage {
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
-    mapping(address network => mapping(address resolver => Limit limit)) internal _networkLimit;
+    mapping(address network => mapping(address resolver => Limit limit)) internal _networkResolverLimit;
 
-    mapping(address operator => mapping(address network => Limit limit)) internal _operatorLimit;
+    mapping(address operator => mapping(address network => Limit limit)) internal _operatorNetworkLimit;
 
     constructor(
         address networkRegistry,

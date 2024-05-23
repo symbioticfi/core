@@ -5,7 +5,7 @@ import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
     error AlreadySet();
-    error ExceedsMaxNetworkLimit();
+    error ExceedsMaxNetworkResolverLimit();
     error InsufficientClaim();
     error InsufficientDeposit();
     error InsufficientSlash();
@@ -113,12 +113,12 @@ interface IVault is IVaultStorage {
     event VetoSlash(uint256 indexed slashIndex);
 
     /**
-     * @notice Emitted when a maximum network limit is set.
+     * @notice Emitted when a maximum network-resolver limit is set.
      * @param network network for which the maximum limit is set
      * @param resolver resolver for which the maximum limit is set
      * @param amount maximum possible amount of the collateral that can be slashed
      */
-    event SetMaxNetworkLimit(address indexed network, address indexed resolver, uint256 amount);
+    event SetMaxNetworkResolverLimit(address indexed network, address indexed resolver, uint256 amount);
 
     /**
      * @notice Emitted when an admin fee is set.
@@ -140,20 +140,20 @@ interface IVault is IVaultStorage {
     event SetDepositorWhitelistStatus(address indexed account, bool value);
 
     /**
-     * @notice Emitted when a network limit is set.
+     * @notice Emitted when a network-resolver limit is set.
      * @param network network for which the limit is set
      * @param resolver resolver for which the limit is set
      * @param amount amount of the collateral that can be slashed
      */
-    event SetNetworkLimit(address indexed network, address indexed resolver, uint256 amount);
+    event SetNetworkResolverLimit(address indexed network, address indexed resolver, uint256 amount);
 
     /**
-     * @notice Emitted when an operator limit is set.
+     * @notice Emitted when an operator-network limit is set.
      * @param operator operator for which the limit is set
      * @param network network for which the limit is set
      * @param amount amount of the collateral that can be slashed
      */
-    event SetOperatorLimit(address indexed operator, address indexed network, uint256 amount);
+    event SetOperatorNetworkLimit(address indexed operator, address indexed network, uint256 amount);
 
     /**
      * @notice Get a total amount of the collateral deposited in the vault.
@@ -194,20 +194,20 @@ interface IVault is IVaultStorage {
     function maxSlash(address network, address resolver, address operator) external view returns (uint256);
 
     /**
-     * @notice Get a network limit for a particular network and resolver.
+     * @notice Get a network-resolver limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
-     * @return network limit
+     * @return network-resolver limit
      */
-    function networkLimit(address network, address resolver) external view returns (uint256);
+    function networkResolverLimit(address network, address resolver) external view returns (uint256);
 
     /**
-     * @notice Get an operator limit for a particular operator and network.
+     * @notice Get an operator-network limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network
-     * @return operator limit
+     * @return operator-network limit
      */
-    function operatorLimit(address operator, address network) external view returns (uint256);
+    function operatorNetworkLimit(address operator, address network) external view returns (uint256);
 
     /**
      * @notice Deposit collateral into the vault.
@@ -264,12 +264,12 @@ interface IVault is IVaultStorage {
     function vetoSlash(uint256 slashIndex) external;
 
     /**
-     * @notice Set a maximum network limit.
+     * @notice Set a maximum network-resolver limit.
      * @param resolver address of the resolver
      * @param amount maximum amount of the collateral that can be slashed
      * @dev Only a network can call this function.
      */
-    function setMaxNetworkLimit(address resolver, uint256 amount) external;
+    function setMaxNetworkResolverLimit(address resolver, uint256 amount) external;
 
     /**
      * @notice Set an admin fee.
@@ -294,20 +294,20 @@ interface IVault is IVaultStorage {
     function setDepositorWhitelistStatus(address account, bool status) external;
 
     /**
-     * @notice Set a network limit for a particular network and resolver.
+     * @notice Set a network-resolver limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only the NETWORK_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only the NETWORK_RESOLVER_LIMIT_SET_ROLE holder can call this function.
      */
-    function setNetworkLimit(address network, address resolver, uint256 amount) external;
+    function setNetworkResolverLimit(address network, address resolver, uint256 amount) external;
 
     /**
-     * @notice Set an operator limit for a particular operator and network.
+     * @notice Set an operator-network limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network
      * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only the OPERATOR_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only the OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
-    function setOperatorLimit(address operator, address network, uint256 amount) external;
+    function setOperatorNetworkLimit(address operator, address network, uint256 amount) external;
 }

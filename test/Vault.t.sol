@@ -108,8 +108,8 @@ contract VaultTest is Test {
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         assertEq(vault.ADMIN_FEE_BASE(), 10_000);
-        assertEq(vault.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
-        assertEq(vault.OPERATOR_LIMIT_SET_ROLE(), keccak256("OPERATOR_LIMIT_SET_ROLE"));
+        assertEq(vault.NETWORK_RESOLVER_LIMIT_SET_ROLE(), keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE"));
+        assertEq(vault.OPERATOR_NETWORK_LIMIT_SET_ROLE(), keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE"));
         assertEq(vault.NETWORK_REGISTRY(), address(networkRegistry));
         assertEq(vault.OPERATOR_REGISTRY(), address(operatorRegistry));
 
@@ -141,17 +141,17 @@ contract VaultTest is Test {
         assertEq(vault.slashRequestsLength(), 0);
         vm.expectRevert();
         vault.slashRequests(0);
-        assertEq(vault.maxNetworkLimit(address(0), address(0)), 0);
-        assertEq(vault.networkLimit(address(0), address(0)), 0);
-        (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) =
-            vault.nextNetworkLimit(address(0), address(0));
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
-        assertEq(vault.operatorLimit(address(0), address(0)), 0);
-        (uint256 nextOperatorLimitAmount, uint256 nextOperatorLimitTimestamp) =
-            vault.nextOperatorLimit(address(0), address(0));
-        assertEq(nextOperatorLimitAmount, 0);
-        assertEq(nextOperatorLimitTimestamp, 0);
+        assertEq(vault.maxNetworkResolverLimit(address(0), address(0)), 0);
+        assertEq(vault.networkResolverLimit(address(0), address(0)), 0);
+        (uint256 nextNetworkResolverLimitAmount, uint256 nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(address(0), address(0));
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
+        assertEq(vault.operatorNetworkLimit(address(0), address(0)), 0);
+        (uint256 nextOperatorNetworkLimitAmount, uint256 nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(address(0), address(0));
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
         assertEq(vault.adminFee(), adminFee);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
@@ -555,14 +555,14 @@ contract VaultTest is Test {
     function test_RequestSlash(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -583,22 +583,22 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 maxSlash_ = Math.min(amount1 + amount2, networkLimit);
-        maxSlash_ = Math.min(maxSlash_, operatorLimit);
+        uint256 maxSlash_ = Math.min(amount1 + amount2, networkResolverLimit);
+        maxSlash_ = Math.min(maxSlash_, operatorNetworkLimit);
         assertEq(vault.maxSlash(network, resolver, operator), maxSlash_);
 
         uint256 slashIndex = 0;
@@ -627,14 +627,14 @@ contract VaultTest is Test {
     function test_RequestSlashRevertNotNetworkMiddleware(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -655,14 +655,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -676,8 +676,8 @@ contract VaultTest is Test {
     function test_RequestSlashRevertInsufficientSlash(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
@@ -700,14 +700,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -721,14 +721,14 @@ contract VaultTest is Test {
     function test_RequestSlashRevertNetworkNotOptedIn(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -749,16 +749,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
         _optOutNetworkVault(network, resolver);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -772,14 +772,14 @@ contract VaultTest is Test {
     function test_RequestSlashRevertOperatorNotOptedInNetwork(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -800,14 +800,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -823,14 +823,14 @@ contract VaultTest is Test {
     function test_RequestSlashRevertOperatorNotOptedInVault(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -851,16 +851,16 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
         _optOutOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -874,14 +874,14 @@ contract VaultTest is Test {
     function test_ExecuteSlash(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -902,14 +902,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -992,14 +992,14 @@ contract VaultTest is Test {
     function test_ExecuteSlashRevertSlashRequestNotExist(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1020,14 +1020,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1046,14 +1046,14 @@ contract VaultTest is Test {
     function test_ExecuteSlashRevertVetoPeriodNotEnded(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1074,14 +1074,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1097,14 +1097,14 @@ contract VaultTest is Test {
     function test_ExecuteSlashRevertSlashPeriodEnded(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1125,14 +1125,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1151,14 +1151,14 @@ contract VaultTest is Test {
     function test_ExecuteSlashRevertSlashCompleted(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1179,14 +1179,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1207,14 +1207,14 @@ contract VaultTest is Test {
     function test_VetoSlash(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1235,14 +1235,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1284,14 +1284,14 @@ contract VaultTest is Test {
     function test_VetoSlashRevertSlashRequestNotExist(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1312,14 +1312,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1335,14 +1335,14 @@ contract VaultTest is Test {
     function test_VetoSlashRevertNotResolver(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1363,14 +1363,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1386,14 +1386,14 @@ contract VaultTest is Test {
     function test_VetoSlashRevertVetoPeriodEnded(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1414,14 +1414,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1440,14 +1440,14 @@ contract VaultTest is Test {
     function test_VetoSlashRevertSlashCompleted(
         uint256 amount1,
         uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1468,14 +1468,14 @@ contract VaultTest is Test {
         _registerOperator(operator);
 
         address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         _optInOperatorVault(operator);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
 
-        _setOperatorLimit(alice, operator, network, operatorLimit);
+        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
 
         _optInOperatorNetwork(operator, network);
 
@@ -1572,7 +1572,12 @@ contract VaultTest is Test {
         );
     }
 
-    function test_SetNetworkLimit(uint48 epochDuration, uint256 amount1, uint256 amount2, uint256 amount3) public {
+    function test_SetNetworkResolverLimit(
+        uint48 epochDuration,
+        uint256 amount1,
+        uint256 amount2,
+        uint256 amount3
+    ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         vm.assume(amount3 < amount2);
 
@@ -1586,99 +1591,110 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
-        _setNetworkLimit(alice, network, resolver, amount1);
+        _setNetworkResolverLimit(alice, network, resolver, amount1);
 
-        assertEq(vault.networkLimit(network, resolver), amount1);
-        (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
+        assertEq(vault.networkResolverLimit(network, resolver), amount1);
+        (uint256 nextNetworkResolverLimitAmount, uint256 nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.networkLimit(network, resolver), amount1);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
+        assertEq(vault.networkResolverLimit(network, resolver), amount1);
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
 
-        _setNetworkLimit(alice, network, resolver, amount2);
+        _setNetworkResolverLimit(alice, network, resolver, amount2);
 
         if (amount1 > amount2) {
-            assertEq(vault.networkLimit(network, resolver), amount1);
-            (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-            assertEq(nextNetworkLimitAmount, amount2);
-            assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
+            assertEq(vault.networkResolverLimit(network, resolver), amount1);
+            (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+                vault.nextNetworkResolverLimit(network, resolver);
+            assertEq(nextNetworkResolverLimitAmount, amount2);
+            assertEq(nextNetworkResolverLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
 
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
             vm.warp(blockTimestamp);
 
-            assertEq(vault.networkLimit(network, resolver), amount1);
-            (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-            assertEq(nextNetworkLimitAmount, amount2);
-            assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + vault.epochDuration());
+            assertEq(vault.networkResolverLimit(network, resolver), amount1);
+            (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+                vault.nextNetworkResolverLimit(network, resolver);
+            assertEq(nextNetworkResolverLimitAmount, amount2);
+            assertEq(nextNetworkResolverLimitTimestamp, vault.currentEpochStart() + vault.epochDuration());
 
             blockTimestamp = blockTimestamp + 1;
             vm.warp(blockTimestamp);
 
-            assertEq(vault.networkLimit(network, resolver), amount2);
-            (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-            assertEq(nextNetworkLimitAmount, amount2);
-            assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart());
+            assertEq(vault.networkResolverLimit(network, resolver), amount2);
+            (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+                vault.nextNetworkResolverLimit(network, resolver);
+            assertEq(nextNetworkResolverLimitAmount, amount2);
+            assertEq(nextNetworkResolverLimitTimestamp, vault.currentEpochStart());
 
-            _setNetworkLimit(alice, network, resolver, amount2);
+            _setNetworkResolverLimit(alice, network, resolver, amount2);
 
-            assertEq(vault.networkLimit(network, resolver), amount2);
-            (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-            assertEq(nextNetworkLimitAmount, 0);
-            assertEq(nextNetworkLimitTimestamp, 0);
+            assertEq(vault.networkResolverLimit(network, resolver), amount2);
+            (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+                vault.nextNetworkResolverLimit(network, resolver);
+            assertEq(nextNetworkResolverLimitAmount, 0);
+            assertEq(nextNetworkResolverLimitTimestamp, 0);
         } else {
-            assertEq(vault.networkLimit(network, resolver), amount2);
-            (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-            assertEq(nextNetworkLimitAmount, 0);
-            assertEq(nextNetworkLimitTimestamp, 0);
+            assertEq(vault.networkResolverLimit(network, resolver), amount2);
+            (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+                vault.nextNetworkResolverLimit(network, resolver);
+            assertEq(nextNetworkResolverLimitAmount, 0);
+            assertEq(nextNetworkResolverLimitTimestamp, 0);
         }
 
-        _setNetworkLimit(alice, network, resolver, amount3);
+        _setNetworkResolverLimit(alice, network, resolver, amount3);
 
-        assertEq(vault.networkLimit(network, resolver), amount2);
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, amount3);
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
+        assertEq(vault.networkResolverLimit(network, resolver), amount2);
+        (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, amount3);
+        assertEq(nextNetworkResolverLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
 
-        _setNetworkLimit(alice, network, resolver, amount2);
+        _setNetworkResolverLimit(alice, network, resolver, amount2);
 
-        assertEq(vault.networkLimit(network, resolver), amount2);
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
+        assertEq(vault.networkResolverLimit(network, resolver), amount2);
+        (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
 
         _optOutNetworkVault(network, resolver);
 
-        assertEq(vault.networkLimit(network, resolver), amount2);
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
+        assertEq(vault.networkResolverLimit(network, resolver), amount2);
+        (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
 
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.networkLimit(network, resolver), amount2);
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
+        assertEq(vault.networkResolverLimit(network, resolver), amount2);
+        (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.networkLimit(network, resolver), amount2);
-        (nextNetworkLimitAmount, nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, 0);
-        assertEq(nextNetworkLimitTimestamp, 0);
+        assertEq(vault.networkResolverLimit(network, resolver), amount2);
+        (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, 0);
+        assertEq(nextNetworkResolverLimitTimestamp, 0);
     }
 
-    function test_SetNetworkLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
+    function test_SetNetworkResolverLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
         uint48 vetoDuration = 0;
@@ -1689,21 +1705,21 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
+        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
         _optInNetworkVault(network, resolver);
 
         vm.expectRevert();
-        _setNetworkLimit(bob, network, resolver, amount1);
+        _setNetworkResolverLimit(bob, network, resolver, amount1);
     }
 
-    function test_SetNetworkLimitRevertExceedsMaxNetworkLimit(
+    function test_SetNetworkResolverLimitRevertExceedsMaxNetworkResolverLimit(
         uint48 epochDuration,
         uint256 amount1,
-        uint256 maxNetworkLimit
+        uint256 maxNetworkResolverLimit
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
-        vm.assume(amount1 > maxNetworkLimit);
+        maxNetworkResolverLimit = bound(maxNetworkResolverLimit, 1, type(uint256).max);
+        vm.assume(amount1 > maxNetworkResolverLimit);
 
         uint48 vetoDuration = 0;
         uint48 slashDuration = 1;
@@ -1713,14 +1729,19 @@ contract VaultTest is Test {
         _registerNetwork(network, bob);
 
         address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, maxNetworkLimit);
+        _setMaxNetworkResolverLimit(network, resolver, maxNetworkResolverLimit);
         _optInNetworkVault(network, resolver);
 
-        vm.expectRevert(IVault.ExceedsMaxNetworkLimit.selector);
-        _setNetworkLimit(alice, network, resolver, amount1);
+        vm.expectRevert(IVault.ExceedsMaxNetworkResolverLimit.selector);
+        _setNetworkResolverLimit(alice, network, resolver, amount1);
     }
 
-    function test_SetOperatorLimit(uint48 epochDuration, uint256 amount1, uint256 amount2, uint256 amount3) public {
+    function test_SetOperatorNetworkLimit(
+        uint48 epochDuration,
+        uint256 amount1,
+        uint256 amount2,
+        uint256 amount3
+    ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         vm.assume(amount3 < amount2);
 
@@ -1736,81 +1757,89 @@ contract VaultTest is Test {
         address network = address(1);
         _optInOperatorVault(operator);
 
-        _setOperatorLimit(alice, operator, network, amount1);
+        _setOperatorNetworkLimit(alice, operator, network, amount1);
 
-        assertEq(vault.operatorLimit(operator, network), amount1);
-        (uint256 nextOperatorLimitAmount, uint256 nextOperatorLimitTimestamp) =
-            vault.nextOperatorLimit(address(0), address(0));
-        assertEq(nextOperatorLimitAmount, 0);
-        assertEq(nextOperatorLimitTimestamp, 0);
+        assertEq(vault.operatorNetworkLimit(operator, network), amount1);
+        (uint256 nextOperatorNetworkLimitAmount, uint256 nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(address(0), address(0));
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.operatorLimit(operator, network), amount1);
-        assertEq(nextOperatorLimitAmount, 0);
-        assertEq(nextOperatorLimitTimestamp, 0);
+        assertEq(vault.operatorNetworkLimit(operator, network), amount1);
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
 
-        _setOperatorLimit(alice, operator, network, amount2);
+        _setOperatorNetworkLimit(alice, operator, network, amount2);
 
         if (amount1 > amount2) {
-            assertEq(vault.operatorLimit(operator, network), amount1);
-            (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-            assertEq(nextOperatorLimitAmount, amount2);
-            assertEq(nextOperatorLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
+            assertEq(vault.operatorNetworkLimit(operator, network), amount1);
+            (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+                vault.nextOperatorNetworkLimit(operator, network);
+            assertEq(nextOperatorNetworkLimitAmount, amount2);
+            assertEq(nextOperatorNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
 
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
             vm.warp(blockTimestamp);
 
-            assertEq(vault.operatorLimit(operator, network), amount1);
-            (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-            assertEq(nextOperatorLimitAmount, amount2);
-            assertEq(nextOperatorLimitTimestamp, vault.currentEpochStart() + vault.epochDuration());
+            assertEq(vault.operatorNetworkLimit(operator, network), amount1);
+            (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+                vault.nextOperatorNetworkLimit(operator, network);
+            assertEq(nextOperatorNetworkLimitAmount, amount2);
+            assertEq(nextOperatorNetworkLimitTimestamp, vault.currentEpochStart() + vault.epochDuration());
 
             blockTimestamp = blockTimestamp + 1;
             vm.warp(blockTimestamp);
 
-            assertEq(vault.operatorLimit(operator, network), amount2);
-            (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-            assertEq(nextOperatorLimitAmount, amount2);
-            assertEq(nextOperatorLimitTimestamp, vault.currentEpochStart());
+            assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+            (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+                vault.nextOperatorNetworkLimit(operator, network);
+            assertEq(nextOperatorNetworkLimitAmount, amount2);
+            assertEq(nextOperatorNetworkLimitTimestamp, vault.currentEpochStart());
 
-            _setOperatorLimit(alice, operator, network, amount2);
+            _setOperatorNetworkLimit(alice, operator, network, amount2);
 
-            assertEq(vault.operatorLimit(operator, network), amount2);
-            (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-            assertEq(nextOperatorLimitAmount, 0);
-            assertEq(nextOperatorLimitTimestamp, 0);
+            assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+            (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+                vault.nextOperatorNetworkLimit(operator, network);
+            assertEq(nextOperatorNetworkLimitAmount, 0);
+            assertEq(nextOperatorNetworkLimitTimestamp, 0);
         } else {
-            assertEq(vault.operatorLimit(operator, network), amount2);
-            (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-            assertEq(nextOperatorLimitAmount, 0);
-            assertEq(nextOperatorLimitTimestamp, 0);
+            assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+            (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+                vault.nextOperatorNetworkLimit(operator, network);
+            assertEq(nextOperatorNetworkLimitAmount, 0);
+            assertEq(nextOperatorNetworkLimitTimestamp, 0);
         }
 
-        _setOperatorLimit(alice, operator, network, amount3);
+        _setOperatorNetworkLimit(alice, operator, network, amount3);
 
-        assertEq(vault.operatorLimit(operator, network), amount2);
-        (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-        assertEq(nextOperatorLimitAmount, amount3);
-        assertEq(nextOperatorLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
+        assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+        (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(operator, network);
+        assertEq(nextOperatorNetworkLimitAmount, amount3);
+        assertEq(nextOperatorNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
 
-        _setOperatorLimit(alice, operator, network, amount2);
+        _setOperatorNetworkLimit(alice, operator, network, amount2);
 
-        assertEq(vault.operatorLimit(operator, network), amount2);
-        (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-        assertEq(nextOperatorLimitAmount, 0);
-        assertEq(nextOperatorLimitTimestamp, 0);
+        assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+        (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(operator, network);
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
 
         _optOutOperatorVault(operator);
 
-        assertEq(vault.operatorLimit(operator, network), amount2);
-        (nextOperatorLimitAmount, nextOperatorLimitTimestamp) = vault.nextOperatorLimit(operator, network);
-        assertEq(nextOperatorLimitAmount, 0);
-        assertEq(nextOperatorLimitTimestamp, 0);
+        assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+        (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(operator, network);
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
     }
 
-    function test_SetOperatorLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
+    function test_SetOperatorNetworkLimitRevertOnlyRole(uint48 epochDuration, uint256 amount1) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
         uint48 vetoDuration = 0;
@@ -1824,13 +1853,13 @@ contract VaultTest is Test {
         _optInOperatorVault(operator);
 
         vm.expectRevert();
-        _setOperatorLimit(bob, operator, network, amount1);
+        _setOperatorNetworkLimit(bob, operator, network, amount1);
     }
 
-    function test_SetMaxNetworkLimit(uint256 amount1, uint256 amount2, uint256 networkLimit) public {
+    function test_SetMaxNetworkResolverLimit(uint256 amount1, uint256 amount2, uint256 networkResolverLimit) public {
         amount1 = bound(amount1, 1, type(uint256).max);
         vm.assume(amount1 != amount2);
-        networkLimit = bound(networkLimit, 1, amount1);
+        networkResolverLimit = bound(networkResolverLimit, 1, amount1);
 
         uint48 epochDuration = 3;
         uint48 slashDuration = 1;
@@ -1842,24 +1871,25 @@ contract VaultTest is Test {
 
         address resolver = alice;
 
-        _setMaxNetworkLimit(network, resolver, amount1);
-        assertEq(vault.maxNetworkLimit(network, resolver), amount1);
+        _setMaxNetworkResolverLimit(network, resolver, amount1);
+        assertEq(vault.maxNetworkResolverLimit(network, resolver), amount1);
 
         _optInNetworkVault(network, resolver);
 
-        _setNetworkLimit(alice, network, resolver, networkLimit);
-        _setNetworkLimit(alice, network, resolver, networkLimit - 1);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
+        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit - 1);
 
-        _setMaxNetworkLimit(network, resolver, amount2);
+        _setMaxNetworkResolverLimit(network, resolver, amount2);
 
-        assertEq(vault.maxNetworkLimit(network, resolver), amount2);
-        assertEq(vault.networkLimit(network, resolver), Math.min(networkLimit, amount2));
-        (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) = vault.nextNetworkLimit(network, resolver);
-        assertEq(nextNetworkLimitAmount, Math.min(networkLimit - 1, amount2));
-        assertEq(nextNetworkLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
+        assertEq(vault.maxNetworkResolverLimit(network, resolver), amount2);
+        assertEq(vault.networkResolverLimit(network, resolver), Math.min(networkResolverLimit, amount2));
+        (uint256 nextNetworkResolverLimitAmount, uint256 nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
+        assertEq(nextNetworkResolverLimitAmount, Math.min(networkResolverLimit - 1, amount2));
+        assertEq(nextNetworkResolverLimitTimestamp, vault.currentEpochStart() + 2 * vault.epochDuration());
     }
 
-    function test_SetMaxNetworkLimitRevertAlreadySet(uint256 amount) public {
+    function test_SetMaxNetworkResolverLimitRevertAlreadySet(uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1872,13 +1902,13 @@ contract VaultTest is Test {
 
         address resolver = alice;
 
-        _setMaxNetworkLimit(network, resolver, amount);
+        _setMaxNetworkResolverLimit(network, resolver, amount);
 
         vm.expectRevert(IVault.AlreadySet.selector);
-        _setMaxNetworkLimit(network, resolver, amount);
+        _setMaxNetworkResolverLimit(network, resolver, amount);
     }
 
-    function test_SetMaxNetworkLimitRevertNotNetwork(uint256 amount) public {
+    function test_SetMaxNetworkResolverLimitRevertNotNetwork(uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
@@ -1891,7 +1921,7 @@ contract VaultTest is Test {
         address resolver = alice;
 
         vm.expectRevert(IVault.NotNetwork.selector);
-        _setMaxNetworkLimit(network, resolver, amount);
+        _setMaxNetworkResolverLimit(network, resolver, amount);
     }
 
     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
@@ -2146,9 +2176,9 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _setMaxNetworkLimit(address user, address resolver, uint256 maxNetworkLimit) internal {
+    function _setMaxNetworkResolverLimit(address user, address resolver, uint256 maxNetworkResolverLimit) internal {
         vm.startPrank(user);
-        vault.setMaxNetworkLimit(resolver, maxNetworkLimit);
+        vault.setMaxNetworkResolverLimit(resolver, maxNetworkResolverLimit);
         vm.stopPrank();
     }
 
@@ -2188,15 +2218,15 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _setNetworkLimit(address user, address network, address resolver, uint256 amount) internal {
+    function _setNetworkResolverLimit(address user, address network, address resolver, uint256 amount) internal {
         vm.startPrank(user);
-        vault.setNetworkLimit(network, resolver, amount);
+        vault.setNetworkResolverLimit(network, resolver, amount);
         vm.stopPrank();
     }
 
-    function _setOperatorLimit(address user, address operator, address network, uint256 amount) internal {
+    function _setOperatorNetworkLimit(address user, address operator, address network, uint256 amount) internal {
         vm.startPrank(user);
-        vault.setOperatorLimit(operator, network, amount);
+        vault.setOperatorNetworkLimit(operator, network, amount);
         vm.stopPrank();
     }
 

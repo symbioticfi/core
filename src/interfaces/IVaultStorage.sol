@@ -48,14 +48,14 @@ interface IVaultStorage {
     function ADMIN_FEE_BASE() external view returns (uint256);
 
     /**
-     * @notice Get the network limit setter's role.
+     * @notice Get the network-resolver limit setter's role.
      */
-    function NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
+    function NETWORK_RESOLVER_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get the operator limit setter's role.
+     * @notice Get the operator-network limit setter's role.
      */
-    function OPERATOR_LIMIT_SET_ROLE() external view returns (bytes32);
+    function OPERATOR_NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
      * @notice Get the admin fee setter's role.
@@ -301,28 +301,28 @@ interface IVaultStorage {
         );
 
     /**
-     * @notice Get a maximum network limit for a particular network and resolver.
+     * @notice Get a maximum network-resolver limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
-     * @return maximum network limit
+     * @return maximum network-resolver limit
      */
-    function maxNetworkLimit(address network, address resolver) external view returns (uint256);
+    function maxNetworkResolverLimit(address network, address resolver) external view returns (uint256);
 
     /**
-     * @notice Get a next network limit for a particular network and resolver.
+     * @notice Get a next network-resolver limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
-     * @return next network limit
+     * @return next network-resolver limit
      * @return timestamp when the limit will be set
      */
-    function nextNetworkLimit(address network, address resolver) external view returns (uint256, uint48);
+    function nextNetworkResolverLimit(address network, address resolver) external view returns (uint256, uint48);
 
     /**
-     * @notice Get a next operator limit for a particular operator and network.
+     * @notice Get a next operator-network limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network
-     * @return next operator limit
+     * @return next operator-network limit
      * @return timestamp when the limit will be set
      */
-    function nextOperatorLimit(address operator, address network) external view returns (uint256, uint48);
+    function nextOperatorNetworkLimit(address operator, address network) external view returns (uint256, uint48);
 }

@@ -60,21 +60,23 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function maxSlash(address network, address resolver, address operator) public view returns (uint256) {
-        return Math.min(totalSupply(), Math.min(networkLimit(network, resolver), operatorLimit(operator, network)));
+        return Math.min(
+            totalSupply(), Math.min(networkResolverLimit(network, resolver), operatorNetworkLimit(operator, network))
+        );
     }
 
     /**
      * @inheritdoc IVault
      */
-    function networkLimit(address network, address resolver) public view returns (uint256) {
-        return _getLimit(_networkLimit[network][resolver], nextNetworkLimit[network][resolver]);
+    function networkResolverLimit(address network, address resolver) public view returns (uint256) {
+        return _getLimit(_networkResolverLimit[network][resolver], nextNetworkResolverLimit[network][resolver]);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function operatorLimit(address operator, address network) public view returns (uint256) {
-        return _getLimit(_operatorLimit[operator][network], nextOperatorLimit[operator][network]);
+    function operatorNetworkLimit(address operator, address network) public view returns (uint256) {
+        return _getLimit(_operatorNetworkLimit[operator][network], nextOperatorNetworkLimit[operator][network]);
     }
 
     constructor(
@@ -127,8 +129,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         depositWhitelist = params.depositWhitelist;
 
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
-        _grantRole(NETWORK_LIMIT_SET_ROLE, params.owner);
-        _grantRole(OPERATOR_LIMIT_SET_ROLE, params.owner);
+        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, params.owner);
+        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.owner);
         if (params.depositWhitelist) {
             _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
         }
@@ -305,8 +307,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         uint256 activeSupply_ = activeSupply();
         uint256 withdrawals_ = withdrawals[epoch];
         uint256 nextWithdrawals_ = withdrawals[epoch + 1];
-        uint256 networkLimit_ = networkLimit(request.network, request.resolver);
-        uint256 operatorLimit_ = operatorLimit(request.operator, request.network);
+        uint256 networkResolverLimit_ = networkResolverLimit(request.network, request.resolver);
+        uint256 operatorNetworkLimit_ = operatorNetworkLimit(request.operator, request.network);
 
         uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, totalSupply_);
         uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
@@ -327,17 +329,19 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         withdrawals[epoch + 1] = nextWithdrawals_ - nextWithdrawalsSlashed;
 
         _updateLimit(
-            _networkLimit[request.network][request.resolver], nextNetworkLimit[request.network][request.resolver]
+            _networkResolverLimit[request.network][request.resolver],
+            nextNetworkResolverLimit[request.network][request.resolver]
         );
         _updateLimit(
-            _operatorLimit[request.operator][request.network], nextOperatorLimit[request.operator][request.network]
+            _operatorNetworkLimit[request.operator][request.network],
+            nextOperatorNetworkLimit[request.operator][request.network]
         );
 
-        if (networkLimit_ != type(uint256).max) {
-            _networkLimit[request.network][request.resolver].amount = networkLimit_ - slashedAmount;
+        if (networkResolverLimit_ != type(uint256).max) {
+            _networkResolverLimit[request.network][request.resolver].amount = networkResolverLimit_ - slashedAmount;
         }
-        if (operatorLimit_ != type(uint256).max) {
-            _operatorLimit[request.operator][request.network].amount = operatorLimit_ - slashedAmount;
+        if (operatorNetworkLimit_ != type(uint256).max) {
+            _operatorNetworkLimit[request.operator][request.network].amount = operatorNetworkLimit_ - slashedAmount;
         }
 
         ICollateral(collateral).issueDebt(DEAD, slashedAmount);
@@ -373,8 +377,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setMaxNetworkLimit(address resolver, uint256 amount) external {
-        if (maxNetworkLimit[msg.sender][resolver] == amount) {
+    function setMaxNetworkResolverLimit(address resolver, uint256 amount) external {
+        if (maxNetworkResolverLimit[msg.sender][resolver] == amount) {
             revert AlreadySet();
         }
 
@@ -382,10 +386,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotNetwork();
         }
 
-        maxNetworkLimit[msg.sender][resolver] = amount;
+        maxNetworkResolverLimit[msg.sender][resolver] = amount;
 
-        Limit storage limit = _networkLimit[msg.sender][resolver];
-        DelayedLimit storage nextLimit = nextNetworkLimit[msg.sender][resolver];
+        Limit storage limit = _networkResolverLimit[msg.sender][resolver];
+        DelayedLimit storage nextLimit = nextNetworkResolverLimit[msg.sender][resolver];
 
         _updateLimit(limit, nextLimit);
 
@@ -396,7 +400,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             nextLimit.amount = amount;
         }
 
-        emit SetMaxNetworkLimit(msg.sender, resolver, amount);
+        emit SetMaxNetworkResolverLimit(msg.sender, resolver, amount);
     }
 
     /**
@@ -449,37 +453,37 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setNetworkLimit(
+    function setNetworkResolverLimit(
         address network,
         address resolver,
         uint256 amount
-    ) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
-        if (amount > maxNetworkLimit[network][resolver]) {
-            revert ExceedsMaxNetworkLimit();
+    ) external onlyRole(NETWORK_RESOLVER_LIMIT_SET_ROLE) {
+        if (amount > maxNetworkResolverLimit[network][resolver]) {
+            revert ExceedsMaxNetworkResolverLimit();
         }
 
-        Limit storage limit = _networkLimit[network][resolver];
-        DelayedLimit storage nextLimit = nextNetworkLimit[network][resolver];
+        Limit storage limit = _networkResolverLimit[network][resolver];
+        DelayedLimit storage nextLimit = nextNetworkResolverLimit[network][resolver];
 
         _setLimit(limit, nextLimit, amount);
 
-        emit SetNetworkLimit(network, resolver, amount);
+        emit SetNetworkResolverLimit(network, resolver, amount);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function setOperatorLimit(
+    function setOperatorNetworkLimit(
         address operator,
         address network,
         uint256 amount
-    ) external onlyRole(OPERATOR_LIMIT_SET_ROLE) {
-        Limit storage limit = _operatorLimit[operator][network];
-        DelayedLimit storage nextLimit = nextOperatorLimit[operator][network];
+    ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
+        Limit storage limit = _operatorNetworkLimit[operator][network];
+        DelayedLimit storage nextLimit = nextOperatorNetworkLimit[operator][network];
 
         _setLimit(limit, nextLimit, amount);
 
-        emit SetOperatorLimit(operator, network, amount);
+        emit SetOperatorNetworkLimit(operator, network, amount);
     }
 
     function _getLimit(Limit storage limit, DelayedLimit storage nextLimit) private view returns (uint256) {
