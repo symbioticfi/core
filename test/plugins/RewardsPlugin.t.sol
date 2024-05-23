@@ -337,94 +337,92 @@ contract RewardsPluginTest is Test {
         assertEq(plugin.lastUnclaimedReward(address(vault), alice, address(token)), 1);
     }
 
-    // function test_ClaimRewardsManyWithoutHints(uint256 amount, uint256 ditributeAmount) public {
-    //     amount = bound(amount, 1, 100 * 10 ** 18);
-    //     ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+    function test_ClaimRewardsManyWithoutHints(uint256 amount, uint256 ditributeAmount) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-    //
-    //     uint48 epochDuration = 1;
-    //     uint48 slashDuration = 1;
-    //     uint48 vetoDuration = 0;
-    //     vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 1;
+        uint48 vetoDuration = 0;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
-    //     plugin = _getPlugin();
+        plugin = _getPlugin();
 
-    //     address network = bob;
-    //     _registerNetwork(network, bob);
+        address network = bob;
+        _registerNetwork(network, bob);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
-    //     for (uint256 i; i < 105; ++i) {
-    //         _deposit(alice, amount);
+        for (uint256 i; i < 105; ++i) {
+            _deposit(alice, amount);
 
-    //         blockTimestamp = blockTimestamp + 1;
-    //         vm.warp(blockTimestamp);
-    //     }
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
 
-    //     IERC20 token = IERC20(new Token("Token"));
-    //     token.transfer(bob, 100_000 * 1e18);
-    //     vm.startPrank(bob);
-    //     token.approve(address(plugin), type(uint256).max);
-    //     vm.stopPrank();
+        IERC20 token = IERC20(new Token("Token"));
+        token.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        token.approve(address(plugin), type(uint256).max);
+        vm.stopPrank();
 
-    //     uint256 numRewards = 50;
-    //     for (uint48 i = 1; i < numRewards + 1; ++i) {
-    //         _distributeReward(bob, network, address(token), ditributeAmount, i, vault.ADMIN_FEE_BASE());
-    //     }
+        uint256 numRewards = 50;
+        for (uint48 i = 1; i < numRewards + 1; ++i) {
+            _distributeReward(bob, network, address(token), ditributeAmount, i, vault.ADMIN_FEE_BASE());
+        }
 
-    //     uint32[] memory activeSharesOfHints = new uint32[](0);
+        uint32[] memory activeSharesOfHints = new uint32[](0);
 
-    //     uint256 gasLeft = gasleft();
-    //     _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
-    //     uint256 gasLeft2 = gasleft();
-    //     console2.log("Gas1", gasLeft - gasLeft2 - 100);
-    // }
+        uint256 gasLeft = gasleft();
+        _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
+        uint256 gasLeft2 = gasleft();
+        console2.log("Gas1", gasLeft - gasLeft2 - 100);
+    }
 
-    // function test_ClaimRewardsManyWithHints(uint256 amount, uint256 ditributeAmount) public {
-    //     amount = bound(amount, 1, 100 * 10 ** 18);
-    //     ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+    function test_ClaimRewardsManyWithHints(uint256 amount, uint256 ditributeAmount) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
-    //
-    //     uint48 epochDuration = 1;
-    //     uint48 slashDuration = 1;
-    //     uint48 vetoDuration = 0;
-    //     vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 1;
+        uint48 vetoDuration = 0;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
 
-    //     plugin = _getPlugin();
+        plugin = _getPlugin();
 
-    //     address network = bob;
-    //     _registerNetwork(network, bob);
+        address network = bob;
+        _registerNetwork(network, bob);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
-    //     for (uint256 i; i < 105; ++i) {
-    //         _deposit(alice, amount);
+        for (uint256 i; i < 105; ++i) {
+            _deposit(alice, amount);
 
-    //         blockTimestamp = blockTimestamp + 1;
-    //         vm.warp(blockTimestamp);
-    //     }
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
 
-    //     IERC20 token = IERC20(new Token("Token"));
-    //     token.transfer(bob, 100_000 * 1e18);
-    //     vm.startPrank(bob);
-    //     token.approve(address(plugin), type(uint256).max);
-    //     vm.stopPrank();
+        IERC20 token = IERC20(new Token("Token"));
+        token.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        token.approve(address(plugin), type(uint256).max);
+        vm.stopPrank();
 
-    //     uint256 numRewards = 50;
-    //     for (uint48 i = 1; i < numRewards + 1; ++i) {
-    //         _distributeReward(bob, network, address(token), ditributeAmount, i, vault.ADMIN_FEE_BASE());
-    //     }
+        uint256 numRewards = 50;
+        for (uint48 i = 1; i < numRewards + 1; ++i) {
+            _distributeReward(bob, network, address(token), ditributeAmount, i, vault.ADMIN_FEE_BASE());
+        }
 
-    //     uint32[] memory activeSharesOfHints = new uint32[](numRewards);
-    //     for (uint32 i; i < numRewards; ++i) {
-    //         activeSharesOfHints[i] = i;
-    //     }
+        uint32[] memory activeSharesOfHints = new uint32[](numRewards);
+        for (uint32 i; i < numRewards; ++i) {
+            activeSharesOfHints[i] = i;
+        }
 
-    //     uint256 gasLeft = gasleft();
-    //     _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
-    //     uint256 gasLeft2 = gasleft();
-    //     console2.log("Gas2", gasLeft - gasLeft2 - 100);
-    // }
+        uint256 gasLeft = gasleft();
+        _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
+        uint256 gasLeft2 = gasleft();
+        console2.log("Gas2", gasLeft - gasLeft2 - 100);
+    }
 
     function test_ClaimRewardsRevertNoRewardsToClaim1(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);

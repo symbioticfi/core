@@ -150,8 +150,8 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             revert NoRewardsToClaim();
         }
 
-        uint256 activeSharesOfHintsLen = activeSharesOfHints.length;
-        if (activeSharesOfHintsLen != 0 && activeSharesOfHintsLen != rewardsToClaim) {
+        bool hasHints = activeSharesOfHints.length == rewardsToClaim;
+        if (!hasHints && activeSharesOfHints.length != 0) {
             revert InvalidHintsLength();
         }
 
@@ -163,14 +163,14 @@ contract RewardsPlugin is Plugin, ReentrancyGuard, IRewardsPlugin {
             RewardDistribution storage reward = rewardsByToken[rewardIndex];
 
             uint256 claimedAmount;
-            uint48 timestamp = reward.timestamp;
-            if (timestamp >= firstDepositAt_) {
-                uint256 activeSupply_ = _activeSuppliesCacheByVault[timestamp];
-                uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
-                    ? IVault(vault).activeSharesOfAtHint(msg.sender, timestamp, activeSharesOfHints[j])
-                    : IVault(vault).activeSharesOfAt(msg.sender, timestamp);
-                uint256 activeBalanceOf_ =
-                    ERC4626Math.previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCacheByVault[timestamp]);
+            if (reward.timestamp >= firstDepositAt_) {
+                uint256 activeSupply_ = _activeSuppliesCacheByVault[reward.timestamp];
+                uint256 activeSharesOf_ = hasHints
+                    ? IVault(vault).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
+                    : IVault(vault).activeSharesOfAt(msg.sender, reward.timestamp);
+                uint256 activeBalanceOf_ = ERC4626Math.previewRedeem(
+                    activeSharesOf_, activeSupply_, _activeSharesCacheByVault[reward.timestamp]
+                );
 
                 claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
                 amount += claimedAmount;
