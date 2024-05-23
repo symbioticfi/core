@@ -113,10 +113,8 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
         if (limit.amount > amount) {
             limit.amount = amount;
         }
-        if (nextLimit.timestamp != 0) {
-            if (nextLimit.amount > amount) {
-                nextLimit.amount = amount;
-            }
+        if (nextLimit.amount > amount) {
+            nextLimit.amount = amount;
         }
 
         emit SetMaxNetworkLimit(msg.sender, resolver, amount);
@@ -184,21 +182,7 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
         Limit storage limit = _networkLimit[network][resolver];
         DelayedLimit storage nextLimit = nextNetworkLimit[network][resolver];
 
-        if (
-            INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).isOptedIn(network, resolver, address(this))
-                || INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).lastOptOut(network, resolver, address(this))
-                    >= previousEpochStart()
-        ) {
-            _setLimit(limit, nextLimit, amount);
-        } else {
-            if (amount != 0) {
-                revert NetworkNotOptedInVault();
-            } else {
-                limit.amount = 0;
-                nextLimit.amount = 0;
-                nextLimit.timestamp = 0;
-            }
-        }
+        _setLimit(limit, nextLimit, amount);
 
         emit SetNetworkLimit(network, resolver, amount);
     }
@@ -214,21 +198,7 @@ contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgrade
         Limit storage limit = _operatorLimit[operator][network];
         DelayedLimit storage nextLimit = nextOperatorLimit[operator][network];
 
-        if (
-            IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(operator, address(this))
-                || IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(operator, address(this))
-                    >= previousEpochStart()
-        ) {
-            _setLimit(limit, nextLimit, amount);
-        } else {
-            if (amount != 0) {
-                revert OperatorNotOptedInVault();
-            } else {
-                limit.amount = 0;
-                nextLimit.amount = 0;
-                nextLimit.timestamp = 0;
-            }
-        }
+        _setLimit(limit, nextLimit, amount);
 
         emit SetOperatorLimit(operator, network, amount);
     }

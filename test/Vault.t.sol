@@ -1208,62 +1208,6 @@ contract VaultTest is Test {
         _executeSlash(address(1), slashIndex);
     }
 
-    function test_ExecuteSlashRevertOperatorNotOptedInVault(
-        uint256 amount1,
-        uint256 amount2,
-        uint256 networkLimit,
-        uint256 operatorLimit,
-        uint256 toSlash
-    ) public {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorLimit = bound(operatorLimit, 1, type(uint256).max);
-        toSlash = bound(toSlash, 1, type(uint256).max);
-
-        uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
-        uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-
-        _deposit(alice, amount1);
-
-        _deposit(bob, amount2);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        address resolver = alice;
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
-        _optInNetworkVault(network, resolver);
-
-        _optInOperatorVault(operator);
-
-        _optOutOperatorVault(operator);
-
-        _setNetworkLimit(alice, network, resolver, networkLimit);
-
-        _setOperatorLimit(alice, operator, network, operatorLimit);
-
-        _optInOperatorNetwork(operator, network);
-
-        blockTimestamp = blockTimestamp + 2 * vault.epochDuration() - 1;
-        vm.warp(blockTimestamp);
-
-        uint256 slashIndex = _requestSlash(bob, network, resolver, operator, toSlash);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        vm.expectRevert(IVaultDelegation.OperatorNotOptedInVault.selector);
-        _executeSlash(address(1), slashIndex);
-    }
-
     function test_VetoSlash(
         uint256 amount1,
         uint256 amount2,
@@ -1756,25 +1700,6 @@ contract VaultTest is Test {
         _setNetworkLimit(bob, network, resolver, amount1);
     }
 
-    function test_SetNetworkLimitRevertNetworkNotOptedIn(uint48 epochDuration, uint256 amount1) public {
-        amount1 = bound(amount1, 1, type(uint256).max);
-
-        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
-
-        address network = bob;
-        _registerNetwork(network, bob);
-
-        address resolver = address(1);
-        _setMaxNetworkLimit(network, resolver, type(uint256).max);
-
-        vm.expectRevert(IVaultDelegation.NetworkNotOptedInVault.selector);
-        _setNetworkLimit(alice, network, resolver, amount1);
-    }
-
     function test_SetNetworkLimitRevertExceedsMaxNetworkLimit(
         uint48 epochDuration,
         uint256 amount1,
@@ -1904,23 +1829,6 @@ contract VaultTest is Test {
 
         vm.expectRevert();
         _setOperatorLimit(bob, operator, network, amount1);
-    }
-
-    function test_SetOperatorLimitRevertOperatorNotOptedIn(uint48 epochDuration, uint256 amount1) public {
-        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
-
-        address operator = bob;
-        _registerOperator(operator);
-
-        address network = address(1);
-        if (amount1 > 0) {
-            vm.expectRevert(IVaultDelegation.OperatorNotOptedInVault.selector);
-        }
-        _setOperatorLimit(alice, operator, network, amount1);
     }
 
     function test_SetMaxNetworkLimit(uint256 amount1, uint256 amount2, uint256 networkLimit) public {

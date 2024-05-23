@@ -181,11 +181,8 @@ contract Vault is VaultDelegation, IVault {
             revert InsufficientSlash();
         }
 
-        if (
-            !IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
-                && IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < previousEpochStart()
-        ) {
-            revert OperatorNotOptedInNetwork();
+        if (!INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).isOptedIn(network, resolver, address(this))) {
+            revert NetworkNotOptedInVault();
         }
 
         if (
@@ -196,8 +193,11 @@ contract Vault is VaultDelegation, IVault {
             revert OperatorNotOptedInVault();
         }
 
-        if (!INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).isOptedIn(network, resolver, address(this))) {
-            revert NetworkNotOptedInVault();
+        if (
+            !IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).isOptedIn(operator, network)
+                && IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).lastOptOut(operator, network) < previousEpochStart()
+        ) {
+            revert OperatorNotOptedInNetwork();
         }
 
         if (amount > maxSlash_) {
@@ -242,14 +242,6 @@ contract Vault is VaultDelegation, IVault {
 
         if (request.completed) {
             revert SlashCompleted();
-        }
-
-        if (
-            !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).isOptedIn(request.operator, address(this))
-                && IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).lastOptOut(request.operator, address(this))
-                    < previousEpochStart()
-        ) {
-            revert OperatorNotOptedInVault();
         }
 
         request.completed = true;
