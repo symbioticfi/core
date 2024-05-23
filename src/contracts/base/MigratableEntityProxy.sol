@@ -20,7 +20,7 @@ contract MigratableEntityProxy is ERC1967Proxy, IMigratableEntityProxy {
      * backed by the implementation at `_logic`, and optionally initialized with `_data` as explained in
      * {ERC1967Proxy-constructor}.
      */
-    constructor(address _logic, bytes memory _data) payable ERC1967Proxy(_logic, _data) {
+    constructor(address _logic, bytes memory _data) ERC1967Proxy(_logic, _data) {
         _admin = msg.sender;
         // Set the storage value and emit an event for ERC-1967 compatibility
         ERC1967Utils.changeAdmin(_proxyAdmin());
@@ -36,7 +36,7 @@ contract MigratableEntityProxy is ERC1967Proxy, IMigratableEntityProxy {
     /**
      * @inheritdoc IMigratableEntityProxy
      */
-    function upgradeToAndCall(address newImplementation, bytes calldata data) external payable {
+    function upgradeToAndCall(address newImplementation, bytes calldata data) external {
         if (msg.sender != _proxyAdmin()) {
             revert ProxyDeniedAdminAccess();
         }

@@ -4,13 +4,10 @@ pragma solidity 0.8.25;
 import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigratableEntity {
-    using Address for address;
-
     constructor() {
         _disableInitializers();
     }
@@ -42,11 +39,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     }
 
     function _migrate() internal view {
-        address proxyAdmin = abi.decode(
-            address(this).functionStaticCall(abi.encodeWithSelector(IMigratableEntityProxy.proxyAdmin.selector)),
-            (address)
-        );
-        if (msg.sender != proxyAdmin) {
+        if (msg.sender != IMigratableEntityProxy(address(this)).proxyAdmin()) {
             revert NotProxyAdmin();
         }
     }

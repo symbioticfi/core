@@ -8,12 +8,12 @@ interface IMigratableEntityProxy is IERC1967 {
      * @notice Get a proxy admin.
      * @return address of the proxy admin
      */
-    function proxyAdmin() external returns (address);
+    function proxyAdmin() external view returns (address);
 
     /**
      * @notice Upgrade the proxy to a new implementation and call a function on the new implementation.
      * @param newImplementation address of the new implementation
      * @param data data to call on the new implementation
      */
-    function upgradeToAndCall(address newImplementation, bytes calldata data) external payable;
+    function upgradeToAndCall(address newImplementation, bytes calldata data) external;
 }
