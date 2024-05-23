@@ -148,7 +148,6 @@ contract VaultTest is Test {
         assertEq(vault.slashRequestsLength(), 0);
         vm.expectRevert();
         vault.slashRequests(0);
-        assertEq(vault.operatorOptOutAt(address(0)), 0);
         assertEq(vault.maxNetworkLimit(address(0), address(0)), 0);
         assertEq(vault.networkLimit(address(0), address(0)), 0);
         (uint256 nextNetworkLimitAmount, uint256 nextNetworkLimitTimestamp) =

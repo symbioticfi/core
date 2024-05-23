@@ -308,13 +308,6 @@ interface IVaultStorage {
         );
 
     /**
-     * @notice Get a timestamp of last operator opt-out.
-     * @param operator address of the operator
-     * @return timestamp of the last operator opt-out
-     */
-    function operatorOptOutAt(address operator) external view returns (uint48);
-
-    /**
      * @notice Get a maximum network limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver

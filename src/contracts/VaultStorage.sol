@@ -146,11 +146,6 @@ contract VaultStorage is ERC6372, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address operator => uint48 timestamp) public operatorOptOutAt;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     mapping(address network => mapping(address resolver => uint256 amount)) public maxNetworkLimit;
 
     /**
