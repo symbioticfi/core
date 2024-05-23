@@ -5,14 +5,14 @@ interface IMigratableEntity {
     error NotProxyAdmin();
 
     /**
-     * @notice Get a the entity's version.
+     * @notice Get the entity's version.
      * @return version of the entity
      * @dev Starts from 1.
      */
     function version() external view returns (uint64);
 
     /**
-     * @notice Initialize this entity contract using a given data.
+     * @notice Initialize this entity contract using a given data, and setting a particular version.
      * @param version initial version of the entity
      * @param data some data to use
      */

@@ -4,49 +4,49 @@ pragma solidity 0.8.25;
 import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 interface IOperatorOptInPlugin is IPlugin {
-    error NotWhereEntity();
     error AlreadyOptedIn();
     error NotOptedIn();
+    error NotWhereEntity();
 
     /**
-     * @notice Emitted when operator opts in to "where" entity.
-     * @param operator address of the operator which opted in
-     * @param where address of the entity where operator opted in to
+     * @notice Emitted when an operator opts-in to a "where" entity.
+     * @param operator address of the operator that opted-in
+     * @param where address of the entity where the operator opted-in to
      */
     event OptIn(address indexed operator, address indexed where);
 
     /**
-     * @notice Emitted when operator opts out from "where" entity.
-     * @param operator address of the operator which opted out
-     * @param where address of the entity where operator opted out from
+     * @notice Emitted when an operator opts out from a "where" entity.
+     * @param operator address of the operator that opted out
+     * @param where address of the entity where the operator opted out from
      */
     event OptOut(address indexed operator, address indexed where);
 
     /**
-     * @notice Get the address of the registry where to opt in.
+     * @notice Get the address of the registry where to opt-in.
      * @return address of the "where" registry
      */
     function WHERE_REGISTRY() external view returns (address);
 
     /**
-     * @notice Check if operator is opted-in to "where" entity.
+     * @notice Check if a given operator is opted-in to a particular "where" entity.
      * @param operator address of the operator
      * @param where address of the entity to opt-in to
      */
     function isOptedIn(address operator, address where) external view returns (bool);
 
     /**
-     * @notice Get the timestamp of the last opt-out of operator from "where" entity.
+     * @notice Get the timestamp of the last opt-out of a given operator from a particular "where" entity.
      * @param operator address of the operator
      * @param where address of the entity to opt-out from
      */
     function lastOptOut(address operator, address where) external view returns (uint48);
 
     /**
-     * @notice Check if operator was opted-in to "where" entity after the edge timestamp inclusively.
+     * @notice Check if a given operator was opted-in to a particular "where" entity after the edge timestamp inclusively.
      * @param operator address of the operator
      * @param where address of the entity to opt-in to
-     * @param edgeTimestamp timestamp to check if operator was opted-in after
+     * @param edgeTimestamp timestamp to check if the operator was opted-in after
      */
     function wasOptedIn(address operator, address where, uint256 edgeTimestamp) external view returns (bool);
 

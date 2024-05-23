@@ -5,13 +5,13 @@ import {IRegistry} from "./IRegistry.sol";
 
 interface IMigratablesRegistry is IRegistry {
     error AlreadyWhitelisted();
-    error NotOwner();
     error InvalidVersion();
+    error NotOwner();
 
     /**
-     * @notice Get the last availiable version.
+     * @notice Get the last available version.
      * @return version of the last implementation
-     * @dev If zero, no implementations whitelisted.
+     * @dev If zero, no implementations are whitelisted.
      */
     function lastVersion() external view returns (uint64);
 
@@ -32,7 +32,7 @@ interface IMigratablesRegistry is IRegistry {
      * @notice Migrate a given entity to the next version.
      * @param entity address of the entity to migrate
      * @param data some data to reinitialize the contract with
-     * @dev Only entity's owner can call this function.
+     * @dev Only the entity's owner can call this function.
      */
     function migrate(address entity, bytes memory data) external;
 

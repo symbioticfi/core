@@ -15,7 +15,7 @@ interface IMetadataPlugin is IPlugin {
 
     /**
      * @notice Get a URL with an entity's metadata.
-     * The metadata should contain: name, description, external_url, image.
+     * The metadata should contain a name, description, external_url, and image.
      * @param entity address of the entity
      * @return metadata URL of the entity
      */

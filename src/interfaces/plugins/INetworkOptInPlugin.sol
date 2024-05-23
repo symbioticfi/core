@@ -4,34 +4,34 @@ pragma solidity 0.8.25;
 import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 interface INetworkOptInPlugin is IPlugin {
-    error NotWhereEntity();
     error AlreadyOptedIn();
     error NotOptedIn();
+    error NotWhereEntity();
 
     /**
-     * @notice Emitted when network opts in to "where" entity.
-     * @param network address of the network which opted in
+     * @notice Emitted when a network opts-in to a "where" entity.
+     * @param network address of the network that opted-in
      * @param resolver address of the resolver
-     * @param where address of the entity where network opted in to
+     * @param where address of the entity where the network opted-in to
      */
     event OptIn(address indexed network, address indexed resolver, address indexed where);
 
     /**
-     * @notice Emitted when network opts out from "where" entity.
-     * @param network address of the network which opted out
+     * @notice Emitted when a network opts out from a "where" entity.
+     * @param network address of the network that opted out
      * @param resolver address of the resolver
-     * @param where address of the entity where network opted out from
+     * @param where address of the entity where the network opted out from
      */
     event OptOut(address indexed network, address indexed resolver, address indexed where);
 
     /**
-     * @notice Get the address of the registry where to opt in.
+     * @notice Get the address of the registry where to opt-in.
      * @return address of the "where" registry
      */
     function WHERE_REGISTRY() external view returns (address);
 
     /**
-     * @notice Check if network is opted-in to "where" entity.
+     * @notice Check if a given network is opted-in to a particular "where" entity.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param where address of the entity to opt-in to
@@ -39,7 +39,7 @@ interface INetworkOptInPlugin is IPlugin {
     function isOptedIn(address network, address resolver, address where) external view returns (bool);
 
     /**
-     * @notice Get the timestamp of the last opt-out of network from "where" entity.
+     * @notice Get the timestamp of the last opt-out of a given network from a particular "where" entity.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param where address of the entity to opt-out from
@@ -47,10 +47,10 @@ interface INetworkOptInPlugin is IPlugin {
     function lastOptOut(address network, address resolver, address where) external view returns (uint48);
 
     /**
-     * @notice Check if network was opted-in to "where" entity after the edge timestamp inclusively.
+     * @notice Check if a given network was opted-in to a particular "where" entity after the edge timestamp inclusively.
      * @param network address of the network
      * @param where address of the entity to opt-in to
-     * @param edgeTimestamp timestamp to check if network was opted-in after
+     * @param edgeTimestamp timestamp to check if the network was opted-in after
      */
     function wasOptedIn(
         address network,

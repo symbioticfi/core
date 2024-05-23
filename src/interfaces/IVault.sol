@@ -4,38 +4,37 @@ pragma solidity 0.8.25;
 import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
+    error AlreadySet();
+    error ExceedsMaxNetworkLimit();
+    error InsufficientClaim();
+    error InsufficientDeposit();
+    error InsufficientSlash();
+    error InsufficientWithdrawal();
+    error InvalidAdminFee();
+    error InvalidEpoch();
     error InvalidEpochDuration();
     error InvalidSlashDuration();
-    error NotNetworkMiddleware();
-    error NotWhitelistedDepositor();
-    error InsufficientDeposit();
-    error InsufficientWithdrawal();
-    error TooMuchWithdraw();
-    error InvalidEpoch();
-    error InsufficientClaim();
-    error InsufficientSlash();
-    error OperatorNotOptedInNetwork();
-    error SlashRequestNotExist();
-    error VetoPeriodNotEnded();
-    error SlashPeriodEnded();
-    error SlashCompleted();
-    error NotResolver();
-    error VetoPeriodEnded();
-    error InvalidAdminFee();
-    error NotNetwork();
-    error NotOperator();
     error NetworkNotOptedInVault();
-    error ExceedsMaxNetworkLimit();
-    error OperatorNotOptedInVault();
-    error AlreadySet();
     error NoDepositWhitelist();
+    error NotNetwork();
+    error NotNetworkMiddleware();
+    error NotOperator();
+    error NotResolver();
+    error NotWhitelistedDepositor();
+    error OperatorNotOptedInNetwork();
+    error OperatorNotOptedInVault();
+    error SlashCompleted();
+    error SlashPeriodEnded();
+    error SlashRequestNotExist();
+    error TooMuchWithdraw();
+    error VetoPeriodEnded();
+    error VetoPeriodNotEnded();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
-     * @param owner owner of the vault (can set metadata and enable/disable deposit whitelist)
-     * The metadata should contain: name, description, external_url, image.
+     * @param owner owner of the vault (can migrate the vault and claim admin fees)
      * @param collateral underlying vault collateral
-     * @param epochDuration duration of an vault epoch
+     * @param epochDuration duration of the vault epoch
      * @param vetoDuration duration of the veto period for a slash request
      * @param slashDuration duration of the slash period for a slash request (after veto period)
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
@@ -63,7 +62,7 @@ interface IVault is IVaultStorage {
     /**
      * @notice Emitted when a withdrawal is made.
      * @param withdrawer account that made the withdrawal
-     * @param claimer account that need to claim the withdrawal
+     * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral withdrawn
      * @param burnedShares amount of the active supply shares burned
      * @param mintedShares amount of the epoch withdrawal shares minted
@@ -83,9 +82,9 @@ interface IVault is IVaultStorage {
     /**
      * @notice Emitted when a slash request is made.
      * @param slashIndex index of the slash request
-     * @param network network which requested the slash
-     * @param resolver resolver which can veto the slash
-     * @param operator operator which could be slashed
+     * @param network network that requested the slash
+     * @param resolver resolver that can veto the slash
+     * @param operator operator that could be slashed
      * @param slashAmount maximum amount of the collateral to be slashed
      * @param vetoDeadline deadline for the resolver to veto the slash
      * @param slashDeadline deadline to execute slash
@@ -186,7 +185,7 @@ interface IVault is IVaultStorage {
     function withdrawalsBalanceOf(uint256 epoch, address account) external view returns (uint256);
 
     /**
-     * @notice Get a maximum amount of collateral that can be slashed for particular network, resolver and operator.
+     * @notice Get a maximum amount of collateral that can be slashed for a particular network, resolver, and operator.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param operator address of the operator
@@ -236,7 +235,7 @@ interface IVault is IVaultStorage {
     function claim(address recipient, uint256 epoch) external returns (uint256 amount);
 
     /**
-     * @notice Request a slash for a particular network, resolver and operator.
+     * @notice Request a slash for a particular network, resolver, and operator.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param operator address of the operator
@@ -268,21 +267,21 @@ interface IVault is IVaultStorage {
      * @notice Set a maximum network limit.
      * @param resolver address of the resolver
      * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only network can call this function.
+     * @dev Only a network can call this function.
      */
     function setMaxNetworkLimit(address resolver, uint256 amount) external;
 
     /**
      * @notice Set an admin fee.
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
-     * @dev Only ADMIN_FEE_SET_ROLE holder can call this function.
+     * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
      */
     function setAdminFee(uint256 adminFee) external;
 
     /**
      * @notice Enable/disable deposit whitelist.
      * @param status enable/disable deposit whitelist
-     * @dev Only DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
+     * @dev Only the DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
     function setDepositWhitelist(bool status) external;
 
@@ -290,7 +289,7 @@ interface IVault is IVaultStorage {
      * @notice Set a depositor whitelist status.
      * @param account account for which the whitelist status is set
      * @param status whitelist status
-     * @dev Only DEPOSITOR_WHITELIST_ROLE holder can call this function.
+     * @dev Only the DEPOSITOR_WHITELIST_ROLE holder can call this function.
      */
     function setDepositorWhitelistStatus(address account, bool status) external;
 
@@ -299,7 +298,7 @@ interface IVault is IVaultStorage {
      * @param network address of the network
      * @param resolver address of the resolver
      * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only NETWORK_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only the NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
     function setNetworkLimit(address network, address resolver, uint256 amount) external;
 
@@ -308,7 +307,7 @@ interface IVault is IVaultStorage {
      * @param operator address of the operator
      * @param network address of the network
      * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only OPERATOR_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only the OPERATOR_LIMIT_SET_ROLE holder can call this function.
      */
     function setOperatorLimit(address operator, address network, uint256 amount) external;
 }

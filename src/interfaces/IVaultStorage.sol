@@ -11,7 +11,7 @@ interface IVaultStorage {
     }
 
     /**
-     * @notice Structure for a slashing limit which will be set in the future.
+     * @notice Structure for a slashing limit that will be set in the future.
      * @param amount amount of the collateral that can be slashed
      * @param timestamp timestamp when the limit will be set
      */
@@ -22,9 +22,9 @@ interface IVaultStorage {
 
     /**
      * @notice Structure for a slash request.
-     * @param network network which requested the slash
-     * @param resolver resolver which can veto the slash
-     * @param operator operator which could be slashed
+     * @param network network that requested the slash
+     * @param resolver resolver that can veto the slash
+     * @param operator operator that could be slashed
      * @param amount maximum amount of the collateral to be slashed
      * @param vetoDeadline deadline for the resolver to veto the slash
      * @param slashDeadline deadline to execute slash
@@ -151,7 +151,7 @@ interface IVaultStorage {
     function vetoDuration() external view returns (uint48);
 
     /**
-     * @notice Get a duration during which slash requests can be executed (after veto period).
+     * @notice Get a duration during which slash requests can be executed (after the veto period).
      * @return duration of the slash period
      */
     function slashDuration() external view returns (uint48);
@@ -176,52 +176,52 @@ interface IVaultStorage {
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
-     * @notice Get a total amount of the active shares in the vault at a given timestamp.
-     * @param timestamp time point to get the total amount of the active shares at
-     * @return total amount of the active shares at the timestamp
+     * @notice Get a total amount of active shares in the vault at a given timestamp.
+     * @param timestamp time point to get the total amount of active shares at
+     * @return total amount of active shares at the timestamp
      */
     function activeSharesAt(uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active shares in the vault.
-     * @return total amount of the active shares
+     * @notice Get a total amount of active shares in the vault.
+     * @return total amount of active shares
      */
     function activeShares() external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active supply in the vault at a given timestamp.
+     * @notice Get a total amount of active supply in the vault at a given timestamp.
      * @param timestamp time point to get the total active supply at
-     * @return total amount of the active supply at the timestamp
+     * @return total amount of active supply at the timestamp
      */
     function activeSupplyAt(uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active supply in the vault.
-     * @return total amount of the active supply
+     * @notice Get a total amount of active supply in the vault.
+     * @return total amount of active supply
      */
     function activeSupply() external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active shares for a particular account at a given timestamp using a hint.
-     * @param account account to get the amount of the active shares for
-     * @param timestamp time point to get the amount of the active shares for the account at
+     * @notice Get a total amount of active shares for a particular account at a given timestamp using a hint.
+     * @param account account to get the amount of active shares for
+     * @param timestamp time point to get the amount of active shares for the account at
      * @param hint hint for the checkpoint index
-     * @return total amount of the active shares for the account at the timestamp
+     * @return total amount of active shares for the account at the timestamp
      */
     function activeSharesOfAtHint(address account, uint48 timestamp, uint32 hint) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active shares for a particular account at a given timestamp.
-     * @param account account to get the amount of the active shares for
-     * @param timestamp time point to get the amount of the active shares for the account at
-     * @return total amount of the active shares for the account at the timestamp
+     * @notice Get a total amount of active shares for a particular account at a given timestamp.
+     * @param account account to get the amount of active shares for
+     * @param timestamp time point to get the amount of active shares for the account at
+     * @return total amount of active shares for the account at the timestamp
      */
     function activeSharesOfAt(address account, uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get an amount of the active shares for a particular account.
-     * @param account account to get the amount of the active shares for
-     * @return amount of the active shares for the account
+     * @notice Get an amount of active shares for a particular account.
+     * @param account account to get the amount of active shares for
+     * @return amount of active shares for the account
      */
     function activeSharesOf(address account) external view returns (uint256);
 
@@ -249,17 +249,17 @@ interface IVaultStorage {
     function withdrawals(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the withdrawals shares at a given epoch.
-     * @param epoch epoch to get the total amount of the withdrawals shares at
-     * @return total amount of the withdrawals shares at the epoch
+     * @notice Get a total amount of withdrawals shares at a given epoch.
+     * @param epoch epoch to get the total amount of withdrawals shares at
+     * @return total amount of withdrawals shares at the epoch
      */
     function withdrawalsShares(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get an amount of the withdrawals shares for a particular account at a given epoch.
-     * @param epoch epoch to get the amount of the withdrawals shares for the account at
-     * @param account account to get the amount of the withdrawals shares for
-     * @return amount of the withdrawals shares for the account at the epoch
+     * @notice Get an amount of withdrawals shares for a particular account at a given epoch.
+     * @param epoch epoch to get the amount of withdrawals shares for the account at
+     * @param account account to get the amount of withdrawals shares for
+     * @return amount of withdrawals shares for the account at the epoch
      */
     function withdrawalsSharesOf(uint256 epoch, address account) external view returns (uint256);
 
@@ -279,9 +279,9 @@ interface IVaultStorage {
     /**
      * @notice Get a slash request.
      * @param slashIndex index of the slash request
-     * @return network network which requested the slash
-     * @return resolver resolver which can veto the slash
-     * @return operator operator which could be slashed
+     * @return network network that requested the slash
+     * @return resolver resolver that can veto the slash
+     * @return operator operator that could be slashed
      * @return amount maximum amount of the collateral to be slashed
      * @return vetoDeadline deadline for the resolver to veto the slash
      * @return slashDeadline deadline to execute slash
@@ -309,7 +309,7 @@ interface IVaultStorage {
     function maxNetworkLimit(address network, address resolver) external view returns (uint256);
 
     /**
-     * @notice Get next network limit for a particular network and resolver.
+     * @notice Get a next network limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
      * @return next network limit
@@ -318,7 +318,7 @@ interface IVaultStorage {
     function nextNetworkLimit(address network, address resolver) external view returns (uint256, uint48);
 
     /**
-     * @notice Get next operator limit for a particular operator and network.
+     * @notice Get a next operator limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network
      * @return next operator limit

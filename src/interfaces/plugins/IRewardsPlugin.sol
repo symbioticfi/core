@@ -4,16 +4,16 @@ pragma solidity 0.8.25;
 import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 interface IRewardsPlugin is IPlugin {
-    error NotVault();
-    error NotNetwork();
-    error NoRewardsToClaim();
-    error InvalidHintsLength();
-    error InsufficientReward();
-    error InvalidRewardTimestamp();
-    error UnacceptedAdminFee();
-    error NoDeposits();
-    error NotOwner();
     error InsufficientAdminFee();
+    error InsufficientReward();
+    error InvalidHintsLength();
+    error InvalidRewardTimestamp();
+    error NoDeposits();
+    error NoRewardsToClaim();
+    error NotNetwork();
+    error NotOwner();
+    error NotVault();
+    error UnacceptedAdminFee();
 
     /**
      * @notice Structure for a reward distribution.
@@ -160,7 +160,7 @@ interface IRewardsPlugin is IPlugin {
      * @param vault address of the vault
      * @param recipient account that receives the fee
      * @param token address of the token
-     * @dev Only owner can call this function.
+     * @dev Only the owner can call this function.
      */
     function claimAdminFee(address vault, address recipient, address token) external;
 }
