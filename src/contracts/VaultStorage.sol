@@ -11,7 +11,7 @@ contract VaultStorage is IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
 
     /**
-     * @dev Some dead address to transfer slashed tokens to.
+     * @dev Some dead address to issue debt to.
      */
     address internal constant DEAD = address(0xdEaD);
 
