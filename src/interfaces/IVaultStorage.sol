@@ -42,20 +42,6 @@ interface IVaultStorage {
     }
 
     /**
-     * @notice Structure for a reward distribution.
-     * @param network network on behalf of which the reward is distributed
-     * @param amount amount of tokens to be distributed (admin fee is excluded)
-     * @param timestamp time point stakes must taken into account at
-     * @param creation timestamp when the reward distribution was created
-     */
-    struct RewardDistribution {
-        address network;
-        uint256 amount;
-        uint48 timestamp;
-        uint48 creation;
-    }
-
-    /**
      * @notice Get the maximum admin fee (= 100%).
      * @return maximum admin fee
      */
@@ -184,13 +170,6 @@ interface IVaultStorage {
     function adminFee() external view returns (uint256);
 
     /**
-     * @notice Get a claimable fee amount for a particular token.
-     * @param token address of the token
-     * @return claimable fee
-     */
-    function claimableAdminFee(address token) external view returns (uint256);
-
-    /**
      * @notice Get if the deposit whitelist is enabled.
      * @return if the deposit whitelist is enabled
      */
@@ -228,6 +207,15 @@ interface IVaultStorage {
      * @return total amount of the active supply
      */
     function activeSupply() external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of the active shares for a particular account at a given timestamp using a hint.
+     * @param account account to get the amount of the active shares for
+     * @param timestamp time point to get the amount of the active shares for the account at
+     * @param hint hint for the checkpoint index
+     * @return total amount of the active shares for the account at the timestamp
+     */
+    function activeSharesOfAtHint(address account, uint48 timestamp, uint32 hint) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the active shares for a particular account at a given timestamp.
@@ -318,35 +306,6 @@ interface IVaultStorage {
             uint48 slashDeadline,
             bool completed
         );
-
-    /**
-     * @notice Get a total number of rewards using a particular token.
-     * @param token address of the token
-     * @return total number of rewards using the token
-     */
-    function rewardsLength(address token) external view returns (uint256);
-
-    /**
-     * @notice Get a reward distribution.
-     * @param token address of the token
-     * @param rewardIndex index of the reward distribution
-     * @return network network on behalf of which the reward is distributed
-     * @return amount amount of tokens to be distributed
-     * @return timestamp time point stakes must taken into account at
-     * @return creation timestamp when the reward distribution was created
-     */
-    function rewards(
-        address token,
-        uint256 rewardIndex
-    ) external view returns (address network, uint256 amount, uint48 timestamp, uint48 creation);
-
-    /**
-     * @notice Get a first index of the unclaimed rewards using a particular token by a given account.
-     * @param account address of the account
-     * @param token address of the token
-     * @return first index of the unclaimed rewards
-     */
-    function lastUnclaimedReward(address account, address token) external view returns (uint256);
 
     /**
      * @notice Get a timestamp of last operator opt-out.

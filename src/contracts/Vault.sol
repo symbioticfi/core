@@ -3,23 +3,21 @@ pragma solidity 0.8.25;
 
 import {IVault} from "src/interfaces/IVault.sol";
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
 
 import {VaultDelegation} from "./VaultDelegation.sol";
+
 import {ERC4626Math} from "./libraries/ERC4626Math.sol";
 import {Checkpoints} from "./libraries/Checkpoints.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
 contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
-    using SafeERC20 for IERC20;
     using Math for uint256;
 
     constructor(
@@ -202,7 +200,9 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
             revert NetworkNotOptedInVault();
         }
 
-        uint256 slashAmount = Math.min(amount, maxSlash_);
+        if (amount > maxSlash_) {
+            amount = maxSlash_;
+        }
         uint48 vetoDeadline = clock() + vetoDuration;
         uint48 slashDeadline = vetoDeadline + slashDuration;
 
@@ -212,14 +212,14 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
                 network: network,
                 resolver: resolver,
                 operator: operator,
-                amount: slashAmount,
+                amount: amount,
                 vetoDeadline: vetoDeadline,
                 slashDeadline: slashDeadline,
                 completed: false
             })
         );
 
-        emit RequestSlash(slashIndex, network, resolver, operator, slashAmount, vetoDeadline, slashDeadline);
+        emit RequestSlash(slashIndex, network, resolver, operator, amount, vetoDeadline, slashDeadline);
     }
 
     /**
@@ -324,176 +324,5 @@ contract Vault is VaultDelegation, MulticallUpgradeable, IVault {
         request.completed = true;
 
         emit VetoSlash(slashIndex);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function distributeReward(
-        address network,
-        address token,
-        uint256 amount,
-        uint48 timestamp,
-        uint256 acceptedAdminFee
-    ) external nonReentrant returns (uint256 rewardIndex) {
-        if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
-            revert NotNetwork();
-        }
-
-        if (timestamp >= clock()) {
-            revert InvalidRewardTimestamp();
-        }
-
-        if (acceptedAdminFee < adminFee) {
-            revert UnacceptedAdminFee();
-        }
-
-        if (_activeSharesCache[timestamp] == 0) {
-            uint256 activeShares_ = activeSharesAt(timestamp);
-            uint256 activeSupply_ = activeSupplyAt(timestamp);
-
-            if (activeShares_ == 0 || activeSupply_ == 0) {
-                revert InvalidRewardTimestamp();
-            }
-
-            _activeSharesCache[timestamp] = activeShares_;
-            _activeSuppliesCache[timestamp] = activeSupply_;
-        }
-
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        amount = IERC20(token).balanceOf(address(this)) - balanceBefore;
-
-        if (amount == 0) {
-            revert InsufficientReward();
-        }
-
-        uint256 adminFeeAmount = amount.mulDiv(adminFee, ADMIN_FEE_BASE);
-        claimableAdminFee[token] += adminFeeAmount;
-
-        rewardIndex = rewards[token].length;
-
-        rewards[token].push(
-            RewardDistribution({
-                network: network,
-                amount: amount - adminFeeAmount,
-                timestamp: timestamp,
-                creation: clock()
-            })
-        );
-
-        emit DistributeReward(token, rewardIndex, network, amount, timestamp);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function claimRewards(
-        address recipient,
-        address token,
-        uint256 maxRewards,
-        uint32[] calldata activeSharesOfHints
-    ) external {
-        uint48 firstDepositAt_ = firstDepositAt[msg.sender];
-        if (firstDepositAt_ == 0) {
-            revert NoDeposits();
-        }
-
-        RewardDistribution[] storage rewardsByToken = rewards[token];
-        uint256 rewardIndex = lastUnclaimedReward[msg.sender][token];
-        if (rewardIndex == 0) {
-            rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_);
-        }
-
-        uint256 rewardsToClaim = Math.min(maxRewards, rewardsByToken.length - rewardIndex);
-
-        if (rewardsToClaim == 0) {
-            revert NoRewardsToClaim();
-        }
-
-        uint256 activeSharesOfHintsLen = activeSharesOfHints.length;
-        if (activeSharesOfHintsLen != 0 && activeSharesOfHintsLen != rewardsToClaim) {
-            revert InvalidHintsLength();
-        }
-
-        uint256 amount;
-        for (uint256 j; j < rewardsToClaim;) {
-            RewardDistribution storage reward = rewardsByToken[rewardIndex];
-
-            uint256 claimedAmount;
-            uint48 timestamp = reward.timestamp;
-            if (timestamp >= firstDepositAt_) {
-                uint256 activeSupply_ = _activeSuppliesCache[timestamp];
-                uint256 activeSharesOf_ = activeSharesOfHintsLen != 0
-                    ? _activeSharesOf[msg.sender].upperLookupRecent(timestamp, activeSharesOfHints[j])
-                    : _activeSharesOf[msg.sender].upperLookupRecent(timestamp);
-                uint256 activeBalanceOf_ =
-                    ERC4626Math.previewRedeem(activeSharesOf_, activeSupply_, _activeSharesCache[timestamp]);
-
-                claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
-                amount += claimedAmount;
-            }
-
-            emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
-
-            unchecked {
-                ++j;
-                ++rewardIndex;
-            }
-        }
-
-        lastUnclaimedReward[msg.sender][token] = rewardIndex;
-
-        if (amount != 0) {
-            IERC20(token).safeTransfer(recipient, amount);
-        }
-    }
-
-    function claimAdminFee(address recipient, address token) external onlyOwner {
-        uint256 claimableAdminFee_ = claimableAdminFee[token];
-        if (claimableAdminFee_ == 0) {
-            revert InsufficientAdminFee();
-        }
-
-        claimableAdminFee[token] = 0;
-
-        IERC20(token).safeTransfer(recipient, claimableAdminFee_);
-
-        emit ClaimAdminFee(token, claimableAdminFee_);
-    }
-
-    /**
-     * @dev Searches a sorted by creation time `array` and returns the first index that contains
-     * a RewardDistribution structure with `creation` greater or equal to `unclaimedFrom`. If no such index exists (i.e. all
-     * structures in the array are with `creation` strictly less than `unclaimedFrom`), the array length is
-     * returned.
-     */
-    function _firstUnclaimedReward(
-        RewardDistribution[] storage array,
-        uint48 unclaimedFrom
-    ) private view returns (uint256) {
-        uint256 len = array.length;
-        if (len == 0) {
-            return 0;
-        }
-
-        uint256 low = 0;
-        uint256 high = len;
-
-        while (low < high) {
-            uint256 mid = Math.average(low, high);
-
-            if (array[mid].creation < unclaimedFrom) {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
-        }
-
-        if (low < len && array[low].creation >= unclaimedFrom) {
-            return low;
-        } else {
-            return len;
-        }
     }
 }

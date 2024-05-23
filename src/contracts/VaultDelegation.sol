@@ -12,15 +12,8 @@ import {VaultStorage} from "./VaultStorage.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract VaultDelegation is
-    VaultStorage,
-    MigratableEntity,
-    AccessControlUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IVaultDelegation
-{
+contract VaultDelegation is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVaultDelegation {
     using Strings for string;
 
     constructor(
@@ -75,8 +68,6 @@ contract VaultDelegation is
         if (params.adminFee > ADMIN_FEE_BASE) {
             revert InvalidAdminFee();
         }
-
-        __ReentrancyGuard_init();
 
         _initialize(params.owner);
 

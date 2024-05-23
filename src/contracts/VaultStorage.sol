@@ -111,11 +111,6 @@ contract VaultStorage is ERC6372, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address token => uint256 amount) public claimableAdminFee;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     bool public depositWhitelist;
 
     /**
@@ -151,16 +146,6 @@ contract VaultStorage is ERC6372, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address token => RewardDistribution[] rewards_) public rewards;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    mapping(address account => mapping(address token => uint256 rewardIndex)) public lastUnclaimedReward;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     mapping(address operator => uint48 timestamp) public operatorOptOutAt;
 
     /**
@@ -183,10 +168,6 @@ contract VaultStorage is ERC6372, IVaultStorage {
     Checkpoints.Trace256 internal _activeSupplies;
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
-
-    mapping(uint48 timestamp => uint256 amount) internal _activeSharesCache;
-
-    mapping(uint48 timestamp => uint256 amount) internal _activeSuppliesCache;
 
     mapping(address network => mapping(address resolver => Limit limit)) internal _networkLimit;
 
@@ -260,6 +241,13 @@ contract VaultStorage is ERC6372, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    function activeSharesOfAtHint(address account, uint48 timestamp, uint32 hint) external view returns (uint256) {
+        return _activeSharesOf[account].upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     function activeSharesOfAt(address account, uint48 timestamp) public view returns (uint256) {
         return _activeSharesOf[account].upperLookupRecent(timestamp);
     }
@@ -274,14 +262,14 @@ contract VaultStorage is ERC6372, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesOfCheckpointsLength(address account) public view returns (uint256) {
+    function activeSharesOfCheckpointsLength(address account) external view returns (uint256) {
         return _activeSharesOf[account].length();
     }
 
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesOfCheckpoint(address account, uint32 pos) public view returns (uint48, uint256) {
+    function activeSharesOfCheckpoint(address account, uint32 pos) external view returns (uint48, uint256) {
         Checkpoints.Checkpoint256 memory checkpoint = _activeSharesOf[account].at(pos);
         return (checkpoint._key, checkpoint._value);
     }
@@ -289,14 +277,7 @@ contract VaultStorage is ERC6372, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function slashRequestsLength() public view returns (uint256) {
+    function slashRequestsLength() external view returns (uint256) {
         return slashRequests.length;
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function rewardsLength(address token) public view returns (uint256) {
-        return rewards[token].length;
     }
 }

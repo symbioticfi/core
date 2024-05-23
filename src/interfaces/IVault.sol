@@ -19,13 +19,6 @@ interface IVault is IVaultDelegation {
     error SlashCompleted();
     error NotResolver();
     error VetoPeriodEnded();
-    error NoRewardsToClaim();
-    error InvalidHintsLength();
-    error InsufficientReward();
-    error InvalidRewardTimestamp();
-    error UnacceptedAdminFee();
-    error NoDeposits();
-    error InsufficientAdminFee();
 
     /**
      * @notice Emitted when a deposit is made.
@@ -88,41 +81,6 @@ interface IVault is IVaultDelegation {
      * @param slashIndex index of the slash request
      */
     event VetoSlash(uint256 indexed slashIndex);
-
-    /**
-     * @notice Emitted when a reward is distributed.
-     * @param token address of the token to be distributed
-     * @param rewardIndex index of the reward distribution
-     * @param network network on behalf of which the reward is distributed
-     * @param amount amount of tokens distributed (admin fee is included)
-     * @param timestamp time point stakes must taken into account at
-     */
-    event DistributeReward(
-        address indexed token, uint256 indexed rewardIndex, address indexed network, uint256 amount, uint48 timestamp
-    );
-
-    /**
-     * @notice Emitted when a reward is claimed.
-     * @param token address of the token claimed
-     * @param rewardIndex index of the reward distribution
-     * @param claimer account that claimed the reward
-     * @param recipient account that received the reward
-     * @param claimedAmount amount of tokens claimed
-     */
-    event ClaimReward(
-        address indexed token,
-        uint256 indexed rewardIndex,
-        address indexed claimer,
-        address recipient,
-        uint256 claimedAmount
-    );
-
-    /**
-     * @notice Emitted when an admin fee is claimed.
-     * @param recipient account that received the fee
-     * @param amount amount of the fee claimed
-     */
-    event ClaimAdminFee(address indexed recipient, uint256 amount);
 
     /**
      * @notice Get a total amount of the collateral deposited in the vault.
@@ -215,42 +173,4 @@ interface IVault is IVaultDelegation {
      * @param slashIndex index of the slash request
      */
     function vetoSlash(uint256 slashIndex) external;
-
-    /**
-     * @notice Distribute rewards on behalf of a particular network using a given token.
-     * @param network address of the network
-     * @param token address of the token
-     * @param amount amount of tokens to distribute
-     * @param timestamp time point stakes must taken into account at
-     * @param acceptedAdminFee maximum accepted admin fee
-     * @return rewardIndex index of the reward distribution
-     */
-    function distributeReward(
-        address network,
-        address token,
-        uint256 amount,
-        uint48 timestamp,
-        uint256 acceptedAdminFee
-    ) external returns (uint256 rewardIndex);
-
-    /**
-     * @notice Claim rewards for a particular token.
-     * @param recipient account that will receive the rewards
-     * @param token address of the token
-     * @param maxRewards max amount of rewards to process
-     * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
-     */
-    function claimRewards(
-        address recipient,
-        address token,
-        uint256 maxRewards,
-        uint32[] calldata activeSharesOfHints
-    ) external;
-
-    /**
-     * @notice Claim admin fee.
-     * @param recipient account that receives the fee
-     * @dev Only owner can call this function.
-     */
-    function claimAdminFee(address recipient, address token) external;
 }
