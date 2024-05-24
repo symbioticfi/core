@@ -8,6 +8,7 @@ import {DefaultCollateralFactory} from "src/contracts/defaultCollateral/DefaultC
 contract DefaultCollateralFactoryScript is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
         vm.startBroadcast(deployerPrivateKey);
 
         new DefaultCollateralFactory();

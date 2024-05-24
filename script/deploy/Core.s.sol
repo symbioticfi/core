@@ -15,10 +15,11 @@ import {Vault} from "src/contracts/vault/v1/Vault.sol";
 contract CoreScript is Script {
     function run(address owner) public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        VaultFactory vaultFactory = new VaultFactory(owner);
+        VaultFactory vaultFactory = new VaultFactory(deployer);
         NetworkRegistry networkRegistry = new NetworkRegistry();
         OperatorRegistry operatorRegistry = new OperatorRegistry();
         MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));

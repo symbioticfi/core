@@ -164,14 +164,16 @@ $ source .env
 
 #### Deploy factory
 
+Deployment script: [click](https://github.com/symbioticfi/core-private/blob/main/script/deploy/defaultCollateral/DefaultCollateralFactory.s.sol)
+
 ```shell
-$ forge script script/deploy/DefaultCollateralFactory.s.sol:DefaultCollateralFactoryScript --broadcast --rpc-url=$RPC_MAINNET
+$ forge script script/deploy/defaultCollateral/DefaultCollateralFactory.s.sol:DefaultCollateralFactoryScript --broadcast --rpc-url=$RPC_MAINNET
 ```
 
 #### Deploy entity
 
-```shell
-// function run(address defaultCollateralFactory, address asset, uint256 initialLimit, address limitIncreaser)
+Deployment script: [click](https://github.com/symbioticfi/core-private/blob/main/script/deploy/defaultCollateral/DefaultCollateral.s.sol)
 
-$ forge script script/deploy/DefaultCollateral.s.sol:DefaultCollateralScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 115792089237316195423570985008687907853269984665640564039457584007913129639935 0x0000000000000000000000000000000000000000 --sig "run(address,address,uint256,address)" --broadcast --rpc-url=$RPC_MAINNET
+```shell
+$ forge script script/deploy/defaultCollateral/DefaultCollateral.s.sol:DefaultCollateralScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 115792089237316195423570985008687907853269984665640564039457584007913129639935 0x0000000000000000000000000000000000000000 --sig "run(address,address,uint256,address)" --broadcast --rpc-url=$RPC_MAINNET
 ```

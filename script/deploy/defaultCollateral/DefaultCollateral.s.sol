@@ -13,6 +13,7 @@ contract DefaultCollateralScript is Script {
         address limitIncreaser
     ) external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
         vm.startBroadcast(deployerPrivateKey);
 
         IDefaultCollateralFactory(defaultCollateralFactory).create(asset, initialLimit, limitIncreaser);
