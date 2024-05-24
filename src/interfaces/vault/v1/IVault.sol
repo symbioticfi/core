@@ -32,7 +32,7 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Initial parameters needed for a vault deployment.
-     * @param owner owner of the vault (can migrate the vault and claim admin fees)
+     * @param owner owner of the vault (can migrate the vault, whitelist networks for rewards distribution, and claim admin fees)
      * @param collateral underlying vault collateral
      * @param epochDuration duration of the vault epoch
      * @param vetoDuration duration of the veto period for a slash request

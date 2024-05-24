@@ -10,8 +10,11 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     error InvalidRewardTimestamp();
     error NoDeposits();
     error NoRewardsToClaim();
-    error NotOwner();
+    error NotVaultOwner();
     error NotVault();
+    error AlreadySet();
+    error NotNetworkMiddleware();
+    error NotWhitelistedNetwork();
 
     /**
      * @notice Structure for a reward distribution.
@@ -26,6 +29,13 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
         uint48 timestamp;
         uint48 creation;
     }
+
+    /**
+     * @notice Emitted when a network whitelist status is set.
+     * @param network network for which the whitelist status is set
+     * @param status whitelist status
+     */
+    event SetNetworkWhitelistStatus(address indexed network, bool status);
 
     /**
      * @notice Emitted when a reward is claimed.
@@ -55,6 +65,18 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
      * @return address of the vault factory
      */
     function VAULT_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get the network middleware service's address.
+     * @return address of the network middleware service
+     */
+    function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
+
+    /**
+     * @notice Get if a given account is a whitelisted network.
+     * @param account address to check
+     */
+    function isNetworkWhitelisted(address account) external view returns (bool);
 
     /**
      * @notice Get a total number of rewards using a particular token.
@@ -93,6 +115,13 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     function claimableAdminFee(address token) external view returns (uint256);
 
     /**
+     * @notice Set a network whitelist status (it allows networks to distribute rewards).
+     * @param network address of the network
+     * @dev Only the vault owner can call this function.
+     */
+    function setNetworkWhitelistStatus(address network, bool status) external;
+
+    /**
      * @notice Claim rewards for a particular token.
      * @param recipient account that will receive the rewards
      * @param token address of the token
@@ -110,7 +139,7 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
      * @notice Claim admin fee.
      * @param recipient account that receives the fee
      * @param token address of the token
-     * @dev Only the owner can call this function.
+     * @dev Only the vault owner can call this function.
      */
     function claimAdminFee(address recipient, address token) external;
 }

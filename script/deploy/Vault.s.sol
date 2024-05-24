@@ -19,7 +19,6 @@ contract VaultScript is Script {
         bool depositWhitelist
     ) public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
 

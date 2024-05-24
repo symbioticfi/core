@@ -9,6 +9,7 @@ import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
 import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
 
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
@@ -28,7 +29,17 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
      */
     address public immutable VAULT_FACTORY;
 
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    address public immutable NETWORK_MIDDLEWARE_SERVICE;
+
     address private _VAULT;
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    mapping(address account => bool values) public isNetworkWhitelisted;
 
     /**
      * @inheritdoc IDefaultRewardsDistributor
@@ -49,10 +60,22 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
 
     mapping(uint48 timestamp => uint256 amount) internal _activeSuppliesCache;
 
-    constructor(address networkRegistry, address vaultFactory) RewardsDistributor(networkRegistry) {
+    modifier onlyVaultOwner() {
+        if (Ownable(VAULT()).owner() != msg.sender) {
+            revert NotVaultOwner();
+        }
+        _;
+    }
+
+    constructor(
+        address networkRegistry,
+        address vaultFactory,
+        address networkMiddlewareService
+    ) RewardsDistributor(networkRegistry) {
         _disableInitializers();
 
         VAULT_FACTORY = vaultFactory;
+        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
     /**
@@ -60,6 +83,13 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
      */
     function VAULT() public view override(RewardsDistributorBase, IRewardsDistributorBase) returns (address) {
         return _VAULT;
+    }
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    function rewardsLength(address token) external view returns (uint256) {
+        return rewards[token].length;
     }
 
     function initialize(address vault) external initializer {
@@ -75,8 +105,14 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
     /**
      * @inheritdoc IDefaultRewardsDistributor
      */
-    function rewardsLength(address token) external view returns (uint256) {
-        return rewards[token].length;
+    function setNetworkWhitelistStatus(address network, bool status) external onlyVaultOwner checkNetwork(network) {
+        if (isNetworkWhitelisted[network] == status) {
+            revert AlreadySet();
+        }
+
+        isNetworkWhitelisted[network] = status;
+
+        emit SetNetworkWhitelistStatus(network, status);
     }
 
     /**
@@ -87,7 +123,15 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
         address token,
         uint256 amount,
         uint48 timestamp
-    ) external override(RewardsDistributor, IRewardsDistributor) nonReentrant checkNetwork(network) {
+    ) external override(RewardsDistributor, IRewardsDistributor) nonReentrant {
+        if (IMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
+            revert NotNetworkMiddleware();
+        }
+
+        if (!isNetworkWhitelisted[network]) {
+            revert NotWhitelistedNetwork();
+        }
+
         if (timestamp >= Time.timestamp()) {
             revert InvalidRewardTimestamp();
         }
@@ -197,11 +241,7 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
     /**
      * @inheritdoc IDefaultRewardsDistributor
      */
-    function claimAdminFee(address recipient, address token) external {
-        if (Ownable(VAULT()).owner() != msg.sender) {
-            revert NotOwner();
-        }
-
+    function claimAdminFee(address recipient, address token) external onlyVaultOwner {
         uint256 claimableAdminFee_ = claimableAdminFee[token];
         if (claimableAdminFee_ == 0) {
             revert InsufficientAdminFee();

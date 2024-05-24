@@ -88,9 +88,10 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         );
     }
 
-    function test_Create(uint256 initialLimit, address limitIncreaser) public {
-        defaultRewardsDistributorFactory =
-            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultFactory));
+    function test_Create() public {
+        defaultRewardsDistributorFactory = new DefaultRewardsDistributorFactory(
+            address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
+        );
 
         address defaultRewardsDistributorAddress = defaultRewardsDistributorFactory.create(address(vault));
         defaultRewardsDistributor = DefaultRewardsDistributor(defaultRewardsDistributorAddress);
@@ -98,8 +99,10 @@ contract DefaultRewardsDistributorFactoryTest is Test {
 
         assertEq(defaultRewardsDistributor.NETWORK_REGISTRY(), address(networkRegistry));
         assertEq(defaultRewardsDistributor.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(defaultRewardsDistributor.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
         assertEq(defaultRewardsDistributor.VAULT(), address(vault));
         assertEq(defaultRewardsDistributor.version(), 1);
+        assertEq(defaultRewardsDistributor.isNetworkWhitelisted(alice), false);
         assertEq(defaultRewardsDistributor.rewardsLength(alice), 0);
         vm.expectRevert();
         defaultRewardsDistributor.rewards(alice, 0);
@@ -108,8 +111,9 @@ contract DefaultRewardsDistributorFactoryTest is Test {
     }
 
     function test_CreateRevertNotVault() public {
-        defaultRewardsDistributorFactory =
-            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultFactory));
+        defaultRewardsDistributorFactory = new DefaultRewardsDistributorFactory(
+            address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
+        );
 
         vm.expectRevert(IDefaultRewardsDistributor.NotVault.selector);
         defaultRewardsDistributorFactory.create(address(0));

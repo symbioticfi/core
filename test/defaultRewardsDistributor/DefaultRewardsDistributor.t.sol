@@ -78,8 +78,9 @@ contract RewardsServiceTest is Test {
             )
         );
 
-        defaultRewardsDistributorFactory =
-            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultFactory));
+        defaultRewardsDistributorFactory = new DefaultRewardsDistributorFactory(
+            address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
+        );
 
         Token token = new Token("Token");
         collateral = new SimpleCollateral(address(token));
@@ -96,6 +97,59 @@ contract RewardsServiceTest is Test {
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+    }
+
+    function test_SetNetworkWhitelistStatus() public {
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        _setNetworkWhitelistStatus(alice, network, true);
+        assertEq(defaultRewardsDistributor.isNetworkWhitelisted(network), true);
+    }
+
+    function test_SetNetworkWhitelistStatusRevertNotVaultOwner() public {
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        vm.expectRevert(IDefaultRewardsDistributor.NotVaultOwner.selector);
+        _setNetworkWhitelistStatus(bob, network, true);
+    }
+
+    function test_SetNetworkWhitelistStatusRevertAlreadySet() public {
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        _setNetworkWhitelistStatus(alice, network, true);
+
+        vm.expectRevert(IDefaultRewardsDistributor.AlreadySet.selector);
+        _setNetworkWhitelistStatus(alice, network, true);
     }
 
     function test_DistributeReward(uint256 amount, uint256 ditributeAmount, uint256 adminFee) public {
@@ -135,6 +189,7 @@ contract RewardsServiceTest is Test {
 
         uint256 balanceBefore = feeOnTransferToken.balanceOf(address(defaultRewardsDistributor));
         uint256 balanceBeforeBob = feeOnTransferToken.balanceOf(bob);
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, timestamp);
         assertEq(feeOnTransferToken.balanceOf(address(defaultRewardsDistributor)) - balanceBefore, ditributeAmount - 1);
@@ -151,6 +206,79 @@ contract RewardsServiceTest is Test {
         assertEq(timestamp_, timestamp);
         assertEq(creation, blockTimestamp);
         assertEq(defaultRewardsDistributor.claimableAdminFee(address(feeOnTransferToken)), adminFeeAmount);
+    }
+
+    function test_DistributeRewardRevertNotNetworkMiddleware(uint256 amount, uint256 ditributeAmount) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 2, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        for (uint256 i; i < 10; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
+        feeOnTransferToken.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+        vm.stopPrank();
+
+        _setNetworkWhitelistStatus(alice, network, true);
+        uint48 timestamp = 3;
+        vm.expectRevert(IDefaultRewardsDistributor.NotNetworkMiddleware.selector);
+        _distributeReward(alice, network, address(feeOnTransferToken), ditributeAmount, timestamp);
+    }
+
+    function test_DistributeRewardRevertNotWhitelistedNetwork(uint256 amount, uint256 ditributeAmount) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 2, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 slashDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        for (uint256 i; i < 10; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
+        feeOnTransferToken.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+        vm.stopPrank();
+
+        uint48 timestamp = 3;
+        vm.expectRevert(IDefaultRewardsDistributor.NotWhitelistedNetwork.selector);
+        _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, timestamp);
     }
 
     function test_DistributeRewardRevertInvalidRewardTimestamp(uint256 amount, uint256 ditributeAmount) public {
@@ -184,6 +312,7 @@ contract RewardsServiceTest is Test {
         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         vm.expectRevert(IDefaultRewardsDistributor.InvalidRewardTimestamp.selector);
         _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, uint48(blockTimestamp));
     }
@@ -218,6 +347,7 @@ contract RewardsServiceTest is Test {
         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         vm.expectRevert(IDefaultRewardsDistributor.InsufficientReward.selector);
         _distributeReward(bob, network, address(feeOnTransferToken), 1, timestamp);
@@ -254,6 +384,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
@@ -296,6 +427,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint256 numRewards = 50;
         for (uint48 i = 1; i < numRewards + 1; ++i) {
             _distributeReward(bob, network, address(token), ditributeAmount, i);
@@ -340,6 +472,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint256 numRewards = 50;
         for (uint48 i = 1; i < numRewards + 1; ++i) {
             _distributeReward(bob, network, address(token), ditributeAmount, i);
@@ -445,6 +578,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
@@ -484,6 +618,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
@@ -527,6 +662,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
@@ -579,6 +715,7 @@ contract RewardsServiceTest is Test {
         token.approve(address(defaultRewardsDistributor), type(uint256).max);
         vm.stopPrank();
 
+        _setNetworkWhitelistStatus(alice, network, true);
         uint48 timestamp = 3;
         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
@@ -637,6 +774,12 @@ contract RewardsServiceTest is Test {
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
         shares = vault.deposit(user, amount);
+        vm.stopPrank();
+    }
+
+    function _setNetworkWhitelistStatus(address user, address network, bool status) internal {
+        vm.startPrank(user);
+        defaultRewardsDistributor.setNetworkWhitelistStatus(network, status);
         vm.stopPrank();
     }
 
