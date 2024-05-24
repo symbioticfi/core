@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
-import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
+import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
+import {IMigratablesFactory} from "src/interfaces/base/IMigratablesFactory.sol";
 
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
@@ -18,14 +18,14 @@ contract MigratablesRegistryTest is Test {
     address bob;
     uint256 bobPrivateKey;
 
-    IMigratablesRegistry registry;
+    IMigratablesFactory registry;
 
     function setUp() public {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        registry = new MigratablesRegistry(owner);
+        registry = new MigratablesFactory(owner);
     }
 
     function test_Create() public {
@@ -94,7 +94,7 @@ contract MigratablesRegistryTest is Test {
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
-        vm.expectRevert(IMigratablesRegistry.AlreadyWhitelisted.selector);
+        vm.expectRevert(IMigratablesFactory.AlreadyWhitelisted.selector);
         registry.whitelist(impl);
     }
 
@@ -102,13 +102,13 @@ contract MigratablesRegistryTest is Test {
         address impl = address(new SimpleMigratableEntity());
         registry.whitelist(impl);
 
-        vm.expectRevert(IMigratablesRegistry.InvalidVersion.selector);
+        vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
         registry.create(0, abi.encode(alice));
 
-        vm.expectRevert(IMigratablesRegistry.InvalidVersion.selector);
+        vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
         registry.create(2, abi.encode(alice));
 
-        vm.expectRevert(IMigratablesRegistry.InvalidVersion.selector);
+        vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
         registry.create(3, abi.encode(alice));
     }
 
@@ -122,7 +122,7 @@ contract MigratablesRegistryTest is Test {
         registry.whitelist(implV2);
 
         vm.startPrank(bob);
-        vm.expectRevert(IMigratablesRegistry.NotOwner.selector);
+        vm.expectRevert(IMigratablesFactory.NotOwner.selector);
         registry.migrate(entity, abi.encode(0));
         vm.stopPrank();
     }
@@ -141,7 +141,7 @@ contract MigratablesRegistryTest is Test {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(IMigratablesRegistry.InvalidVersion.selector);
+        vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
         registry.migrate(entity, abi.encode(0));
         vm.stopPrank();
     }

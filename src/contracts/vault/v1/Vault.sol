@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {MigratableEntity} from "./base/MigratableEntity.sol";
+import {MigratableEntity} from "src/contracts/base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
-import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
+import {IMiddlewarePlugin} from "src/interfaces/IMiddlewarePlugin.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
-import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
-import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
+import {INetworkOptInPlugin} from "src/interfaces/INetworkOptInPlugin.sol";
+import {IOperatorOptInPlugin} from "src/interfaces/IOperatorOptInPlugin.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IVault} from "src/interfaces/IVault.sol";
+import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
-import {Checkpoints} from "./libraries/Checkpoints.sol";
-import {ERC4626Math} from "./libraries/ERC4626Math.sol";
+import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

@@ -8,7 +8,7 @@ import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistribut
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
 import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
-import {IVault} from "src/interfaces/IVault.sol";
+import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 

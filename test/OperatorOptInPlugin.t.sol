@@ -5,8 +5,8 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
-import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
+import {OperatorOptInPlugin} from "src/contracts/OperatorOptInPlugin.sol";
+import {IOperatorOptInPlugin} from "src/interfaces/IOperatorOptInPlugin.sol";
 
 contract OptInPluginTest is Test {
     address owner;

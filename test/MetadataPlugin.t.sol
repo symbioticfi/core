@@ -5,8 +5,8 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
-import {IMetadataPlugin} from "src/interfaces/plugins/IMetadataPlugin.sol";
+import {MetadataPlugin} from "src/contracts/MetadataPlugin.sol";
+import {IMetadataPlugin} from "src/interfaces/IMetadataPlugin.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 

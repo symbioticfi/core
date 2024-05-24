@@ -6,13 +6,13 @@ import {Registry} from "./Registry.sol";
 
 import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
-import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
+import {IMigratablesFactory} from "src/interfaces/base/IMigratablesFactory.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
+contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Address for address;
 
@@ -28,21 +28,21 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     constructor(address owner_) Ownable(owner_) {}
 
     /**
-     * @inheritdoc IMigratablesRegistry
+     * @inheritdoc IMigratablesFactory
      */
     function lastVersion() public view returns (uint64) {
         return uint64(_whitelistedImplementations.length());
     }
 
     /**
-     * @inheritdoc IMigratablesRegistry
+     * @inheritdoc IMigratablesFactory
      */
     function implementation(uint64 version) public view isValidVersion(version) returns (address) {
         return _whitelistedImplementations.at(version - 1);
     }
 
     /**
-     * @inheritdoc IMigratablesRegistry
+     * @inheritdoc IMigratablesFactory
      */
     function whitelist(address entityImplementation) external onlyOwner {
         if (!_whitelistedImplementations.add(entityImplementation)) {
@@ -51,7 +51,7 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     }
 
     /**
-     * @inheritdoc IMigratablesRegistry
+     * @inheritdoc IMigratablesFactory
      */
     function create(uint64 version, bytes memory data) external returns (address entity_) {
         entity_ = address(
@@ -64,7 +64,7 @@ contract MigratablesRegistry is Registry, Ownable, IMigratablesRegistry {
     }
 
     /**
-     * @inheritdoc IMigratablesRegistry
+     * @inheritdoc IMigratablesFactory
      */
     function migrate(address entity_, bytes memory data) external checkEntity(entity_) {
         if (msg.sender != Ownable(entity_).owner()) {

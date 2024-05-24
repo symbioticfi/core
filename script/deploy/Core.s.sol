@@ -3,13 +3,13 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 
-import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
+import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
-import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
-import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
-import {Vault} from "src/contracts/Vault.sol";
+import {MetadataPlugin} from "src/contracts/MetadataPlugin.sol";
+import {MiddlewarePlugin} from "src/contracts/MiddlewarePlugin.sol";
+import {NetworkOptInPlugin} from "src/contracts/NetworkOptInPlugin.sol";
+import {OperatorOptInPlugin} from "src/contracts/OperatorOptInPlugin.sol";
+import {Vault} from "src/contracts/vault/v1/Vault.sol";
 
 contract CoreScript is Script {
     function run(address owner) public {
@@ -19,7 +19,7 @@ contract CoreScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         NonMigratablesRegistry operatorRegistry = new NonMigratablesRegistry();
-        MigratablesRegistry vaultRegistry = new MigratablesRegistry(owner);
+        MigratablesFactory vaultRegistry = new MigratablesFactory(owner);
         NonMigratablesRegistry networkRegistry = new NonMigratablesRegistry();
         MetadataPlugin operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
         MetadataPlugin networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));

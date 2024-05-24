@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 
-import {IMigratablesRegistry} from "src/interfaces/base/IMigratablesRegistry.sol";
-import {IVault} from "src/interfaces/IVault.sol";
+import {IMigratablesFactory} from "src/interfaces/base/IMigratablesFactory.sol";
+import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
 contract VaultScript is Script {
     function run(
@@ -23,8 +23,8 @@ contract VaultScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        IMigratablesRegistry(vaultRegistry).create(
-            IMigratablesRegistry(vaultRegistry).lastVersion(),
+        IMigratablesFactory(vaultRegistry).create(
+            IMigratablesFactory(vaultRegistry).lastVersion(),
             abi.encode(
                 IVault.InitParams({
                     owner: owner,

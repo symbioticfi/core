@@ -5,8 +5,8 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
+import {MiddlewarePlugin} from "src/contracts/MiddlewarePlugin.sol";
+import {IMiddlewarePlugin} from "src/interfaces/IMiddlewarePlugin.sol";
 
 contract MiddlewarePluginTest is Test {
     address owner;

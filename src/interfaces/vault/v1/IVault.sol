@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
+import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
     error AlreadySet();

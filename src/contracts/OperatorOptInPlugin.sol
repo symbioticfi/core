@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
+import {IOperatorOptInPlugin} from "src/interfaces/IOperatorOptInPlugin.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";

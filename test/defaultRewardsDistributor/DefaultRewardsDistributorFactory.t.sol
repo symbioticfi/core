@@ -3,20 +3,20 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {MigratablesRegistry} from "src/contracts/base/MigratablesRegistry.sol";
+import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
-import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
-import {NetworkOptInPlugin} from "src/contracts/plugins/NetworkOptInPlugin.sol";
-import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
+import {MetadataPlugin} from "src/contracts/MetadataPlugin.sol";
+import {MiddlewarePlugin} from "src/contracts/MiddlewarePlugin.sol";
+import {NetworkOptInPlugin} from "src/contracts/NetworkOptInPlugin.sol";
+import {OperatorOptInPlugin} from "src/contracts/OperatorOptInPlugin.sol";
 
 import {DefaultRewardsDistributorFactory} from
     "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributorFactory.sol";
 import {DefaultRewardsDistributor} from "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributor.sol";
 import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
 
-import {Vault} from "src/contracts/Vault.sol";
-import {IVault} from "src/interfaces/IVault.sol";
+import {Vault} from "src/contracts/vault/v1/Vault.sol";
+import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
 contract DefaultRewardsDistributorFactoryTest is Test {
     address owner;
@@ -29,7 +29,7 @@ contract DefaultRewardsDistributorFactoryTest is Test {
     DefaultRewardsDistributor defaultRewardsDistributor;
 
     NonMigratablesRegistry operatorRegistry;
-    MigratablesRegistry vaultRegistry;
+    MigratablesFactory vaultRegistry;
     NonMigratablesRegistry networkRegistry;
     MetadataPlugin operatorMetadataPlugin;
     MetadataPlugin networkMetadataPlugin;
@@ -46,7 +46,7 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
         operatorRegistry = new NonMigratablesRegistry();
-        vaultRegistry = new MigratablesRegistry(owner);
+        vaultRegistry = new MigratablesFactory(owner);
         networkRegistry = new NonMigratablesRegistry();
         operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
         networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));

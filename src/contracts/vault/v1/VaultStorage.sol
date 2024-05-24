@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IVaultStorage} from "src/interfaces/IVaultStorage.sol";
+import {IVaultStorage} from "src/interfaces/vault/v1/IVaultStorage.sol";
 
-import {Checkpoints} from "./libraries/Checkpoints.sol";
+import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 

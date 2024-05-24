@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {IRegistry} from "./IRegistry.sol";
 
-interface IMigratablesRegistry is IRegistry {
+interface IMigratablesFactory is IRegistry {
     error AlreadyWhitelisted();
     error InvalidVersion();
     error NotOwner();
