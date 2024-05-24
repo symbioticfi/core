@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
-
-interface IOperatorOptInPlugin is IPlugin {
+interface IOperatorOptInPlugin {
     error AlreadyOptedIn();
     error NotOptedIn();
     error NotWhereEntity();
+    error NotOperator();
 
     /**
      * @notice Emitted when an operator opts-in to a "where" entity.
@@ -21,6 +20,12 @@ interface IOperatorOptInPlugin is IPlugin {
      * @param where address of the entity where the operator opted out from
      */
     event OptOut(address indexed operator, address indexed where);
+
+    /**
+     * @notice Get the operator registry's address.
+     * @return address of the operator registry
+     */
+    function OPERATOR_REGISTRY() external view returns (address);
 
     /**
      * @notice Get the address of the registry where to opt-in.

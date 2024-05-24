@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
-
-interface INetworkOptInPlugin is IPlugin {
+interface INetworkOptInPlugin {
     error AlreadyOptedIn();
     error NotOptedIn();
     error NotWhereEntity();
+    error NotNetwork();
 
     /**
      * @notice Emitted when a network opts-in to a "where" entity.
@@ -23,6 +22,12 @@ interface INetworkOptInPlugin is IPlugin {
      * @param where address of the entity where the network opted out from
      */
     event OptOut(address indexed network, address indexed resolver, address indexed where);
+
+    /**
+     * @notice Get the network registry's address.
+     * @return address of the network registry
+     */
+    function NETWORK_REGISTRY() external view returns (address);
 
     /**
      * @notice Get the address of the registry where to opt-in.

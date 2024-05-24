@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 import {MetadataPlugin} from "src/contracts/plugins/MetadataPlugin.sol";
 import {IMetadataPlugin} from "src/interfaces/plugins/IMetadataPlugin.sol";
@@ -56,7 +55,7 @@ contract MetadataPluginTest is Test {
         plugin = IMetadataPlugin(address(new MetadataPlugin(address(registry))));
 
         vm.startPrank(alice);
-        vm.expectRevert(IPlugin.NotEntity.selector);
+        vm.expectRevert(IMetadataPlugin.NotEntity.selector);
         plugin.setMetadataURL(metadataURL_);
         vm.stopPrank();
     }

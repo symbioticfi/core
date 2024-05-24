@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
-
-interface IMiddlewarePlugin is IPlugin {
+interface IMiddlewarePlugin {
     error AlreadySet();
+    error NotEntity();
 
     /**
      * @notice Emitted when a middleware is set for an entity.
@@ -12,6 +11,12 @@ interface IMiddlewarePlugin is IPlugin {
      * @param middleware new middleware of the entity
      */
     event SetMiddleware(address indexed entity, address middleware);
+
+    /**
+     * @notice Get the registry address.
+     * @return address of the registry
+     */
+    function REGISTRY() external view returns (address);
 
     /**
      * @notice Get an entity's middleware.

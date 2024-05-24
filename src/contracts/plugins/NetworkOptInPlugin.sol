@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Plugin} from "src/contracts/base/Plugin.sol";
-
 import {INetworkOptInPlugin} from "src/interfaces/plugins/INetworkOptInPlugin.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract NetworkOptInPlugin is Plugin, INetworkOptInPlugin {
+contract NetworkOptInPlugin is INetworkOptInPlugin {
+    /**
+     * @inheritdoc INetworkOptInPlugin
+     */
+    address public immutable NETWORK_REGISTRY;
+
     /**
      * @inheritdoc INetworkOptInPlugin
      */
@@ -25,7 +28,8 @@ contract NetworkOptInPlugin is Plugin, INetworkOptInPlugin {
     mapping(address network => mapping(address resolver => mapping(address where => uint48 timestamp))) public
         lastOptOut;
 
-    constructor(address networkRegistry, address whereRegistry) Plugin(networkRegistry) {
+    constructor(address networkRegistry, address whereRegistry) {
+        NETWORK_REGISTRY = networkRegistry;
         WHERE_REGISTRY = whereRegistry;
     }
 
@@ -44,7 +48,11 @@ contract NetworkOptInPlugin is Plugin, INetworkOptInPlugin {
     /**
      * @inheritdoc INetworkOptInPlugin
      */
-    function optIn(address resolver, address where) external onlyEntity {
+    function optIn(address resolver, address where) external {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
+        }
+
         if (!IRegistry(WHERE_REGISTRY).isEntity(where)) {
             revert NotWhereEntity();
         }

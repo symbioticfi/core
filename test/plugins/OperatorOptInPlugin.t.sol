@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol";
 import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
@@ -103,7 +102,7 @@ contract OptInPluginTest is Test {
         vm.stopPrank();
 
         vm.startPrank(operator);
-        vm.expectRevert(IPlugin.NotEntity.selector);
+        vm.expectRevert(IOperatorOptInPlugin.NotOperator.selector);
         plugin.optIn(where);
         vm.stopPrank();
     }

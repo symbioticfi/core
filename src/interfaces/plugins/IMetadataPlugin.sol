@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
-
-interface IMetadataPlugin is IPlugin {
+interface IMetadataPlugin {
     error AlreadySet();
+    error NotEntity();
 
     /**
      * @notice Emitted when a metadata URL is set for an entity.
@@ -12,6 +11,12 @@ interface IMetadataPlugin is IPlugin {
      * @param metadataURL new metadata URL of the entity
      */
     event SetMetadataURL(address indexed entity, string metadataURL);
+
+    /**
+     * @notice Get the registry address.
+     * @return address of the registry
+     */
+    function REGISTRY() external view returns (address);
 
     /**
      * @notice Get a URL with an entity's metadata.

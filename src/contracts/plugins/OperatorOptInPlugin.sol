@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Plugin} from "src/contracts/base/Plugin.sol";
-
 import {IOperatorOptInPlugin} from "src/interfaces/plugins/IOperatorOptInPlugin.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract OperatorOptInPlugin is Plugin, IOperatorOptInPlugin {
+contract OperatorOptInPlugin is IOperatorOptInPlugin {
+    /**
+     * @inheritdoc IOperatorOptInPlugin
+     */
+    address public immutable OPERATOR_REGISTRY;
+
     /**
      * @inheritdoc IOperatorOptInPlugin
      */
@@ -24,7 +27,8 @@ contract OperatorOptInPlugin is Plugin, IOperatorOptInPlugin {
      */
     mapping(address operator => mapping(address where => uint48 timestamp)) public lastOptOut;
 
-    constructor(address operatorRegistry, address whereRegistry) Plugin(operatorRegistry) {
+    constructor(address operatorRegistry, address whereRegistry) {
+        OPERATOR_REGISTRY = operatorRegistry;
         WHERE_REGISTRY = whereRegistry;
     }
 
@@ -38,7 +42,11 @@ contract OperatorOptInPlugin is Plugin, IOperatorOptInPlugin {
     /**
      * @inheritdoc IOperatorOptInPlugin
      */
-    function optIn(address where) external onlyEntity {
+    function optIn(address where) external {
+        if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
+            revert NotOperator();
+        }
+
         if (!IRegistry(WHERE_REGISTRY).isEntity(where)) {
             revert NotWhereEntity();
         }

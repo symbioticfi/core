@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {IPlugin} from "src/interfaces/base/IPlugin.sol";
 
 import {MiddlewarePlugin} from "src/contracts/plugins/MiddlewarePlugin.sol";
 import {IMiddlewarePlugin} from "src/interfaces/plugins/IMiddlewarePlugin.sol";
@@ -52,7 +51,7 @@ contract MiddlewarePluginTest is Test {
         plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
 
         vm.startPrank(alice);
-        vm.expectRevert(IPlugin.NotEntity.selector);
+        vm.expectRevert(IMiddlewarePlugin.NotEntity.selector);
         plugin.setMiddleware(middleware);
         vm.stopPrank();
     }
