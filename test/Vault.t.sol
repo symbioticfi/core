@@ -12,7 +12,6 @@ import {OperatorOptInPlugin} from "src/contracts/plugins/OperatorOptInPlugin.sol
 
 import {Vault} from "src/contracts/Vault.sol";
 import {IVault} from "src/interfaces/IVault.sol";
-import {IVault} from "src/interfaces/IVault.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";
@@ -1929,6 +1928,50 @@ contract VaultTest is Test {
         _setMaxNetworkResolverLimit(network, resolver, amount);
     }
 
+    function test_SetRewardsDistributor(address rewardsDistributor1, address rewardsDistributor2) public {
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vm.assume(rewardsDistributor1 != address(0));
+        vm.assume(rewardsDistributor1 != rewardsDistributor2);
+
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, rewardsDistributor1);
+        assertEq(vault.rewardsDistributor(), rewardsDistributor1);
+
+        _setRewardsDistributor(alice, rewardsDistributor2);
+        assertEq(vault.rewardsDistributor(), rewardsDistributor2);
+    }
+
+    function test_SetRewardsDistributorRevertUnauthorized(address rewardsDistributor) public {
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vm.assume(rewardsDistributor != address(0));
+
+        vm.expectRevert();
+        _setRewardsDistributor(alice, rewardsDistributor);
+    }
+
+    function test_SetRewardsDistributorRevertAlreadySet(address rewardsDistributor) public {
+        uint48 epochDuration = 1;
+        uint48 slashDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vm.assume(rewardsDistributor != address(0));
+
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, rewardsDistributor);
+
+        vm.expectRevert(IVault.AlreadySet.selector);
+        _setRewardsDistributor(alice, rewardsDistributor);
+    }
+
     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
@@ -1947,7 +1990,7 @@ contract VaultTest is Test {
         assertEq(vault.adminFee(), adminFee2);
     }
 
-    function test_SetAdminFeeReverUnauthorized(uint256 adminFee) public {
+    function test_SetAdminFeeRevertUnauthorized(uint256 adminFee) public {
         uint48 epochDuration = 1;
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
@@ -2126,6 +2169,12 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
+    function _grantRewardsDistributorSetRole(address user, address account) internal {
+        vm.startPrank(user);
+        Vault(address(vault)).grantRole(vault.REWARDS_DISTRIBUTOR_SET_ROLE(), account);
+        vm.stopPrank();
+    }
+
     function _grantAdminFeeSetRole(address user, address account) internal {
         vm.startPrank(user);
         Vault(address(vault)).grantRole(vault.ADMIN_FEE_SET_ROLE(), account);
@@ -2233,6 +2282,12 @@ contract VaultTest is Test {
     function _setOperatorNetworkLimit(address user, address operator, address network, uint256 amount) internal {
         vm.startPrank(user);
         vault.setOperatorNetworkLimit(operator, network, amount);
+        vm.stopPrank();
+    }
+
+    function _setRewardsDistributor(address user, address rewardsDistributor) internal {
+        vm.startPrank(user);
+        vault.setRewardsDistributor(rewardsDistributor);
         vm.stopPrank();
     }
 
