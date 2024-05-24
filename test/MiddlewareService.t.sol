@@ -5,10 +5,10 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-import {MiddlewarePlugin} from "src/contracts/MiddlewarePlugin.sol";
-import {IMiddlewarePlugin} from "src/interfaces/IMiddlewarePlugin.sol";
+import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
 
-contract MiddlewarePluginTest is Test {
+contract MiddlewareServiceTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
@@ -17,7 +17,7 @@ contract MiddlewarePluginTest is Test {
 
     NonMigratablesRegistry registry;
 
-    IMiddlewarePlugin plugin;
+    IMiddlewareService service;
 
     function setUp() public {
         owner = address(this);
@@ -30,48 +30,48 @@ contract MiddlewarePluginTest is Test {
     function test_Create(address middleware) public {
         vm.assume(middleware != address(0));
 
-        plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
+        service = IMiddlewareService(address(new MiddlewareService(address(registry))));
 
-        assertEq(plugin.middleware(alice), address(0));
+        assertEq(service.middleware(alice), address(0));
 
         vm.startPrank(alice);
         registry.register();
         vm.stopPrank();
 
         vm.startPrank(alice);
-        plugin.setMiddleware(middleware);
+        service.setMiddleware(middleware);
         vm.stopPrank();
 
-        assertEq(plugin.middleware(alice), middleware);
+        assertEq(service.middleware(alice), middleware);
     }
 
     function test_SetMiddlewareRevertNotEntity(address middleware) public {
         vm.assume(middleware != address(0));
 
-        plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
+        service = IMiddlewareService(address(new MiddlewareService(address(registry))));
 
         vm.startPrank(alice);
-        vm.expectRevert(IMiddlewarePlugin.NotEntity.selector);
-        plugin.setMiddleware(middleware);
+        vm.expectRevert(IMiddlewareService.NotEntity.selector);
+        service.setMiddleware(middleware);
         vm.stopPrank();
     }
 
     function test_SetMiddlewareRevertAlreadySet(address middleware) public {
         vm.assume(middleware != address(0));
 
-        plugin = IMiddlewarePlugin(address(new MiddlewarePlugin(address(registry))));
+        service = IMiddlewareService(address(new MiddlewareService(address(registry))));
 
         vm.startPrank(alice);
         registry.register();
         vm.stopPrank();
 
         vm.startPrank(alice);
-        plugin.setMiddleware(middleware);
+        service.setMiddleware(middleware);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(IMiddlewarePlugin.AlreadySet.selector);
-        plugin.setMiddleware(middleware);
+        vm.expectRevert(IMiddlewareService.AlreadySet.selector);
+        service.setMiddleware(middleware);
         vm.stopPrank();
     }
 }

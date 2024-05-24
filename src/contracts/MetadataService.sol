@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMetadataPlugin} from "src/interfaces/IMetadataPlugin.sol";
+import {IMetadataService} from "src/interfaces/IMetadataService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-contract MetadataPlugin is IMetadataPlugin {
+contract MetadataService is IMetadataService {
     using Strings for string;
 
     /**
-     * @inheritdoc IMetadataPlugin
+     * @inheritdoc IMetadataService
      */
     address public immutable REGISTRY;
 
     /**
-     * @inheritdoc IMetadataPlugin
+     * @inheritdoc IMetadataService
      */
     mapping(address entity => string value) public metadataURL;
 
@@ -24,7 +24,7 @@ contract MetadataPlugin is IMetadataPlugin {
     }
 
     /**
-     * @inheritdoc IMetadataPlugin
+     * @inheritdoc IMetadataService
      */
     function setMetadataURL(string calldata metadataURL_) external {
         if (!IRegistry(REGISTRY).isEntity(msg.sender)) {

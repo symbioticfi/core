@@ -3,4 +3,6 @@ pragma solidity 0.8.25;
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-contract OperatorRegistry is NonMigratablesRegistry {}
+import {IOperatorRegistry} from "src/interfaces/IOperatorRegistry.sol";
+
+contract OperatorRegistry is NonMigratablesRegistry, IOperatorRegistry {}

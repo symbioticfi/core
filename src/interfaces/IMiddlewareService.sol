@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface IMiddlewarePlugin {
+interface IMiddlewareService {
     error AlreadySet();
     error NotEntity();
 

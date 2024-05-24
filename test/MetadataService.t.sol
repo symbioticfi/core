@@ -5,12 +5,12 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-import {MetadataPlugin} from "src/contracts/MetadataPlugin.sol";
-import {IMetadataPlugin} from "src/interfaces/IMetadataPlugin.sol";
+import {MetadataService} from "src/contracts/MetadataService.sol";
+import {IMetadataService} from "src/interfaces/IMetadataService.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-contract MetadataPluginTest is Test {
+contract MetadataServiceTest is Test {
     using Strings for string;
 
     address owner;
@@ -21,7 +21,7 @@ contract MetadataPluginTest is Test {
 
     NonMigratablesRegistry registry;
 
-    IMetadataPlugin plugin;
+    IMetadataService service;
 
     function setUp() public {
         owner = address(this);
@@ -34,48 +34,48 @@ contract MetadataPluginTest is Test {
     function test_Create(string calldata metadataURL_) public {
         vm.assume(!metadataURL_.equal(""));
 
-        plugin = IMetadataPlugin(address(new MetadataPlugin(address(registry))));
+        service = IMetadataService(address(new MetadataService(address(registry))));
 
-        assertEq(plugin.metadataURL(alice), "");
+        assertEq(service.metadataURL(alice), "");
 
         vm.startPrank(alice);
         registry.register();
         vm.stopPrank();
 
         vm.startPrank(alice);
-        plugin.setMetadataURL(metadataURL_);
+        service.setMetadataURL(metadataURL_);
         vm.stopPrank();
 
-        assertEq(plugin.metadataURL(alice), metadataURL_);
+        assertEq(service.metadataURL(alice), metadataURL_);
     }
 
     function test_SetMetadataURLRevertNotEntity(string calldata metadataURL_) public {
         vm.assume(!metadataURL_.equal(""));
 
-        plugin = IMetadataPlugin(address(new MetadataPlugin(address(registry))));
+        service = IMetadataService(address(new MetadataService(address(registry))));
 
         vm.startPrank(alice);
-        vm.expectRevert(IMetadataPlugin.NotEntity.selector);
-        plugin.setMetadataURL(metadataURL_);
+        vm.expectRevert(IMetadataService.NotEntity.selector);
+        service.setMetadataURL(metadataURL_);
         vm.stopPrank();
     }
 
     function test_SetMetadataURLRevertAlreadySet(string calldata metadataURL_) public {
         vm.assume(!metadataURL_.equal(""));
 
-        plugin = IMetadataPlugin(address(new MetadataPlugin(address(registry))));
+        service = IMetadataService(address(new MetadataService(address(registry))));
 
         vm.startPrank(alice);
         registry.register();
         vm.stopPrank();
 
         vm.startPrank(alice);
-        plugin.setMetadataURL(metadataURL_);
+        service.setMetadataURL(metadataURL_);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(IMetadataPlugin.AlreadySet.selector);
-        plugin.setMetadataURL(metadataURL_);
+        vm.expectRevert(IMetadataService.AlreadySet.selector);
+        service.setMetadataURL(metadataURL_);
         vm.stopPrank();
     }
 }

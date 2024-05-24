@@ -5,10 +5,10 @@ import {MigratableEntity} from "src/contracts/base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
-import {IMiddlewarePlugin} from "src/interfaces/IMiddlewarePlugin.sol";
+import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
-import {INetworkOptInPlugin} from "src/interfaces/INetworkOptInPlugin.sol";
-import {IOperatorOptInPlugin} from "src/interfaces/IOperatorOptInPlugin.sol";
+import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
+import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
@@ -82,18 +82,18 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     constructor(
         address networkRegistry,
         address operatorRegistry,
-        address networkMiddlewarePlugin,
-        address networkVaultOptInPlugin,
-        address operatorVaultOptInPlugin,
-        address operatorNetworkOptInPlugin
+        address networkMiddlewareService,
+        address networkVaultOptInService,
+        address operatorVaultOptInService,
+        address operatorNetworkOptInService
     )
         VaultStorage(
             networkRegistry,
             operatorRegistry,
-            networkMiddlewarePlugin,
-            networkVaultOptInPlugin,
-            operatorVaultOptInPlugin,
-            operatorNetworkOptInPlugin
+            networkMiddlewareService,
+            networkVaultOptInService,
+            operatorVaultOptInService,
+            operatorNetworkOptInService
         )
     {
         _disableInitializers();
@@ -233,7 +233,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         address operator,
         uint256 amount
     ) external returns (uint256 slashIndex) {
-        if (IMiddlewarePlugin(NETWORK_MIDDLEWARE_PLUGIN).middleware(network) != msg.sender) {
+        if (IMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
@@ -243,17 +243,20 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientSlash();
         }
 
-        if (!INetworkOptInPlugin(NETWORK_VAULT_OPT_IN_PLUGIN).isOptedIn(network, resolver, address(this))) {
+        if (!INetworkOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, resolver, address(this))) {
             revert NetworkNotOptedInVault();
         }
 
         if (
-            !IOperatorOptInPlugin(OPERATOR_VAULT_OPT_IN_PLUGIN).wasOptedIn(operator, address(this), previousEpochStart())
+            !IOperatorOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedIn(
+                operator, address(this), previousEpochStart()
+            )
         ) {
             revert OperatorNotOptedInVault();
         }
 
-        if (!IOperatorOptInPlugin(OPERATOR_NETWORK_OPT_IN_PLUGIN).wasOptedIn(operator, network, previousEpochStart())) {
+        if (!IOperatorOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedIn(operator, network, previousEpochStart()))
+        {
             revert OperatorNotOptedInNetwork();
         }
 

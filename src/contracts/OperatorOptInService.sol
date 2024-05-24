@@ -1,29 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IOperatorOptInPlugin} from "src/interfaces/IOperatorOptInPlugin.sol";
+import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract OperatorOptInPlugin is IOperatorOptInPlugin {
+contract OperatorOptInService is IOperatorOptInService {
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     address public immutable OPERATOR_REGISTRY;
 
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     address public immutable WHERE_REGISTRY;
 
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     mapping(address operator => mapping(address where => bool value)) public isOptedIn;
 
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     mapping(address operator => mapping(address where => uint48 timestamp)) public lastOptOut;
 
@@ -33,14 +33,14 @@ contract OperatorOptInPlugin is IOperatorOptInPlugin {
     }
 
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     function wasOptedIn(address operator, address where, uint256 edgeTimestamp) external view returns (bool) {
         return isOptedIn[operator][where] || lastOptOut[operator][where] >= edgeTimestamp;
     }
 
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     function optIn(address where) external {
         if (!IRegistry(OPERATOR_REGISTRY).isEntity(msg.sender)) {
@@ -61,7 +61,7 @@ contract OperatorOptInPlugin is IOperatorOptInPlugin {
     }
 
     /**
-     * @inheritdoc IOperatorOptInPlugin
+     * @inheritdoc IOperatorOptInService
      */
     function optOut(address where) external {
         if (!isOptedIn[msg.sender][where]) {

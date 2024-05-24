@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMiddlewarePlugin} from "src/interfaces/IMiddlewarePlugin.sol";
+import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
-contract MiddlewarePlugin is IMiddlewarePlugin {
+contract MiddlewareService is IMiddlewareService {
     /**
-     * @inheritdoc IMiddlewarePlugin
+     * @inheritdoc IMiddlewareService
      */
     address public immutable REGISTRY;
 
     /**
-     * @inheritdoc IMiddlewarePlugin
+     * @inheritdoc IMiddlewareService
      */
     mapping(address entity => address value) public middleware;
 
@@ -20,7 +20,7 @@ contract MiddlewarePlugin is IMiddlewarePlugin {
     }
 
     /**
-     * @inheritdoc IMiddlewarePlugin
+     * @inheritdoc IMiddlewareService
      */
     function setMiddleware(address middleware_) external {
         if (!IRegistry(REGISTRY).isEntity(msg.sender)) {

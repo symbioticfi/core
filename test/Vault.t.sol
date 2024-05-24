@@ -5,10 +5,10 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {MetadataPlugin} from "src/contracts/MetadataPlugin.sol";
-import {MiddlewarePlugin} from "src/contracts/MiddlewarePlugin.sol";
-import {NetworkOptInPlugin} from "src/contracts/NetworkOptInPlugin.sol";
-import {OperatorOptInPlugin} from "src/contracts/OperatorOptInPlugin.sol";
+import {MetadataService} from "src/contracts/MetadataService.sol";
+import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
+import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 
 import {Vault} from "src/contracts/vault/v1/Vault.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
@@ -29,12 +29,12 @@ contract VaultTest is Test {
     NonMigratablesRegistry operatorRegistry;
     MigratablesFactory vaultRegistry;
     NonMigratablesRegistry networkRegistry;
-    MetadataPlugin operatorMetadataPlugin;
-    MetadataPlugin networkMetadataPlugin;
-    MiddlewarePlugin networkMiddlewarePlugin;
-    NetworkOptInPlugin networkVaultOptInPlugin;
-    OperatorOptInPlugin operatorVaultOptInPlugin;
-    OperatorOptInPlugin operatorNetworkOptInPlugin;
+    MetadataService operatorMetadataService;
+    MetadataService networkMetadataService;
+    MiddlewareService networkMiddlewareService;
+    NetworkOptInService networkVaultOptInService;
+    OperatorOptInService operatorVaultOptInService;
+    OperatorOptInService operatorNetworkOptInService;
 
     IVault vault;
 
@@ -48,22 +48,22 @@ contract VaultTest is Test {
         operatorRegistry = new NonMigratablesRegistry();
         vaultRegistry = new MigratablesFactory(owner);
         networkRegistry = new NonMigratablesRegistry();
-        operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
-        networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
-        networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
-        networkVaultOptInPlugin = new NetworkOptInPlugin(address(networkRegistry), address(vaultRegistry));
-        operatorVaultOptInPlugin = new OperatorOptInPlugin(address(operatorRegistry), address(vaultRegistry));
-        operatorNetworkOptInPlugin = new OperatorOptInPlugin(address(operatorRegistry), address(networkRegistry));
+        operatorMetadataService = new MetadataService(address(operatorRegistry));
+        networkMetadataService = new MetadataService(address(networkRegistry));
+        networkMiddlewareService = new MiddlewareService(address(networkRegistry));
+        networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultRegistry));
+        operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultRegistry));
+        operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
 
         vaultRegistry.whitelist(
             address(
                 new Vault(
                     address(networkRegistry),
                     address(operatorRegistry),
-                    address(networkMiddlewarePlugin),
-                    address(networkVaultOptInPlugin),
-                    address(operatorVaultOptInPlugin),
-                    address(operatorNetworkOptInPlugin)
+                    address(networkMiddlewareService),
+                    address(networkVaultOptInService),
+                    address(operatorVaultOptInService),
+                    address(operatorNetworkOptInService)
                 )
             )
         );
@@ -2159,7 +2159,7 @@ contract VaultTest is Test {
     function _registerNetwork(address user, address middleware) internal {
         vm.startPrank(user);
         networkRegistry.register();
-        networkMiddlewarePlugin.setMiddleware(middleware);
+        networkMiddlewareService.setMiddleware(middleware);
         vm.stopPrank();
     }
 
@@ -2239,37 +2239,37 @@ contract VaultTest is Test {
 
     function _optInNetworkVault(address user, address resolver) internal {
         vm.startPrank(user);
-        networkVaultOptInPlugin.optIn(resolver, address(vault));
+        networkVaultOptInService.optIn(resolver, address(vault));
         vm.stopPrank();
     }
 
     function _optOutNetworkVault(address user, address resolver) internal {
         vm.startPrank(user);
-        networkVaultOptInPlugin.optOut(resolver, address(vault));
+        networkVaultOptInService.optOut(resolver, address(vault));
         vm.stopPrank();
     }
 
     function _optInOperatorVault(address user) internal {
         vm.startPrank(user);
-        operatorVaultOptInPlugin.optIn(address(vault));
+        operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
     function _optOutOperatorVault(address user) internal {
         vm.startPrank(user);
-        operatorVaultOptInPlugin.optOut(address(vault));
+        operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();
     }
 
     function _optInOperatorNetwork(address user, address network) internal {
         vm.startPrank(user);
-        operatorNetworkOptInPlugin.optIn(network);
+        operatorNetworkOptInService.optIn(network);
         vm.stopPrank();
     }
 
     function _optOutOperatorNetwork(address user, address network) internal {
         vm.startPrank(user);
-        operatorNetworkOptInPlugin.optOut(network);
+        operatorNetworkOptInService.optOut(network);
         vm.stopPrank();
     }
 

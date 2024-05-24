@@ -5,10 +5,10 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {MetadataPlugin} from "src/contracts/MetadataPlugin.sol";
-import {MiddlewarePlugin} from "src/contracts/MiddlewarePlugin.sol";
-import {NetworkOptInPlugin} from "src/contracts/NetworkOptInPlugin.sol";
-import {OperatorOptInPlugin} from "src/contracts/OperatorOptInPlugin.sol";
+import {MetadataService} from "src/contracts/MetadataService.sol";
+import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
+import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 
 import {Vault} from "src/contracts/vault/v1/Vault.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
@@ -23,7 +23,7 @@ import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract RewardsPluginTest is Test {
+contract RewardsServiceTest is Test {
     using Math for uint256;
 
     address owner;
@@ -35,12 +35,12 @@ contract RewardsPluginTest is Test {
     NonMigratablesRegistry operatorRegistry;
     MigratablesFactory vaultRegistry;
     NonMigratablesRegistry networkRegistry;
-    MetadataPlugin operatorMetadataPlugin;
-    MetadataPlugin networkMetadataPlugin;
-    MiddlewarePlugin networkMiddlewarePlugin;
-    NetworkOptInPlugin networkVaultOptInPlugin;
-    OperatorOptInPlugin operatorVaultOptInPlugin;
-    OperatorOptInPlugin operatorNetworkOptInPlugin;
+    MetadataService operatorMetadataService;
+    MetadataService networkMetadataService;
+    MiddlewareService networkMiddlewareService;
+    NetworkOptInService networkVaultOptInService;
+    OperatorOptInService operatorVaultOptInService;
+    OperatorOptInService operatorNetworkOptInService;
 
     IVault vault;
 
@@ -57,22 +57,22 @@ contract RewardsPluginTest is Test {
         operatorRegistry = new NonMigratablesRegistry();
         vaultRegistry = new MigratablesFactory(owner);
         networkRegistry = new NonMigratablesRegistry();
-        operatorMetadataPlugin = new MetadataPlugin(address(operatorRegistry));
-        networkMetadataPlugin = new MetadataPlugin(address(networkRegistry));
-        networkMiddlewarePlugin = new MiddlewarePlugin(address(networkRegistry));
-        networkVaultOptInPlugin = new NetworkOptInPlugin(address(networkRegistry), address(vaultRegistry));
-        operatorVaultOptInPlugin = new OperatorOptInPlugin(address(operatorRegistry), address(vaultRegistry));
-        operatorNetworkOptInPlugin = new OperatorOptInPlugin(address(operatorRegistry), address(networkRegistry));
+        operatorMetadataService = new MetadataService(address(operatorRegistry));
+        networkMetadataService = new MetadataService(address(networkRegistry));
+        networkMiddlewareService = new MiddlewareService(address(networkRegistry));
+        networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultRegistry));
+        operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultRegistry));
+        operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
 
         vaultRegistry.whitelist(
             address(
                 new Vault(
                     address(networkRegistry),
                     address(operatorRegistry),
-                    address(networkMiddlewarePlugin),
-                    address(networkVaultOptInPlugin),
-                    address(operatorVaultOptInPlugin),
-                    address(operatorNetworkOptInPlugin)
+                    address(networkMiddlewareService),
+                    address(networkVaultOptInService),
+                    address(operatorVaultOptInService),
+                    address(operatorNetworkOptInService)
                 )
             )
         );
@@ -615,7 +615,7 @@ contract RewardsPluginTest is Test {
     function _registerNetwork(address user, address middleware) internal {
         vm.startPrank(user);
         networkRegistry.register();
-        networkMiddlewarePlugin.setMiddleware(middleware);
+        networkMiddlewareService.setMiddleware(middleware);
         vm.stopPrank();
     }
 

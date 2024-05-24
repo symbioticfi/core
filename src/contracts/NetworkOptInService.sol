@@ -1,29 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INetworkOptInPlugin} from "src/interfaces/INetworkOptInPlugin.sol";
+import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract NetworkOptInPlugin is INetworkOptInPlugin {
+contract NetworkOptInService is INetworkOptInService {
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     address public immutable WHERE_REGISTRY;
 
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     mapping(address network => mapping(address resolver => mapping(address where => bool value))) public isOptedIn;
 
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     mapping(address network => mapping(address resolver => mapping(address where => uint48 timestamp))) public
         lastOptOut;
@@ -34,7 +34,7 @@ contract NetworkOptInPlugin is INetworkOptInPlugin {
     }
 
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     function wasOptedIn(
         address network,
@@ -46,7 +46,7 @@ contract NetworkOptInPlugin is INetworkOptInPlugin {
     }
 
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     function optIn(address resolver, address where) external {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
@@ -67,7 +67,7 @@ contract NetworkOptInPlugin is INetworkOptInPlugin {
     }
 
     /**
-     * @inheritdoc INetworkOptInPlugin
+     * @inheritdoc INetworkOptInService
      */
     function optOut(address resolver, address where) external {
         if (!isOptedIn[msg.sender][resolver][where]) {

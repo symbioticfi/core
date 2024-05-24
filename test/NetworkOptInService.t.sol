@@ -5,10 +5,10 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
-import {NetworkOptInPlugin} from "src/contracts/NetworkOptInPlugin.sol";
-import {INetworkOptInPlugin} from "src/interfaces/INetworkOptInPlugin.sol";
+import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
+import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 
-contract OptInPluginTest is Test {
+contract OptInServiceTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
@@ -18,7 +18,7 @@ contract OptInPluginTest is Test {
     NonMigratablesRegistry networkRegistry;
     NonMigratablesRegistry whereRegistry;
 
-    INetworkOptInPlugin plugin;
+    INetworkOptInService service;
 
     function setUp() public {
         owner = address(this);
@@ -30,11 +30,12 @@ contract OptInPluginTest is Test {
     }
 
     function test_Create(address resolver) public {
-        plugin = INetworkOptInPlugin(address(new NetworkOptInPlugin(address(networkRegistry), address(whereRegistry))));
+        service =
+            INetworkOptInService(address(new NetworkOptInService(address(networkRegistry), address(whereRegistry))));
 
-        assertEq(plugin.WHERE_REGISTRY(), address(whereRegistry));
-        assertEq(plugin.isOptedIn(alice, alice, alice), false);
-        assertEq(plugin.lastOptOut(alice, alice, alice), 0);
+        assertEq(service.WHERE_REGISTRY(), address(whereRegistry));
+        assertEq(service.isOptedIn(alice, alice, alice), false);
+        assertEq(service.lastOptOut(alice, alice, alice), 0);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         address network = alice;
@@ -49,48 +50,49 @@ contract OptInPluginTest is Test {
         vm.stopPrank();
 
         vm.startPrank(network);
-        plugin.optIn(resolver, where);
+        service.optIn(resolver, where);
         vm.stopPrank();
 
-        assertEq(plugin.isOptedIn(network, resolver, where), true);
-        assertEq(plugin.lastOptOut(network, resolver, where), 0);
+        assertEq(service.isOptedIn(network, resolver, where), true);
+        assertEq(service.lastOptOut(network, resolver, where), 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(plugin.isOptedIn(network, resolver, where), true);
-        assertEq(plugin.lastOptOut(network, resolver, where), 0);
+        assertEq(service.isOptedIn(network, resolver, where), true);
+        assertEq(service.lastOptOut(network, resolver, where), 0);
 
         vm.startPrank(network);
-        plugin.optOut(resolver, where);
+        service.optOut(resolver, where);
         vm.stopPrank();
 
-        assertEq(plugin.isOptedIn(network, resolver, where), false);
-        assertEq(plugin.lastOptOut(network, resolver, where), blockTimestamp);
+        assertEq(service.isOptedIn(network, resolver, where), false);
+        assertEq(service.lastOptOut(network, resolver, where), blockTimestamp);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(plugin.isOptedIn(network, resolver, where), false);
-        assertEq(plugin.lastOptOut(network, resolver, where), blockTimestamp - 1);
+        assertEq(service.isOptedIn(network, resolver, where), false);
+        assertEq(service.lastOptOut(network, resolver, where), blockTimestamp - 1);
 
         vm.startPrank(network);
-        plugin.optIn(resolver, where);
+        service.optIn(resolver, where);
         vm.stopPrank();
 
-        assertEq(plugin.isOptedIn(network, resolver, where), true);
-        assertEq(plugin.lastOptOut(network, resolver, where), blockTimestamp - 1);
+        assertEq(service.isOptedIn(network, resolver, where), true);
+        assertEq(service.lastOptOut(network, resolver, where), blockTimestamp - 1);
 
         vm.startPrank(network);
-        plugin.optOut(resolver, where);
+        service.optOut(resolver, where);
         vm.stopPrank();
 
-        assertEq(plugin.isOptedIn(network, resolver, where), false);
-        assertEq(plugin.lastOptOut(network, resolver, where), blockTimestamp);
+        assertEq(service.isOptedIn(network, resolver, where), false);
+        assertEq(service.lastOptOut(network, resolver, where), blockTimestamp);
     }
 
     function test_OptInRevertNotEntity(address resolver) public {
-        plugin = INetworkOptInPlugin(address(new NetworkOptInPlugin(address(networkRegistry), address(whereRegistry))));
+        service =
+            INetworkOptInService(address(new NetworkOptInService(address(networkRegistry), address(whereRegistry))));
 
         address network = alice;
         address where = bob;
@@ -100,13 +102,14 @@ contract OptInPluginTest is Test {
         vm.stopPrank();
 
         vm.startPrank(network);
-        vm.expectRevert(INetworkOptInPlugin.NotNetwork.selector);
-        plugin.optIn(resolver, where);
+        vm.expectRevert(INetworkOptInService.NotNetwork.selector);
+        service.optIn(resolver, where);
         vm.stopPrank();
     }
 
     function test_OptInRevertNotWhereEntity(address resolver) public {
-        plugin = INetworkOptInPlugin(address(new NetworkOptInPlugin(address(networkRegistry), address(whereRegistry))));
+        service =
+            INetworkOptInService(address(new NetworkOptInService(address(networkRegistry), address(whereRegistry))));
 
         address network = alice;
         address where = bob;
@@ -116,13 +119,14 @@ contract OptInPluginTest is Test {
         vm.stopPrank();
 
         vm.startPrank(network);
-        vm.expectRevert(INetworkOptInPlugin.NotWhereEntity.selector);
-        plugin.optIn(resolver, where);
+        vm.expectRevert(INetworkOptInService.NotWhereEntity.selector);
+        service.optIn(resolver, where);
         vm.stopPrank();
     }
 
     function test_OptInRevertAlreadyOptedIn(address resolver) public {
-        plugin = INetworkOptInPlugin(address(new NetworkOptInPlugin(address(networkRegistry), address(whereRegistry))));
+        service =
+            INetworkOptInService(address(new NetworkOptInService(address(networkRegistry), address(whereRegistry))));
 
         address network = alice;
         address where = bob;
@@ -136,17 +140,18 @@ contract OptInPluginTest is Test {
         vm.stopPrank();
 
         vm.startPrank(network);
-        plugin.optIn(resolver, where);
+        service.optIn(resolver, where);
         vm.stopPrank();
 
         vm.startPrank(network);
-        vm.expectRevert(INetworkOptInPlugin.AlreadyOptedIn.selector);
-        plugin.optIn(resolver, where);
+        vm.expectRevert(INetworkOptInService.AlreadyOptedIn.selector);
+        service.optIn(resolver, where);
         vm.stopPrank();
     }
 
     function test_OptOutRevertNotOptedIn(address resolver) public {
-        plugin = INetworkOptInPlugin(address(new NetworkOptInPlugin(address(networkRegistry), address(whereRegistry))));
+        service =
+            INetworkOptInService(address(new NetworkOptInService(address(networkRegistry), address(whereRegistry))));
 
         address network = alice;
         address where = bob;
@@ -160,8 +165,8 @@ contract OptInPluginTest is Test {
         vm.stopPrank();
 
         vm.startPrank(network);
-        vm.expectRevert(INetworkOptInPlugin.NotOptedIn.selector);
-        plugin.optOut(resolver, where);
+        vm.expectRevert(INetworkOptInService.NotOptedIn.selector);
+        service.optOut(resolver, where);
         vm.stopPrank();
     }
 }

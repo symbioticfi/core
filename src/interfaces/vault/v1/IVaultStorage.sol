@@ -90,28 +90,28 @@ interface IVaultStorage {
     function OPERATOR_REGISTRY() external view returns (address);
 
     /**
-     * @notice Get the network middleware plugin's address.
-     * @return address of the network middleware plugin
+     * @notice Get the network middleware service's address.
+     * @return address of the network middleware service
      */
-    function NETWORK_MIDDLEWARE_PLUGIN() external view returns (address);
+    function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
 
     /**
-     * @notice Get the network-vault opt-in plugin's address.
-     * @return address of the network-vault opt-in plugin
+     * @notice Get the network-vault opt-in service's address.
+     * @return address of the network-vault opt-in service
      */
-    function NETWORK_VAULT_OPT_IN_PLUGIN() external view returns (address);
+    function NETWORK_VAULT_OPT_IN_SERVICE() external view returns (address);
 
     /**
-     * @notice Get the operator-vault opt-in plugin's address.
-     * @return address of the operator-vault opt-in plugin
+     * @notice Get the operator-vault opt-in service's address.
+     * @return address of the operator-vault opt-in service
      */
-    function OPERATOR_VAULT_OPT_IN_PLUGIN() external view returns (address);
+    function OPERATOR_VAULT_OPT_IN_SERVICE() external view returns (address);
 
     /**
-     * @notice Get the operator-network opt-in plugin's address.
-     * @return address of the operator-network opt-in plugin
+     * @notice Get the operator-network opt-in service's address.
+     * @return address of the operator-network opt-in service
      */
-    function OPERATOR_NETWORK_OPT_IN_PLUGIN() external view returns (address);
+    function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
 
     /**
      * @notice Get a vault collateral.

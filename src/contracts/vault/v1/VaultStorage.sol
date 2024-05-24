@@ -62,22 +62,22 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable NETWORK_MIDDLEWARE_PLUGIN;
+    address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable NETWORK_VAULT_OPT_IN_PLUGIN;
+    address public immutable NETWORK_VAULT_OPT_IN_SERVICE;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable OPERATOR_VAULT_OPT_IN_PLUGIN;
+    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable OPERATOR_NETWORK_OPT_IN_PLUGIN;
+    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
      * @inheritdoc IVaultStorage
@@ -177,17 +177,17 @@ contract VaultStorage is IVaultStorage {
     constructor(
         address networkRegistry,
         address operatorRegistry,
-        address networkMiddlewarePlugin,
-        address networkVaultOptInPlugin,
-        address operatorVaultOptInPlugin,
-        address operatorNetworkOptInPlugin
+        address networkMiddlewareService,
+        address networkVaultOptInService,
+        address operatorVaultOptInService,
+        address operatorNetworkOptInService
     ) {
         NETWORK_REGISTRY = networkRegistry;
         OPERATOR_REGISTRY = operatorRegistry;
-        NETWORK_MIDDLEWARE_PLUGIN = networkMiddlewarePlugin;
-        NETWORK_VAULT_OPT_IN_PLUGIN = networkVaultOptInPlugin;
-        OPERATOR_VAULT_OPT_IN_PLUGIN = operatorVaultOptInPlugin;
-        OPERATOR_NETWORK_OPT_IN_PLUGIN = operatorNetworkOptInPlugin;
+        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
+        NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;
+        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
+        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
     /**
