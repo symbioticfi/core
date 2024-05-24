@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 interface IOperatorOptInService {
     error AlreadyOptedIn();
+    error NotOperator();
     error NotOptedIn();
     error NotWhereEntity();
-    error NotOperator();
 
     /**
      * @notice Emitted when an operator opts-in to a "where" entity.

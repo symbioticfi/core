@@ -5,11 +5,11 @@ import {RewardsDistributorBase} from "src/contracts/base/RewardsDistributorBase.
 import {RewardsDistributor} from "src/contracts/base/RewardsDistributor.sol";
 
 import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
+import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
 import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
 
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 

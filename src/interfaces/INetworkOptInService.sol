@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 interface INetworkOptInService {
     error AlreadyOptedIn();
+    error NotNetwork();
     error NotOptedIn();
     error NotWhereEntity();
-    error NotNetwork();
 
     /**
      * @notice Emitted when a network opts-in to a "where" entity.

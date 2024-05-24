@@ -4,16 +4,16 @@ pragma solidity 0.8.25;
 import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
 
 interface IDefaultRewardsDistributor is IRewardsDistributor {
+    error AlreadySet();
     error InsufficientAdminFee();
     error InsufficientReward();
     error InvalidHintsLength();
     error InvalidRewardTimestamp();
     error NoDeposits();
     error NoRewardsToClaim();
-    error NotVaultOwner();
-    error NotVault();
-    error AlreadySet();
     error NotNetworkMiddleware();
+    error NotVault();
+    error NotVaultOwner();
     error NotWhitelistedNetwork();
 
     /**
