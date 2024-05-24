@@ -3,7 +3,8 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 
 import {SimpleRewardsDistributor} from "test/mocks/SimpleRewardsDistributor.sol";
 import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
@@ -15,7 +16,7 @@ contract RewardsDistributorTest is Test {
     address bob;
     uint256 bobPrivateKey;
 
-    NonMigratablesRegistry networkRegistry;
+    NetworkRegistry networkRegistry;
     SimpleRewardsDistributor rewardsDistributor;
 
     function setUp() public {
@@ -23,7 +24,7 @@ contract RewardsDistributorTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        networkRegistry = new NonMigratablesRegistry();
+        networkRegistry = new NetworkRegistry();
         rewardsDistributor = new SimpleRewardsDistributor(address(networkRegistry));
     }
 

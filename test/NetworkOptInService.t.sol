@@ -3,19 +3,20 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 
-contract OptInServiceTest is Test {
+contract NetworkOptInServiceTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
     address bob;
     uint256 bobPrivateKey;
 
-    NonMigratablesRegistry networkRegistry;
+    NetworkRegistry networkRegistry;
     NonMigratablesRegistry whereRegistry;
 
     INetworkOptInService service;
@@ -25,7 +26,7 @@ contract OptInServiceTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        networkRegistry = new NonMigratablesRegistry();
+        networkRegistry = new NetworkRegistry();
         whereRegistry = new NonMigratablesRegistry();
     }
 

@@ -14,8 +14,8 @@ contract DefaultRewardsDistributorFactory is Registry, IDefaultRewardsDistributo
 
     address private immutable REWARDS_DISTRIBUTOR_IMPLEMENTATION;
 
-    constructor(address networkRegistry, address vaultRegistry) {
-        REWARDS_DISTRIBUTOR_IMPLEMENTATION = address(new DefaultRewardsDistributor(networkRegistry, vaultRegistry));
+    constructor(address networkRegistry, address vaultFactory) {
+        REWARDS_DISTRIBUTOR_IMPLEMENTATION = address(new DefaultRewardsDistributor(networkRegistry, vaultFactory));
     }
 
     /**

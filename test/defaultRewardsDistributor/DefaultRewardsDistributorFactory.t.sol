@@ -3,8 +3,9 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {VaultFactory} from "src/contracts/VaultFactory.sol";
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {MetadataService} from "src/contracts/MetadataService.sol";
 import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
@@ -28,9 +29,9 @@ contract DefaultRewardsDistributorFactoryTest is Test {
     DefaultRewardsDistributorFactory defaultRewardsDistributorFactory;
     DefaultRewardsDistributor defaultRewardsDistributor;
 
-    NonMigratablesRegistry operatorRegistry;
-    MigratablesFactory vaultRegistry;
-    NonMigratablesRegistry networkRegistry;
+    VaultFactory vaultFactory;
+    NetworkRegistry networkRegistry;
+    OperatorRegistry operatorRegistry;
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     MiddlewareService networkMiddlewareService;
@@ -45,17 +46,17 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        operatorRegistry = new NonMigratablesRegistry();
-        vaultRegistry = new MigratablesFactory(owner);
-        networkRegistry = new NonMigratablesRegistry();
+        vaultFactory = new VaultFactory(owner);
+        networkRegistry = new NetworkRegistry();
+        operatorRegistry = new OperatorRegistry();
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new MiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultRegistry));
-        operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultRegistry));
+        networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
+        operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
 
-        vaultRegistry.whitelist(
+        vaultFactory.whitelist(
             address(
                 new Vault(
                     address(networkRegistry),
@@ -69,8 +70,8 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         );
 
         vault = IVault(
-            vaultRegistry.create(
-                vaultRegistry.lastVersion(),
+            vaultFactory.create(
+                vaultFactory.lastVersion(),
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,
@@ -89,14 +90,14 @@ contract DefaultRewardsDistributorFactoryTest is Test {
 
     function test_Create(uint256 initialLimit, address limitIncreaser) public {
         defaultRewardsDistributorFactory =
-            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultRegistry));
+            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultFactory));
 
         address defaultRewardsDistributorAddress = defaultRewardsDistributorFactory.create(address(vault));
         defaultRewardsDistributor = DefaultRewardsDistributor(defaultRewardsDistributorAddress);
         assertEq(defaultRewardsDistributorFactory.isEntity(defaultRewardsDistributorAddress), true);
 
         assertEq(defaultRewardsDistributor.NETWORK_REGISTRY(), address(networkRegistry));
-        assertEq(defaultRewardsDistributor.VAULT_REGISTRY(), address(vaultRegistry));
+        assertEq(defaultRewardsDistributor.VAULT_FACTORY(), address(vaultFactory));
         assertEq(defaultRewardsDistributor.VAULT(), address(vault));
         assertEq(defaultRewardsDistributor.version(), 1);
         assertEq(defaultRewardsDistributor.rewardsLength(alice), 0);
@@ -108,7 +109,7 @@ contract DefaultRewardsDistributorFactoryTest is Test {
 
     function test_CreateRevertNotVault() public {
         defaultRewardsDistributorFactory =
-            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultRegistry));
+            new DefaultRewardsDistributorFactory(address(networkRegistry), address(vaultFactory));
 
         vm.expectRevert(IDefaultRewardsDistributor.NotVault.selector);
         defaultRewardsDistributorFactory.create(address(0));

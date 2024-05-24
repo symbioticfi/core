@@ -3,8 +3,9 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 
-import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {VaultFactory} from "src/contracts/VaultFactory.sol";
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {MetadataService} from "src/contracts/MetadataService.sol";
 import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
@@ -18,20 +19,20 @@ contract CoreScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        NonMigratablesRegistry operatorRegistry = new NonMigratablesRegistry();
-        MigratablesFactory vaultRegistry = new MigratablesFactory(owner);
-        NonMigratablesRegistry networkRegistry = new NonMigratablesRegistry();
+        VaultFactory vaultFactory = new VaultFactory(owner);
+        NetworkRegistry networkRegistry = new NetworkRegistry();
+        OperatorRegistry operatorRegistry = new OperatorRegistry();
         MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));
         MetadataService networkMetadataService = new MetadataService(address(networkRegistry));
         MiddlewareService networkMiddlewareService = new MiddlewareService(address(networkRegistry));
         NetworkOptInService networkVaultOptInService =
-            new NetworkOptInService(address(networkRegistry), address(vaultRegistry));
+            new NetworkOptInService(address(networkRegistry), address(vaultFactory));
         OperatorOptInService operatorVaultOptInService =
-            new OperatorOptInService(address(operatorRegistry), address(vaultRegistry));
+            new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
         OperatorOptInService operatorNetworkOptInService =
             new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
 
-        vaultRegistry.whitelist(
+        vaultFactory.whitelist(
             address(
                 new Vault(
                     address(networkRegistry),
@@ -43,7 +44,7 @@ contract CoreScript is Script {
                 )
             )
         );
-        vaultRegistry.transferOwnership(owner);
+        vaultFactory.transferOwnership(owner);
 
         vm.stopBroadcast();
     }

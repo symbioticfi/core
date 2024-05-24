@@ -3,8 +3,9 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {VaultFactory} from "src/contracts/VaultFactory.sol";
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {MetadataService} from "src/contracts/MetadataService.sol";
 import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
@@ -26,9 +27,9 @@ contract VaultTest is Test {
     address bob;
     uint256 bobPrivateKey;
 
-    NonMigratablesRegistry operatorRegistry;
-    MigratablesFactory vaultRegistry;
-    NonMigratablesRegistry networkRegistry;
+    VaultFactory vaultFactory;
+    NetworkRegistry networkRegistry;
+    OperatorRegistry operatorRegistry;
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     MiddlewareService networkMiddlewareService;
@@ -45,17 +46,17 @@ contract VaultTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        operatorRegistry = new NonMigratablesRegistry();
-        vaultRegistry = new MigratablesFactory(owner);
-        networkRegistry = new NonMigratablesRegistry();
+        vaultFactory = new VaultFactory(owner);
+        networkRegistry = new NetworkRegistry();
+        operatorRegistry = new OperatorRegistry();
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new MiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultRegistry));
-        operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultRegistry));
+        networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
+        operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
 
-        vaultRegistry.whitelist(
+        vaultFactory.whitelist(
             address(
                 new Vault(
                     address(networkRegistry),
@@ -89,8 +90,8 @@ contract VaultTest is Test {
         adminFee = bound(adminFee, 0, 10_000);
 
         vault = IVault(
-            vaultRegistry.create(
-                vaultRegistry.lastVersion(),
+            vaultFactory.create(
+                vaultFactory.lastVersion(),
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,
@@ -1496,10 +1497,10 @@ contract VaultTest is Test {
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        uint64 lastVersion = vaultRegistry.lastVersion();
+        uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidEpochDuration.selector);
         vault = IVault(
-            vaultRegistry.create(
+            vaultFactory.create(
                 lastVersion,
                 abi.encode(
                     IVault.InitParams({
@@ -1527,10 +1528,10 @@ contract VaultTest is Test {
         slashDuration = uint48(bound(slashDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration + slashDuration > epochDuration);
 
-        uint64 lastVersion = vaultRegistry.lastVersion();
+        uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidSlashDuration.selector);
         vault = IVault(
-            vaultRegistry.create(
+            vaultFactory.create(
                 lastVersion,
                 abi.encode(
                     IVault.InitParams({
@@ -1555,10 +1556,10 @@ contract VaultTest is Test {
         uint48 slashDuration = 0;
         uint48 vetoDuration = 0;
 
-        uint64 lastVersion = vaultRegistry.lastVersion();
+        uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidAdminFee.selector);
         vault = IVault(
-            vaultRegistry.create(
+            vaultFactory.create(
                 lastVersion,
                 abi.encode(
                     IVault.InitParams({
@@ -2132,8 +2133,8 @@ contract VaultTest is Test {
 
     function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 slashDuration) internal returns (IVault) {
         return IVault(
-            vaultRegistry.create(
-                vaultRegistry.lastVersion(),
+            vaultFactory.create(
+                vaultFactory.lastVersion(),
                 abi.encode(
                     IVault.InitParams({
                         owner: alice,

@@ -3,19 +3,20 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
+import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
 
 import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 
-contract OptInServiceTest is Test {
+contract OperatorOptInServiceTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
     address bob;
     uint256 bobPrivateKey;
 
-    NonMigratablesRegistry operatorRegistry;
+    OperatorRegistry operatorRegistry;
     NonMigratablesRegistry whereRegistry;
 
     IOperatorOptInService service;
@@ -25,7 +26,7 @@ contract OptInServiceTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        operatorRegistry = new NonMigratablesRegistry();
+        operatorRegistry = new OperatorRegistry();
         whereRegistry = new NonMigratablesRegistry();
     }
 

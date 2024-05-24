@@ -51,10 +51,10 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     event ClaimAdminFee(address indexed recipient, uint256 amount);
 
     /**
-     * @notice Get the vault registry's address.
-     * @return address of the vault registry
+     * @notice Get the vault factory's address.
+     * @return address of the vault factory
      */
-    function VAULT_REGISTRY() external view returns (address);
+    function VAULT_FACTORY() external view returns (address);
 
     /**
      * @notice Get a total number of rewards using a particular token.

@@ -26,7 +26,7 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
     /**
      * @inheritdoc IDefaultRewardsDistributor
      */
-    address public immutable VAULT_REGISTRY;
+    address public immutable VAULT_FACTORY;
 
     address private _VAULT;
 
@@ -49,10 +49,10 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
 
     mapping(uint48 timestamp => uint256 amount) internal _activeSuppliesCache;
 
-    constructor(address networkRegistry, address vaultRegistry) RewardsDistributor(networkRegistry) {
+    constructor(address networkRegistry, address vaultFactory) RewardsDistributor(networkRegistry) {
         _disableInitializers();
 
-        VAULT_REGISTRY = vaultRegistry;
+        VAULT_FACTORY = vaultFactory;
     }
 
     /**
@@ -63,7 +63,7 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
     }
 
     function initialize(address vault) external initializer {
-        if (!IRegistry(VAULT_REGISTRY).isEntity(vault)) {
+        if (!IRegistry(VAULT_FACTORY).isEntity(vault)) {
             revert NotVault();
         }
 

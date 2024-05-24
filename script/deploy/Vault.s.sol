@@ -8,7 +8,7 @@ import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
 contract VaultScript is Script {
     function run(
-        address vaultRegistry,
+        address vaultFactory,
         address owner,
         address collateral,
         uint48 epochDuration,
@@ -23,8 +23,8 @@ contract VaultScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        IMigratablesFactory(vaultRegistry).create(
-            IMigratablesFactory(vaultRegistry).lastVersion(),
+        IMigratablesFactory(vaultFactory).create(
+            IMigratablesFactory(vaultFactory).lastVersion(),
             abi.encode(
                 IVault.InitParams({
                     owner: owner,
