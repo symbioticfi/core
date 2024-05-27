@@ -12,7 +12,7 @@ Coming soon...
 
 ## Technical Documentation
 
-Can be found [here](https://github.com/symbioticfi/core-private/tree/main/specs).
+Can be found [here](./specs).
 
 ## Usage
 
