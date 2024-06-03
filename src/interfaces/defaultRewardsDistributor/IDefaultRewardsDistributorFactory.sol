@@ -5,7 +5,7 @@ import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
 interface IDefaultRewardsDistributorFactory is IRegistry {
     /**
-     * @notice Create a default rewards ditributor for a given vault.
+     * @notice Create a default rewards distributor for a given vault.
      * @param vault address of the vault
      */
     function create(address vault) external returns (address);

@@ -13,14 +13,13 @@ interface IMetadataService {
     event SetMetadataURL(address indexed entity, string metadataURL);
 
     /**
-     * @notice Get the registry address.
+     * @notice Get the registry's address.
      * @return address of the registry
      */
     function REGISTRY() external view returns (address);
 
     /**
      * @notice Get a URL with an entity's metadata.
-     * The metadata should contain a name, description, external_url, and image.
      * @param entity address of the entity
      * @return metadata URL of the entity
      */

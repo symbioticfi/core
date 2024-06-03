@@ -35,8 +35,8 @@ contract OperatorOptInService is IOperatorOptInService {
     /**
      * @inheritdoc IOperatorOptInService
      */
-    function wasOptedIn(address operator, address where, uint256 edgeTimestamp) external view returns (bool) {
-        return isOptedIn[operator][where] || lastOptOut[operator][where] >= edgeTimestamp;
+    function wasOptedInAfter(address operator, address where, uint48 timestamp) external view returns (bool) {
+        return isOptedIn[operator][where] || lastOptOut[operator][where] >= timestamp;
     }
 
     /**

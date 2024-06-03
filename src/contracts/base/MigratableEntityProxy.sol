@@ -29,13 +29,6 @@ contract MigratableEntityProxy is ERC1967Proxy, IMigratableEntityProxy {
     /**
      * @inheritdoc IMigratableEntityProxy
      */
-    function proxyAdmin() external view returns (address) {
-        return _proxyAdmin();
-    }
-
-    /**
-     * @inheritdoc IMigratableEntityProxy
-     */
     function upgradeToAndCall(address newImplementation, bytes calldata data) external {
         if (msg.sender != _proxyAdmin()) {
             revert ProxyDeniedAdminAccess();

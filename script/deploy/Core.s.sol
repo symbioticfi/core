@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity 0.8.25;
 
 import "forge-std/Script.sol";
 
 import {MetadataService} from "src/contracts/MetadataService.sol";
-import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
@@ -14,17 +14,15 @@ import {Vault} from "src/contracts/vault/v1/Vault.sol";
 
 contract CoreScript is Script {
     function run(address owner) public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
-
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
+        (,, address deployer) = vm.readCallers();
 
         VaultFactory vaultFactory = new VaultFactory(deployer);
         NetworkRegistry networkRegistry = new NetworkRegistry();
         OperatorRegistry operatorRegistry = new OperatorRegistry();
         MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));
         MetadataService networkMetadataService = new MetadataService(address(networkRegistry));
-        MiddlewareService networkMiddlewareService = new MiddlewareService(address(networkRegistry));
+        NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         NetworkOptInService networkVaultOptInService =
             new NetworkOptInService(address(networkRegistry), address(vaultFactory));
         OperatorOptInService operatorVaultOptInService =
@@ -35,8 +33,8 @@ contract CoreScript is Script {
         vaultFactory.whitelist(
             address(
                 new Vault(
+                    address(vaultFactory),
                     address(networkRegistry),
-                    address(operatorRegistry),
                     address(networkMiddlewareService),
                     address(networkVaultOptInService),
                     address(operatorVaultOptInService),

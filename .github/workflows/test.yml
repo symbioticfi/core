@@ -26,4 +26,4 @@ jobs:
           forge test -vvv
         id: test
         env:
-          RPC_MAINNET: ${{ secrets.RPC_MAINNET }}
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}

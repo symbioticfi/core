@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
+import {IRewardsDistributor} from "src/interfaces/base/rewardsDistributor/v1/IRewardsDistributor.sol";
 
 interface IDefaultRewardsDistributor is IRewardsDistributor {
     error AlreadySet();
@@ -11,6 +11,7 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     error InvalidRewardTimestamp();
     error NoDeposits();
     error NoRewardsToClaim();
+    error NotNetwork();
     error NotNetworkMiddleware();
     error NotVault();
     error NotVaultOwner();
@@ -21,7 +22,7 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
      * @param network network on behalf of which the reward is distributed
      * @param amount amount of tokens to be distributed (admin fee is excluded)
      * @param timestamp time point stakes must taken into account at
-     * @param creation timestamp when the reward distribution was created
+     * @param creation time point the reward distribution was created at
      */
     struct RewardDistribution {
         address network;
@@ -29,13 +30,6 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
         uint48 timestamp;
         uint48 creation;
     }
-
-    /**
-     * @notice Emitted when a network whitelist status is set.
-     * @param network network for which the whitelist status is set
-     * @param status whitelist status
-     */
-    event SetNetworkWhitelistStatus(address indexed network, bool status);
 
     /**
      * @notice Emitted when a reward is claimed.
@@ -61,6 +55,19 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     event ClaimAdminFee(address indexed recipient, uint256 amount);
 
     /**
+     * @notice Emitted when a network whitelist status is set.
+     * @param network network for which the whitelist status is set
+     * @param status if whitelisted the network
+     */
+    event SetNetworkWhitelistStatus(address indexed network, bool status);
+
+    /**
+     * @notice Get the network registry's address.
+     * @return address of the network registry
+     */
+    function NETWORK_REGISTRY() external view returns (address);
+
+    /**
      * @notice Get the vault factory's address.
      * @return address of the vault factory
      */
@@ -73,6 +80,12 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
 
     /**
+     * @notice Get the vault's address.
+     * @return address of the vault
+     */
+    function VAULT() external view returns (address);
+
+    /**
      * @notice Get if a given account is a whitelisted network.
      * @param account address to check
      */
@@ -81,18 +94,18 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     /**
      * @notice Get a total number of rewards using a particular token.
      * @param token address of the token
-     * @return total number of rewards using the token
+     * @return total number of the rewards using the token
      */
     function rewardsLength(address token) external view returns (uint256);
 
     /**
-     * @notice Get a reward distribution.
+     * @notice Get a particular reward distribution.
      * @param token address of the token
-     * @param rewardIndex index of the reward distribution
+     * @param rewardIndex index of the reward distribution using the token
      * @return network network on behalf of which the reward is distributed
      * @return amount amount of tokens to be distributed
      * @return timestamp time point stakes must taken into account at
-     * @return creation timestamp when the reward distribution was created
+     * @return creation time point the reward distribution was created at
      */
     function rewards(
         address token,
@@ -108,24 +121,17 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     function lastUnclaimedReward(address account, address token) external view returns (uint256);
 
     /**
-     * @notice Get a claimable fee amount for a particular token.
+     * @notice Get a claimable admin fee amount for a particular token.
      * @param token address of the token
-     * @return claimable fee
+     * @return claimable admin fee
      */
     function claimableAdminFee(address token) external view returns (uint256);
-
-    /**
-     * @notice Set a network whitelist status (it allows networks to distribute rewards).
-     * @param network address of the network
-     * @dev Only the vault owner can call this function.
-     */
-    function setNetworkWhitelistStatus(address network, bool status) external;
 
     /**
      * @notice Claim rewards for a particular token.
      * @param recipient account that will receive the rewards
      * @param token address of the token
-     * @param maxRewards max amount of rewards to process
+     * @param maxRewards maximum amount of rewards to process
      * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
      */
     function claimRewards(
@@ -136,10 +142,18 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     ) external;
 
     /**
-     * @notice Claim admin fee.
-     * @param recipient account that receives the fee
+     * @notice Claim an admin fee.
+     * @param recipient account that will receive the fee
      * @param token address of the token
      * @dev Only the vault owner can call this function.
      */
     function claimAdminFee(address recipient, address token) external;
+
+    /**
+     * @notice Set a network whitelist status (it allows networks to distribute rewards).
+     * @param network address of the network
+     * @param status if whitelisting the network
+     * @dev Only the vault owner can call this function.
+     */
+    function setNetworkWhitelistStatus(address network, bool status) external;
 }

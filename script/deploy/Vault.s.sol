@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity 0.8.25;
 
 import "forge-std/Script.sol";
 
@@ -13,24 +13,22 @@ contract VaultScript is Script {
         address collateral,
         uint48 epochDuration,
         uint48 vetoDuration,
-        uint48 slashDuration,
+        uint48 executeDuration,
         address rewardsDistributor,
         uint256 adminFee,
         bool depositWhitelist
     ) public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
 
         IMigratablesFactory(vaultFactory).create(
             IMigratablesFactory(vaultFactory).lastVersion(),
+            owner,
             abi.encode(
                 IVault.InitParams({
-                    owner: owner,
                     collateral: collateral,
                     epochDuration: epochDuration,
                     vetoDuration: vetoDuration,
-                    slashDuration: slashDuration,
+                    executeDuration: executeDuration,
                     rewardsDistributor: rewardsDistributor,
                     adminFee: adminFee,
                     depositWhitelist: depositWhitelist

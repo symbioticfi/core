@@ -58,7 +58,7 @@ contract SimpleCollateral is ERC20, ICollateral {
     mapping(address issuer => mapping(address recipient => uint256 amount)) public debt;
 
     constructor(address asset_)
-        ERC20(string.concat("DefaultCollateral_", ERC20(asset_).name()), string.concat("DB_", ERC20(asset_).symbol()))
+        ERC20(string.concat("SimpleCollateral_", ERC20(asset_).name()), string.concat("SC_", ERC20(asset_).symbol()))
     {
         asset = asset_;
 

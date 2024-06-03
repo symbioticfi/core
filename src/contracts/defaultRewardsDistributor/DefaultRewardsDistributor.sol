@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {RewardsDistributorBase} from "src/contracts/base/RewardsDistributorBase.sol";
-import {RewardsDistributor} from "src/contracts/base/RewardsDistributor.sol";
-
 import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
-import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
+import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
-import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
+import {IRewardsDistributor} from "src/interfaces/base/rewardsDistributor/v1/IRewardsDistributor.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-
-import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -20,9 +14,19 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgradeable, IDefaultRewardsDistributor {
+contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultRewardsDistributor {
     using SafeERC20 for IERC20;
     using Math for uint256;
+
+    /**
+     * @inheritdoc IRewardsDistributor
+     */
+    uint64 public constant version = 1;
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    address public immutable NETWORK_REGISTRY;
 
     /**
      * @inheritdoc IDefaultRewardsDistributor
@@ -34,7 +38,10 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
      */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
-    address private _VAULT;
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    address public VAULT;
 
     /**
      * @inheritdoc IDefaultRewardsDistributor
@@ -58,31 +65,19 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
 
     mapping(uint48 timestamp => uint256 amount) internal _activeSharesCache;
 
-    mapping(uint48 timestamp => uint256 amount) internal _activeSuppliesCache;
-
     modifier onlyVaultOwner() {
-        if (Ownable(VAULT()).owner() != msg.sender) {
+        if (Ownable(VAULT).owner() != msg.sender) {
             revert NotVaultOwner();
         }
         _;
     }
 
-    constructor(
-        address networkRegistry,
-        address vaultFactory,
-        address networkMiddlewareService
-    ) RewardsDistributor(networkRegistry) {
+    constructor(address networkRegistry, address vaultFactory, address networkMiddlewareService) {
         _disableInitializers();
 
+        NETWORK_REGISTRY = networkRegistry;
         VAULT_FACTORY = vaultFactory;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
-    }
-
-    /**
-     * @inheritdoc IRewardsDistributorBase
-     */
-    function VAULT() public view override(RewardsDistributorBase, IRewardsDistributorBase) returns (address) {
-        return _VAULT;
     }
 
     /**
@@ -99,32 +94,14 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
 
         __ReentrancyGuard_init();
 
-        _VAULT = vault;
-    }
-
-    /**
-     * @inheritdoc IDefaultRewardsDistributor
-     */
-    function setNetworkWhitelistStatus(address network, bool status) external onlyVaultOwner checkNetwork(network) {
-        if (isNetworkWhitelisted[network] == status) {
-            revert AlreadySet();
-        }
-
-        isNetworkWhitelisted[network] = status;
-
-        emit SetNetworkWhitelistStatus(network, status);
+        VAULT = vault;
     }
 
     /**
      * @inheritdoc IRewardsDistributor
      */
-    function distributeReward(
-        address network,
-        address token,
-        uint256 amount,
-        uint48 timestamp
-    ) external override(RewardsDistributor, IRewardsDistributor) nonReentrant {
-        if (IMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
+    function distributeReward(address network, address token, uint256 amount, uint48 timestamp) external nonReentrant {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
@@ -137,15 +114,14 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
         }
 
         if (_activeSharesCache[timestamp] == 0) {
-            uint256 activeShares_ = IVault(VAULT()).activeSharesAt(timestamp);
-            uint256 activeSupply_ = IVault(VAULT()).activeSupplyAt(timestamp);
+            uint256 activeShares_ = IVault(VAULT).activeSharesAt(timestamp);
+            uint256 activeSupply_ = IVault(VAULT).activeSupplyAt(timestamp);
 
             if (activeShares_ == 0 || activeSupply_ == 0) {
                 revert InvalidRewardTimestamp();
             }
 
             _activeSharesCache[timestamp] = activeShares_;
-            _activeSuppliesCache[timestamp] = activeSupply_;
         }
 
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
@@ -156,7 +132,7 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
             revert InsufficientReward();
         }
 
-        uint256 adminFeeAmount = amount.mulDiv(IVault(VAULT()).adminFee(), IVault(VAULT()).ADMIN_FEE_BASE());
+        uint256 adminFeeAmount = amount.mulDiv(IVault(VAULT).adminFee(), IVault(VAULT).ADMIN_FEE_BASE());
         claimableAdminFee[token] += adminFeeAmount;
 
         rewards[token].push(
@@ -180,7 +156,7 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
         uint256 maxRewards,
         uint32[] calldata activeSharesOfHints
     ) external {
-        uint48 firstDepositAt_ = IVault(VAULT()).firstDepositAt(msg.sender);
+        uint48 firstDepositAt_ = IVault(VAULT).firstDepositAt(msg.sender);
         if (firstDepositAt_ == 0) {
             revert NoDeposits();
         }
@@ -202,24 +178,17 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
             revert InvalidHintsLength();
         }
 
-        mapping(uint48 => uint256) storage _activeSharesCacheByVault = _activeSharesCache;
-        mapping(uint48 => uint256) storage _activeSuppliesCacheByVault = _activeSuppliesCache;
-
         uint256 amount;
         for (uint256 j; j < rewardsToClaim;) {
             RewardDistribution storage reward = rewardsByToken[rewardIndex];
 
             uint256 claimedAmount;
             if (reward.timestamp >= firstDepositAt_) {
-                uint256 activeSupply_ = _activeSuppliesCacheByVault[reward.timestamp];
                 uint256 activeSharesOf_ = hasHints
-                    ? IVault(VAULT()).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
-                    : IVault(VAULT()).activeSharesOfAt(msg.sender, reward.timestamp);
-                uint256 activeBalanceOf_ = ERC4626Math.previewRedeem(
-                    activeSharesOf_, activeSupply_, _activeSharesCacheByVault[reward.timestamp]
-                );
+                    ? IVault(VAULT).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
+                    : IVault(VAULT).activeSharesOfAt(msg.sender, reward.timestamp);
 
-                claimedAmount = activeBalanceOf_.mulDiv(reward.amount, activeSupply_);
+                claimedAmount = activeSharesOf_.mulDiv(reward.amount, _activeSharesCache[reward.timestamp]);
                 amount += claimedAmount;
             }
 
@@ -252,6 +221,23 @@ contract DefaultRewardsDistributor is RewardsDistributor, ReentrancyGuardUpgrade
         IERC20(token).safeTransfer(recipient, claimableAdminFee_);
 
         emit ClaimAdminFee(token, claimableAdminFee_);
+    }
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    function setNetworkWhitelistStatus(address network, bool status) external onlyVaultOwner {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
+            revert NotNetwork();
+        }
+
+        if (isNetworkWhitelisted[network] == status) {
+            revert AlreadySet();
+        }
+
+        isNetworkWhitelisted[network] = status;
+
+        emit SetNetworkWhitelistStatus(network, status);
     }
 
     /**

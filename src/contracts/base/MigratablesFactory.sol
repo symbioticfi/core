@@ -18,13 +18,6 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
-    modifier isValidVersion(uint64 version) {
-        if (version == 0 || version > lastVersion()) {
-            revert InvalidVersion();
-        }
-        _;
-    }
-
     constructor(address owner_) Ownable(owner_) {}
 
     /**
@@ -37,15 +30,18 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function implementation(uint64 version) public view isValidVersion(version) returns (address) {
+    function implementation(uint64 version) public view returns (address) {
+        if (version == 0 || version > lastVersion()) {
+            revert InvalidVersion();
+        }
         return _whitelistedImplementations.at(version - 1);
     }
 
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function whitelist(address entityImplementation) external onlyOwner {
-        if (!_whitelistedImplementations.add(entityImplementation)) {
+    function whitelist(address newImplementation) external onlyOwner {
+        if (!_whitelistedImplementations.add(newImplementation)) {
             revert AlreadyWhitelisted();
         }
     }
@@ -53,10 +49,11 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function create(uint64 version, bytes memory data) external returns (address entity_) {
+    function create(uint64 version, address owner_, bytes memory data) external returns (address entity_) {
         entity_ = address(
             new MigratableEntityProxy(
-                implementation(version), abi.encodeWithSelector(IMigratableEntity.initialize.selector, version, data)
+                implementation(version),
+                abi.encodeWithSelector(IMigratableEntity.initialize.selector, version, owner_, data)
             )
         );
 
@@ -66,14 +63,17 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function migrate(address entity_, bytes memory data) external checkEntity(entity_) {
+    function migrate(address entity_, uint64 newVersion, bytes memory data) external checkEntity(entity_) {
         if (msg.sender != Ownable(entity_).owner()) {
             revert NotOwner();
         }
 
+        if (newVersion <= IMigratableEntity(entity_).version()) {
+            revert OldVersion();
+        }
+
         IMigratableEntityProxy(entity_).upgradeToAndCall(
-            implementation(IMigratableEntity(entity_).version() + 1),
-            abi.encodeWithSelector(IMigratableEntity.migrate.selector, data)
+            implementation(newVersion), abi.encodeWithSelector(IMigratableEntity.migrate.selector, newVersion, data)
         );
     }
 }

@@ -2,7 +2,13 @@
 pragma solidity 0.8.25;
 
 interface IMigratableEntity {
-    error NotProxyAdmin();
+    error NotFactory();
+
+    /**
+     * @notice Get the factory's address.
+     * @return address of the factory
+     */
+    function FACTORY() external view returns (address);
 
     /**
      * @notice Get the entity's version.
@@ -12,15 +18,17 @@ interface IMigratableEntity {
     function version() external view returns (uint64);
 
     /**
-     * @notice Initialize this entity contract using a given data, and setting a particular version.
-     * @param version initial version of the entity
+     * @notice Initialize this entity contract using a given data, and setting a particular version and owner.
+     * @param initialVersion initial version of the entity
+     * @param owner initial owner of the entity
      * @param data some data to use
      */
-    function initialize(uint64 version, bytes memory data) external;
+    function initialize(uint64 initialVersion, address owner, bytes memory data) external;
 
     /**
-     * @notice Migrate this entity to a newer version using a given data.
+     * @notice Migrate this entity to a particular newer version using a given data.
+     * @param newVersion new version of the entity
      * @param data some data to use
      */
-    function migrate(bytes memory data) external;
+    function migrate(uint64 newVersion, bytes memory data) external;
 }

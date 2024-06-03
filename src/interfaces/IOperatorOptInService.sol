@@ -8,16 +8,16 @@ interface IOperatorOptInService {
     error NotWhereEntity();
 
     /**
-     * @notice Emitted when an operator opts-in to a "where" entity.
-     * @param operator address of the operator that opted-in
-     * @param where address of the entity where the operator opted-in to
+     * @notice Emitted when an operator opts into a "where" entity.
+     * @param operator address of the operator
+     * @param where address of the "where" entity
      */
     event OptIn(address indexed operator, address indexed where);
 
     /**
      * @notice Emitted when an operator opts out from a "where" entity.
-     * @param operator address of the operator that opted out
-     * @param where address of the entity where the operator opted out from
+     * @param operator address of the operator
+     * @param where address of the "where" entity
      */
     event OptOut(address indexed operator, address indexed where);
 
@@ -36,34 +36,34 @@ interface IOperatorOptInService {
     /**
      * @notice Check if a given operator is opted-in to a particular "where" entity.
      * @param operator address of the operator
-     * @param where address of the entity to opt-in to
+     * @param where address of the "where" registry
      */
     function isOptedIn(address operator, address where) external view returns (bool);
 
     /**
      * @notice Get the timestamp of the last opt-out of a given operator from a particular "where" entity.
      * @param operator address of the operator
-     * @param where address of the entity to opt-out from
+     * @param where address of the "where" registry
      */
     function lastOptOut(address operator, address where) external view returns (uint48);
 
     /**
-     * @notice Check if a given operator was opted-in to a particular "where" entity after the edge timestamp inclusively.
+     * @notice Check if a given operator was opted-in to a particular "where" entity after a given timestamp (inclusively).
      * @param operator address of the operator
-     * @param where address of the entity to opt-in to
-     * @param edgeTimestamp timestamp to check if the operator was opted-in after
+     * @param where address of the "where" registry
+     * @param timestamp time point to check if the operator was opted-in after
      */
-    function wasOptedIn(address operator, address where, uint256 edgeTimestamp) external view returns (bool);
+    function wasOptedInAfter(address operator, address where, uint48 timestamp) external view returns (bool);
 
     /**
      * @notice Opt-in a calling operator to a particular "where" entity.
-     * @param where address of the entity to opt-in to
+     * @param where address of the "where" registry
      */
     function optIn(address where) external;
 
     /**
      * @notice Opt-out a calling operator from a particular "where" entity.
-     * @param where address of the entity to opt-out from
+     * @param where address of the "where" registry
      */
     function optOut(address where) external;
 }

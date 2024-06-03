@@ -1,31 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {RewardsDistributorBase} from "src/contracts/base/RewardsDistributorBase.sol";
-import {RewardsDistributor} from "src/contracts/base/RewardsDistributor.sol";
+import {IRewardsDistributor} from "src/interfaces/base/rewardsDistributor/v1/IRewardsDistributor.sol";
 
-import {IRewardsDistributorBase} from "src/interfaces/base/IRewardsDistributorBase.sol";
-import {IRewardsDistributor} from "src/interfaces/base/IRewardsDistributor.sol";
-
-contract SimpleRewardsDistributor is RewardsDistributor {
-    constructor(address networkRegistry) RewardsDistributor(networkRegistry) {}
-
+contract SimpleRewardsDistributor is IRewardsDistributor {
     /**
-     * @inheritdoc IRewardsDistributorBase
+     * @inheritdoc IRewardsDistributor
      */
-    function VAULT() public pure override(RewardsDistributorBase, IRewardsDistributorBase) returns (address) {
-        return address(1);
-    }
+    uint64 public constant version = 1;
 
     /**
      * @inheritdoc IRewardsDistributor
      */
-    function distributeReward(
-        address network,
-        address token,
-        uint256 amount,
-        uint48 timestamp
-    ) external override checkNetwork(network) {
+    function distributeReward(address network, address token, uint256 amount, uint48 timestamp) external {
         emit DistributeReward(network, token, amount, timestamp);
     }
 }

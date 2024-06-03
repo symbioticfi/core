@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {Registry} from "./base/Registry.sol";
 
 import {IOperatorRegistry} from "src/interfaces/IOperatorRegistry.sol";
 
-contract OperatorRegistry is NonMigratablesRegistry, IOperatorRegistry {}
+contract OperatorRegistry is Registry, IOperatorRegistry {
+    /**
+     * @inheritdoc IOperatorRegistry
+     */
+    function registerOperator() external {
+        if (isEntity(msg.sender)) {
+            revert OperatorAlreadyRegistered();
+        }
+
+        _addEntity(msg.sender);
+    }
+}

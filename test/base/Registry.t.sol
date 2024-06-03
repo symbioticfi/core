@@ -29,7 +29,7 @@ contract FactoryTest is Test {
         registry.entity(0);
 
         vm.startPrank(alice);
-        address entity = registry.create();
+        address entity = registry.register();
         vm.stopPrank();
 
         assertEq(entity, alice);
@@ -40,7 +40,7 @@ contract FactoryTest is Test {
         registry.entity(1);
 
         vm.startPrank(bob);
-        entity = registry.create();
+        entity = registry.register();
         vm.stopPrank();
 
         assertEq(entity, bob);

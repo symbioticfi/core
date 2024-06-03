@@ -7,7 +7,7 @@ import {VaultFactory} from "src/contracts/VaultFactory.sol";
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {MetadataService} from "src/contracts/MetadataService.sol";
-import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 
@@ -18,13 +18,15 @@ import {DefaultRewardsDistributorFactory} from
     "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributorFactory.sol";
 import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
 
+import {DefaultRewardsDistributor} from "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributor.sol";
+
 import {Token} from "test/mocks/Token.sol";
 import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
 import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract RewardsServiceTest is Test {
+contract RewardsDistributorTest is Test {
     using Math for uint256;
 
     address owner;
@@ -38,7 +40,7 @@ contract RewardsServiceTest is Test {
     OperatorRegistry operatorRegistry;
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
-    MiddlewareService networkMiddlewareService;
+    NetworkMiddlewareService networkMiddlewareService;
     NetworkOptInService networkVaultOptInService;
     OperatorOptInService operatorVaultOptInService;
     OperatorOptInService operatorNetworkOptInService;
@@ -60,7 +62,7 @@ contract RewardsServiceTest is Test {
         operatorRegistry = new OperatorRegistry();
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
-        networkMiddlewareService = new MiddlewareService(address(networkRegistry));
+        networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
@@ -68,8 +70,8 @@ contract RewardsServiceTest is Test {
         vaultFactory.whitelist(
             address(
                 new Vault(
+                    address(vaultFactory),
                     address(networkRegistry),
-                    address(operatorRegistry),
                     address(networkMiddlewareService),
                     address(networkVaultOptInService),
                     address(operatorVaultOptInService),
@@ -91,19 +93,31 @@ contract RewardsServiceTest is Test {
     function test_Create() public {
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
     }
 
+    function test_ReinitRevert() public {
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+
+        vm.expectRevert();
+        DefaultRewardsDistributor(address(defaultRewardsDistributor)).initialize(address(vault));
+    }
+
     function test_SetNetworkWhitelistStatus() public {
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -119,8 +133,8 @@ contract RewardsServiceTest is Test {
     function test_SetNetworkWhitelistStatusRevertNotVaultOwner() public {
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -136,8 +150,8 @@ contract RewardsServiceTest is Test {
     function test_SetNetworkWhitelistStatusRevertAlreadySet() public {
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -158,8 +172,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
@@ -214,8 +228,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -251,8 +265,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -287,8 +301,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -322,8 +336,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -353,14 +367,15 @@ contract RewardsServiceTest is Test {
         _distributeReward(bob, network, address(feeOnTransferToken), 1, timestamp);
     }
 
-    function test_ClaimRewards(uint256 amount, uint256 ditributeAmount) public {
+    function test_ClaimRewards(uint256 amount, uint256 ditributeAmount1, uint256 ditributeAmount2) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
-        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+        ditributeAmount1 = bound(ditributeAmount1, 1, 100 * 10 ** 18);
+        ditributeAmount2 = bound(ditributeAmount2, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -385,15 +400,80 @@ contract RewardsServiceTest is Test {
         vm.stopPrank();
 
         _setNetworkWhitelistStatus(alice, network, true);
+
+        _distributeReward(bob, network, address(token), ditributeAmount1, uint48(blockTimestamp - 1));
+
         uint48 timestamp = 3;
-        _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
+        _distributeReward(bob, network, address(token), ditributeAmount2, timestamp);
 
         uint256 balanceBefore = token.balanceOf(alice);
-        uint32[] memory activeSharesOfHints = new uint32[](1);
-        _claimRewards(alice, address(token), 1, activeSharesOfHints);
-        assertEq(token.balanceOf(alice) - balanceBefore, ditributeAmount);
+        uint32[] memory activeSharesOfHints = new uint32[](2);
+        _claimRewards(alice, address(token), 2, activeSharesOfHints);
+        assertEq(token.balanceOf(alice) - balanceBefore, ditributeAmount1 + ditributeAmount2);
 
-        assertEq(defaultRewardsDistributor.lastUnclaimedReward(alice, address(token)), 1);
+        assertEq(defaultRewardsDistributor.lastUnclaimedReward(alice, address(token)), 2);
+    }
+
+    function test_ClaimRewardsBoth(uint256 amount, uint256 ditributeAmount1, uint256 ditributeAmount2) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount1 = bound(ditributeAmount1, 1, 100 * 10 ** 18);
+        ditributeAmount2 = bound(ditributeAmount2, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        uint256 aliceN = 10;
+        for (uint256 i; i < aliceN; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        uint256 bobN = 3;
+        for (uint256 i; i < bobN; ++i) {
+            _deposit(bob, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 token = IERC20(new Token("Token"));
+        token.transfer(bob, 100_000 * 1e18);
+        vm.startPrank(bob);
+        token.approve(address(defaultRewardsDistributor), type(uint256).max);
+        vm.stopPrank();
+
+        _setNetworkWhitelistStatus(alice, network, true);
+
+        _distributeReward(bob, network, address(token), ditributeAmount1, uint48(blockTimestamp - 1));
+
+        uint48 timestamp = 3;
+        _distributeReward(bob, network, address(token), ditributeAmount2, timestamp);
+
+        uint256 balanceBefore = token.balanceOf(alice);
+        uint32[] memory activeSharesOfHints = new uint32[](2);
+        _claimRewards(alice, address(token), 2, activeSharesOfHints);
+        assertEq(
+            token.balanceOf(alice) - balanceBefore, ditributeAmount1.mulDiv(aliceN, aliceN + bobN) + ditributeAmount2
+        );
+
+        balanceBefore = token.balanceOf(bob);
+        _claimRewards(bob, address(token), 2, activeSharesOfHints);
+        assertEq(token.balanceOf(bob) - balanceBefore, ditributeAmount1.mulDiv(bobN, aliceN + bobN));
+
+        assertEq(defaultRewardsDistributor.lastUnclaimedReward(alice, address(token)), 2);
     }
 
     function test_ClaimRewardsManyWithoutHints(uint256 amount, uint256 ditributeAmount) public {
@@ -401,9 +481,9 @@ contract RewardsServiceTest is Test {
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 0;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -446,9 +526,9 @@ contract RewardsServiceTest is Test {
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 0;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -495,8 +575,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -524,8 +604,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -553,8 +633,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -593,8 +673,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
         _grantRewardsDistributorSetRole(alice, alice);
@@ -633,8 +713,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
@@ -686,8 +766,8 @@ contract RewardsServiceTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         defaultRewardsDistributor = _getDefaultRewardsDistributor();
@@ -726,17 +806,17 @@ contract RewardsServiceTest is Test {
         _claimAdminFee(alice, address(token));
     }
 
-    function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 slashDuration) internal returns (IVault) {
+    function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 executeDuration) internal returns (IVault) {
         return IVault(
             vaultFactory.create(
                 vaultFactory.lastVersion(),
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
+                        executeDuration: executeDuration,
                         rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
@@ -752,7 +832,7 @@ contract RewardsServiceTest is Test {
 
     function _registerNetwork(address user, address middleware) internal {
         vm.startPrank(user);
-        networkRegistry.register();
+        networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(middleware);
         vm.stopPrank();
     }

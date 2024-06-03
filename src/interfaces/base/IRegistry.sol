@@ -12,14 +12,14 @@ interface IRegistry {
 
     /**
      * @notice Get if a given address is an entity.
-     * @param entity address to check
+     * @param account address to check
      * @return if the given address is an entity
      */
-    function isEntity(address entity) external view returns (bool);
+    function isEntity(address account) external view returns (bool);
 
     /**
      * @notice Get a total number of entities.
-     * @return total number of entities created
+     * @return total number of entities added
      */
     function totalEntities() external view returns (uint256);
 

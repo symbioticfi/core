@@ -5,8 +5,7 @@ import {MigratableEntity} from "src/contracts/base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
-import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
-import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
+import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
@@ -23,6 +22,24 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+
+    /**
+     * @inheritdoc IVault
+     */
+    function totalSupplyIn(uint48 duration) public view returns (uint256) {
+        uint256 epoch = currentEpoch();
+        uint256 futureEpoch = epochAt(Time.timestamp() + duration);
+
+        if (futureEpoch > epoch + 1) {
+            return activeSupply();
+        }
+
+        if (futureEpoch > epoch) {
+            return activeSupply() + withdrawals[futureEpoch];
+        }
+
+        return activeSupply() + withdrawals[epoch] + withdrawals[epoch + 1];
+    }
 
     /**
      * @inheritdoc IVault
@@ -51,15 +68,33 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function withdrawalsBalanceOf(uint256 epoch, address account) public view returns (uint256) {
-        return
-            ERC4626Math.previewRedeem(withdrawalsSharesOf[epoch][account], withdrawals[epoch], withdrawalsShares[epoch]);
+    function pendingWithdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
+        return ERC4626Math.previewRedeem(
+            pendingWithdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]
+        );
     }
 
     /**
      * @inheritdoc IVault
      */
-    function maxSlash(address network, address resolver, address operator) public view returns (uint256) {
+    function slashableAmountIn(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) public view returns (uint256) {
+        return Math.min(
+            totalSupplyIn(duration),
+            Math.min(
+                networkResolverLimitIn(network, resolver, duration), operatorNetworkLimitIn(operator, network, duration)
+            )
+        );
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function slashableAmount(address network, address resolver, address operator) public view returns (uint256) {
         return Math.min(
             totalSupply(), Math.min(networkResolverLimit(network, resolver), operatorNetworkLimit(operator, network))
         );
@@ -68,28 +103,68 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
+    function networkResolverLimitIn(address network, address resolver, uint48 duration) public view returns (uint256) {
+        return _getLimitAt(
+            _networkResolverLimit[network][resolver],
+            nextNetworkResolverLimit[network][resolver],
+            Time.timestamp() + duration
+        );
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function networkResolverLimit(address network, address resolver) public view returns (uint256) {
-        return _getLimit(_networkResolverLimit[network][resolver], nextNetworkResolverLimit[network][resolver]);
+        return networkResolverLimitIn(network, resolver, 0);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function operatorNetworkLimitIn(address operator, address network, uint48 duration) public view returns (uint256) {
+        return _getLimitAt(
+            _operatorNetworkLimit[operator][network],
+            nextOperatorNetworkLimit[operator][network],
+            Time.timestamp() + duration
+        );
     }
 
     /**
      * @inheritdoc IVault
      */
     function operatorNetworkLimit(address operator, address network) public view returns (uint256) {
-        return _getLimit(_operatorNetworkLimit[operator][network], nextOperatorNetworkLimit[operator][network]);
+        return operatorNetworkLimitIn(operator, network, 0);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function minStakeDuring(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256) {
+        return Math.min(
+            activeSupply(),
+            Math.min(
+                Math.min(networkResolverLimit(network, resolver), networkResolverLimitIn(network, resolver, duration)),
+                Math.min(operatorNetworkLimit(operator, network), operatorNetworkLimitIn(operator, network, duration))
+            )
+        );
     }
 
     constructor(
+        address vaultFactory,
         address networkRegistry,
-        address operatorRegistry,
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
         address operatorNetworkOptInService
     )
+        MigratableEntity(vaultFactory)
         VaultStorage(
             networkRegistry,
-            operatorRegistry,
             networkMiddlewareService,
             networkVaultOptInService,
             operatorVaultOptInService,
@@ -97,46 +172,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         )
     {
         _disableInitializers();
-    }
-
-    /**
-     * @inheritdoc IMigratableEntity
-     */
-    function initialize(uint64 version_, bytes memory data) public override reinitializer(version_) {
-        (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
-
-        if (params.epochDuration == 0) {
-            revert InvalidEpochDuration();
-        }
-
-        if (params.vetoDuration + params.slashDuration > params.epochDuration) {
-            revert InvalidSlashDuration();
-        }
-
-        if (params.adminFee > ADMIN_FEE_BASE) {
-            revert InvalidAdminFee();
-        }
-
-        _initialize(params.owner);
-
-        collateral = params.collateral;
-
-        epochDurationInit = Time.timestamp();
-        epochDuration = params.epochDuration;
-
-        vetoDuration = params.vetoDuration;
-        slashDuration = params.slashDuration;
-
-        rewardsDistributor = params.rewardsDistributor;
-        adminFee = params.adminFee;
-        depositWhitelist = params.depositWhitelist;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
-        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, params.owner);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.owner);
-        if (params.depositWhitelist) {
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.owner);
-        }
     }
 
     /**
@@ -192,13 +227,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         uint256 epoch = currentEpoch() + 1;
         uint256 withdrawals_ = withdrawals[epoch];
-        uint256 withdrawalsShares_ = withdrawalsShares[epoch];
+        uint256 withdrawalsShares_ = withdrawalShares[epoch];
 
         mintedShares = ERC4626Math.previewDeposit(amount, withdrawalsShares_, withdrawals_);
 
         withdrawals[epoch] = withdrawals_ + amount;
-        withdrawalsShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalsSharesOf[epoch][claimer] += mintedShares;
+        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
+        pendingWithdrawalSharesOf[epoch][claimer] += mintedShares;
 
         emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
     }
@@ -211,13 +246,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidEpoch();
         }
 
-        amount = withdrawalsBalanceOf(epoch, msg.sender);
+        amount = pendingWithdrawalsOf(epoch, msg.sender);
 
         if (amount == 0) {
             revert InsufficientClaim();
         }
 
-        withdrawalsSharesOf[epoch][msg.sender] = 0;
+        pendingWithdrawalSharesOf[epoch][msg.sender] = 0;
 
         IERC20(collateral).transfer(recipient, amount);
 
@@ -233,13 +268,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         address operator,
         uint256 amount
     ) external returns (uint256 slashIndex) {
-        if (IMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
-        uint256 maxSlash_ = maxSlash(network, resolver, operator);
+        uint256 slashableAmount_ = slashableAmountIn(network, resolver, operator, vetoDuration);
 
-        if (amount == 0 || maxSlash_ == 0) {
+        if (amount == 0 || slashableAmount_ == 0) {
             revert InsufficientSlash();
         }
 
@@ -248,23 +283,26 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         if (
-            !IOperatorOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedIn(
-                operator, address(this), previousEpochStart()
+            !IOperatorOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(
+                operator, address(this), currentEpoch() != 0 ? previousEpochStart() : currentEpochStart()
             )
         ) {
             revert OperatorNotOptedInVault();
         }
 
-        if (!IOperatorOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedIn(operator, network, previousEpochStart()))
-        {
+        if (
+            !IOperatorOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(
+                operator, network, currentEpoch() != 0 ? previousEpochStart() : currentEpochStart()
+            )
+        ) {
             revert OperatorNotOptedInNetwork();
         }
 
-        if (amount > maxSlash_) {
-            amount = maxSlash_;
+        if (amount > slashableAmount_) {
+            amount = slashableAmount_;
         }
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
-        uint48 slashDeadline = vetoDeadline + slashDuration;
+        uint48 executeDeadline = vetoDeadline + executeDuration;
 
         slashIndex = slashRequests.length;
         slashRequests.push(
@@ -274,12 +312,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
                 operator: operator,
                 amount: amount,
                 vetoDeadline: vetoDeadline,
-                slashDeadline: slashDeadline,
+                executeDeadline: executeDeadline,
                 completed: false
             })
         );
 
-        emit RequestSlash(slashIndex, network, resolver, operator, amount, vetoDeadline, slashDeadline);
+        emit RequestSlash(slashIndex, network, resolver, operator, amount, vetoDeadline, executeDeadline);
     }
 
     /**
@@ -292,11 +330,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        if (request.vetoDeadline > Time.timestamp()) {
+        if (request.resolver != address(0) && request.vetoDeadline > Time.timestamp()) {
             revert VetoPeriodNotEnded();
         }
 
-        if (request.slashDeadline <= Time.timestamp()) {
+        if (request.executeDeadline <= Time.timestamp()) {
             revert SlashPeriodEnded();
         }
 
@@ -306,7 +344,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         request.completed = true;
 
-        slashedAmount = Math.min(request.amount, maxSlash(request.network, request.resolver, request.operator));
+        slashedAmount = Math.min(request.amount, slashableAmount(request.network, request.resolver, request.operator));
 
         uint256 epoch = currentEpoch();
         uint256 totalSupply_ = totalSupply();
@@ -412,6 +450,42 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
+    function setNetworkResolverLimit(
+        address network,
+        address resolver,
+        uint256 amount
+    ) external onlyRole(NETWORK_RESOLVER_LIMIT_SET_ROLE) {
+        if (amount > maxNetworkResolverLimit[network][resolver]) {
+            revert ExceedsMaxNetworkResolverLimit();
+        }
+
+        Limit storage limit = _networkResolverLimit[network][resolver];
+        DelayedLimit storage nextLimit = nextNetworkResolverLimit[network][resolver];
+
+        _setLimit(limit, nextLimit, amount);
+
+        emit SetNetworkResolverLimit(network, resolver, amount);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setOperatorNetworkLimit(
+        address operator,
+        address network,
+        uint256 amount
+    ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
+        Limit storage limit = _operatorNetworkLimit[operator][network];
+        DelayedLimit storage nextLimit = nextOperatorNetworkLimit[operator][network];
+
+        _setLimit(limit, nextLimit, amount);
+
+        emit SetOperatorNetworkLimit(operator, network, amount);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function setRewardsDistributor(address rewardsDistributor_) external onlyRole(REWARDS_DISTRIBUTOR_SET_ROLE) {
         if (rewardsDistributor == rewardsDistributor_) {
             revert AlreadySet();
@@ -469,44 +543,51 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositorWhitelistStatus(account, status);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
-    function setNetworkResolverLimit(
-        address network,
-        address resolver,
-        uint256 amount
-    ) external onlyRole(NETWORK_RESOLVER_LIMIT_SET_ROLE) {
-        if (amount > maxNetworkResolverLimit[network][resolver]) {
-            revert ExceedsMaxNetworkResolverLimit();
+    function _initialize(uint64, address owner, bytes memory data) internal override {
+        (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
+
+        if (params.epochDuration == 0) {
+            revert InvalidEpochDuration();
         }
 
-        Limit storage limit = _networkResolverLimit[network][resolver];
-        DelayedLimit storage nextLimit = nextNetworkResolverLimit[network][resolver];
+        if (params.vetoDuration + params.executeDuration > params.epochDuration) {
+            revert InvalidSlashDuration();
+        }
 
-        _setLimit(limit, nextLimit, amount);
+        if (params.adminFee > ADMIN_FEE_BASE) {
+            revert InvalidAdminFee();
+        }
 
-        emit SetNetworkResolverLimit(network, resolver, amount);
+        collateral = params.collateral;
+
+        epochDurationInit = Time.timestamp();
+        epochDuration = params.epochDuration;
+
+        vetoDuration = params.vetoDuration;
+        executeDuration = params.executeDuration;
+
+        rewardsDistributor = params.rewardsDistributor;
+        adminFee = params.adminFee;
+        depositWhitelist = params.depositWhitelist;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, owner);
+        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, owner);
+        if (params.depositWhitelist) {
+            _grantRole(DEPOSITOR_WHITELIST_ROLE, owner);
+        }
     }
 
-    /**
-     * @inheritdoc IVault
-     */
-    function setOperatorNetworkLimit(
-        address operator,
-        address network,
-        uint256 amount
-    ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        Limit storage limit = _operatorNetworkLimit[operator][network];
-        DelayedLimit storage nextLimit = nextOperatorNetworkLimit[operator][network];
-
-        _setLimit(limit, nextLimit, amount);
-
-        emit SetOperatorNetworkLimit(operator, network, amount);
+    function _migrate(uint64, bytes memory) internal override {
+        revert();
     }
 
-    function _getLimit(Limit storage limit, DelayedLimit storage nextLimit) private view returns (uint256) {
-        if (nextLimit.timestamp == 0 || Time.timestamp() < nextLimit.timestamp) {
+    function _getLimitAt(
+        Limit storage limit,
+        DelayedLimit storage nextLimit,
+        uint48 timestamp
+    ) private view returns (uint256) {
+        if (nextLimit.timestamp == 0 || timestamp < nextLimit.timestamp) {
             return limit.amount;
         }
         return nextLimit.amount;
@@ -531,12 +612,5 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             nextLimit.timestamp = 0;
             nextLimit.amount = 0;
         }
-    }
-
-    /**
-     * @inheritdoc IMigratableEntity
-     */
-    function migrate(bytes memory) public override {
-        revert();
     }
 }

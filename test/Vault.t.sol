@@ -7,12 +7,13 @@ import {VaultFactory} from "src/contracts/VaultFactory.sol";
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {MetadataService} from "src/contracts/MetadataService.sol";
-import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 
 import {Vault} from "src/contracts/vault/v1/Vault.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+import {IVaultStorage} from "src/interfaces/vault/v1/IVaultStorage.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";
@@ -32,7 +33,7 @@ contract VaultTest is Test {
     OperatorRegistry operatorRegistry;
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
-    MiddlewareService networkMiddlewareService;
+    NetworkMiddlewareService networkMiddlewareService;
     NetworkOptInService networkVaultOptInService;
     OperatorOptInService operatorVaultOptInService;
     OperatorOptInService operatorNetworkOptInService;
@@ -51,7 +52,7 @@ contract VaultTest is Test {
         operatorRegistry = new OperatorRegistry();
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
-        networkMiddlewareService = new MiddlewareService(address(networkRegistry));
+        networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
@@ -59,8 +60,8 @@ contract VaultTest is Test {
         vaultFactory.whitelist(
             address(
                 new Vault(
+                    address(vaultFactory),
                     address(networkRegistry),
-                    address(operatorRegistry),
                     address(networkMiddlewareService),
                     address(networkVaultOptInService),
                     address(operatorVaultOptInService),
@@ -78,27 +79,27 @@ contract VaultTest is Test {
     function test_Create(
         uint48 epochDuration,
         uint48 vetoDuration,
-        uint48 slashDuration,
+        uint48 executeDuration,
         address rewardsDistributor,
         uint256 adminFee,
         bool depositWhitelist
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
-        slashDuration = uint48(bound(slashDuration, 0, type(uint48).max / 2));
-        vm.assume(vetoDuration + slashDuration <= epochDuration);
+        executeDuration = uint48(bound(executeDuration, 0, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
         adminFee = bound(adminFee, 0, 10_000);
 
         vault = IVault(
             vaultFactory.create(
                 vaultFactory.lastVersion(),
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
+                        executeDuration: executeDuration,
                         rewardsDistributor: rewardsDistributor,
                         adminFee: adminFee,
                         depositWhitelist: depositWhitelist
@@ -113,16 +114,20 @@ contract VaultTest is Test {
         assertEq(vault.NETWORK_RESOLVER_LIMIT_SET_ROLE(), keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE"));
         assertEq(vault.OPERATOR_NETWORK_LIMIT_SET_ROLE(), keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE"));
         assertEq(vault.NETWORK_REGISTRY(), address(networkRegistry));
-        assertEq(vault.OPERATOR_REGISTRY(), address(operatorRegistry));
 
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
+        vm.expectRevert(IVaultStorage.InvalidTimestamp.selector);
+        assertEq(vault.epochAt(0), 0);
+        assertEq(vault.epochAt(uint48(blockTimestamp)), 0);
         assertEq(vault.currentEpoch(), 0);
         assertEq(vault.currentEpochStart(), blockTimestamp);
-        assertEq(vault.previousEpochStart(), blockTimestamp);
+        vm.expectRevert(IVaultStorage.NoPreviousEpoch.selector);
+        vault.previousEpochStart();
         assertEq(vault.vetoDuration(), vetoDuration);
-        assertEq(vault.slashDuration(), slashDuration);
+        assertEq(vault.executeDuration(), executeDuration);
+        assertEq(vault.totalSupplyIn(0), 0);
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), 0);
         assertEq(vault.activeShares(), 0);
@@ -136,24 +141,27 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), 0);
         assertEq(vault.activeBalanceOf(alice), 0);
         assertEq(vault.withdrawals(0), 0);
-        assertEq(vault.withdrawalsShares(0), 0);
-        assertEq(vault.withdrawalsSharesOf(0, alice), 0);
+        assertEq(vault.withdrawalShares(0), 0);
+        assertEq(vault.pendingWithdrawalSharesOf(0, alice), 0);
         assertEq(vault.firstDepositAt(alice), 0);
-        assertEq(vault.maxSlash(address(0), address(0), address(0)), 0);
+        assertEq(vault.slashableAmount(address(0), address(0), address(0)), 0);
         assertEq(vault.slashRequestsLength(), 0);
         vm.expectRevert();
         vault.slashRequests(0);
         assertEq(vault.maxNetworkResolverLimit(address(0), address(0)), 0);
+        assertEq(vault.networkResolverLimitIn(address(0), address(0), 1), 0);
         assertEq(vault.networkResolverLimit(address(0), address(0)), 0);
         (uint256 nextNetworkResolverLimitAmount, uint256 nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(address(0), address(0));
         assertEq(nextNetworkResolverLimitAmount, 0);
         assertEq(nextNetworkResolverLimitTimestamp, 0);
+        assertEq(vault.operatorNetworkLimitIn(address(0), address(0), 1), 0);
         assertEq(vault.operatorNetworkLimit(address(0), address(0)), 0);
         (uint256 nextOperatorNetworkLimitAmount, uint256 nextOperatorNetworkLimitTimestamp) =
             vault.nextOperatorNetworkLimit(address(0), address(0));
         assertEq(nextOperatorNetworkLimitAmount, 0);
         assertEq(nextOperatorNetworkLimitTimestamp, 0);
+        assertEq(vault.minStakeDuring(address(0), address(0), address(0), 1), 0);
         assertEq(vault.adminFee(), adminFee);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
@@ -161,13 +169,18 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.epochAt(uint48(blockTimestamp)), 0);
+        assertEq(vault.epochAt(uint48(blockTimestamp + 1)), 1);
         assertEq(vault.currentEpoch(), 0);
         assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
-        assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
+        vm.expectRevert(IVaultStorage.NoPreviousEpoch.selector);
+        vault.previousEpochStart();
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.epochAt(uint48(blockTimestamp)), 1);
+        assertEq(vault.epochAt(uint48(blockTimestamp + 2 * vault.epochDuration())), 3);
         assertEq(vault.currentEpoch(), 1);
         assertEq(vault.currentEpochStart(), blockTimestamp);
         assertEq(vault.previousEpochStart(), blockTimestamp - vault.epochDuration());
@@ -175,6 +188,8 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.epochAt(uint48(blockTimestamp)), 1);
+        assertEq(vault.epochAt(uint48(blockTimestamp + 1)), 2);
         assertEq(vault.currentEpoch(), 1);
         assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
         assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
@@ -186,8 +201,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -196,6 +211,9 @@ contract VaultTest is Test {
         assertEq(_deposit(alice, amount1), shares1);
         assertEq(collateral.balanceOf(address(vault)) - tokensBefore, amount1);
 
+        assertEq(vault.totalSupplyIn(0), amount1);
+        assertEq(vault.totalSupplyIn(1), amount1);
+        assertEq(vault.totalSupplyIn(2), amount1);
         assertEq(vault.totalSupply(), amount1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1);
@@ -207,6 +225,7 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
         assertEq(vault.activeSharesOf(alice), shares1);
         assertEq(vault.activeSharesOfCheckpointsLength(alice), 1);
+        assertEq(vault.activeSharesOfAtHint(alice, uint48(blockTimestamp), 0), shares1);
         (uint48 timestampCheckpoint, uint256 valueCheckpoint) = vault.activeSharesOfCheckpoint(alice, 0);
         assertEq(timestampCheckpoint, blockTimestamp);
         assertEq(valueCheckpoint, shares1);
@@ -221,6 +240,9 @@ contract VaultTest is Test {
         uint256 shares2 = amount2 * (shares1 + 10 ** 3) / (amount1 + 1);
         assertEq(_deposit(alice, amount2), shares2);
 
+        assertEq(vault.totalSupplyIn(0), amount1 + amount2);
+        assertEq(vault.totalSupplyIn(1), amount1 + amount2);
+        assertEq(vault.totalSupplyIn(2), amount1 + amount2);
         assertEq(vault.totalSupply(), amount1 + amount2);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1 + shares2);
@@ -232,6 +254,18 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1 + shares2);
         assertEq(vault.activeSharesOf(alice), shares1 + shares2);
         assertEq(vault.activeSharesOfCheckpointsLength(alice), 2);
+        uint256 gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAtHint(alice, uint48(blockTimestamp - 1), 1), shares1);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAtHint(alice, uint48(blockTimestamp - 1), 0), shares1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAtHint(alice, uint48(blockTimestamp), 0), shares1 + shares2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAtHint(alice, uint48(blockTimestamp), 1), shares1 + shares2);
+        assertGt(gasSpent, gasLeft - gasleft());
         (timestampCheckpoint, valueCheckpoint) = vault.activeSharesOfCheckpoint(alice, 0);
         assertEq(timestampCheckpoint, blockTimestamp - 1);
         assertEq(valueCheckpoint, shares1);
@@ -250,8 +284,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -296,8 +330,8 @@ contract VaultTest is Test {
     function test_DepositRevertInsufficientDeposit() public {
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         vm.startPrank(alice);
         vm.expectRevert(IVault.InsufficientDeposit.selector);
@@ -311,10 +345,10 @@ contract VaultTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint48 epochDuration = 1;
-        uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        // uint48 epochDuration = 1;
+        // uint48 vetoDuration = 0;
+        // uint48 executeDuration = 1;
+        vault = _getVault(1, 0, 1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -331,6 +365,9 @@ contract VaultTest is Test {
         assertEq(mintedShares_, mintedShares);
         assertEq(tokensBefore - collateral.balanceOf(address(vault)), 0);
 
+        assertEq(vault.totalSupplyIn(0), amount1);
+        assertEq(vault.totalSupplyIn(1), amount1);
+        assertEq(vault.totalSupplyIn(2), amount1 - amount2);
         assertEq(vault.totalSupply(), amount1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares - burnedShares);
@@ -351,12 +388,12 @@ contract VaultTest is Test {
         assertEq(vault.withdrawals(vault.currentEpoch()), 0);
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), amount2);
         assertEq(vault.withdrawals(vault.currentEpoch() + 2), 0);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch()), 0);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch() + 1), mintedShares);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch() + 2), 0);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch(), alice), 0);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch() + 1, alice), mintedShares);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch() + 2, alice), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch()), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 1), mintedShares);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 2), 0);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch(), alice), 0);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() + 1, alice), mintedShares);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
 
         shares -= burnedShares;
 
@@ -369,6 +406,9 @@ contract VaultTest is Test {
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
 
+        assertEq(vault.totalSupplyIn(0), amount1);
+        assertEq(vault.totalSupplyIn(1), amount1 - amount2);
+        assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
         assertEq(vault.totalSupply(), amount1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares - burnedShares);
@@ -390,25 +430,31 @@ contract VaultTest is Test {
         assertEq(vault.withdrawals(vault.currentEpoch()), amount2);
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), amount3);
         assertEq(vault.withdrawals(vault.currentEpoch() + 2), 0);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch() - 1), 0);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch()), amount2 * 10 ** 3);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch() + 1), amount3 * 10 ** 3);
-        assertEq(vault.withdrawalsShares(vault.currentEpoch() + 2), 0);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch() - 1, alice), 0);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch(), alice), amount2 * 10 ** 3);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch() + 1, alice), amount3 * 10 ** 3);
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch() + 2, alice), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() - 1), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch()), amount2 * 10 ** 3);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 1), amount3 * 10 ** 3);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 2), 0);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() - 1, alice), 0);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch(), alice), amount2 * 10 ** 3);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() + 1, alice), amount3 * 10 ** 3);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
 
         shares -= burnedShares;
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.totalSupplyIn(0), amount1 - amount2);
+        assertEq(vault.totalSupplyIn(1), amount1 - amount2 - amount3);
+        assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
         assertEq(vault.totalSupply(), amount1 - amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.totalSupplyIn(0), amount1 - amount2 - amount3);
+        assertEq(vault.totalSupplyIn(1), amount1 - amount2 - amount3);
+        assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
         assertEq(vault.totalSupply(), amount1 - amount2 - amount3);
     }
 
@@ -417,8 +463,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _deposit(alice, amount1);
 
@@ -431,8 +477,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _deposit(alice, amount1);
 
@@ -447,8 +493,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -468,7 +514,7 @@ contract VaultTest is Test {
         assertEq(tokensBefore - collateral.balanceOf(address(vault)), amount2);
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2);
 
-        assertEq(vault.withdrawalsSharesOf(vault.currentEpoch() - 1, alice), 0);
+        assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() - 1, alice), 0);
     }
 
     function test_ClaimRevertInvalidEpoch(uint256 amount1, uint256 amount2) public {
@@ -478,8 +524,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -505,8 +551,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -534,8 +580,8 @@ contract VaultTest is Test {
 
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -557,54 +603,78 @@ contract VaultTest is Test {
     function test_RequestSlash(
         uint256 amount1,
         uint256 amount2,
+        uint256 amount3,
         uint256 networkResolverLimit,
         uint256 operatorNetworkLimit,
         uint256 toSlash
     ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount2, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount3);
         networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
         operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
-        uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        // uint48 epochDuration = 3;
+        // uint48 executeDuration = 1;
+        // uint48 vetoDuration = 1;
+        vault = _getVault(3, 1, 1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
-        uint256 shares = _deposit(alice, amount1);
+        _deposit(alice, amount1);
 
-        shares += _deposit(bob, amount2);
+        _deposit(bob, amount2);
 
-        address network = bob;
-        _registerNetwork(network, bob);
+        // address network = bob;
+        _registerNetwork(bob, bob);
 
-        address operator = bob;
-        _registerOperator(operator);
+        // address operator = bob;
+        _registerOperator(bob);
 
-        address resolver = address(1);
-        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
-        _optInNetworkVault(network, resolver);
+        // address resolver = address(1);
+        _setMaxNetworkResolverLimit(bob, address(1), type(uint256).max);
+        _optInNetworkVault(bob, address(1));
 
-        _optInOperatorVault(operator);
+        _optInOperatorVault(bob);
 
-        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
+        assertEq(vault.minStakeDuring(bob, address(1), bob, 3), 0);
+        assertEq(vault.slashableAmountIn(bob, address(1), bob, 0), 0);
+        assertEq(vault.slashableAmountIn(bob, address(1), bob, vault.epochDuration()), 0);
+        assertEq(vault.slashableAmount(bob, address(1), bob), 0);
 
-        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
+        _setNetworkResolverLimit(alice, bob, address(1), networkResolverLimit);
 
-        _optInOperatorNetwork(operator, network);
+        assertEq(vault.minStakeDuring(bob, address(1), bob, 3), 0);
+        assertEq(vault.slashableAmountIn(bob, address(1), bob, 0), 0);
+        assertEq(vault.slashableAmountIn(bob, address(1), bob, vault.epochDuration()), 0);
+        assertEq(vault.slashableAmount(bob, address(1), bob), 0);
+
+        _setOperatorNetworkLimit(alice, bob, bob, operatorNetworkLimit);
+
+        _optInOperatorNetwork(bob, bob);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 maxSlash_ = Math.min(amount1 + amount2, networkResolverLimit);
-        maxSlash_ = Math.min(maxSlash_, operatorNetworkLimit);
-        assertEq(vault.maxSlash(network, resolver, operator), maxSlash_);
+        _withdraw(alice, amount3);
 
-        uint256 slashIndex = 0;
-        assertEq(_requestSlash(bob, network, resolver, operator, toSlash), slashIndex);
+        uint256 slashableAmount_ = Math.min(amount1 + amount2, Math.min(networkResolverLimit, operatorNetworkLimit));
+
+        assertEq(
+            vault.minStakeDuring(bob, address(1), bob, 3),
+            Math.min(amount1 + amount2 - amount3, Math.min(networkResolverLimit, operatorNetworkLimit))
+        );
+        assertEq(vault.slashableAmountIn(bob, address(1), bob, 0), slashableAmount_);
+        assertEq(vault.slashableAmountIn(bob, address(1), bob, vault.epochDuration()), slashableAmount_);
+        assertEq(
+            vault.slashableAmountIn(bob, address(1), bob, 2 * vault.epochDuration()),
+            Math.min(amount1 + amount2 - amount3, Math.min(networkResolverLimit, operatorNetworkLimit))
+        );
+        assertEq(vault.slashableAmount(bob, address(1), bob), slashableAmount_);
+
+        assertEq(_requestSlash(bob, bob, address(1), bob, toSlash), 0);
         assertEq(vault.slashRequestsLength(), 1);
 
         (
@@ -613,16 +683,16 @@ contract VaultTest is Test {
             address operator_,
             uint256 amount_,
             uint48 vetoDeadline_,
-            uint48 slashDeadline_,
+            uint48 executeDeadline_,
             bool completed_
-        ) = vault.slashRequests(slashIndex);
+        ) = vault.slashRequests(0);
 
-        assertEq(network_, network);
-        assertEq(resolver_, resolver);
-        assertEq(operator_, operator);
-        assertEq(amount_, Math.min(maxSlash_, toSlash));
-        assertEq(vetoDeadline_, uint48(blockTimestamp + vetoDuration));
-        assertEq(slashDeadline_, uint48(blockTimestamp + vetoDuration + slashDuration));
+        assertEq(network_, bob);
+        assertEq(resolver_, address(1));
+        assertEq(operator_, bob);
+        assertEq(amount_, Math.min(slashableAmount_, toSlash));
+        assertEq(vetoDeadline_, uint48(blockTimestamp + vault.vetoDuration()));
+        assertEq(executeDeadline_, uint48(blockTimestamp + vault.vetoDuration() + vault.executeDuration()));
         assertEq(completed_, false);
     }
 
@@ -640,9 +710,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -685,9 +755,9 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -734,9 +804,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -785,9 +855,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -836,9 +906,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -886,10 +956,10 @@ contract VaultTest is Test {
         operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
         toSlash = bound(toSlash, 1, type(uint256).max);
 
-        uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
-        uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        // uint48 epochDuration = 3;
+        // uint48 executeDuration = 1;
+        // uint48 vetoDuration = 1;
+        vault = _getVault(3, 1, 1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -897,63 +967,41 @@ contract VaultTest is Test {
 
         uint256 shares2 = _deposit(bob, amount2);
 
-        address network = bob;
-        _registerNetwork(network, bob);
+        // address network = bob;
+        _registerNetwork(bob, bob);
 
-        address operator = bob;
-        _registerOperator(operator);
+        // address operator = bob;
+        _registerOperator(bob);
 
-        address resolver = alice;
-        _setMaxNetworkResolverLimit(network, resolver, type(uint256).max);
-        _optInNetworkVault(network, resolver);
+        // address resolver = alice;
+        _setMaxNetworkResolverLimit(bob, alice, type(uint256).max);
+        _optInNetworkVault(bob, alice);
 
-        _optInOperatorVault(operator);
+        _optInOperatorVault(bob);
 
-        _setNetworkResolverLimit(alice, network, resolver, networkResolverLimit);
+        _setNetworkResolverLimit(alice, bob, alice, networkResolverLimit);
 
-        _setOperatorNetworkLimit(alice, operator, network, operatorNetworkLimit);
+        _setOperatorNetworkLimit(alice, bob, bob, operatorNetworkLimit);
 
-        _optInOperatorNetwork(operator, network);
+        _optInOperatorNetwork(bob, bob);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 slashIndex = _requestSlash(bob, network, resolver, operator, toSlash);
+        uint256 slashIndex = _requestSlash(bob, bob, alice, bob, toSlash);
 
-        (
-            address network_,
-            address resolver_,
-            address operator_,
-            uint256 amount_,
-            uint48 vetoDeadline_,
-            uint48 slashDeadline_,
-        ) = vault.slashRequests(slashIndex);
+        (,,, uint256 amount_,,,) = vault.slashRequests(slashIndex);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
         uint256 activeSupply_ = vault.activeSupply();
-        uint256 activeSlashed = amount_.mulDiv(vault.activeSupply(), vault.totalSupply());
 
         assertEq(_executeSlash(address(1), slashIndex), amount_);
-        assertEq(activeSupply_ - activeSlashed, vault.activeSupply());
+        assertEq(activeSupply_ - amount_.mulDiv(activeSupply_, amount1 + amount2), vault.activeSupply());
 
-        (
-            address network__,
-            address resolver__,
-            address operator__,
-            uint256 amount__,
-            uint48 vetoDeadline__,
-            uint48 slashDeadline__,
-            bool completed__
-        ) = vault.slashRequests(slashIndex);
+        (,,,,,, bool completed__) = vault.slashRequests(slashIndex);
 
-        assertEq(network__, network_);
-        assertEq(resolver__, resolver_);
-        assertEq(operator__, operator_);
-        assertEq(amount__, amount_);
-        assertEq(vetoDeadline__, vetoDeadline_);
-        assertEq(slashDeadline__, slashDeadline_);
         assertEq(completed__, true);
 
         assertEq(vault.totalSupply(), amount1 + amount2 - amount_);
@@ -991,6 +1039,164 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOf(bob), shares2.mulDiv(vault.activeSupply() + 1, vault.activeShares() + 10 ** 3));
     }
 
+    function test_ExecuteSlashNoResolver(
+        uint256 amount1,
+        uint256 amount2,
+        uint256 networkResolverLimit,
+        uint256 operatorNetworkLimit,
+        uint256 toSlash
+    ) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
+        toSlash = bound(toSlash, 1, type(uint256).max);
+
+        // uint48 epochDuration = 3;
+        // uint48 executeDuration = 1;
+        // uint48 vetoDuration = 1;
+        vault = _getVault(3, 1, 1);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        uint256 shares1 = _deposit(alice, amount1);
+
+        uint256 shares2 = _deposit(bob, amount2);
+
+        // address network = bob;
+        _registerNetwork(bob, bob);
+
+        // address operator = bob;
+        _registerOperator(bob);
+
+        // address resolver = address(0);
+        _setMaxNetworkResolverLimit(bob, address(0), type(uint256).max);
+        _optInNetworkVault(bob, address(0));
+
+        _optInOperatorVault(bob);
+
+        _setNetworkResolverLimit(alice, bob, address(0), networkResolverLimit);
+
+        _setOperatorNetworkLimit(alice, bob, bob, operatorNetworkLimit);
+
+        _optInOperatorNetwork(bob, bob);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint256 slashIndex = _requestSlash(bob, bob, address(0), bob, toSlash);
+
+        (,,, uint256 amount_,,,) = vault.slashRequests(slashIndex);
+
+        uint256 activeSupply_ = vault.activeSupply();
+
+        assertEq(_executeSlash(address(1), slashIndex), amount_);
+        assertEq(activeSupply_ - amount_.mulDiv(activeSupply_, amount1 + amount2), vault.activeSupply());
+
+        (,,,,,, bool completed__) = vault.slashRequests(slashIndex);
+
+        assertEq(completed__, true);
+
+        assertEq(vault.totalSupply(), amount1 + amount2 - amount_);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares1 + shares2);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1 + shares2);
+        assertEq(vault.activeShares(), shares1 + shares2);
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), amount1 + amount2);
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1 + amount2 - amount_);
+        assertEq(vault.activeSupply(), amount1 + amount2 - amount_);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
+        assertEq(vault.activeSharesOf(alice), shares1);
+        assertEq(vault.activeSharesOfCheckpointsLength(alice), 1);
+        (uint48 timestampCheckpoint, uint256 valueCheckpoint) = vault.activeSharesOfCheckpoint(alice, 0);
+        assertEq(timestampCheckpoint, blockTimestamp - 1);
+        assertEq(valueCheckpoint, shares1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
+        assertEq(
+            vault.activeBalanceOfAt(alice, uint48(blockTimestamp)),
+            shares1.mulDiv(vault.activeSupply() + 1, vault.activeShares() + 10 ** 3)
+        );
+        assertEq(vault.activeBalanceOf(alice), shares1.mulDiv(vault.activeSupply() + 1, vault.activeShares() + 10 ** 3));
+        assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1)), shares2);
+        assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp)), shares2);
+        assertEq(vault.activeSharesOf(bob), shares2);
+        assertEq(vault.activeSharesOfCheckpointsLength(bob), 1);
+        (timestampCheckpoint, valueCheckpoint) = vault.activeSharesOfCheckpoint(bob, 0);
+        assertEq(timestampCheckpoint, blockTimestamp - 1);
+        assertEq(valueCheckpoint, shares2);
+        assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1)), amount2);
+        assertEq(
+            vault.activeBalanceOfAt(bob, uint48(blockTimestamp)),
+            shares2.mulDiv(vault.activeSupply() + 1, vault.activeShares() + 10 ** 3)
+        );
+        assertEq(vault.activeBalanceOf(bob), shares2.mulDiv(vault.activeSupply() + 1, vault.activeShares() + 10 ** 3));
+    }
+
+    function test_ExecuteSlashEdgeCase(uint256 networkResolverLimit, uint256 operatorNetworkLimit) public {
+        uint256 toDeposit = 2;
+        uint256 toWithdraw = 1;
+        networkResolverLimit = bound(networkResolverLimit, 1, type(uint256).max);
+        operatorNetworkLimit = bound(operatorNetworkLimit, 1, type(uint256).max);
+        uint256 toSlash = 1;
+
+        // uint48 epochDuration = 3;
+        // uint48 executeDuration = 1;
+        // uint48 vetoDuration = 1;
+        vault = _getVault(3, 1, 1);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        uint256 shares = _deposit(alice, toDeposit);
+        (uint256 burnedShares,) = _withdraw(alice, toWithdraw);
+
+        // address network = bob;
+        _registerNetwork(bob, bob);
+
+        // address operator = bob;
+        _registerOperator(bob);
+
+        // address resolver = alice;
+        _setMaxNetworkResolverLimit(bob, alice, type(uint256).max);
+        _optInNetworkVault(bob, alice);
+
+        _optInOperatorVault(bob);
+
+        _setNetworkResolverLimit(alice, bob, alice, networkResolverLimit);
+
+        _setOperatorNetworkLimit(alice, bob, bob, operatorNetworkLimit);
+
+        _optInOperatorNetwork(bob, bob);
+
+        blockTimestamp = blockTimestamp + 3;
+        vm.warp(blockTimestamp);
+
+        uint256 slashIndex = _requestSlash(bob, bob, alice, bob, toSlash);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(_executeSlash(address(1), slashIndex), 0);
+        assertEq(1, vault.activeSupply());
+
+        (,,,,,, bool completed__) = vault.slashRequests(slashIndex);
+
+        assertEq(completed__, true);
+
+        assertEq(vault.totalSupply(), 2);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares - burnedShares);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares - burnedShares);
+        assertEq(vault.activeShares(), shares - burnedShares);
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), 1);
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), 1);
+        assertEq(vault.activeSupply(), 1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares - burnedShares);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
+        assertEq(vault.activeSharesOf(alice), shares - burnedShares);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), 1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), 1);
+        assertEq(vault.activeBalanceOf(alice), 1);
+    }
+
     function test_ExecuteSlashRevertSlashRequestNotExist(
         uint256 amount1,
         uint256 amount2,
@@ -1005,9 +1211,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1059,9 +1265,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1110,9 +1316,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1164,9 +1370,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1220,9 +1426,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1259,7 +1465,7 @@ contract VaultTest is Test {
             address operator_,
             uint256 amount_,
             uint48 vetoDeadline_,
-            uint48 slashDeadline_,
+            uint48 executeDeadline_,
         ) = vault.slashRequests(slashIndex);
 
         _vetoSlash(resolver, slashIndex);
@@ -1270,7 +1476,7 @@ contract VaultTest is Test {
             address operator__,
             uint256 amount__,
             uint48 vetoDeadline__,
-            uint48 slashDeadline__,
+            uint48 executeDeadline__,
             bool completed__
         ) = vault.slashRequests(slashIndex);
 
@@ -1279,7 +1485,7 @@ contract VaultTest is Test {
         assertEq(operator__, operator_);
         assertEq(amount__, amount_);
         assertEq(vetoDeadline__, vetoDeadline_);
-        assertEq(slashDeadline__, slashDeadline_);
+        assertEq(executeDeadline__, executeDeadline_);
         assertEq(completed__, true);
     }
 
@@ -1297,9 +1503,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1348,9 +1554,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1399,9 +1605,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1453,9 +1659,9 @@ contract VaultTest is Test {
         toSlash = bound(toSlash, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1494,7 +1700,7 @@ contract VaultTest is Test {
 
     function test_CreateRevertInvalidEpochDuration() public {
         uint48 epochDuration = 0;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -1502,13 +1708,13 @@ contract VaultTest is Test {
         vault = IVault(
             vaultFactory.create(
                 lastVersion,
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
+                        executeDuration: executeDuration,
                         rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
@@ -1521,25 +1727,25 @@ contract VaultTest is Test {
     function test_CreateRevertInvalidSlashDuration(
         uint48 epochDuration,
         uint48 vetoDuration,
-        uint48 slashDuration
+        uint48 executeDuration
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
-        slashDuration = uint48(bound(slashDuration, 0, type(uint48).max / 2));
-        vm.assume(vetoDuration + slashDuration > epochDuration);
+        executeDuration = uint48(bound(executeDuration, 0, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration > epochDuration);
 
         uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidSlashDuration.selector);
         vault = IVault(
             vaultFactory.create(
                 lastVersion,
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
+                        executeDuration: executeDuration,
                         rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
@@ -1553,7 +1759,7 @@ contract VaultTest is Test {
         vm.assume(adminFee > 10_000);
 
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -1561,13 +1767,13 @@ contract VaultTest is Test {
         vault = IVault(
             vaultFactory.create(
                 lastVersion,
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
+                        executeDuration: executeDuration,
                         rewardsDistributor: address(0),
                         adminFee: adminFee,
                         depositWhitelist: false
@@ -1587,8 +1793,8 @@ contract VaultTest is Test {
         vm.assume(amount3 < amount2);
 
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1601,6 +1807,7 @@ contract VaultTest is Test {
 
         _setNetworkResolverLimit(alice, network, resolver, amount1);
 
+        assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount1);
         assertEq(vault.networkResolverLimit(network, resolver), amount1);
         (uint256 nextNetworkResolverLimitAmount, uint256 nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(network, resolver);
@@ -1610,13 +1817,24 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount1);
         assertEq(vault.networkResolverLimit(network, resolver), amount1);
+        (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
+            vault.nextNetworkResolverLimit(network, resolver);
         assertEq(nextNetworkResolverLimitAmount, 0);
         assertEq(nextNetworkResolverLimitTimestamp, 0);
 
         _setNetworkResolverLimit(alice, network, resolver, amount2);
 
         if (amount1 > amount2) {
+            assertEq(
+                vault.networkResolverLimitIn(
+                    network,
+                    resolver,
+                    uint48(vault.currentEpochStart() + 2 * vault.epochDuration() - 1 - blockTimestamp)
+                ),
+                amount1
+            );
             assertEq(vault.networkResolverLimit(network, resolver), amount1);
             (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
                 vault.nextNetworkResolverLimit(network, resolver);
@@ -1626,6 +1844,7 @@ contract VaultTest is Test {
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
             vm.warp(blockTimestamp);
 
+            assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
             assertEq(vault.networkResolverLimit(network, resolver), amount1);
             (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
                 vault.nextNetworkResolverLimit(network, resolver);
@@ -1635,6 +1854,7 @@ contract VaultTest is Test {
             blockTimestamp = blockTimestamp + 1;
             vm.warp(blockTimestamp);
 
+            assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
             assertEq(vault.networkResolverLimit(network, resolver), amount2);
             (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
                 vault.nextNetworkResolverLimit(network, resolver);
@@ -1643,12 +1863,14 @@ contract VaultTest is Test {
 
             _setNetworkResolverLimit(alice, network, resolver, amount2);
 
+            assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
             assertEq(vault.networkResolverLimit(network, resolver), amount2);
             (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
                 vault.nextNetworkResolverLimit(network, resolver);
             assertEq(nextNetworkResolverLimitAmount, 0);
             assertEq(nextNetworkResolverLimitTimestamp, 0);
         } else {
+            assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
             assertEq(vault.networkResolverLimit(network, resolver), amount2);
             (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
                 vault.nextNetworkResolverLimit(network, resolver);
@@ -1658,6 +1880,12 @@ contract VaultTest is Test {
 
         _setNetworkResolverLimit(alice, network, resolver, amount3);
 
+        assertEq(
+            vault.networkResolverLimitIn(
+                network, resolver, uint48(vault.currentEpochStart() + 2 * vault.epochDuration() - blockTimestamp)
+            ),
+            amount3
+        );
         assertEq(vault.networkResolverLimit(network, resolver), amount2);
         (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(network, resolver);
@@ -1666,6 +1894,12 @@ contract VaultTest is Test {
 
         _setNetworkResolverLimit(alice, network, resolver, amount2);
 
+        assertEq(
+            vault.networkResolverLimitIn(
+                network, resolver, uint48(vault.currentEpochStart() + 2 * vault.epochDuration() - blockTimestamp)
+            ),
+            amount2
+        );
         assertEq(vault.networkResolverLimit(network, resolver), amount2);
         (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(network, resolver);
@@ -1674,6 +1908,7 @@ contract VaultTest is Test {
 
         _optOutNetworkVault(network, resolver);
 
+        assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
         assertEq(vault.networkResolverLimit(network, resolver), amount2);
         (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(network, resolver);
@@ -1683,6 +1918,7 @@ contract VaultTest is Test {
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
         assertEq(vault.networkResolverLimit(network, resolver), amount2);
         (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(network, resolver);
@@ -1692,6 +1928,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.networkResolverLimitIn(network, resolver, 1), amount2);
         assertEq(vault.networkResolverLimit(network, resolver), amount2);
         (nextNetworkResolverLimitAmount, nextNetworkResolverLimitTimestamp) =
             vault.nextNetworkResolverLimit(network, resolver);
@@ -1703,8 +1940,8 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1727,8 +1964,8 @@ contract VaultTest is Test {
         vm.assume(amount1 > maxNetworkResolverLimit);
 
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1751,8 +1988,8 @@ contract VaultTest is Test {
         vm.assume(amount3 < amount2);
 
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -1764,22 +2001,34 @@ contract VaultTest is Test {
 
         _setOperatorNetworkLimit(alice, operator, network, amount1);
 
+        assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount1);
         assertEq(vault.operatorNetworkLimit(operator, network), amount1);
         (uint256 nextOperatorNetworkLimitAmount, uint256 nextOperatorNetworkLimitTimestamp) =
-            vault.nextOperatorNetworkLimit(address(0), address(0));
+            vault.nextOperatorNetworkLimit(operator, network);
         assertEq(nextOperatorNetworkLimitAmount, 0);
         assertEq(nextOperatorNetworkLimitTimestamp, 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount1);
         assertEq(vault.operatorNetworkLimit(operator, network), amount1);
+        (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(operator, network);
         assertEq(nextOperatorNetworkLimitAmount, 0);
         assertEq(nextOperatorNetworkLimitTimestamp, 0);
 
         _setOperatorNetworkLimit(alice, operator, network, amount2);
 
         if (amount1 > amount2) {
+            assertEq(
+                vault.operatorNetworkLimitIn(
+                    operator,
+                    network,
+                    uint48(vault.currentEpochStart() + 2 * vault.epochDuration() - 1 - blockTimestamp)
+                ),
+                amount1
+            );
             assertEq(vault.operatorNetworkLimit(operator, network), amount1);
             (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
                 vault.nextOperatorNetworkLimit(operator, network);
@@ -1789,6 +2038,7 @@ contract VaultTest is Test {
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
             vm.warp(blockTimestamp);
 
+            assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
             assertEq(vault.operatorNetworkLimit(operator, network), amount1);
             (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
                 vault.nextOperatorNetworkLimit(operator, network);
@@ -1798,6 +2048,7 @@ contract VaultTest is Test {
             blockTimestamp = blockTimestamp + 1;
             vm.warp(blockTimestamp);
 
+            assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
             assertEq(vault.operatorNetworkLimit(operator, network), amount2);
             (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
                 vault.nextOperatorNetworkLimit(operator, network);
@@ -1806,12 +2057,14 @@ contract VaultTest is Test {
 
             _setOperatorNetworkLimit(alice, operator, network, amount2);
 
+            assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
             assertEq(vault.operatorNetworkLimit(operator, network), amount2);
             (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
                 vault.nextOperatorNetworkLimit(operator, network);
             assertEq(nextOperatorNetworkLimitAmount, 0);
             assertEq(nextOperatorNetworkLimitTimestamp, 0);
         } else {
+            assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
             assertEq(vault.operatorNetworkLimit(operator, network), amount2);
             (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
                 vault.nextOperatorNetworkLimit(operator, network);
@@ -1821,6 +2074,12 @@ contract VaultTest is Test {
 
         _setOperatorNetworkLimit(alice, operator, network, amount3);
 
+        assertEq(
+            vault.operatorNetworkLimitIn(
+                operator, network, uint48(vault.currentEpochStart() + 2 * vault.epochDuration() - blockTimestamp)
+            ),
+            amount3
+        );
         assertEq(vault.operatorNetworkLimit(operator, network), amount2);
         (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
             vault.nextOperatorNetworkLimit(operator, network);
@@ -1829,6 +2088,12 @@ contract VaultTest is Test {
 
         _setOperatorNetworkLimit(alice, operator, network, amount2);
 
+        assertEq(
+            vault.operatorNetworkLimitIn(
+                operator, network, uint48(vault.currentEpochStart() + 2 * vault.epochDuration() - blockTimestamp)
+            ),
+            amount2
+        );
         assertEq(vault.operatorNetworkLimit(operator, network), amount2);
         (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
             vault.nextOperatorNetworkLimit(operator, network);
@@ -1837,6 +2102,27 @@ contract VaultTest is Test {
 
         _optOutOperatorVault(operator);
 
+        assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
+        assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+        (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(operator, network);
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
+
+        blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
+        assertEq(vault.operatorNetworkLimit(operator, network), amount2);
+        (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
+            vault.nextOperatorNetworkLimit(operator, network);
+        assertEq(nextOperatorNetworkLimitAmount, 0);
+        assertEq(nextOperatorNetworkLimitTimestamp, 0);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.operatorNetworkLimitIn(operator, network, 1), amount2);
         assertEq(vault.operatorNetworkLimit(operator, network), amount2);
         (nextOperatorNetworkLimitAmount, nextOperatorNetworkLimitTimestamp) =
             vault.nextOperatorNetworkLimit(operator, network);
@@ -1848,8 +2134,8 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
         uint48 vetoDuration = 0;
-        uint48 slashDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         address operator = bob;
         _registerOperator(operator);
@@ -1867,9 +2153,9 @@ contract VaultTest is Test {
         networkResolverLimit = bound(networkResolverLimit, 1, amount1);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1898,9 +2184,9 @@ contract VaultTest is Test {
         amount = bound(amount, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -1917,9 +2203,9 @@ contract VaultTest is Test {
         amount = bound(amount, 1, type(uint256).max);
 
         uint48 epochDuration = 3;
-        uint48 slashDuration = 1;
+        uint48 executeDuration = 1;
         uint48 vetoDuration = 1;
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         address network = bob;
 
@@ -1931,10 +2217,10 @@ contract VaultTest is Test {
 
     function test_SetRewardsDistributor(address rewardsDistributor1, address rewardsDistributor2) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         vm.assume(rewardsDistributor1 != address(0));
         vm.assume(rewardsDistributor1 != rewardsDistributor2);
 
@@ -1948,10 +2234,10 @@ contract VaultTest is Test {
 
     function test_SetRewardsDistributorRevertUnauthorized(address rewardsDistributor) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         vm.assume(rewardsDistributor != address(0));
 
         vm.expectRevert();
@@ -1960,10 +2246,10 @@ contract VaultTest is Test {
 
     function test_SetRewardsDistributorRevertAlreadySet(address rewardsDistributor) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         vm.assume(rewardsDistributor != address(0));
 
         _grantRewardsDistributorSetRole(alice, alice);
@@ -1975,10 +2261,10 @@ contract VaultTest is Test {
 
     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         adminFee1 = bound(adminFee1, 1, vault.ADMIN_FEE_BASE());
         adminFee2 = bound(adminFee2, 0, vault.ADMIN_FEE_BASE());
         vm.assume(adminFee1 != adminFee2);
@@ -1993,10 +2279,10 @@ contract VaultTest is Test {
 
     function test_SetAdminFeeRevertUnauthorized(uint256 adminFee) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         vm.expectRevert();
@@ -2005,10 +2291,10 @@ contract VaultTest is Test {
 
     function test_SetAdminFeeRevertAlreadySet(uint256 adminFee) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
@@ -2020,10 +2306,10 @@ contract VaultTest is Test {
 
     function test_SetAdminFeeRevertInvalidAdminFee(uint256 adminFee) public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
         vm.assume(adminFee > vault.ADMIN_FEE_BASE());
 
         _grantAdminFeeSetRole(alice, alice);
@@ -2033,10 +2319,10 @@ contract VaultTest is Test {
 
     function test_SetDepositWhitelist() public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2048,10 +2334,10 @@ contract VaultTest is Test {
 
     function test_SetDepositWhitelistRevertNotWhitelistedDepositor() public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _deposit(alice, 1);
 
@@ -2066,10 +2352,10 @@ contract VaultTest is Test {
 
     function test_SetDepositWhitelistRevertAlreadySet() public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2080,10 +2366,10 @@ contract VaultTest is Test {
 
     function test_SetDepositorWhitelistStatus() public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2102,10 +2388,10 @@ contract VaultTest is Test {
 
     function test_SetDepositorWhitelistStatusRevertNoDepositWhitelist() public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _grantDepositorWhitelistRole(alice, alice);
 
@@ -2115,10 +2401,10 @@ contract VaultTest is Test {
 
     function test_SetDepositorWhitelistStatusRevertAlreadySet() public {
         uint48 epochDuration = 1;
-        uint48 slashDuration = 0;
+        uint48 executeDuration = 0;
         uint48 vetoDuration = 0;
 
-        vault = _getVault(epochDuration, vetoDuration, slashDuration);
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
         _grantDepositWhitelistSetRole(alice, alice);
         _setDepositWhitelist(alice, true);
@@ -2131,17 +2417,17 @@ contract VaultTest is Test {
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
-    function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 slashDuration) internal returns (IVault) {
+    function _getVault(uint48 epochDuration, uint48 vetoDuration, uint48 executeDuration) internal returns (IVault) {
         return IVault(
             vaultFactory.create(
                 vaultFactory.lastVersion(),
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(collateral),
                         epochDuration: epochDuration,
                         vetoDuration: vetoDuration,
-                        slashDuration: slashDuration,
+                        executeDuration: executeDuration,
                         rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false
@@ -2153,13 +2439,13 @@ contract VaultTest is Test {
 
     function _registerOperator(address user) internal {
         vm.startPrank(user);
-        operatorRegistry.register();
+        operatorRegistry.registerOperator();
         vm.stopPrank();
     }
 
     function _registerNetwork(address user, address middleware) internal {
         vm.startPrank(user);
-        networkRegistry.register();
+        networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(middleware);
         vm.stopPrank();
     }

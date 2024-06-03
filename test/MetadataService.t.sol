@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 
 import {MetadataService} from "src/contracts/MetadataService.sol";
 import {IMetadataService} from "src/interfaces/IMetadataService.sol";
@@ -19,7 +19,7 @@ contract MetadataServiceTest is Test {
     address bob;
     uint256 bobPrivateKey;
 
-    NonMigratablesRegistry registry;
+    OperatorRegistry registry;
 
     IMetadataService service;
 
@@ -28,7 +28,7 @@ contract MetadataServiceTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        registry = new NonMigratablesRegistry();
+        registry = new OperatorRegistry();
     }
 
     function test_Create(string calldata metadataURL_) public {
@@ -39,7 +39,7 @@ contract MetadataServiceTest is Test {
         assertEq(service.metadataURL(alice), "");
 
         vm.startPrank(alice);
-        registry.register();
+        registry.registerOperator();
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -66,7 +66,7 @@ contract MetadataServiceTest is Test {
         service = IMetadataService(address(new MetadataService(address(registry))));
 
         vm.startPrank(alice);
-        registry.register();
+        registry.registerOperator();
         vm.stopPrank();
 
         vm.startPrank(alice);

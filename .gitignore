@@ -15,6 +15,5 @@ docs/
 .env
 
 # Other files
-node_modules/
 .gas-snapshot
 lcov.info

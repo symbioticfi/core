@@ -1,15 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigratableEntity {
-    constructor() {
+    /**
+     * @inheritdoc IMigratableEntity
+     */
+    address public immutable FACTORY;
+
+    modifier onlyFactory() {
+        if (msg.sender != FACTORY) {
+            revert NotFactory();
+        }
+        _;
+    }
+
+    constructor(address factory) {
         _disableInitializers();
+
+        FACTORY = factory;
     }
 
     /**
@@ -22,25 +35,24 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     /**
      * @inheritdoc IMigratableEntity
      */
-    function initialize(uint64 version_, bytes memory data) public virtual reinitializer(version_) {
-        address owner = abi.decode(data, (address));
-        _initialize(owner);
+    function initialize(
+        uint64 initialVersion,
+        address owner_,
+        bytes memory data
+    ) external onlyFactory reinitializer(initialVersion) {
+        __Ownable_init(owner_);
+
+        _initialize(initialVersion, owner_, data);
     }
 
     /**
      * @inheritdoc IMigratableEntity
      */
-    function migrate(bytes memory) public virtual reinitializer(_getInitializedVersion() + 1) {
-        _migrate();
+    function migrate(uint64 newVersion, bytes memory data) external onlyFactory reinitializer(newVersion) {
+        _migrate(newVersion, data);
     }
 
-    function _initialize(address owner) internal {
-        __Ownable_init(owner);
-    }
+    function _initialize(uint64, address, bytes memory) internal virtual {}
 
-    function _migrate() internal view {
-        if (msg.sender != IMigratableEntityProxy(address(this)).proxyAdmin()) {
-            revert NotProxyAdmin();
-        }
-    }
+    function _migrate(uint64, bytes memory) internal virtual {}
 }

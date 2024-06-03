@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 
-import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
-import {IMiddlewareService} from "src/interfaces/IMiddlewareService.sol";
+import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
+import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 
 contract MiddlewareServiceTest is Test {
     address owner;
@@ -15,27 +15,28 @@ contract MiddlewareServiceTest is Test {
     address bob;
     uint256 bobPrivateKey;
 
-    NonMigratablesRegistry registry;
+    NetworkRegistry registry;
 
-    IMiddlewareService service;
+    INetworkMiddlewareService service;
 
     function setUp() public {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        registry = new NonMigratablesRegistry();
+        registry = new NetworkRegistry();
     }
 
     function test_Create(address middleware) public {
         vm.assume(middleware != address(0));
 
-        service = IMiddlewareService(address(new MiddlewareService(address(registry))));
+        service = INetworkMiddlewareService(address(new NetworkMiddlewareService(address(registry))));
 
+        assertEq(service.NETWORK_REGISTRY(), address(registry));
         assertEq(service.middleware(alice), address(0));
 
         vm.startPrank(alice);
-        registry.register();
+        registry.registerNetwork();
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -45,13 +46,13 @@ contract MiddlewareServiceTest is Test {
         assertEq(service.middleware(alice), middleware);
     }
 
-    function test_SetMiddlewareRevertNotEntity(address middleware) public {
+    function test_SetMiddlewareRevertNotNetwork(address middleware) public {
         vm.assume(middleware != address(0));
 
-        service = IMiddlewareService(address(new MiddlewareService(address(registry))));
+        service = INetworkMiddlewareService(address(new NetworkMiddlewareService(address(registry))));
 
         vm.startPrank(alice);
-        vm.expectRevert(IMiddlewareService.NotEntity.selector);
+        vm.expectRevert(INetworkMiddlewareService.NotNetwork.selector);
         service.setMiddleware(middleware);
         vm.stopPrank();
     }
@@ -59,10 +60,10 @@ contract MiddlewareServiceTest is Test {
     function test_SetMiddlewareRevertAlreadySet(address middleware) public {
         vm.assume(middleware != address(0));
 
-        service = IMiddlewareService(address(new MiddlewareService(address(registry))));
+        service = INetworkMiddlewareService(address(new NetworkMiddlewareService(address(registry))));
 
         vm.startPrank(alice);
-        registry.register();
+        registry.registerNetwork();
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -70,7 +71,7 @@ contract MiddlewareServiceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(IMiddlewareService.AlreadySet.selector);
+        vm.expectRevert(INetworkMiddlewareService.AlreadySet.selector);
         service.setMiddleware(middleware);
         vm.stopPrank();
     }

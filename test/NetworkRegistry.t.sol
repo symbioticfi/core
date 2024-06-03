@@ -3,17 +3,17 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {NonMigratablesRegistry} from "src/contracts/base/NonMigratablesRegistry.sol";
-import {INonMigratablesRegistry} from "src/interfaces/base/INonMigratablesRegistry.sol";
+import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
+import {INetworkRegistry} from "src/interfaces/INetworkRegistry.sol";
 
-contract NonMigratablesRegistryTest is Test {
+contract NetworkRegistryTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
     address bob;
     uint256 bobPrivateKey;
 
-    INonMigratablesRegistry registry;
+    INetworkRegistry registry;
 
     function setUp() public {
         owner = address(this);
@@ -22,31 +22,31 @@ contract NonMigratablesRegistryTest is Test {
     }
 
     function test_Create() public {
-        registry = new NonMigratablesRegistry();
+        registry = new NetworkRegistry();
 
         assertEq(registry.isEntity(alice), false);
     }
 
     function test_Register() public {
-        registry = new NonMigratablesRegistry();
+        registry = new NetworkRegistry();
 
         vm.startPrank(alice);
-        registry.register();
+        registry.registerNetwork();
         vm.stopPrank();
 
         assertEq(registry.isEntity(alice), true);
     }
 
     function test_RegisterRevertEntityAlreadyRegistered() public {
-        registry = new NonMigratablesRegistry();
+        registry = new NetworkRegistry();
 
         vm.startPrank(alice);
-        registry.register();
+        registry.registerNetwork();
         vm.stopPrank();
 
-        vm.expectRevert(INonMigratablesRegistry.EntityAlreadyRegistered.selector);
+        vm.expectRevert(INetworkRegistry.NetworkAlreadyRegistered.selector);
         vm.startPrank(alice);
-        registry.register();
+        registry.registerNetwork();
         vm.stopPrank();
     }
 }

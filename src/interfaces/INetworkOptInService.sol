@@ -5,23 +5,23 @@ interface INetworkOptInService {
     error AlreadyOptedIn();
     error NotNetwork();
     error NotOptedIn();
-    error NotWhereEntity();
+    error NotVault();
 
     /**
-     * @notice Emitted when a network opts-in to a "where" entity.
-     * @param network address of the network that opted-in
+     * @notice Emitted when a network opts into a vault.
+     * @param network address of the network
      * @param resolver address of the resolver
-     * @param where address of the entity where the network opted-in to
+     * @param vault address of the vault
      */
-    event OptIn(address indexed network, address indexed resolver, address indexed where);
+    event OptIn(address indexed network, address indexed resolver, address indexed vault);
 
     /**
-     * @notice Emitted when a network opts out from a "where" entity.
-     * @param network address of the network that opted out
+     * @notice Emitted when a network opts out from a vault.
+     * @param network address of the network
      * @param resolver address of the resolver
-     * @param where address of the entity where the network opted out from
+     * @param vault address of the vault
      */
-    event OptOut(address indexed network, address indexed resolver, address indexed where);
+    event OptOut(address indexed network, address indexed resolver, address indexed vault);
 
     /**
      * @notice Get the network registry's address.
@@ -30,51 +30,51 @@ interface INetworkOptInService {
     function NETWORK_REGISTRY() external view returns (address);
 
     /**
-     * @notice Get the address of the registry where to opt-in.
-     * @return address of the "where" registry
+     * @notice Get the vault registry's address.
+     * @return address of the vault registry
      */
-    function WHERE_REGISTRY() external view returns (address);
+    function VAULT_REGISTRY() external view returns (address);
 
     /**
-     * @notice Check if a given network is opted-in to a particular "where" entity.
+     * @notice Check if a given network is opted-in to a particular vault.
      * @param network address of the network
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-in to
+     * @param vault address of the vault
      */
-    function isOptedIn(address network, address resolver, address where) external view returns (bool);
+    function isOptedIn(address network, address resolver, address vault) external view returns (bool);
 
     /**
-     * @notice Get the timestamp of the last opt-out of a given network from a particular "where" entity.
+     * @notice Get the timestamp of the last opt-out of a given network from a particular vault.
      * @param network address of the network
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-out from
+     * @param vault address of the vault
      */
-    function lastOptOut(address network, address resolver, address where) external view returns (uint48);
+    function lastOptOut(address network, address resolver, address vault) external view returns (uint48);
 
     /**
-     * @notice Check if a given network was opted-in to a particular "where" entity after the edge timestamp inclusively.
+     * @notice Check if a given network was opted-in to a particular vault after a given timestamp (inclusively).
      * @param network address of the network
-     * @param where address of the entity to opt-in to
-     * @param edgeTimestamp timestamp to check if the network was opted-in after
+     * @param vault address of the vault
+     * @param timestamp time point to check if the network was opted-in after
      */
-    function wasOptedIn(
+    function wasOptedInAfter(
         address network,
         address resolver,
-        address where,
-        uint256 edgeTimestamp
+        address vault,
+        uint48 timestamp
     ) external view returns (bool);
 
     /**
-     * @notice Opt-in a calling network to a particular "where" entity.
+     * @notice Opt-in a calling network to a particular vault.
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-in to
+     * @param vault address of the vault
      */
-    function optIn(address resolver, address where) external;
+    function optIn(address resolver, address vault) external;
 
     /**
-     * @notice Opt-out a calling network from a particular "where" entity.
+     * @notice Opt-out a calling network from a particular vault.
      * @param resolver address of the resolver
-     * @param where address of the entity to opt-out from
+     * @param vault address of the vault
      */
-    function optOut(address resolver, address where) external;
+    function optOut(address resolver, address vault) external;
 }

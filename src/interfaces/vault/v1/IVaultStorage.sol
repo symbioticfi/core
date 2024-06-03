@@ -2,6 +2,9 @@
 pragma solidity 0.8.25;
 
 interface IVaultStorage {
+    error InvalidTimestamp();
+    error NoPreviousEpoch();
+
     /**
      * @notice Structure for a slashing limit.
      * @param amount amount of the collateral that can be slashed
@@ -11,7 +14,7 @@ interface IVaultStorage {
     }
 
     /**
-     * @notice Structure for a slashing limit that will be set in the future.
+     * @notice Structure for a slashing limit that will be set in the future (if a new limit won't be set).
      * @param amount amount of the collateral that can be slashed
      * @param timestamp timestamp when the limit will be set
      */
@@ -24,12 +27,11 @@ interface IVaultStorage {
      * @notice Structure for a slash request.
      * @param network network that requested the slash
      * @param resolver resolver that can veto the slash
-     * @param operator operator that could be slashed
+     * @param operator operator that could be slashed (if the request is not vetoed)
      * @param amount maximum amount of the collateral to be slashed
-     * @param vetoDeadline deadline for the resolver to veto the slash
-     * @param slashDeadline deadline to execute slash
+     * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
+     * @param executeDeadline deadline to execute slash (exclusively)
      * @param completed if the slash was vetoed/executed
-     *
      */
     struct SlashRequest {
         address network;
@@ -37,7 +39,7 @@ interface IVaultStorage {
         address operator;
         uint256 amount;
         uint48 vetoDeadline;
-        uint48 slashDeadline;
+        uint48 executeDeadline;
         bool completed;
     }
 
@@ -84,12 +86,6 @@ interface IVaultStorage {
     function NETWORK_REGISTRY() external view returns (address);
 
     /**
-     * @notice Get the operator registry's address.
-     * @return address of the operator registry
-     */
-    function OPERATOR_REGISTRY() external view returns (address);
-
-    /**
      * @notice Get the network middleware service's address.
      * @return address of the network middleware service
      */
@@ -115,7 +111,7 @@ interface IVaultStorage {
 
     /**
      * @notice Get a vault collateral.
-     * @return collateral underlying vault
+     * @return vault's underlying collateral
      */
     function collateral() external view returns (address);
 
@@ -132,6 +128,14 @@ interface IVaultStorage {
     function epochDuration() external view returns (uint48);
 
     /**
+     * @notice Get an epoch at a given timestamp.
+     * @param timestamp time point to get the epoch at
+     * @return epoch at the timestamp
+     * @dev Reverts if the timestamp is less than the start of the epoch 0.
+     */
+    function epochAt(uint48 timestamp) external view returns (uint256);
+
+    /**
      * @notice Get a current vault epoch.
      * @return current epoch
      */
@@ -146,6 +150,7 @@ interface IVaultStorage {
     /**
      * @notice Get a start of the previous vault epoch.
      * @return start of the previous epoch
+     * @dev Reverts if the current epoch is 0.
      */
     function previousEpochStart() external view returns (uint48);
 
@@ -159,11 +164,12 @@ interface IVaultStorage {
      * @notice Get a duration during which slash requests can be executed (after the veto period).
      * @return duration of the slash period
      */
-    function slashDuration() external view returns (uint48);
+    function executeDuration() external view returns (uint48);
 
     /**
      * @notice Get a rewards distributor.
      * @return address of the rewards distributor
+     * @dev It must implement the IRewardsDistributor interface.
      */
     function rewardsDistributor() external view returns (address);
 
@@ -185,6 +191,13 @@ interface IVaultStorage {
      * @return if the account is whitelisted as a depositor
      */
     function isDepositorWhitelisted(address account) external view returns (bool);
+
+    /**
+     * @notice Get a timestamp when the first deposit was made by a particular account.
+     * @param account account to get the timestamp when the first deposit was made for
+     * @return timestamp when the first deposit was made
+     */
+    function firstDepositAt(address account) external view returns (uint48);
 
     /**
      * @notice Get a total amount of active shares in the vault at a given timestamp.
@@ -217,7 +230,7 @@ interface IVaultStorage {
      * @param account account to get the amount of active shares for
      * @param timestamp time point to get the amount of active shares for the account at
      * @param hint hint for the checkpoint index
-     * @return total amount of active shares for the account at the timestamp
+     * @return amount of active shares for the account at the timestamp
      */
     function activeSharesOfAtHint(address account, uint48 timestamp, uint32 hint) external view returns (uint256);
 
@@ -225,7 +238,7 @@ interface IVaultStorage {
      * @notice Get a total amount of active shares for a particular account at a given timestamp.
      * @param account account to get the amount of active shares for
      * @param timestamp time point to get the amount of active shares for the account at
-     * @return total amount of active shares for the account at the timestamp
+     * @return amount of active shares for the account at the timestamp
      */
     function activeSharesOfAt(address account, uint48 timestamp) external view returns (uint256);
 
@@ -260,26 +273,19 @@ interface IVaultStorage {
     function withdrawals(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of withdrawals shares at a given epoch.
-     * @param epoch epoch to get the total amount of withdrawals shares at
-     * @return total amount of withdrawals shares at the epoch
+     * @notice Get a total amount of withdrawal shares at a given epoch.
+     * @param epoch epoch to get the total amount of withdrawal shares at
+     * @return total amount of withdrawal shares at the epoch
      */
-    function withdrawalsShares(uint256 epoch) external view returns (uint256);
+    function withdrawalShares(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get an amount of withdrawals shares for a particular account at a given epoch.
-     * @param epoch epoch to get the amount of withdrawals shares for the account at
-     * @param account account to get the amount of withdrawals shares for
-     * @return amount of withdrawals shares for the account at the epoch
+     * @notice Get an amount of pending withdrawal shares for a particular account at a given epoch (zero if claimed).
+     * @param epoch epoch to get the amount of pending withdrawal shares for the account at
+     * @param account account to get the amount of pending withdrawal shares for
+     * @return amount of pending withdrawal shares for the account at the epoch
      */
-    function withdrawalsSharesOf(uint256 epoch, address account) external view returns (uint256);
-
-    /**
-     * @notice Get a timestamp when the first deposit was made by a particular account.
-     * @param account account to get the timestamp when the first deposit was made for
-     * @return timestamp when the first deposit was made
-     */
-    function firstDepositAt(address account) external view returns (uint48);
+    function pendingWithdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
 
     /**
      * @notice Get a total number of slash requests.
@@ -288,14 +294,14 @@ interface IVaultStorage {
     function slashRequestsLength() external view returns (uint256);
 
     /**
-     * @notice Get a slash request.
+     * @notice Get a particular slash request.
      * @param slashIndex index of the slash request
      * @return network network that requested the slash
      * @return resolver resolver that can veto the slash
-     * @return operator operator that could be slashed
+     * @return operator operator that could be slashed (if the request is not vetoed)
      * @return amount maximum amount of the collateral to be slashed
-     * @return vetoDeadline deadline for the resolver to veto the slash
-     * @return slashDeadline deadline to execute slash
+     * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
+     * @return executeDeadline deadline to execute slash (exclusively)
      * @return completed if the slash was vetoed/executed
      */
     function slashRequests(uint256 slashIndex)
@@ -307,7 +313,7 @@ interface IVaultStorage {
             address operator,
             uint256 amount,
             uint48 vetoDeadline,
-            uint48 slashDeadline,
+            uint48 executeDeadline,
             bool completed
         );
 
@@ -320,7 +326,7 @@ interface IVaultStorage {
     function maxNetworkResolverLimit(address network, address resolver) external view returns (uint256);
 
     /**
-     * @notice Get a next network-resolver limit for a particular network and resolver.
+     * @notice Get the next network-resolver limit for a particular network and resolver.
      * @param network address of the network
      * @param resolver address of the resolver
      * @return next network-resolver limit
@@ -329,7 +335,7 @@ interface IVaultStorage {
     function nextNetworkResolverLimit(address network, address resolver) external view returns (uint256, uint48);
 
     /**
-     * @notice Get a next operator-network limit for a particular operator and network.
+     * @notice Get the next operator-network limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network
      * @return next operator-network limit

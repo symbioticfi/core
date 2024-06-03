@@ -15,68 +15,68 @@ contract NetworkOptInService is INetworkOptInService {
     /**
      * @inheritdoc INetworkOptInService
      */
-    address public immutable WHERE_REGISTRY;
+    address public immutable VAULT_REGISTRY;
 
     /**
      * @inheritdoc INetworkOptInService
      */
-    mapping(address network => mapping(address resolver => mapping(address where => bool value))) public isOptedIn;
+    mapping(address network => mapping(address resolver => mapping(address vault => bool value))) public isOptedIn;
 
     /**
      * @inheritdoc INetworkOptInService
      */
-    mapping(address network => mapping(address resolver => mapping(address where => uint48 timestamp))) public
+    mapping(address network => mapping(address resolver => mapping(address vault => uint48 timestamp))) public
         lastOptOut;
 
-    constructor(address networkRegistry, address whereRegistry) {
+    constructor(address networkRegistry, address vaultRegistry) {
         NETWORK_REGISTRY = networkRegistry;
-        WHERE_REGISTRY = whereRegistry;
+        VAULT_REGISTRY = vaultRegistry;
     }
 
     /**
      * @inheritdoc INetworkOptInService
      */
-    function wasOptedIn(
+    function wasOptedInAfter(
         address network,
         address resolver,
-        address where,
-        uint256 edgeTimestamp
+        address vault,
+        uint48 timestamp
     ) external view returns (bool) {
-        return isOptedIn[network][resolver][where] || lastOptOut[network][resolver][where] >= edgeTimestamp;
+        return isOptedIn[network][resolver][vault] || lastOptOut[network][resolver][vault] >= timestamp;
     }
 
     /**
      * @inheritdoc INetworkOptInService
      */
-    function optIn(address resolver, address where) external {
+    function optIn(address resolver, address vault) external {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
 
-        if (!IRegistry(WHERE_REGISTRY).isEntity(where)) {
-            revert NotWhereEntity();
+        if (!IRegistry(VAULT_REGISTRY).isEntity(vault)) {
+            revert NotVault();
         }
 
-        if (isOptedIn[msg.sender][resolver][where]) {
+        if (isOptedIn[msg.sender][resolver][vault]) {
             revert AlreadyOptedIn();
         }
 
-        isOptedIn[msg.sender][resolver][where] = true;
+        isOptedIn[msg.sender][resolver][vault] = true;
 
-        emit OptIn(msg.sender, resolver, where);
+        emit OptIn(msg.sender, resolver, vault);
     }
 
     /**
      * @inheritdoc INetworkOptInService
      */
-    function optOut(address resolver, address where) external {
-        if (!isOptedIn[msg.sender][resolver][where]) {
+    function optOut(address resolver, address vault) external {
+        if (!isOptedIn[msg.sender][resolver][vault]) {
             revert NotOptedIn();
         }
 
-        isOptedIn[msg.sender][resolver][where] = false;
-        lastOptOut[msg.sender][resolver][where] = Time.timestamp();
+        isOptedIn[msg.sender][resolver][vault] = false;
+        lastOptOut[msg.sender][resolver][vault] = Time.timestamp();
 
-        emit OptOut(msg.sender, resolver, where);
+        emit OptOut(msg.sender, resolver, vault);
     }
 }

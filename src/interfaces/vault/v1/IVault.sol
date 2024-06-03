@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
+    error AlreadyClaimed();
     error AlreadySet();
     error ExceedsMaxNetworkResolverLimit();
     error InsufficientClaim();
@@ -32,21 +33,19 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Initial parameters needed for a vault deployment.
-     * @param owner owner of the vault (can migrate the vault, whitelist networks for rewards distribution, and claim admin fees)
-     * @param collateral underlying vault collateral
-     * @param epochDuration duration of the vault epoch
+     * @param collateral vault's underlying collateral
+     * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param vetoDuration duration of the veto period for a slash request
-     * @param slashDuration duration of the slash period for a slash request (after veto period)
-     * @param rewardsDistributor address of the rewards distributor
+     * @param executeDuration duration of the slash period for a slash request (after the veto duration has passed)
+     * @param rewardsDistributor address of the rewards distributor (it must implement IRewardsDistributor interface)
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
-     * @param depositWhitelist enable/disable deposit whitelist
+     * @param depositWhitelist if enabling deposit whitelist
      */
     struct InitParams {
-        address owner;
         address collateral;
         uint48 epochDuration;
         uint48 vetoDuration;
-        uint48 slashDuration;
+        uint48 executeDuration;
         address rewardsDistributor;
         uint256 adminFee;
         bool depositWhitelist;
@@ -55,9 +54,9 @@ interface IVault is IVaultStorage {
     /**
      * @notice Emitted when a deposit is made.
      * @param depositor account that made the deposit
-     * @param onBehalfOf account that the deposit was made on behalf of
+     * @param onBehalfOf account the deposit was made on behalf of
      * @param amount amount of the collateral deposited
-     * @param shares amount of the active supply shares minted
+     * @param shares amount of the active shares minted
      */
     event Deposit(address indexed depositor, address indexed onBehalfOf, uint256 amount, uint256 shares);
 
@@ -66,7 +65,7 @@ interface IVault is IVaultStorage {
      * @param withdrawer account that made the withdrawal
      * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral withdrawn
-     * @param burnedShares amount of the active supply shares burned
+     * @param burnedShares amount of the active shares burned
      * @param mintedShares amount of the epoch withdrawal shares minted
      */
     event Withdraw(
@@ -75,21 +74,21 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Emitted when a claim is made.
-     * @param claimer account that made the claim
+     * @param claimer account that claimed
      * @param recipient account that received the collateral
      * @param amount amount of the collateral claimed
      */
     event Claim(address indexed claimer, address indexed recipient, uint256 amount);
 
     /**
-     * @notice Emitted when a slash request is made.
+     * @notice Emitted when a slash request is created.
      * @param slashIndex index of the slash request
      * @param network network that requested the slash
      * @param resolver resolver that can veto the slash
-     * @param operator operator that could be slashed
+     * @param operator operator that could be slashed (if the request is not vetoed)
      * @param slashAmount maximum amount of the collateral to be slashed
-     * @param vetoDeadline deadline for the resolver to veto the slash
-     * @param slashDeadline deadline to execute slash
+     * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
+     * @param executeDeadline deadline to execute slash (exclusively)
      */
     event RequestSlash(
         uint256 indexed slashIndex,
@@ -98,7 +97,7 @@ interface IVault is IVaultStorage {
         address indexed operator,
         uint256 slashAmount,
         uint48 vetoDeadline,
-        uint48 slashDeadline
+        uint48 executeDeadline
     );
 
     /**
@@ -116,11 +115,27 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Emitted when a maximum network-resolver limit is set.
-     * @param network network for which the maximum limit is set
-     * @param resolver resolver for which the maximum limit is set
-     * @param amount maximum possible amount of the collateral that can be slashed
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param amount maximum network-resolver limit that can be set
      */
     event SetMaxNetworkResolverLimit(address indexed network, address indexed resolver, uint256 amount);
+
+    /**
+     * @notice Emitted when a network-resolver limit is set.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param amount maximum amount of the collateral that can be slashed
+     */
+    event SetNetworkResolverLimit(address indexed network, address indexed resolver, uint256 amount);
+
+    /**
+     * @notice Emitted when an operator-network limit is set.
+     * @param operator address of the operator
+     * @param network address of the network
+     * @param amount maximum amount of the collateral that can be slashed
+     */
+    event SetOperatorNetworkLimit(address indexed operator, address indexed network, uint256 amount);
 
     /**
      * @notice Emitted when a rewards distributor is set.
@@ -135,37 +150,29 @@ interface IVault is IVaultStorage {
     event SetAdminFee(uint256 adminFee);
 
     /**
-     * @notice Emitted when deposit whitelist status is set.
-     * @param depositWhitelist enable/disable deposit whitelist
+     * @notice Emitted when a deposit whitelist status is enabled/disabled.
+     * @param depositWhitelist if enabled deposit whitelist
      */
     event SetDepositWhitelist(bool depositWhitelist);
 
     /**
      * @notice Emitted when a depositor whitelist status is set.
      * @param account account for which the whitelist status is set
-     * @param value whitelist status
+     * @param status if whitelisted the account
      */
-    event SetDepositorWhitelistStatus(address indexed account, bool value);
+    event SetDepositorWhitelistStatus(address indexed account, bool status);
 
     /**
-     * @notice Emitted when a network-resolver limit is set.
-     * @param network network for which the limit is set
-     * @param resolver resolver for which the limit is set
-     * @param amount amount of the collateral that can be slashed
+     * @notice Get a total amount of the collateral that can be slashed
+     *         in `duration` seconds (if there will be no new deposits and slash executions).
+     * @param duration duration to get the total amount of the slashable collateral in
+     * @return total amount of the slashable collateral in `duration` seconds
      */
-    event SetNetworkResolverLimit(address indexed network, address indexed resolver, uint256 amount);
+    function totalSupplyIn(uint48 duration) external view returns (uint256);
 
     /**
-     * @notice Emitted when an operator-network limit is set.
-     * @param operator operator for which the limit is set
-     * @param network network for which the limit is set
-     * @param amount amount of the collateral that can be slashed
-     */
-    event SetOperatorNetworkLimit(address indexed operator, address indexed network, uint256 amount);
-
-    /**
-     * @notice Get a total amount of the collateral deposited in the vault.
-     * @return total amount of the collateral deposited
+     * @notice Get a total amount of the collateral that can be slashed.
+     * @return total amount of the slashable collateral
      */
     function totalSupply() external view returns (uint256);
 
@@ -185,12 +192,28 @@ interface IVault is IVaultStorage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get a withdrawals balance for a particular account at a given epoch.
-     * @param epoch epoch to get the withdrawals balance for the account at
-     * @param account account to get the withdrawals balance for
-     * @return withdrawals balance for the account at the epoch
+     * @notice Get pending withdrawals for a particular account at a given epoch (zero if claimed).
+     * @param epoch epoch to get the pending withdrawals for the account at
+     * @param account account to get the pending withdrawals for
+     * @return pending withdrawals for the account at the epoch
      */
-    function withdrawalsBalanceOf(uint256 epoch, address account) external view returns (uint256);
+    function pendingWithdrawalsOf(uint256 epoch, address account) external view returns (uint256);
+
+    /**
+     * @notice Get a maximum amount of collateral that can be slashed
+     *         for a particular network, resolver, and operator in `duration` seconds.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param operator address of the operator
+     * @param duration duration to get the slashable amount in
+     * @return maximum amount of the collateral that can be slashed in `duration` seconds
+     */
+    function slashableAmountIn(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256);
 
     /**
      * @notice Get a maximum amount of collateral that can be slashed for a particular network, resolver, and operator.
@@ -199,7 +222,20 @@ interface IVault is IVaultStorage {
      * @param operator address of the operator
      * @return maximum amount of the collateral that can be slashed
      */
-    function maxSlash(address network, address resolver, address operator) external view returns (uint256);
+    function slashableAmount(address network, address resolver, address operator) external view returns (uint256);
+
+    /**
+     * @notice Get a network-resolver limit for a particular network and resolver in `duration` seconds.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param duration duration to get the network-resolver limit in
+     * @return network-resolver limit in `duration` seconds
+     */
+    function networkResolverLimitIn(
+        address network,
+        address resolver,
+        uint48 duration
+    ) external view returns (uint256);
 
     /**
      * @notice Get a network-resolver limit for a particular network and resolver.
@@ -210,6 +246,19 @@ interface IVault is IVaultStorage {
     function networkResolverLimit(address network, address resolver) external view returns (uint256);
 
     /**
+     * @notice Get an operator-network limit for a particular operator and network in `duration` seconds.
+     * @param operator address of the operator
+     * @param network address of the network
+     * @param duration duration to get the operator-network limit in
+     * @return operator-network limit in `duration` seconds
+     */
+    function operatorNetworkLimitIn(
+        address operator,
+        address network,
+        uint48 duration
+    ) external view returns (uint256);
+
+    /**
      * @notice Get an operator-network limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network
@@ -218,18 +267,34 @@ interface IVault is IVaultStorage {
     function operatorNetworkLimit(address operator, address network) external view returns (uint256);
 
     /**
+     * @notice Get a minimum stake that a given network will be able to slash using a particular resolver
+     *         for a certain operator during `duration` (if no cross-slashing).
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param operator address of the operator
+     * @param duration duration to get the minimum slashable stake during
+     * @return minimum slashable stake during `duration`
+     */
+    function minStakeDuring(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256);
+
+    /**
      * @notice Deposit collateral into the vault.
-     * @param onBehalfOf account that the deposit is made on behalf of
+     * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit
-     * @return shares amount of the active supply shares minted
+     * @return shares amount of the active shares minted
      */
     function deposit(address onBehalfOf, uint256 amount) external returns (uint256 shares);
 
     /**
-     * @notice Withdraw collateral from the vault.
+     * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).
      * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral to withdraw
-     * @return burnedShares amount of the active supply shares burned
+     * @return burnedShares amount of the active shares burned
      * @return mintedShares amount of the epoch withdrawal shares minted
      */
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares);
@@ -243,7 +308,7 @@ interface IVault is IVaultStorage {
     function claim(address recipient, uint256 epoch) external returns (uint256 amount);
 
     /**
-     * @notice Request a slash for a particular network, resolver, and operator.
+     * @notice Request a slash using a network and a resolver for a particular operator by a given amount.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param operator address of the operator
@@ -262,22 +327,42 @@ interface IVault is IVaultStorage {
      * @notice Execute a slash with a given slash index.
      * @param slashIndex index of the slash request
      * @return slashedAmount amount of the collateral slashed
+     * @dev Anyone can call this function.
      */
     function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount);
 
     /**
      * @notice Veto a slash with a given slash index.
      * @param slashIndex index of the slash request
+     * @dev Only a resolver can call this function.
      */
     function vetoSlash(uint256 slashIndex) external;
 
     /**
      * @notice Set a maximum network-resolver limit.
      * @param resolver address of the resolver
-     * @param amount maximum amount of the collateral that can be slashed
+     * @param amount maximum network-resolver limit that can be set
      * @dev Only a network can call this function.
      */
     function setMaxNetworkResolverLimit(address resolver, uint256 amount) external;
+
+    /**
+     * @notice Set a network-resolver limit for a particular network and resolver.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param amount new maximum amount of the collateral that can be slashed
+     * @dev Only the NETWORK_RESOLVER_LIMIT_SET_ROLE holder can call this function.
+     */
+    function setNetworkResolverLimit(address network, address resolver, uint256 amount) external;
+
+    /**
+     * @notice Set an operator-network limit for a particular operator and network.
+     * @param operator address of the operator
+     * @param network address of the network
+     * @param amount new maximum amount of the collateral that can be slashed
+     * @dev Only the OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
+     */
+    function setOperatorNetworkLimit(address operator, address network, uint256 amount) external;
 
     /**
      * @notice Set a rewards distributor.
@@ -295,7 +380,7 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Enable/disable deposit whitelist.
-     * @param status enable/disable deposit whitelist
+     * @param status if enabling deposit whitelist
      * @dev Only the DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
     function setDepositWhitelist(bool status) external;
@@ -303,26 +388,8 @@ interface IVault is IVaultStorage {
     /**
      * @notice Set a depositor whitelist status.
      * @param account account for which the whitelist status is set
-     * @param status whitelist status
+     * @param status if whitelisting the account
      * @dev Only the DEPOSITOR_WHITELIST_ROLE holder can call this function.
      */
     function setDepositorWhitelistStatus(address account, bool status) external;
-
-    /**
-     * @notice Set a network-resolver limit for a particular network and resolver.
-     * @param network address of the network
-     * @param resolver address of the resolver
-     * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only the NETWORK_RESOLVER_LIMIT_SET_ROLE holder can call this function.
-     */
-    function setNetworkResolverLimit(address network, address resolver, uint256 amount) external;
-
-    /**
-     * @notice Set an operator-network limit for a particular operator and network.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @param amount maximum amount of the collateral that can be slashed
-     * @dev Only the OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
-     */
-    function setOperatorNetworkLimit(address operator, address network, uint256 amount) external;
 }

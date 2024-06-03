@@ -57,11 +57,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable OPERATOR_REGISTRY;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
@@ -102,7 +97,7 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public slashDuration;
+    uint48 public executeDuration;
 
     /**
      * @inheritdoc IVaultStorage
@@ -137,12 +132,12 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(uint256 epoch => uint256 amount) public withdrawalsShares;
+    mapping(uint256 epoch => uint256 amount) public withdrawalShares;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(uint256 epoch => mapping(address account => uint256 amount)) public withdrawalsSharesOf;
+    mapping(uint256 epoch => mapping(address account => uint256 amount)) public pendingWithdrawalSharesOf;
 
     /**
      * @inheritdoc IVaultStorage
@@ -176,18 +171,26 @@ contract VaultStorage is IVaultStorage {
 
     constructor(
         address networkRegistry,
-        address operatorRegistry,
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
         address operatorNetworkOptInService
     ) {
         NETWORK_REGISTRY = networkRegistry;
-        OPERATOR_REGISTRY = operatorRegistry;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
         NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function epochAt(uint48 timestamp) public view returns (uint256) {
+        if (timestamp < epochDurationInit) {
+            revert InvalidTimestamp();
+        }
+        return (timestamp - epochDurationInit) / epochDuration;
     }
 
     /**
@@ -208,7 +211,11 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     function previousEpochStart() public view returns (uint48) {
-        return currentEpoch() != 0 ? currentEpochStart() - epochDuration : currentEpochStart();
+        uint256 epoch = currentEpoch();
+        if (epoch == 0) {
+            revert NoPreviousEpoch();
+        }
+        return uint48(epochDurationInit + (epoch - 1) * epochDuration);
     }
 
     /**

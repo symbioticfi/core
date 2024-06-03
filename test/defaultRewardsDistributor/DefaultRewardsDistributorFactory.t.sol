@@ -7,7 +7,7 @@ import {VaultFactory} from "src/contracts/VaultFactory.sol";
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {MetadataService} from "src/contracts/MetadataService.sol";
-import {MiddlewareService} from "src/contracts/MiddlewareService.sol";
+import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
 import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 
@@ -34,7 +34,7 @@ contract DefaultRewardsDistributorFactoryTest is Test {
     OperatorRegistry operatorRegistry;
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
-    MiddlewareService networkMiddlewareService;
+    NetworkMiddlewareService networkMiddlewareService;
     NetworkOptInService networkVaultOptInService;
     OperatorOptInService operatorVaultOptInService;
     OperatorOptInService operatorNetworkOptInService;
@@ -51,7 +51,7 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         operatorRegistry = new OperatorRegistry();
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
-        networkMiddlewareService = new MiddlewareService(address(networkRegistry));
+        networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
@@ -59,8 +59,8 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         vaultFactory.whitelist(
             address(
                 new Vault(
+                    address(vaultFactory),
                     address(networkRegistry),
-                    address(operatorRegistry),
                     address(networkMiddlewareService),
                     address(networkVaultOptInService),
                     address(operatorVaultOptInService),
@@ -72,13 +72,13 @@ contract DefaultRewardsDistributorFactoryTest is Test {
         vault = IVault(
             vaultFactory.create(
                 vaultFactory.lastVersion(),
+                alice,
                 abi.encode(
                     IVault.InitParams({
-                        owner: alice,
                         collateral: address(0),
                         epochDuration: 1,
                         vetoDuration: 0,
-                        slashDuration: 0,
+                        executeDuration: 0,
                         rewardsDistributor: address(0),
                         adminFee: 0,
                         depositWhitelist: false

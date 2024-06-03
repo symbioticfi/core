@@ -7,6 +7,8 @@ contract SimpleMigratableEntityV2 is MigratableEntity {
     uint256 public a;
     uint256 public b;
 
+    constructor(address factory) MigratableEntity(factory) {}
+
     function setA(uint256 a_) public {
         a = a_ + 1;
     }
@@ -15,12 +17,7 @@ contract SimpleMigratableEntityV2 is MigratableEntity {
         b = b_;
     }
 
-    /**
-     * @inheritdoc MigratableEntity
-     */
-    function migrate(bytes memory data) public override reinitializer(_getInitializedVersion() + 1) {
-        _migrate();
-
+    function _migrate(uint64, bytes memory data) internal override {
         uint256 b_ = abi.decode(data, (uint256));
         b = b_;
     }
