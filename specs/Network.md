@@ -8,14 +8,14 @@ Networks are represented through a network address (either an EOA or a contract)
 
 ---
 
-The network epoch (let's name it $\text{NETWORK\_EPOCH}$) plus the vault's veto and execute phases' durations should not exceed the duration of the vault's epoch to **ensure that withdrawals do not impact the captured stake** (however, the conditions can be softer in practice):
+The network epoch (let's name it $`\text{NETWORK\_EPOCH}`$) plus the vault's veto and execute phases' durations should not exceed the duration of the vault's epoch to **ensure that withdrawals do not impact the captured stake** (however, the conditions can be softer in practice):
 
-- $$
+- $`
   \text{CYCLE\_DURATION} = \text{NETWORK\_EPOCH} + \text{vetoDuration} + \text{executeDuration}
-  $$
-- $$
+  `$
+- $`
   \text{CYCLE\_DURATION} <= \text{EPOCH}
-  $$
+  `$
 
 ---
 
@@ -23,7 +23,7 @@ The vault allocates stakes by setting limits for network-resolver and operator-n
 
 Given the current $active$ balance of the vault and the limits, we can **capture the stake for the subsequent network epoch**:
 
-$$
+$`
 \text{networkStake} = \min \left(
 \begin{array}{l}
 \text{activeSupply}, \\
@@ -45,7 +45,7 @@ $$
 \right\}
 \end{array}
 \right)
-$$
+`$
 
 ---
 
