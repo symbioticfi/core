@@ -11,19 +11,9 @@ contract VaultStorage is IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
 
     /**
-     * @dev Some dead address to issue debt to.
-     */
-    address internal constant DEAD = address(0xdEaD);
-
-    /**
      * @inheritdoc IVaultStorage
      */
     uint256 public constant ADMIN_FEE_BASE = 10_000;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    bytes32 public constant REWARDS_DISTRIBUTOR_SET_ROLE = keccak256("REWARDS_DISTRIBUTOR_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
@@ -42,42 +32,12 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable NETWORK_REGISTRY;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable NETWORK_MIDDLEWARE_SERVICE;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable NETWORK_VAULT_OPT_IN_SERVICE;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     address public collateral;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public stakingController;
 
     /**
      * @inheritdoc IVaultStorage
@@ -88,21 +48,6 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     uint48 public epochDuration;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint48 public vetoDuration;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint48 public executeDuration;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public rewardsDistributor;
 
     /**
      * @inheritdoc IVaultStorage
@@ -139,49 +84,11 @@ contract VaultStorage is IVaultStorage {
      */
     mapping(uint256 epoch => mapping(address account => uint256 amount)) public pendingWithdrawalSharesOf;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    SlashRequest[] public slashRequests;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    mapping(address network => mapping(address resolver => uint256 amount)) public maxNetworkResolverLimit;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    mapping(address network => mapping(address resolver => DelayedLimit)) public nextNetworkResolverLimit;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorNetworkLimit;
-
     Checkpoints.Trace256 internal _activeShares;
 
     Checkpoints.Trace256 internal _activeSupplies;
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
-
-    mapping(address network => mapping(address resolver => Limit limit)) internal _networkResolverLimit;
-
-    mapping(address operator => mapping(address network => Limit limit)) internal _operatorNetworkLimit;
-
-    constructor(
-        address networkRegistry,
-        address networkMiddlewareService,
-        address networkVaultOptInService,
-        address operatorVaultOptInService,
-        address operatorNetworkOptInService
-    ) {
-        NETWORK_REGISTRY = networkRegistry;
-        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
-        NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;
-        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
-        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
-    }
 
     /**
      * @inheritdoc IVaultStorage
@@ -280,12 +187,5 @@ contract VaultStorage is IVaultStorage {
     function activeSharesOfCheckpoint(address account, uint32 pos) external view returns (uint48, uint256) {
         Checkpoints.Checkpoint256 memory checkpoint = _activeSharesOf[account].at(pos);
         return (checkpoint._key, checkpoint._value);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function slashRequestsLength() external view returns (uint256) {
-        return slashRequests.length;
     }
 }
