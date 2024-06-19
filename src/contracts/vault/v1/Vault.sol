@@ -205,7 +205,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
         withdrawals[epoch + 1] = nextWithdrawals_ - nextWithdrawalsSlashed;
 
-        ICollateral(collateral).issueDebt(DEAD, slashedAmount);
+        ICollateral(collateral).issueDebt(burner, slashedAmount);
 
         emit Slash(msg.sender, slashedAmount);
     }
@@ -269,6 +269,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         collateral = params.collateral;
+        burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;

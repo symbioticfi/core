@@ -16,11 +16,6 @@ contract VaultStorage is IVaultStorage {
     uint256 public constant ADMIN_FEE_BASE = 10_000;
 
     /**
-     * @dev Some dead address to issue debt to.
-     */
-    address internal constant DEAD = address(0xdEaD);
-
-    /**
      * @inheritdoc IVaultStorage
      */
     bytes32 public constant ADMIN_FEE_SET_ROLE = keccak256("ADMIN_FEE_SET_ROLE");
@@ -38,6 +33,11 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     address public collateral;
+    
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public burner;
 
     /**
      * @inheritdoc IVaultStorage

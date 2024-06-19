@@ -25,18 +25,24 @@ interface IVaultStorage {
      * @notice Get the depositor whitelist status setter's role.
      */
     function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get a vault's staking controoler.
-     * @return vault's staking controller
-     */
-    function slasher() external view returns (address);
-
+    
     /**
      * @notice Get a vault collateral.
      * @return vault's underlying collateral
      */
     function collateral() external view returns (address);
+    
+    /**
+     * @dev Get a burner to issue debt to (e.g. 0xdEaD or some unwrapper contract).
+     * @return vault's burner
+     */
+    function burner() external view returns (address);
+    
+    /**
+     * @notice Get a vault's staking controoler.
+     * @return vault's staking controller
+     */
+    function slasher() external view returns (address);
 
     /**
      * @notice Get a time point of the epoch duration set.

@@ -20,6 +20,7 @@ interface IVault is IVaultStorage {
     /**
      * @notice Initial parameters needed for a vault deployment.
      * @param collateral vault's underlying collateral
+     * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist if enabling deposit whitelist
@@ -29,6 +30,7 @@ interface IVault is IVaultStorage {
      */
     struct InitParams {
         address collateral;
+        address burner;
         uint48 epochDuration;
         uint256 adminFee;
         bool depositWhitelist;
