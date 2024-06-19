@@ -6,17 +6,6 @@ interface IVaultStorage {
     error NoPreviousEpoch();
 
     /**
-     * @notice Get the maximum admin fee (= 100%).
-     * @return maximum admin fee
-     */
-    function ADMIN_FEE_BASE() external view returns (uint256);
-
-    /**
-     * @notice Get the admin fee setter's role.
-     */
-    function ADMIN_FEE_SET_ROLE() external view returns (bytes32);
-
-    /**
      * @notice Get the deposit whitelist enabler/disabler's role.
      */
     function DEPOSIT_WHITELIST_SET_ROLE() external view returns (bytes32);
@@ -82,12 +71,6 @@ interface IVaultStorage {
      * @dev Reverts if the current epoch is 0.
      */
     function previousEpochStart() external view returns (uint48);
-
-    /**
-     * @notice Get an admin fee.
-     * @return admin fee
-     */
-    function adminFee() external view returns (uint256);
 
     /**
      * @notice Get if the deposit whitelist is enabled.

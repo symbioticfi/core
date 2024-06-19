@@ -9,7 +9,6 @@ interface IVault is IVaultStorage {
     error InsufficientClaim();
     error InsufficientDeposit();
     error InsufficientWithdrawal();
-    error InvalidAdminFee();
     error InvalidEpoch();
     error InvalidEpochDuration();
     error NoDepositWhitelist();
@@ -22,7 +21,6 @@ interface IVault is IVaultStorage {
      * @param collateral vault's underlying collateral
      * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist if enabling deposit whitelist
      * @param slasherFactory factory for creating vault's staking controller
      * @param vetoDuration duration of the veto period for a slash request
@@ -32,7 +30,6 @@ interface IVault is IVaultStorage {
         address collateral;
         address burner;
         uint48 epochDuration;
-        uint256 adminFee;
         bool depositWhitelist;
         address slasherFactory;
         uint48 vetoDuration;
@@ -74,12 +71,6 @@ interface IVault is IVaultStorage {
      * @param slashedAmount amount of the collateral slashed
      */
     event Slash(address indexed slasher, uint256 slashedAmount);
-
-    /**
-     * @notice Emitted when an admin fee is set.
-     * @param adminFee admin fee
-     */
-    event SetAdminFee(uint256 adminFee);
 
     /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.
@@ -161,13 +152,6 @@ interface IVault is IVaultStorage {
      * @param slashedAmount amount to slash
      */
     function slash(uint256 slashedAmount) external;
-
-    /**
-     * @notice Set an admin fee.
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
-     * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
-     */
-    function setAdminFee(uint256 adminFee) external;
 
     /**
      * @notice Enable/disable deposit whitelist.

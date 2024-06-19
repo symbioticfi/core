@@ -13,16 +13,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public constant ADMIN_FEE_BASE = 10_000;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    bytes32 public constant ADMIN_FEE_SET_ROLE = keccak256("ADMIN_FEE_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
     /**
      * @inheritdoc IVaultStorage
@@ -53,11 +43,6 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     uint48 public epochDuration;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint256 public adminFee;
 
     /**
      * @inheritdoc IVaultStorage

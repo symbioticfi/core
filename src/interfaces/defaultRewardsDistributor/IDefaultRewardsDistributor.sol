@@ -7,6 +7,7 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     error AlreadySet();
     error InsufficientAdminFee();
     error InsufficientReward();
+    error InvalidAdminFee();
     error InvalidHintsLength();
     error InvalidRewardTimestamp();
     error NoDeposits();
@@ -62,6 +63,33 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     event SetNetworkWhitelistStatus(address indexed network, bool status);
 
     /**
+     * @notice Emitted when an admin fee is set.
+     * @param adminFee admin fee
+     */
+    event SetAdminFee(uint256 adminFee);
+
+    /**
+     * @notice Get the maximum admin fee (= 100%).
+     * @return maximum admin fee
+     */
+    function ADMIN_FEE_BASE() external view returns (uint256);
+    
+    /**
+     * @notice Get the admin fee claimer's role.
+     */
+    function ADMIN_FEE_CLAIM_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get the network whitelist status setter's role.
+     */
+    function NETWORK_WHITELIST_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get the admin fee setter's role.
+     */
+    function ADMIN_FEE_SET_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Get the network registry's address.
      * @return address of the network registry
      */
@@ -83,7 +111,13 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
      * @notice Get the vault's address.
      * @return address of the vault
      */
-    function VAULT() external view returns (address);
+    function VAULT() external view returns (address);    
+
+    /**
+     * @notice Get an admin fee.
+     * @return admin fee
+     */
+    function adminFee() external view returns (uint256);
 
     /**
      * @notice Get if a given account is a whitelisted network.
@@ -153,7 +187,14 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
      * @notice Set a network whitelist status (it allows networks to distribute rewards).
      * @param network address of the network
      * @param status if whitelisting the network
-     * @dev Only the vault owner can call this function.
+     * @dev Only the NETWORK_WHITELIST_ROLE holder can call this function.
      */
     function setNetworkWhitelistStatus(address network, bool status) external;
+    
+    /**
+     * @notice Set an admin fee.
+     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
+     */
+    function setAdminFee(uint256 adminFee) external;
 }

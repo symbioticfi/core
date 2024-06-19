@@ -213,23 +213,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setAdminFee(uint256 adminFee_) external onlyRole(ADMIN_FEE_SET_ROLE) {
-        if (adminFee == adminFee_) {
-            revert AlreadySet();
-        }
-
-        if (adminFee_ > ADMIN_FEE_BASE) {
-            revert InvalidAdminFee();
-        }
-
-        adminFee = adminFee_;
-
-        emit SetAdminFee(adminFee_);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
@@ -264,17 +247,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidEpochDuration();
         }
 
-        if (params.adminFee > ADMIN_FEE_BASE) {
-            revert InvalidAdminFee();
-        }
-
         collateral = params.collateral;
         burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        adminFee = params.adminFee;
         depositWhitelist = params.depositWhitelist;
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);

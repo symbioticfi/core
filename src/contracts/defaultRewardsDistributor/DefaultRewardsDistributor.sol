@@ -10,11 +10,12 @@ import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultRewardsDistributor {
+contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardUpgradeable, IDefaultRewardsDistributor {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -22,6 +23,26 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
      * @inheritdoc IRewardsDistributor
      */
     uint64 public constant version = 1;
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    uint256 public constant ADMIN_FEE_BASE = 10_000;
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    bytes32 public constant ADMIN_FEE_CLAIM_ROLE = keccak256("ADMIN_FEE_CLAIM_ROLE");
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    bytes32 public constant NETWORK_WHITELIST_ROLE = keccak256("NETWORK_WHITELIST_ROLE");
+
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    bytes32 public constant ADMIN_FEE_SET_ROLE = keccak256("ADMIN_FEE_SET_ROLE");
 
     /**
      * @inheritdoc IDefaultRewardsDistributor
@@ -42,6 +63,11 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
      * @inheritdoc IDefaultRewardsDistributor
      */
     address public VAULT;
+    
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    uint256 public adminFee;
 
     /**
      * @inheritdoc IDefaultRewardsDistributor
@@ -95,6 +121,12 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
         __ReentrancyGuard_init();
 
         VAULT = vault;
+
+        address vaultOwner = Ownable(vault).owner();
+        _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
+        _grantRole(ADMIN_FEE_CLAIM_ROLE, vaultOwner);
+        _grantRole(NETWORK_WHITELIST_ROLE, vaultOwner);
+        _grantRole(ADMIN_FEE_SET_ROLE, vaultOwner);
     }
 
     /**
@@ -132,7 +164,7 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
             revert InsufficientReward();
         }
 
-        uint256 adminFeeAmount = amount.mulDiv(IVault(VAULT).adminFee(), IVault(VAULT).ADMIN_FEE_BASE());
+        uint256 adminFeeAmount = amount.mulDiv(adminFee, ADMIN_FEE_BASE);
         claimableAdminFee[token] += adminFeeAmount;
 
         rewards[token].push(
@@ -210,7 +242,7 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
     /**
      * @inheritdoc IDefaultRewardsDistributor
      */
-    function claimAdminFee(address recipient, address token) external onlyVaultOwner {
+    function claimAdminFee(address recipient, address token) external onlyRole(ADMIN_FEE_CLAIM_ROLE) {
         uint256 claimableAdminFee_ = claimableAdminFee[token];
         if (claimableAdminFee_ == 0) {
             revert InsufficientAdminFee();
@@ -226,7 +258,7 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
     /**
      * @inheritdoc IDefaultRewardsDistributor
      */
-    function setNetworkWhitelistStatus(address network, bool status) external onlyVaultOwner {
+    function setNetworkWhitelistStatus(address network, bool status) external onlyRole(NETWORK_WHITELIST_ROLE)  {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
             revert NotNetwork();
         }
@@ -238,6 +270,23 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
         isNetworkWhitelisted[network] = status;
 
         emit SetNetworkWhitelistStatus(network, status);
+    }
+    
+    /**
+     * @inheritdoc IDefaultRewardsDistributor
+     */
+    function setAdminFee(uint256 adminFee_) external onlyRole(ADMIN_FEE_SET_ROLE) {
+        if (adminFee == adminFee_) {
+            revert AlreadySet();
+        }
+
+        if (adminFee_ > ADMIN_FEE_BASE) {
+            revert InvalidAdminFee();
+        }
+
+        adminFee = adminFee_;
+
+        emit SetAdminFee(adminFee_);
     }
 
     /**
