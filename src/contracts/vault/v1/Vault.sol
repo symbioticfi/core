@@ -5,9 +5,7 @@ import {MigratableEntity} from "src/contracts/base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {ISlasherFactory} from "src/interfaces/slasher/v1/ISlasherFactory.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
@@ -259,10 +257,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (params.depositWhitelist) {
             _grantRole(DEPOSITOR_WHITELIST_ROLE, owner);
         }
-
-        ISlasherFactory(params.slasherFactory).create(
-            address(this), params.vetoDuration, params.executeDuration
-        );
     }
 
     function _migrate(uint64, bytes memory) internal override {

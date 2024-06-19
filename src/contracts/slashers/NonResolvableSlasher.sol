@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ISlasher} from "src/interfaces/slasher/v1/ISlasher.sol";
+import {INonResolvableSlasher} from "src/interfaces/slashers/INonResolvableSlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {IDelegator} from "src/interfaces/IDelegator.sol";
@@ -13,59 +13,59 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract Slasher is Initializable, ISlasher {
+contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public immutable NETWORK_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public vault;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     address public delegator;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     SlashRequest[] public slashRequests;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     uint48 public vetoDuration;
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     uint48 public executeDuration;
 
@@ -90,14 +90,14 @@ contract Slasher is Initializable, ISlasher {
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function slashRequestsLength() external view returns (uint256) {
         return slashRequests.length;
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function slashableAmountIn(
         address network,
@@ -115,7 +115,7 @@ contract Slasher is Initializable, ISlasher {
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function slashableAmount(address network, address resolver, address operator) public view returns (uint256) {
         return Math.min(
@@ -128,7 +128,7 @@ contract Slasher is Initializable, ISlasher {
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function minStakeDuring(
         address network,
@@ -167,7 +167,7 @@ contract Slasher is Initializable, ISlasher {
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function requestSlash(
         address network,
@@ -236,7 +236,7 @@ contract Slasher is Initializable, ISlasher {
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount) {
         if (slashIndex >= slashRequests.length) {
@@ -273,7 +273,7 @@ contract Slasher is Initializable, ISlasher {
     }
 
     /**
-     * @inheritdoc ISlasher
+     * @inheritdoc INonResolvableSlasher
      */
     function vetoSlash(uint256 slashIndex) external {
         if (slashIndex >= slashRequests.length) {
