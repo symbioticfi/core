@@ -37,7 +37,7 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    address public stakingController;
+    address public slasher;
 
     /**
      * @inheritdoc IVaultStorage

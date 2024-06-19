@@ -30,7 +30,7 @@ interface IVaultStorage {
      * @notice Get a vault's staking controoler.
      * @return vault's staking controller
      */
-    function stakingController() external view returns (address);
+    function slasher() external view returns (address);
 
     /**
      * @notice Get a vault collateral.

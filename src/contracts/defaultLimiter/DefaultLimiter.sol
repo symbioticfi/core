@@ -55,9 +55,9 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     mapping(address vault => mapping(address operator => mapping(address network => Limit limit))) internal
         _operatorNetworkLimit;
 
-    modifier onlyStakingController(address vault) {
-        if (IVault(vault).stakingController() != msg.sender) {
-            revert NotStakingController();
+    modifier onlySlasher(address vault) {
+        if (IVault(vault).slasher() != msg.sender) {
+            revert NotSlasher();
         }
         _;
     }
@@ -194,7 +194,7 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
         address resolver,
         address operator,
         uint256 slashedAmount
-    ) external onlyStakingController(vault) {
+    ) external onlySlasher(vault) {
         uint256 networkResolverLimit_ = networkResolverLimit(vault, network, resolver);
         uint256 operatorNetworkLimit_ = operatorNetworkLimit(vault, operator, network);
 

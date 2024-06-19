@@ -5,7 +5,7 @@ import {ILimiter} from "src/interfaces/ILimiter.sol";
 interface IDefaultLimiter is ILimiter {
     error ExceedsMaxNetworkResolverLimit();
     error AlreadySet();
-    error NotStakingController();
+    error NotSlasher();
     error NotNetwork();
 
     /**

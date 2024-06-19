@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
-interface IStakingControllerFactory is IRegistry {
+interface ISlasherFactory is IRegistry {
     error NotVault();
 
     /**

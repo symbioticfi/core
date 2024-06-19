@@ -14,7 +14,7 @@ interface IVault is IVaultStorage {
     error InvalidEpochDuration();
     error NoDepositWhitelist();
     error NotWhitelistedDepositor();
-    error NotStakingController();
+    error NotSlasher();
     error TooMuchWithdraw();
 
     /**
@@ -23,7 +23,7 @@ interface IVault is IVaultStorage {
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param depositWhitelist if enabling deposit whitelist
-     * @param stakingControllerFactory factory for creating vault's staking controller
+     * @param slasherFactory factory for creating vault's staking controller
      * @param vetoDuration duration of the veto period for a slash request
      * @param executeDuration duration of the slash period for a slash request (after the veto duration has passed)
      */
@@ -32,7 +32,7 @@ interface IVault is IVaultStorage {
         uint48 epochDuration;
         uint256 adminFee;
         bool depositWhitelist;
-        address stakingControllerFactory;
+        address slasherFactory;
         uint48 vetoDuration;
         uint48 executeDuration;
     }

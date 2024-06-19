@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {StakingController} from "./StakingController.sol";
+import {Slasher} from "./Slasher.sol";
 import {Registry} from "src/contracts/base/Registry.sol";
 
-import {IStakingControllerFactory} from "src/interfaces/stakingController/v1/IStakingControllerFactory.sol";
+import {ISlasherFactory} from "src/interfaces/slasher/v1/ISlasherFactory.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
-contract StakingControllerFactory is Registry, IStakingControllerFactory {
+contract SlasherFactory is Registry, ISlasherFactory {
     using Clones for address;
 
-    address private immutable STAKING_CONTROLLER_IMPLEMENTATION;
+    address private immutable SLASHER_IMPLEMENTATION;
 
     constructor(
         address networkRegistry,
@@ -21,8 +21,8 @@ contract StakingControllerFactory is Registry, IStakingControllerFactory {
         address operatorVaultOptInService,
         address operatorNetworkOptInService
     ) {
-        STAKING_CONTROLLER_IMPLEMENTATION = address(
-            new StakingController(
+        SLASHER_IMPLEMENTATION = address(
+            new Slasher(
                 vaultFactory,
                 networkRegistry,
                 networkMiddlewareService,
@@ -34,14 +34,14 @@ contract StakingControllerFactory is Registry, IStakingControllerFactory {
     }
 
     /**
-     * @inheritdoc IStakingControllerFactory
+     * @inheritdoc ISlasherFactory
      */
     function create(address vault, uint48 vetoDuration, uint48 executeDuration) external returns (address) {
-        address stakingController = STAKING_CONTROLLER_IMPLEMENTATION.clone();
-        StakingController(stakingController).initialize(vault, vetoDuration, executeDuration);
+        address slasher = SLASHER_IMPLEMENTATION.clone();
+        Slasher(slasher).initialize(vault, vetoDuration, executeDuration);
 
-        _addEntity(stakingController);
+        _addEntity(slasher);
 
-        return stakingController;
+        return slasher;
     }
 }

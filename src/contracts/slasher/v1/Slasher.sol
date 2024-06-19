@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IStakingController} from "src/interfaces/stakingController/v1/IStakingController.sol";
+import {ISlasher} from "src/interfaces/slasher/v1/ISlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {ILimiter} from "src/interfaces/ILimiter.sol";
@@ -14,9 +14,9 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract StakingController is Initializable, IStakingController {
+contract Slasher is Initializable, ISlasher {
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public immutable VAULT_FACTORY;
 
@@ -26,52 +26,52 @@ contract StakingController is Initializable, IStakingController {
     address internal constant DEAD = address(0xdEaD);
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public immutable NETWORK_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public vault;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     address public limiter;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     SlashRequest[] public slashRequests;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     uint48 public vetoDuration;
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     uint48 public executeDuration;
 
@@ -96,14 +96,14 @@ contract StakingController is Initializable, IStakingController {
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function slashRequestsLength() external view returns (uint256) {
         return slashRequests.length;
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function slashableAmountIn(
         address network,
@@ -121,7 +121,7 @@ contract StakingController is Initializable, IStakingController {
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function slashableAmount(address network, address resolver, address operator) public view returns (uint256) {
         return Math.min(
@@ -134,7 +134,7 @@ contract StakingController is Initializable, IStakingController {
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function minStakeDuring(
         address network,
@@ -173,7 +173,7 @@ contract StakingController is Initializable, IStakingController {
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function requestSlash(
         address network,
@@ -242,7 +242,7 @@ contract StakingController is Initializable, IStakingController {
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount) {
         if (slashIndex >= slashRequests.length) {
@@ -281,7 +281,7 @@ contract StakingController is Initializable, IStakingController {
     }
 
     /**
-     * @inheritdoc IStakingController
+     * @inheritdoc ISlasher
      */
     function vetoSlash(uint256 slashIndex) external {
         if (slashIndex >= slashRequests.length) {
