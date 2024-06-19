@@ -1,6 +1,6 @@
 pragma solidity 0.8.25;
 
-interface ILimiter {
+interface IDelegator {
     /**
      * @notice Get a network-resolver limit for a particular network and resolver in `duration` seconds.
      * @param network address of the network

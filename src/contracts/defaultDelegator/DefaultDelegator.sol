@@ -1,5 +1,5 @@
-import {IDefaultLimiter} from "src/interfaces/defaultLimiter/IDefaultLimiter.sol";
-import {ILimiter} from "src/interfaces/ILimiter.sol";
+import {IDefaultDelegator} from "src/interfaces/defaultDelegator/IDefaultDelegator.sol";
+import {IDelegator} from "src/interfaces/IDelegator.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
@@ -10,41 +10,41 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradeable {
+contract DefaultDelegator is Initializable, IDefaultDelegator, AccessControlUpgradeable {
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     mapping(address vault => mapping(address network => mapping(address resolver => uint256 amount))) public
         maxNetworkResolverLimit;
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     mapping(address vault => mapping(address network => mapping(address resolver => DelayedLimit))) public
         nextNetworkResolverLimit;
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     mapping(address vault => mapping(address operator => mapping(address network => DelayedLimit))) public
         nextOperatorNetworkLimit;
@@ -68,7 +68,7 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc ILimiter
+     * @inheritdoc IDelegator
      */
     function networkResolverLimitIn(
         address vault,
@@ -84,14 +84,14 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc ILimiter
+     * @inheritdoc IDelegator
      */
     function networkResolverLimit(address vault, address network, address resolver) public view returns (uint256) {
         return networkResolverLimitIn(vault, network, resolver, 0);
     }
 
     /**
-     * @inheritdoc ILimiter
+     * @inheritdoc IDelegator
      */
     function operatorNetworkLimitIn(
         address vault,
@@ -107,19 +107,19 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc ILimiter
+     * @inheritdoc IDelegator
      */
     function operatorNetworkLimit(address vault, address operator, address network) public view returns (uint256) {
         return operatorNetworkLimitIn(vault, operator, network, 0);
     }
 
-    function initialize(address networkResolverLimiter, address operatorNetworkLimiter) external initializer {
-        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, networkResolverLimiter);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, operatorNetworkLimiter);
+    function initialize(address networkResolverDelegator, address operatorNetworkDelegator) external initializer {
+        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, networkResolverDelegator);
+        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, operatorNetworkDelegator);
     }
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     function setMaxNetworkResolverLimit(address vault, address resolver, uint256 amount) external {
         if (maxNetworkResolverLimit[vault][msg.sender][resolver] == amount) {
@@ -148,7 +148,7 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     function setNetworkResolverLimit(
         address vault,
@@ -169,7 +169,7 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc IDefaultLimiter
+     * @inheritdoc IDefaultDelegator
      */
     function setOperatorNetworkLimit(
         address vault,
@@ -186,7 +186,7 @@ contract DefaultLimiter is Initializable, IDefaultLimiter, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc ILimiter
+     * @inheritdoc IDelegator
      */
     function onSlash(
         address vault,

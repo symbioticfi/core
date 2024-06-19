@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {ISlasher} from "src/interfaces/slasher/v1/ISlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {ILimiter} from "src/interfaces/ILimiter.sol";
+import {IDelegator} from "src/interfaces/IDelegator.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
@@ -58,7 +58,7 @@ contract Slasher is Initializable, ISlasher {
     /**
      * @inheritdoc ISlasher
      */
-    address public limiter;
+    address public delegator;
 
     /**
      * @inheritdoc ISlasher
@@ -114,8 +114,8 @@ contract Slasher is Initializable, ISlasher {
         return Math.min(
             IVault(vault).totalSupplyIn(duration),
             Math.min(
-                ILimiter(limiter).networkResolverLimitIn(vault, network, resolver, duration),
-                ILimiter(limiter).operatorNetworkLimitIn(vault, operator, network, duration)
+                IDelegator(delegator).networkResolverLimitIn(vault, network, resolver, duration),
+                IDelegator(delegator).operatorNetworkLimitIn(vault, operator, network, duration)
             )
         );
     }
@@ -127,8 +127,8 @@ contract Slasher is Initializable, ISlasher {
         return Math.min(
             IVault(vault).totalSupply(),
             Math.min(
-                ILimiter(limiter).networkResolverLimit(vault, network, resolver),
-                ILimiter(limiter).operatorNetworkLimit(vault, operator, network)
+                IDelegator(delegator).networkResolverLimit(vault, network, resolver),
+                IDelegator(delegator).operatorNetworkLimit(vault, operator, network)
             )
         );
     }
@@ -146,12 +146,12 @@ contract Slasher is Initializable, ISlasher {
             IVault(vault).activeSupply(),
             Math.min(
                 Math.min(
-                    ILimiter(limiter).networkResolverLimit(vault, network, resolver),
-                    ILimiter(limiter).networkResolverLimitIn(vault, network, resolver, duration)
+                    IDelegator(delegator).networkResolverLimit(vault, network, resolver),
+                    IDelegator(delegator).networkResolverLimitIn(vault, network, resolver, duration)
                 ),
                 Math.min(
-                    ILimiter(limiter).operatorNetworkLimit(vault, operator, network),
-                    ILimiter(limiter).operatorNetworkLimitIn(vault, operator, network, duration)
+                    IDelegator(delegator).operatorNetworkLimit(vault, operator, network),
+                    IDelegator(delegator).operatorNetworkLimitIn(vault, operator, network, duration)
                 )
             )
         );
@@ -275,7 +275,7 @@ contract Slasher is Initializable, ISlasher {
             return 0;
         }
 
-        ILimiter(limiter).onSlash(vault, request.network, request.resolver, request.operator, slashedAmount);
+        IDelegator(delegator).onSlash(vault, request.network, request.resolver, request.operator, slashedAmount);
 
         ICollateral(IVault(vault).collateral()).issueDebt(DEAD, slashedAmount);
     }

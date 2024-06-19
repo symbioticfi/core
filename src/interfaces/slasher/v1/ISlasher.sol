@@ -114,10 +114,10 @@ interface ISlasher {
     function vault() external view returns (address);
 
     /**
-     * @notice Get the limiter address.
-     * @return address of the limiter
+     * @notice Get the delegator address.
+     * @return address of the delegator
      */
-    function limiter() external view returns (address);
+    function delegator() external view returns (address);
 
     /**
      * @notice Get a duration during which resolvers can veto slash requests.

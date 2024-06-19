@@ -1,8 +1,8 @@
 pragma solidity 0.8.25;
 
-import {ILimiter} from "src/interfaces/ILimiter.sol";
+import {IDelegator} from "src/interfaces/IDelegator.sol";
 
-interface IDefaultLimiter is ILimiter {
+interface IDefaultDelegator is IDelegator {
     error ExceedsMaxNetworkResolverLimit();
     error AlreadySet();
     error NotSlasher();
