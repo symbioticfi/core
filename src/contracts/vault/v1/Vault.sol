@@ -7,7 +7,7 @@ import {VaultStorage} from "./VaultStorage.sol";
 import {ICollateral} from "src/interfaces/base/ICollateral.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {IStakingControllerFactory} from "src/interfaces/stakingController/v1/IStakingControllerFactory.sol";
+import {ISlasherFactory} from "src/interfaces/slasher/v1/ISlasherFactory.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
@@ -21,9 +21,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
-    modifier onlyStakingController() {
-        if (msg.sender != stakingController) {
-            revert NotStakingController();
+    modifier onlySlasher() {
+        if (msg.sender != slasher) {
+            revert NotSlasher();
         }
         _;
     }
@@ -171,7 +171,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount) external onlyStakingController returns (uint256) {
+    function onSlash(uint256 slashedAmount) external onlySlasher returns (uint256) {
         uint256 epoch = currentEpoch();
         uint256 totalSupply_ = totalSupply();
         uint256 activeSupply_ = activeSupply();
@@ -267,7 +267,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             _grantRole(DEPOSITOR_WHITELIST_ROLE, owner);
         }
 
-        IStakingControllerFactory(params.stakingControllerFactory).create(
+        ISlasherFactory(params.slasherFactory).create(
             address(this), params.vetoDuration, params.executeDuration
         );
     }
