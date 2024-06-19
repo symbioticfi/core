@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IRewardsDistributor} from "src/interfaces/base/rewardsDistributor/v1/IRewardsDistributor.sol";
+import {IRewardsDistributor} from "src/interfaces/rewardsDistributor/v1/IRewardsDistributor.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

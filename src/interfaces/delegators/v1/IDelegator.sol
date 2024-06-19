@@ -1,6 +1,14 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
 interface IDelegator {
+    /**
+     * @notice Get a version of the delegator (different versions mean different interfaces).
+     * @return version of the delegator
+     * @dev Must return 1 for this one.
+     */
+    function version() external view returns (uint64);
+
     /**
      * @notice Get a network-resolver limit for a particular network and resolver in `duration` seconds.
      * @param network address of the network

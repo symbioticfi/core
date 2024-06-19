@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IRewardsDistributor} from "src/interfaces/base/rewardsDistributor/v1/IRewardsDistributor.sol";
+import {IRewardsDistributor} from "src/interfaces/rewardsDistributor/v1/IRewardsDistributor.sol";
 
 interface IDefaultRewardsDistributor is IRewardsDistributor {
     error AlreadySet();

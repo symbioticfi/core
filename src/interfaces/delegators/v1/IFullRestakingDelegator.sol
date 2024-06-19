@@ -1,8 +1,8 @@
 pragma solidity 0.8.25;
 
-import {IDelegator} from "src/interfaces/IDelegator.sol";
+import {IDelegator} from "./IDelegator.sol";
 
-interface IDefaultDelegator is IDelegator {
+interface IFullRestakingDelegator is IDelegator {
     error ExceedsMaxNetworkResolverLimit();
     error AlreadySet();
     error NotSlasher();

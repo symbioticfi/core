@@ -1,5 +1,5 @@
-import {IDefaultDelegator} from "src/interfaces/defaultDelegator/IDefaultDelegator.sol";
-import {IDelegator} from "src/interfaces/IDelegator.sol";
+import {IFullRestakingDelegator} from "src/interfaces/delegators/v1/IFullRestakingDelegator.sol";
+import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
@@ -10,41 +10,46 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-contract DefaultDelegator is Initializable, IDefaultDelegator, AccessControlUpgradeable {
+contract FullRestakingDelegator is Initializable, IFullRestakingDelegator, AccessControlUpgradeable {
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IDelegator
+     */
+    uint64 public constant version = 1;
+
+    /**
+     * @inheritdoc IFullRestakingDelegator
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     mapping(address vault => mapping(address network => mapping(address resolver => uint256 amount))) public
         maxNetworkResolverLimit;
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     mapping(address vault => mapping(address network => mapping(address resolver => DelayedLimit))) public
         nextNetworkResolverLimit;
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     mapping(address vault => mapping(address operator => mapping(address network => DelayedLimit))) public
         nextOperatorNetworkLimit;
@@ -119,7 +124,7 @@ contract DefaultDelegator is Initializable, IDefaultDelegator, AccessControlUpgr
     }
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     function setMaxNetworkResolverLimit(address vault, address resolver, uint256 amount) external {
         if (maxNetworkResolverLimit[vault][msg.sender][resolver] == amount) {
@@ -148,7 +153,7 @@ contract DefaultDelegator is Initializable, IDefaultDelegator, AccessControlUpgr
     }
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     function setNetworkResolverLimit(
         address vault,
@@ -169,7 +174,7 @@ contract DefaultDelegator is Initializable, IDefaultDelegator, AccessControlUpgr
     }
 
     /**
-     * @inheritdoc IDefaultDelegator
+     * @inheritdoc IFullRestakingDelegator
      */
     function setOperatorNetworkLimit(
         address vault,

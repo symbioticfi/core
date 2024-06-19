@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {IResolvableSlasher} from "src/interfaces/slashers/IResolvableSlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {IDelegator} from "src/interfaces/IDelegator.sol";
+import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
