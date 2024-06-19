@@ -14,23 +14,9 @@ contract SlasherFactory is Registry, ISlasherFactory {
     address private immutable SLASHER_IMPLEMENTATION;
 
     constructor(
-        address networkRegistry,
-        address vaultFactory,
-        address networkMiddlewareService,
-        address networkVaultOptInService,
-        address operatorVaultOptInService,
-        address operatorNetworkOptInService
+        address slasherImplementation
     ) {
-        SLASHER_IMPLEMENTATION = address(
-            new Slasher(
-                vaultFactory,
-                networkRegistry,
-                networkMiddlewareService,
-                networkVaultOptInService,
-                operatorVaultOptInService,
-                operatorNetworkOptInService
-            )
-        );
+        SLASHER_IMPLEMENTATION = slasherImplementation;
     }
 
     /**

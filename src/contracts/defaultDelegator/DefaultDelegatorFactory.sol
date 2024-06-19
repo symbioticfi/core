@@ -13,8 +13,8 @@ contract DefaultDelegatorFactory is Registry, IDefaultDelegatorFactory {
 
     address private immutable DELEGATOR_IMPLEMENTATION;
 
-    constructor(address networkRegistry, address vaultFactory) {
-        DELEGATOR_IMPLEMENTATION = address(new DefaultDelegator(networkRegistry, vaultFactory));
+    constructor(address delegatorImplementation) {
+        DELEGATOR_IMPLEMENTATION = delegatorImplementation;
     }
 
     /**
