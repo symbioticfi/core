@@ -67,6 +67,13 @@ interface IVault is IVaultStorage {
     event Claim(address indexed claimer, address indexed recipient, uint256 amount);
 
     /**
+     * @notice Emitted when the vault is slashed.
+     * @param slasher address of the slasher
+     * @param slashedAmount amount of the collateral slashed
+     */
+    event Slash(address indexed slasher, uint256 slashedAmount);
+
+    /**
      * @notice Emitted when an admin fee is set.
      * @param adminFee admin fee
      */
@@ -150,9 +157,8 @@ interface IVault is IVaultStorage {
     /**
      * @notice Slash callback for burning collateral.
      * @param slashedAmount amount to slash
-     * @return actualSlashedAmount amount of burned collateral
      */
-    function onSlash(uint256 slashedAmount) external returns (uint256 actualSlashedAmount);
+    function slash(uint256 slashedAmount) external;
 
     /**
      * @notice Set an admin fee.

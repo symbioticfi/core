@@ -8,7 +8,6 @@ import {IDelegator} from "src/interfaces/IDelegator.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
-import {ICollateral} from "src/interfaces/base/ICollateral.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -19,11 +18,6 @@ contract Slasher is Initializable, ISlasher {
      * @inheritdoc ISlasher
      */
     address public immutable VAULT_FACTORY;
-
-    /**
-     * @dev Some dead address to issue debt to.
-     */
-    address internal constant DEAD = address(0xdEaD);
 
     /**
      * @inheritdoc ISlasher
@@ -267,17 +261,15 @@ contract Slasher is Initializable, ISlasher {
 
         slashedAmount = Math.min(request.amount, slashableAmount(request.network, request.resolver, request.operator));
 
-        slashedAmount = IVault(vault).onSlash(slashedAmount);
-
-        emit ExecuteSlash(slashIndex, slashedAmount);
-
-        if (slashedAmount == 0) {
-            return 0;
+        if (slashedAmount != 0) {
+            IVault(vault).slash(slashedAmount);
         }
 
-        IDelegator(delegator).onSlash(vault, request.network, request.resolver, request.operator, slashedAmount);
+        if (slashedAmount != 0) {
+            IDelegator(delegator).onSlash(vault, request.network, request.resolver, request.operator, slashedAmount);
+        }
 
-        ICollateral(IVault(vault).collateral()).issueDebt(DEAD, slashedAmount);
+        emit ExecuteSlash(slashIndex, slashedAmount);
     }
 
     /**

@@ -171,29 +171,43 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount) external onlySlasher returns (uint256) {
+    function slash(uint256 slashedAmount) external onlySlasher {
+        if (slashedAmount == 0) {
+            revert();
+        }
+
         uint256 epoch = currentEpoch();
         uint256 totalSupply_ = totalSupply();
+ 
+        if (slashedAmount > totalSupply_) {
+            revert();
+        }
+
         uint256 activeSupply_ = activeSupply();
         uint256 withdrawals_ = withdrawals[epoch];
         uint256 nextWithdrawals_ = withdrawals[epoch + 1];
 
-        uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, totalSupply_);
+        uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals_, totalSupply_);
         uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
-        uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed - withdrawalsSlashed;
-        if (nextWithdrawals_ < nextWithdrawalsSlashed) {
-            nextWithdrawalsSlashed = nextWithdrawals_;
-            slashedAmount = activeSlashed + withdrawalsSlashed + nextWithdrawalsSlashed;
-        }
+        uint256 activeSlashed = slashedAmount - nextWithdrawalsSlashed - withdrawalsSlashed;
 
-        if (slashedAmount == 0) {
-            return 0;
+        if (activeSupply_ < activeSlashed) {
+            withdrawalsSlashed += activeSlashed - activeSupply_;
+            activeSlashed = activeSupply_;
+
+            if (withdrawals_ < withdrawalsSlashed) {
+                nextWithdrawalsSlashed += withdrawalsSlashed - withdrawals_;
+                withdrawalsSlashed = withdrawals_;
+            }
         }
 
         _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
         withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
         withdrawals[epoch + 1] = nextWithdrawals_ - nextWithdrawalsSlashed;
-        return slashedAmount;
+
+        ICollateral(collateral).issueDebt(DEAD, slashedAmount);
+
+        emit Slash(msg.sender, slashedAmount);
     }
 
     /**
