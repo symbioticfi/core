@@ -6,9 +6,21 @@ import {IVaultStorage} from "src/interfaces/vault/v1/IVaultStorage.sol";
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract VaultStorage is IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
+    using SafeCast for uint256;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bytes32 public constant DELEGATOR_SET_ROLE = keccak256("DELEGATOR_SET_ROLE");
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bytes32 public constant SLASHER_SET_ROLE = keccak256("SLASHER_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
@@ -27,17 +39,27 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    address public delegator;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     address public burner;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    address public slasher;
+    DelayedModule public nextDelegator;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    DelayedModule public nextSlasher;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint256 public delegatorSetDelay;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint256 public slasherSetDelay;
 
     /**
      * @inheritdoc IVaultStorage
@@ -74,6 +96,10 @@ contract VaultStorage is IVaultStorage {
      */
     mapping(uint256 epoch => mapping(address account => uint256 amount)) public pendingWithdrawalSharesOf;
 
+    Module internal _delegator;
+
+    Module internal _slasher;
+
     Checkpoints.Trace256 internal _activeShares;
 
     Checkpoints.Trace256 internal _activeSupplies;
@@ -101,7 +127,7 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     function currentEpochStart() public view returns (uint48) {
-        return uint48(epochDurationInit + currentEpoch() * epochDuration);
+        return (epochDurationInit + currentEpoch() * epochDuration).toUint48();
     }
 
     /**
@@ -112,7 +138,7 @@ contract VaultStorage is IVaultStorage {
         if (epoch == 0) {
             revert NoPreviousEpoch();
         }
-        return uint48(epochDurationInit + (epoch - 1) * epochDuration);
+        return (epochDurationInit + (epoch - 1) * epochDuration).toUint48();
     }
 
     /**

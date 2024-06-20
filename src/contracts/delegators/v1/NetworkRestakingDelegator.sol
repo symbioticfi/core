@@ -129,20 +129,6 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
         }
     }
 
-    function _initialize(bytes memory data) internal override {
-        (INetworkRestakingDelegator.InitParams memory params) = abi.decode(data, (INetworkRestakingDelegator.InitParams));
-
-        if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
-            revert NotVault();
-        }
-
-        vault = params.vault;
-
-        address vaultOwner = Ownable(params.vault).owner();
-        _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
-    }
-
     function _getLimitAt(
         Limit storage limit,
         DelayedLimit storage nextLimit,
@@ -173,5 +159,19 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
             nextLimit.timestamp = 0;
             nextLimit.amount = 0;
         }
+    }
+
+    function _initialize(bytes memory data) internal override {
+        (InitParams memory params) = abi.decode(data, (InitParams));
+
+        if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
+            revert NotVault();
+        }
+
+        vault = params.vault;
+
+        address vaultOwner = Ownable(params.vault).owner();
+        _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
+        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
     }
 }

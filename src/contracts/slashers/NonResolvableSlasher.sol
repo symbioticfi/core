@@ -12,7 +12,6 @@ import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     /**
@@ -38,11 +37,6 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     /**
      * @inheritdoc INonResolvableSlasher
      */
-    address public immutable NETWORK_REGISTRY;
-
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
@@ -51,7 +45,6 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     address public vault;
 
     constructor(
-        address _vault,
         address networkRegistry,
         address networkMiddlewareService,
         address networkVaultOptInService,
@@ -59,11 +52,7 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
         address operatorNetworkOptInService
     ) {
         _disableInitializers();
-        if (!IRegistry(VAULT_FACTORY).isEntity(_vault)) {
-            revert NotVault();
-        }
 
-        NETWORK_REGISTRY = networkRegistry;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
         NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;

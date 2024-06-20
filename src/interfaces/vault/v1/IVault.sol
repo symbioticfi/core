@@ -16,6 +16,8 @@ interface IVault is IVaultStorage {
     error NotSlasher();
     error TooMuchWithdraw();
     error InvalidCollateral();
+    error InvalidDelegatorSetDelay();
+    error InvalidSlasherSetDelay();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -32,6 +34,8 @@ interface IVault is IVaultStorage {
         address delegator;
         address burner;
         address slasher;
+        uint256 delegatorSetDelay;
+        uint256 slasherSetDelay;
         uint48 epochDuration;
         bool depositWhitelist;
         address slasherFactory;
@@ -75,6 +79,10 @@ interface IVault is IVaultStorage {
      */
     event Slash(address indexed slasher, uint256 slashedAmount);
 
+    event SetDelegator(address delegator);
+
+    event SetSlasher(address slasher);
+
     /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.
      * @param depositWhitelist if enabled deposit whitelist
@@ -87,6 +95,14 @@ interface IVault is IVaultStorage {
      * @param status if whitelisted the account
      */
     event SetDepositorWhitelistStatus(address indexed account, bool status);
+
+    function delegatorIn(uint48 duration) external view returns (address);
+
+    function delegator() external view returns (address);
+
+    function slasherIn(uint48 duration) external view returns (address);
+
+    function slasher() external view returns (address);
 
     /**
      * @notice Get a total amount of the collateral that can be slashed
@@ -155,6 +171,10 @@ interface IVault is IVaultStorage {
      * @param slashedAmount amount to slash
      */
     function slash(uint256 slashedAmount) external;
+
+    function setDelegator(address delegator) external;
+
+    function setSlasher(address slasher) external;
 
     /**
      * @notice Enable/disable deposit whitelist.

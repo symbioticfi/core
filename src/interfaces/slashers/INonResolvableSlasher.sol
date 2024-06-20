@@ -25,12 +25,6 @@ interface INonResolvableSlasher {
     event Slash(address indexed network, address indexed operator, uint256 slashAmount);
 
     /**
-     * @notice Get the network registry's address.
-     * @return address of the network registry
-     */
-    function NETWORK_REGISTRY() external view returns (address);
-
-    /**
      * @notice Get the vault factory's address.
      * @return address of the vault factory
      */

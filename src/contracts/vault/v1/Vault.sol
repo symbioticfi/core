@@ -14,16 +14,46 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+    using SafeCast for uint256;
 
     modifier onlySlasher() {
-        if (msg.sender != slasher) {
+        if (msg.sender != slasher()) {
             revert NotSlasher();
         }
         _;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function delegatorIn(uint48 duration) public view returns (address) {
+        return _getModuleAt(_delegator, nextDelegator, Time.timestamp() + duration);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function delegator() public view returns (address) {
+        return _getModuleAt(_delegator, nextDelegator, Time.timestamp());
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function slasherIn(uint48 duration) public view returns (address) {
+        return _getModuleAt(_slasher, nextSlasher, Time.timestamp() + duration);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function slasher() public view returns (address) {
+        return _getModuleAt(_slasher, nextSlasher, Time.timestamp());
     }
 
     /**
@@ -207,6 +237,24 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
+    function setDelegator(address delegator_) external onlyRole(DELEGATOR_SET_ROLE) {
+        _setModule(_delegator, nextDelegator, delegator_, delegatorSetDelay);
+
+        emit SetDelegator(delegator_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setSlasher(address burner_) external onlyRole(SLASHER_SET_ROLE) {
+        _setModule(_slasher, nextSlasher, burner_, slasherSetDelay);
+
+        emit SetSlasher(burner_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
@@ -234,6 +282,37 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositorWhitelistStatus(account, status);
     }
 
+    function _getModuleAt(
+        Module storage module,
+        DelayedModule storage nextModule,
+        uint48 timestamp
+    ) private view returns (address) {
+        if (nextModule.timestamp == 0 || timestamp < nextModule.timestamp) {
+            return module.address_;
+        }
+        return nextModule.address_;
+    }
+
+    function _setModule(
+        Module storage module,
+        DelayedModule storage nextModule,
+        address address_,
+        uint256 delay
+    ) private {
+        _updateModule(module, nextModule);
+
+        nextModule.address_ = address_;
+        nextModule.timestamp = (currentEpochStart() + delay * epochDuration).toUint48();
+    }
+
+    function _updateModule(Module storage module, DelayedModule storage nextModule) internal {
+        if (nextModule.timestamp != 0 && nextModule.timestamp <= Time.timestamp()) {
+            module.address_ = nextModule.address_;
+            nextModule.timestamp = 0;
+            nextModule.address_ = address(0);
+        }
+    }
+
     function _initialize(uint64, address owner, bytes memory data) internal override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
@@ -241,8 +320,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidCollateral();
         }
 
-        if (slasher != address(0) && params.burner == address(0)) {
+        if (params.burner == address(0) && params.slasher != address(0)) {
             revert();
+        }
+
+        if (params.delegatorSetDelay < 3) {
+            revert InvalidDelegatorSetDelay();
+        }
+
+        if (params.slasherSetDelay < 3) {
+            revert InvalidSlasherSetDelay();
         }
 
         if (params.epochDuration == 0) {
@@ -251,21 +338,27 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         collateral = params.collateral;
 
-        if (params.delegator != address(0)) {
-            delegator = params.delegator;
-        }
+        burner = params.burner;
 
-        if (params.burner != address(0)) {
-            burner = params.burner;
-        }
-        if (params.slasher != address(0)) {
-            slasher = params.slasher;
-        }
+        delegatorSetDelay = params.delegatorSetDelay;
+        slasherSetDelay = params.slasherSetDelay;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
+
+        if (params.delegator == address(0)) {
+            _grantRole(DELEGATOR_SET_ROLE, owner);
+        } else {
+            _delegator.address_ = params.delegator;
+        }
+
+        if (params.slasher == address(0)) {
+            _grantRole(SLASHER_SET_ROLE, owner);
+        } else {
+            _slasher.address_ = params.slasher;
+        }
 
         if (params.depositWhitelist) {
             depositWhitelist = true;

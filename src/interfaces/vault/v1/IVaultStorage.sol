@@ -5,6 +5,25 @@ interface IVaultStorage {
     error InvalidTimestamp();
     error NoPreviousEpoch();
 
+    struct Module {
+        address address_;
+    }
+
+    struct DelayedModule {
+        address address_;
+        uint48 timestamp;
+    }
+
+    /**
+     * @notice Get the delegator setter's role.
+     */
+    function DELEGATOR_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get the slasher setter's role.
+     */
+    function SLASHER_SET_ROLE() external view returns (bytes32);
+
     /**
      * @notice Get the deposit whitelist enabler/disabler's role.
      */
@@ -21,19 +40,19 @@ interface IVaultStorage {
      */
     function collateral() external view returns (address);
 
-    function delegator() external view returns (address);
-
     /**
      * @dev Get a burner to issue debt to (e.g. 0xdEaD or some unwrapper contract).
      * @return vault's burner
      */
     function burner() external view returns (address);
 
-    /**
-     * @notice Get a vault's staking controoler.
-     * @return vault's staking controller
-     */
-    function slasher() external view returns (address);
+    function nextDelegator() external view returns (address, uint48);
+
+    function nextSlasher() external view returns (address, uint48);
+
+    function delegatorSetDelay() external view returns (uint256);
+
+    function slasherSetDelay() external view returns (uint256);
 
     /**
      * @notice Get a time point of the epoch duration set.

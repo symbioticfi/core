@@ -17,10 +17,10 @@ contract MigratableEntityProxy is ERC1967Proxy, IMigratableEntityProxy {
 
     /**
      * @dev Initializes an upgradeable proxy managed by `msg.sender`,
-     * backed by the implementation at `_logic`, and optionally initialized with `_data` as explained in
+     * backed by the implementation at `logic`, and optionally initialized with `data` as explained in
      * {ERC1967Proxy-constructor}.
      */
-    constructor(address _logic, bytes memory _data) ERC1967Proxy(_logic, _data) {
+    constructor(address logic, bytes memory data) ERC1967Proxy(logic, data) {
         _admin = msg.sender;
         // Set the storage value and emit an event for ERC-1967 compatibility
         ERC1967Utils.changeAdmin(_proxyAdmin());

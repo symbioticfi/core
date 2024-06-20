@@ -38,11 +38,6 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
     /**
      * @inheritdoc IResolvableSlasher
      */
-    address public immutable NETWORK_REGISTRY;
-
-    /**
-     * @inheritdoc IResolvableSlasher
-     */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
@@ -66,7 +61,6 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
     uint48 public executeDuration;
 
     constructor(
-        address _vault,
         address networkRegistry,
         address networkMiddlewareService,
         address networkVaultOptInService,
@@ -74,11 +68,7 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
         address operatorNetworkOptInService
     ) {
         _disableInitializers();
-        if (!IRegistry(VAULT_FACTORY).isEntity(_vault)) {
-            revert NotVault();
-        }
 
-        NETWORK_REGISTRY = networkRegistry;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
         NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
