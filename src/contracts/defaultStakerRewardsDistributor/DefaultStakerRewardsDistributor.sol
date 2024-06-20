@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
+import {IDefaultStakerRewardsDistributor} from "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributor.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IRewardsDistributor} from "src/interfaces/rewardsDistributor/v1/IRewardsDistributor.sol";
+import {IStakerRewardsDistributor} from "src/interfaces/stakerRewardsDistributor/v1/IStakerRewardsDistributor.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,77 +15,77 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardUpgradeable, IDefaultRewardsDistributor {
+contract DefaultStakerRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardUpgradeable, IDefaultStakerRewardsDistributor {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
     /**
-     * @inheritdoc IRewardsDistributor
+     * @inheritdoc IStakerRewardsDistributor
      */
     uint64 public constant version = 1;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     uint256 public constant ADMIN_FEE_BASE = 10_000;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     bytes32 public constant ADMIN_FEE_CLAIM_ROLE = keccak256("ADMIN_FEE_CLAIM_ROLE");
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     bytes32 public constant NETWORK_WHITELIST_ROLE = keccak256("NETWORK_WHITELIST_ROLE");
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     bytes32 public constant ADMIN_FEE_SET_ROLE = keccak256("ADMIN_FEE_SET_ROLE");
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     address public VAULT;
     
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     uint256 public adminFee;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     mapping(address account => bool values) public isNetworkWhitelisted;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     mapping(address token => RewardDistribution[] rewards_) public rewards;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     mapping(address account => mapping(address token => uint256 rewardIndex)) public lastUnclaimedReward;
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     mapping(address token => uint256 amount) public claimableAdminFee;
 
@@ -107,7 +107,7 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     function rewardsLength(address token) external view returns (uint256) {
         return rewards[token].length;
@@ -130,7 +130,7 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @inheritdoc IRewardsDistributor
+     * @inheritdoc IStakerRewardsDistributor
      */
     function distributeReward(address network, address token, uint256 amount, uint48 timestamp) external nonReentrant {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
@@ -180,7 +180,7 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     function claimRewards(
         address recipient,
@@ -229,7 +229,7 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     function claimAdminFee(address recipient, address token) external onlyRole(ADMIN_FEE_CLAIM_ROLE) {
         uint256 claimableAdminFee_ = claimableAdminFee[token];
@@ -245,7 +245,7 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
     }
 
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     function setNetworkWhitelistStatus(address network, bool status) external onlyRole(NETWORK_WHITELIST_ROLE)  {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
@@ -262,7 +262,7 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
     }
     
     /**
-     * @inheritdoc IDefaultRewardsDistributor
+     * @inheritdoc IDefaultStakerRewardsDistributor
      */
     function setAdminFee(uint256 adminFee_) external onlyRole(ADMIN_FEE_SET_ROLE) {
         if (adminFee == adminFee_) {

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IRewardsDistributor} from "src/interfaces/rewardsDistributor/v1/IRewardsDistributor.sol";
+import {IStakerRewardsDistributor} from "src/interfaces/stakerRewardsDistributor/v1/IStakerRewardsDistributor.sol";
 
-contract SimpleRewardsDistributor is IRewardsDistributor {
+contract SimpleRewardsDistributor is IStakerRewardsDistributor {
     /**
-     * @inheritdoc IRewardsDistributor
+     * @inheritdoc IStakerRewardsDistributor
      */
     uint64 public constant version = 1;
 
     /**
-     * @inheritdoc IRewardsDistributor
+     * @inheritdoc IStakerRewardsDistributor
      */
     function distributeReward(address network, address token, uint256 amount, uint48 timestamp) external {
         emit DistributeReward(network, token, amount, timestamp);

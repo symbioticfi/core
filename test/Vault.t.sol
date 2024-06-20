@@ -80,7 +80,7 @@
 //         uint48 epochDuration,
 //         uint48 vetoDuration,
 //         uint48 executeDuration,
-//         address rewardsDistributor,
+//         address stakerRewardsDistributor,
 //         uint256 adminFee,
 //         bool depositWhitelist
 //     ) public {
@@ -100,7 +100,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: rewardsDistributor,
+//                         stakerRewardsDistributor: stakerRewardsDistributor,
 //                         adminFee: adminFee,
 //                         depositWhitelist: depositWhitelist
 //                     })
@@ -1712,7 +1712,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -1743,7 +1743,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -1771,7 +1771,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: adminFee,
 //                         depositWhitelist: false
 //                     })
@@ -2223,37 +2223,37 @@
 
 //         _grantRewardsDistributorSetRole(alice, alice);
 //         _setRewardsDistributor(alice, rewardsDistributor1);
-//         assertEq(vault.rewardsDistributor(), rewardsDistributor1);
+//         assertEq(vault.stakerRewardsDistributor(), rewardsDistributor1);
 
 //         _setRewardsDistributor(alice, rewardsDistributor2);
-//         assertEq(vault.rewardsDistributor(), rewardsDistributor2);
+//         assertEq(vault.stakerRewardsDistributor(), rewardsDistributor2);
 //     }
 
-//     function test_SetRewardsDistributorRevertUnauthorized(address rewardsDistributor) public {
+//     function test_SetRewardsDistributorRevertUnauthorized(address stakerRewardsDistributor) public {
 //         uint48 epochDuration = 1;
 //         uint48 executeDuration = 0;
 //         uint48 vetoDuration = 0;
 
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
-//         vm.assume(rewardsDistributor != address(0));
+//         vm.assume(stakerRewardsDistributor != address(0));
 
 //         vm.expectRevert();
-//         _setRewardsDistributor(alice, rewardsDistributor);
+//         _setRewardsDistributor(alice, stakerRewardsDistributor);
 //     }
 
-//     function test_SetRewardsDistributorRevertAlreadySet(address rewardsDistributor) public {
+//     function test_SetRewardsDistributorRevertAlreadySet(address stakerRewardsDistributor) public {
 //         uint48 epochDuration = 1;
 //         uint48 executeDuration = 0;
 //         uint48 vetoDuration = 0;
 
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
-//         vm.assume(rewardsDistributor != address(0));
+//         vm.assume(stakerRewardsDistributor != address(0));
 
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, rewardsDistributor);
+//         _setRewardsDistributor(alice, stakerRewardsDistributor);
 
 //         vm.expectRevert(IVault.AlreadySet.selector);
-//         _setRewardsDistributor(alice, rewardsDistributor);
+//         _setRewardsDistributor(alice, stakerRewardsDistributor);
 //     }
 
 //     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
@@ -2425,7 +2425,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -2455,7 +2455,7 @@
 
 //     function _grantRewardsDistributorSetRole(address user, address account) internal {
 //         vm.startPrank(user);
-//         Vault(address(vault)).grantRole(vault.REWARDS_DISTRIBUTOR_SET_ROLE(), account);
+//         Vault(address(vault)).grantRole(vault.STAKER_REWARDS_DISTRIBUTOR_SET_ROLE(), account);
 //         vm.stopPrank();
 //     }
 
@@ -2569,9 +2569,9 @@
 //         vm.stopPrank();
 //     }
 
-//     function _setRewardsDistributor(address user, address rewardsDistributor) internal {
+//     function _setRewardsDistributor(address user, address stakerRewardsDistributor) internal {
 //         vm.startPrank(user);
-//         vault.setRewardsDistributor(rewardsDistributor);
+//         vault.setRewardsDistributor(stakerRewardsDistributor);
 //         vm.stopPrank();
 //     }
 

@@ -14,11 +14,11 @@
 // import {Vault} from "src/contracts/vault/v1/Vault.sol";
 // import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
-// import {DefaultRewardsDistributorFactory} from
-//     "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributorFactory.sol";
-// import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
+// import {DefaultStakerRewardsDistributorFactory} from
+//     "src/contracts/defaultStakerRewardsDistributor/DefaultStakerRewardsDistributorFactory.sol";
+// import {IDefaultStakerRewardsDistributor} from "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributor.sol";
 
-// import {DefaultRewardsDistributor} from "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributor.sol";
+// import {DefaultStakerRewardsDistributor} from "src/contracts/defaultStakerRewardsDistributor/DefaultStakerRewardsDistributor.sol";
 
 // import {Token} from "test/mocks/Token.sol";
 // import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
@@ -47,8 +47,8 @@
 
 //     IVault vault;
 
-//     DefaultRewardsDistributorFactory defaultRewardsDistributorFactory;
-//     IDefaultRewardsDistributor defaultRewardsDistributor;
+//     DefaultStakerRewardsDistributorFactory defaultStakerRewardsDistributorFactory;
+//     IDefaultStakerRewardsDistributor defaultStakerRewardsDistributor;
 
 //     SimpleCollateral collateral;
 
@@ -80,7 +80,7 @@
 //             )
 //         );
 
-//         defaultRewardsDistributorFactory = new DefaultRewardsDistributorFactory(
+//         defaultStakerRewardsDistributorFactory = new DefaultStakerRewardsDistributorFactory(
 //             address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
 //         );
 
@@ -96,9 +96,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 //     }
 
 //     function test_ReinitRevert() public {
@@ -107,10 +107,10 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 
 //         vm.expectRevert();
-//         DefaultRewardsDistributor(address(defaultRewardsDistributor)).initialize(address(vault));
+//         DefaultStakerRewardsDistributor(address(defaultStakerRewardsDistributor)).initialize(address(vault));
 //     }
 
 //     function test_SetNetworkWhitelistStatus() public {
@@ -119,15 +119,15 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
 
 //         _setNetworkWhitelistStatus(alice, network, true);
-//         assertEq(defaultRewardsDistributor.isNetworkWhitelisted(network), true);
+//         assertEq(defaultStakerRewardsDistributor.isNetworkWhitelisted(network), true);
 //     }
 
 //     function test_SetNetworkWhitelistStatusRevertNotVaultOwner() public {
@@ -136,14 +136,14 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
 
-//         vm.expectRevert(IDefaultRewardsDistributor.NotVaultOwner.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NotVaultOwner.selector);
 //         _setNetworkWhitelistStatus(bob, network, true);
 //     }
 
@@ -153,16 +153,16 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
 
 //         _setNetworkWhitelistStatus(alice, network, true);
 
-//         vm.expectRevert(IDefaultRewardsDistributor.AlreadySet.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.AlreadySet.selector);
 //         _setNetworkWhitelistStatus(alice, network, true);
 //     }
 
@@ -176,9 +176,9 @@
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 //         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         _grantAdminFeeSetRole(alice, alice);
 //         _setAdminFee(alice, adminFee);
@@ -198,20 +198,20 @@
 //         IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
 //         feeOnTransferToken.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         feeOnTransferToken.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
-//         uint256 balanceBefore = feeOnTransferToken.balanceOf(address(defaultRewardsDistributor));
+//         uint256 balanceBefore = feeOnTransferToken.balanceOf(address(defaultStakerRewardsDistributor));
 //         uint256 balanceBeforeBob = feeOnTransferToken.balanceOf(bob);
 //         _setNetworkWhitelistStatus(alice, network, true);
 //         uint48 timestamp = 3;
 //         _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, timestamp);
-//         assertEq(feeOnTransferToken.balanceOf(address(defaultRewardsDistributor)) - balanceBefore, ditributeAmount - 1);
+//         assertEq(feeOnTransferToken.balanceOf(address(defaultStakerRewardsDistributor)) - balanceBefore, ditributeAmount - 1);
 //         assertEq(balanceBeforeBob - feeOnTransferToken.balanceOf(bob), ditributeAmount);
 
-//         assertEq(defaultRewardsDistributor.rewardsLength(address(feeOnTransferToken)), 1);
+//         assertEq(defaultStakerRewardsDistributor.rewardsLength(address(feeOnTransferToken)), 1);
 //         (address network_, uint256 amount_, uint48 timestamp_, uint48 creation) =
-//             defaultRewardsDistributor.rewards(address(feeOnTransferToken), 0);
+//             defaultStakerRewardsDistributor.rewards(address(feeOnTransferToken), 0);
 //         assertEq(network_, network);
 //         uint256 amount__ = ditributeAmount - 1;
 //         uint256 adminFeeAmount = amount__.mulDiv(adminFee, vault.ADMIN_FEE_BASE());
@@ -219,7 +219,7 @@
 //         assertEq(amount_, amount__);
 //         assertEq(timestamp_, timestamp);
 //         assertEq(creation, blockTimestamp);
-//         assertEq(defaultRewardsDistributor.claimableAdminFee(address(feeOnTransferToken)), adminFeeAmount);
+//         assertEq(defaultStakerRewardsDistributor.claimableAdminFee(address(feeOnTransferToken)), adminFeeAmount);
 //     }
 
 //     function test_DistributeRewardRevertNotNetworkMiddleware(uint256 amount, uint256 ditributeAmount) public {
@@ -231,9 +231,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -250,12 +250,12 @@
 //         IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
 //         feeOnTransferToken.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         feeOnTransferToken.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
 //         uint48 timestamp = 3;
-//         vm.expectRevert(IDefaultRewardsDistributor.NotNetworkMiddleware.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NotNetworkMiddleware.selector);
 //         _distributeReward(alice, network, address(feeOnTransferToken), ditributeAmount, timestamp);
 //     }
 
@@ -268,9 +268,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -287,11 +287,11 @@
 //         IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
 //         feeOnTransferToken.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         feeOnTransferToken.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         uint48 timestamp = 3;
-//         vm.expectRevert(IDefaultRewardsDistributor.NotWhitelistedNetwork.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NotWhitelistedNetwork.selector);
 //         _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, timestamp);
 //     }
 
@@ -304,9 +304,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -323,11 +323,11 @@
 //         IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
 //         feeOnTransferToken.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         feeOnTransferToken.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
-//         vm.expectRevert(IDefaultRewardsDistributor.InvalidRewardTimestamp.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.InvalidRewardTimestamp.selector);
 //         _distributeReward(bob, network, address(feeOnTransferToken), ditributeAmount, uint48(blockTimestamp));
 //     }
 
@@ -339,9 +339,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -358,12 +358,12 @@
 //         IERC20 feeOnTransferToken = IERC20(new FeeOnTransferToken("FeeOnTransferToken"));
 //         feeOnTransferToken.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         feeOnTransferToken.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         feeOnTransferToken.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
 //         uint48 timestamp = 3;
-//         vm.expectRevert(IDefaultRewardsDistributor.InsufficientReward.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.InsufficientReward.selector);
 //         _distributeReward(bob, network, address(feeOnTransferToken), 1, timestamp);
 //     }
 
@@ -377,9 +377,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -396,7 +396,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -411,7 +411,7 @@
 //         _claimRewards(alice, address(token), 2, activeSharesOfHints);
 //         assertEq(token.balanceOf(alice) - balanceBefore, ditributeAmount1 + ditributeAmount2);
 
-//         assertEq(defaultRewardsDistributor.lastUnclaimedReward(alice, address(token)), 2);
+//         assertEq(defaultStakerRewardsDistributor.lastUnclaimedReward(alice, address(token)), 2);
 //     }
 
 //     function test_ClaimRewardsBoth(uint256 amount, uint256 ditributeAmount1, uint256 ditributeAmount2) public {
@@ -424,9 +424,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -452,7 +452,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -473,7 +473,7 @@
 //         _claimRewards(bob, address(token), 2, activeSharesOfHints);
 //         assertEq(token.balanceOf(bob) - balanceBefore, ditributeAmount1.mulDiv(bobN, aliceN + bobN));
 
-//         assertEq(defaultRewardsDistributor.lastUnclaimedReward(alice, address(token)), 2);
+//         assertEq(defaultStakerRewardsDistributor.lastUnclaimedReward(alice, address(token)), 2);
 //     }
 
 //     function test_ClaimRewardsManyWithoutHints(uint256 amount, uint256 ditributeAmount) public {
@@ -485,9 +485,9 @@
 //         uint48 vetoDuration = 0;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -504,7 +504,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -530,9 +530,9 @@
 //         uint48 vetoDuration = 0;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -549,7 +549,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -578,9 +578,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -594,7 +594,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 
 //         uint32[] memory activeSharesOfHints = new uint32[](1);
-//         vm.expectRevert(IDefaultRewardsDistributor.NoRewardsToClaim.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NoRewardsToClaim.selector);
 //         _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
 //     }
 
@@ -607,9 +607,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
@@ -623,7 +623,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 
 //         uint32[] memory activeSharesOfHints = new uint32[](1);
-//         vm.expectRevert(IDefaultRewardsDistributor.NoRewardsToClaim.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NoRewardsToClaim.selector);
 //         _claimRewards(alice, address(token), 0, activeSharesOfHints);
 //     }
 
@@ -636,9 +636,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -655,7 +655,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -663,7 +663,7 @@
 //         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
 //         uint32[] memory activeSharesOfHints = new uint32[](1);
-//         vm.expectRevert(IDefaultRewardsDistributor.NoDeposits.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NoDeposits.selector);
 //         _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
 //     }
 
@@ -676,9 +676,9 @@
 //         uint48 executeDuration = 1;
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         address network = bob;
 //         _registerNetwork(network, bob);
@@ -695,7 +695,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -703,7 +703,7 @@
 //         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
 //         uint32[] memory activeSharesOfHints = new uint32[](2);
-//         vm.expectRevert(IDefaultRewardsDistributor.InvalidHintsLength.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.InvalidHintsLength.selector);
 //         _claimRewards(alice, address(token), type(uint256).max, activeSharesOfHints);
 //     }
 
@@ -717,9 +717,9 @@
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 //         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         _grantAdminFeeSetRole(alice, alice);
 //         _setAdminFee(alice, adminFee);
@@ -739,7 +739,7 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
@@ -748,12 +748,12 @@
 
 //         uint256 adminFeeAmount = ditributeAmount.mulDiv(adminFee, vault.ADMIN_FEE_BASE());
 //         vm.assume(adminFeeAmount != 0);
-//         uint256 balanceBefore = token.balanceOf(address(defaultRewardsDistributor));
+//         uint256 balanceBefore = token.balanceOf(address(defaultStakerRewardsDistributor));
 //         uint256 balanceBeforeAlice = token.balanceOf(alice);
 //         _claimAdminFee(alice, address(token));
-//         assertEq(balanceBefore - token.balanceOf(address(defaultRewardsDistributor)), adminFeeAmount);
+//         assertEq(balanceBefore - token.balanceOf(address(defaultStakerRewardsDistributor)), adminFeeAmount);
 //         assertEq(token.balanceOf(alice) - balanceBeforeAlice, adminFeeAmount);
-//         assertEq(defaultRewardsDistributor.claimableAdminFee(address(token)), 0);
+//         assertEq(defaultStakerRewardsDistributor.claimableAdminFee(address(token)), 0);
 //     }
 
 //     function test_ClaimAdminFeeRevertInsufficientAdminFee(
@@ -770,9 +770,9 @@
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
 //         adminFee = bound(adminFee, 1, vault.ADMIN_FEE_BASE());
 
-//         defaultRewardsDistributor = _getDefaultRewardsDistributor();
+//         defaultStakerRewardsDistributor = _getDefaultStakerRewardsDistributor();
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+//         _setRewardsDistributor(alice, address(defaultStakerRewardsDistributor));
 
 //         _grantAdminFeeSetRole(alice, alice);
 //         _setAdminFee(alice, adminFee);
@@ -792,17 +792,17 @@
 //         IERC20 token = IERC20(new Token("Token"));
 //         token.transfer(bob, 100_000 * 1e18);
 //         vm.startPrank(bob);
-//         token.approve(address(defaultRewardsDistributor), type(uint256).max);
+//         token.approve(address(defaultStakerRewardsDistributor), type(uint256).max);
 //         vm.stopPrank();
 
 //         _setNetworkWhitelistStatus(alice, network, true);
 //         uint48 timestamp = 3;
 //         _distributeReward(bob, network, address(token), ditributeAmount, timestamp);
 
-//         vm.assume(defaultRewardsDistributor.claimableAdminFee(address(token)) != 0);
+//         vm.assume(defaultStakerRewardsDistributor.claimableAdminFee(address(token)) != 0);
 //         _claimAdminFee(alice, address(token));
 
-//         vm.expectRevert(IDefaultRewardsDistributor.InsufficientAdminFee.selector);
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.InsufficientAdminFee.selector);
 //         _claimAdminFee(alice, address(token));
 //     }
 
@@ -817,7 +817,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -826,8 +826,8 @@
 //         );
 //     }
 
-//     function _getDefaultRewardsDistributor() internal returns (IDefaultRewardsDistributor) {
-//         return IDefaultRewardsDistributor(defaultRewardsDistributorFactory.create(address(vault)));
+//     function _getDefaultStakerRewardsDistributor() internal returns (IDefaultStakerRewardsDistributor) {
+//         return IDefaultStakerRewardsDistributor(defaultStakerRewardsDistributorFactory.create(address(vault)));
 //     }
 
 //     function _registerNetwork(address user, address middleware) internal {
@@ -839,7 +839,7 @@
 
 //     function _grantRewardsDistributorSetRole(address user, address account) internal {
 //         vm.startPrank(user);
-//         Vault(address(vault)).grantRole(vault.REWARDS_DISTRIBUTOR_SET_ROLE(), account);
+//         Vault(address(vault)).grantRole(vault.STAKER_REWARDS_DISTRIBUTOR_SET_ROLE(), account);
 //         vm.stopPrank();
 //     }
 
@@ -859,7 +859,7 @@
 
 //     function _setNetworkWhitelistStatus(address user, address network, bool status) internal {
 //         vm.startPrank(user);
-//         defaultRewardsDistributor.setNetworkWhitelistStatus(network, status);
+//         defaultStakerRewardsDistributor.setNetworkWhitelistStatus(network, status);
 //         vm.stopPrank();
 //     }
 
@@ -871,7 +871,7 @@
 //         uint48 timestamp
 //     ) internal {
 //         vm.startPrank(user);
-//         defaultRewardsDistributor.distributeReward(network, token, amount, timestamp);
+//         defaultStakerRewardsDistributor.distributeReward(network, token, amount, timestamp);
 //         vm.stopPrank();
 //     }
 
@@ -882,13 +882,13 @@
 //         uint32[] memory activeSharesOfHints
 //     ) internal {
 //         vm.startPrank(user);
-//         defaultRewardsDistributor.claimRewards(user, token, maxRewards, activeSharesOfHints);
+//         defaultStakerRewardsDistributor.claimRewards(user, token, maxRewards, activeSharesOfHints);
 //         vm.stopPrank();
 //     }
 
-//     function _setRewardsDistributor(address user, address rewardsDistributor) internal {
+//     function _setRewardsDistributor(address user, address stakerRewardsDistributor) internal {
 //         vm.startPrank(user);
-//         vault.setRewardsDistributor(rewardsDistributor);
+//         vault.setRewardsDistributor(stakerRewardsDistributor);
 //         vm.stopPrank();
 //     }
 
@@ -900,7 +900,7 @@
 
 //     function _claimAdminFee(address user, address token) internal {
 //         vm.startPrank(user);
-//         defaultRewardsDistributor.claimAdminFee(user, token);
+//         defaultStakerRewardsDistributor.claimAdminFee(user, token);
 //         vm.stopPrank();
 //     }
 // }

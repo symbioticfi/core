@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface IRewardsDistributor {
+interface IStakerRewardsDistributor {
     /**
      * @notice Emitted when a reward is distributed.
      * @param network network on behalf of which the reward is distributed

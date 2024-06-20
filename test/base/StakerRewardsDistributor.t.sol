@@ -15,7 +15,7 @@ contract RewardsDistributorTest is Test {
     uint256 bobPrivateKey;
 
     NetworkRegistry networkRegistry;
-    SimpleRewardsDistributor rewardsDistributor;
+    SimpleRewardsDistributor stakerRewardsDistributor;
 
     function setUp() public {
         owner = address(this);
@@ -23,18 +23,18 @@ contract RewardsDistributorTest is Test {
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
         networkRegistry = new NetworkRegistry();
-        rewardsDistributor = new SimpleRewardsDistributor();
+        stakerRewardsDistributor = new SimpleRewardsDistributor();
     }
 
     function test_Create() public {
-        assertEq(rewardsDistributor.version(), 1);
+        assertEq(stakerRewardsDistributor.version(), 1);
 
         vm.startPrank(bob);
         networkRegistry.registerNetwork();
         vm.stopPrank();
 
         vm.startPrank(alice);
-        rewardsDistributor.distributeReward(bob, address(0), 0, 0);
+        stakerRewardsDistributor.distributeReward(bob, address(0), 0, 0);
         vm.stopPrank();
     }
 }

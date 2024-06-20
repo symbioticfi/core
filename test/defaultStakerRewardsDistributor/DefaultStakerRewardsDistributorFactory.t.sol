@@ -11,23 +11,23 @@
 // import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 // import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
 
-// import {DefaultRewardsDistributorFactory} from
-//     "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributorFactory.sol";
-// import {DefaultRewardsDistributor} from "src/contracts/defaultRewardsDistributor/DefaultRewardsDistributor.sol";
-// import {IDefaultRewardsDistributor} from "src/interfaces/defaultRewardsDistributor/IDefaultRewardsDistributor.sol";
+// import {DefaultStakerRewardsDistributorFactory} from
+//     "src/contracts/defaultStakerRewardsDistributor/DefaultStakerRewardsDistributorFactory.sol";
+// import {DefaultStakerRewardsDistributor} from "src/contracts/defaultStakerRewardsDistributor/DefaultStakerRewardsDistributor.sol";
+// import {IDefaultStakerRewardsDistributor} from "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributor.sol";
 
 // import {Vault} from "src/contracts/vault/v1/Vault.sol";
 // import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
-// contract DefaultRewardsDistributorFactoryTest is Test {
+// contract DefaultStakerRewardsDistributorFactoryTest is Test {
 //     address owner;
 //     address alice;
 //     uint256 alicePrivateKey;
 //     address bob;
 //     uint256 bobPrivateKey;
 
-//     DefaultRewardsDistributorFactory defaultRewardsDistributorFactory;
-//     DefaultRewardsDistributor defaultRewardsDistributor;
+//     DefaultStakerRewardsDistributorFactory defaultStakerRewardsDistributorFactory;
+//     DefaultStakerRewardsDistributor defaultStakerRewardsDistributor;
 
 //     VaultFactory vaultFactory;
 //     NetworkRegistry networkRegistry;
@@ -79,7 +79,7 @@
 //                         epochDuration: 1,
 //                         vetoDuration: 0,
 //                         executeDuration: 0,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -89,33 +89,33 @@
 //     }
 
 //     function test_Create() public {
-//         defaultRewardsDistributorFactory = new DefaultRewardsDistributorFactory(
+//         defaultStakerRewardsDistributorFactory = new DefaultStakerRewardsDistributorFactory(
 //             address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
 //         );
 
-//         address defaultRewardsDistributorAddress = defaultRewardsDistributorFactory.create(address(vault));
-//         defaultRewardsDistributor = DefaultRewardsDistributor(defaultRewardsDistributorAddress);
-//         assertEq(defaultRewardsDistributorFactory.isEntity(defaultRewardsDistributorAddress), true);
+//         address defaultStakerRewardsDistributorAddress = defaultStakerRewardsDistributorFactory.create(address(vault));
+//         defaultStakerRewardsDistributor = DefaultStakerRewardsDistributor(defaultStakerRewardsDistributorAddress);
+//         assertEq(defaultStakerRewardsDistributorFactory.isEntity(defaultStakerRewardsDistributorAddress), true);
 
-//         assertEq(defaultRewardsDistributor.NETWORK_REGISTRY(), address(networkRegistry));
-//         assertEq(defaultRewardsDistributor.VAULT_FACTORY(), address(vaultFactory));
-//         assertEq(defaultRewardsDistributor.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
-//         assertEq(defaultRewardsDistributor.VAULT(), address(vault));
-//         assertEq(defaultRewardsDistributor.version(), 1);
-//         assertEq(defaultRewardsDistributor.isNetworkWhitelisted(alice), false);
-//         assertEq(defaultRewardsDistributor.rewardsLength(alice), 0);
+//         assertEq(defaultStakerRewardsDistributor.NETWORK_REGISTRY(), address(networkRegistry));
+//         assertEq(defaultStakerRewardsDistributor.VAULT_FACTORY(), address(vaultFactory));
+//         assertEq(defaultStakerRewardsDistributor.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
+//         assertEq(defaultStakerRewardsDistributor.VAULT(), address(vault));
+//         assertEq(defaultStakerRewardsDistributor.version(), 1);
+//         assertEq(defaultStakerRewardsDistributor.isNetworkWhitelisted(alice), false);
+//         assertEq(defaultStakerRewardsDistributor.rewardsLength(alice), 0);
 //         vm.expectRevert();
-//         defaultRewardsDistributor.rewards(alice, 0);
-//         assertEq(defaultRewardsDistributor.lastUnclaimedReward(alice, alice), 0);
-//         assertEq(defaultRewardsDistributor.claimableAdminFee(alice), 0);
+//         defaultStakerRewardsDistributor.rewards(alice, 0);
+//         assertEq(defaultStakerRewardsDistributor.lastUnclaimedReward(alice, alice), 0);
+//         assertEq(defaultStakerRewardsDistributor.claimableAdminFee(alice), 0);
 //     }
 
 //     function test_CreateRevertNotVault() public {
-//         defaultRewardsDistributorFactory = new DefaultRewardsDistributorFactory(
+//         defaultStakerRewardsDistributorFactory = new DefaultStakerRewardsDistributorFactory(
 //             address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
 //         );
 
-//         vm.expectRevert(IDefaultRewardsDistributor.NotVault.selector);
-//         defaultRewardsDistributorFactory.create(address(0));
+//         vm.expectRevert(IDefaultStakerRewardsDistributor.NotVault.selector);
+//         defaultStakerRewardsDistributorFactory.create(address(0));
 //     }
 // }

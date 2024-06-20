@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
-interface IDefaultRewardsDistributorFactory is IRegistry {
+interface IDefaultStakerRewardsDistributorFactory is IRegistry {
     /**
      * @notice Create a default rewards distributor for a given vault.
      * @param vault address of the vault
