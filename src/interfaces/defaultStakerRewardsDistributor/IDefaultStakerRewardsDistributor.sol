@@ -73,7 +73,7 @@ interface IDefaultStakerRewardsDistributor is IStakerRewardsDistributor {
      * @return maximum admin fee
      */
     function ADMIN_FEE_BASE() external view returns (uint256);
-    
+
     /**
      * @notice Get the admin fee claimer's role.
      */
@@ -111,7 +111,7 @@ interface IDefaultStakerRewardsDistributor is IStakerRewardsDistributor {
      * @notice Get the vault's address.
      * @return address of the vault
      */
-    function VAULT() external view returns (address);    
+    function VAULT() external view returns (address);
 
     /**
      * @notice Get an admin fee.
@@ -190,7 +190,7 @@ interface IDefaultStakerRewardsDistributor is IStakerRewardsDistributor {
      * @dev Only the NETWORK_WHITELIST_ROLE holder can call this function.
      */
     function setNetworkWhitelistStatus(address network, bool status) external;
-    
+
     /**
      * @notice Set an admin fee.
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)

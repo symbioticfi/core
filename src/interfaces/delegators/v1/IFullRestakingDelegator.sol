@@ -36,9 +36,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @param network address of the network
      * @param amount maximum amount of the collateral that can be slashed
      */
-    event SetOperatorNetworkLimit(
-        address indexed operator, address indexed network, uint256 amount
-    );
+    event SetOperatorNetworkLimit(address indexed operator, address indexed network, uint256 amount);
 
     /**
      * @notice Get the network registry's address.
@@ -64,10 +62,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @return next operator-network limit
      * @return timestamp when the limit will be set
      */
-    function nextOperatorNetworkLimit(
-        address operator,
-        address network
-    ) external view returns (uint256, uint48);
+    function nextOperatorNetworkLimit(address operator, address network) external view returns (uint256, uint48);
 
     /**
      * @notice Set an operator-network limit for a particular operator and network.

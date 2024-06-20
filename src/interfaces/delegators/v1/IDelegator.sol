@@ -44,11 +44,7 @@ interface IDelegator {
      * @param duration duration to get the slashable amount in
      * @return maximum amount of the collateral that can be slashed in `duration` seconds
      */
-    function slashableAmountIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) external view returns (uint256);
+    function slashableAmountIn(address network, address operator, uint48 duration) external view returns (uint256);
 
     /**
      * @notice Get a maximum amount of collateral that can be slashed for a particular network, and operator.
@@ -66,19 +62,11 @@ interface IDelegator {
      * @param duration duration to get the minimum slashable stake during
      * @return minimum slashable stake during `duration`
      */
-    function minStakeDuring(
-        address network,
-        address operator,
-        uint48 duration
-    ) external view returns (uint256);
+    function minStakeDuring(address network, address operator, uint48 duration) external view returns (uint256);
 
     /**
      * @notice Slashing callback for limits decreasing.
      * @param slashedAmount a
      */
-    function onSlash(
-        address network,
-        address operator,
-        uint256 slashedAmount
-    ) external;
+    function onSlash(address network, address operator, uint256 slashedAmount) external;
 }

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IDefaultStakerRewardsDistributor} from "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributor.sol";
+import {IDefaultStakerRewardsDistributor} from
+    "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributor.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IStakerRewardsDistributor} from "src/interfaces/stakerRewardsDistributor/v1/IStakerRewardsDistributor.sol";
@@ -15,7 +16,11 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract DefaultStakerRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardUpgradeable, IDefaultStakerRewardsDistributor {
+contract DefaultStakerRewardsDistributor is
+    AccessControlUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IDefaultStakerRewardsDistributor
+{
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -63,7 +68,7 @@ contract DefaultStakerRewardsDistributor is AccessControlUpgradeable, Reentrancy
      * @inheritdoc IDefaultStakerRewardsDistributor
      */
     address public VAULT;
-    
+
     /**
      * @inheritdoc IDefaultStakerRewardsDistributor
      */
@@ -209,7 +214,7 @@ contract DefaultStakerRewardsDistributor is AccessControlUpgradeable, Reentrancy
             uint256 activeSharesOf_ = hasHints
                 ? IVault(VAULT).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
                 : IVault(VAULT).activeSharesOfAt(msg.sender, reward.timestamp);
-                
+
             uint256 claimedAmount = activeSharesOf_.mulDiv(reward.amount, _activeSharesCache[reward.timestamp]);
             amount += claimedAmount;
 
@@ -247,7 +252,7 @@ contract DefaultStakerRewardsDistributor is AccessControlUpgradeable, Reentrancy
     /**
      * @inheritdoc IDefaultStakerRewardsDistributor
      */
-    function setNetworkWhitelistStatus(address network, bool status) external onlyRole(NETWORK_WHITELIST_ROLE)  {
+    function setNetworkWhitelistStatus(address network, bool status) external onlyRole(NETWORK_WHITELIST_ROLE) {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(network)) {
             revert NotNetwork();
         }
@@ -260,7 +265,7 @@ contract DefaultStakerRewardsDistributor is AccessControlUpgradeable, Reentrancy
 
         emit SetNetworkWhitelistStatus(network, status);
     }
-    
+
     /**
      * @inheritdoc IDefaultStakerRewardsDistributor
      */

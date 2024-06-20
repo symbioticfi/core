@@ -42,11 +42,9 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc INetworkRestakingDelegator
      */
-    mapping(address operator => mapping(address network => DelayedLimit)) public
-        nextOperatorNetworkLimit;
+    mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorNetworkLimit;
 
-     mapping(address operator => mapping(address network => Limit limit)) internal
-        _operatorNetworkLimit;
+    mapping(address operator => mapping(address network => Limit limit)) internal _operatorNetworkLimit;
 
     modifier onlySlasher() {
         if (IVault(vault).slasher() != msg.sender) {
@@ -63,11 +61,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc IDelegator
      */
-    function operatorNetworkLimitIn(
-        address operator,
-        address network,
-        uint48 duration
-    ) public view returns (uint256) {
+    function operatorNetworkLimitIn(address operator, address network, uint48 duration) public view returns (uint256) {
         return _getLimitAt(
             _operatorNetworkLimit[operator][network],
             nextOperatorNetworkLimit[operator][network],
@@ -85,41 +79,24 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc IDelegator
      */
-    function slashableAmountIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            operatorNetworkLimitIn(operator, network, duration)
-        );
+    function slashableAmountIn(address network, address operator, uint48 duration) public view returns (uint256) {
+        return Math.min(IVault(vault).totalSupplyIn(duration), operatorNetworkLimitIn(operator, network, duration));
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function slashableAmount(address network, address operator) public view returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupply(),
-            operatorNetworkLimit(operator, network)
-        );
+        return Math.min(IVault(vault).totalSupply(), operatorNetworkLimit(operator, network));
     }
 
     /**
      * @inheritdoc IDelegator
      */
-    function minStakeDuring(
-        address network,
-        address operator,
-        uint48 duration
-    ) external view returns (uint256) {
+    function minStakeDuring(address network, address operator, uint48 duration) external view returns (uint256) {
         return Math.min(
             IVault(vault).activeSupply(),
-            Math.min(
-                    operatorNetworkLimit(operator, network),
-                    operatorNetworkLimitIn(operator, network, duration)
-                )
+            Math.min(operatorNetworkLimit(operator, network), operatorNetworkLimitIn(operator, network, duration))
         );
     }
 
@@ -142,16 +119,10 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc IDelegator
      */
-    function onSlash(
-        address network,
-        address operator,
-        uint256 slashedAmount
-    ) external onlySlasher {
+    function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
         uint256 operatorNetworkLimit_ = operatorNetworkLimit(operator, network);
 
-        _updateLimit(
-            _operatorNetworkLimit[operator][network], nextOperatorNetworkLimit[operator][network]
-        );
+        _updateLimit(_operatorNetworkLimit[operator][network], nextOperatorNetworkLimit[operator][network]);
 
         if (operatorNetworkLimit_ != type(uint256).max) {
             _operatorNetworkLimit[operator][network].amount = operatorNetworkLimit_ - slashedAmount;

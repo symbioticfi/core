@@ -5,7 +5,7 @@ import {IRegistry} from "./IRegistry.sol";
 
 interface INonMigratablesFactory is IRegistry {
     error AlreadyWhitelisted();
-    
+
     /**
      * @notice Get the total number of whitelisted implementations.
      * @return total number of implementations
@@ -32,5 +32,4 @@ interface INonMigratablesFactory is IRegistry {
      * @return address of the entity
      */
     function create(uint64 index, bytes memory data) external returns (address);
-
 }

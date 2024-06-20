@@ -73,11 +73,7 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     /**
      * @inheritdoc INonResolvableSlasher
      */
-    function slash(
-        address network,
-        address operator,
-        uint256 amount
-    ) external returns (uint256) {
+    function slash(address network, address operator, uint256 amount) external returns (uint256) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }

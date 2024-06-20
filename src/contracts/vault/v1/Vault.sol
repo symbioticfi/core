@@ -172,7 +172,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         uint256 epoch = currentEpoch();
         uint256 totalSupply_ = totalSupply();
- 
+
         if (slashedAmount > totalSupply_) {
             revert();
         }
@@ -240,7 +240,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (params.collateral == address(0)) {
             revert InvalidCollateral();
         }
-        
+
         if (slasher != address(0) && params.burner == address(0)) {
             revert();
         }
@@ -248,9 +248,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (params.epochDuration == 0) {
             revert InvalidEpochDuration();
         }
-        
+
         collateral = params.collateral;
-        
+
         if (params.delegator != address(0)) {
             delegator = params.delegator;
         }
@@ -269,7 +269,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         if (params.depositWhitelist) {
             depositWhitelist = true;
-            
+
             _grantRole(DEPOSITOR_WHITELIST_ROLE, owner);
         }
     }

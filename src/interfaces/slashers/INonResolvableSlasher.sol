@@ -22,11 +22,7 @@ interface INonResolvableSlasher {
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param slashAmount maximum amount of the collateral to be slashed
      */
-    event Slash(
-        address indexed network,
-        address indexed operator,
-        uint256 slashAmount
-    );
+    event Slash(address indexed network, address indexed operator, uint256 slashAmount);
 
     /**
      * @notice Get the network registry's address.
@@ -78,9 +74,5 @@ interface INonResolvableSlasher {
      * @return slashedAmount amount of the collateral slashed
      * @dev Only network middleware can call this function.
      */
-    function slash(
-        address network,
-        address operator,
-        uint256 amount
-    ) external returns (uint256 slashedAmount);
+    function slash(address network, address operator, uint256 amount) external returns (uint256 slashedAmount);
 }

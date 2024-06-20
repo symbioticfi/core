@@ -23,7 +23,7 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     address public collateral;
-    
+
     /**
      * @inheritdoc IVaultStorage
      */

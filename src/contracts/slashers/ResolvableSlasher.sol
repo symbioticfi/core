@@ -180,7 +180,9 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
 
         request.completed = true;
 
-        slashedAmount = Math.min(request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.operator));
+        slashedAmount = Math.min(
+            request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.operator)
+        );
 
         if (slashedAmount != 0) {
             IVault(vault).slash(slashedAmount);

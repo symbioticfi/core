@@ -13,9 +13,7 @@ abstract contract NonMigratableEntity is Initializable, INonMigratableEntity {
     /**
      * @inheritdoc INonMigratableEntity
      */
-    function initialize(
-        bytes memory data
-    ) external initializer {
+    function initialize(bytes memory data) external initializer {
         _initialize(data);
     }
 
