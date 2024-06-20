@@ -21,6 +21,8 @@ interface IVaultStorage {
      */
     function collateral() external view returns (address);
     
+    function delegator() external view returns (address);
+
     /**
      * @dev Get a burner to issue debt to (e.g. 0xdEaD or some unwrapper contract).
      * @return vault's burner
@@ -32,7 +34,7 @@ interface IVaultStorage {
      * @return vault's staking controller
      */
     function slasher() external view returns (address);
-
+    
     /**
      * @notice Get a time point of the epoch duration set.
      * @return time point of the epoch duration set

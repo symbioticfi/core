@@ -241,20 +241,39 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function _initialize(uint64, address owner, bytes memory data) internal override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
+        if (params.collateral == address(0)) {
+            revert InvalidCollateral();
+        }
+        
+        if (slasher != address(0) && params.burner == address(0)) {
+            revert();
+        }
+
         if (params.epochDuration == 0) {
             revert InvalidEpochDuration();
         }
-
+        
         collateral = params.collateral;
-        burner = params.burner;
+        
+        if (params.delegator != address(0)) {
+            delegator = params.delegator;
+        }
+
+        if (params.burner != address(0)) {
+            burner = params.burner;
+        }
+        if (params.slasher != address(0)) {
+            slasher = params.slasher;
+        }
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        depositWhitelist = params.depositWhitelist;
-
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
+
         if (params.depositWhitelist) {
+            depositWhitelist = true;
+            
             _grantRole(DEPOSITOR_WHITELIST_ROLE, owner);
         }
     }

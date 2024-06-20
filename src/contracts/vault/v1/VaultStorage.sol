@@ -27,6 +27,11 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    address public delegator;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     address public burner;
 
     /**

@@ -14,7 +14,7 @@ interface IDelegator {
      * @return address of the vault
      */
     function vault() external view returns (address);
-    
+
     /**
      * @notice Get a network-resolver limit for a particular network and resolver in `duration` seconds.
      * @param network address of the network
@@ -56,6 +56,47 @@ interface IDelegator {
      * @return operator-network limit
      */
     function operatorNetworkLimit(address operator, address network) external view returns (uint256);
+
+    /**
+     * @notice Get a maximum amount of collateral that can be slashed
+     *         for a particular network, resolver, and operator in `duration` seconds.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param operator address of the operator
+     * @param duration duration to get the slashable amount in
+     * @return maximum amount of the collateral that can be slashed in `duration` seconds
+     */
+    function slashableAmountIn(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256);
+
+    /**
+     * @notice Get a maximum amount of collateral that can be slashed for a particular network, resolver, and operator.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param operator address of the operator
+     * @return maximum amount of the collateral that can be slashed
+     */
+    function slashableAmount(address network, address resolver, address operator) external view returns (uint256);
+
+    /**
+     * @notice Get a minimum stake that a given network will be able to slash using a particular resolver
+     *         for a certain operator during `duration` (if no cross-slashing).
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param operator address of the operator
+     * @param duration duration to get the minimum slashable stake during
+     * @return minimum slashable stake during `duration`
+     */
+    function minStakeDuring(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256);
 
     /**
      * @notice Slashing callback for limits decreasing.

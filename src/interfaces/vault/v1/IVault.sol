@@ -15,6 +15,7 @@ interface IVault is IVaultStorage {
     error NotWhitelistedDepositor();
     error NotSlasher();
     error TooMuchWithdraw();
+    error InvalidCollateral();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -28,7 +29,9 @@ interface IVault is IVaultStorage {
      */
     struct InitParams {
         address collateral;
+        address delegator;
         address burner;
+        address slasher;
         uint48 epochDuration;
         bool depositWhitelist;
         address slasherFactory;

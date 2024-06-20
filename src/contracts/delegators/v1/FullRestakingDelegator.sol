@@ -11,6 +11,7 @@ import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable, IFullRestakingDelegator {
     /**
@@ -123,19 +124,59 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         return operatorNetworkLimitIn(operator, network, 0);
     }
 
-    function _initialize(bytes memory data) internal override {
-        (IFullRestakingDelegator.InitParams memory params) = abi.decode(data, (IFullRestakingDelegator.InitParams));
+    /**
+     * @inheritdoc IDelegator
+     */
+    function slashableAmountIn(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) public view returns (uint256) {
+        return Math.min(
+            IVault(vault).totalSupplyIn(duration),
+            Math.min(
+                networkResolverLimitIn(network, resolver, duration),
+                operatorNetworkLimitIn(operator, network, duration)
+            )
+        );
+    }
 
-        if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
-            revert NotVault();
-        }
+    /**
+     * @inheritdoc IDelegator
+     */
+    function slashableAmount(address network, address resolver, address operator) public view returns (uint256) {
+        return Math.min(
+            IVault(vault).totalSupply(),
+            Math.min(
+                networkResolverLimit(network, resolver),
+                operatorNetworkLimit(operator, network)
+            )
+        );
+    }
 
-        vault = params.vault;
-
-        address vaultOwner = Ownable(params.vault).owner();
-        _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
-        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, vaultOwner);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
+    /**
+     * @inheritdoc IDelegator
+     */
+    function minStakeDuring(
+        address network,
+        address resolver,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256) {
+        return Math.min(
+            IVault(vault).activeSupply(),
+            Math.min(
+                Math.min(
+                    networkResolverLimit(network, resolver),
+                    networkResolverLimitIn(network, resolver, duration)
+                ),
+                Math.min(
+                    operatorNetworkLimit(operator, network),
+                    operatorNetworkLimitIn(operator, network, duration)
+                )
+            )
+        );
     }
 
     /**
@@ -228,6 +269,21 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         if (operatorNetworkLimit_ != type(uint256).max) {
             _operatorNetworkLimit[operator][network].amount = operatorNetworkLimit_ - slashedAmount;
         }
+    }
+
+    function _initialize(bytes memory data) internal override {
+        (IFullRestakingDelegator.InitParams memory params) = abi.decode(data, (IFullRestakingDelegator.InitParams));
+
+        if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
+            revert NotVault();
+        }
+
+        vault = params.vault;
+
+        address vaultOwner = Ownable(params.vault).owner();
+        _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
+        _grantRole(NETWORK_RESOLVER_LIMIT_SET_ROLE, vaultOwner);
+        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
     }
 
     function _getLimitAt(

@@ -53,11 +53,6 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
     /**
      * @inheritdoc IResolvableSlasher
      */
-    address public delegator;
-
-    /**
-     * @inheritdoc IResolvableSlasher
-     */
     SlashRequest[] public slashRequests;
 
     /**
@@ -100,61 +95,6 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
     /**
      * @inheritdoc IResolvableSlasher
      */
-    function slashableAmountIn(
-        address network,
-        address resolver,
-        address operator,
-        uint48 duration
-    ) public view returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            Math.min(
-                IDelegator(delegator).networkResolverLimitIn(network, resolver, duration),
-                IDelegator(delegator).operatorNetworkLimitIn(operator, network, duration)
-            )
-        );
-    }
-
-    /**
-     * @inheritdoc IResolvableSlasher
-     */
-    function slashableAmount(address network, address resolver, address operator) public view returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupply(),
-            Math.min(
-                IDelegator(delegator).networkResolverLimit(network, resolver),
-                IDelegator(delegator).operatorNetworkLimit(operator, network)
-            )
-        );
-    }
-
-    /**
-     * @inheritdoc IResolvableSlasher
-     */
-    function minStakeDuring(
-        address network,
-        address resolver,
-        address operator,
-        uint48 duration
-    ) external view returns (uint256) {
-        return Math.min(
-            IVault(vault).activeSupply(),
-            Math.min(
-                Math.min(
-                    IDelegator(delegator).networkResolverLimit(network, resolver),
-                    IDelegator(delegator).networkResolverLimitIn(network, resolver, duration)
-                ),
-                Math.min(
-                    IDelegator(delegator).operatorNetworkLimit(operator, network),
-                    IDelegator(delegator).operatorNetworkLimitIn(operator, network, duration)
-                )
-            )
-        );
-    }
-
-    /**
-     * @inheritdoc IResolvableSlasher
-     */
     function requestSlash(
         address network,
         address resolver,
@@ -165,7 +105,7 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
             revert NotNetworkMiddleware();
         }
 
-        uint256 slashableAmount_ = slashableAmountIn(network, resolver, operator, vetoDuration);
+        uint256 slashableAmount_ = IDelegator(IVault(vault).delegator()).slashableAmountIn(network, resolver, operator, vetoDuration);
 
         if (amount == 0 || slashableAmount_ == 0) {
             revert InsufficientSlash();
@@ -245,14 +185,14 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
 
         request.completed = true;
 
-        slashedAmount = Math.min(request.amount, slashableAmount(request.network, request.resolver, request.operator));
+        slashedAmount = Math.min(request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.resolver, request.operator));
 
         if (slashedAmount != 0) {
             IVault(vault).slash(slashedAmount);
         }
 
         if (slashedAmount != 0) {
-            IDelegator(delegator).onSlash(request.network, request.resolver, request.operator, slashedAmount);
+            IDelegator(IVault(vault).delegator()).onSlash(request.network, request.resolver, request.operator, slashedAmount);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
