@@ -62,11 +62,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(address account => uint48 timestamp) public firstDepositAt;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     mapping(uint256 epoch => uint256 amount) public withdrawals;
 
     /**

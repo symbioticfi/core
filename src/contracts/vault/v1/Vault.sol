@@ -104,10 +104,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         _activeShares.push(Time.timestamp(), activeShares_ + shares);
         _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + shares);
 
-        if (firstDepositAt[onBehalfOf] == 0) {
-            firstDepositAt[onBehalfOf] = Time.timestamp();
-        }
-
         emit Deposit(msg.sender, onBehalfOf, amount, shares);
     }
 

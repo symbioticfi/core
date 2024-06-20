@@ -88,13 +88,6 @@ interface IVaultStorage {
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
-     * @notice Get a timestamp when the first deposit was made by a particular account.
-     * @param account account to get the timestamp when the first deposit was made for
-     * @return timestamp when the first deposit was made
-     */
-    function firstDepositAt(address account) external view returns (uint48);
-
-    /**
      * @notice Get a total amount of active shares in the vault at a given timestamp.
      * @param timestamp time point to get the total amount of active shares at
      * @return total amount of active shares at the timestamp

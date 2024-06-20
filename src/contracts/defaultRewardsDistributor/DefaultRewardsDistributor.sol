@@ -188,16 +188,8 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
         uint256 maxRewards,
         uint32[] calldata activeSharesOfHints
     ) external {
-        uint48 firstDepositAt_ = IVault(VAULT).firstDepositAt(msg.sender);
-        if (firstDepositAt_ == 0) {
-            revert NoDeposits();
-        }
-
         RewardDistribution[] storage rewardsByToken = rewards[token];
         uint256 rewardIndex = lastUnclaimedReward[msg.sender][token];
-        if (rewardIndex == 0) {
-            rewardIndex = _firstUnclaimedReward(rewardsByToken, firstDepositAt_);
-        }
 
         uint256 rewardsToClaim = Math.min(maxRewards, rewardsByToken.length - rewardIndex);
 
@@ -214,15 +206,12 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
         for (uint256 j; j < rewardsToClaim;) {
             RewardDistribution storage reward = rewardsByToken[rewardIndex];
 
-            uint256 claimedAmount;
-            if (reward.timestamp >= firstDepositAt_) {
-                uint256 activeSharesOf_ = hasHints
-                    ? IVault(VAULT).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
-                    : IVault(VAULT).activeSharesOfAt(msg.sender, reward.timestamp);
-
-                claimedAmount = activeSharesOf_.mulDiv(reward.amount, _activeSharesCache[reward.timestamp]);
-                amount += claimedAmount;
-            }
+            uint256 activeSharesOf_ = hasHints
+                ? IVault(VAULT).activeSharesOfAtHint(msg.sender, reward.timestamp, activeSharesOfHints[j])
+                : IVault(VAULT).activeSharesOfAt(msg.sender, reward.timestamp);
+                
+            uint256 claimedAmount = activeSharesOf_.mulDiv(reward.amount, _activeSharesCache[reward.timestamp]);
+            amount += claimedAmount;
 
             emit ClaimReward(token, rewardIndex, msg.sender, recipient, claimedAmount);
 
@@ -287,40 +276,5 @@ contract DefaultRewardsDistributor is AccessControlUpgradeable, ReentrancyGuardU
         adminFee = adminFee_;
 
         emit SetAdminFee(adminFee_);
-    }
-
-    /**
-     * @dev Searches a sorted by creation time `array` and returns the first index that contains
-     * a RewardDistribution structure with `creation` greater or equal to `unclaimedFrom`. If no such index exists (i.e. all
-     * structures in the array are with `creation` strictly less than `unclaimedFrom`), the array length is
-     * returned.
-     */
-    function _firstUnclaimedReward(
-        RewardDistribution[] storage array,
-        uint48 unclaimedFrom
-    ) private view returns (uint256) {
-        uint256 len = array.length;
-        if (len == 0) {
-            return 0;
-        }
-
-        uint256 low = 0;
-        uint256 high = len;
-
-        while (low < high) {
-            uint256 mid = Math.average(low, high);
-
-            if (array[mid].creation < unclaimedFrom) {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
-        }
-
-        if (low < len && array[low].creation >= unclaimedFrom) {
-            return low;
-        } else {
-            return len;
-        }
     }
 }

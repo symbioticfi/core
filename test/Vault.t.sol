@@ -143,7 +143,6 @@
 //         assertEq(vault.withdrawals(0), 0);
 //         assertEq(vault.withdrawalShares(0), 0);
 //         assertEq(vault.pendingWithdrawalSharesOf(0, alice), 0);
-//         assertEq(vault.firstDepositAt(alice), 0);
 //         assertEq(vault.slashableAmount(address(0), address(0), address(0)), 0);
 //         assertEq(vault.slashRequestsLength(), 0);
 //         vm.expectRevert();
@@ -232,7 +231,6 @@
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), 0);
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1);
 //         assertEq(vault.activeBalanceOf(alice), amount1);
-//         assertEq(vault.firstDepositAt(alice), uint48(blockTimestamp));
 
 //         blockTimestamp = blockTimestamp + 1;
 //         vm.warp(blockTimestamp);
@@ -275,7 +273,6 @@
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 + amount2);
 //         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
-//         assertEq(vault.firstDepositAt(alice), uint48(blockTimestamp - 1));
 //     }
 
 //     function test_DepositBoth(uint256 amount1, uint256 amount2) public {
