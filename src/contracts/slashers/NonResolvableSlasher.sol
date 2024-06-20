@@ -50,21 +50,6 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
      */
     address public vault;
 
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
-    SlashRequest[] public slashRequests;
-
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
-    uint48 public vetoDuration;
-
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
-    uint48 public executeDuration;
-
     constructor(
         address _vault,
         address networkRegistry,
@@ -88,30 +73,22 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     /**
      * @inheritdoc INonResolvableSlasher
      */
-    function slashRequestsLength() external view returns (uint256) {
-        return slashRequests.length;
-    }
-
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
-    function requestSlash(
+    function slash(
         address network,
-        address resolver,
         address operator,
         uint256 amount
-    ) external returns (uint256 slashIndex) {
+    ) external returns (uint256) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
-        uint256 slashableAmount_ = IDelegator(IVault(vault).delegator()).slashableAmountIn(network, resolver, operator, vetoDuration);
+        amount = Math.min(amount, IDelegator(IVault(vault).delegator()).slashableAmount(network, operator));
 
-        if (amount == 0 || slashableAmount_ == 0) {
+        if (amount == 0) {
             revert InsufficientSlash();
         }
 
-        if (!INetworkOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, resolver, vault)) {
+        if (!INetworkOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, address(0), vault)) {
             revert NetworkNotOptedInVault();
         }
 
@@ -139,90 +116,13 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
             revert OperatorNotOptedInNetwork();
         }
 
-        if (amount > slashableAmount_) {
-            amount = slashableAmount_;
-        }
-        uint48 vetoDeadline = Time.timestamp() + vetoDuration;
-        uint48 executeDeadline = vetoDeadline + executeDuration;
+        IVault(vault).slash(amount);
 
-        slashIndex = slashRequests.length;
-        slashRequests.push(
-            SlashRequest({
-                network: network,
-                resolver: resolver,
-                operator: operator,
-                amount: amount,
-                vetoDeadline: vetoDeadline,
-                executeDeadline: executeDeadline,
-                completed: false
-            })
-        );
+        IDelegator(IVault(vault).delegator()).onSlash(network, operator, amount);
 
-        emit RequestSlash(slashIndex, network, resolver, operator, amount, vetoDeadline, executeDeadline);
-    }
+        emit Slash(network, operator, amount);
 
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
-    function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount) {
-        if (slashIndex >= slashRequests.length) {
-            revert SlashRequestNotExist();
-        }
-
-        SlashRequest storage request = slashRequests[slashIndex];
-
-        if (request.resolver != address(0) && request.vetoDeadline > Time.timestamp()) {
-            revert VetoPeriodNotEnded();
-        }
-
-        if (request.executeDeadline <= Time.timestamp()) {
-            revert SlashPeriodEnded();
-        }
-
-        if (request.completed) {
-            revert SlashCompleted();
-        }
-
-        request.completed = true;
-
-        slashedAmount = Math.min(request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.resolver, request.operator));
-
-        if (slashedAmount != 0) {
-            IVault(vault).slash(slashedAmount);
-        }
-
-        if (slashedAmount != 0) {
-            IDelegator(IVault(vault).delegator()).onSlash(request.network, request.resolver, request.operator, slashedAmount);
-        }
-
-        emit ExecuteSlash(slashIndex, slashedAmount);
-    }
-
-    /**
-     * @inheritdoc INonResolvableSlasher
-     */
-    function vetoSlash(uint256 slashIndex) external {
-        if (slashIndex >= slashRequests.length) {
-            revert SlashRequestNotExist();
-        }
-
-        SlashRequest storage request = slashRequests[slashIndex];
-
-        if (request.resolver != msg.sender) {
-            revert NotResolver();
-        }
-
-        if (request.vetoDeadline <= Time.timestamp()) {
-            revert VetoPeriodEnded();
-        }
-
-        if (request.completed) {
-            revert SlashCompleted();
-        }
-
-        request.completed = true;
-
-        emit VetoSlash(slashIndex);
+        return amount;
     }
 
     function _initialize(bytes memory data) internal override {
@@ -233,12 +133,5 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
         }
 
         vault = params.vault;
-
-        if (params.vetoDuration + params.executeDuration > IVault(vault).epochDuration()) {
-            revert InvalidSlashDuration();
-        }
-
-        vetoDuration = params.vetoDuration;
-        executeDuration = params.executeDuration;
     }
 }

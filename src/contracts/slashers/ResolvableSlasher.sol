@@ -105,9 +105,7 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
             revert NotNetworkMiddleware();
         }
 
-        uint256 slashableAmount_ = IDelegator(IVault(vault).delegator()).slashableAmountIn(network, resolver, operator, vetoDuration);
-
-        if (amount == 0 || slashableAmount_ == 0) {
+        if (amount == 0) {
             revert InsufficientSlash();
         }
 
@@ -139,9 +137,6 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
             revert OperatorNotOptedInNetwork();
         }
 
-        if (amount > slashableAmount_) {
-            amount = slashableAmount_;
-        }
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
         uint48 executeDeadline = vetoDeadline + executeDuration;
 
@@ -185,14 +180,14 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
 
         request.completed = true;
 
-        slashedAmount = Math.min(request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.resolver, request.operator));
+        slashedAmount = Math.min(request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.operator));
 
         if (slashedAmount != 0) {
             IVault(vault).slash(slashedAmount);
         }
 
         if (slashedAmount != 0) {
-            IDelegator(IVault(vault).delegator()).onSlash(request.network, request.resolver, request.operator, slashedAmount);
+            IDelegator(IVault(vault).delegator()).onSlash(request.network, request.operator, slashedAmount);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
