@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
+
 import {INonResolvableSlasher} from "src/interfaces/slashers/INonResolvableSlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
@@ -9,11 +11,10 @@ import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareServic
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
+contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     /**
      * @inheritdoc INonResolvableSlasher
      */
@@ -108,8 +109,8 @@ contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
         return Math.min(
             IVault(vault).totalSupplyIn(duration),
             Math.min(
-                IDelegator(delegator).networkResolverLimitIn(vault, network, resolver, duration),
-                IDelegator(delegator).operatorNetworkLimitIn(vault, operator, network, duration)
+                IDelegator(delegator).networkResolverLimitIn(network, resolver, duration),
+                IDelegator(delegator).operatorNetworkLimitIn(operator, network, duration)
             )
         );
     }
@@ -121,8 +122,8 @@ contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
         return Math.min(
             IVault(vault).totalSupply(),
             Math.min(
-                IDelegator(delegator).networkResolverLimit(vault, network, resolver),
-                IDelegator(delegator).operatorNetworkLimit(vault, operator, network)
+                IDelegator(delegator).networkResolverLimit(network, resolver),
+                IDelegator(delegator).operatorNetworkLimit(operator, network)
             )
         );
     }
@@ -140,30 +141,15 @@ contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
             IVault(vault).activeSupply(),
             Math.min(
                 Math.min(
-                    IDelegator(delegator).networkResolverLimit(vault, network, resolver),
-                    IDelegator(delegator).networkResolverLimitIn(vault, network, resolver, duration)
+                    IDelegator(delegator).networkResolverLimit(network, resolver),
+                    IDelegator(delegator).networkResolverLimitIn(network, resolver, duration)
                 ),
                 Math.min(
-                    IDelegator(delegator).operatorNetworkLimit(vault, operator, network),
-                    IDelegator(delegator).operatorNetworkLimitIn(vault, operator, network, duration)
+                    IDelegator(delegator).operatorNetworkLimit(operator, network),
+                    IDelegator(delegator).operatorNetworkLimitIn(operator, network, duration)
                 )
             )
         );
-    }
-
-    function initialize(address _vault, uint48 _vetoDuration, uint48 _executeDuration) external initializer {
-        if (!IRegistry(VAULT_FACTORY).isEntity(_vault)) {
-            revert NotVault();
-        }
-
-        vault = _vault;
-
-        if (_vetoDuration + _executeDuration > IVault(vault).epochDuration()) {
-            revert InvalidSlashDuration();
-        }
-
-        vetoDuration = _vetoDuration;
-        executeDuration = _executeDuration;
     }
 
     /**
@@ -266,7 +252,7 @@ contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
         }
 
         if (slashedAmount != 0) {
-            IDelegator(delegator).onSlash(vault, request.network, request.resolver, request.operator, slashedAmount);
+            IDelegator(delegator).onSlash(request.network, request.resolver, request.operator, slashedAmount);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -297,5 +283,22 @@ contract NonResolvableSlasher is Initializable, INonResolvableSlasher {
         request.completed = true;
 
         emit VetoSlash(slashIndex);
+    }
+
+    function _initialize(bytes memory data) internal override {
+        (INonResolvableSlasher.InitParams memory params) = abi.decode(data, (INonResolvableSlasher.InitParams));
+
+        if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
+            revert NotVault();
+        }
+
+        vault = params.vault;
+
+        if (params.vetoDuration + params.executeDuration > IVault(vault).epochDuration()) {
+            revert InvalidSlashDuration();
+        }
+
+        vetoDuration = params.vetoDuration;
+        executeDuration = params.executeDuration;
     }
 }

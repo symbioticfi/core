@@ -7,6 +7,11 @@ interface IFullRestakingDelegator is IDelegator {
     error AlreadySet();
     error NotSlasher();
     error NotNetwork();
+    error NotVault();
+
+    struct InitParams {
+        address vault;
+    }
 
     /**
      * @notice Structure for a slashing limit.
@@ -33,7 +38,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @param amount maximum network-resolver limit that can be set
      */
     event SetMaxNetworkResolverLimit(
-        address indexed vault, address indexed network, address indexed resolver, uint256 amount
+        address indexed network, address indexed resolver, uint256 amount
     );
 
     /**
@@ -43,7 +48,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @param amount maximum amount of the collateral that can be slashed
      */
     event SetNetworkResolverLimit(
-        address indexed vault, address indexed network, address indexed resolver, uint256 amount
+        address indexed network, address indexed resolver, uint256 amount
     );
 
     /**
@@ -53,7 +58,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @param amount maximum amount of the collateral that can be slashed
      */
     event SetOperatorNetworkLimit(
-        address indexed vault, address indexed operator, address indexed network, uint256 amount
+        address indexed operator, address indexed network, uint256 amount
     );
 
     /**
@@ -85,7 +90,6 @@ interface IFullRestakingDelegator is IDelegator {
      * @return maximum network-resolver limit
      */
     function maxNetworkResolverLimit(
-        address vault,
         address network,
         address resolver
     ) external view returns (uint256);
@@ -98,7 +102,6 @@ interface IFullRestakingDelegator is IDelegator {
      * @return timestamp when the limit will be set
      */
     function nextNetworkResolverLimit(
-        address vault,
         address network,
         address resolver
     ) external view returns (uint256, uint48);
@@ -111,7 +114,6 @@ interface IFullRestakingDelegator is IDelegator {
      * @return timestamp when the limit will be set
      */
     function nextOperatorNetworkLimit(
-        address vault,
         address operator,
         address network
     ) external view returns (uint256, uint48);
@@ -122,7 +124,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @param amount maximum network-resolver limit that can be set
      * @dev Only a network can call this function.
      */
-    function setMaxNetworkResolverLimit(address vault, address resolver, uint256 amount) external;
+    function setMaxNetworkResolverLimit(address resolver, uint256 amount) external;
 
     /**
      * @notice Set a network-resolver limit for a particular network and resolver.
@@ -131,7 +133,7 @@ interface IFullRestakingDelegator is IDelegator {
      * @param amount new maximum amount of the collateral that can be slashed
      * @dev Only the NETWORK_RESOLVER_LIMIT_SET_ROLE holder can call this function.
      */
-    function setNetworkResolverLimit(address vault, address network, address resolver, uint256 amount) external;
+    function setNetworkResolverLimit(address network, address resolver, uint256 amount) external;
 
     /**
      * @notice Set an operator-network limit for a particular operator and network.
@@ -140,5 +142,5 @@ interface IFullRestakingDelegator is IDelegator {
      * @param amount new maximum amount of the collateral that can be slashed
      * @dev Only the OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
-    function setOperatorNetworkLimit(address vault, address operator, address network, uint256 amount) external;
+    function setOperatorNetworkLimit(address operator, address network, uint256 amount) external;
 }

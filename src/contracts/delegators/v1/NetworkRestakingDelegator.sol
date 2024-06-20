@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
 
-import {IFullRestakingDelegator} from "src/interfaces/delegators/v1/IFullRestakingDelegator.sol";
+import {INetworkRestakingDelegator} from "src/interfaces/delegators/v1/INetworkRestakingDelegator.sol";
 import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
@@ -12,29 +12,29 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable, IFullRestakingDelegator {
+contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable, INetworkRestakingDelegator {
     /**
      * @inheritdoc IDelegator
      */
     uint64 public constant VERSION = 1;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     bytes32 public constant NETWORK_RESOLVER_LIMIT_SET_ROLE = keccak256("NETWORK_RESOLVER_LIMIT_SET_ROLE");
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
@@ -44,19 +44,19 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     address public vault;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     mapping(address network => mapping(address resolver => uint256 amount)) public
         maxNetworkResolverLimit;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     mapping(address network => mapping(address resolver => DelayedLimit)) public
         nextNetworkResolverLimit;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     mapping(address operator => mapping(address network => DelayedLimit)) public
         nextOperatorNetworkLimit;
@@ -124,7 +124,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     function _initialize(bytes memory data) internal override {
-        (IFullRestakingDelegator.InitParams memory params) = abi.decode(data, (IFullRestakingDelegator.InitParams));
+        (INetworkRestakingDelegator.InitParams memory params) = abi.decode(data, (INetworkRestakingDelegator.InitParams));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
             revert NotVault();
@@ -139,7 +139,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function setMaxNetworkResolverLimit(address resolver, uint256 amount) external {
         if (maxNetworkResolverLimit[msg.sender][resolver] == amount) {
@@ -168,7 +168,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function setNetworkResolverLimit(
         address network,
@@ -188,7 +188,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function setOperatorNetworkLimit(
         address operator,

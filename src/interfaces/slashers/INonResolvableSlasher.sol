@@ -18,6 +18,12 @@ interface INonResolvableSlasher {
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
 
+    struct InitParams {
+        address vault;
+        uint48 vetoDuration;
+        uint48 executeDuration;
+    }
+
     /**
      * @notice Structure for a slash request.
      * @param network network that requested the slash

@@ -7,8 +7,14 @@ interface IDelegator {
      * @return version of the delegator
      * @dev Must return 1 for this one.
      */
-    function version() external view returns (uint64);
+    function VERSION() external view returns (uint64);
 
+    /**
+     * @notice Get the vault's address.
+     * @return address of the vault
+     */
+    function vault() external view returns (address);
+    
     /**
      * @notice Get a network-resolver limit for a particular network and resolver in `duration` seconds.
      * @param network address of the network
@@ -17,7 +23,6 @@ interface IDelegator {
      * @return network-resolver limit in `duration` seconds
      */
     function networkResolverLimitIn(
-        address vault,
         address network,
         address resolver,
         uint48 duration
@@ -29,7 +34,7 @@ interface IDelegator {
      * @param resolver address of the resolver
      * @return network-resolver limit
      */
-    function networkResolverLimit(address vault, address network, address resolver) external view returns (uint256);
+    function networkResolverLimit(address network, address resolver) external view returns (uint256);
 
     /**
      * @notice Get an operator-network limit for a particular operator and network in `duration` seconds.
@@ -39,7 +44,6 @@ interface IDelegator {
      * @return operator-network limit in `duration` seconds
      */
     function operatorNetworkLimitIn(
-        address vault,
         address operator,
         address network,
         uint48 duration
@@ -51,14 +55,13 @@ interface IDelegator {
      * @param network address of the network
      * @return operator-network limit
      */
-    function operatorNetworkLimit(address vault, address operator, address network) external view returns (uint256);
+    function operatorNetworkLimit(address operator, address network) external view returns (uint256);
 
     /**
      * @notice Slashing callback for limits decreasing.
      * @param slashedAmount a
      */
     function onSlash(
-        address vault,
         address network,
         address resolver,
         address operator,
