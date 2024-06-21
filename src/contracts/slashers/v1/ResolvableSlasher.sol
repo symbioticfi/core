@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
 
-import {IResolvableSlasher} from "src/interfaces/slashers/IResolvableSlasher.sol";
+import {IResolvableSlasher} from "src/interfaces/slashers/v1/IResolvableSlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
