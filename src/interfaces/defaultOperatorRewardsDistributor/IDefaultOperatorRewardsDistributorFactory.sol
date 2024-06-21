@@ -3,11 +3,11 @@ pragma solidity 0.8.25;
 
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 
-interface IDefaultStakerRewardsDistributorFactory is IRegistry {
+interface IDefaultOperatorRewardsDistributorFactory is IRegistry {
     /**
-     * @notice Create a default staker rewards distributor for a given vault.
+     * @notice Create a default operator rewards distributor for a given vault.
      * @param vault address of the vault
-     * @return address of the created staker rewards distributor
+     * @return address of the created operator rewards distributor
      */
     function create(address vault) external returns (address);
 }
