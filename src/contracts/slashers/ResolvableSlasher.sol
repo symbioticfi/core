@@ -111,7 +111,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     /**
      * @inheritdoc IResolvableSlasher
      */
-    function totalResolverSharesAt(address network, uint48 timestamp) external view returns (uint256) {
+    function totalResolverSharesAt(address network, uint48 timestamp) public view returns (uint256) {
         return _totalResolverShares[network].upperLookupRecent(timestamp);
     }
 
@@ -125,7 +125,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     /**
      * @inheritdoc IResolvableSlasher
      */
-    function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256) {
+    function resolverSharesAt(address network, address resolver, uint48 timestamp) public view returns (uint256) {
         return _resolverShares[network][resolver].upperLookupRecent(timestamp);
     }
 
@@ -134,6 +134,23 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
      */
     function resolverShares(address network, address resolver) public view returns (uint256) {
         return _resolverShares[network][resolver].upperLookupRecent(Time.timestamp());
+    }
+
+    function resolverNetworkStakeIn(
+        address network,
+        address resolver,
+        uint48 duration
+    ) external view returns (uint256) {
+        return IDelegator(IVault(vault).delegator()).networkStakeIn(network, duration).mulDiv(
+            resolverSharesAt(network, resolver, Time.timestamp() + duration),
+            totalResolverSharesAt(network, Time.timestamp() + duration)
+        );
+    }
+
+    function resolverNetworkStake(address network, address resolver) public view returns (uint256) {
+        return IDelegator(IVault(vault).delegator()).networkStake(network).mulDiv(
+            resolverShares(network, resolver), totalResolverShares(network)
+        );
     }
 
     /**
@@ -225,20 +242,19 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
         request.completed = true;
 
         address delegator = IVault(vault).delegator();
-        uint256 networkStake = IDelegator(delegator).networkStake(request.network);
-        uint256 resolverShares_ = resolverShares(request.network, request.resolver);
-        uint256 totalResolverShares_ = totalResolverShares(request.network);
-        uint256 resolverSlashableAmount = networkStake.mulDiv(resolverShares_, totalResolverShares_);
+        uint256 resolverSlashableAmount = resolverNetworkStake(request.network, request.resolver);
 
         slashedAmount = Math.min(
             Math.min(request.amount, IDelegator(delegator).operatorNetworkStake(request.network, request.operator)),
             resolverSlashableAmount
         );
 
-        uint256 resolverSlashedShares = slashedAmount.mulDiv(resolverShares_, resolverSlashableAmount);
+        uint256 resolverShares_ = resolverShares(request.network, request.resolver);
+        uint256 resolverSlashedShares =
+            slashedAmount.mulDiv(resolverShares_, resolverSlashableAmount, Math.Rounding.Ceil);
 
         _insertSharesCheckpointAtNow(
-            _totalResolverShares[request.network], totalResolverShares_ - resolverSlashedShares
+            _totalResolverShares[request.network], totalResolverShares(request.network) - resolverSlashedShares
         );
 
         _insertSharesCheckpointAtNow(
