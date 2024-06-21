@@ -172,6 +172,14 @@ interface IResolvableSlasher {
 
     function resolverShares(address network, address resolver) external view returns (uint256);
 
+    function resolverNetworkStakeIn(
+        address network,
+        address resolver,
+        uint48 duration
+    ) external view returns (uint256);
+
+    function resolverNetworkStake(address network, address resolver) external view returns (uint256);
+
     /**
      * @notice Request a slash using a network and a resolver for a particular operator by a given amount.
      * @param network address of the network

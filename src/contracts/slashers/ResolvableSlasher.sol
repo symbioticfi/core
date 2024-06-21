@@ -87,7 +87,6 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     mapping(address network => mapping(address resolver => Checkpoints.Trace256 checkpoint)) private _resolverShares;
 
     constructor(
-        address networkRegistry,
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
@@ -136,6 +135,9 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
         return _resolverShares[network][resolver].upperLookupRecent(Time.timestamp());
     }
 
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
     function resolverNetworkStakeIn(
         address network,
         address resolver,
@@ -147,6 +149,9 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
         );
     }
 
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
     function resolverNetworkStake(address network, address resolver) public view returns (uint256) {
         return IDelegator(IVault(vault).delegator()).networkStake(network).mulDiv(
             resolverShares(network, resolver), totalResolverShares(network)
