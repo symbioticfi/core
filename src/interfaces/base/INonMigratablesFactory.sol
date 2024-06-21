@@ -21,9 +21,9 @@ interface INonMigratablesFactory is IRegistry {
 
     /**
      * @notice Whitelist a new implementation for entities.
-     * @param newImplementation address of the new implementation
+     * @param implementation address of the new implementation
      */
-    function whitelist(address newImplementation) external;
+    function whitelist(address implementation) external;
 
     /**
      * @notice Create a new entity at the registry.

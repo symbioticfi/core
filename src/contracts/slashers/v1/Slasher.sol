@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
 
-import {INonResolvableSlasher} from "src/interfaces/slashers/v1/INonResolvableSlasher.sol";
+import {ISlasher} from "src/interfaces/slashers/v1/ISlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
@@ -13,34 +13,34 @@ import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
+contract Slasher is NonMigratableEntity, ISlasher {
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     address public immutable NETWORK_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     address public vault;
 
@@ -60,7 +60,7 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     }
 
     /**
-     * @inheritdoc INonResolvableSlasher
+     * @inheritdoc ISlasher
      */
     function slash(address network, address operator, uint256 amount) external returns (uint256) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
@@ -111,7 +111,7 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
     }
 
     function _initialize(bytes memory data) internal override {
-        (INonResolvableSlasher.InitParams memory params) = abi.decode(data, (INonResolvableSlasher.InitParams));
+        (ISlasher.InitParams memory params) = abi.decode(data, (ISlasher.InitParams));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
             revert NotVault();

@@ -40,8 +40,8 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function whitelist(address newImplementation) external onlyOwner {
-        if (!_whitelistedImplementations.add(newImplementation)) {
+    function whitelist(address implementation_) external onlyOwner {
+        if (!_whitelistedImplementations.add(implementation_)) {
             revert AlreadyWhitelisted();
         }
     }

@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
 
-import {IResolvableSlasher} from "src/interfaces/slashers/v1/IResolvableSlasher.sol";
+import {IVetoSlasher} from "src/interfaces/slashers/v1/IVetoSlasher.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
@@ -18,67 +18,67 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IResolvableSlasher {
+contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     uint256 public MAX_SHARES = 10 ** 36;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     uint256 public BASE_SHARES = 10 ** 36;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     bytes32 public constant RESOLVER_SHARES_SET_ROLE = keccak256("RESOLVER_SHARES_SET_ROLE");
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     address public immutable NETWORK_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     address public vault;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     SlashRequest[] public slashRequests;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     uint48 public vetoDuration;
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     uint48 public executeDuration;
 
@@ -101,42 +101,42 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function slashRequestsLength() external view returns (uint256) {
         return slashRequests.length;
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function totalResolverSharesAt(address network, uint48 timestamp) public view returns (uint256) {
         return _totalResolverShares[network].upperLookupRecent(timestamp);
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function totalResolverShares(address network) public view returns (uint256) {
         return _totalResolverShares[network].upperLookupRecent(Time.timestamp());
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function resolverSharesAt(address network, address resolver, uint48 timestamp) public view returns (uint256) {
         return _resolverShares[network][resolver].upperLookupRecent(timestamp);
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function resolverShares(address network, address resolver) public view returns (uint256) {
         return _resolverShares[network][resolver].upperLookupRecent(Time.timestamp());
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function resolverNetworkStakeIn(
         address network,
@@ -150,7 +150,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function resolverNetworkStake(address network, address resolver) public view returns (uint256) {
         return IDelegator(IVault(vault).delegator()).networkStake(network).mulDiv(
@@ -159,7 +159,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function requestSlash(
         address network,
@@ -223,7 +223,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount) {
         if (slashIndex >= slashRequests.length) {
@@ -276,7 +276,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     }
 
     /**
-     * @inheritdoc IResolvableSlasher
+     * @inheritdoc IVetoSlasher
      */
     function vetoSlash(uint256 slashIndex) external {
         if (slashIndex >= slashRequests.length) {
@@ -343,7 +343,7 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
     }
 
     function _initialize(bytes memory data) internal override {
-        (IResolvableSlasher.InitParams memory params) = abi.decode(data, (IResolvableSlasher.InitParams));
+        (IVetoSlasher.InitParams memory params) = abi.decode(data, (IVetoSlasher.InitParams));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(params.vault)) {
             revert NotVault();

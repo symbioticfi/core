@@ -35,8 +35,8 @@ contract NonMigratablesFactory is Registry, Ownable, INonMigratablesFactory {
     /**
      * @inheritdoc INonMigratablesFactory
      */
-    function whitelist(address newImplementation) external onlyOwner {
-        if (!_whitelistedImplementations.add(newImplementation)) {
+    function whitelist(address implementation_) external onlyOwner {
+        if (!_whitelistedImplementations.add(implementation_)) {
             revert AlreadyWhitelisted();
         }
     }

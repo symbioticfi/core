@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface IResolvableSlasher {
+interface IVetoSlasher {
     error InvalidSlashDuration();
     error InsufficientSlash();
     error NetworkNotOptedInVault();
