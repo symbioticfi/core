@@ -17,6 +17,7 @@ interface IResolvableSlasher {
     error SlashRequestNotExist();
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
+    error InvalidShares();
 
     struct InitParams {
         address vault;
@@ -76,6 +77,14 @@ interface IResolvableSlasher {
      * @param slashIndex index of the slash request
      */
     event VetoSlash(uint256 indexed slashIndex);
+
+    event SetResolverShares(address network, address resolver, uint256 shares);
+
+    function MAX_SHARES() external view returns (uint256);
+
+    function BASE_SHARES() external view returns (uint256);
+
+    function RESOLVER_SHARES_SET_ROLE() external view returns (bytes32);
 
     /**
      * @notice Get the vault factory's address.
@@ -155,6 +164,14 @@ interface IResolvableSlasher {
             bool completed
         );
 
+    function totalResolverSharesAt(address network, uint48 timestamp) external view returns (uint256);
+
+    function totalResolverShares(address network) external view returns (uint256);
+
+    function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256);
+
+    function resolverShares(address network, address resolver) external view returns (uint256);
+
     /**
      * @notice Request a slash using a network and a resolver for a particular operator by a given amount.
      * @param network address of the network
@@ -185,4 +202,6 @@ interface IResolvableSlasher {
      * @dev Only a resolver can call this function.
      */
     function vetoSlash(uint256 slashIndex) external;
+
+    function setResolverShares(address network, address resolver, uint256 shares) external;
 }

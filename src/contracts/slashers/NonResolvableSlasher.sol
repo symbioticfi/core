@@ -67,7 +67,7 @@ contract NonResolvableSlasher is NonMigratableEntity, INonResolvableSlasher {
             revert NotNetworkMiddleware();
         }
 
-        amount = Math.min(amount, IDelegator(IVault(vault).delegator()).slashableAmount(network, operator));
+        amount = Math.min(amount, IDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator));
 
         if (amount == 0) {
             revert InsufficientSlash();

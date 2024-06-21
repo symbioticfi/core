@@ -11,10 +11,32 @@ import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareServic
 import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
 import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
 
+import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
+contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IResolvableSlasher {
+    using Checkpoints for Checkpoints.Trace256;
+    using Math for uint256;
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    uint256 public MAX_SHARES = 10 ** 36;
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    uint256 public BASE_SHARES = 10 ** 36;
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    bytes32 public constant RESOLVER_SHARES_SET_ROLE = keccak256("RESOLVER_SHARES_SET_ROLE");
+
     /**
      * @inheritdoc IResolvableSlasher
      */
@@ -60,6 +82,10 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
      */
     uint48 public executeDuration;
 
+    mapping(address network => Checkpoints.Trace256 checkpoint) private _totalResolverShares;
+
+    mapping(address network => mapping(address resolver => Checkpoints.Trace256 checkpoint)) private _resolverShares;
+
     constructor(
         address networkRegistry,
         address networkMiddlewareService,
@@ -80,6 +106,34 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
      */
     function slashRequestsLength() external view returns (uint256) {
         return slashRequests.length;
+    }
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    function totalResolverSharesAt(address network, uint48 timestamp) external view returns (uint256) {
+        return _totalResolverShares[network].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    function totalResolverShares(address network) public view returns (uint256) {
+        return _totalResolverShares[network].upperLookupRecent(Time.timestamp());
+    }
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256) {
+        return _resolverShares[network][resolver].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IResolvableSlasher
+     */
+    function resolverShares(address network, address resolver) public view returns (uint256) {
+        return _resolverShares[network][resolver].upperLookupRecent(Time.timestamp());
     }
 
     /**
@@ -170,16 +224,31 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
 
         request.completed = true;
 
+        address delegator = IVault(vault).delegator();
+        uint256 networkStake = IDelegator(delegator).networkStake(request.network);
+        uint256 resolverShares_ = resolverShares(request.network, request.resolver);
+        uint256 totalResolverShares_ = totalResolverShares(request.network);
+        uint256 resolverSlashableAmount = networkStake.mulDiv(resolverShares_, totalResolverShares_);
+
         slashedAmount = Math.min(
-            request.amount, IDelegator(IVault(vault).delegator()).slashableAmount(request.network, request.operator)
+            Math.min(request.amount, IDelegator(delegator).operatorNetworkStake(request.network, request.operator)),
+            resolverSlashableAmount
+        );
+
+        uint256 resolverSlashedShares = slashedAmount.mulDiv(resolverShares_, resolverSlashableAmount);
+
+        _insertSharesCheckpointAtNow(
+            _totalResolverShares[request.network], totalResolverShares_ - resolverSlashedShares
+        );
+
+        _insertSharesCheckpointAtNow(
+            _resolverShares[request.network][request.resolver], resolverShares_ - resolverSlashedShares
         );
 
         if (slashedAmount != 0) {
             IVault(vault).slash(slashedAmount);
-        }
 
-        if (slashedAmount != 0) {
-            IDelegator(IVault(vault).delegator()).onSlash(request.network, request.operator, slashedAmount);
+            IDelegator(delegator).onSlash(request.network, request.operator, slashedAmount);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -212,6 +281,46 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
         emit VetoSlash(slashIndex);
     }
 
+    function setResolverShares(
+        address network,
+        address resolver,
+        uint256 shares
+    ) external onlyRole(RESOLVER_SHARES_SET_ROLE) {
+        if (shares > MAX_SHARES) {
+            revert InvalidShares();
+        }
+
+        shares *= BASE_SHARES;
+
+        uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+
+        _totalResolverShares[network].push(
+            timestamp, _totalResolverShares[network].latest() + shares - _resolverShares[network][resolver].latest()
+        );
+
+        _resolverShares[network][resolver].push(timestamp, shares);
+
+        emit SetResolverShares(network, resolver, shares);
+    }
+
+    function _insertSharesCheckpointAtNow(Checkpoints.Trace256 storage checkpoints, uint256 value) private {
+        (, uint48 latestTimestamp1, uint256 latestValue1) = checkpoints.latestCheckpoint();
+        if (Time.timestamp() < latestTimestamp1) {
+            checkpoints.pop();
+            (, uint48 latestTimestamp2, uint256 latestValue2) = checkpoints.latestCheckpoint();
+            if (Time.timestamp() < latestTimestamp2) {
+                checkpoints.pop();
+                checkpoints.push(Time.timestamp(), value);
+                checkpoints.push(latestTimestamp2, latestValue2);
+            } else {
+                checkpoints.push(Time.timestamp(), value);
+            }
+            checkpoints.push(latestTimestamp1, latestValue1);
+        } else {
+            checkpoints.push(Time.timestamp(), value);
+        }
+    }
+
     function _initialize(bytes memory data) internal override {
         (IResolvableSlasher.InitParams memory params) = abi.decode(data, (IResolvableSlasher.InitParams));
 
@@ -227,5 +336,7 @@ contract ResolvableSlasher is NonMigratableEntity, IResolvableSlasher {
 
         vetoDuration = params.vetoDuration;
         executeDuration = params.executeDuration;
+
+        _grantRole(RESOLVER_SHARES_SET_ROLE, Ownable(params.vault).owner());
     }
 }

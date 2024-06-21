@@ -15,6 +15,10 @@ interface IDelegator {
      */
     function vault() external view returns (address);
 
+    function networkStakeIn(address network, uint48 duration) external view returns (uint256);
+
+    function networkStake(address network) external view returns (uint256);
+
     /**
      * @notice Get an operator-network limit for a particular operator and network in `duration` seconds.
      * @param operator address of the operator
@@ -44,7 +48,11 @@ interface IDelegator {
      * @param duration duration to get the slashable amount in
      * @return maximum amount of the collateral that can be slashed in `duration` seconds
      */
-    function slashableAmountIn(address network, address operator, uint48 duration) external view returns (uint256);
+    function operatorNetworkStakeIn(
+        address network,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256);
 
     /**
      * @notice Get a maximum amount of collateral that can be slashed for a particular network, and operator.
@@ -52,7 +60,7 @@ interface IDelegator {
      * @param operator address of the operator
      * @return maximum amount of the collateral that can be slashed
      */
-    function slashableAmount(address network, address operator) external view returns (uint256);
+    function operatorNetworkStake(address network, address operator) external view returns (uint256);
 
     /**
      * @notice Get a minimum stake that a given network will be able to slash

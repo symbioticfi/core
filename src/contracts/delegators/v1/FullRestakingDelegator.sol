@@ -58,6 +58,14 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         VAULT_FACTORY = vaultFactory;
     }
 
+    function networkStakeIn(address network, uint48 duration) external view returns (uint256) {
+        return Math.min(IVault(vault).totalSupply(), 1); // TODO
+    }
+
+    function networkStake(address network) external view returns (uint256) {
+        return Math.min(IVault(vault).totalSupply(), 1); // TODO
+    }
+
     /**
      * @inheritdoc IDelegator
      */
@@ -79,14 +87,14 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     /**
      * @inheritdoc IDelegator
      */
-    function slashableAmountIn(address network, address operator, uint48 duration) public view returns (uint256) {
+    function operatorNetworkStakeIn(address network, address operator, uint48 duration) public view returns (uint256) {
         return Math.min(IVault(vault).totalSupplyIn(duration), operatorNetworkLimitIn(operator, network, duration));
     }
 
     /**
      * @inheritdoc IDelegator
      */
-    function slashableAmount(address network, address operator) public view returns (uint256) {
+    function operatorNetworkStake(address network, address operator) public view returns (uint256) {
         return Math.min(IVault(vault).totalSupply(), operatorNetworkLimit(operator, network));
     }
 
