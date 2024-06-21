@@ -254,19 +254,19 @@ contract ResolvableSlasher is NonMigratableEntity, AccessControlUpgradeable, IRe
             resolverSlashableAmount
         );
 
-        uint256 resolverShares_ = resolverShares(request.network, request.resolver);
-        uint256 resolverSlashedShares =
-            slashedAmount.mulDiv(resolverShares_, resolverSlashableAmount, Math.Rounding.Ceil);
-
-        _insertSharesCheckpointAtNow(
-            _totalResolverShares[request.network], totalResolverShares(request.network) - resolverSlashedShares
-        );
-
-        _insertSharesCheckpointAtNow(
-            _resolverShares[request.network][request.resolver], resolverShares_ - resolverSlashedShares
-        );
-
         if (slashedAmount != 0) {
+            uint256 resolverShares_ = resolverShares(request.network, request.resolver);
+            uint256 resolverSlashedShares =
+                slashedAmount.mulDiv(resolverShares_, resolverSlashableAmount, Math.Rounding.Ceil);
+
+            _insertSharesCheckpointAtNow(
+                _totalResolverShares[request.network], totalResolverShares(request.network) - resolverSlashedShares
+            );
+
+            _insertSharesCheckpointAtNow(
+                _resolverShares[request.network][request.resolver], resolverShares_ - resolverSlashedShares
+            );
+
             IVault(vault).slash(slashedAmount);
 
             IDelegator(delegator).onSlash(request.network, request.operator, slashedAmount);
