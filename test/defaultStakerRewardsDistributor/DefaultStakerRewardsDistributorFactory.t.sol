@@ -8,8 +8,7 @@
 // import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 // import {MetadataService} from "src/contracts/MetadataService.sol";
 // import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
-// import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
-// import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
+// import {OptInService} from "src/contracts/OptInService.sol";
 
 // import {DefaultStakerRewardsDistributorFactory} from
 //     "src/contracts/defaultStakerRewardsDistributor/DefaultStakerRewardsDistributorFactory.sol";
@@ -35,9 +34,9 @@
 //     MetadataService operatorMetadataService;
 //     MetadataService networkMetadataService;
 //     NetworkMiddlewareService networkMiddlewareService;
-//     NetworkOptInService networkVaultOptInService;
-//     OperatorOptInService operatorVaultOptInService;
-//     OperatorOptInService operatorNetworkOptInService;
+//     OptInService networkVaultOptInService;
+//     OptInService operatorVaultOptInService;
+//     OptInService operatorNetworkOptInService;
 
 //     IVault vault;
 
@@ -52,9 +51,9 @@
 //         operatorMetadataService = new MetadataService(address(operatorRegistry));
 //         networkMetadataService = new MetadataService(address(networkRegistry));
 //         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-//         networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
-//         operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
-//         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
+//         networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
+//         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
+//         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
 //         vaultFactory.whitelist(
 //             address(

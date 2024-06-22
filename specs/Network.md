@@ -95,8 +95,8 @@ forge script script/deploy/NetworkMiddlewareService.s.sol:NetworkMiddlewareServi
 
 #### Deploy opt-in service
 
-Deployment script: [click](../script/deploy/NetworkOptInService.s.sol)
+Deployment script: [click](../script/deploy/OptInService.s.sol)
 
 ```shell
-forge script script/deploy/NetworkOptInService.s.sol:NetworkOptInServiceScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 --sig "run(address,address)" --broadcast --rpc-url=$ETH_RPC_URL
+forge script script/deploy/OptInService.s.sol:OptInServiceScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 --sig "run(address,address)" --broadcast --rpc-url=$ETH_RPC_URL
 ```

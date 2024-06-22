@@ -6,8 +6,8 @@ import {Test, console2} from "forge-std/Test.sol";
 import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 
-import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
-import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
+import {OptInService} from "src/contracts/OptInService.sol";
+import {IOptInService} from "src/interfaces/IOptInService.sol";
 
 contract OperatorOptInServiceTest is Test {
     address owner;
@@ -19,7 +19,7 @@ contract OperatorOptInServiceTest is Test {
     OperatorRegistry operatorRegistry;
     NetworkRegistry networkRegistry;
 
-    IOperatorOptInService service;
+    IOptInService service;
 
     function setUp() public {
         owner = address(this);
@@ -31,9 +31,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_Create() public {
-        service = IOperatorOptInService(
-            address(new OperatorOptInService(address(operatorRegistry), address(networkRegistry)))
-        );
+        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         assertEq(service.WHERE_REGISTRY(), address(networkRegistry));
         assertEq(service.isOptedIn(alice, alice), false);
@@ -99,9 +97,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptInRevertNotEntity() public {
-        service = IOperatorOptInService(
-            address(new OperatorOptInService(address(operatorRegistry), address(networkRegistry)))
-        );
+        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         address operator = alice;
         address where = bob;
@@ -111,15 +107,13 @@ contract OperatorOptInServiceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(operator);
-        vm.expectRevert(IOperatorOptInService.NotOperator.selector);
+        vm.expectRevert(IOptInService.NotWho.selector);
         service.optIn(where);
         vm.stopPrank();
     }
 
     function test_OptInRevertNotWhereEntity() public {
-        service = IOperatorOptInService(
-            address(new OperatorOptInService(address(operatorRegistry), address(networkRegistry)))
-        );
+        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         address operator = alice;
         address where = bob;
@@ -129,15 +123,13 @@ contract OperatorOptInServiceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(operator);
-        vm.expectRevert(IOperatorOptInService.NotWhereEntity.selector);
+        vm.expectRevert(IOptInService.NotWhereEntity.selector);
         service.optIn(where);
         vm.stopPrank();
     }
 
     function test_OptInRevertAlreadyOptedIn() public {
-        service = IOperatorOptInService(
-            address(new OperatorOptInService(address(operatorRegistry), address(networkRegistry)))
-        );
+        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         address operator = alice;
         address where = bob;
@@ -155,15 +147,13 @@ contract OperatorOptInServiceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(operator);
-        vm.expectRevert(IOperatorOptInService.AlreadyOptedIn.selector);
+        vm.expectRevert(IOptInService.AlreadyOptedIn.selector);
         service.optIn(where);
         vm.stopPrank();
     }
 
     function test_OptOutRevertNotOptedIn() public {
-        service = IOperatorOptInService(
-            address(new OperatorOptInService(address(operatorRegistry), address(networkRegistry)))
-        );
+        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         address operator = alice;
         address where = bob;
@@ -177,7 +167,7 @@ contract OperatorOptInServiceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(operator);
-        vm.expectRevert(IOperatorOptInService.NotOptedIn.selector);
+        vm.expectRevert(IOptInService.NotOptedIn.selector);
         service.optOut(where);
         vm.stopPrank();
     }

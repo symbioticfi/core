@@ -8,8 +8,7 @@ import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
-import {INetworkOptInService} from "src/interfaces/INetworkOptInService.sol";
-import {IOperatorOptInService} from "src/interfaces/IOperatorOptInService.sol";
+import {IOptInService} from "src/interfaces/IOptInService.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -72,12 +71,12 @@ contract Slasher is NonMigratableEntity, ISlasher {
             revert InsufficientSlash();
         }
 
-        if (!INetworkOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, address(0), vault)) {
+        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, vault)) {
             revert NetworkNotOptedInVault();
         }
 
         if (
-            !IOperatorOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(
+            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(
                 operator,
                 vault,
                 IVault(vault).currentEpoch() != 0
@@ -89,7 +88,7 @@ contract Slasher is NonMigratableEntity, ISlasher {
         }
 
         if (
-            !IOperatorOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(
+            !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(
                 operator,
                 network,
                 IVault(vault).currentEpoch() != 0

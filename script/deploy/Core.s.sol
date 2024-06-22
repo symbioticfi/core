@@ -5,9 +5,8 @@
 
 // import {MetadataService} from "src/contracts/MetadataService.sol";
 // import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
-// import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
 // import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
-// import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
+// import {OptInService} from "src/contracts/OptInService.sol";
 // import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 // import {VaultFactory} from "src/contracts/VaultFactory.sol";
 // import {Vault} from "src/contracts/vault/v1/Vault.sol";
@@ -23,12 +22,12 @@
 //         MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));
 //         MetadataService networkMetadataService = new MetadataService(address(networkRegistry));
 //         NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-//         NetworkOptInService networkVaultOptInService =
-//             new NetworkOptInService(address(networkRegistry), address(vaultFactory));
-//         OperatorOptInService operatorVaultOptInService =
-//             new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
-//         OperatorOptInService operatorNetworkOptInService =
-//             new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
+//         OptInService networkVaultOptInService =
+//             new OptInService(address(networkRegistry), address(vaultFactory));
+//         OptInService operatorVaultOptInService =
+//             new OptInService(address(operatorRegistry), address(vaultFactory));
+//         OptInService operatorNetworkOptInService =
+//             new OptInService(address(operatorRegistry), address(networkRegistry));
 
 //         vaultFactory.whitelist(
 //             address(
