@@ -17,11 +17,13 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     /**
      * @inheritdoc IVetoSlasher
@@ -83,12 +85,9 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
      */
     uint48 public resolversSetDelay;
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    mapping(address network => mapping(address resolver => DelayedShares shares)) public nextResolverShares;
+    mapping(address network => Resolvers resolvers) private _resolvers;
 
-    mapping(address network => mapping(address resolver => Shares shares)) private _resolverShares;
+    mapping(address network => DelayedResolvers resolvers) private _nextResolvers;
 
     modifier onlyNetworkMiddleware(address network) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
@@ -118,20 +117,27 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         return slashRequests.length;
     }
 
+    function resolversIn(address network, uint48 duration) public view returns (address[] memory) {
+        return _getResolversAt(_resolvers[network], _nextResolvers[network], Time.timestamp() + duration).values();
+    }
+
+    function resolvers(address network) public view returns (address[] memory) {
+        return _getResolversAt(_resolvers[network], _nextResolvers[network], Time.timestamp()).values();
+    }
+
     /**
      * @inheritdoc IVetoSlasher
      */
     function resolverSharesIn(address network, address resolver, uint48 duration) public view returns (uint256) {
-        return _getSharesAt(
-            _resolverShares[network][resolver], nextResolverShares[network][resolver], Time.timestamp() + duration
-        );
+        return
+            _getResolversSharesAt(_resolvers[network], _nextResolvers[network], Time.timestamp() + duration)[resolver];
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
     function resolverShares(address network, address resolver) public view returns (uint256) {
-        return _getSharesAt(_resolverShares[network][resolver], nextResolverShares[network][resolver], Time.timestamp());
+        return _getResolversSharesAt(_resolvers[network], _nextResolvers[network], Time.timestamp())[resolver];
     }
 
     /**
@@ -272,22 +278,48 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         address[] calldata resolvers,
         uint256[] calldata shares
     ) external onlyNetworkMiddleware(network) {
-        uint256 length = resolvers.length;
-        if (length != shares.length) {
+        if (resolvers.length != shares.length) {
             revert InvalidResolversLength();
         }
 
-        uint256 totalShares;
-        for (uint256 i; i < length; ++i) {
-            totalShares += shares[i];
+        Resolvers storage currentResolvers = _resolvers[network];
+        DelayedResolvers storage nextResolvers = _nextResolvers[network];
 
-            _setShares(
-                _resolverShares[network][resolvers[i]],
-                nextResolverShares[network][resolvers[i]],
-                shares[i],
-                _stakeIsDelegated(network) ? resolversSetDelay : 0
-            );
+        uint48 delay = _stakeIsDelegated(network) ? resolversSetDelay : 2 * IVault(vault).epochDuration();
+
+        uint256 length;
+        if (nextResolvers.timestamp != 0) {
+            if (nextResolvers.timestamp <= Time.timestamp()) {
+                length = currentResolvers.addressSet.length();
+                for (uint256 i; i < length; ++i) {
+                    address resolver = currentResolvers.addressSet.at(i);
+                    currentResolvers.shares[resolver] = 0;
+                    currentResolvers.addressSet.remove(resolver);
+                }
+
+                length = nextResolvers.addressSet.length();
+                for (uint256 i; i < length; ++i) {
+                    currentResolvers.addressSet.add(nextResolvers.addressSet.at(i));
+                }
+            }
+
+            length = nextResolvers.addressSet.length();
+            for (uint256 i; i < length; ++i) {
+                address resolver = nextResolvers.addressSet.at(i);
+                nextResolvers.shares[resolver] = 0;
+                nextResolvers.addressSet.remove(resolver);
+            }
         }
+
+        uint256 totalShares;
+        length = resolvers.length;
+        for (uint256 i; i < length; ++i) {
+            nextResolvers.addressSet.add(resolvers[i]);
+            nextResolvers.shares[nextResolvers.addressSet.at(i)] = shares[i];
+
+            totalShares += shares[i];
+        }
+        nextResolvers.timestamp = IVault(vault).currentEpochStart() + delay;
 
         if (totalShares != SHARES_BASE) {
             revert InvalidTotalShares();
@@ -296,53 +328,26 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         emit SetResolvers(network, resolvers, shares);
     }
 
-    function _insertSharesCheckpointAtNow(Checkpoints.Trace256 storage checkpoints, uint256 value) private {
-        (, uint48 latestTimestamp1, uint256 latestValue1) = checkpoints.latestCheckpoint();
-        if (Time.timestamp() < latestTimestamp1) {
-            checkpoints.pop();
-            (, uint48 latestTimestamp2, uint256 latestValue2) = checkpoints.latestCheckpoint();
-            if (Time.timestamp() < latestTimestamp2) {
-                checkpoints.pop();
-                checkpoints.push(Time.timestamp(), value);
-                checkpoints.push(latestTimestamp2, latestValue2);
-            } else {
-                checkpoints.push(Time.timestamp(), value);
-            }
-            checkpoints.push(latestTimestamp1, latestValue1);
-        } else {
-            checkpoints.push(Time.timestamp(), value);
-        }
-    }
-
-    function _getSharesAt(
-        Shares storage shares,
-        DelayedShares storage nextShares,
+    function _getResolversAt(
+        Resolvers storage resolvers,
+        DelayedResolvers storage nextResolvers,
         uint48 timestamp
-    ) private view returns (uint256) {
-        if (nextShares.timestamp == 0 || timestamp < nextShares.timestamp) {
-            return shares.amount;
+    ) private view returns (EnumerableSet.AddressSet storage) {
+        if (nextResolvers.timestamp == 0 || timestamp < nextResolvers.timestamp) {
+            return resolvers.addressSet;
         }
-        return nextShares.amount;
+        return nextResolvers.addressSet;
     }
 
-    function _setShares(
-        Shares storage shares,
-        DelayedShares storage nextShares,
-        uint256 amount,
-        uint48 delay
-    ) private {
-        _updateShares(shares, nextShares);
-
-        nextShares.amount = amount;
-        nextShares.timestamp = IVault(vault).currentEpochStart() + delay;
-    }
-
-    function _updateShares(Shares storage shares, DelayedShares storage nextShares) internal {
-        if (nextShares.timestamp != 0 && nextShares.timestamp <= Time.timestamp()) {
-            shares.amount = nextShares.amount;
-            nextShares.timestamp = 0;
-            nextShares.amount = 0;
+    function _getResolversSharesAt(
+        Resolvers storage resolvers,
+        DelayedResolvers storage nextResolvers,
+        uint48 timestamp
+    ) private view returns (mapping(address resolver => uint256) storage) {
+        if (nextResolvers.timestamp == 0 || timestamp < nextResolvers.timestamp) {
+            return resolvers.shares;
         }
+        return nextResolvers.shares;
     }
 
     function _stakeIsDelegated(address network) private view returns (bool) {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 interface IVetoSlasher {
     error InvalidSlashDuration();
     error InsufficientSlash();
@@ -47,12 +49,14 @@ interface IVetoSlasher {
         bool completed;
     }
 
-    struct Shares {
-        uint256 amount;
+    struct Resolvers {
+        EnumerableSet.AddressSet addressSet;
+        mapping(address resolver => uint256 amount) shares;
     }
 
-    struct DelayedShares {
-        uint256 amount;
+    struct DelayedResolvers {
+        EnumerableSet.AddressSet addressSet;
+        mapping(address resolver => uint256 amount) shares;
         uint48 timestamp;
     }
 
@@ -172,8 +176,6 @@ interface IVetoSlasher {
         );
 
     function resolversSetDelay() external view returns (uint48);
-
-    function nextResolverShares(address network, address resolver) external view returns (uint256, uint48);
 
     function resolverSharesIn(address network, address resolver, uint48 duration) external view returns (uint256);
 
