@@ -16,7 +16,6 @@ interface IVault is IVaultStorage {
     error NotSlasher();
     error TooMuchWithdraw();
     error InvalidCollateral();
-    error InvalidDelegatorSetEpochsDelay();
     error InvalidSlasherSetEpochsDelay();
 
     /**
@@ -34,7 +33,6 @@ interface IVault is IVaultStorage {
         address delegator;
         address burner;
         address slasher;
-        uint256 delegatorSetEpochsDelay;
         uint256 slasherSetEpochsDelay;
         uint48 epochDuration;
         bool depositWhitelist;
@@ -171,8 +169,6 @@ interface IVault is IVaultStorage {
      * @param slashedAmount amount to slash
      */
     function slash(uint256 slashedAmount) external;
-
-    function setDelegator(address delegator) external;
 
     function setSlasher(address slasher) external;
 

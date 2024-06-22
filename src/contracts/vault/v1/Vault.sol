@@ -237,15 +237,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setDelegator(address delegator_) external onlyRole(DELEGATOR_SET_ROLE) {
-        _setModule(_delegator, nextDelegator, delegator_, delegatorSetDelay);
-
-        emit SetDelegator(delegator_);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function setSlasher(address burner_) external onlyRole(SLASHER_SET_ROLE) {
         _setModule(_slasher, nextSlasher, burner_, slasherSetDelay);
 
@@ -324,10 +315,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert();
         }
 
-        if (params.delegatorSetEpochsDelay < 3) {
-            revert InvalidDelegatorSetEpochsDelay();
-        }
-
         if (params.slasherSetEpochsDelay < 3) {
             revert InvalidSlasherSetEpochsDelay();
         }
@@ -343,7 +330,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        delegatorSetDelay = (params.delegatorSetEpochsDelay * params.epochDuration).toUint48();
         slasherSetDelay = (params.slasherSetEpochsDelay * params.epochDuration).toUint48();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);

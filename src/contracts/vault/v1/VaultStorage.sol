@@ -64,11 +64,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public delegatorSetDelay;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public slasherSetDelay;
 
     /**

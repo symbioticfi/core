@@ -89,8 +89,6 @@ interface IVaultStorage {
      */
     function previousEpochStart() external view returns (uint48);
 
-    function delegatorSetDelay() external view returns (uint48);
-
     function slasherSetDelay() external view returns (uint48);
 
     /**
