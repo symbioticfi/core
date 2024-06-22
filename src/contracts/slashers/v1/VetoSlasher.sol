@@ -275,19 +275,19 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
 
     function setResolvers(
         address network,
-        address[] calldata resolvers,
+        address[] calldata resolvers_,
         uint256[] calldata shares
     ) external onlyNetworkMiddleware(network) {
-        if (resolvers.length != shares.length) {
+        if (resolvers_.length != shares.length) {
             revert InvalidResolversLength();
         }
 
         Resolvers storage currentResolvers = _resolvers[network];
         DelayedResolvers storage nextResolvers = _nextResolvers[network];
 
-        uint48 delay = _stakeIsDelegated(network) ? resolversSetDelay : 2 * IVault(vault).epochDuration();
-
         uint256 length;
+        // update current resolvers if next resolvers timestamp is in the past
+        // and clear next resolvers
         if (nextResolvers.timestamp != 0) {
             if (nextResolvers.timestamp <= Time.timestamp()) {
                 length = currentResolvers.addressSet.length();
@@ -311,10 +311,17 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             }
         }
 
+        // set resolvers immediately if no stake is delegated and no resolvers are set
+        // (as new resolvers cannot make worse for the vault in this case)
+        // otherwise set resolvers with delay
+        uint48 delay = _stakeIsDelegated(network) || _resolversAreSet(network)
+            ? resolversSetDelay
+            : Time.timestamp() - IVault(vault).currentEpochStart();
+
         uint256 totalShares;
-        length = resolvers.length;
+        length = resolvers_.length;
         for (uint256 i; i < length; ++i) {
-            nextResolvers.addressSet.add(resolvers[i]);
+            nextResolvers.addressSet.add(resolvers_[i]);
             nextResolvers.shares[nextResolvers.addressSet.at(i)] = shares[i];
 
             totalShares += shares[i];
@@ -325,27 +332,27 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             revert InvalidTotalShares();
         }
 
-        emit SetResolvers(network, resolvers, shares);
+        emit SetResolvers(network, resolvers_, shares);
     }
 
     function _getResolversAt(
-        Resolvers storage resolvers,
+        Resolvers storage currentResolvers,
         DelayedResolvers storage nextResolvers,
         uint48 timestamp
     ) private view returns (EnumerableSet.AddressSet storage) {
         if (nextResolvers.timestamp == 0 || timestamp < nextResolvers.timestamp) {
-            return resolvers.addressSet;
+            return currentResolvers.addressSet;
         }
         return nextResolvers.addressSet;
     }
 
     function _getResolversSharesAt(
-        Resolvers storage resolvers,
+        Resolvers storage currentResolvers,
         DelayedResolvers storage nextResolvers,
         uint48 timestamp
     ) private view returns (mapping(address resolver => uint256) storage) {
         if (nextResolvers.timestamp == 0 || timestamp < nextResolvers.timestamp) {
-            return resolvers.shares;
+            return currentResolvers.shares;
         }
         return nextResolvers.shares;
     }
@@ -360,6 +367,10 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             ),
             IDelegator(delegator).maxNetworkStakeIn(network, 2 * epochDuration)
         ) != 0;
+    }
+
+    function _resolversAreSet(address network) private view returns (bool) {
+        return _resolvers[network].addressSet.length() != 0 || _nextResolvers[network].timestamp != 0;
     }
 
     function _initialize(bytes memory data) internal override {
