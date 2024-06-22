@@ -17,18 +17,20 @@ interface IVetoSlasher {
     error SlashRequestNotExist();
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
-    error InvalidShares();
+    error InvalidTotalShares();
+    error InvalidResolversLength();
+    error InvalidResolversSetEpochsDelay();
 
     struct InitParams {
         address vault;
         uint48 vetoDuration;
         uint48 executeDuration;
+        uint256 resolversSetEpochsDelay;
     }
 
     /**
      * @notice Structure for a slash request.
      * @param network network that requested the slash
-     * @param resolver resolver that can veto the slash
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param amount maximum amount of the collateral to be slashed
      * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
@@ -37,19 +39,27 @@ interface IVetoSlasher {
      */
     struct SlashRequest {
         address network;
-        address resolver;
         address operator;
         uint256 amount;
         uint48 vetoDeadline;
         uint48 executeDeadline;
+        uint256 vetoedShares;
         bool completed;
+    }
+
+    struct Shares {
+        uint256 amount;
+    }
+
+    struct DelayedShares {
+        uint256 amount;
+        uint48 timestamp;
     }
 
     /**
      * @notice Emitted when a slash request is created.
      * @param slashIndex index of the slash request
      * @param network network that requested the slash
-     * @param resolver resolver that can veto the slash
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param slashAmount maximum amount of the collateral to be slashed
      * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
@@ -58,7 +68,6 @@ interface IVetoSlasher {
     event RequestSlash(
         uint256 indexed slashIndex,
         address indexed network,
-        address resolver,
         address indexed operator,
         uint256 slashAmount,
         uint48 vetoDeadline,
@@ -78,11 +87,9 @@ interface IVetoSlasher {
      */
     event VetoSlash(uint256 indexed slashIndex);
 
-    event SetResolverShares(address network, address resolver, uint256 shares);
+    event SetResolvers(address indexed network, address[] resolvers, uint256[] shares);
 
-    function MAX_SHARES() external view returns (uint256);
-
-    function BASE_SHARES() external view returns (uint256);
+    function SHARES_BASE() external view returns (uint256);
 
     function RESOLVER_SHARES_SET_ROLE() external view returns (bytes32);
 
@@ -144,11 +151,11 @@ interface IVetoSlasher {
      * @notice Get a particular slash request.
      * @param slashIndex index of the slash request
      * @return network network that requested the slash
-     * @return resolver resolver that can veto the slash
      * @return operator operator that could be slashed (if the request is not vetoed)
      * @return amount maximum amount of the collateral to be slashed
      * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
      * @return executeDeadline deadline to execute slash (exclusively)
+     * @return vetoedShares amount of the shares of the request vetoed
      * @return completed if the slash was vetoed/executed
      */
     function slashRequests(uint256 slashIndex)
@@ -156,45 +163,31 @@ interface IVetoSlasher {
         view
         returns (
             address network,
-            address resolver,
             address operator,
             uint256 amount,
             uint48 vetoDeadline,
             uint48 executeDeadline,
+            uint256 vetoedShares,
             bool completed
         );
 
-    function totalResolverSharesAt(address network, uint48 timestamp) external view returns (uint256);
+    function resolversSetDelay() external view returns (uint48);
 
-    function totalResolverShares(address network) external view returns (uint256);
+    function nextResolverShares(address network, address resolver) external view returns (uint256, uint48);
 
-    function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256);
+    function resolverSharesIn(address network, address resolver, uint48 duration) external view returns (uint256);
 
     function resolverShares(address network, address resolver) external view returns (uint256);
-
-    function resolverNetworkStakeIn(
-        address network,
-        address resolver,
-        uint48 duration
-    ) external view returns (uint256);
-
-    function resolverNetworkStake(address network, address resolver) external view returns (uint256);
 
     /**
      * @notice Request a slash using a network and a resolver for a particular operator by a given amount.
      * @param network address of the network
-     * @param resolver address of the resolver
      * @param operator address of the operator
      * @param amount maximum amount of the collateral to be slashed
      * @return slashIndex index of the slash request
      * @dev Only network middleware can call this function.
      */
-    function requestSlash(
-        address network,
-        address resolver,
-        address operator,
-        uint256 amount
-    ) external returns (uint256 slashIndex);
+    function requestSlash(address network, address operator, uint256 amount) external returns (uint256 slashIndex);
 
     /**
      * @notice Execute a slash with a given slash index.
@@ -211,5 +204,5 @@ interface IVetoSlasher {
      */
     function vetoSlash(uint256 slashIndex) external;
 
-    function setResolverShares(address network, address resolver, uint256 shares) external;
+    function setResolvers(address network, address[] calldata resolver, uint256[] calldata shares) external;
 }

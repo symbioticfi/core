@@ -58,11 +58,11 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         VAULT_FACTORY = vaultFactory;
     }
 
-    function networkStakeIn(address network, uint48 duration) external view returns (uint256) {
+    function maxNetworkStakeIn(address network, uint48 duration) external view returns (uint256) {
         return Math.min(IVault(vault).totalSupply(), 1); // TODO
     }
 
-    function networkStake(address network) external view returns (uint256) {
+    function maxNetworkStake(address network) external view returns (uint256) {
         return Math.min(IVault(vault).totalSupply(), 1); // TODO
     }
 

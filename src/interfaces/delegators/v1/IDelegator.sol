@@ -15,9 +15,9 @@ interface IDelegator {
      */
     function vault() external view returns (address);
 
-    function networkStakeIn(address network, uint48 duration) external view returns (uint256);
+    function maxNetworkStakeIn(address network, uint48 duration) external view returns (uint256);
 
-    function networkStake(address network) external view returns (uint256);
+    function maxNetworkStake(address network) external view returns (uint256);
 
     /**
      * @notice Get an operator-network limit for a particular operator and network in `duration` seconds.

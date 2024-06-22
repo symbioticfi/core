@@ -17,20 +17,17 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+    using SafeCast for uint256;
 
     /**
      * @inheritdoc IVetoSlasher
      */
-    uint256 public MAX_SHARES = 10 ** 36;
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    uint256 public BASE_SHARES = 10 ** 36;
+    uint256 public SHARES_BASE = 10 ** 18;
 
     /**
      * @inheritdoc IVetoSlasher
@@ -82,9 +79,24 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
      */
     uint48 public executeDuration;
 
-    mapping(address network => Checkpoints.Trace256 checkpoint) private _totalResolverShares;
+    /**
+     * @inheritdoc IVetoSlasher
+     */
+    uint48 public resolversSetDelay;
 
-    mapping(address network => mapping(address resolver => Checkpoints.Trace256 checkpoint)) private _resolverShares;
+    /**
+     * @inheritdoc IVetoSlasher
+     */
+    mapping(address network => mapping(address resolver => DelayedShares shares)) public nextResolverShares;
+
+    mapping(address network => mapping(address resolver => Shares shares)) private _resolverShares;
+
+    modifier onlyNetworkMiddleware(address network) {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
+            revert NotNetworkMiddleware();
+        }
+        _;
+    }
 
     constructor(
         address networkMiddlewareService,
@@ -110,52 +122,17 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
     /**
      * @inheritdoc IVetoSlasher
      */
-    function totalResolverSharesAt(address network, uint48 timestamp) public view returns (uint256) {
-        return _totalResolverShares[network].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    function totalResolverShares(address network) public view returns (uint256) {
-        return _totalResolverShares[network].upperLookupRecent(Time.timestamp());
-    }
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    function resolverSharesAt(address network, address resolver, uint48 timestamp) public view returns (uint256) {
-        return _resolverShares[network][resolver].upperLookupRecent(timestamp);
+    function resolverSharesIn(address network, address resolver, uint48 duration) public view returns (uint256) {
+        return _getSharesAt(
+            _resolverShares[network][resolver], nextResolverShares[network][resolver], Time.timestamp() + duration
+        );
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
     function resolverShares(address network, address resolver) public view returns (uint256) {
-        return _resolverShares[network][resolver].upperLookupRecent(Time.timestamp());
-    }
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    function resolverNetworkStakeIn(
-        address network,
-        address resolver,
-        uint48 duration
-    ) external view returns (uint256) {
-        return IDelegator(IVault(vault).delegator()).networkStakeIn(network, duration).mulDiv(
-            resolverSharesAt(network, resolver, Time.timestamp() + duration),
-            totalResolverSharesAt(network, Time.timestamp() + duration)
-        );
-    }
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    function resolverNetworkStake(address network, address resolver) public view returns (uint256) {
-        return IDelegator(IVault(vault).delegator()).networkStake(network).mulDiv(
-            resolverShares(network, resolver), totalResolverShares(network)
-        );
+        return _getSharesAt(_resolverShares[network][resolver], nextResolverShares[network][resolver], Time.timestamp());
     }
 
     /**
@@ -163,19 +140,14 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
      */
     function requestSlash(
         address network,
-        address resolver,
         address operator,
         uint256 amount
-    ) external returns (uint256 slashIndex) {
-        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
-            revert NotNetworkMiddleware();
-        }
-
+    ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
         if (amount == 0) {
             revert InsufficientSlash();
         }
 
-        if (!INetworkOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, resolver, vault)) {
+        if (!INetworkOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, address(0), vault)) {
             revert NetworkNotOptedInVault();
         }
 
@@ -210,16 +182,16 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         slashRequests.push(
             SlashRequest({
                 network: network,
-                resolver: resolver,
                 operator: operator,
                 amount: amount,
                 vetoDeadline: vetoDeadline,
                 executeDeadline: executeDeadline,
+                vetoedShares: 0,
                 completed: false
             })
         );
 
-        emit RequestSlash(slashIndex, network, resolver, operator, amount, vetoDeadline, executeDeadline);
+        emit RequestSlash(slashIndex, network, operator, amount, vetoDeadline, executeDeadline);
     }
 
     /**
@@ -232,7 +204,7 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        if (request.resolver != address(0) && request.vetoDeadline > Time.timestamp()) {
+        if (request.vetoDeadline > Time.timestamp()) {
             revert VetoPeriodNotEnded();
         }
 
@@ -247,26 +219,13 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         request.completed = true;
 
         address delegator = IVault(vault).delegator();
-        uint256 resolverSlashableAmount = resolverNetworkStake(request.network, request.resolver);
 
-        slashedAmount = Math.min(
-            Math.min(request.amount, IDelegator(delegator).operatorNetworkStake(request.network, request.operator)),
-            resolverSlashableAmount
-        );
+        slashedAmount =
+            Math.min(request.amount, IDelegator(delegator).operatorNetworkStake(request.network, request.operator));
+
+        slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
         if (slashedAmount != 0) {
-            uint256 resolverShares_ = resolverShares(request.network, request.resolver);
-            uint256 resolverSlashedShares =
-                slashedAmount.mulDiv(resolverShares_, resolverSlashableAmount, Math.Rounding.Ceil);
-
-            _insertSharesCheckpointAtNow(
-                _totalResolverShares[request.network], totalResolverShares(request.network) - resolverSlashedShares
-            );
-
-            _insertSharesCheckpointAtNow(
-                _resolverShares[request.network][request.resolver], resolverShares_ - resolverSlashedShares
-            );
-
             IVault(vault).slash(slashedAmount);
 
             IDelegator(delegator).onSlash(request.network, request.operator, slashedAmount);
@@ -285,7 +244,9 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        if (request.resolver != msg.sender) {
+        uint256 resolverShares_ = resolverShares(request.network, msg.sender);
+
+        if (resolverShares_ == 0) {
             revert NotResolver();
         }
 
@@ -297,31 +258,43 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             revert SlashCompleted();
         }
 
-        request.completed = true;
+        uint256 vetoedShares_ = request.vetoedShares + resolverShares_;
+
+        request.vetoedShares = vetoedShares_;
+        if (vetoedShares_ == SHARES_BASE) {
+            request.completed = true;
+        }
 
         emit VetoSlash(slashIndex);
     }
 
-    function setResolverShares(
+    function setResolvers(
         address network,
-        address resolver,
-        uint256 shares
-    ) external onlyRole(RESOLVER_SHARES_SET_ROLE) {
-        if (shares > MAX_SHARES) {
-            revert InvalidShares();
+        address[] calldata resolvers,
+        uint256[] calldata shares
+    ) external onlyNetworkMiddleware(network) {
+        uint256 length = resolvers.length;
+        if (length != shares.length) {
+            revert InvalidResolversLength();
         }
 
-        shares *= BASE_SHARES;
+        uint256 totalShares;
+        for (uint256 i; i < length; ++i) {
+            totalShares += shares[i];
 
-        uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+            _setShares(
+                _resolverShares[network][resolvers[i]],
+                nextResolverShares[network][resolvers[i]],
+                shares[i],
+                _stakeIsDelegated(network) ? resolversSetDelay : 0
+            );
+        }
 
-        _totalResolverShares[network].push(
-            timestamp, _totalResolverShares[network].latest() + shares - _resolverShares[network][resolver].latest()
-        );
+        if (totalShares != SHARES_BASE) {
+            revert InvalidTotalShares();
+        }
 
-        _resolverShares[network][resolver].push(timestamp, shares);
-
-        emit SetResolverShares(network, resolver, shares);
+        emit SetResolvers(network, resolvers, shares);
     }
 
     function _insertSharesCheckpointAtNow(Checkpoints.Trace256 storage checkpoints, uint256 value) private {
@@ -342,6 +315,49 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         }
     }
 
+    function _getSharesAt(
+        Shares storage shares,
+        DelayedShares storage nextShares,
+        uint48 timestamp
+    ) private view returns (uint256) {
+        if (nextShares.timestamp == 0 || timestamp < nextShares.timestamp) {
+            return shares.amount;
+        }
+        return nextShares.amount;
+    }
+
+    function _setShares(
+        Shares storage shares,
+        DelayedShares storage nextShares,
+        uint256 amount,
+        uint48 delay
+    ) private {
+        _updateShares(shares, nextShares);
+
+        nextShares.amount = amount;
+        nextShares.timestamp = IVault(vault).currentEpochStart() + delay;
+    }
+
+    function _updateShares(Shares storage shares, DelayedShares storage nextShares) internal {
+        if (nextShares.timestamp != 0 && nextShares.timestamp <= Time.timestamp()) {
+            shares.amount = nextShares.amount;
+            nextShares.timestamp = 0;
+            nextShares.amount = 0;
+        }
+    }
+
+    function _stakeIsDelegated(address network) private view returns (bool) {
+        address delegator = IVault(vault).delegator();
+        uint48 epochDuration = IVault(vault).epochDuration();
+        return Math.max(
+            Math.max(
+                IDelegator(delegator).maxNetworkStake(network),
+                IDelegator(delegator).maxNetworkStakeIn(network, epochDuration)
+            ),
+            IDelegator(delegator).maxNetworkStakeIn(network, 2 * epochDuration)
+        ) != 0;
+    }
+
     function _initialize(bytes memory data) internal override {
         (IVetoSlasher.InitParams memory params) = abi.decode(data, (IVetoSlasher.InitParams));
 
@@ -349,14 +365,21 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             revert NotVault();
         }
 
-        vault = params.vault;
-
-        if (params.vetoDuration + params.executeDuration > IVault(vault).epochDuration()) {
+        uint48 epochDuration = IVault(vault).epochDuration();
+        if (params.vetoDuration + params.executeDuration > epochDuration) {
             revert InvalidSlashDuration();
         }
 
+        if (params.resolversSetEpochsDelay < 3) {
+            revert InvalidResolversSetEpochsDelay();
+        }
+
+        vault = params.vault;
+
         vetoDuration = params.vetoDuration;
         executeDuration = params.executeDuration;
+
+        resolversSetDelay = (params.resolversSetEpochsDelay * epochDuration).toUint48();
 
         _grantRole(RESOLVER_SHARES_SET_ROLE, Ownable(params.vault).owner());
     }

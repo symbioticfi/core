@@ -16,8 +16,8 @@ interface IVault is IVaultStorage {
     error NotSlasher();
     error TooMuchWithdraw();
     error InvalidCollateral();
-    error InvalidDelegatorSetDelay();
-    error InvalidSlasherSetDelay();
+    error InvalidDelegatorSetEpochsDelay();
+    error InvalidSlasherSetEpochsDelay();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -34,8 +34,8 @@ interface IVault is IVaultStorage {
         address delegator;
         address burner;
         address slasher;
-        uint256 delegatorSetDelay;
-        uint256 slasherSetDelay;
+        uint256 delegatorSetEpochsDelay;
+        uint256 slasherSetEpochsDelay;
         uint48 epochDuration;
         bool depositWhitelist;
         address slasherFactory;

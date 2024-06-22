@@ -297,12 +297,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         Module storage module,
         DelayedModule storage nextModule,
         address address_,
-        uint256 delay
+        uint256 epochsDelay
     ) private {
         _updateModule(module, nextModule);
 
         nextModule.address_ = address_;
-        nextModule.timestamp = (currentEpochStart() + delay * epochDuration).toUint48();
+        nextModule.timestamp = (currentEpochStart() + epochsDelay * epochDuration).toUint48();
     }
 
     function _updateModule(Module storage module, DelayedModule storage nextModule) internal {
@@ -324,12 +324,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert();
         }
 
-        if (params.delegatorSetDelay < 3) {
-            revert InvalidDelegatorSetDelay();
+        if (params.delegatorSetEpochsDelay < 3) {
+            revert InvalidDelegatorSetEpochsDelay();
         }
 
-        if (params.slasherSetDelay < 3) {
-            revert InvalidSlasherSetDelay();
+        if (params.slasherSetEpochsDelay < 3) {
+            revert InvalidSlasherSetEpochsDelay();
         }
 
         if (params.epochDuration == 0) {
@@ -340,11 +340,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         burner = params.burner;
 
-        delegatorSetDelay = params.delegatorSetDelay;
-        slasherSetDelay = params.slasherSetDelay;
-
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
+
+        delegatorSetDelay = (params.delegatorSetEpochsDelay * params.epochDuration).toUint48();
+        slasherSetDelay = (params.slasherSetEpochsDelay * params.epochDuration).toUint48();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
 

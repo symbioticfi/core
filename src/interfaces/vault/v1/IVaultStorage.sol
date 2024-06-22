@@ -50,10 +50,6 @@ interface IVaultStorage {
 
     function nextSlasher() external view returns (address, uint48);
 
-    function delegatorSetDelay() external view returns (uint256);
-
-    function slasherSetDelay() external view returns (uint256);
-
     /**
      * @notice Get a time point of the epoch duration set.
      * @return time point of the epoch duration set
@@ -92,6 +88,10 @@ interface IVaultStorage {
      * @dev Reverts if the current epoch is 0.
      */
     function previousEpochStart() external view returns (uint48);
+
+    function delegatorSetDelay() external view returns (uint48);
+
+    function slasherSetDelay() external view returns (uint48);
 
     /**
      * @notice Get if the deposit whitelist is enabled.

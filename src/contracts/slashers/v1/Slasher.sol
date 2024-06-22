@@ -45,7 +45,6 @@ contract Slasher is NonMigratableEntity, ISlasher {
     address public vault;
 
     constructor(
-        address networkRegistry,
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
