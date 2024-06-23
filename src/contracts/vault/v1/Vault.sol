@@ -291,7 +291,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         nextModule.timestamp = (currentEpochStart() + epochsDelay * epochDuration).toUint48();
     }
 
-    function _updateModule(Module storage module, DelayedModule storage nextModule) internal {
+    function _updateModule(Module storage module, DelayedModule storage nextModule) private {
         if (nextModule.timestamp != 0 && nextModule.timestamp <= Time.timestamp()) {
             module.address_ = nextModule.address_;
             nextModule.timestamp = 0;

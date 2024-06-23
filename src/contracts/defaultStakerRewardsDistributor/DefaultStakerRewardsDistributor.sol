@@ -94,7 +94,7 @@ contract DefaultStakerRewardsDistributor is
      */
     mapping(address token => uint256 amount) public claimableAdminFee;
 
-    mapping(uint48 timestamp => uint256 amount) internal _activeSharesCache;
+    mapping(uint48 timestamp => uint256 amount) private _activeSharesCache;
 
     modifier onlyVaultOwner() {
         if (Ownable(VAULT).owner() != msg.sender) {

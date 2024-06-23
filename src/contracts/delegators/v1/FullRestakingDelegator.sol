@@ -39,7 +39,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
      */
     address public vault;
 
-    mapping(address operator => mapping(address network => Limit limit)) internal _operatorNetworkLimit;
+    mapping(address operator => mapping(address network => Limit limit)) private _operatorNetworkLimit;
 
     mapping(address operator => mapping(address network => DelayedLimit limit)) public _nextOperatorNetworkLimit;
 
@@ -156,7 +156,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         }
     }
 
-    function _updateLimit(Limit storage limit, DelayedLimit storage nextLimit) internal {
+    function _updateLimit(Limit storage limit, DelayedLimit storage nextLimit) private {
         if (nextLimit.timestamp != 0 && nextLimit.timestamp <= Time.timestamp()) {
             limit.amount = nextLimit.amount;
             nextLimit.timestamp = 0;
