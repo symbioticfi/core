@@ -17,15 +17,7 @@ interface INetworkRestakingDelegator is IDelegator {
 
     event SetNetworkLimit(address indexed network, uint256 amount);
 
-    event SetOperatorShares(address indexed network, address indexed operator, uint256 shares);
-
-    /**
-     * @notice Emitted when an operator-network limit is set.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @param amount maximum amount of the collateral that can be slashed
-     */
-    event SetOperatorNetworkLimit(address indexed operator, address indexed network, uint256 amount);
+    event SetOperatorNetworkShares(address indexed network, address indexed operator, uint256 shares);
 
     function NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
 

@@ -224,13 +224,15 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
 
         _operatorNetworkShares[network][operator].push(timestamp, shares);
 
-        emit SetOperatorShares(network, operator, shares);
+        emit SetOperatorNetworkShares(network, operator, shares);
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
+        _networkLimit[network].push(Time.timestamp(), networkLimit(network) - slashedAmount);
+
         uint256 operatorNetworkShares_ = operatorNetworkShares(network, operator);
         uint256 operatorSlashedShares =
             slashedAmount.mulDiv(operatorNetworkShares_, operatorNetworkStake(network, operator), Math.Rounding.Ceil);
