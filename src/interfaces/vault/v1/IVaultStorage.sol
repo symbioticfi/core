@@ -47,8 +47,6 @@ interface IVaultStorage {
 
     function delegator() external view returns (address);
 
-    function nextSlasher() external view returns (address, uint48);
-
     /**
      * @notice Get a time point of the epoch duration set.
      * @return time point of the epoch duration set

@@ -33,14 +33,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function slasherIn(uint48 duration) public view returns (address) {
-        return _getModuleAt(_slasher, nextSlasher, Time.timestamp() + duration);
+        return _getModuleAt(_slasher, _nextSlasher, Time.timestamp() + duration);
     }
 
     /**
      * @inheritdoc IVault
      */
     function slasher() public view returns (address) {
-        return _getModuleAt(_slasher, nextSlasher, Time.timestamp());
+        return _getModuleAt(_slasher, _nextSlasher, Time.timestamp());
     }
 
     /**
@@ -200,9 +200,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         uint256 activeSupply_ = activeSupply();
         uint256 withdrawals_ = withdrawals[epoch];
-        uint256 nextWithdrawals_ = withdrawals[epoch + 1];
+        uint256 nextWithdrawals = withdrawals[epoch + 1];
 
-        uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals_, totalSupply_);
+        uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, totalSupply_);
         uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
         uint256 activeSlashed = slashedAmount - nextWithdrawalsSlashed - withdrawalsSlashed;
 
@@ -218,7 +218,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
         withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
-        withdrawals[epoch + 1] = nextWithdrawals_ - nextWithdrawalsSlashed;
+        withdrawals[epoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
 
         ICollateral(collateral).issueDebt(burner, slashedAmount);
 
@@ -233,7 +233,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
 
-        _setModule(_slasher, nextSlasher, slasher_, slasherSetDelay);
+        _setModule(_slasher, _nextSlasher, slasher_, slasherSetDelay);
 
         emit SetSlasher(slasher_);
     }

@@ -56,15 +56,6 @@ interface IFullRestakingDelegator is IDelegator {
     function VAULT_FACTORY() external view returns (address);
 
     /**
-     * @notice Get the next operator-network limit for a particular operator and network.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @return next operator-network limit
-     * @return timestamp when the limit will be set
-     */
-    function nextOperatorNetworkLimit(address operator, address network) external view returns (uint256, uint48);
-
-    /**
      * @notice Set an operator-network limit for a particular operator and network.
      * @param operator address of the operator
      * @param network address of the network

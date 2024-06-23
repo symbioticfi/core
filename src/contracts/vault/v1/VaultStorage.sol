@@ -55,11 +55,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    DelayedModule public nextSlasher;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public epochDurationInit;
 
     /**
@@ -97,9 +92,9 @@ contract VaultStorage is IVaultStorage {
      */
     mapping(uint256 epoch => mapping(address account => uint256 amount)) public pendingWithdrawalSharesOf;
 
-    Module internal _delegator;
-
     Module internal _slasher;
+
+    DelayedModule internal _nextSlasher;
 
     Checkpoints.Trace256 internal _activeShares;
 

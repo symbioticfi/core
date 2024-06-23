@@ -39,12 +39,9 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
      */
     address public vault;
 
-    /**
-     * @inheritdoc INetworkRestakingDelegator
-     */
-    mapping(address operator => mapping(address network => DelayedLimit)) public nextOperatorNetworkLimit;
-
     mapping(address operator => mapping(address network => Limit limit)) internal _operatorNetworkLimit;
+
+    mapping(address operator => mapping(address network => DelayedLimit limit)) public _nextOperatorNetworkLimit;
 
     modifier onlySlasher() {
         if (IVault(vault).slasher() != msg.sender) {
@@ -72,7 +69,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     function operatorNetworkLimitIn(address operator, address network, uint48 duration) public view returns (uint256) {
         return _getLimitAt(
             _operatorNetworkLimit[operator][network],
-            nextOperatorNetworkLimit[operator][network],
+            _nextOperatorNetworkLimit[operator][network],
             Time.timestamp() + duration
         );
     }
@@ -117,7 +114,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
         Limit storage limit = _operatorNetworkLimit[operator][network];
-        DelayedLimit storage nextLimit = nextOperatorNetworkLimit[operator][network];
+        DelayedLimit storage nextLimit = _nextOperatorNetworkLimit[operator][network];
 
         _setLimit(limit, nextLimit, amount);
 
@@ -130,7 +127,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
         uint256 operatorNetworkLimit_ = operatorNetworkLimit(operator, network);
 
-        _updateLimit(_operatorNetworkLimit[operator][network], nextOperatorNetworkLimit[operator][network]);
+        _updateLimit(_operatorNetworkLimit[operator][network], _nextOperatorNetworkLimit[operator][network]);
 
         if (operatorNetworkLimit_ != type(uint256).max) {
             _operatorNetworkLimit[operator][network].amount = operatorNetworkLimit_ - slashedAmount;
