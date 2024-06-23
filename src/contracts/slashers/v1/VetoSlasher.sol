@@ -10,8 +10,6 @@ import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
 import {IOptInService} from "src/interfaces/IOptInService.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
-
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -20,7 +18,6 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlasher {
-    using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -361,10 +358,10 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         uint48 epochDuration = IVault(vault).epochDuration();
         return Math.max(
             Math.max(
-                IDelegator(delegator).maxNetworkStake(network),
-                IDelegator(delegator).maxNetworkStakeIn(network, epochDuration)
+                IDelegator(delegator).networkStake(network),
+                IDelegator(delegator).networkStakeIn(network, epochDuration)
             ),
-            IDelegator(delegator).maxNetworkStakeIn(network, 2 * epochDuration)
+            IDelegator(delegator).networkStakeIn(network, 2 * epochDuration)
         ) != 0;
     }
 

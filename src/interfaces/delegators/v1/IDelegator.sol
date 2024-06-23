@@ -9,36 +9,19 @@ interface IDelegator {
      */
     function VERSION() external view returns (uint64);
 
+    event Slash(address indexed network, address indexed operator, uint256 slashedAmount);
+
     /**
      * @notice Get the vault's address.
      * @return address of the vault
      */
     function vault() external view returns (address);
 
-    function maxNetworkStakeIn(address network, uint48 duration) external view returns (uint256);
+    function maxNetworkLimit(address network) external view returns (uint256);
 
-    function maxNetworkStake(address network) external view returns (uint256);
+    function networkStakeIn(address network, uint48 duration) external view returns (uint256);
 
-    /**
-     * @notice Get an operator-network limit for a particular operator and network in `duration` seconds.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @param duration duration to get the operator-network limit in
-     * @return operator-network limit in `duration` seconds
-     */
-    function operatorNetworkLimitIn(
-        address operator,
-        address network,
-        uint48 duration
-    ) external view returns (uint256);
-
-    /**
-     * @notice Get an operator-network limit for a particular operator and network.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @return operator-network limit
-     */
-    function operatorNetworkLimit(address operator, address network) external view returns (uint256);
+    function networkStake(address network) external view returns (uint256);
 
     /**
      * @notice Get a maximum amount of collateral that can be slashed
@@ -70,7 +53,11 @@ interface IDelegator {
      * @param duration duration to get the minimum slashable stake during
      * @return minimum slashable stake during `duration`
      */
-    function minStakeDuring(address network, address operator, uint48 duration) external view returns (uint256);
+    function minOperatorNetworkStakeDuring(
+        address network,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256);
 
     /**
      * @notice Slashing callback for limits decreasing.

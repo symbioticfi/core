@@ -8,16 +8,31 @@ import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
+import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable, INetworkRestakingDelegator {
+    using Checkpoints for Checkpoints.Trace256;
+    using Math for uint256;
+
     /**
      * @inheritdoc IDelegator
      */
     uint64 public constant VERSION = 1;
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    bytes32 public constant OPERATOR_NETWORK_SHARES_SET_ROLE = keccak256("OPERATOR_NETWORK_SHARES_SET_ROLE");
 
     /**
      * @inheritdoc INetworkRestakingDelegator
@@ -30,18 +45,20 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc INetworkRestakingDelegator
-     */
-    bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
-
-    /**
      * @inheritdoc IDelegator
      */
     address public vault;
 
-    mapping(address operator => mapping(address network => Limit limit)) private _operatorNetworkLimit;
+    /**
+     * @inheritdoc IDelegator
+     */
+    mapping(address network => uint256 value) public maxNetworkLimit;
 
-    mapping(address operator => mapping(address network => DelayedLimit limit)) public _nextOperatorNetworkLimit;
+    mapping(address network => Checkpoints.Trace256 value) private _networkLimit;
+
+    mapping(address network => Checkpoints.Trace256 shares) private _totalOperatorNetworkShares;
+
+    mapping(address network => mapping(address operator => Checkpoints.Trace256 shares)) private _operatorNetworkShares;
 
     modifier onlySlasher() {
         if (IVault(vault).slasher() != msg.sender) {
@@ -55,28 +72,83 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
         VAULT_FACTORY = vaultFactory;
     }
 
-    function maxNetworkStakeIn(address network, uint48 duration) external view returns (uint256) {
-        return Math.min(IVault(vault).totalSupply(), 1); // TODO
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function networkLimitIn(address network, uint48 duration) public view returns (uint256) {
+        return _networkLimit[network].upperLookupRecent(Time.timestamp() + duration);
     }
 
-    function maxNetworkStake(address network) external view returns (uint256) {
-        return Math.min(IVault(vault).totalSupply(), 1); // TODO
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function networkLimit(address network) public view returns (uint256) {
+        return _networkLimit[network].upperLookupRecent(Time.timestamp());
     }
 
     /**
      * @inheritdoc IDelegator
      */
-    function operatorNetworkLimitIn(address operator, address network, uint48 duration) public view returns (uint256) {
-        return _getLimitIn(
-            _operatorNetworkLimit[operator][network], _nextOperatorNetworkLimit[operator][network], duration
+    function networkStakeIn(address network, uint48 duration) external view returns (uint256) {
+        return Math.min(
+            IVault(vault).totalSupplyIn(duration), _networkLimit[network].upperLookupRecent(Time.timestamp() + duration)
         );
     }
 
     /**
      * @inheritdoc IDelegator
      */
-    function operatorNetworkLimit(address operator, address network) public view returns (uint256) {
-        return operatorNetworkLimitIn(operator, network, 0);
+    function networkStake(address network) external view returns (uint256) {
+        return Math.min(IVault(vault).totalSupply(), _networkLimit[network].upperLookupRecent(Time.timestamp()));
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function totalOperatorNetworkSharesIn(address network, uint48 duration) public view returns (uint256) {
+        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp() + duration);
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function totalOperatorNetworkShares(address network) public view returns (uint256) {
+        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp());
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function operatorNetworkSharesIn(
+        address network,
+        address operator,
+        uint48 duration
+    ) public view returns (uint256) {
+        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp() + duration);
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function operatorNetworkShares(address network, address operator) public view returns (uint256) {
+        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp());
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function operatorNetworkLimitIn(address network, address operator, uint48 duration) public view returns (uint256) {
+        return operatorNetworkSharesIn(network, operator, duration).mulDiv(
+            networkLimitIn(network, duration), totalOperatorNetworkSharesIn(network, duration)
+        );
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function operatorNetworkLimit(address network, address operator) public view returns (uint256) {
+        return
+            operatorNetworkShares(network, operator).mulDiv(networkLimit(network), totalOperatorNetworkShares(network));
     }
 
     /**
@@ -96,71 +168,112 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc IDelegator
      */
-    function minStakeDuring(address network, address operator, uint48 duration) external view returns (uint256) {
-        return Math.min(
-            IVault(vault).activeSupply(),
-            Math.min(operatorNetworkLimit(operator, network), operatorNetworkLimitIn(operator, network, duration))
-        );
+    function minOperatorNetworkStakeDuring(
+        address network,
+        address operator,
+        uint48 duration
+    ) external view returns (uint256 minOperatorNetworkStakeDuring_) {
+        minOperatorNetworkStakeDuring_ =
+            Math.min(IVault(vault).totalSupplyIn(duration), operatorNetworkLimit(operator, network));
+
+        uint48 epochDuration = IVault(vault).epochDuration();
+        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
+        uint48 delta = nextEpochStart - Time.timestamp();
+        if (Time.timestamp() + duration >= nextEpochStart) {
+            minOperatorNetworkStakeDuring_ =
+                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkLimitIn(operator, network, delta));
+        }
+        if (Time.timestamp() + duration >= nextEpochStart + epochDuration) {
+            minOperatorNetworkStakeDuring_ = Math.min(
+                minOperatorNetworkStakeDuring_, operatorNetworkLimitIn(operator, network, delta + epochDuration)
+            );
+        }
     }
 
     /**
      * @inheritdoc INetworkRestakingDelegator
      */
-    function setOperatorNetworkLimit(
-        address operator,
+    function setMaxNetworkLimit(address network, uint256 amount) external {
+        if (maxNetworkLimit[msg.sender] == amount) {
+            revert AlreadySet();
+        }
+
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
+        }
+
+        maxNetworkLimit[msg.sender] = amount;
+
+        _normalizeExistingLimits(_networkLimit[network], amount);
+
+        emit SetMaxNetworkLimit(network, amount);
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function setNetworkLimit(address network, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
+        if (amount > maxNetworkLimit[network]) {
+            revert ExceedsMaxNetworkLimit();
+        }
+
+        _networkLimit[network].push(IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration(), amount);
+
+        emit SetNetworkLimit(network, amount);
+    }
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    function setOperatorNetworkShares(
         address network,
-        uint256 amount
-    ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        Limit storage limit = _operatorNetworkLimit[operator][network];
-        DelayedLimit storage nextLimit = _nextOperatorNetworkLimit[operator][network];
+        address operator,
+        uint256 shares
+    ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
+        uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
 
-        _setLimit(limit, nextLimit, amount);
+        _totalOperatorNetworkShares[network].push(
+            timestamp,
+            _totalOperatorNetworkShares[network].latest() + shares - _operatorNetworkShares[network][operator].latest()
+        );
 
-        emit SetOperatorNetworkLimit(operator, network, amount);
+        _operatorNetworkShares[network][operator].push(timestamp, shares);
+
+        emit SetOperatorShares(network, operator, shares);
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
-        uint256 operatorNetworkLimit_ = operatorNetworkLimit(operator, network);
+        uint256 operatorNetworkShares_ = operatorNetworkShares(network, operator);
+        uint256 operatorSlashedShares =
+            slashedAmount.mulDiv(operatorNetworkShares_, operatorNetworkStake(network, operator), Math.Rounding.Ceil);
 
-        _updateLimit(_operatorNetworkLimit[operator][network], _nextOperatorNetworkLimit[operator][network]);
+        _totalOperatorNetworkShares[network].push(
+            Time.timestamp(), totalOperatorNetworkShares(network) - operatorSlashedShares
+        );
 
-        if (operatorNetworkLimit_ != type(uint256).max) {
-            _operatorNetworkLimit[operator][network].amount = operatorNetworkLimit_ - slashedAmount;
-        }
+        _operatorNetworkShares[network][operator].push(Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares);
+
+        emit Slash(network, operator, slashedAmount);
     }
 
-    function _getLimitIn(
-        Limit storage limit,
-        DelayedLimit storage nextLimit,
-        uint48 duration
-    ) private view returns (uint256) {
-        if (nextLimit.timestamp == 0 || Time.timestamp() + duration < nextLimit.timestamp) {
-            return limit.amount;
-        }
-        return nextLimit.amount;
-    }
-
-    function _setLimit(Limit storage limit, DelayedLimit storage nextLimit, uint256 amount) private {
-        _updateLimit(limit, nextLimit);
-
-        if (amount < limit.amount) {
-            nextLimit.amount = amount;
-            nextLimit.timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+    function _normalizeExistingLimits(Checkpoints.Trace256 storage _networkLimit_, uint256 maxLimit) private {
+        (, uint48 latestTimestamp1, uint256 latestValue1) = _networkLimit_.latestCheckpoint();
+        if (Time.timestamp() < latestTimestamp1) {
+            _networkLimit_.pop();
+            (, uint48 latestTimestamp2, uint256 latestValue2) = _networkLimit_.latestCheckpoint();
+            if (Time.timestamp() < latestTimestamp2) {
+                _networkLimit_.pop();
+                _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), maxLimit));
+                _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, maxLimit));
+            } else {
+                _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), maxLimit));
+            }
+            _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, maxLimit));
         } else {
-            limit.amount = amount;
-            nextLimit.amount = 0;
-            nextLimit.timestamp = 0;
-        }
-    }
-
-    function _updateLimit(Limit storage limit, DelayedLimit storage nextLimit) private {
-        if (nextLimit.timestamp != 0 && nextLimit.timestamp <= Time.timestamp()) {
-            limit.amount = nextLimit.amount;
-            nextLimit.timestamp = 0;
-            nextLimit.amount = 0;
+            _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), maxLimit));
         }
     }
 
@@ -175,6 +288,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
 
         address vaultOwner = Ownable(params.vault).owner();
         _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
+        _grantRole(NETWORK_LIMIT_SET_ROLE, vaultOwner);
+        _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, vaultOwner);
     }
 }

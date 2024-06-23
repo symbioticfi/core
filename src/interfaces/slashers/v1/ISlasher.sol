@@ -7,7 +7,6 @@ interface ISlasher {
     error NotNetwork();
     error NotNetworkMiddleware();
     error NotOperator();
-    error NotResolver();
     error NotVault();
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();
