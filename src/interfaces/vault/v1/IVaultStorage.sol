@@ -15,11 +15,6 @@ interface IVaultStorage {
     }
 
     /**
-     * @notice Get the delegator setter's role.
-     */
-    function DELEGATOR_SET_ROLE() external view returns (bytes32);
-
-    /**
      * @notice Get the slasher setter's role.
      */
     function SLASHER_SET_ROLE() external view returns (bytes32);
@@ -34,6 +29,10 @@ interface IVaultStorage {
      */
     function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
 
+    function DELEGATOR_FACTORY() external view returns (address);
+
+    function SLASHER_FACTORY() external view returns (address);
+
     /**
      * @notice Get a vault collateral.
      * @return vault's underlying collateral
@@ -46,7 +45,7 @@ interface IVaultStorage {
      */
     function burner() external view returns (address);
 
-    function nextDelegator() external view returns (address, uint48);
+    function delegator() external view returns (address);
 
     function nextSlasher() external view returns (address, uint48);
 

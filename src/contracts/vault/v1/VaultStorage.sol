@@ -15,21 +15,27 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant DELEGATOR_SET_ROLE = keccak256("DELEGATOR_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     bytes32 public constant SLASHER_SET_ROLE = keccak256("SLASHER_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
      */
     bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
+
     /**
      * @inheritdoc IVaultStorage
      */
     bytes32 public constant DEPOSITOR_WHITELIST_ROLE = keccak256("DEPOSITOR_WHITELIST_ROLE");
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public immutable DELEGATOR_FACTORY;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    address public immutable SLASHER_FACTORY;
 
     /**
      * @inheritdoc IVaultStorage
@@ -44,7 +50,7 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    DelayedModule public nextDelegator;
+    address public delegator;
 
     /**
      * @inheritdoc IVaultStorage
@@ -100,6 +106,11 @@ contract VaultStorage is IVaultStorage {
     Checkpoints.Trace256 internal _activeSupplies;
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
+
+    constructor(address delegatorFactory, address slasherFactory) {
+        DELEGATOR_FACTORY = delegatorFactory;
+        SLASHER_FACTORY = slasherFactory;
+    }
 
     /**
      * @inheritdoc IVaultStorage

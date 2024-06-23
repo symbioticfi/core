@@ -17,6 +17,7 @@ interface IVault is IVaultStorage {
     error TooMuchWithdraw();
     error InvalidCollateral();
     error InvalidSlasherSetEpochsDelay();
+    error NotDelegator();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -77,8 +78,6 @@ interface IVault is IVaultStorage {
      */
     event Slash(address indexed slasher, uint256 slashedAmount);
 
-    event SetDelegator(address delegator);
-
     event SetSlasher(address slasher);
 
     /**
@@ -93,10 +92,6 @@ interface IVault is IVaultStorage {
      * @param status if whitelisted the account
      */
     event SetDepositorWhitelistStatus(address indexed account, bool status);
-
-    function delegatorIn(uint48 duration) external view returns (address);
-
-    function delegator() external view returns (address);
 
     function slasherIn(uint48 duration) external view returns (address);
 

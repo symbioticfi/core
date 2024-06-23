@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {MigratableEntity} from "src/contracts/base/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
+import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {ICollateral} from "src/interfaces/collateral/v1/ICollateral.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
 
@@ -26,20 +27,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
         _;
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function delegatorIn(uint48 duration) public view returns (address) {
-        return _getModuleAt(_delegator, nextDelegator, Time.timestamp() + duration);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function delegator() public view returns (address) {
-        return _getModuleAt(_delegator, nextDelegator, Time.timestamp());
     }
 
     /**
@@ -107,7 +94,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         );
     }
 
-    constructor(address vaultFactory) MigratableEntity(vaultFactory) {
+    constructor(
+        address delegatorFactory,
+        address slasherFactory,
+        address vaultFactory
+    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
         _disableInitializers();
     }
 
@@ -237,10 +228,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setSlasher(address burner_) external onlyRole(SLASHER_SET_ROLE) {
-        _setModule(_slasher, nextSlasher, burner_, slasherSetDelay);
+    function setSlasher(address slasher_) external onlyRole(SLASHER_SET_ROLE) {
+        if (!IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
+            revert NotSlasher();
+        }
 
-        emit SetSlasher(burner_);
+        _setModule(_slasher, nextSlasher, slasher_, slasherSetDelay);
+
+        emit SetSlasher(slasher_);
     }
 
     /**
@@ -323,9 +318,19 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidEpochDuration();
         }
 
+        if (!IRegistry(DELEGATOR_FACTORY).isEntity(params.delegator)) {
+            revert NotDelegator();
+        }
+
+        if (params.slasher != address(0) && !IRegistry(SLASHER_FACTORY).isEntity(params.slasher)) {
+            revert NotSlasher();
+        }
+
         collateral = params.collateral;
 
         burner = params.burner;
+
+        delegator = params.delegator;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
@@ -333,12 +338,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         slasherSetDelay = (params.slasherSetEpochsDelay * params.epochDuration).toUint48();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
-
-        if (params.delegator == address(0)) {
-            _grantRole(DELEGATOR_SET_ROLE, owner);
-        } else {
-            _delegator.address_ = params.delegator;
-        }
 
         if (params.slasher == address(0)) {
             _grantRole(SLASHER_SET_ROLE, owner);
