@@ -89,7 +89,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc IDelegator
      */
-    function networkStakeIn(address network, uint48 duration) external view returns (uint256) {
+    function networkStakeIn(address network, uint48 duration) public view returns (uint256) {
         return Math.min(
             IVault(vault).totalSupplyIn(duration), _networkLimit[network].upperLookupRecent(Time.timestamp() + duration)
         );
@@ -98,7 +98,7 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     /**
      * @inheritdoc IDelegator
      */
-    function networkStake(address network) external view returns (uint256) {
+    function networkStake(address network) public view returns (uint256) {
         return Math.min(IVault(vault).totalSupply(), _networkLimit[network].upperLookupRecent(Time.timestamp()));
     }
 
@@ -135,34 +135,20 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc INetworkRestakingDelegator
-     */
-    function operatorNetworkLimitIn(address network, address operator, uint48 duration) public view returns (uint256) {
-        return operatorNetworkSharesIn(network, operator, duration).mulDiv(
-            networkLimitIn(network, duration), totalOperatorNetworkSharesIn(network, duration)
-        );
-    }
-
-    /**
-     * @inheritdoc INetworkRestakingDelegator
-     */
-    function operatorNetworkLimit(address network, address operator) public view returns (uint256) {
-        return
-            operatorNetworkShares(network, operator).mulDiv(networkLimit(network), totalOperatorNetworkShares(network));
-    }
-
-    /**
      * @inheritdoc IDelegator
      */
     function operatorNetworkStakeIn(address network, address operator, uint48 duration) public view returns (uint256) {
-        return Math.min(IVault(vault).totalSupplyIn(duration), operatorNetworkLimitIn(operator, network, duration));
+        return operatorNetworkSharesIn(network, operator, duration).mulDiv(
+            networkStakeIn(network, duration), totalOperatorNetworkSharesIn(network, duration)
+        );
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function operatorNetworkStake(address network, address operator) public view returns (uint256) {
-        return Math.min(IVault(vault).totalSupply(), operatorNetworkLimit(operator, network));
+        return
+            operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares(network));
     }
 
     /**
@@ -173,19 +159,18 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
         address operator,
         uint48 duration
     ) external view returns (uint256 minOperatorNetworkStakeDuring_) {
-        minOperatorNetworkStakeDuring_ =
-            Math.min(IVault(vault).totalSupplyIn(duration), operatorNetworkLimit(operator, network));
+        minOperatorNetworkStakeDuring_ = operatorNetworkStake(network, operator);
 
         uint48 epochDuration = IVault(vault).epochDuration();
         uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
         uint48 delta = nextEpochStart - Time.timestamp();
         if (Time.timestamp() + duration >= nextEpochStart) {
             minOperatorNetworkStakeDuring_ =
-                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkLimitIn(operator, network, delta));
+                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(operator, network, delta));
         }
         if (Time.timestamp() + duration >= nextEpochStart + epochDuration) {
             minOperatorNetworkStakeDuring_ = Math.min(
-                minOperatorNetworkStakeDuring_, operatorNetworkLimitIn(operator, network, delta + epochDuration)
+                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(operator, network, delta + epochDuration)
             );
         }
     }

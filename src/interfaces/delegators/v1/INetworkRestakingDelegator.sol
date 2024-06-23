@@ -59,27 +59,6 @@ interface INetworkRestakingDelegator is IDelegator {
 
     function operatorNetworkShares(address network, address operator) external view returns (uint256);
 
-    /**
-     * @notice Get an operator-network limit for a particular operator and network in `duration` seconds.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @param duration duration to get the operator-network limit in
-     * @return operator-network limit in `duration` seconds
-     */
-    function operatorNetworkLimitIn(
-        address operator,
-        address network,
-        uint48 duration
-    ) external view returns (uint256);
-
-    /**
-     * @notice Get an operator-network limit for a particular operator and network.
-     * @param operator address of the operator
-     * @param network address of the network
-     * @return operator-network limit
-     */
-    function operatorNetworkLimit(address operator, address network) external view returns (uint256);
-
     function setMaxNetworkLimit(address network, uint256 amount) external;
 
     function setNetworkLimit(address network, uint256 amount) external;
