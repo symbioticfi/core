@@ -33,14 +33,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function slasherIn(uint48 duration) public view returns (address) {
-        return _getModuleAt(_slasher, _nextSlasher, Time.timestamp() + duration);
+        return _getModuleIn(_slasher, _nextSlasher, duration);
     }
 
     /**
      * @inheritdoc IVault
      */
     function slasher() public view returns (address) {
-        return _getModuleAt(_slasher, _nextSlasher, Time.timestamp());
+        return slasherIn(0);
     }
 
     /**
@@ -268,12 +268,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositorWhitelistStatus(account, status);
     }
 
-    function _getModuleAt(
+    function _getModuleIn(
         Module storage module,
         DelayedModule storage nextModule,
-        uint48 timestamp
+        uint48 duration
     ) private view returns (address) {
-        if (nextModule.timestamp == 0 || timestamp < nextModule.timestamp) {
+        if (nextModule.timestamp == 0 || Time.timestamp() + duration < nextModule.timestamp) {
             return module.address_;
         }
         return nextModule.address_;

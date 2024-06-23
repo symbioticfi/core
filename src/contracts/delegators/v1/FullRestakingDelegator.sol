@@ -67,10 +67,8 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
      * @inheritdoc IDelegator
      */
     function operatorNetworkLimitIn(address operator, address network, uint48 duration) public view returns (uint256) {
-        return _getLimitAt(
-            _operatorNetworkLimit[operator][network],
-            _nextOperatorNetworkLimit[operator][network],
-            Time.timestamp() + duration
+        return _getLimitIn(
+            _operatorNetworkLimit[operator][network], _nextOperatorNetworkLimit[operator][network], duration
         );
     }
 
@@ -134,12 +132,12 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         }
     }
 
-    function _getLimitAt(
+    function _getLimitIn(
         Limit storage limit,
         DelayedLimit storage nextLimit,
-        uint48 timestamp
+        uint48 duration
     ) private view returns (uint256) {
-        if (nextLimit.timestamp == 0 || timestamp < nextLimit.timestamp) {
+        if (nextLimit.timestamp == 0 || Time.timestamp() + duration < nextLimit.timestamp) {
             return limit.amount;
         }
         return nextLimit.amount;

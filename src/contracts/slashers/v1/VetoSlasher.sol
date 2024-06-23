@@ -118,26 +118,25 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
     }
 
     function resolversIn(address network, uint48 duration) public view returns (address[] memory) {
-        return _getResolversAt(_resolvers[network], _nextResolvers[network], Time.timestamp() + duration).values();
+        return _getResolversIn(_resolvers[network], _nextResolvers[network], duration).values();
     }
 
     function resolvers(address network) public view returns (address[] memory) {
-        return _getResolversAt(_resolvers[network], _nextResolvers[network], Time.timestamp()).values();
+        return resolversIn(network, 0);
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
     function resolverSharesIn(address network, address resolver, uint48 duration) public view returns (uint256) {
-        return
-            _getResolversSharesAt(_resolvers[network], _nextResolvers[network], Time.timestamp() + duration)[resolver];
+        return _getResolversSharesIn(_resolvers[network], _nextResolvers[network], duration)[resolver];
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
     function resolverShares(address network, address resolver) public view returns (uint256) {
-        return _getResolversSharesAt(_resolvers[network], _nextResolvers[network], Time.timestamp())[resolver];
+        return resolverSharesIn(network, resolver, 0);
     }
 
     /**
@@ -335,23 +334,23 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         emit SetResolvers(network, resolvers_, shares);
     }
 
-    function _getResolversAt(
+    function _getResolversIn(
         Resolvers storage currentResolvers,
         DelayedResolvers storage nextResolvers,
-        uint48 timestamp
+        uint48 duration
     ) private view returns (EnumerableSet.AddressSet storage) {
-        if (nextResolvers.timestamp == 0 || timestamp < nextResolvers.timestamp) {
+        if (nextResolvers.timestamp == 0 || Time.timestamp() + duration < nextResolvers.timestamp) {
             return currentResolvers.addressSet;
         }
         return nextResolvers.addressSet;
     }
 
-    function _getResolversSharesAt(
+    function _getResolversSharesIn(
         Resolvers storage currentResolvers,
         DelayedResolvers storage nextResolvers,
-        uint48 timestamp
+        uint48 duration
     ) private view returns (mapping(address resolver => uint256) storage) {
-        if (nextResolvers.timestamp == 0 || timestamp < nextResolvers.timestamp) {
+        if (nextResolvers.timestamp == 0 || Time.timestamp() + duration < nextResolvers.timestamp) {
             return currentResolvers.shares;
         }
         return nextResolvers.shares;
