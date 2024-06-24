@@ -295,7 +295,9 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
 
                 length = nextResolvers.addressSet.length();
                 for (uint256 i; i < length; ++i) {
-                    currentResolvers.addressSet.add(nextResolvers.addressSet.at(i));
+                    address resolver = nextResolvers.addressSet.at(i);
+                    currentResolvers.addressSet.add(resolver);
+                    currentResolvers.shares[resolver] = nextResolvers.shares[resolver];
                 }
             }
 
@@ -310,9 +312,9 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         // set resolvers immediately if no stake is delegated and no resolvers are set
         // (as new resolvers cannot make worse for the vault in this case)
         // otherwise set resolvers with delay
-        uint48 delay = _stakeIsDelegated(network) || _resolversAreSet(network)
-            ? resolversSetDelay
-            : Time.timestamp() - IVault(vault).currentEpochStart();
+        nextResolvers.timestamp = _stakeIsDelegated(network) || _resolversAreSet(network)
+            ? IVault(vault).currentEpochStart() + resolversSetDelay
+            : Time.timestamp();
 
         uint256 totalShares;
         length = resolvers_.length;
@@ -322,7 +324,6 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
 
             totalShares += shares[i];
         }
-        nextResolvers.timestamp = IVault(vault).currentEpochStart() + delay;
 
         if (totalShares != SHARES_BASE) {
             revert InvalidTotalShares();
