@@ -75,7 +75,7 @@ contract DefaultRewardsDistributorFactoryTest is Test {
                 alice,
                 abi.encode(
                     IVault.InitParams({
-                        collateral: address(0),
+                        collateral: address(1),
                         epochDuration: 1,
                         vetoDuration: 0,
                         executeDuration: 0,

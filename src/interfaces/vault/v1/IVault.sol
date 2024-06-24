@@ -11,10 +11,16 @@ interface IVault is IVaultStorage {
     error InsufficientDeposit();
     error InsufficientSlash();
     error InsufficientWithdrawal();
+    error InvalidAccount();
     error InvalidAdminFee();
+    error InvalidClaimer();
+    error InvalidCollateral();
     error InvalidEpoch();
     error InvalidEpochDuration();
+    error InvalidOnBehalfOf();
+    error InvalidRecipient();
     error InvalidSlashDuration();
+    error InvalidVetoDuration();
     error NetworkNotOptedInVault();
     error NoDepositWhitelist();
     error NotNetwork();

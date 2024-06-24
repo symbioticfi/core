@@ -569,6 +569,37 @@ contract RewardsDistributorTest is Test {
         console2.log("Gas2", gasLeft - gasLeft2 - 100);
     }
 
+    function test_ClaimRewardsRevertInvalidRecipient(uint256 amount, uint256 ditributeAmount) public {
+        amount = bound(amount, 1, 100 * 10 ** 18);
+        ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        defaultRewardsDistributor = _getDefaultRewardsDistributor();
+        _grantRewardsDistributorSetRole(alice, alice);
+        _setRewardsDistributor(alice, address(defaultRewardsDistributor));
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        for (uint256 i; i < 10; ++i) {
+            _deposit(alice, amount);
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        IERC20 token = IERC20(new Token("Token"));
+
+        uint32[] memory activeSharesOfHints = new uint32[](0);
+        vm.startPrank(alice);
+        vm.expectRevert(IDefaultRewardsDistributor.InvalidRecipient.selector);
+        defaultRewardsDistributor.claimRewards(address(0), address(token), type(uint256).max, activeSharesOfHints);
+        vm.stopPrank();
+    }
+
     function test_ClaimRewardsRevertNoRewardsToClaim1(uint256 amount, uint256 ditributeAmount) public {
         amount = bound(amount, 1, 100 * 10 ** 18);
         ditributeAmount = bound(ditributeAmount, 1, 100 * 10 ** 18);

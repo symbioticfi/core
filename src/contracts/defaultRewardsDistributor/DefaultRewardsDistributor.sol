@@ -156,6 +156,10 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
         uint256 maxRewards,
         uint32[] calldata activeSharesOfHints
     ) external {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
         uint48 firstDepositAt_ = IVault(VAULT).firstDepositAt(msg.sender);
         if (firstDepositAt_ == 0) {
             revert NoDeposits();

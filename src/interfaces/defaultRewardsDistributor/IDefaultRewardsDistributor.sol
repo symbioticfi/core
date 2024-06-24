@@ -8,6 +8,7 @@ interface IDefaultRewardsDistributor is IRewardsDistributor {
     error InsufficientAdminFee();
     error InsufficientReward();
     error InvalidHintsLength();
+    error InvalidRecipient();
     error InvalidRewardTimestamp();
     error NoDeposits();
     error NoRewardsToClaim();

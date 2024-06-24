@@ -179,6 +179,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function deposit(address onBehalfOf, uint256 amount) external returns (uint256 shares) {
+        if (onBehalfOf == address(0)) {
+            revert InvalidOnBehalfOf();
+        }
+
         if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
@@ -209,6 +213,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
+        if (claimer == address(0)) {
+            revert InvalidClaimer();
+        }
+
         if (amount == 0) {
             revert InsufficientWithdrawal();
         }
@@ -243,6 +251,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function claim(address recipient, uint256 epoch) external returns (uint256 amount) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }
@@ -526,6 +538,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function setDepositorWhitelistStatus(address account, bool status) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+        if (account == address(0)) {
+            revert InvalidAccount();
+        }
+
         if (isDepositorWhitelisted[account] == status) {
             revert AlreadySet();
         }
@@ -542,8 +558,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function _initialize(uint64, address owner, bytes memory data) internal override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
+        if (params.collateral == address(0)) {
+            revert InvalidCollateral();
+        }
+
         if (params.epochDuration == 0) {
             revert InvalidEpochDuration();
+        }
+
+        if (params.executeDuration == 0 && params.vetoDuration != 0) {
+            revert InvalidVetoDuration();
         }
 
         if (params.vetoDuration + params.executeDuration > params.epochDuration) {

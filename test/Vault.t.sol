@@ -90,9 +90,52 @@ contract VaultTest is Test {
         vm.assume(vetoDuration + executeDuration <= epochDuration);
         adminFee = bound(adminFee, 0, 10_000);
 
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        if (executeDuration == 0 && vetoDuration != 0) {
+            vm.expectRevert(IVault.InvalidVetoDuration.selector);
+            vault = IVault(
+                vaultFactory.create(
+                    lastVersion,
+                    alice,
+                    abi.encode(
+                        IVault.InitParams({
+                            collateral: address(collateral),
+                            epochDuration: epochDuration,
+                            vetoDuration: vetoDuration,
+                            executeDuration: executeDuration,
+                            rewardsDistributor: rewardsDistributor,
+                            adminFee: adminFee,
+                            depositWhitelist: depositWhitelist
+                        })
+                    )
+                )
+            );
+            return;
+        }
+
+        vm.expectRevert(IVault.InvalidCollateral.selector);
         vault = IVault(
             vaultFactory.create(
-                vaultFactory.lastVersion(),
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(0),
+                        epochDuration: epochDuration,
+                        vetoDuration: vetoDuration,
+                        executeDuration: executeDuration,
+                        rewardsDistributor: rewardsDistributor,
+                        adminFee: adminFee,
+                        depositWhitelist: depositWhitelist
+                    })
+                )
+            )
+        );
+
+        vault = IVault(
+            vaultFactory.create(
+                lastVersion,
                 alice,
                 abi.encode(
                     IVault.InitParams({
@@ -327,6 +370,20 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOf(bob), amount2);
     }
 
+    function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.InvalidOnBehalfOf.selector);
+        vault.deposit(address(0), amount1);
+        vm.stopPrank();
+    }
+
     function test_DepositRevertInsufficientDeposit() public {
         uint48 epochDuration = 1;
         uint48 vetoDuration = 0;
@@ -458,6 +515,22 @@ contract VaultTest is Test {
         assertEq(vault.totalSupply(), amount1 - amount2 - amount3);
     }
 
+    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        _deposit(alice, amount1);
+
+        vm.expectRevert(IVault.InvalidClaimer.selector);
+        vm.startPrank(alice);
+        vault.withdraw(address(0), amount1);
+        vm.stopPrank();
+    }
+
     function test_WithdrawRevertInsufficientWithdrawal(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
@@ -515,6 +588,35 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2);
 
         assertEq(vault.pendingWithdrawalSharesOf(vault.currentEpoch() - 1, alice), 0);
+    }
+
+    function test_ClaimRevertInvalidRecipient(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2);
+
+        uint48 epochDuration = 1;
+        uint48 vetoDuration = 0;
+        uint48 executeDuration = 1;
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        vm.startPrank(alice);
+        uint256 currentEpoch = vault.currentEpoch();
+        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vault.claim(address(0), currentEpoch - 1);
+        vm.stopPrank();
     }
 
     function test_ClaimRevertInvalidEpoch(uint256 amount1, uint256 amount2) public {
@@ -1732,6 +1834,7 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         executeDuration = uint48(bound(executeDuration, 0, type(uint48).max / 2));
+        vm.assume(executeDuration != 0 || vetoDuration == 0);
         vm.assume(vetoDuration + executeDuration > epochDuration);
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -2384,6 +2487,22 @@ contract VaultTest is Test {
         _setDepositWhitelist(alice, false);
 
         _deposit(bob, 1);
+    }
+
+    function test_SetDepositorWhitelistStatusRevertInvalidAccount() public {
+        uint48 epochDuration = 1;
+        uint48 executeDuration = 0;
+        uint48 vetoDuration = 0;
+
+        vault = _getVault(epochDuration, vetoDuration, executeDuration);
+
+        _grantDepositWhitelistSetRole(alice, alice);
+        _setDepositWhitelist(alice, true);
+
+        _grantDepositorWhitelistRole(alice, alice);
+
+        vm.expectRevert(IVault.InvalidAccount.selector);
+        _setDepositorWhitelistStatus(alice, address(0), true);
     }
 
     function test_SetDepositorWhitelistStatusRevertNoDepositWhitelist() public {
