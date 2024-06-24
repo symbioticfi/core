@@ -323,8 +323,16 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         uint256 totalShares;
         length = resolvers_.length;
         for (uint256 i; i < length; ++i) {
+            if (shares[i] == 0) {
+                revert InvalidShares();
+            }
+
+            if (nextResolvers.shares[resolvers_[i]] != 0) {
+                revert ResolverAlreadySet();
+            }
+
             nextResolvers.addresses.push(resolvers_[i]);
-            nextResolvers.shares[nextResolvers.addresses[i]] = shares[i];
+            nextResolvers.shares[resolvers_[i]] = shares[i];
 
             totalShares += shares[i];
         }

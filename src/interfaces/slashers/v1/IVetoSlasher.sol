@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
 interface IVetoSlasher {
     error InvalidSlashDuration();
     error InsufficientSlash();
@@ -19,9 +17,11 @@ interface IVetoSlasher {
     error SlashRequestNotExist();
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
+    error InvalidShares();
     error InvalidTotalShares();
     error InvalidResolversLength();
     error InvalidResolversSetEpochsDelay();
+    error ResolverAlreadySet();
 
     struct InitParams {
         address vault;
