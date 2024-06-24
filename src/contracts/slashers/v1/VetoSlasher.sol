@@ -15,12 +15,10 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlasher {
     using Math for uint256;
     using SafeCast for uint256;
-    using EnumerableSet for EnumerableSet.AddressSet;
 
     /**
      * @inheritdoc IVetoSlasher
@@ -115,7 +113,7 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
     }
 
     function resolversIn(address network, uint48 duration) public view returns (address[] memory) {
-        return _getResolversIn(_resolvers[network], _nextResolvers[network], duration).values();
+        return _getResolversIn(_resolvers[network], _nextResolvers[network], duration);
     }
 
     function resolvers(address network) public view returns (address[] memory) {
@@ -286,26 +284,32 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         // and clear next resolvers
         if (nextResolvers.timestamp != 0) {
             if (nextResolvers.timestamp <= Time.timestamp()) {
-                length = currentResolvers.addressSet.length();
-                for (uint256 i; i < length; ++i) {
-                    address resolver = currentResolvers.addressSet.at(i);
+                length = currentResolvers.addresses.length;
+                for (uint256 i = length - 1;; --i) {
+                    address resolver = currentResolvers.addresses[i];
                     currentResolvers.shares[resolver] = 0;
-                    currentResolvers.addressSet.remove(resolver);
+                    currentResolvers.addresses.pop();
+                    if (i == 0) {
+                        break;
+                    }
                 }
 
-                length = nextResolvers.addressSet.length();
+                length = nextResolvers.addresses.length;
                 for (uint256 i; i < length; ++i) {
-                    address resolver = nextResolvers.addressSet.at(i);
-                    currentResolvers.addressSet.add(resolver);
+                    address resolver = nextResolvers.addresses[i];
+                    currentResolvers.addresses.push(resolver);
                     currentResolvers.shares[resolver] = nextResolvers.shares[resolver];
                 }
             }
 
-            length = nextResolvers.addressSet.length();
-            for (uint256 i; i < length; ++i) {
-                address resolver = nextResolvers.addressSet.at(i);
+            length = nextResolvers.addresses.length;
+            for (uint256 i = length - 1;; --i) {
+                address resolver = nextResolvers.addresses[i];
                 nextResolvers.shares[resolver] = 0;
-                nextResolvers.addressSet.remove(resolver);
+                nextResolvers.addresses.pop();
+                if (i == 0) {
+                    break;
+                }
             }
         }
 
@@ -319,8 +323,8 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         uint256 totalShares;
         length = resolvers_.length;
         for (uint256 i; i < length; ++i) {
-            nextResolvers.addressSet.add(resolvers_[i]);
-            nextResolvers.shares[nextResolvers.addressSet.at(i)] = shares[i];
+            nextResolvers.addresses.push(resolvers_[i]);
+            nextResolvers.shares[nextResolvers.addresses[i]] = shares[i];
 
             totalShares += shares[i];
         }
@@ -336,11 +340,11 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         Resolvers storage currentResolvers,
         DelayedResolvers storage nextResolvers,
         uint48 duration
-    ) private view returns (EnumerableSet.AddressSet storage) {
+    ) private view returns (address[] storage) {
         if (nextResolvers.timestamp == 0 || Time.timestamp() + duration < nextResolvers.timestamp) {
-            return currentResolvers.addressSet;
+            return currentResolvers.addresses;
         }
-        return nextResolvers.addressSet;
+        return nextResolvers.addresses;
     }
 
     function _getResolversSharesIn(
@@ -367,7 +371,7 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
     }
 
     function _resolversAreSet(address network) private view returns (bool) {
-        return _resolvers[network].addressSet.length() != 0 || _nextResolvers[network].timestamp != 0;
+        return _resolvers[network].addresses.length != 0 || _nextResolvers[network].timestamp != 0;
     }
 
     function _initialize(bytes memory data) internal override {

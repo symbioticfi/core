@@ -50,12 +50,12 @@ interface IVetoSlasher {
     }
 
     struct Resolvers {
-        EnumerableSet.AddressSet addressSet;
+        address[] addresses;
         mapping(address resolver => uint256 amount) shares;
     }
 
     struct DelayedResolvers {
-        EnumerableSet.AddressSet addressSet;
+        address[] addresses;
         mapping(address resolver => uint256 amount) shares;
         uint48 timestamp;
     }
