@@ -7,6 +7,7 @@ import {INetworkRestakingDelegator} from "src/interfaces/delegators/v1/INetworkR
 import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
 import {IRegistry} from "src/interfaces/base/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+import {IOptInService} from "src/interfaces/IOptInService.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -45,6 +46,16 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     address public immutable VAULT_FACTORY;
 
     /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
+
+    /**
+     * @inheritdoc INetworkRestakingDelegator
+     */
+    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
+
+    /**
      * @inheritdoc IDelegator
      */
     address public vault;
@@ -67,9 +78,16 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
         _;
     }
 
-    constructor(address networkRegistry, address vaultFactory) {
+    constructor(
+        address networkRegistry,
+        address vaultFactory,
+        address operatorVaultOptInService,
+        address operatorNetworkOptInService
+    ) {
         NETWORK_REGISTRY = networkRegistry;
         VAULT_FACTORY = vaultFactory;
+        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
+        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
     /**
@@ -157,6 +175,13 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
         address operator,
         uint48 duration
     ) external view returns (uint256 minOperatorNetworkStakeDuring_) {
+        if (
+            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, network)
+        ) {
+            return 0;
+        }
+
         minOperatorNetworkStakeDuring_ = operatorNetworkStake(network, operator);
 
         uint48 epochDuration = IVault(vault).epochDuration();

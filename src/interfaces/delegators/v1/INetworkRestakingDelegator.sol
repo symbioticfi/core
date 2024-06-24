@@ -35,6 +35,10 @@ interface INetworkRestakingDelegator is IDelegator {
      */
     function VAULT_FACTORY() external view returns (address);
 
+    function OPERATOR_VAULT_OPT_IN_SERVICE() external view returns (address);
+
+    function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
+
     function networkLimitIn(address network, uint48 duration) external view returns (uint256);
 
     function networkLimit(address network) external view returns (uint256);
