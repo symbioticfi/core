@@ -23,7 +23,8 @@ contract DefaultRewardsDistributorFactory is Registry, IDefaultRewardsDistributo
      * @inheritdoc IDefaultRewardsDistributorFactory
      */
     function create(address vault) external returns (address) {
-        address rewardsDistributor = REWARDS_DISTRIBUTOR_IMPLEMENTATION.clone();
+        address rewardsDistributor =
+            REWARDS_DISTRIBUTOR_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encode(totalEntities(), vault)));
         DefaultRewardsDistributor(rewardsDistributor).initialize(vault);
 
         _addEntity(rewardsDistributor);
