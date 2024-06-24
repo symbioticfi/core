@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
-    error AlreadyClaimed();
     error AlreadySet();
     error ExceedsMaxNetworkResolverLimit();
     error InsufficientClaim();
