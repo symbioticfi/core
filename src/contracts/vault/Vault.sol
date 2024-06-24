@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {MigratableEntity} from "src/contracts/base/MigratableEntity.sol";
+import {MigratableEntity} from "src/contracts/common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {ICollateral} from "src/interfaces/collateral/v1/ICollateral.sol";
-import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {ICollateral} from "src/interfaces/collateral/ICollateral.sol";
+import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";

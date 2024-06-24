@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
+import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 
 contract NetworkMiddlewareService is INetworkMiddlewareService {
     /**

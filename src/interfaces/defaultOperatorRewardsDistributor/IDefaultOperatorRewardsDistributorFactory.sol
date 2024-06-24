@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 
 interface IDefaultOperatorRewardsDistributorFactory is IRegistry {
     /**

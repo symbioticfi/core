@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
+import {NonMigratableEntity} from "src/contracts/common/NonMigratableEntity.sol";
 
-import {IVetoSlasher} from "src/interfaces/slashers/v1/IVetoSlasher.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
-import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
-import {IOptInService} from "src/interfaces/IOptInService.sol";
+import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IDelegator} from "src/interfaces/delegator/IDelegator.sol";
+import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
+import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";

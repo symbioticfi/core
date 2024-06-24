@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INonMigratableEntity} from "src/interfaces/base/INonMigratableEntity.sol";
+import {INonMigratableEntity} from "src/interfaces/common/INonMigratableEntity.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 

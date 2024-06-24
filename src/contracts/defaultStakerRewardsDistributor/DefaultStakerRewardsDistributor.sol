@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {IDefaultStakerRewardsDistributor} from
     "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributor.sol";
-import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IStakerRewardsDistributor} from "src/interfaces/stakerRewardsDistributor/v1/IStakerRewardsDistributor.sol";
-import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {IStakerRewardsDistributor} from "src/interfaces/stakerRewardsDistributor/IStakerRewardsDistributor.sol";
+import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

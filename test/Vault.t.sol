@@ -6,13 +6,13 @@
 // import {VaultFactory} from "src/contracts/VaultFactory.sol";
 // import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 // import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-// import {MetadataService} from "src/contracts/MetadataService.sol";
-// import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
-// import {OptInService} from "src/contracts/OptInService.sol";
+// import {MetadataService} from "src/contracts/service/MetadataService.sol";
+// import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
+// import {OptInService} from "src/contracts/service/OptInService.sol";
 
-// import {Vault} from "src/contracts/vault/v1/Vault.sol";
-// import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-// import {IVaultStorage} from "src/interfaces/vault/v1/IVaultStorage.sol";
+// import {Vault} from "src/contracts/vault/Vault.sol";
+// import {IVault} from "src/interfaces/vault/IVault.sol";
+// import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 
 // import {Token} from "./mocks/Token.sol";
 // import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";

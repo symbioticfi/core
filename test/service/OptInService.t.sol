@@ -6,8 +6,8 @@ import {Test, console2} from "forge-std/Test.sol";
 import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 
-import {OptInService} from "src/contracts/OptInService.sol";
-import {IOptInService} from "src/interfaces/IOptInService.sol";
+import {OptInService} from "src/contracts/service/OptInService.sol";
+import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
 contract OperatorOptInServiceTest is Test {
     address owner;

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratableEntity} from "src/contracts/base/NonMigratableEntity.sol";
+import {NonMigratableEntity} from "src/contracts/common/NonMigratableEntity.sol";
 
-import {IFullRestakingDelegator} from "src/interfaces/delegators/v1/IFullRestakingDelegator.sol";
-import {IDelegator} from "src/interfaces/delegators/v1/IDelegator.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
-import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-import {IOptInService} from "src/interfaces/IOptInService.sol";
+import {INetworkRestakingDelegator} from "src/interfaces/delegator/INetworkRestakingDelegator.sol";
+import {IDelegator} from "src/interfaces/delegator/IDelegator.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -16,7 +16,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable, IFullRestakingDelegator {
+contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable, INetworkRestakingDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
@@ -26,32 +26,32 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     uint64 public constant VERSION = 1;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
-    bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
+    bytes32 public constant OPERATOR_NETWORK_SHARES_SET_ROLE = keccak256("OPERATOR_NETWORK_SHARES_SET_ROLE");
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     address public immutable NETWORK_REGISTRY;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     address public immutable VAULT_FACTORY;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
@@ -67,9 +67,9 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
 
     mapping(address network => Checkpoints.Trace256 value) private _networkLimit;
 
-    mapping(address network => Checkpoints.Trace256 value) private _totalOperatorNetworkLimit;
+    mapping(address network => Checkpoints.Trace256 shares) private _totalOperatorNetworkShares;
 
-    mapping(address network => mapping(address operator => Checkpoints.Trace256 value)) private _operatorNetworkLimit;
+    mapping(address network => mapping(address operator => Checkpoints.Trace256 shares)) private _operatorNetworkShares;
 
     modifier onlySlasher() {
         if (IVault(vault).slasher() != msg.sender) {
@@ -91,77 +91,80 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function networkLimitIn(address network, uint48 duration) public view returns (uint256) {
         return _networkLimit[network].upperLookupRecent(Time.timestamp() + duration);
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function networkLimit(address network) public view returns (uint256) {
         return _networkLimit[network].upperLookupRecent(Time.timestamp());
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
-    function totalOperatorNetworkLimitIn(address network, uint48 duration) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecent(Time.timestamp() + duration);
+    function totalOperatorNetworkSharesIn(address network, uint48 duration) public view returns (uint256) {
+        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp() + duration);
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
-    function totalOperatorNetworkLimit(address network) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecent(Time.timestamp());
+    function totalOperatorNetworkShares(address network) public view returns (uint256) {
+        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp());
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
-    function operatorNetworkLimitIn(address network, address operator, uint48 duration) public view returns (uint256) {
-        return _operatorNetworkLimit[network][operator].upperLookupRecent(Time.timestamp() + duration);
+    function operatorNetworkSharesIn(
+        address network,
+        address operator,
+        uint48 duration
+    ) public view returns (uint256) {
+        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp() + duration);
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
-    function operatorNetworkLimit(address network, address operator) public view returns (uint256) {
-        return _operatorNetworkLimit[network][operator].upperLookupRecent(Time.timestamp());
+    function operatorNetworkShares(address network, address operator) public view returns (uint256) {
+        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp());
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function networkStakeIn(address network, uint48 duration) public view returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            Math.min(networkLimitIn(network, duration), totalOperatorNetworkLimitIn(network, duration))
-        );
+        return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitIn(network, duration));
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function networkStake(address network) public view returns (uint256) {
-        return
-            Math.min(IVault(vault).totalSupply(), Math.min(networkLimit(network), totalOperatorNetworkLimit(network)));
+        return Math.min(IVault(vault).totalSupply(), networkLimit(network));
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function operatorNetworkStakeIn(address network, address operator, uint48 duration) public view returns (uint256) {
-        return Math.min(networkStakeIn(network, duration), operatorNetworkLimitIn(network, operator, duration));
+        return operatorNetworkSharesIn(network, operator, duration).mulDiv(
+            networkStakeIn(network, duration), totalOperatorNetworkSharesIn(network, duration)
+        );
     }
 
     /**
      * @inheritdoc IDelegator
      */
     function operatorNetworkStake(address network, address operator) public view returns (uint256) {
-        return Math.min(networkStake(network), operatorNetworkLimit(network, operator));
+        return
+            operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares(network));
     }
 
     /**
@@ -196,7 +199,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function setMaxNetworkLimit(address network, uint256 amount) external {
         if (maxNetworkLimit[msg.sender] == amount) {
@@ -215,7 +218,7 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
     function setNetworkLimit(address network, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (amount > maxNetworkLimit[network]) {
@@ -228,23 +231,23 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     }
 
     /**
-     * @inheritdoc IFullRestakingDelegator
+     * @inheritdoc INetworkRestakingDelegator
      */
-    function setOperatorNetworkLimit(
+    function setOperatorNetworkShares(
         address network,
         address operator,
-        uint256 amount
-    ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
+        uint256 shares
+    ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
         uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
 
-        _totalOperatorNetworkLimit[network].push(
+        _totalOperatorNetworkShares[network].push(
             timestamp,
-            _totalOperatorNetworkLimit[network].latest() + amount - _operatorNetworkLimit[network][operator].latest()
+            _totalOperatorNetworkShares[network].latest() + shares - _operatorNetworkShares[network][operator].latest()
         );
 
-        _operatorNetworkLimit[network][operator].push(timestamp, amount);
+        _operatorNetworkShares[network][operator].push(timestamp, shares);
 
-        emit SetOperatorNetworkLimit(network, operator, amount);
+        emit SetOperatorNetworkShares(network, operator, shares);
     }
 
     /**
@@ -253,11 +256,15 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
     function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
         _networkLimit[network].push(Time.timestamp(), networkLimit(network) - slashedAmount);
 
-        _totalOperatorNetworkLimit[network].push(Time.timestamp(), totalOperatorNetworkLimit(network) - slashedAmount);
+        uint256 operatorNetworkShares_ = operatorNetworkShares(network, operator);
+        uint256 operatorSlashedShares =
+            slashedAmount.mulDiv(operatorNetworkShares_, operatorNetworkStake(network, operator), Math.Rounding.Ceil);
 
-        _operatorNetworkLimit[network][operator].push(
-            Time.timestamp(), operatorNetworkLimit(network, operator) - slashedAmount
+        _totalOperatorNetworkShares[network].push(
+            Time.timestamp(), totalOperatorNetworkShares(network) - operatorSlashedShares
         );
+
+        _operatorNetworkShares[network][operator].push(Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares);
 
         emit Slash(network, operator, slashedAmount);
     }
@@ -292,6 +299,6 @@ contract FullRestakingDelegator is NonMigratableEntity, AccessControlUpgradeable
         address vaultOwner = Ownable(params.vault).owner();
         _grantRole(DEFAULT_ADMIN_ROLE, vaultOwner);
         _grantRole(NETWORK_LIMIT_SET_ROLE, vaultOwner);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
+        _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, vaultOwner);
     }
 }

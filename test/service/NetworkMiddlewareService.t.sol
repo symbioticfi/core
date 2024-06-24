@@ -5,8 +5,8 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 
-import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
-import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
+import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
+import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
 
 contract MiddlewareServiceTest is Test {
     address owner;

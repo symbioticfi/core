@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IVaultStorage} from "src/interfaces/vault/v1/IVaultStorage.sol";
+import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratablesFactory} from "src/contracts/base/NonMigratablesFactory.sol";
+import {NonMigratablesFactory} from "src/contracts/common/NonMigratablesFactory.sol";
 
 import {IDelegatorFactory} from "src/interfaces/IDelegatorFactory.sol";
 

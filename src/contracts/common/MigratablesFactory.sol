@@ -4,9 +4,9 @@ pragma solidity 0.8.25;
 import {MigratableEntityProxy} from "./MigratableEntityProxy.sol";
 import {Registry} from "./Registry.sol";
 
-import {IMigratableEntityProxy} from "src/interfaces/base/IMigratableEntityProxy.sol";
-import {IMigratableEntity} from "src/interfaces/base/IMigratableEntity.sol";
-import {IMigratablesFactory} from "src/interfaces/base/IMigratablesFactory.sol";
+import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
+import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";

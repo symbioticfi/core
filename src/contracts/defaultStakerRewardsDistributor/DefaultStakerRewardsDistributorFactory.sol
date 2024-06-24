@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {DefaultStakerRewardsDistributor} from "./DefaultStakerRewardsDistributor.sol";
-import {Registry} from "src/contracts/base/Registry.sol";
+import {Registry} from "src/contracts/common/Registry.sol";
 
 import {IDefaultStakerRewardsDistributorFactory} from
     "src/interfaces/defaultStakerRewardsDistributor/IDefaultStakerRewardsDistributorFactory.sol";

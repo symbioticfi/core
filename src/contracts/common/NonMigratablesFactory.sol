@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {Registry} from "./Registry.sol";
 
-import {INonMigratableEntity} from "src/interfaces/base/INonMigratableEntity.sol";
-import {INonMigratablesFactory} from "src/interfaces/base/INonMigratablesFactory.sol";
+import {INonMigratableEntity} from "src/interfaces/common/INonMigratableEntity.sol";
+import {INonMigratablesFactory} from "src/interfaces/common/INonMigratablesFactory.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";

@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {DefaultOperatorRewardsDistributor} from "./DefaultOperatorRewardsDistributor.sol";
-import {Registry} from "src/contracts/base/Registry.sol";
+import {Registry} from "src/contracts/common/Registry.sol";
 
 import {IDefaultOperatorRewardsDistributorFactory} from
     "src/interfaces/defaultOperatorRewardsDistributor/IDefaultOperatorRewardsDistributorFactory.sol";

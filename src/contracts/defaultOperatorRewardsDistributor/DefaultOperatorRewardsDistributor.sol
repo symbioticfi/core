@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {IDefaultOperatorRewardsDistributor} from
     "src/interfaces/defaultOperatorRewardsDistributor/IDefaultOperatorRewardsDistributor.sol";
-import {INetworkMiddlewareService} from "src/interfaces/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/base/IRegistry.sol";
+import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";

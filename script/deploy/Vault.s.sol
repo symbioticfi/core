@@ -4,7 +4,7 @@
 // import "forge-std/Script.sol";
 
 // import {IMigratablesFactory} from "src/interfaces/base/IMigratablesFactory.sol";
-// import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+// import {IVault} from "src/interfaces/vault/IVault.sol";
 
 // contract VaultScript is Script {
 //     function run(
