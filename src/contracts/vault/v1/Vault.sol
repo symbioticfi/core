@@ -15,13 +15,14 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+    using SafeERC20 for IERC20;
 
     /**
      * @inheritdoc IVault
@@ -186,7 +187,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientDeposit();
         }
 
-        IERC20(collateral).transferFrom(msg.sender, address(this), amount);
+        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 activeSupply_ = activeSupply();
         uint256 activeShares_ = activeShares();
@@ -254,7 +255,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         pendingWithdrawalSharesOf[epoch][msg.sender] = 0;
 
-        IERC20(collateral).transfer(recipient, amount);
+        IERC20(collateral).safeTransfer(recipient, amount);
 
         emit Claim(msg.sender, recipient, amount);
     }
