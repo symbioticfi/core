@@ -87,22 +87,6 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
     }
 
     /**
-     * @inheritdoc IDelegator
-     */
-    function networkStakeIn(address network, uint48 duration) public view returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration), _networkLimit[network].upperLookupRecent(Time.timestamp() + duration)
-        );
-    }
-
-    /**
-     * @inheritdoc IDelegator
-     */
-    function networkStake(address network) public view returns (uint256) {
-        return Math.min(IVault(vault).totalSupply(), _networkLimit[network].upperLookupRecent(Time.timestamp()));
-    }
-
-    /**
      * @inheritdoc INetworkRestakingDelegator
      */
     function totalOperatorNetworkSharesIn(address network, uint48 duration) public view returns (uint256) {
@@ -132,6 +116,20 @@ contract NetworkRestakingDelegator is NonMigratableEntity, AccessControlUpgradea
      */
     function operatorNetworkShares(address network, address operator) public view returns (uint256) {
         return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp());
+    }
+
+    /**
+     * @inheritdoc IDelegator
+     */
+    function networkStakeIn(address network, uint48 duration) public view returns (uint256) {
+        return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitIn(network, duration));
+    }
+
+    /**
+     * @inheritdoc IDelegator
+     */
+    function networkStake(address network) public view returns (uint256) {
+        return Math.min(IVault(vault).totalSupply(), networkLimit(network));
     }
 
     /**

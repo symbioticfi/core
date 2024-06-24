@@ -39,6 +39,10 @@ interface IFullRestakingDelegator is IDelegator {
 
     function networkLimit(address network) external view returns (uint256);
 
+    function totalOperatorNetworkLimitIn(address network, uint48 duration) external view returns (uint256);
+
+    function totalOperatorNetworkLimit(address network) external view returns (uint256);
+
     function operatorNetworkLimitIn(
         address network,
         address operator,
