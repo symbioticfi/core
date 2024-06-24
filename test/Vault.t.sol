@@ -690,7 +690,7 @@ contract VaultTest is Test {
         assertEq(network_, bob);
         assertEq(resolver_, address(1));
         assertEq(operator_, bob);
-        assertEq(amount_, Math.min(slashableAmount_, toSlash));
+        assertEq(amount_, toSlash);
         assertEq(vetoDeadline_, uint48(blockTimestamp + vault.vetoDuration()));
         assertEq(executeDeadline_, uint48(blockTimestamp + vault.vetoDuration() + vault.executeDuration()));
         assertEq(completed_, false);
@@ -990,12 +990,12 @@ contract VaultTest is Test {
 
         uint256 slashIndex = _requestSlash(bob, bob, alice, bob, toSlash);
 
-        (,,, uint256 amount_,,,) = vault.slashRequests(slashIndex);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
         uint256 activeSupply_ = vault.activeSupply();
+
+        uint256 amount_ = Math.min(toSlash, vault.slashableAmount(bob, alice, bob));
 
         assertEq(_executeSlash(address(1), slashIndex), amount_);
         assertEq(activeSupply_ - amount_.mulDiv(activeSupply_, amount1 + amount2), vault.activeSupply());
@@ -1086,9 +1086,9 @@ contract VaultTest is Test {
 
         uint256 slashIndex = _requestSlash(bob, bob, address(0), bob, toSlash);
 
-        (,,, uint256 amount_,,,) = vault.slashRequests(slashIndex);
-
         uint256 activeSupply_ = vault.activeSupply();
+
+        uint256 amount_ = Math.min(toSlash, vault.slashableAmount(bob, address(0), bob));
 
         assertEq(_executeSlash(address(1), slashIndex), amount_);
         assertEq(activeSupply_ - amount_.mulDiv(activeSupply_, amount1 + amount2), vault.activeSupply());

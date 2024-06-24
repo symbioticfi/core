@@ -272,9 +272,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotNetworkMiddleware();
         }
 
-        uint256 slashableAmount_ = slashableAmountIn(network, resolver, operator, vetoDuration);
-
-        if (amount == 0 || slashableAmount_ == 0) {
+        if (amount == 0) {
             revert InsufficientSlash();
         }
 
@@ -298,9 +296,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert OperatorNotOptedInNetwork();
         }
 
-        if (amount > slashableAmount_) {
-            amount = slashableAmount_;
-        }
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
         uint48 executeDeadline = vetoDeadline + executeDuration;
 
