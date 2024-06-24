@@ -209,16 +209,22 @@ contract RewardsDistributorTest is Test {
         assertEq(feeOnTransferToken.balanceOf(address(defaultRewardsDistributor)) - balanceBefore, ditributeAmount - 1);
         assertEq(balanceBeforeBob - feeOnTransferToken.balanceOf(bob), ditributeAmount);
 
-        assertEq(defaultRewardsDistributor.rewardsLength(address(feeOnTransferToken)), 1);
-        (address network_, uint256 amount_, uint48 timestamp_, uint48 creation) =
-            defaultRewardsDistributor.rewards(address(feeOnTransferToken), 0);
-        assertEq(network_, network);
         uint256 amount__ = ditributeAmount - 1;
         uint256 adminFeeAmount = amount__.mulDiv(adminFee, vault.ADMIN_FEE_BASE());
         amount__ -= adminFeeAmount;
-        assertEq(amount_, amount__);
-        assertEq(timestamp_, timestamp);
-        assertEq(creation, blockTimestamp);
+
+        if (amount__ != 0) {
+            assertEq(defaultRewardsDistributor.rewardsLength(address(feeOnTransferToken)), 1);
+            (address network_, uint256 amount_, uint48 timestamp_, uint48 creation) =
+                defaultRewardsDistributor.rewards(address(feeOnTransferToken), 0);
+            assertEq(network_, network);
+            assertEq(amount_, amount__);
+            assertEq(timestamp_, timestamp);
+            assertEq(creation, blockTimestamp);
+        } else {
+            assertEq(defaultRewardsDistributor.rewardsLength(address(feeOnTransferToken)), 0);
+        }
+
         assertEq(defaultRewardsDistributor.claimableAdminFee(address(feeOnTransferToken)), adminFeeAmount);
     }
 

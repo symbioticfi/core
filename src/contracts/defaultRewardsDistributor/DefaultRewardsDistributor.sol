@@ -133,16 +133,20 @@ contract DefaultRewardsDistributor is ReentrancyGuardUpgradeable, IDefaultReward
         }
 
         uint256 adminFeeAmount = amount.mulDiv(IVault(VAULT).adminFee(), IVault(VAULT).ADMIN_FEE_BASE());
+        uint256 distributeAmount = amount - adminFeeAmount;
+
         claimableAdminFee[token] += adminFeeAmount;
 
-        rewards[token].push(
-            RewardDistribution({
-                network: network,
-                amount: amount - adminFeeAmount,
-                timestamp: timestamp,
-                creation: Time.timestamp()
-            })
-        );
+        if (distributeAmount != 0) {
+            rewards[token].push(
+                RewardDistribution({
+                    network: network,
+                    amount: distributeAmount,
+                    timestamp: timestamp,
+                    creation: Time.timestamp()
+                })
+            );
+        }
 
         emit DistributeReward(network, token, amount, timestamp);
     }
