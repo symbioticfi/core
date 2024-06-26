@@ -163,7 +163,7 @@ interface IVault is IVaultStorage {
      * @notice Slash callback for burning collateral.
      * @param slashedAmount amount to slash
      */
-    function slash(uint256 slashedAmount) external;
+    function onSlash(uint256 slashedAmount) external;
 
     function setSlasher(address slasher) external;
 

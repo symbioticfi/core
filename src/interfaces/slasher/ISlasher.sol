@@ -67,5 +67,5 @@ interface ISlasher {
      * @return slashedAmount amount of the collateral slashed
      * @dev Only network middleware can call this function.
      */
-    function slash(address network, address operator, uint256 amount) external returns (uint256 slashedAmount);
+    function requestSlash(address network, address operator, uint256 amount) external returns (uint256 slashedAmount);
 }

@@ -60,7 +60,7 @@ contract Slasher is NonMigratableEntity, ISlasher {
     /**
      * @inheritdoc ISlasher
      */
-    function slash(address network, address operator, uint256 amount) external returns (uint256) {
+    function requestSlash(address network, address operator, uint256 amount) external returns (uint256) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
@@ -101,7 +101,7 @@ contract Slasher is NonMigratableEntity, ISlasher {
 
         IDelegator(IVault(vault).delegator()).onSlash(network, operator, amount);
 
-        IVault(vault).slash(amount);
+        IVault(vault).onSlash(amount);
 
         emit Slash(network, operator, amount);
 

@@ -186,7 +186,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function slash(uint256 slashedAmount) external onlySlasher {
+    function onSlash(uint256 slashedAmount) external onlySlasher {
         if (slashedAmount == 0) {
             revert();
         }

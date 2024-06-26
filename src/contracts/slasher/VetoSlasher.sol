@@ -250,7 +250,7 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         if (slashedAmount != 0) {
             IDelegator(delegator).onSlash(request.network, request.operator, slashedAmount);
 
-            IVault(vault).slash(slashedAmount);
+            IVault(vault).onSlash(slashedAmount);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
