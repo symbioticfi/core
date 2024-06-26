@@ -46,8 +46,8 @@ forge script script/deploy/MetadataService.s.sol:MetadataServiceScript 0x0000000
 
 #### Deploy opt-in service
 
-Deployment script: [click](../script/deploy/OperatorOptInService.s.sol)
+Deployment script: [click](../script/deploy/OptInService.s.sol)
 
 ```shell
-forge script script/deploy/OperatorOptInService.s.sol:OperatorOptInServiceScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 --sig "run(address,address)" --broadcast --rpc-url=$ETH_RPC_URL
+forge script script/deploy/OptInService.s.sol:OperatorOptInServiceScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 --sig "run(address,address)" --broadcast --rpc-url=$ETH_RPC_URL
 ```

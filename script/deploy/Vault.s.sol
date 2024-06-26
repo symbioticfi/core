@@ -4,7 +4,7 @@
 // import "forge-std/Script.sol";
 
 // import {IMigratablesFactory} from "src/interfaces/base/IMigratablesFactory.sol";
-// import {IVault} from "src/interfaces/vault/v1/IVault.sol";
+// import {IVault} from "src/interfaces/vault/IVault.sol";
 
 // contract VaultScript is Script {
 //     function run(
@@ -14,7 +14,7 @@
 //         uint48 epochDuration,
 //         uint48 vetoDuration,
 //         uint48 executeDuration,
-//         address rewardsDistributor,
+//         address stakerRewardsDistributor,
 //         uint256 adminFee,
 //         bool depositWhitelist
 //     ) public {
@@ -29,7 +29,7 @@
 //                     epochDuration: epochDuration,
 //                     vetoDuration: vetoDuration,
 //                     executeDuration: executeDuration,
-//                     rewardsDistributor: rewardsDistributor,
+//                     stakerRewardsDistributor: stakerRewardsDistributor,
 //                     adminFee: adminFee,
 //                     depositWhitelist: depositWhitelist
 //                 })

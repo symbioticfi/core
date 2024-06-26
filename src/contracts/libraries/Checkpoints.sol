@@ -10,6 +10,8 @@ import {Checkpoints as OZCheckpoints} from "@openzeppelin/contracts/utils/struct
 library Checkpoints {
     using OZCheckpoints for OZCheckpoints.Trace208;
 
+    error SystemCheckpoint();
+
     struct Trace208 {
         OZCheckpoints.Trace208 _trace;
     }
@@ -73,6 +75,10 @@ library Checkpoints {
         return self._trace.latest();
     }
 
+    function latestCheckpoint(Trace208 storage self) internal view returns (bool, uint48, uint208) {
+        return self._trace.latestCheckpoint();
+    }
+
     /**
      * @dev Returns the number of checkpoint.
      */
@@ -86,6 +92,11 @@ library Checkpoints {
     function at(Trace208 storage self, uint32 pos) internal view returns (Checkpoint208 memory) {
         OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos);
         return Checkpoint208({_key: checkpoint._key, _value: checkpoint._value});
+    }
+
+    function pop(Trace208 storage self) internal returns (uint208 value) {
+        value = self._trace.latest();
+        self._trace._checkpoints.pop();
     }
 
     /**
@@ -142,6 +153,12 @@ library Checkpoints {
         return idx != 0 ? self._values[idx] : 0;
     }
 
+    function latestCheckpoint(Trace256 storage self) internal view returns (bool exists, uint48 _key, uint256 _value) {
+        uint256 idx;
+        (exists, _key, idx) = self._trace.latestCheckpoint();
+        _value = exists ? self._values[idx] : 0;
+    }
+
     /**
      * @dev Returns the number of checkpoint.
      */
@@ -155,5 +172,14 @@ library Checkpoints {
     function at(Trace256 storage self, uint32 pos) internal view returns (Checkpoint256 memory) {
         OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos);
         return Checkpoint256({_key: checkpoint._key, _value: self._values[checkpoint._value]});
+    }
+
+    function pop(Trace256 storage self) internal returns (uint256 value) {
+        uint208 idx = self._trace.latest();
+        if (idx == 0) {
+            revert SystemCheckpoint();
+        }
+        value = self._values[idx];
+        self._trace._checkpoints.pop();
     }
 }

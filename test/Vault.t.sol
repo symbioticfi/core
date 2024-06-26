@@ -6,14 +6,13 @@
 // import {VaultFactory} from "src/contracts/VaultFactory.sol";
 // import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 // import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-// import {MetadataService} from "src/contracts/MetadataService.sol";
-// import {NetworkMiddlewareService} from "src/contracts/NetworkMiddlewareService.sol";
-// import {NetworkOptInService} from "src/contracts/NetworkOptInService.sol";
-// import {OperatorOptInService} from "src/contracts/OperatorOptInService.sol";
+// import {MetadataService} from "src/contracts/service/MetadataService.sol";
+// import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
+// import {OptInService} from "src/contracts/service/OptInService.sol";
 
-// import {Vault} from "src/contracts/vault/v1/Vault.sol";
-// import {IVault} from "src/interfaces/vault/v1/IVault.sol";
-// import {IVaultStorage} from "src/interfaces/vault/v1/IVaultStorage.sol";
+// import {Vault} from "src/contracts/vault/Vault.sol";
+// import {IVault} from "src/interfaces/vault/IVault.sol";
+// import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 
 // import {Token} from "./mocks/Token.sol";
 // import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";
@@ -34,9 +33,9 @@
 //     MetadataService operatorMetadataService;
 //     MetadataService networkMetadataService;
 //     NetworkMiddlewareService networkMiddlewareService;
-//     NetworkOptInService networkVaultOptInService;
-//     OperatorOptInService operatorVaultOptInService;
-//     OperatorOptInService operatorNetworkOptInService;
+//     OptInService networkVaultOptInService;
+//     OptInService operatorVaultOptInService;
+//     OptInService operatorNetworkOptInService;
 
 //     IVault vault;
 
@@ -53,9 +52,9 @@
 //         operatorMetadataService = new MetadataService(address(operatorRegistry));
 //         networkMetadataService = new MetadataService(address(networkRegistry));
 //         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-//         networkVaultOptInService = new NetworkOptInService(address(networkRegistry), address(vaultFactory));
-//         operatorVaultOptInService = new OperatorOptInService(address(operatorRegistry), address(vaultFactory));
-//         operatorNetworkOptInService = new OperatorOptInService(address(operatorRegistry), address(networkRegistry));
+//         networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
+//         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
+//         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
 //         vaultFactory.whitelist(
 //             address(
@@ -80,7 +79,7 @@
 //         uint48 epochDuration,
 //         uint48 vetoDuration,
 //         uint48 executeDuration,
-//         address rewardsDistributor,
+//         address stakerRewardsDistributor,
 //         uint256 adminFee,
 //         bool depositWhitelist
 //     ) public {
@@ -100,7 +99,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: rewardsDistributor,
+//                         stakerRewardsDistributor: stakerRewardsDistributor,
 //                         adminFee: adminFee,
 //                         depositWhitelist: depositWhitelist
 //                     })
@@ -143,7 +142,6 @@
 //         assertEq(vault.withdrawals(0), 0);
 //         assertEq(vault.withdrawalShares(0), 0);
 //         assertEq(vault.pendingWithdrawalSharesOf(0, alice), 0);
-//         assertEq(vault.firstDepositAt(alice), 0);
 //         assertEq(vault.slashableAmount(address(0), address(0), address(0)), 0);
 //         assertEq(vault.slashRequestsLength(), 0);
 //         vm.expectRevert();
@@ -232,7 +230,6 @@
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), 0);
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1);
 //         assertEq(vault.activeBalanceOf(alice), amount1);
-//         assertEq(vault.firstDepositAt(alice), uint48(blockTimestamp));
 
 //         blockTimestamp = blockTimestamp + 1;
 //         vm.warp(blockTimestamp);
@@ -275,7 +272,6 @@
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
 //         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 + amount2);
 //         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
-//         assertEq(vault.firstDepositAt(alice), uint48(blockTimestamp - 1));
 //     }
 
 //     function test_DepositBoth(uint256 amount1, uint256 amount2) public {
@@ -1715,7 +1711,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -1746,7 +1742,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -1774,7 +1770,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: adminFee,
 //                         depositWhitelist: false
 //                     })
@@ -2226,37 +2222,37 @@
 
 //         _grantRewardsDistributorSetRole(alice, alice);
 //         _setRewardsDistributor(alice, rewardsDistributor1);
-//         assertEq(vault.rewardsDistributor(), rewardsDistributor1);
+//         assertEq(vault.stakerRewardsDistributor(), rewardsDistributor1);
 
 //         _setRewardsDistributor(alice, rewardsDistributor2);
-//         assertEq(vault.rewardsDistributor(), rewardsDistributor2);
+//         assertEq(vault.stakerRewardsDistributor(), rewardsDistributor2);
 //     }
 
-//     function test_SetRewardsDistributorRevertUnauthorized(address rewardsDistributor) public {
+//     function test_SetRewardsDistributorRevertUnauthorized(address stakerRewardsDistributor) public {
 //         uint48 epochDuration = 1;
 //         uint48 executeDuration = 0;
 //         uint48 vetoDuration = 0;
 
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
-//         vm.assume(rewardsDistributor != address(0));
+//         vm.assume(stakerRewardsDistributor != address(0));
 
 //         vm.expectRevert();
-//         _setRewardsDistributor(alice, rewardsDistributor);
+//         _setRewardsDistributor(alice, stakerRewardsDistributor);
 //     }
 
-//     function test_SetRewardsDistributorRevertAlreadySet(address rewardsDistributor) public {
+//     function test_SetRewardsDistributorRevertAlreadySet(address stakerRewardsDistributor) public {
 //         uint48 epochDuration = 1;
 //         uint48 executeDuration = 0;
 //         uint48 vetoDuration = 0;
 
 //         vault = _getVault(epochDuration, vetoDuration, executeDuration);
-//         vm.assume(rewardsDistributor != address(0));
+//         vm.assume(stakerRewardsDistributor != address(0));
 
 //         _grantRewardsDistributorSetRole(alice, alice);
-//         _setRewardsDistributor(alice, rewardsDistributor);
+//         _setRewardsDistributor(alice, stakerRewardsDistributor);
 
 //         vm.expectRevert(IVault.AlreadySet.selector);
-//         _setRewardsDistributor(alice, rewardsDistributor);
+//         _setRewardsDistributor(alice, stakerRewardsDistributor);
 //     }
 
 //     function test_SetAdminFee(uint256 adminFee1, uint256 adminFee2) public {
@@ -2428,7 +2424,7 @@
 //                         epochDuration: epochDuration,
 //                         vetoDuration: vetoDuration,
 //                         executeDuration: executeDuration,
-//                         rewardsDistributor: address(0),
+//                         stakerRewardsDistributor: address(0),
 //                         adminFee: 0,
 //                         depositWhitelist: false
 //                     })
@@ -2458,7 +2454,7 @@
 
 //     function _grantRewardsDistributorSetRole(address user, address account) internal {
 //         vm.startPrank(user);
-//         Vault(address(vault)).grantRole(vault.REWARDS_DISTRIBUTOR_SET_ROLE(), account);
+//         Vault(address(vault)).grantRole(vault.STAKER_REWARDS_DISTRIBUTOR_SET_ROLE(), account);
 //         vm.stopPrank();
 //     }
 
@@ -2572,9 +2568,9 @@
 //         vm.stopPrank();
 //     }
 
-//     function _setRewardsDistributor(address user, address rewardsDistributor) internal {
+//     function _setRewardsDistributor(address user, address stakerRewardsDistributor) internal {
 //         vm.startPrank(user);
-//         vault.setRewardsDistributor(rewardsDistributor);
+//         vault.setRewardsDistributor(stakerRewardsDistributor);
 //         vm.stopPrank();
 //     }
 

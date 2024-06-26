@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IRegistry} from "./base/IRegistry.sol";
+import {IRegistry} from "./common/IRegistry.sol";
 
 interface IOperatorRegistry is IRegistry {
     error OperatorAlreadyRegistered();
