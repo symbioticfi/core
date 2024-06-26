@@ -98,9 +98,9 @@ contract Slasher is NonMigratableEntity, ISlasher {
         ) {
             revert OperatorNotOptedInNetwork();
         }
-        
+
         IDelegator(IVault(vault).delegator()).onSlash(network, operator, amount);
-        
+
         IVault(vault).slash(amount);
 
         emit Slash(network, operator, amount);

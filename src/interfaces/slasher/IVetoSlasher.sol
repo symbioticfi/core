@@ -47,16 +47,15 @@ interface IVetoSlasher {
         uint48 executeDeadline;
         uint256 vetoedShares;
         bool completed;
+        uint48 creation;
     }
 
     struct Resolvers {
         address[] addresses;
-        mapping(address resolver => uint256 amount) shares;
     }
 
     struct DelayedResolvers {
         address[] addresses;
-        mapping(address resolver => uint256 amount) shares;
         uint48 timestamp;
     }
 
@@ -91,7 +90,7 @@ interface IVetoSlasher {
      */
     event VetoSlash(uint256 indexed slashIndex);
 
-    event SetResolvers(address indexed network, address[] resolvers, uint256[] shares);
+    event SetResolver(address indexed network, address resolver, uint256 shares);
 
     function SHARES_BASE() external view returns (uint256);
 
@@ -172,12 +171,17 @@ interface IVetoSlasher {
             uint48 vetoDeadline,
             uint48 executeDeadline,
             uint256 vetoedShares,
-            bool completed
+            bool completed,
+            uint48 creation
         );
 
     function resolversSetDelay() external view returns (uint48);
 
-    function resolverSharesIn(address network, address resolver, uint48 duration) external view returns (uint256);
+    function totalResolverSharesAt(address network, uint48 timestamp) external view returns (uint256);
+
+    function totalResolverShares(address network) external view returns (uint256);
+
+    function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256);
 
     function resolverShares(address network, address resolver) external view returns (uint256);
 
@@ -206,5 +210,5 @@ interface IVetoSlasher {
      */
     function vetoSlash(uint256 slashIndex) external;
 
-    function setResolvers(address network, address[] calldata resolver, uint256[] calldata shares) external;
+    function setResolver(address network, address resolver, uint256 shares) external;
 }
