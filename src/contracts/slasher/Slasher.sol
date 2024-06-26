@@ -65,43 +65,32 @@ contract Slasher is NonMigratableEntity, ISlasher {
             revert NotNetworkMiddleware();
         }
 
-        amount = Math.min(amount, IDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator));
+        address vault_ = vault;
+        amount = Math.min(amount, IDelegator(IVault(vault_).delegator()).operatorNetworkStake(network, operator));
 
         if (amount == 0) {
             revert InsufficientSlash();
         }
 
-        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, vault)) {
+        uint48 timestamp = IVault(vault_).currentEpoch() != 0
+            ? IVault(vault_).previousEpochStart()
+            : IVault(vault_).currentEpochStart();
+
+        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).wasOptedInAfter(network, vault_, timestamp)) {
             revert NetworkNotOptedInVault();
         }
 
-        if (
-            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(
-                operator,
-                vault,
-                IVault(vault).currentEpoch() != 0
-                    ? IVault(vault).previousEpochStart()
-                    : IVault(vault).currentEpochStart()
-            )
-        ) {
+        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(operator, vault_, timestamp)) {
             revert OperatorNotOptedInVault();
         }
 
-        if (
-            !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(
-                operator,
-                network,
-                IVault(vault).currentEpoch() != 0
-                    ? IVault(vault).previousEpochStart()
-                    : IVault(vault).currentEpochStart()
-            )
-        ) {
+        if (!IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(operator, network, timestamp)) {
             revert OperatorNotOptedInNetwork();
         }
 
-        IDelegator(IVault(vault).delegator()).onSlash(network, operator, amount);
+        IDelegator(IVault(vault_).delegator()).onSlash(network, operator, amount);
 
-        IVault(vault).onSlash(amount);
+        IVault(vault_).onSlash(amount);
 
         emit Slash(network, operator, amount);
 

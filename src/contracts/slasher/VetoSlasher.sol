@@ -167,34 +167,6 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             revert InsufficientSlash();
         }
 
-        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedIn(network, vault)) {
-            revert NetworkNotOptedInVault();
-        }
-
-        if (
-            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(
-                operator,
-                vault,
-                IVault(vault).currentEpoch() != 0
-                    ? IVault(vault).previousEpochStart()
-                    : IVault(vault).currentEpochStart()
-            )
-        ) {
-            revert OperatorNotOptedInVault();
-        }
-
-        if (
-            !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(
-                operator,
-                network,
-                IVault(vault).currentEpoch() != 0
-                    ? IVault(vault).previousEpochStart()
-                    : IVault(vault).currentEpochStart()
-            )
-        ) {
-            revert OperatorNotOptedInNetwork();
-        }
-
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
         uint48 executeDeadline = vetoDeadline + executeDuration;
 
@@ -237,9 +209,28 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             revert SlashCompleted();
         }
 
+        address vault_ = vault;
+        uint48 timestamp = IVault(vault_).currentEpoch() != 0
+            ? IVault(vault_).previousEpochStart()
+            : IVault(vault_).currentEpochStart();
+
+        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).wasOptedInAfter(request.network, vault_, timestamp)) {
+            revert NetworkNotOptedInVault();
+        }
+
+        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(request.operator, vault_, timestamp)) {
+            revert OperatorNotOptedInVault();
+        }
+
+        if (
+            !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(request.operator, request.network, timestamp)
+        ) {
+            revert OperatorNotOptedInNetwork();
+        }
+
         request.completed = true;
 
-        address delegator = IVault(vault).delegator();
+        address delegator = IVault(vault_).delegator();
 
         slashedAmount =
             Math.min(request.amount, IDelegator(delegator).operatorNetworkStake(request.network, request.operator));
@@ -250,7 +241,7 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
         if (slashedAmount != 0) {
             IDelegator(delegator).onSlash(request.network, request.operator, slashedAmount);
 
-            IVault(vault).onSlash(slashedAmount);
+            IVault(vault_).onSlash(slashedAmount);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -357,8 +348,9 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
     }
 
     function _stakeIsDelegated(address network) private view returns (bool) {
-        address delegator = IVault(vault).delegator();
-        uint48 epochDuration = IVault(vault).epochDuration();
+        address vault_ = vault;
+        address delegator = IVault(vault_).delegator();
+        uint48 epochDuration = IVault(vault_).epochDuration();
         return Math.max(
             Math.max(
                 IDelegator(delegator).networkStake(network),
@@ -379,7 +371,7 @@ contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlas
             revert NotVault();
         }
 
-        uint48 epochDuration = IVault(vault).epochDuration();
+        uint48 epochDuration = IVault(params.vault).epochDuration();
         if (params.vetoDuration + params.executeDuration > epochDuration) {
             revert InvalidSlashDuration();
         }
