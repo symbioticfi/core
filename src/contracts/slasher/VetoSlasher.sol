@@ -243,7 +243,7 @@ contract VetoSlasher is Entity, AccessControlUpgradeable, IVetoSlasher {
             revert SlashRequestCompleted();
         }
 
-        uint256 vetoedShares_ = Math.max(request.vetoedShares + resolverShares_, SHARES_BASE);
+        uint256 vetoedShares_ = Math.min(request.vetoedShares + resolverShares_, SHARES_BASE);
 
         request.vetoedShares = vetoedShares_;
         if (vetoedShares_ == SHARES_BASE) {
