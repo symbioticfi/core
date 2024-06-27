@@ -4,15 +4,19 @@ pragma solidity 0.8.25;
 interface ISlasher {
     error InsufficientSlash();
 
+    /**
+     * @notice Initial parameters needed for a slasher deployment.
+     * @param vault address of vault to perform slashings on
+     */
     struct InitParams {
         address vault;
     }
 
     /**
-     * @notice Emitted when a slash request is created.
+     * @notice Emitted when a slash is performed.
      * @param network network that requested the slash
-     * @param operator operator that could be slashed (if the request is not vetoed)
-     * @param slashedAmount .
+     * @param operator operator that is slashed
+     * @param slashedAmount amount of the collateral slashed
      */
     event Slash(address indexed network, address indexed operator, uint256 slashedAmount);
 
@@ -22,7 +26,7 @@ interface ISlasher {
      * @param operator address of the operator
      * @param amount maximum amount of the collateral to be slashed
      * @return slashedAmount amount of the collateral slashed
-     * @dev Only network middleware can call this function.
+     * @dev Only a network middleware can call this function.
      */
     function slash(address network, address operator, uint256 amount) external returns (uint256 slashedAmount);
 }

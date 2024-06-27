@@ -53,7 +53,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    uint48 public resolversSetDelay;
+    uint48 public resolverSetDelay;
 
     mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) private _resolverShares;
 
@@ -199,7 +199,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             request.completed = true;
         }
 
-        emit VetoSlash(slashIndex);
+        emit VetoSlash(slashIndex, msg.sender, resolverShares_);
     }
 
     function setResolverShares(address resolver, uint256 shares) external {
@@ -213,7 +213,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         uint48 timestamp = shares > resolverShares(msg.sender, resolver)
             ? Time.timestamp()
-            : IVault(vault).currentEpochStart() + resolversSetDelay;
+            : IVault(vault).currentEpochStart() + resolverSetDelay;
 
         Checkpoints.Trace256 storage _resolverShares_ = _resolverShares[msg.sender][resolver];
         (, uint48 latestTimestamp,) = _resolverShares_.latestCheckpoint();
@@ -238,14 +238,14 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InvalidSlashDuration();
         }
 
-        if (params.resolversSetEpochsDelay < 3) {
-            revert InvalidResolversSetEpochsDelay();
+        if (params.resolverSetEpochsDelay < 3) {
+            revert InvalidResolverSetEpochsDelay();
         }
 
         vetoDuration = params.vetoDuration;
         executeDuration = params.executeDuration;
 
-        resolversSetDelay = (params.resolversSetEpochsDelay * epochDuration).toUint48();
+        resolverSetDelay = (params.resolverSetEpochsDelay * epochDuration).toUint48();
 
         return params.vault;
     }

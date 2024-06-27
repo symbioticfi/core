@@ -27,7 +27,7 @@ interface IFactory is IRegistry {
 
     /**
      * @notice Create a new entity at the registry.
-     * @param index `index`th implementation to use
+     * @param index `index`-th implementation to use
      * @param data initial data for the entity creation
      * @return address of the entity
      */

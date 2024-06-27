@@ -40,7 +40,7 @@ interface IBaseSlasher {
 
     /**
      * @notice Get the vault's address.
-     * @return address of the vault
+     * @return address of the vault to perform slashings on
      */
     function vault() external view returns (address);
 }

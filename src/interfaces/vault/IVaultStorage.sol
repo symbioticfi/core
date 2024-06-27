@@ -5,46 +5,70 @@ interface IVaultStorage {
     error InvalidTimestamp();
     error NoPreviousEpoch();
 
+    /**
+     * @notice Structure for a module.
+     * @param address_ address of the module
+     */
     struct Module {
         address address_;
     }
 
+    /**
+     * @notice Structure for a module that will be set in the future (if a new address won't be set).
+     * @param address_ address of the module
+     * @param timestamp timestamp when the module will be set
+     */
     struct DelayedModule {
         address address_;
         uint48 timestamp;
     }
 
     /**
-     * @notice Get the slasher setter's role.
+     * @notice Get a slasher setter's role.
+     * @return identifier of the slasher setter role
      */
     function SLASHER_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get the deposit whitelist enabler/disabler's role.
+     * @notice Get a deposit whitelist enabler/disabler's role.
+     * @return identifier of the whitelist enabler/disabler role
      */
     function DEPOSIT_WHITELIST_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get the depositor whitelist status setter's role.
+     * @notice Get a depositor whitelist status setter's role.
+     * @return identifier of the depositor whitelist status setter role
      */
     function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
 
+    /**
+     * @notice Get the delegator fatory's address.
+     * @return address of the delegator fatory
+     */
     function DELEGATOR_FACTORY() external view returns (address);
 
+    /**
+     * @notice Get the slasher fatory's address.
+     * @return address of the slasher fatory
+     */
     function SLASHER_FACTORY() external view returns (address);
 
     /**
      * @notice Get a vault collateral.
-     * @return vault's underlying collateral
+     * @return address of the underlying collateral
      */
     function collateral() external view returns (address);
 
     /**
      * @dev Get a burner to issue debt to (e.g. 0xdEaD or some unwrapper contract).
-     * @return vault's burner
+     * @return address of the burner
      */
     function burner() external view returns (address);
 
+    /**
+     * @notice Get a delegator (it delegates the vault's stake to networks and operators).
+     * @return address of the delegator
+     */
     function delegator() external view returns (address);
 
     /**
@@ -86,6 +110,10 @@ interface IVaultStorage {
      */
     function previousEpochStart() external view returns (uint48);
 
+    /**
+     * @notice Get a delay for a vault to update a slasher.
+     * @return updating a slasher delay
+     */
     function slasherSetDelay() external view returns (uint48);
 
     /**
@@ -189,5 +217,11 @@ interface IVaultStorage {
      */
     function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
 
+    /**
+     * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
+     * @param epoch epoch to check the withdrawals for the account at
+     * @param account account to check the withdrawals for
+     * @return if the withdrawals are claimed for the account at the epoch
+     */
     function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
 }

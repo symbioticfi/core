@@ -34,7 +34,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function slasherIn(uint48 duration) public view returns (address) {
-        return _getModuleIn(_slasher, _nextSlasher, duration);
+        if (_nextSlasher.timestamp == 0 || Time.timestamp() + duration < _nextSlasher.timestamp) {
+            return _slasher.address_;
+        }
+        return _nextSlasher.address_;
     }
 
     /**
@@ -249,7 +252,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
 
-        _setModule(_slasher, _nextSlasher, slasher_, slasherSetDelay);
+        if (_nextSlasher.timestamp != 0 && _nextSlasher.timestamp <= Time.timestamp()) {
+            _slasher.address_ = _nextSlasher.address_;
+            _nextSlasher.timestamp = 0;
+            _nextSlasher.address_ = address(0);
+        }
+
+        _nextSlasher.address_ = slasher_;
+        _nextSlasher.timestamp = currentEpochStart() + slasherSetDelay;
 
         emit SetSlasher(slasher_);
     }
@@ -286,37 +296,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isDepositorWhitelisted[account] = status;
 
         emit SetDepositorWhitelistStatus(account, status);
-    }
-
-    function _getModuleIn(
-        Module storage module,
-        DelayedModule storage nextModule,
-        uint48 duration
-    ) private view returns (address) {
-        if (nextModule.timestamp == 0 || Time.timestamp() + duration < nextModule.timestamp) {
-            return module.address_;
-        }
-        return nextModule.address_;
-    }
-
-    function _setModule(
-        Module storage module,
-        DelayedModule storage nextModule,
-        address address_,
-        uint256 epochsDelay
-    ) private {
-        _updateModule(module, nextModule);
-
-        nextModule.address_ = address_;
-        nextModule.timestamp = (currentEpochStart() + epochsDelay * epochDuration).toUint48();
-    }
-
-    function _updateModule(Module storage module, DelayedModule storage nextModule) private {
-        if (nextModule.timestamp != 0 && nextModule.timestamp <= Time.timestamp()) {
-            module.address_ = nextModule.address_;
-            nextModule.timestamp = 0;
-            nextModule.address_ = address(0);
-        }
     }
 
     function _initialize(uint64, address owner, bytes memory data) internal override {

@@ -26,24 +26,21 @@ interface IVault is IVaultStorage {
     /**
      * @notice Initial parameters needed for a vault deployment.
      * @param collateral vault's underlying collateral
+     * @param delegator vault's delegator to delegate the stake to networks and operators
      * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
+     * @param slasher vault's slasher to provide a slashing mechanism to networks
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
+     * @param slasherSetEpochsDelay delay in epochs to set a new slasher
      * @param depositWhitelist if enabling deposit whitelist
-     * @param slasherFactory factory for creating vault's staking controller
-     * @param vetoDuration duration of the veto period for a slash request
-     * @param executeDuration duration of the slash period for a slash request (after the veto duration has passed)
      */
     struct InitParams {
         address collateral;
         address delegator;
         address burner;
         address slasher;
-        uint256 slasherSetEpochsDelay;
         uint48 epochDuration;
+        uint256 slasherSetEpochsDelay;
         bool depositWhitelist;
-        address slasherFactory;
-        uint48 vetoDuration;
-        uint48 executeDuration;
     }
 
     /**
@@ -76,12 +73,16 @@ interface IVault is IVaultStorage {
     event Claim(address indexed claimer, address indexed recipient, uint256 amount);
 
     /**
-     * @notice Emitted when the vault is slashed.
+     * @notice Emitted when a slash happened.
      * @param slasher address of the slasher
      * @param slashedAmount amount of the collateral slashed
      */
     event OnSlash(address indexed slasher, uint256 slashedAmount);
 
+    /**
+     * @notice Emitted when a slasher is set (it provides networks a slashing mechanism).
+     * @param slasher address of the slasher
+     */
     event SetSlasher(address slasher);
 
     /**
@@ -97,8 +98,16 @@ interface IVault is IVaultStorage {
      */
     event SetDepositorWhitelistStatus(address indexed account, bool status);
 
+    /**
+     * @notice Get a slasher in `duration` seconds (it provides networks a slashing mechanism).
+     * @return address of the slasher in `duration` seconds
+     */
     function slasherIn(uint48 duration) external view returns (address);
 
+    /**
+     * @notice Get a slasher (it provides networks a slashing mechanism).
+     * @return address of the slasher
+     */
     function slasher() external view returns (address);
 
     /**
@@ -170,6 +179,11 @@ interface IVault is IVaultStorage {
      */
     function onSlash(uint256 slashedAmount) external;
 
+    /**
+     * @notice Set a slasher (it provides networks a slashing mechanism).
+     * @param slasher address of the slasher
+     * @dev Only the SLASHER_SET_ROLE holder can call this function.
+     */
     function setSlasher(address slasher) external;
 
     /**
