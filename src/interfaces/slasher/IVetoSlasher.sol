@@ -92,8 +92,6 @@ interface IVetoSlasher {
 
     event SetResolver(address indexed network, address resolver, uint256 shares);
 
-    function SHARES_BASE() external view returns (uint256);
-
     function RESOLVER_SHARES_SET_ROLE() external view returns (bytes32);
 
     /**

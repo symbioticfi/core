@@ -26,11 +26,6 @@ contract VetoSlasher is Entity, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    uint256 public SHARES_BASE = 10 ** 18;
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
     bytes32 public constant RESOLVER_SHARES_SET_ROLE = keccak256("RESOLVER_SHARES_SET_ROLE");
 
     /**
@@ -274,7 +269,7 @@ contract VetoSlasher is Entity, AccessControlUpgradeable, IVetoSlasher {
         uint256 vetoedShares_ = request.vetoedShares + resolverShares_;
 
         request.vetoedShares = vetoedShares_;
-        if (vetoedShares_ == SHARES_BASE) {
+        if (vetoedShares_ == totalResolverSharesAt(request.network, request.creation)) {
             request.completed = true;
         }
 
