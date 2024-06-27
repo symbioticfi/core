@@ -182,10 +182,12 @@ interface IVaultStorage {
     function withdrawalShares(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get an amount of pending withdrawal shares for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the amount of pending withdrawal shares for the account at
-     * @param account account to get the amount of pending withdrawal shares for
-     * @return amount of pending withdrawal shares for the account at the epoch
+     * @notice Get an amount of withdrawal shares for a particular account at a given epoch (zero if claimed).
+     * @param epoch epoch to get the amount of withdrawal shares for the account at
+     * @param account account to get the amount of withdrawal shares for
+     * @return amount of withdrawal shares for the account at the epoch
      */
-    function pendingWithdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
+    function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
+
+    function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
 }

@@ -89,10 +89,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function pendingWithdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(
-            pendingWithdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]
-        );
+    function withdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
+        return
+            ERC4626Math.previewRedeem(withdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]);
     }
 
     constructor(
@@ -166,7 +165,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         withdrawals[epoch] = withdrawals_ + amount;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        pendingWithdrawalSharesOf[epoch][claimer] += mintedShares;
+        withdrawalSharesOf[epoch][claimer] += mintedShares;
 
         emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
     }
@@ -183,13 +182,17 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidEpoch();
         }
 
-        amount = pendingWithdrawalsOf(epoch, msg.sender);
+        if (isWithdrawalsClaimed[epoch][msg.sender]) {
+            revert AlreadyClaimed();
+        }
+
+        amount = withdrawalsOf(epoch, msg.sender);
 
         if (amount == 0) {
             revert InsufficientClaim();
         }
 
-        pendingWithdrawalSharesOf[epoch][msg.sender] = 0;
+        isWithdrawalsClaimed[epoch][msg.sender] = true;
 
         IERC20(collateral).safeTransfer(recipient, amount);
 

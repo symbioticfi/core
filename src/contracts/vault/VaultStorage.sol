@@ -90,7 +90,12 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(uint256 epoch => mapping(address account => uint256 amount)) public pendingWithdrawalSharesOf;
+    mapping(uint256 epoch => mapping(address account => uint256 amount)) public withdrawalSharesOf;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    mapping(uint256 epoch => mapping(address account => bool value)) public isWithdrawalsClaimed;
 
     Module internal _slasher;
 

@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
+    error AlreadyClaimed();
     error AlreadySet();
     error InsufficientClaim();
     error InsufficientDeposit();
@@ -131,12 +132,12 @@ interface IVault is IVaultStorage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get pending withdrawals for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the pending withdrawals for the account at
-     * @param account account to get the pending withdrawals for
-     * @return pending withdrawals for the account at the epoch
+     * @notice Get withdrawals for a particular account at a given epoch (zero if claimed).
+     * @param epoch epoch to get the withdrawals for the account at
+     * @param account account to get the withdrawals for
+     * @return withdrawals for the account at the epoch
      */
-    function pendingWithdrawalsOf(uint256 epoch, address account) external view returns (uint256);
+    function withdrawalsOf(uint256 epoch, address account) external view returns (uint256);
 
     /**
      * @notice Deposit collateral into the vault.
