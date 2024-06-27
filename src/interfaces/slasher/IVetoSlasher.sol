@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 interface IVetoSlasher {
+    error InvalidExecuteDuration();
     error InvalidSlashDuration();
     error InsufficientSlash();
     error NotNetwork();

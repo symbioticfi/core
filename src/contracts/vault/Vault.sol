@@ -12,7 +12,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -21,6 +21,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
+    using SafeERC20 for IERC20;
 
     modifier onlySlasher() {
         if (msg.sender != slasher()) {
@@ -106,6 +107,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function deposit(address onBehalfOf, uint256 amount) external returns (uint256 shares) {
+        if (onBehalfOf == address(0)) {
+            revert InvalidOnBehalfOf();
+        }
+
         if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
@@ -114,7 +119,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientDeposit();
         }
 
-        IERC20(collateral).transferFrom(msg.sender, address(this), amount);
+        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 activeSupply_ = activeSupply();
         uint256 activeShares_ = activeShares();
@@ -132,6 +137,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
+        if (claimer == address(0)) {
+            revert InvalidClaimer();
+        }
+
         if (amount == 0) {
             revert InsufficientWithdrawal();
         }
@@ -166,6 +175,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function claim(address recipient, uint256 epoch) external returns (uint256 amount) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }
@@ -178,7 +191,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         pendingWithdrawalSharesOf[epoch][msg.sender] = 0;
 
-        IERC20(collateral).transfer(recipient, amount);
+        IERC20(collateral).safeTransfer(recipient, amount);
 
         emit Claim(msg.sender, recipient, amount);
     }
@@ -255,6 +268,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function setDepositorWhitelistStatus(address account, bool status) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+        if (account == address(0)) {
+            revert InvalidAccount();
+        }
+
         if (isDepositorWhitelisted[account] == status) {
             revert AlreadySet();
         }

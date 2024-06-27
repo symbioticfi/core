@@ -229,6 +229,10 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     function _initializeSlasher(bytes memory data) internal override returns (address) {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
+        if (params.executeDuration == 0) {
+            revert InvalidExecuteDuration();
+        }
+
         uint48 epochDuration = IVault(params.vault).epochDuration();
         if (params.vetoDuration + params.executeDuration > epochDuration) {
             revert InvalidSlashDuration();

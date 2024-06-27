@@ -4,18 +4,21 @@ pragma solidity 0.8.25;
 import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IVaultStorage {
-    error AlreadyClaimed();
     error AlreadySet();
     error InsufficientClaim();
     error InsufficientDeposit();
     error InsufficientWithdrawal();
+    error InvalidAccount();
+    error InvalidClaimer();
+    error InvalidCollateral();
     error InvalidEpoch();
     error InvalidEpochDuration();
+    error InvalidOnBehalfOf();
+    error InvalidRecipient();
     error NoDepositWhitelist();
     error NotWhitelistedDepositor();
     error NotSlasher();
     error TooMuchWithdraw();
-    error InvalidCollateral();
     error InvalidSlasherSetEpochsDelay();
     error NotDelegator();
 
@@ -102,6 +105,7 @@ interface IVault is IVaultStorage {
      *         in `duration` seconds (if there will be no new deposits and slash executions).
      * @param duration duration to get the total amount of the slashable collateral in
      * @return total amount of the slashable collateral in `duration` seconds
+     * @dev The result can be manipulated by the withdrawals if `epochAt(Time.timestamp() + duration) > currentEpoch() + 1`.
      */
     function totalSupplyIn(uint48 duration) external view returns (uint256);
 
