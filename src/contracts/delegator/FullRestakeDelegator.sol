@@ -222,7 +222,11 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
             revert ExceedsMaxNetworkLimit();
         }
 
-        _networkLimit[network].push(IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration(), amount);
+        uint48 timestamp = amount > networkLimit(network)
+            ? Time.timestamp()
+            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+
+        _networkLimit[network].push(timestamp, amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -235,7 +239,9 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
         address operator,
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+        uint48 timestamp = amount > operatorNetworkLimit(network, operator)
+            ? Time.timestamp()
+            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
 
         _totalOperatorNetworkLimit[network].push(
             timestamp,

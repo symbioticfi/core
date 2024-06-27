@@ -225,7 +225,11 @@ contract NetworkRestakeDelegator is Entity, AccessControlUpgradeable, INetworkRe
             revert ExceedsMaxNetworkLimit();
         }
 
-        _networkLimit[network].push(IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration(), amount);
+        uint48 timestamp = amount > networkLimit(network)
+            ? Time.timestamp()
+            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+
+        _networkLimit[network].push(timestamp, amount);
 
         emit SetNetworkLimit(network, amount);
     }
