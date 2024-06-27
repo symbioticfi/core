@@ -198,7 +198,7 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function setMaxNetworkLimit(address network, uint256 amount) external {
+    function setMaxNetworkLimit(uint256 amount) external {
         if (maxNetworkLimit[msg.sender] == amount) {
             revert AlreadySet();
         }
@@ -209,9 +209,9 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
 
         maxNetworkLimit[msg.sender] = amount;
 
-        _normalizeExistingLimits(_networkLimit[network], amount);
+        _normalizeExistingLimits(_networkLimit[msg.sender], amount);
 
-        emit SetMaxNetworkLimit(network, amount);
+        emit SetMaxNetworkLimit(msg.sender, amount);
     }
 
     /**

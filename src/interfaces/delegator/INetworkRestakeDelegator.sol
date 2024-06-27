@@ -55,7 +55,7 @@ interface INetworkRestakeDelegator is IDelegator {
 
     function operatorNetworkShares(address network, address operator) external view returns (uint256);
 
-    function setMaxNetworkLimit(address network, uint256 amount) external;
+    function setMaxNetworkLimit(uint256 amount) external;
 
     function setNetworkLimit(address network, uint256 amount) external;
 
