@@ -8,7 +8,7 @@ import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewa
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IDelegator} from "src/interfaces/delegator/IDelegator.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -89,12 +89,12 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
     function _callOnSlash(address network, address operator, uint256 amount) internal virtual {
         address vault_ = vault;
 
-        IDelegator(IVault(vault_).delegator()).onSlash(network, operator, amount);
+        IBaseDelegator(IVault(vault_).delegator()).onSlash(network, operator, amount);
 
         IVault(vault_).onSlash(amount);
     }
 
-    function _initializeSlasher(bytes memory data) internal virtual returns (address);
+    function _initializeSlasher(bytes memory data) internal virtual returns (address) {}
 
     function _initialize(bytes memory data) internal override {
         address vault_ = _initializeSlasher(data);

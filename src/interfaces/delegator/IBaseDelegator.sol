@@ -1,7 +1,15 @@
-// SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface IDelegator {
+interface IBaseDelegator {
+    error AlreadySet();
+    error NotSlasher();
+    error NotNetwork();
+    error NotVault();
+
+    event SetMaxNetworkLimit(address indexed network, uint256 amount);
+
+    event OnSlash(address indexed network, address indexed operator, uint256 slashedAmount);
+
     /**
      * @notice Get a version of the delegator (different versions mean different interfaces).
      * @return version of the delegator
@@ -9,7 +17,21 @@ interface IDelegator {
      */
     function VERSION() external view returns (uint64);
 
-    event OnSlash(address indexed network, address indexed operator, uint256 slashedAmount);
+    /**
+     * @notice Get the network registry's address.
+     * @return address of the network registry
+     */
+    function NETWORK_REGISTRY() external view returns (address);
+
+    /**
+     * @notice Get the vault factory's address.
+     * @return address of the vault factory
+     */
+    function VAULT_FACTORY() external view returns (address);
+
+    function OPERATOR_VAULT_OPT_IN_SERVICE() external view returns (address);
+
+    function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
 
     /**
      * @notice Get the vault's address.
@@ -58,6 +80,8 @@ interface IDelegator {
         address operator,
         uint48 duration
     ) external view returns (uint256);
+
+    function setMaxNetworkLimit(uint256 amount) external;
 
     /**
      * @notice Slashing callback for limits decreasing.

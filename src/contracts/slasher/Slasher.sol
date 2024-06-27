@@ -5,7 +5,7 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 
 import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IDelegator} from "src/interfaces/delegator/IDelegator.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -38,7 +38,7 @@ contract Slasher is BaseSlasher, ISlasher {
             revert InsufficientSlash();
         }
 
-        amount = Math.min(amount, IDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator));
+        amount = Math.min(amount, IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator));
 
         _checkOptIns(network, operator);
 
@@ -48,7 +48,7 @@ contract Slasher is BaseSlasher, ISlasher {
     }
 
     function _initializeSlasher(bytes memory data) internal override returns (address) {
-        (ISlasher.InitParams memory params) = abi.decode(data, (ISlasher.InitParams));
+        (InitParams memory params) = abi.decode(data, (InitParams));
 
         return params.vault;
     }

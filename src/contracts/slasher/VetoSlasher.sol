@@ -6,7 +6,7 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IDelegator} from "src/interfaces/delegator/IDelegator.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -156,7 +156,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         slashedAmount = Math.min(
             request.amount,
-            IDelegator(IVault(vault).delegator()).operatorNetworkStake(request.network, request.operator)
+            IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(request.network, request.operator)
         );
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
@@ -227,7 +227,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     }
 
     function _initializeSlasher(bytes memory data) internal override returns (address) {
-        (IVetoSlasher.InitParams memory params) = abi.decode(data, (IVetoSlasher.InitParams));
+        (InitParams memory params) = abi.decode(data, (InitParams));
 
         uint48 epochDuration = IVault(params.vault).epochDuration();
         if (params.vetoDuration + params.executeDuration > epochDuration) {
