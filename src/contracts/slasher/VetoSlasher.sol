@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratableEntity} from "src/contracts/common/NonMigratableEntity.sol";
+import {Entity} from "src/contracts/common/Entity.sol";
 
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
@@ -18,7 +18,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract VetoSlasher is NonMigratableEntity, AccessControlUpgradeable, IVetoSlasher {
+contract VetoSlasher is Entity, AccessControlUpgradeable, IVetoSlasher {
     using Math for uint256;
     using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace256;

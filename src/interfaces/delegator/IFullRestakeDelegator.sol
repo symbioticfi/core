@@ -2,7 +2,7 @@ pragma solidity 0.8.25;
 
 import {IDelegator} from "./IDelegator.sol";
 
-interface IFullRestakingDelegator is IDelegator {
+interface IFullRestakeDelegator is IDelegator {
     error AlreadySet();
     error NotSlasher();
     error NotNetwork();

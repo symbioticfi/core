@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INonMigratableEntity} from "src/interfaces/common/INonMigratableEntity.sol";
+import {IEntity} from "src/interfaces/common/IEntity.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-abstract contract NonMigratableEntity is Initializable, INonMigratableEntity {
+abstract contract Entity is Initializable, IEntity {
     constructor() {
         _disableInitializers();
     }
 
     /**
-     * @inheritdoc INonMigratableEntity
+     * @inheritdoc IEntity
      */
     function initialize(bytes memory data) external initializer {
         _initialize(data);
