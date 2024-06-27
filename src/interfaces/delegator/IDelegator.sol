@@ -9,7 +9,7 @@ interface IDelegator {
      */
     function VERSION() external view returns (uint64);
 
-    event Slash(address indexed network, address indexed operator, uint256 slashedAmount);
+    event OnSlash(address indexed network, address indexed operator, uint256 slashedAmount);
 
     /**
      * @notice Get the vault's address.

@@ -76,7 +76,7 @@ interface IVault is IVaultStorage {
      * @param slasher address of the slasher
      * @param slashedAmount amount of the collateral slashed
      */
-    event Slash(address indexed slasher, uint256 slashedAmount);
+    event OnSlash(address indexed slasher, uint256 slashedAmount);
 
     event SetSlasher(address slasher);
 

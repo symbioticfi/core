@@ -4,14 +4,8 @@ pragma solidity 0.8.25;
 interface IVetoSlasher {
     error InvalidSlashDuration();
     error InsufficientSlash();
-    error NetworkNotOptedInVault();
     error NotNetwork();
-    error NotNetworkMiddleware();
-    error NotOperator();
     error NotResolver();
-    error NotVault();
-    error OperatorNotOptedInNetwork();
-    error OperatorNotOptedInVault();
     error SlashRequestCompleted();
     error SlashPeriodEnded();
     error SlashRequestNotExist();
@@ -47,16 +41,6 @@ interface IVetoSlasher {
         uint48 executeDeadline;
         uint256 vetoedShares;
         bool completed;
-        uint48 creation;
-    }
-
-    struct Resolvers {
-        address[] addresses;
-    }
-
-    struct DelayedResolvers {
-        address[] addresses;
-        uint48 timestamp;
     }
 
     /**
@@ -96,43 +80,7 @@ interface IVetoSlasher {
 
     function RESOLVER_SHARES_SET_ROLE() external view returns (bytes32);
 
-    /**
-     * @notice Get the vault factory's address.
-     * @return address of the vault factory
-     */
-    function VAULT_FACTORY() external view returns (address);
-
     function NETWORK_REGISTRY() external view returns (address);
-
-    /**
-     * @notice Get the network middleware service's address.
-     * @return address of the network middleware service
-     */
-    function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
-
-    /**
-     * @notice Get the network-vault opt-in service's address.
-     * @return address of the network-vault opt-in service
-     */
-    function NETWORK_VAULT_OPT_IN_SERVICE() external view returns (address);
-
-    /**
-     * @notice Get the operator-vault opt-in service's address.
-     * @return address of the operator-vault opt-in service
-     */
-    function OPERATOR_VAULT_OPT_IN_SERVICE() external view returns (address);
-
-    /**
-     * @notice Get the operator-network opt-in service's address.
-     * @return address of the operator-network opt-in service
-     */
-    function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
-
-    /**
-     * @notice Get the vault's address.
-     * @return address of the vault
-     */
-    function vault() external view returns (address);
 
     /**
      * @notice Get a duration during which resolvers can veto slash requests.
@@ -173,8 +121,7 @@ interface IVetoSlasher {
             uint48 vetoDeadline,
             uint48 executeDeadline,
             uint256 vetoedShares,
-            bool completed,
-            uint48 creation
+            bool completed
         );
 
     function resolversSetDelay() external view returns (uint48);

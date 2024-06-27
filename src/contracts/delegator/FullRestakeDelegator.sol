@@ -270,7 +270,7 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
             Time.timestamp(), operatorNetworkLimit(network, operator) - slashedAmount
         );
 
-        emit Slash(network, operator, slashedAmount);
+        emit OnSlash(network, operator, slashedAmount);
     }
 
     function _normalizeExistingLimits(Checkpoints.Trace256 storage _networkLimit_, uint256 maxLimit) private {

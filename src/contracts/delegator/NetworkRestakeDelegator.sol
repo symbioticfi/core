@@ -270,7 +270,7 @@ contract NetworkRestakeDelegator is Entity, AccessControlUpgradeable, INetworkRe
 
         _operatorNetworkShares[network][operator].push(Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares);
 
-        emit Slash(network, operator, slashedAmount);
+        emit OnSlash(network, operator, slashedAmount);
     }
 
     function _normalizeExistingLimits(Checkpoints.Trace256 storage _networkLimit_, uint256 maxLimit) private {

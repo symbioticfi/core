@@ -222,7 +222,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         ICollateral(collateral).issueDebt(burner, slashedAmount);
 
-        emit Slash(msg.sender, slashedAmount);
+        emit OnSlash(msg.sender, slashedAmount);
     }
 
     /**
