@@ -283,11 +283,11 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
                 _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), maxLimit));
                 _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, maxLimit));
             } else {
-                _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), maxLimit));
+                _networkLimit_.push(Time.timestamp(), Math.min(latestValue2, maxLimit));
             }
             _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, maxLimit));
         } else {
-            _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), maxLimit));
+            _networkLimit_.push(Time.timestamp(), Math.min(latestValue1, maxLimit));
         }
     }
 
