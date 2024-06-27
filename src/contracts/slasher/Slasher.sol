@@ -44,6 +44,7 @@ contract Slasher is Entity, ISlasher {
     address public vault;
 
     constructor(
+        address vaultFactory,
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
@@ -51,6 +52,7 @@ contract Slasher is Entity, ISlasher {
     ) {
         _disableInitializers();
 
+        VAULT_FACTORY = vaultFactory;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
         NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;

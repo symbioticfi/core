@@ -12,7 +12,7 @@ interface IVetoSlasher {
     error NotVault();
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();
-    error SlashCompleted();
+    error SlashRequestCompleted();
     error SlashPeriodEnded();
     error SlashRequestNotExist();
     error VetoPeriodEnded();
@@ -92,6 +92,8 @@ interface IVetoSlasher {
 
     event SetResolver(address indexed network, address resolver, uint256 shares);
 
+    function SHARES_BASE() external view returns (uint256);
+
     function RESOLVER_SHARES_SET_ROLE() external view returns (bytes32);
 
     /**
@@ -99,6 +101,8 @@ interface IVetoSlasher {
      * @return address of the vault factory
      */
     function VAULT_FACTORY() external view returns (address);
+
+    function NETWORK_REGISTRY() external view returns (address);
 
     /**
      * @notice Get the network middleware service's address.
@@ -175,10 +179,6 @@ interface IVetoSlasher {
 
     function resolversSetDelay() external view returns (uint48);
 
-    function totalResolverSharesAt(address network, uint48 timestamp) external view returns (uint256);
-
-    function totalResolverShares(address network) external view returns (uint256);
-
     function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256);
 
     function resolverShares(address network, address resolver) external view returns (uint256);
@@ -208,5 +208,5 @@ interface IVetoSlasher {
      */
     function vetoSlash(uint256 slashIndex) external;
 
-    function setResolver(address network, address resolver, uint256 shares) external;
+    function setResolverShares(address resolver, uint256 shares) external;
 }
