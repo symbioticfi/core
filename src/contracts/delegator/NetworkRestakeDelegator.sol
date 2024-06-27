@@ -184,7 +184,10 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     }
 
     function _onSlash(address network, address operator, uint256 slashedAmount) internal override {
-        _networkLimit[network].push(Time.timestamp(), networkLimit(network) - slashedAmount);
+        uint256 networkLimit_ = networkLimit(network);
+        if (networkLimit_ != type(uint256).max) {
+            _networkLimit[network].push(Time.timestamp(), networkLimit_ - slashedAmount);
+        }
 
         uint256 operatorNetworkShares_ = operatorNetworkShares(network, operator);
         uint256 operatorSlashedShares =
