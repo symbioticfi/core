@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {INonMigratablesFactory} from "src/interfaces/common/INonMigratablesFactory.sol";
+import {IFactory} from "src/interfaces/common/IFactory.sol";
 
-interface IDelegatorFactory is INonMigratablesFactory {}
+interface IDelegatorFactory is IFactory {}

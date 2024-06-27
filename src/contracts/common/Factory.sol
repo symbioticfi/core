@@ -3,14 +3,14 @@ pragma solidity 0.8.25;
 
 import {Registry} from "./Registry.sol";
 
-import {INonMigratableEntity} from "src/interfaces/common/INonMigratableEntity.sol";
-import {INonMigratablesFactory} from "src/interfaces/common/INonMigratablesFactory.sol";
+import {IEntity} from "src/interfaces/common/IEntity.sol";
+import {IFactory} from "src/interfaces/common/IFactory.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
-contract NonMigratablesFactory is Registry, Ownable, INonMigratablesFactory {
+contract Factory is Registry, Ownable, IFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Clones for address;
 
@@ -19,21 +19,21 @@ contract NonMigratablesFactory is Registry, Ownable, INonMigratablesFactory {
     constructor(address owner_) Ownable(owner_) {}
 
     /**
-     * @inheritdoc INonMigratablesFactory
+     * @inheritdoc IFactory
      */
     function totalImplementations() public view returns (uint64) {
         return uint64(_whitelistedImplementations.length());
     }
 
     /**
-     * @inheritdoc INonMigratablesFactory
+     * @inheritdoc IFactory
      */
     function implementation(uint64 index) public view returns (address) {
         return _whitelistedImplementations.at(index);
     }
 
     /**
-     * @inheritdoc INonMigratablesFactory
+     * @inheritdoc IFactory
      */
     function whitelist(address implementation_) external onlyOwner {
         if (!_whitelistedImplementations.add(implementation_)) {
@@ -42,11 +42,11 @@ contract NonMigratablesFactory is Registry, Ownable, INonMigratablesFactory {
     }
 
     /**
-     * @inheritdoc INonMigratablesFactory
+     * @inheritdoc IFactory
      */
     function create(uint64 index, bytes memory data) external returns (address entity_) {
         entity_ = implementation(index).clone();
-        INonMigratableEntity(entity_).initialize(data);
+        IEntity(entity_).initialize(data);
 
         _addEntity(entity_);
     }

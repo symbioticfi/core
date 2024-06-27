@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratablesFactory} from "src/contracts/common/NonMigratablesFactory.sol";
+import {Factory} from "src/contracts/common/Factory.sol";
 
 import {ISlasherFactory} from "src/interfaces/ISlasherFactory.sol";
 
-contract SlasherFactory is NonMigratablesFactory, ISlasherFactory {
-    constructor(address owner_) NonMigratablesFactory(owner_) {}
+contract SlasherFactory is Factory, ISlasherFactory {
+    constructor(address owner_) Factory(owner_) {}
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {NonMigratableEntity} from "src/contracts/common/NonMigratableEntity.sol";
+import {Entity} from "src/contracts/common/Entity.sol";
 
 import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
@@ -12,7 +12,7 @@ import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract Slasher is NonMigratableEntity, ISlasher {
+contract Slasher is Entity, ISlasher {
     /**
      * @inheritdoc ISlasher
      */
