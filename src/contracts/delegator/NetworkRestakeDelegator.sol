@@ -202,12 +202,12 @@ contract NetworkRestakeDelegator is Entity, AccessControlUpgradeable, INetworkRe
      * @inheritdoc INetworkRestakeDelegator
      */
     function setMaxNetworkLimit(uint256 amount) external {
-        if (maxNetworkLimit[msg.sender] == amount) {
-            revert AlreadySet();
-        }
-
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
+        }
+
+        if (maxNetworkLimit[msg.sender] == amount) {
+            revert AlreadySet();
         }
 
         maxNetworkLimit[msg.sender] = amount;

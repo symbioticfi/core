@@ -199,12 +199,12 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
      * @inheritdoc IFullRestakeDelegator
      */
     function setMaxNetworkLimit(uint256 amount) external {
-        if (maxNetworkLimit[msg.sender] == amount) {
-            revert AlreadySet();
-        }
-
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
+        }
+
+        if (maxNetworkLimit[msg.sender] == amount) {
+            revert AlreadySet();
         }
 
         maxNetworkLimit[msg.sender] = amount;
@@ -239,14 +239,19 @@ contract FullRestakeDelegator is Entity, AccessControlUpgradeable, IFullRestakeD
         address operator,
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        uint48 timestamp = amount > operatorNetworkLimit(network, operator)
-            ? Time.timestamp()
-            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+        uint48 timestamp;
+        uint256 totalOperatorNetworkLimit_;
+        if (amount > operatorNetworkLimit(network, operator)) {
+            timestamp = Time.timestamp();
+            totalOperatorNetworkLimit_ =
+                totalOperatorNetworkLimit(network) + amount - operatorNetworkLimit(network, operator);
+        } else {
+            timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+            totalOperatorNetworkLimit_ = _totalOperatorNetworkLimit[network].latest() + amount
+                - _operatorNetworkLimit[network][operator].latest();
+        }
 
-        _totalOperatorNetworkLimit[network].push(
-            timestamp,
-            _totalOperatorNetworkLimit[network].latest() + amount - _operatorNetworkLimit[network][operator].latest()
-        );
+        _totalOperatorNetworkLimit[network].push(timestamp, totalOperatorNetworkLimit_);
 
         _operatorNetworkLimit[network][operator].push(timestamp, amount);
 
