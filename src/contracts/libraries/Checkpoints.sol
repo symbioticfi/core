@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {Checkpoints as OZCheckpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @dev This library defines the `Trace*` struct, for checkpointing values as they change at different points in
@@ -66,6 +67,34 @@ library Checkpoints {
         }
 
         return upperLookupRecent(self, key);
+    }
+
+    function upperLookupRecentCheckpoint(
+        Trace208 storage self,
+        uint48 key
+    ) internal view returns (bool, uint48, uint208) {
+        uint256 len = self._trace._checkpoints.length;
+
+        uint256 low = 0;
+        uint256 high = len;
+
+        if (len > 5) {
+            uint256 mid = len - Math.sqrt(len);
+            if (key < _unsafeAccess(self._trace._checkpoints, mid)._key) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        uint256 pos = _upperBinaryLookup(self._trace._checkpoints, key, low, high);
+
+        if (pos == 0) {
+            return (false, 0, 0);
+        }
+
+        OZCheckpoints.Checkpoint208 memory checkpoint = _unsafeAccess(self._trace._checkpoints, pos - 1);
+        return (true, checkpoint._key, checkpoint._value);
     }
 
     /**
@@ -145,6 +174,34 @@ library Checkpoints {
         return upperLookupRecent(self, key);
     }
 
+    function upperLookupRecentCheckpoint(
+        Trace256 storage self,
+        uint48 key
+    ) internal view returns (bool, uint48, uint256) {
+        uint256 len = self._trace._checkpoints.length;
+
+        uint256 low = 0;
+        uint256 high = len;
+
+        if (len > 5) {
+            uint256 mid = len - Math.sqrt(len);
+            if (key < _unsafeAccess(self._trace._checkpoints, mid)._key) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        uint256 pos = _upperBinaryLookup(self._trace._checkpoints, key, low, high);
+
+        if (pos == 0) {
+            return (false, 0, 0);
+        }
+
+        OZCheckpoints.Checkpoint208 memory checkpoint = _unsafeAccess(self._trace._checkpoints, pos - 1);
+        return (true, checkpoint._key, self._values[checkpoint._value]);
+    }
+
     /**
      * @dev Returns the value in the most recent checkpoint, or zero if there are no checkpoints.
      */
@@ -181,5 +238,42 @@ library Checkpoints {
         }
         value = self._values[idx];
         self._trace._checkpoints.pop();
+    }
+    /**
+     * @dev Return the index of the last (most recent) checkpoint with key lower or equal than the search key, or `high`
+     * if there is none. `low` and `high` define a section where to do the search, with inclusive `low` and exclusive
+     * `high`.
+     *
+     * WARNING: `high` should not be greater than the array's length.
+     */
+
+    function _upperBinaryLookup(
+        OZCheckpoints.Checkpoint208[] storage self,
+        uint96 key,
+        uint256 low,
+        uint256 high
+    ) private view returns (uint256) {
+        while (low < high) {
+            uint256 mid = Math.average(low, high);
+            if (_unsafeAccess(self, mid)._key > key) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+        return high;
+    }
+
+    /**
+     * @dev Access an element of the array without performing bounds check. The position is assumed to be within bounds.
+     */
+    function _unsafeAccess(
+        OZCheckpoints.Checkpoint208[] storage self,
+        uint256 pos
+    ) private pure returns (OZCheckpoints.Checkpoint208 storage result) {
+        assembly {
+            mstore(0, self.slot)
+            result.slot := add(keccak256(0, 0x20), pos)
+        }
     }
 }
