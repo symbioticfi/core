@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

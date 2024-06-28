@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
 import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
