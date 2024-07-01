@@ -9,7 +9,6 @@ import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -210,7 +209,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     }
 
     function _initializeInternal(
-        address vault_,
+        address,
         bytes memory data
     ) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));

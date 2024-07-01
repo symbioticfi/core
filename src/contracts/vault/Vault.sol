@@ -205,14 +205,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function onSlash(uint256 slashedAmount) external onlySlasher {
         if (slashedAmount == 0) {
-            revert();
+            revert InsufficientSlash();
         }
 
         uint256 epoch = currentEpoch();
         uint256 totalSupply_ = totalSupply();
 
         if (slashedAmount > totalSupply_) {
-            revert();
+            revert TooMuchSlash();
         }
 
         uint256 activeSupply_ = activeSupply();
@@ -296,15 +296,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositorWhitelistStatus(account, status);
     }
 
-    function _initialize(uint64, address owner, bytes memory data) internal override {
+    function _initialize(uint64, address, bytes memory data) internal override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
         if (params.collateral == address(0)) {
             revert InvalidCollateral();
-        }
-
-        if (params.burner == address(0) && params.slasher != address(0)) {
-            revert();
         }
 
         if (params.slasherSetEpochsDelay < 3) {
@@ -332,7 +328,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        slasherSetEpochsDelay = (params.slasherSetEpochsDelay * params.epochDuration).toUint48();
+        slasherSetEpochsDelay = params.slasherSetEpochsDelay;
 
         _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
 

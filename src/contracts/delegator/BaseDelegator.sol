@@ -10,7 +10,6 @@ import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

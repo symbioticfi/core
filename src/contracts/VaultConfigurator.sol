@@ -6,7 +6,6 @@ import {DelegatorFactory} from "src/contracts/DelegatorFactory.sol";
 import {SlasherFactory} from "src/contracts/SlasherFactory.sol";
 import {Vault} from "src/contracts/vault/Vault.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 
 contract VaultConfigurator is IVaultConfigurator {
@@ -37,13 +36,11 @@ contract VaultConfigurator is IVaultConfigurator {
     function create(InitParams memory params) public returns (address, address, address) {
         address vault = VaultFactory(VAULT_FACTORY).create(params.version, params.owner, false, "");
 
-        if (params.vaultParams.delegator == address(0)) {
-            params.vaultParams.delegator = DelegatorFactory(DELEGATOR_FACTORY).create(
-                params.delegatorIndex, true, abi.encode(vault, params.delegatorParams)
-            );
-        }
+        params.vaultParams.delegator = DelegatorFactory(DELEGATOR_FACTORY).create(
+            params.delegatorIndex, true, abi.encode(vault, params.delegatorParams)
+        );
 
-        if (params.vaultParams.slasher == address(0) && params.withSlasher) {
+        if (params.withSlasher) {
             params.vaultParams.slasher = SlasherFactory(SLASHER_FACTORY).create(
                 params.slasherIndex, true, abi.encode(vault, params.slasherParams)
             );

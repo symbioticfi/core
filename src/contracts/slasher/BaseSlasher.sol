@@ -66,7 +66,7 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
-    function _checkOptIns(address network, address operator) internal {
+    function _checkOptIns(address network, address operator) internal view {
         address vault_ = vault;
         uint48 timestamp = IVault(vault_).currentEpoch() != 0
             ? IVault(vault_).previousEpochStart()
