@@ -161,10 +161,13 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
     function _onSlash(address network, address operator, uint256 slashedAmount) internal virtual {}
 
-    function _initializeDelegator(bytes memory data) internal virtual returns (address) {}
+    function _initializeInternal(
+        address vault_,
+        bytes memory data
+    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
 
     function _initialize(bytes memory data) internal override {
-        address vault_ = _initializeDelegator(data);
+        (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
@@ -172,6 +175,8 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         vault = vault_;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, Ownable(vault_).owner());
+        IBaseDelegator.BaseParams memory baseParams = _initializeInternal(vault_, data_);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
     }
 }

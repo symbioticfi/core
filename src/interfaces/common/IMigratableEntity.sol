@@ -2,6 +2,8 @@
 pragma solidity 0.8.25;
 
 interface IMigratableEntity {
+    error AlreadyInitialized();
+    error InvalidInitialVersion();
     error NotFactory();
 
     /**

@@ -29,8 +29,9 @@ interface IFactory is IRegistry {
     /**
      * @notice Create a new entity at the registry.
      * @param index `index`-th implementation to use
+     * @param withInitialize whether to call initialize on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint64 index, bytes memory data) external returns (address);
+    function create(uint64 index, bool withInitialize, bytes memory data) external returns (address);
 }

@@ -111,10 +111,10 @@ interface IVaultStorage {
     function previousEpochStart() external view returns (uint48);
 
     /**
-     * @notice Get a delay for a vault to update a slasher.
-     * @return updating a slasher delay
+     * @notice Get a delay for a vault in epochs to update a slasher.
+     * @return updating a slasher delay in epochs
      */
-    function slasherSetDelay() external view returns (uint48);
+    function slasherSetEpochsDelay() external view returns (uint256);
 
     /**
      * @notice Get if the deposit whitelist is enabled.

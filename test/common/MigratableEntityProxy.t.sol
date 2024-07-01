@@ -36,7 +36,7 @@ contract MigratableEntityProxyTest is Test {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, "");
+        address entity = factory.create(1, alice, true, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);

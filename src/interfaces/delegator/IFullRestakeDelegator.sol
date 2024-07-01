@@ -7,10 +7,11 @@ interface IFullRestakeDelegator is IBaseDelegator {
 
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.
-     * @param vault address of vault to configure delegations for
      */
     struct InitParams {
-        address vault;
+        IBaseDelegator.BaseParams baseParams;
+        address networkLimitSetRoleHolder;
+        address operatorNetworkLimitSetRoleHolder;
     }
 
     /**

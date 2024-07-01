@@ -257,7 +257,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         _nextSlasher.address_ = slasher_;
-        _nextSlasher.timestamp = currentEpochStart() + slasherSetDelay;
+        _nextSlasher.timestamp = (currentEpochStart() + slasherSetEpochsDelay * epochDuration).toUint48();
 
         emit SetSlasher(slasher_);
     }
@@ -325,19 +325,19 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         collateral = params.collateral;
 
-        burner = params.burner;
-
         delegator = params.delegator;
+
+        burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        slasherSetDelay = (params.slasherSetEpochsDelay * params.epochDuration).toUint48();
+        slasherSetEpochsDelay = (params.slasherSetEpochsDelay * params.epochDuration).toUint48();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
 
         if (params.slasher == address(0)) {
-            _grantRole(SLASHER_SET_ROLE, owner);
+            _grantRole(SLASHER_SET_ROLE, params.slasherSetRoleHolder);
         } else {
             _slasher.address_ = params.slasher;
         }
@@ -345,7 +345,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (params.depositWhitelist) {
             depositWhitelist = true;
 
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, owner);
+            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         }
     }
 

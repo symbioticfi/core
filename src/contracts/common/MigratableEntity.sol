@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -12,10 +13,13 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
      */
     address public immutable FACTORY;
 
-    modifier onlyFactory() {
-        if (msg.sender != FACTORY) {
-            revert NotFactory();
+    address private immutable SELF;
+
+    modifier uninitialized() {
+        if (_getInitializedVersion() != 0) {
+            revert AlreadyInitialized();
         }
+
         _;
     }
 
@@ -23,6 +27,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
         _disableInitializers();
 
         FACTORY = factory;
+        SELF = address(this);
     }
 
     /**
@@ -39,7 +44,11 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
         uint64 initialVersion,
         address owner_,
         bytes memory data
-    ) external onlyFactory reinitializer(initialVersion) {
+    ) external uninitialized reinitializer(initialVersion) {
+        if (SELF != IMigratablesFactory(FACTORY).implementation(initialVersion)) {
+            revert InvalidInitialVersion();
+        }
+
         __Ownable_init(owner_);
 
         _initialize(initialVersion, owner_, data);
@@ -48,7 +57,11 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     /**
      * @inheritdoc IMigratableEntity
      */
-    function migrate(uint64 newVersion, bytes memory data) external onlyFactory reinitializer(newVersion) {
+    function migrate(uint64 newVersion, bytes memory data) external reinitializer(newVersion) {
+        if (msg.sender != FACTORY) {
+            revert NotFactory();
+        }
+
         _migrate(newVersion, data);
     }
 

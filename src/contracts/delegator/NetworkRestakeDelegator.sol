@@ -209,13 +209,15 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         _operatorNetworkShares[network][operator].push(Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares);
     }
 
-    function _initializeDelegator(bytes memory data) internal override returns (address) {
-        (InitParams memory params) = abi.decode(data, (InitParams));
+    function _initializeInternal(
+        address vault_,
+        bytes memory data
+    ) internal override returns (IBaseDelegator.BaseParams memory) {
+        InitParams memory params = abi.decode(data, (InitParams));
 
-        address vaultOwner = Ownable(params.vault).owner();
-        _grantRole(NETWORK_LIMIT_SET_ROLE, vaultOwner);
-        _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, vaultOwner);
+        _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolder);
 
-        return params.vault;
+        return params.baseParams;
     }
 }

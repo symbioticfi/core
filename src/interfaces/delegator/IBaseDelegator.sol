@@ -6,6 +6,10 @@ interface IBaseDelegator {
     error NotNetwork();
     error NotVault();
 
+    struct BaseParams {
+        address defaultAdminRoleHolder;
+    }
+
     /**
      * @notice Emitted when a network's maximum limit is set.
      * @param network address of the network
