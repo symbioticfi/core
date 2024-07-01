@@ -48,7 +48,7 @@ contract Factory is Registry, Ownable, IFactory {
      * @inheritdoc IFactory
      */
     function create(uint64 index, bytes memory data) external returns (address entity_) {
-        entity_ = implementation(index).clone();
+        entity_ = implementation(index).cloneDeterministic(keccak256(abi.encode(totalEntities(), index, data)));
         IEntity(entity_).initialize(data);
 
         _addEntity(entity_);
