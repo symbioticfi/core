@@ -176,6 +176,7 @@ contract VaultConfiguratorTest is Test {
         slasher = Slasher(slasher_);
 
         assertEq(vault.owner(), owner_);
+        assertEq(vault.collateral(), address(collateral));
         assertEq(vault.delegator(), networkRestakeDelegator_);
         assertEq(vault.slasher(), withSlasher ? slasher_ : address(0));
         assertEq(vault.burner(), burner);

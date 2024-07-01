@@ -26,7 +26,7 @@ import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
-contract VaultConfiguratorTest is Test {
+contract DelegatorFactoryTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;

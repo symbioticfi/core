@@ -27,7 +27,7 @@ import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestake
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 
-contract VaultConfiguratorTest is Test {
+contract SlasherFactoryTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
