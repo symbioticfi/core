@@ -32,6 +32,9 @@ interface IVault is IVaultStorage {
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param slasherSetEpochsDelay delay in epochs to set a new slasher
      * @param depositWhitelist if enabling deposit whitelist
+     * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
+     * @param slasherSetRoleHolder address of the initial SLASHER_SET_ROLE holder
+     * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
      */
     struct InitParams {
         address collateral;

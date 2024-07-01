@@ -33,7 +33,7 @@ interface IMigratablesFactory is IRegistry {
     function whitelist(address implementation) external;
 
     /**
-     * @notice Create a new entity at the registry.
+     * @notice Create a new entity at the factory.
      * @param version entity's version to use
      * @param owner initial owner of the entity
      * @param withInitialize whether to call initialize on the entity

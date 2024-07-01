@@ -6,7 +6,10 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     error ExceedsMaxNetworkLimit();
 
     /**
-     * @notice Initial parameters needed for a network restaking delegator deployment.
+     * @notice Initial parameters needed for a full restaking delegator deployment.
+     * @param baseParams base parameters for delegators' deployment
+     * @param networkLimitSetRoleHolder address of the initial NETWORK_LIMIT_SET_ROLE holder
+     * @param operatorNetworkSharesSetRoleHolder address of the initial OPERATOR_NETWORK_SHARES_SET_ROLE holder
      */
     struct InitParams {
         IBaseDelegator.BaseParams baseParams;

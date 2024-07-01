@@ -27,7 +27,7 @@ interface IFactory is IRegistry {
     function whitelist(address implementation) external;
 
     /**
-     * @notice Create a new entity at the registry.
+     * @notice Create a new entity at the factory.
      * @param index `index`-th implementation to use
      * @param withInitialize whether to call initialize on the entity
      * @param data initial data for the entity creation

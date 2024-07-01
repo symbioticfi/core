@@ -6,6 +6,10 @@ interface IBaseDelegator {
     error NotNetwork();
     error NotVault();
 
+    /**
+     * @notice Base parameters needed for delegators' deployment.
+     * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
+     */
     struct BaseParams {
         address defaultAdminRoleHolder;
     }
