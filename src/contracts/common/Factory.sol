@@ -36,6 +36,9 @@ contract Factory is Registry, Ownable, IFactory {
      * @inheritdoc IFactory
      */
     function whitelist(address implementation_) external onlyOwner {
+        if (IEntity(implementation_).FACTORY() != address(this)) {
+            revert InvalidImplementation();
+        }
         if (!_whitelistedImplementations.add(implementation_)) {
             revert AlreadyWhitelisted();
         }

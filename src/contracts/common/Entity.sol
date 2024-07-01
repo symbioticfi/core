@@ -6,8 +6,15 @@ import {IEntity} from "src/interfaces/common/IEntity.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 abstract contract Entity is Initializable, IEntity {
-    constructor() {
+    /**
+     * @inheritdoc IEntity
+     */
+    address public immutable FACTORY;
+
+    constructor(address factory) {
         _disableInitializers();
+
+        FACTORY = factory;
     }
 
     /**

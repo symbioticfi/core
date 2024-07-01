@@ -15,14 +15,16 @@ contract Slasher is BaseSlasher, ISlasher {
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
-        address operatorNetworkOptInService
+        address operatorNetworkOptInService,
+        address slasherFactory
     )
         BaseSlasher(
             vaultFactory,
             networkMiddlewareService,
             networkVaultOptInService,
             operatorVaultOptInService,
-            operatorNetworkOptInService
+            operatorNetworkOptInService,
+            slasherFactory
         )
     {}
 

@@ -37,8 +37,17 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address networkRegistry,
         address vaultFactory,
         address operatorVaultOptInService,
-        address operatorNetworkOptInService
-    ) BaseDelegator(networkRegistry, vaultFactory, operatorVaultOptInService, operatorNetworkOptInService) {}
+        address operatorNetworkOptInService,
+        address delegatorFactory
+    )
+        BaseDelegator(
+            networkRegistry,
+            vaultFactory,
+            operatorVaultOptInService,
+            operatorNetworkOptInService,
+            delegatorFactory
+        )
+    {}
 
     /**
      * @inheritdoc INetworkRestakeDelegator

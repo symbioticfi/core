@@ -101,9 +101,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         address delegatorFactory,
         address slasherFactory,
         address vaultFactory
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
-        _disableInitializers();
-    }
+    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
 
     /**
      * @inheritdoc IVault

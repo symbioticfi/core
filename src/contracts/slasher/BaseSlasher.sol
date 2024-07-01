@@ -56,10 +56,9 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
         address networkMiddlewareService,
         address networkVaultOptInService,
         address operatorVaultOptInService,
-        address operatorNetworkOptInService
-    ) {
-        _disableInitializers();
-
+        address operatorNetworkOptInService,
+        address slasherFactory
+    ) Entity(slasherFactory) {
         VAULT_FACTORY = vaultFactory;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
         NETWORK_VAULT_OPT_IN_SERVICE = networkVaultOptInService;

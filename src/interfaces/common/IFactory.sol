@@ -5,6 +5,7 @@ import {IRegistry} from "./IRegistry.sol";
 
 interface IFactory is IRegistry {
     error AlreadyWhitelisted();
+    error InvalidImplementation();
 
     /**
      * @notice Get the total number of whitelisted implementations.

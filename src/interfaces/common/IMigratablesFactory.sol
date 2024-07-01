@@ -5,6 +5,7 @@ import {IRegistry} from "./IRegistry.sol";
 
 interface IMigratablesFactory is IRegistry {
     error AlreadyWhitelisted();
+    error InvalidImplementation();
     error InvalidVersion();
     error NotOwner();
     error OldVersion();
