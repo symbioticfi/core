@@ -12,8 +12,13 @@ import {MetadataService} from "src/contracts/service/MetadataService.sol";
 import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "src/contracts/service/OptInService.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
 import {Vault} from "src/contracts/vault/Vault.sol";
+import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
+import {Slasher} from "src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
+
+import {IVault} from "src/interfaces/vault/IVault.sol";
 import {SimpleCollateral} from "./mocks/SimpleCollateral.sol";
 import {Token} from "./mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
@@ -21,12 +26,7 @@ import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
-import {IEntity} from "src/interfaces/common/IEntity.sol";
-
-import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
-
-contract DelegatorFactoryTest is Test {
+contract VaultConfiguratorTest is Test {
     address owner;
     address alice;
     uint256 alicePrivateKey;
@@ -45,7 +45,6 @@ contract DelegatorFactoryTest is Test {
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
-    Vault vault;
     SimpleCollateral collateral;
     VaultConfigurator vaultConfigurator;
 
@@ -70,16 +69,6 @@ contract DelegatorFactoryTest is Test {
             address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImpl);
 
-        Token token = new Token("Token");
-        collateral = new SimpleCollateral(address(token));
-
-        collateral.mint(token.totalSupply());
-
-        vaultConfigurator =
-            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
-    }
-
-    function test_Create() public {
         address networkRestakeDelegatorImpl = address(
             new NetworkRestakeDelegator(
                 address(networkRegistry),
@@ -102,7 +91,42 @@ contract DelegatorFactoryTest is Test {
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
 
-        (address vault_, address delegator, address slasher) = vaultConfigurator.create(
+        address slasherImpl = address(
+            new Slasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkVaultOptInService),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(slasherFactory)
+            )
+        );
+        slasherFactory.whitelist(slasherImpl);
+
+        address vetoSlasherImpl = address(
+            new VetoSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkVaultOptInService),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(networkRegistry),
+                address(slasherFactory)
+            )
+        );
+        slasherFactory.whitelist(vetoSlasherImpl);
+
+        Token token = new Token("Token");
+        collateral = new SimpleCollateral(address(token));
+
+        collateral.mint(token.totalSupply());
+
+        vaultConfigurator =
+            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+    }
+
+    function test_Create() public {
+        (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: alice,
@@ -132,13 +156,11 @@ contract DelegatorFactoryTest is Test {
             })
         );
 
-        vault = Vault(vault_);
-
         address networkRestakeDelegator = delegatorFactory.create(
             0,
             true,
             abi.encode(
-                address(vault),
+                vault_,
                 abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
@@ -148,13 +170,14 @@ contract DelegatorFactoryTest is Test {
                 )
             )
         );
-        assertEq(IEntity(networkRestakeDelegator).FACTORY(), address(delegatorFactory));
+        assertEq(NetworkRestakeDelegator(networkRestakeDelegator).FACTORY(), address(delegatorFactory));
+        assertEq(delegatorFactory.isEntity(networkRestakeDelegator), true);
 
         address fullRestakeDelegator = delegatorFactory.create(
             1,
             true,
             abi.encode(
-                address(vault),
+                vault_,
                 abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
@@ -164,6 +187,7 @@ contract DelegatorFactoryTest is Test {
                 )
             )
         );
-        assertEq(IEntity(fullRestakeDelegatorImpl).FACTORY(), address(delegatorFactory));
+        assertEq(FullRestakeDelegator(fullRestakeDelegator).FACTORY(), address(delegatorFactory));
+        assertEq(delegatorFactory.isEntity(fullRestakeDelegator), true);
     }
 }
