@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
-import {MigratablesFactory} from "src/contracts/base/MigratablesFactory.sol";
+import {MigratablesFactory} from "src/contracts/common/MigratablesFactory.sol";
 
 import {IVaultFactory} from "src/interfaces/IVaultFactory.sol";
 

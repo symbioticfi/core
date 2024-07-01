@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
-import {Registry} from "./base/Registry.sol";
+import {Registry} from "./common/Registry.sol";
 
 import {INetworkRegistry} from "src/interfaces/INetworkRegistry.sol";
 
