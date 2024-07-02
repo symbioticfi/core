@@ -119,7 +119,10 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address operator,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(networkStakeIn(network, duration), operatorNetworkLimitIn(network, operator, duration));
+        return Math.min(
+            IVault(vault).totalSupplyIn(duration),
+            Math.min(networkLimitIn(network, duration), operatorNetworkLimitIn(network, operator, duration))
+        );
     }
 
     /**
@@ -129,7 +132,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address network,
         address operator
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(networkStake(network), operatorNetworkLimit(network, operator));
+        return Math.min(
+            IVault(vault).totalSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
+        );
     }
 
     /**
@@ -162,11 +167,11 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         if (amount > operatorNetworkLimit(network, operator)) {
             timestamp = Time.timestamp();
             totalOperatorNetworkLimit_ =
-                totalOperatorNetworkLimit(network) + amount - operatorNetworkLimit(network, operator);
+                totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount;
         } else {
             timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
-            totalOperatorNetworkLimit_ = _totalOperatorNetworkLimit[network].latest() + amount
-                - _operatorNetworkLimit[network][operator].latest();
+            totalOperatorNetworkLimit_ = _totalOperatorNetworkLimit[network].latest()
+                - _operatorNetworkLimit[network][operator].latest() + amount;
         }
 
         _insertCheckpoint(_totalOperatorNetworkLimit[network], timestamp, totalOperatorNetworkLimit_);

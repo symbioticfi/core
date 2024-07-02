@@ -112,11 +112,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         uint48 delta = nextEpochStart - Time.timestamp();
         if (Time.timestamp() + duration >= nextEpochStart) {
             minOperatorNetworkStakeDuring_ =
-                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(operator, network, delta));
+                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta));
         }
         if (Time.timestamp() + duration >= nextEpochStart + epochDuration) {
             minOperatorNetworkStakeDuring_ = Math.min(
-                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(operator, network, delta + epochDuration)
+                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta + epochDuration)
             );
         }
     }

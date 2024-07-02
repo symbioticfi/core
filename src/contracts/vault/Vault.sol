@@ -223,11 +223,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (activeSupply_ < activeSlashed) {
             withdrawalsSlashed += activeSlashed - activeSupply_;
             activeSlashed = activeSupply_;
-
-            if (withdrawals_ < withdrawalsSlashed) {
-                nextWithdrawalsSlashed += withdrawalsSlashed - withdrawals_;
-                withdrawalsSlashed = withdrawals_;
-            }
         }
 
         _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);

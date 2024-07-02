@@ -101,6 +101,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address network,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+        if (totalOperatorNetworkSharesIn(network, duration) == 0) {
+            return 0;
+        }
         return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitIn(network, duration));
     }
 
@@ -108,6 +111,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
      * @inheritdoc IBaseDelegator
      */
     function networkStake(address network) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+        if (totalOperatorNetworkShares(network) == 0) {
+            return 0;
+        }
         return Math.min(IVault(vault).totalSupply(), networkLimit(network));
     }
 
@@ -171,7 +177,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
 
         _totalOperatorNetworkShares[network].push(
             timestamp,
-            _totalOperatorNetworkShares[network].latest() + shares - _operatorNetworkShares[network][operator].latest()
+            _totalOperatorNetworkShares[network].latest() - _operatorNetworkShares[network][operator].latest() + shares
         );
 
         _operatorNetworkShares[network][operator].push(timestamp, shares);
