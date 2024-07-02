@@ -144,7 +144,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             ? Time.timestamp()
             : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
 
-        _networkLimit[network].push(timestamp, amount);
+        _insertCheckpoint(_networkLimit[network], timestamp, amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -169,9 +169,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
                 - _operatorNetworkLimit[network][operator].latest();
         }
 
-        _totalOperatorNetworkLimit[network].push(timestamp, totalOperatorNetworkLimit_);
+        _insertCheckpoint(_totalOperatorNetworkLimit[network], timestamp, totalOperatorNetworkLimit_);
 
-        _operatorNetworkLimit[network][operator].push(timestamp, amount);
+        _insertCheckpoint(_operatorNetworkLimit[network][operator], timestamp, amount);
 
         emit SetOperatorNetworkLimit(network, operator, amount);
     }

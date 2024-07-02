@@ -154,7 +154,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             ? Time.timestamp()
             : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
 
-        _networkLimit[network].push(timestamp, amount);
+        _insertCheckpoint(_networkLimit[network], timestamp, amount);
 
         emit SetNetworkLimit(network, amount);
     }

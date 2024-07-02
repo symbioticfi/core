@@ -214,6 +214,50 @@ contract NetworkRestakeDelegatorTest is Test {
         vm.stopPrank();
     }
 
+    function test_SetMaxNetworkLimit(uint48 epochDuration, uint256 maxNetworkLimit1, uint256 maxNetworkLimit2) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        maxNetworkLimit1 = bound(maxNetworkLimit1, 1, type(uint256).max);
+        vm.assume(maxNetworkLimit1 != maxNetworkLimit2);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        _registerNetwork(alice, alice);
+
+        _setMaxNetworkLimit(alice, maxNetworkLimit1);
+
+        assertEq(delegator.maxNetworkLimit(alice), maxNetworkLimit1);
+
+        _setMaxNetworkLimit(alice, maxNetworkLimit2);
+
+        assertEq(delegator.maxNetworkLimit(alice), maxNetworkLimit2);
+    }
+
+    function test_SetMaxNetworkLimitRevertNotNetwork(uint48 epochDuration, uint256 maxNetworkLimit) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        _registerNetwork(alice, alice);
+
+        vm.expectRevert(IBaseDelegator.NotNetwork.selector);
+        _setMaxNetworkLimit(bob, maxNetworkLimit);
+    }
+
+    function test_SetMaxNetworkLimitRevertAlreadySet(uint48 epochDuration, uint256 maxNetworkLimit) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        _registerNetwork(alice, alice);
+
+        _setMaxNetworkLimit(alice, maxNetworkLimit);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setMaxNetworkLimit(alice, maxNetworkLimit);
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
@@ -366,6 +410,12 @@ contract NetworkRestakeDelegatorTest is Test {
     function _slash(address user, address network, address operator, uint256 amount) internal {
         vm.startPrank(user);
         slasher.slash(network, operator, amount);
+        vm.stopPrank();
+    }
+
+    function _setMaxNetworkLimit(address user, uint256 amount) internal {
+        vm.startPrank(user);
+        delegator.setMaxNetworkLimit(amount);
         vm.stopPrank();
     }
 }
