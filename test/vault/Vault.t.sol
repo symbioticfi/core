@@ -1172,9 +1172,9 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _setSlasher(address user, address slasher) internal {
+    function _setSlasher(address user, address slasher_) internal {
         vm.startPrank(user);
-        vault.setSlasher(slasher);
+        vault.setSlasher(slasher_);
         vm.stopPrank();
     }
 }
