@@ -181,6 +181,28 @@ contract NetworkRestakeDelegatorTest is Test {
         );
     }
 
+    function test_CreateRevertMissingRoleHolders(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(INetworkRestakeDelegator.MissingRoleHolders.selector);
+        delegatorFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: address(0)}),
+                        networkLimitSetRoleHolder: address(0),
+                        operatorNetworkSharesSetRoleHolder: bob
+                    })
+                )
+            )
+        );
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({

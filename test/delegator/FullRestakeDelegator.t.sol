@@ -181,6 +181,28 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
+    function test_CreateRevertMissingRoleHolders(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IFullRestakeDelegator.MissingRoleHolders.selector);
+        delegatorFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IFullRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: address(0)}),
+                        networkLimitSetRoleHolder: address(0),
+                        operatorNetworkLimitSetRoleHolder: bob
+                    })
+                )
+            )
+        );
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({

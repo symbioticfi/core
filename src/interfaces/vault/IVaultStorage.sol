@@ -179,11 +179,12 @@ interface IVaultStorage {
      * @return if the checkpoint exists
      * @return timestamp time point of the checkpoint
      * @return amount of active shares at the checkpoint
+     * @return index of the checkpoint
      */
     function activeSharesOfCheckpointAt(
         address account,
         uint48 timestamp
-    ) external view returns (bool, uint48, uint256);
+    ) external view returns (bool, uint48, uint256, uint256);
 
     /**
      * @notice Get an amount of active shares for a particular account.

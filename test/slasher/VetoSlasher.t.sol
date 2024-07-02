@@ -162,8 +162,17 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.resolverShares(address(this), address(this)), 0);
     }
 
-    function test_CreateRevertNotVault(uint48 epochDuration) public {
+    function test_CreateRevertNotVault(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 resolverSetEpochsDelay
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        resolverSetEpochsDelay = bound(resolverSetEpochsDelay, 3, type(uint256).max);
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
 
         (vault,) = _getVaultAndDelegator(epochDuration);
 
@@ -173,7 +182,105 @@ contract VetoSlasherTest is Test {
             true,
             abi.encode(
                 address(1),
-                abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, executeDuration: 1, resolverSetEpochsDelay: 3}))
+                abi.encode(
+                    IVetoSlasher.InitParams({
+                        vetoDuration: vetoDuration,
+                        executeDuration: executeDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertInvalidExecuteDuration(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint256 resolverSetEpochsDelay
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        uint48 executeDuration = 0;
+        resolverSetEpochsDelay = bound(resolverSetEpochsDelay, 3, type(uint256).max);
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault,) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IVetoSlasher.InvalidExecuteDuration.selector);
+        slasherFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IVetoSlasher.InitParams({
+                        vetoDuration: vetoDuration,
+                        executeDuration: executeDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertInvalidSlashDuration(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 resolverSetEpochsDelay
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        resolverSetEpochsDelay = bound(resolverSetEpochsDelay, 3, type(uint256).max);
+        vm.assume(vetoDuration + executeDuration > epochDuration);
+
+        (vault,) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IVetoSlasher.InvalidSlashDuration.selector);
+        slasherFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IVetoSlasher.InitParams({
+                        vetoDuration: vetoDuration,
+                        executeDuration: executeDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertInvalidResolverSetEpochsDelay(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 resolverSetEpochsDelay
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        resolverSetEpochsDelay = bound(resolverSetEpochsDelay, 0, 2);
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault,) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IVetoSlasher.InvalidResolverSetEpochsDelay.selector);
+        slasherFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IVetoSlasher.InitParams({
+                        vetoDuration: vetoDuration,
+                        executeDuration: executeDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
+                )
             )
         );
     }
