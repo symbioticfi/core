@@ -214,8 +214,22 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     ) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 
-        _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
-        _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolder);
+        if (
+            params.baseParams.defaultAdminRoleHolder == address(0)
+                && (
+                    params.networkLimitSetRoleHolder == address(0)
+                        || params.operatorNetworkSharesSetRoleHolder == address(0)
+                )
+        ) {
+            revert MissingRoleHolders();
+        }
+
+        if (params.networkLimitSetRoleHolder != address(0)) {
+            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        }
+        if (params.operatorNetworkSharesSetRoleHolder != address(0)) {
+            _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolder);
+        }
 
         return params.baseParams;
     }

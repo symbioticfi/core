@@ -214,8 +214,21 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     ) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 
-        _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolder);
+        if (
+            params.baseParams.defaultAdminRoleHolder == address(0)
+                && (
+                    params.networkLimitSetRoleHolder == address(0) || params.operatorNetworkLimitSetRoleHolder == address(0)
+                )
+        ) {
+            revert MissingRoleHolders();
+        }
+
+        if (params.networkLimitSetRoleHolder != address(0)) {
+            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        }
+        if (params.operatorNetworkLimitSetRoleHolder != address(0)) {
+            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolder);
+        }
 
         return params.baseParams;
     }

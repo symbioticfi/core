@@ -246,7 +246,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function setSlasher(address slasher_) external onlyRole(SLASHER_SET_ROLE) {
-        if (!IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
+        if (slasher_ != address(0) && !IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
             revert NotSlasher();
         }
 
@@ -330,10 +330,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         slasherSetEpochsDelay = params.slasherSetEpochsDelay;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        if (params.defaultAdminRoleHolder != address(0)) {
+            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        }
 
         if (params.slasher == address(0)) {
-            _grantRole(SLASHER_SET_ROLE, params.slasherSetRoleHolder);
+            if (params.slasherSetRoleHolder != address(0)) {
+                _grantRole(SLASHER_SET_ROLE, params.slasherSetRoleHolder);
+            }
         } else {
             _slasher.address_ = params.slasher;
         }
@@ -341,7 +345,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (params.depositWhitelist) {
             depositWhitelist = true;
 
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
+            if (params.depositorWhitelistRoleHolder != address(0)) {
+                _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
+            }
         }
     }
 

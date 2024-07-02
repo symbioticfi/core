@@ -176,6 +176,8 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         IBaseDelegator.BaseParams memory baseParams = _initializeInternal(vault_, data_);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
+        if (baseParams.defaultAdminRoleHolder != address(0)) {
+            _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
+        }
     }
 }

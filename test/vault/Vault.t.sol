@@ -182,6 +182,7 @@ contract VaultTest is Test {
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.delegator(), delegator_);
         assertEq(vault.slasher(), address(0));
+        assertEq(vault.slasherIn(0), address(0));
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.slasherSetEpochsDelay(), slasherSetEpochsDelay);
@@ -246,6 +247,190 @@ contract VaultTest is Test {
         assertEq(vault.currentEpoch(), 1);
         assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
         assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
+    }
+
+    function test_CreateRevertInvalidEpochDuration(uint256 slasherSetEpochsDelay) public {
+        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 3, 50);
+        uint48 epochDuration = 0;
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vm.expectRevert(IVault.InvalidEpochDuration.selector);
+        vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: lastVersion,
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: slasherSetEpochsDelay,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkSharesSetRoleHolder: alice
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+    }
+
+    function test_CreateRevertInvalidCollateral(uint48 epochDuration, uint256 slasherSetEpochsDelay) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 3, 50);
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vm.expectRevert(IVault.InvalidCollateral.selector);
+        vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: lastVersion,
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(0),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: slasherSetEpochsDelay,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkSharesSetRoleHolder: alice
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+    }
+
+    function test_CreateRevertInvalidSlasherSetEpochsDelay(
+        uint48 epochDuration,
+        uint256 slasherSetEpochsDelay
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 0, 2);
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vm.expectRevert(IVault.InvalidSlasherSetEpochsDelay.selector);
+        vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: lastVersion,
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: slasherSetEpochsDelay,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkSharesSetRoleHolder: alice
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+    }
+
+    function test_CreateRevertNotDelegator(uint48 epochDuration, uint256 slasherSetEpochsDelay) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 3, 50);
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vm.expectRevert(IVault.NotDelegator.selector);
+        vaultFactory.create(
+            lastVersion,
+            alice,
+            true,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: slasherSetEpochsDelay,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                })
+            )
+        );
+    }
+
+    function test_CreateRevertNotSlasher(uint48 epochDuration, uint256 slasherSetEpochsDelay) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 3, 50);
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
+
+        address delegator = delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkSharesSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.NotSlasher.selector);
+        vault.initialize(
+            lastVersion,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator,
+                    slasher: address(1),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: slasherSetEpochsDelay,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                })
+            )
+        );
     }
 
     function test_DepositTwice(uint256 amount1, uint256 amount2) public {
@@ -358,9 +543,8 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
         assertEq(vault.activeSharesOf(alice), shares1);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue) =
+        (, uint48 checkpointKey, uint256 checkpointValue) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
         assertEq(checkpointKey, blockTimestamp - 1);
         assertEq(checkpointValue, shares1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
@@ -369,14 +553,24 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp)), shares2);
         assertEq(vault.activeSharesOf(bob), shares2);
-        (checkpointExists, checkpointKey, checkpointValue) =
-            vault.activeSharesOfCheckpointAt(bob, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
+        (, checkpointKey, checkpointValue) = vault.activeSharesOfCheckpointAt(bob, uint48(blockTimestamp));
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares2);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp)), amount2);
         assertEq(vault.activeBalanceOf(bob), amount2);
+    }
+
+    function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.InvalidOnBehalfOf.selector);
+        vault.deposit(address(0), amount1);
+        vm.stopPrank();
     }
 
     function test_DepositRevertInsufficientDeposit() public {
@@ -426,9 +620,8 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
         assertEq(vault.activeSharesOf(alice), shares - burnedShares);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue) =
+        (, uint48 checkpointKey, uint256 checkpointValue) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares - burnedShares);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
@@ -468,9 +661,7 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
         assertEq(vault.activeSharesOf(alice), shares - burnedShares);
-        (checkpointExists, checkpointKey, checkpointValue) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
+        (, checkpointKey, checkpointValue) = vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares - burnedShares);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1 - amount2);
@@ -506,6 +697,20 @@ contract VaultTest is Test {
         assertEq(vault.totalSupplyIn(1), amount1 - amount2 - amount3);
         assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
         assertEq(vault.totalSupply(), amount1 - amount2 - amount3);
+    }
+
+    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        vm.expectRevert(IVault.InvalidClaimer.selector);
+        vm.startPrank(alice);
+        vault.withdraw(address(0), amount1);
+        vm.stopPrank();
     }
 
     function test_WithdrawRevertInsufficientWithdrawal(uint256 amount1) public {
@@ -559,6 +764,33 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2);
 
         assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
+    }
+
+    function test_ClaimRevertInvalidRecipient(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        vm.startPrank(alice);
+        uint256 currentEpoch = vault.currentEpoch();
+        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vault.claim(address(0), currentEpoch - 1);
+        vm.stopPrank();
     }
 
     function test_ClaimRevertInvalidEpoch(uint256 amount1, uint256 amount2) public {
@@ -638,42 +870,6 @@ contract VaultTest is Test {
         _claim(alice, currentEpoch - 2);
     }
 
-    function test_CreateRevertInvalidEpochDuration() public {
-        uint48 epochDuration = 0;
-
-        uint64 lastVersion = vaultFactory.lastVersion();
-        vm.expectRevert(IVault.InvalidEpochDuration.selector);
-        vaultConfigurator.create(
-            IVaultConfigurator.InitParams({
-                version: lastVersion,
-                owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    slasherSetEpochsDelay: 3,
-                    depositWhitelist: false,
-                    defaultAdminRoleHolder: alice,
-                    slasherSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
-                }),
-                delegatorIndex: 0,
-                delegatorParams: abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
-                    })
-                ),
-                withSlasher: false,
-                slasherIndex: 0,
-                slasherParams: ""
-            })
-        );
-    }
-
     function test_SetDepositWhitelist() public {
         uint48 epochDuration = 1;
 
@@ -735,6 +931,20 @@ contract VaultTest is Test {
         _deposit(bob, 1);
     }
 
+    function test_SetDepositorWhitelistStatusRevertInvalidAccount() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        _grantDepositWhitelistSetRole(alice, alice);
+        _setDepositWhitelist(alice, true);
+
+        _grantDepositorWhitelistRole(alice, alice);
+
+        vm.expectRevert(IVault.InvalidAccount.selector);
+        _setDepositorWhitelistStatus(alice, address(0), true);
+    }
+
     function test_SetDepositorWhitelistStatusRevertNoDepositWhitelist() public {
         uint48 epochDuration = 1;
 
@@ -760,6 +970,79 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.AlreadySet.selector);
         _setDepositorWhitelistStatus(alice, bob, true);
+    }
+
+    function test_SetSlasher() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        address slasher = slasherFactory.create(0, true, abi.encode(address(vault), ""));
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        _setSlasher(alice, slasher);
+        assertEq(vault.slasher(), address(0));
+        assertEq(vault.slasherIn(0), address(0));
+        assertEq(vault.slasherIn(1), address(0));
+        assertEq(vault.slasherIn(2), address(0));
+        assertEq(vault.slasherIn(3), slasher);
+        assertEq(vault.slasherIn(4), slasher);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.slasher(), address(0));
+        assertEq(vault.slasherIn(0), address(0));
+        assertEq(vault.slasherIn(1), address(0));
+        assertEq(vault.slasherIn(2), slasher);
+        assertEq(vault.slasherIn(3), slasher);
+        assertEq(vault.slasherIn(4), slasher);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.slasher(), slasher);
+        assertEq(vault.slasherIn(0), slasher);
+        assertEq(vault.slasherIn(1), slasher);
+        assertEq(vault.slasherIn(2), slasher);
+        assertEq(vault.slasherIn(3), slasher);
+        assertEq(vault.slasherIn(4), slasher);
+
+        _setSlasher(alice, address(0));
+        assertEq(vault.slasher(), slasher);
+        assertEq(vault.slasherIn(0), slasher);
+        assertEq(vault.slasherIn(1), slasher);
+        assertEq(vault.slasherIn(2), slasher);
+        assertEq(vault.slasherIn(3), address(0));
+        assertEq(vault.slasherIn(4), address(0));
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.slasher(), slasher);
+        assertEq(vault.slasherIn(0), slasher);
+        assertEq(vault.slasherIn(1), address(0));
+        assertEq(vault.slasherIn(2), address(0));
+        assertEq(vault.slasherIn(3), address(0));
+        assertEq(vault.slasherIn(4), address(0));
+
+        _setSlasher(alice, slasher);
+        assertEq(vault.slasher(), slasher);
+        assertEq(vault.slasherIn(0), slasher);
+        assertEq(vault.slasherIn(1), slasher);
+        assertEq(vault.slasherIn(2), slasher);
+        assertEq(vault.slasherIn(3), slasher);
+        assertEq(vault.slasherIn(4), slasher);
+    }
+
+    function test_SetSlasherRevertNotSlasher() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        vm.expectRevert(IVault.NotSlasher.selector);
+        _setSlasher(alice, address(1));
     }
 
     function _getVault(uint48 epochDuration) internal returns (Vault) {
@@ -886,6 +1169,12 @@ contract VaultTest is Test {
     function _setDepositorWhitelistStatus(address user, address depositor, bool status) internal {
         vm.startPrank(user);
         vault.setDepositorWhitelistStatus(depositor, status);
+        vm.stopPrank();
+    }
+
+    function _setSlasher(address user, address slasher) internal {
+        vm.startPrank(user);
+        vault.setSlasher(slasher);
         vm.stopPrank();
     }
 }
