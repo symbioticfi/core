@@ -45,7 +45,7 @@ contract FactoryTest is Test {
         assertEq(factory.implementation(1), impl);
 
         assertEq(factory.isEntity(alice), false);
-        address entity = factory.create(1, "");
+        address entity = factory.create(1, true, "");
         assertEq(factory.isEntity(entity), true);
     }
 
@@ -57,10 +57,10 @@ contract FactoryTest is Test {
         factory.whitelist(impl);
 
         vm.expectRevert();
-        factory.create(2, "");
+        factory.create(2, true, "");
 
         vm.expectRevert();
-        factory.create(3, "");
+        factory.create(3, true, "");
     }
 
     function test_WhitelistRevertInvalidImplementation() public {

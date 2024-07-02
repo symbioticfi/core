@@ -66,7 +66,7 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
-    function _checkOptIns(address network, address operator) internal {
+    function _checkOptIns(address network, address operator) internal view {
         address vault_ = vault;
         uint48 timestamp = IVault(vault_).currentEpoch() != 0
             ? IVault(vault_).previousEpochStart()
@@ -93,15 +93,17 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
         IVault(vault_).onSlash(amount);
     }
 
-    function _initializeSlasher(bytes memory data) internal virtual returns (address) {}
+    function _initializeInternal(address vault_, bytes memory data) internal virtual {}
 
     function _initialize(bytes memory data) internal override {
-        address vault_ = _initializeSlasher(data);
+        (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
 
         vault = vault_;
+
+        _initializeInternal(vault_, data_);
     }
 }

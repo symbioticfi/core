@@ -9,7 +9,6 @@ import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -209,13 +208,28 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         );
     }
 
-    function _initializeDelegator(bytes memory data) internal override returns (address) {
-        (InitParams memory params) = abi.decode(data, (InitParams));
+    function _initializeInternal(
+        address,
+        bytes memory data
+    ) internal override returns (IBaseDelegator.BaseParams memory) {
+        InitParams memory params = abi.decode(data, (InitParams));
 
-        address vaultOwner = Ownable(params.vault).owner();
-        _grantRole(NETWORK_LIMIT_SET_ROLE, vaultOwner);
-        _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, vaultOwner);
+        if (
+            params.baseParams.defaultAdminRoleHolder == address(0)
+                && (
+                    params.networkLimitSetRoleHolder == address(0) || params.operatorNetworkLimitSetRoleHolder == address(0)
+                )
+        ) {
+            revert MissingRoleHolders();
+        }
 
-        return params.vault;
+        if (params.networkLimitSetRoleHolder != address(0)) {
+            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        }
+        if (params.operatorNetworkLimitSetRoleHolder != address(0)) {
+            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolder);
+        }
+
+        return params.baseParams;
     }
 }

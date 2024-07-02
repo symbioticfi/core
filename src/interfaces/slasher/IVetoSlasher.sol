@@ -20,13 +20,11 @@ interface IVetoSlasher {
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
-     * @param vault address of vault to perform slashings on
      * @param vetoDuration duration of the veto period for a slash request
      * @param executeDuration duration of the slash period for a slash request (after the veto duration has passed)
      * @param resolverSetEpochsDelay delay in epochs for a network to update resolvers' shares
      */
     struct InitParams {
-        address vault;
         uint48 vetoDuration;
         uint48 executeDuration;
         uint256 resolverSetEpochsDelay;
@@ -153,10 +151,10 @@ interface IVetoSlasher {
         );
 
     /**
-     * @notice Get a delay for networks to update resolvers' shares.
-     * @return updating resolvers' shares delay
+     * @notice Get a delay for networks in epochs to update resolvers' shares.
+     * @return updating resolvers' shares delay in epochs
      */
-    function resolverSetDelay() external view returns (uint48);
+    function resolverSetEpochsDelay() external view returns (uint256);
 
     /**
      * @notice Get a resolver's shares at a particular timestamp.

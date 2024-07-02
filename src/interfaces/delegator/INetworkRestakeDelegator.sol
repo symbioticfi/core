@@ -4,13 +4,18 @@ import {IBaseDelegator} from "./IBaseDelegator.sol";
 
 interface INetworkRestakeDelegator is IBaseDelegator {
     error ExceedsMaxNetworkLimit();
+    error MissingRoleHolders();
 
     /**
-     * @notice Initial parameters needed for a network restaking delegator deployment.
-     * @param vault address of vault to configure delegations for
+     * @notice Initial parameters needed for a full restaking delegator deployment.
+     * @param baseParams base parameters for delegators' deployment
+     * @param networkLimitSetRoleHolder address of the initial NETWORK_LIMIT_SET_ROLE holder
+     * @param operatorNetworkSharesSetRoleHolder address of the initial OPERATOR_NETWORK_SHARES_SET_ROLE holder
      */
     struct InitParams {
-        address vault;
+        IBaseDelegator.BaseParams baseParams;
+        address networkLimitSetRoleHolder;
+        address operatorNetworkSharesSetRoleHolder;
     }
 
     /**

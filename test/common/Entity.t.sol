@@ -32,7 +32,7 @@ contract EntityTest is Test {
         assertEq(IEntity(impl).FACTORY(), address(factory));
         factory.whitelist(impl);
 
-        address entity = factory.create(0, "");
+        address entity = factory.create(0, true, "");
         assertEq(IEntity(entity).FACTORY(), address(factory));
 
         vm.expectRevert();

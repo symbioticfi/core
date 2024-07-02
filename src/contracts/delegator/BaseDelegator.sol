@@ -10,7 +10,6 @@ import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -161,10 +160,13 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
     function _onSlash(address network, address operator, uint256 slashedAmount) internal virtual {}
 
-    function _initializeDelegator(bytes memory data) internal virtual returns (address) {}
+    function _initializeInternal(
+        address vault_,
+        bytes memory data
+    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
 
     function _initialize(bytes memory data) internal override {
-        address vault_ = _initializeDelegator(data);
+        (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
@@ -172,6 +174,10 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         vault = vault_;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, Ownable(vault_).owner());
+        IBaseDelegator.BaseParams memory baseParams = _initializeInternal(vault_, data_);
+
+        if (baseParams.defaultAdminRoleHolder != address(0)) {
+            _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
+        }
     }
 }

@@ -27,10 +27,11 @@ interface IFactory is IRegistry {
     function whitelist(address implementation) external;
 
     /**
-     * @notice Create a new entity at the registry.
+     * @notice Create a new entity at the factory.
      * @param index `index`-th implementation to use
+     * @param withInitialize whether to call initialize on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint64 index, bytes memory data) external returns (address);
+    function create(uint64 index, bool withInitialize, bytes memory data) external returns (address);
 }

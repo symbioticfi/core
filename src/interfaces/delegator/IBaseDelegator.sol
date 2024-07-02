@@ -7,6 +7,14 @@ interface IBaseDelegator {
     error NotVault();
 
     /**
+     * @notice Base parameters needed for delegators' deployment.
+     * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
+     */
+    struct BaseParams {
+        address defaultAdminRoleHolder;
+    }
+
+    /**
      * @notice Emitted when a network's maximum limit is set.
      * @param network address of the network
      * @param amount new maximum network's limit (how much stake the network is ready to get)

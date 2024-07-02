@@ -22,25 +22,33 @@ interface IVault is IVaultStorage {
     error TooMuchWithdraw();
     error InvalidSlasherSetEpochsDelay();
     error NotDelegator();
+    error InsufficientSlash();
+    error TooMuchSlash();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
      * @param collateral vault's underlying collateral
      * @param delegator vault's delegator to delegate the stake to networks and operators
-     * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
      * @param slasher vault's slasher to provide a slashing mechanism to networks
+     * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param slasherSetEpochsDelay delay in epochs to set a new slasher
      * @param depositWhitelist if enabling deposit whitelist
+     * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
+     * @param slasherSetRoleHolder address of the initial SLASHER_SET_ROLE holder
+     * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
      */
     struct InitParams {
         address collateral;
         address delegator;
-        address burner;
         address slasher;
+        address burner;
         uint48 epochDuration;
         uint256 slasherSetEpochsDelay;
         bool depositWhitelist;
+        address defaultAdminRoleHolder;
+        address slasherSetRoleHolder;
+        address depositorWhitelistRoleHolder;
     }
 
     /**

@@ -53,7 +53,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    uint48 public resolverSetDelay;
+    uint256 public resolverSetEpochsDelay;
 
     mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) private _resolverShares;
 
@@ -215,7 +215,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         uint48 timestamp = shares > resolverShares(msg.sender, resolver)
             ? Time.timestamp()
-            : IVault(vault).currentEpochStart() + resolverSetDelay;
+            : (IVault(vault).currentEpochStart() + resolverSetEpochsDelay * IVault(vault).epochDuration()).toUint48();
 
         Checkpoints.Trace256 storage _resolverShares_ = _resolverShares[msg.sender][resolver];
         (, uint48 latestTimestamp,) = _resolverShares_.latestCheckpoint();
@@ -228,15 +228,15 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         emit SetResolver(msg.sender, resolver, shares);
     }
 
-    function _initializeSlasher(bytes memory data) internal override returns (address) {
+    function _initializeInternal(address vault_, bytes memory data) internal override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         if (params.executeDuration == 0) {
             revert InvalidExecuteDuration();
         }
 
-        uint48 epochDuration = IVault(params.vault).epochDuration();
-        if (params.vetoDuration + params.executeDuration > epochDuration) {
+        uint48 epochDuration = IVault(vault_).epochDuration();
+        if (epochDuration != 0 && params.vetoDuration + params.executeDuration > epochDuration) {
             revert InvalidSlashDuration();
         }
 
@@ -247,8 +247,6 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         vetoDuration = params.vetoDuration;
         executeDuration = params.executeDuration;
 
-        resolverSetDelay = (params.resolverSetEpochsDelay * epochDuration).toUint48();
-
-        return params.vault;
+        resolverSetEpochsDelay = params.resolverSetEpochsDelay;
     }
 }

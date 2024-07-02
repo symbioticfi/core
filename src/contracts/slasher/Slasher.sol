@@ -48,10 +48,4 @@ contract Slasher is BaseSlasher, ISlasher {
 
         return amount;
     }
-
-    function _initializeSlasher(bytes memory data) internal override returns (address) {
-        (InitParams memory params) = abi.decode(data, (InitParams));
-
-        return params.vault;
-    }
 }

@@ -9,6 +9,7 @@ interface IMigratablesFactory is IRegistry {
     error InvalidVersion();
     error NotOwner();
     error OldVersion();
+    error AlreadyInitialized();
 
     /**
      * @notice Get the last available version.
@@ -32,13 +33,14 @@ interface IMigratablesFactory is IRegistry {
     function whitelist(address implementation) external;
 
     /**
-     * @notice Create a new entity at the registry.
+     * @notice Create a new entity at the factory.
      * @param version entity's version to use
      * @param owner initial owner of the entity
+     * @param withInitialize whether to call initialize on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint64 version, address owner, bytes memory data) external returns (address);
+    function create(uint64 version, address owner, bool withInitialize, bytes memory data) external returns (address);
 
     /**
      * @notice Migrate a given entity to a given newer version.

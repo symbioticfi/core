@@ -37,21 +37,47 @@ contract MigratableEntityTest is Test {
         assertEq(IMigratableEntity(impl).FACTORY(), address(factory));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, "");
+        address entity = factory.create(1, alice, true, "");
         assertEq(IMigratableEntity(entity).FACTORY(), address(factory));
         assertEq(IMigratableEntity(entity).version(), 1);
     }
 
-    function test_ReinitRevertNotFactory() public {
+    function test_CreateWithoutInitialize() public {
+        address impl = address(new SimpleMigratableEntity(address(factory)));
+        assertEq(IMigratableEntity(impl).FACTORY(), address(factory));
+        factory.whitelist(impl);
+
+        address entity = factory.create(1, alice, false, "");
+        assertEq(IMigratableEntity(entity).FACTORY(), address(factory));
+        assertEq(IMigratableEntity(entity).version(), 0);
+
+        IMigratableEntity(entity).initialize(1, alice, abi.encode(0));
+        assertEq(IMigratableEntity(entity).version(), 1);
+    }
+
+    function test_ReinitRevertAlreadyInitialized() public {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
         impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, "");
+        address entity = factory.create(1, alice, true, "");
 
-        vm.expectRevert(IMigratableEntity.NotFactory.selector);
+        vm.expectRevert(IMigratableEntity.AlreadyInitialized.selector);
+        SimpleMigratableEntity(entity).initialize(2, alice, abi.encode(0));
+    }
+
+    function test_InitRevertInvalidInitialVersion() public {
+        address impl = address(new SimpleMigratableEntity(address(factory)));
+        factory.whitelist(impl);
+
+        impl = address(new SimpleMigratableEntity(address(factory)));
+        factory.whitelist(impl);
+
+        address entity = factory.create(1, alice, false, "");
+
+        vm.expectRevert(IMigratableEntity.InvalidInitialVersion.selector);
         SimpleMigratableEntity(entity).initialize(2, alice, abi.encode(0));
     }
 
@@ -64,7 +90,7 @@ contract MigratableEntityTest is Test {
         impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(2, alice, "");
+        address entity = factory.create(2, alice, true, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);
@@ -90,7 +116,7 @@ contract MigratableEntityTest is Test {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, "");
+        address entity = factory.create(1, alice, true, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);

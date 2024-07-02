@@ -5,14 +5,6 @@ interface ISlasher {
     error InsufficientSlash();
 
     /**
-     * @notice Initial parameters needed for a slasher deployment.
-     * @param vault address of vault to perform slashings on
-     */
-    struct InitParams {
-        address vault;
-    }
-
-    /**
      * @notice Emitted when a slash is performed.
      * @param network network that requested the slash
      * @param operator operator that is slashed
