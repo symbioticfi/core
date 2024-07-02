@@ -24,6 +24,7 @@ import {Token} from "test/mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
@@ -207,11 +208,12 @@ contract VaultTest is Test {
         assertEq(vault.activeSupply(), 0);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), 0);
         assertEq(vault.activeSharesOf(alice), 0);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue) =
+        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointExists, false);
         assertEq(checkpointKey, 0);
         assertEq(checkpointValue, 0);
+        assertEq(checkpointPos, 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), 0);
         assertEq(vault.activeBalanceOf(alice), 0);
         assertEq(vault.withdrawals(0), 0);
@@ -443,7 +445,7 @@ contract VaultTest is Test {
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 tokensBefore = collateral.balanceOf(address(vault));
-        uint256 shares1 = amount1 * 10 ** 3;
+        uint256 shares1 = amount1 * 10 ** 0;
         assertEq(_deposit(alice, amount1), shares1);
         assertEq(collateral.balanceOf(address(vault)) - tokensBefore, amount1);
 
@@ -460,11 +462,12 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
         assertEq(vault.activeSharesOf(alice), shares1);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue) =
+        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointExists, true);
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares1);
+        assertEq(checkpointPos, 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
@@ -472,7 +475,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 shares2 = amount2 * (shares1 + 10 ** 3) / (amount1 + 1);
+        uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
         assertEq(_deposit(alice, amount2), shares2);
 
         assertEq(vault.totalSupplyIn(0), amount1 + amount2);
@@ -488,16 +491,18 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1 + shares2);
         assertEq(vault.activeSharesOf(alice), shares1 + shares2);
-        (checkpointExists, checkpointKey, checkpointValue) =
+        (checkpointExists, checkpointKey, checkpointValue, checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp - 1));
         assertEq(checkpointExists, true);
         assertEq(checkpointKey, blockTimestamp - 1);
         assertEq(checkpointValue, shares1);
-        (checkpointExists, checkpointKey, checkpointValue) =
+        assertEq(checkpointPos, 0);
+        (checkpointExists, checkpointKey, checkpointValue, checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointExists, true);
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares1 + shares2);
+        assertEq(checkpointPos, 1);
         uint256 gasLeft = gasleft();
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), 1), shares1);
         uint256 gasSpent = gasLeft - gasleft();
@@ -524,13 +529,13 @@ contract VaultTest is Test {
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
-        uint256 shares1 = amount1 * 10 ** 3;
+        uint256 shares1 = amount1 * 10 ** 0;
         assertEq(_deposit(alice, amount1), shares1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 shares2 = amount2 * (shares1 + 10 ** 3) / (amount1 + 1);
+        uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
         assertEq(_deposit(bob, amount2), shares2);
 
         assertEq(vault.totalSupply(), amount1 + amount2);
@@ -543,19 +548,22 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
         assertEq(vault.activeSharesOf(alice), shares1);
-        (, uint48 checkpointKey, uint256 checkpointValue) =
+        (, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointKey, blockTimestamp - 1);
         assertEq(checkpointValue, shares1);
+        assertEq(checkpointPos, 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp)), shares2);
         assertEq(vault.activeSharesOf(bob), shares2);
-        (, checkpointKey, checkpointValue) = vault.activeSharesOfCheckpointAt(bob, uint48(blockTimestamp));
+        (, checkpointKey, checkpointValue, checkpointPos) =
+            vault.activeSharesOfCheckpointAt(bob, uint48(blockTimestamp));
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares2);
+        assertEq(checkpointPos, 0);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1)), 0);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp)), amount2);
         assertEq(vault.activeBalanceOf(bob), amount2);
@@ -599,13 +607,11 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 tokensBefore = collateral.balanceOf(address(vault));
-        uint256 burnedShares = amount2 * (shares + 10 ** 3) / (amount1 + 1);
-        uint256 mintedShares = amount2 * 10 ** 3;
+        uint256 burnedShares = amount2 * (shares + 10 ** 0) / (amount1 + 1);
+        uint256 mintedShares = amount2 * 10 ** 0;
         (uint256 burnedShares_, uint256 mintedShares_) = _withdraw(alice, amount2);
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
-        assertEq(tokensBefore - collateral.balanceOf(address(vault)), 0);
 
         assertEq(vault.totalSupplyIn(0), amount1);
         assertEq(vault.totalSupplyIn(1), amount1);
@@ -620,10 +626,11 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
         assertEq(vault.activeSharesOf(alice), shares - burnedShares);
-        (, uint48 checkpointKey, uint256 checkpointValue) =
+        (, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares - burnedShares);
+        assertEq(checkpointPos, 1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 - amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 - amount2);
@@ -642,8 +649,8 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        burnedShares = amount3 * (shares + 10 ** 3) / (amount1 - amount2 + 1);
-        mintedShares = amount3 * 10 ** 3;
+        burnedShares = amount3 * (shares + 10 ** 0) / (amount1 - amount2 + 1);
+        mintedShares = amount3 * 10 ** 0;
         (burnedShares_, mintedShares_) = _withdraw(alice, amount3);
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
@@ -661,9 +668,11 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares);
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
         assertEq(vault.activeSharesOf(alice), shares - burnedShares);
-        (, checkpointKey, checkpointValue) = vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
+        (, checkpointKey, checkpointValue, checkpointPos) =
+            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares - burnedShares);
+        assertEq(checkpointPos, 2);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1 - amount2);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 - amount2 - amount3);
         assertEq(vault.activeBalanceOf(alice), amount1 - amount2 - amount3);
@@ -672,12 +681,12 @@ contract VaultTest is Test {
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), amount3);
         assertEq(vault.withdrawals(vault.currentEpoch() + 2), 0);
         assertEq(vault.withdrawalShares(vault.currentEpoch() - 1), 0);
-        assertEq(vault.withdrawalShares(vault.currentEpoch()), amount2 * 10 ** 3);
-        assertEq(vault.withdrawalShares(vault.currentEpoch() + 1), amount3 * 10 ** 3);
+        assertEq(vault.withdrawalShares(vault.currentEpoch()), amount2 * 10 ** 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 1), amount3 * 10 ** 0);
         assertEq(vault.withdrawalShares(vault.currentEpoch() + 2), 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() - 1, alice), 0);
-        assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), amount2 * 10 ** 3);
-        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), amount3 * 10 ** 3);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), amount2 * 10 ** 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), amount3 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
 
         shares -= burnedShares;
@@ -1043,6 +1052,17 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.NotSlasher.selector);
         _setSlasher(alice, address(1));
+    }
+
+    function test_OnSlashRevertNotSlasher() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.NotSlasher.selector);
+        vault.onSlash(0);
+        vm.stopPrank();
     }
 
     function _getVault(uint48 epochDuration) internal returns (Vault) {

@@ -97,12 +97,6 @@ interface IVetoSlasher {
     function SHARES_BASE() external view returns (uint256);
 
     /**
-     * @notice Get a resolver shares setter's role.
-     * @return identifier of the resolver shares setter role
-     */
-    function RESOLVER_SHARES_SET_ROLE() external view returns (bytes32);
-
-    /**
      * @notice Get the network registry's address.
      * @return address of the network registry
      */

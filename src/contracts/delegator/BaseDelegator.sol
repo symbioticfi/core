@@ -53,13 +53,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
      */
     mapping(address network => uint256 value) public maxNetworkLimit;
 
-    modifier onlySlasher() {
-        if (IVault(vault).slasher() != msg.sender) {
-            revert NotSlasher();
-        }
-        _;
-    }
-
     constructor(
         address networkRegistry,
         address vaultFactory,
@@ -119,11 +112,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         uint48 delta = nextEpochStart - Time.timestamp();
         if (Time.timestamp() + duration >= nextEpochStart) {
             minOperatorNetworkStakeDuring_ =
-                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(operator, network, delta));
+                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta));
         }
         if (Time.timestamp() + duration >= nextEpochStart + epochDuration) {
             minOperatorNetworkStakeDuring_ = Math.min(
-                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(operator, network, delta + epochDuration)
+                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta + epochDuration)
             );
         }
     }
@@ -150,7 +143,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
+    function onSlash(address network, address operator, uint256 slashedAmount) external {
+        if (IVault(vault).slasher() != msg.sender) {
+            revert NotSlasher();
+        }
+
         _onSlash(network, operator, slashedAmount);
 
         emit OnSlash(network, operator, slashedAmount);
@@ -159,6 +156,24 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     function _setMaxNetworkLimit(uint256 amount) internal virtual {}
 
     function _onSlash(address network, address operator, uint256 slashedAmount) internal virtual {}
+
+    function _insertCheckpoint(Checkpoints.Trace256 storage checkpoints, uint48 key, uint256 value) internal {
+        (, uint48 latestTimestamp1, uint256 latestValue1) = checkpoints.latestCheckpoint();
+        if (key < latestTimestamp1) {
+            checkpoints.pop();
+            (, uint48 latestTimestamp2, uint256 latestValue2) = checkpoints.latestCheckpoint();
+            if (key < latestTimestamp2) {
+                checkpoints.pop();
+                checkpoints.push(key, value);
+                checkpoints.push(latestTimestamp2, latestValue2);
+            } else {
+                checkpoints.push(key, value);
+            }
+            checkpoints.push(latestTimestamp1, latestValue1);
+        } else {
+            checkpoints.push(key, value);
+        }
+    }
 
     function _initializeInternal(
         address vault_,

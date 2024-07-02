@@ -101,6 +101,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address network,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+        if (totalOperatorNetworkSharesIn(network, duration) == 0) {
+            return 0;
+        }
         return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitIn(network, duration));
     }
 
@@ -108,6 +111,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
      * @inheritdoc IBaseDelegator
      */
     function networkStake(address network) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+        if (totalOperatorNetworkShares(network) == 0) {
+            return 0;
+        }
         return Math.min(IVault(vault).totalSupply(), networkLimit(network));
     }
 
@@ -119,8 +125,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+        uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesIn(network, duration);
+        if (totalOperatorNetworkSharesIn_ == 0) {
+            return 0;
+        }
         return operatorNetworkSharesIn(network, operator, duration).mulDiv(
-            networkStakeIn(network, duration), totalOperatorNetworkSharesIn(network, duration)
+            networkStakeIn(network, duration), totalOperatorNetworkSharesIn_
         );
     }
 
@@ -131,8 +141,11 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address network,
         address operator
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return
-            operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares(network));
+        uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
+        if (totalOperatorNetworkShares_ == 0) {
+            return 0;
+        }
+        return operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares_);
     }
 
     /**
@@ -147,7 +160,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             ? Time.timestamp()
             : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
 
-        _networkLimit[network].push(timestamp, amount);
+        _insertCheckpoint(_networkLimit[network], timestamp, amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -164,7 +177,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
 
         _totalOperatorNetworkShares[network].push(
             timestamp,
-            _totalOperatorNetworkShares[network].latest() + shares - _operatorNetworkShares[network][operator].latest()
+            _totalOperatorNetworkShares[network].latest() - _operatorNetworkShares[network][operator].latest() + shares
         );
 
         _operatorNetworkShares[network][operator].push(timestamp, shares);

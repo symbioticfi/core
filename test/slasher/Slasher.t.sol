@@ -24,9 +24,11 @@ import {Token} from "test/mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
+import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 
 contract SlasherTest is Test {
     address owner;
@@ -129,6 +131,30 @@ contract SlasherTest is Test {
 
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+    }
+
+    function test_Create(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        slasher = _getSlasher(address(vault));
+
+        assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
+        assertEq(slasher.NETWORK_VAULT_OPT_IN_SERVICE(), address(networkVaultOptInService));
+        assertEq(slasher.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
+        assertEq(slasher.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
+        assertEq(slasher.vault(), address(vault));
+    }
+
+    function test_CreateRevertNotVault(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault,) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IBaseSlasher.NotVault.selector);
+        slasherFactory.create(0, true, abi.encode(address(1), ""));
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {

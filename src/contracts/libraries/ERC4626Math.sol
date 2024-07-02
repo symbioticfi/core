@@ -54,6 +54,6 @@ library ERC4626Math {
     }
 
     function _decimalsOffset() private pure returns (uint8) {
-        return 3;
+        return 0;
     }
 }
