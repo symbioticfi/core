@@ -274,6 +274,14 @@ contract FullRestakeDelegatorTest is Test {
             blockTimestamp = blockTimestamp + 1;
             vm.warp(blockTimestamp);
 
+            _setNetworkLimit(alice, network, amount4);
+
+            assertEq(delegator.networkLimitIn(network, uint48(vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimit(network), amount4);
+
+            blockTimestamp = blockTimestamp + vault.epochDuration();
+            vm.warp(blockTimestamp);
+
             assertEq(delegator.networkLimitIn(network, 1), amount2);
             assertEq(delegator.networkLimit(network), amount2);
         } else {
@@ -304,22 +312,66 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimit(network), amount2);
     }
 
-    function test_SetMaxNetworkLimit(uint48 epochDuration, uint256 maxNetworkLimit1, uint256 maxNetworkLimit2) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
-        maxNetworkLimit1 = bound(maxNetworkLimit1, 1, type(uint256).max);
-        vm.assume(maxNetworkLimit1 != maxNetworkLimit2);
+    function test_SetNetworkLimitRevertExceedsMaxNetworkLimit(
+        uint48 epochDuration,
+        uint256 amount1,
+        uint256 maxNetworkLimit
+    ) public {
+        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
+        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
+        vm.assume(amount1 > maxNetworkLimit);
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
-        _registerNetwork(alice, alice);
+        address network = bob;
+        _registerNetwork(network, bob);
 
-        _setMaxNetworkLimit(alice, maxNetworkLimit1);
+        _setMaxNetworkLimit(network, maxNetworkLimit);
+        _optInNetworkVault(network);
 
-        assertEq(delegator.maxNetworkLimit(alice), maxNetworkLimit1);
+        vm.expectRevert(IFullRestakeDelegator.ExceedsMaxNetworkLimit.selector);
+        _setNetworkLimit(alice, network, amount1);
+    }
 
-        _setMaxNetworkLimit(alice, maxNetworkLimit2);
+    function test_SetMaxNetworkLimit(
+        uint48 epochDuration,
+        uint256 maxNetworkLimit1,
+        uint256 maxNetworkLimit2,
+        uint256 networkLimit1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 100 days));
+        maxNetworkLimit1 = bound(maxNetworkLimit1, 1, type(uint256).max);
+        vm.assume(maxNetworkLimit1 > maxNetworkLimit2);
+        vm.assume(maxNetworkLimit1 >= networkLimit1 && networkLimit1 >= maxNetworkLimit2);
 
-        assertEq(delegator.maxNetworkLimit(alice), maxNetworkLimit2);
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        _setMaxNetworkLimit(network, maxNetworkLimit1);
+
+        assertEq(delegator.maxNetworkLimit(network), maxNetworkLimit1);
+
+        _setNetworkLimit(alice, network, networkLimit1);
+
+        assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), networkLimit1);
+
+        blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        _setNetworkLimit(alice, network, networkLimit1);
+
+        assertEq(delegator.networkLimitIn(network, vault.epochDuration()), networkLimit1);
+        assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), networkLimit1);
+
+        _setMaxNetworkLimit(network, maxNetworkLimit2);
+
+        assertEq(delegator.maxNetworkLimit(network), maxNetworkLimit2);
+        assertEq(delegator.networkLimitIn(network, vault.epochDuration()), maxNetworkLimit2);
+        assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), maxNetworkLimit2);
     }
 
     function test_SetMaxNetworkLimitRevertNotNetwork(uint48 epochDuration, uint256 maxNetworkLimit) public {
