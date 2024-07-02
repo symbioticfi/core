@@ -28,6 +28,7 @@ import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelega
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
+import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 
 contract SlasherTest is Test {
     address owner;
@@ -145,6 +146,15 @@ contract SlasherTest is Test {
         assertEq(slasher.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
         assertEq(slasher.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(slasher.vault(), address(vault));
+    }
+
+    function test_CreateRevertNotVault(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault,) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IBaseSlasher.NotVault.selector);
+        slasherFactory.create(0, true, abi.encode(address(1), ""));
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {

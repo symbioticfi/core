@@ -29,6 +29,7 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
+import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 
 contract VetoSlasherTest is Test {
     address owner;
@@ -159,6 +160,22 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.resolverSetEpochsDelay(), 3);
         assertEq(slasher.resolverSharesAt(address(this), address(this), 0), 0);
         assertEq(slasher.resolverShares(address(this), address(this)), 0);
+    }
+
+    function test_CreateRevertNotVault(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault,) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IBaseSlasher.NotVault.selector);
+        slasherFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(1),
+                abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, executeDuration: 1, resolverSetEpochsDelay: 3}))
+            )
+        );
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
