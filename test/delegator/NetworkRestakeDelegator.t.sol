@@ -203,6 +203,17 @@ contract NetworkRestakeDelegatorTest is Test {
         );
     }
 
+    function test_OnSlashRevertNotSlasher(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IBaseDelegator.NotSlasher.selector);
+        delegator.onSlash(address(0), address(0), 0);
+        vm.stopPrank();
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({

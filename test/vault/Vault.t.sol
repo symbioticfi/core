@@ -1054,6 +1054,17 @@ contract VaultTest is Test {
         _setSlasher(alice, address(1));
     }
 
+    function test_OnSlashRevertNotSlasher() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.NotSlasher.selector);
+        vault.onSlash(0);
+        vm.stopPrank();
+    }
+
     function _getVault(uint48 epochDuration) internal returns (Vault) {
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({

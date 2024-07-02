@@ -53,13 +53,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
      */
     mapping(address network => uint256 value) public maxNetworkLimit;
 
-    modifier onlySlasher() {
-        if (IVault(vault).slasher() != msg.sender) {
-            revert NotSlasher();
-        }
-        _;
-    }
-
     constructor(
         address networkRegistry,
         address vaultFactory,
@@ -150,7 +143,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(address network, address operator, uint256 slashedAmount) external onlySlasher {
+    function onSlash(address network, address operator, uint256 slashedAmount) external {
+        if (IVault(vault).slasher() != msg.sender) {
+            revert NotSlasher();
+        }
+
         _onSlash(network, operator, slashedAmount);
 
         emit OnSlash(network, operator, slashedAmount);

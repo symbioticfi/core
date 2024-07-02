@@ -23,13 +23,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
-    modifier onlySlasher() {
-        if (msg.sender != slasher()) {
-            revert NotSlasher();
-        }
-        _;
-    }
-
     /**
      * @inheritdoc IVault
      */
@@ -203,7 +196,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount) external onlySlasher {
+    function onSlash(uint256 slashedAmount) external {
+        if (msg.sender != slasher()) {
+            revert NotSlasher();
+        }
+
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
