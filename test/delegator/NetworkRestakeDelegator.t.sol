@@ -24,6 +24,7 @@ import {Token} from "test/mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
@@ -129,6 +130,55 @@ contract NetworkRestakeDelegatorTest is Test {
 
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+    }
+
+    function test_Create(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        assertEq(delegator.VERSION(), 1);
+        assertEq(delegator.NETWORK_REGISTRY(), address(networkRegistry));
+        assertEq(delegator.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(delegator.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
+        assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
+        assertEq(delegator.vault(), address(vault));
+        assertEq(delegator.maxNetworkLimit(alice), 0);
+        assertEq(delegator.networkStakeIn(alice, 0), 0);
+        assertEq(delegator.networkStake(alice), 0);
+        assertEq(delegator.operatorNetworkStakeIn(alice, alice, 0), 0);
+        assertEq(delegator.operatorNetworkStake(alice, alice), 0);
+        assertEq(delegator.minOperatorNetworkStakeDuring(alice, alice, 0), 0);
+        assertEq(delegator.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
+        assertEq(delegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), keccak256("OPERATOR_NETWORK_SHARES_SET_ROLE"));
+        assertEq(delegator.networkLimitIn(alice, 0), 0);
+        assertEq(delegator.networkLimit(alice), 0);
+        assertEq(delegator.totalOperatorNetworkSharesIn(alice, 0), 0);
+        assertEq(delegator.totalOperatorNetworkShares(alice), 0);
+        assertEq(delegator.operatorNetworkSharesIn(alice, alice, 0), 0);
+        assertEq(delegator.operatorNetworkShares(alice, alice), 0);
+    }
+
+    function test_CreateRevertNotVault(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        vm.expectRevert(IBaseDelegator.NotVault.selector);
+        delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(1),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
+                        networkLimitSetRoleHolder: bob,
+                        operatorNetworkSharesSetRoleHolder: bob
+                    })
+                )
+            )
+        );
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {

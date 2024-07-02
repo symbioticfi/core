@@ -24,6 +24,7 @@ import {Token} from "./mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 contract DelegatorFactoryTest is Test {
@@ -179,10 +180,10 @@ contract DelegatorFactoryTest is Test {
             abi.encode(
                 vault_,
                 abi.encode(
-                    INetworkRestakeDelegator.InitParams({
+                    IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
                         networkLimitSetRoleHolder: bob,
-                        operatorNetworkSharesSetRoleHolder: bob
+                        operatorNetworkLimitSetRoleHolder: bob
                     })
                 )
             )

@@ -24,6 +24,7 @@ import {Token} from "test/mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
@@ -130,6 +131,34 @@ contract VetoSlasherTest is Test {
 
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+    }
+
+    function test_Create(uint48 epochDuration, uint48 vetoDuration, uint48 executeDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        slasher = _getSlasher(address(vault), vetoDuration, executeDuration);
+
+        assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
+        assertEq(slasher.NETWORK_VAULT_OPT_IN_SERVICE(), address(networkVaultOptInService));
+        assertEq(slasher.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
+        assertEq(slasher.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
+        assertEq(slasher.vault(), address(vault));
+        assertEq(slasher.SHARES_BASE(), 1e18);
+        assertEq(slasher.NETWORK_REGISTRY(), address(networkRegistry));
+        assertEq(slasher.vetoDuration(), vetoDuration);
+        assertEq(slasher.executeDuration(), executeDuration);
+        assertEq(slasher.slashRequestsLength(), 0);
+        vm.expectRevert();
+        slasher.slashRequests(0);
+        assertEq(slasher.resolverSetEpochsDelay(), 3);
+        assertEq(slasher.resolverSharesAt(address(this), address(this), 0), 0);
+        assertEq(slasher.resolverShares(address(this), address(this)), 0);
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {

@@ -24,6 +24,7 @@ import {Token} from "./mocks/Token.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 contract VaultConfiguratorTest is Test {

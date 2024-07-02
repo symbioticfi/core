@@ -119,8 +119,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+        uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesIn(network, duration);
+        if (totalOperatorNetworkSharesIn_ == 0) {
+            return 0;
+        }
         return operatorNetworkSharesIn(network, operator, duration).mulDiv(
-            networkStakeIn(network, duration), totalOperatorNetworkSharesIn(network, duration)
+            networkStakeIn(network, duration), totalOperatorNetworkSharesIn_
         );
     }
 
@@ -131,8 +135,11 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address network,
         address operator
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return
-            operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares(network));
+        uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
+        if (totalOperatorNetworkShares_ == 0) {
+            return 0;
+        }
+        return operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares_);
     }
 
     /**

@@ -23,12 +23,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    uint256 public SHARES_BASE = 10 ** 18;
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    bytes32 public constant RESOLVER_SHARES_SET_ROLE = keccak256("RESOLVER_SHARES_SET_ROLE");
+    uint256 public constant SHARES_BASE = 10 ** 18;
 
     /**
      * @inheritdoc IVetoSlasher
