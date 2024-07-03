@@ -36,11 +36,14 @@ contract Slasher is BaseSlasher, ISlasher {
         address operator,
         uint256 amount
     ) external onlyNetworkMiddleware(network) returns (uint256) {
-        if (amount == 0) {
+        uint256 operateNetworkStake = IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator);
+        if (amount == 0 || operateNetworkStake == 0) {
             revert InsufficientSlash();
         }
 
-        amount = Math.min(amount, IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator));
+        if (amount > operateNetworkStake) {
+            amount = operateNetworkStake;
+        }
 
         _checkOptIns(network, operator);
 

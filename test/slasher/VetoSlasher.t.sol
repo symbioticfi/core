@@ -30,6 +30,7 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VetoSlasherTest is Test {
     address owner;
@@ -319,6 +320,50 @@ contract VetoSlasherTest is Test {
         return (Vault(vault_), FullRestakeDelegator(delegator_));
     }
 
+    function _getVaultAndDelegatorAndSlasher(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration
+    ) internal returns (Vault, FullRestakeDelegator, VetoSlasher) {
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: 3,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                }),
+                delegatorIndex: 1,
+                delegatorParams: abi.encode(
+                    IFullRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkLimitSetRoleHolder: alice
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: 1,
+                slasherParams: abi.encode(
+                    IVetoSlasher.InitParams({
+                        vetoDuration: vetoDuration,
+                        executeDuration: executeDuration,
+                        resolverSetEpochsDelay: 3
+                    })
+                )
+            })
+        );
+
+        return (Vault(vault_), FullRestakeDelegator(delegator_), VetoSlasher(slasher_));
+    }
+
     function _getSlasher(address vault_, uint48 vetoDuration, uint48 executeDuration) internal returns (VetoSlasher) {
         return VetoSlasher(
             slasherFactory.create(
@@ -437,15 +482,20 @@ contract VetoSlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _requestSlash(address user, address network, address operator, uint256 amount) internal {
+    function _requestSlash(
+        address user,
+        address network,
+        address operator,
+        uint256 amount
+    ) internal returns (uint256 slashIndex) {
         vm.startPrank(user);
-        slasher.requestSlash(network, operator, amount);
+        slashIndex = slasher.requestSlash(network, operator, amount);
         vm.stopPrank();
     }
 
-    function _executeSlash(address user, uint256 slashIndex) internal {
+    function _executeSlash(address user, uint256 slashIndex) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slasher.executeSlash(slashIndex);
+        slashAmount = slasher.executeSlash(slashIndex);
         vm.stopPrank();
     }
 

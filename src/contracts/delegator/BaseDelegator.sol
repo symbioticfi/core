@@ -105,7 +105,7 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             return 0;
         }
 
-        minOperatorNetworkStakeDuring_ = operatorNetworkStake(network, operator);
+        minOperatorNetworkStakeDuring_ = Math.min(IVault(vault).activeSupply(), operatorNetworkStake(network, operator));
 
         uint48 epochDuration = IVault(vault).epochDuration();
         uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
@@ -146,6 +146,10 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     function onSlash(address network, address operator, uint256 slashedAmount) external {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
+        }
+
+        if (slashedAmount > operatorNetworkStake(network, operator)) {
+            revert TooMuchSlash();
         }
 
         _onSlash(network, operator, slashedAmount);

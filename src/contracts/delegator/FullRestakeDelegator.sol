@@ -203,13 +203,17 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     function _onSlash(address network, address operator, uint256 slashedAmount) internal override {
         uint256 networkLimit_ = networkLimit(network);
         if (networkLimit_ != type(uint256).max) {
-            _networkLimit[network].push(Time.timestamp(), networkLimit_ - slashedAmount);
+            _insertCheckpoint(_networkLimit[network], Time.timestamp(), networkLimit_ - slashedAmount);
         }
 
-        _totalOperatorNetworkLimit[network].push(Time.timestamp(), totalOperatorNetworkLimit(network) - slashedAmount);
+        _insertCheckpoint(
+            _totalOperatorNetworkLimit[network], Time.timestamp(), totalOperatorNetworkLimit(network) - slashedAmount
+        );
 
-        _operatorNetworkLimit[network][operator].push(
-            Time.timestamp(), operatorNetworkLimit(network, operator) - slashedAmount
+        _insertCheckpoint(
+            _operatorNetworkLimit[network][operator],
+            Time.timestamp(),
+            operatorNetworkLimit(network, operator) - slashedAmount
         );
     }
 

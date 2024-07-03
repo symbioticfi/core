@@ -5,6 +5,7 @@ interface IBaseDelegator {
     error NotSlasher();
     error NotNetwork();
     error NotVault();
+    error TooMuchSlash();
 
     /**
      * @notice Base parameters needed for delegators' deployment.

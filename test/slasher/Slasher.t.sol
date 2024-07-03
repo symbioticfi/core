@@ -29,6 +29,7 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract SlasherTest is Test {
     address owner;
@@ -157,6 +158,64 @@ contract SlasherTest is Test {
         slasherFactory.create(0, true, abi.encode(address(1), ""));
     }
 
+    function test_Slash(
+        uint48 epochDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 operatorNetworkLimit2,
+        uint256 slashAmount1,
+        uint256 slashAmount2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+        _registerOperator(bob);
+
+        _optInOperatorVault(alice);
+        _optInOperatorVault(bob);
+
+        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(bob, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, networkLimit - 1);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+        _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1 - 1);
+        _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2 - 1);
+
+        vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
+
+        _optInNetworkVault(network);
+
+        assertEq(
+            Math.min(slashAmount1, delegator.operatorNetworkStake(network, alice)),
+            _slash(alice, network, alice, slashAmount1)
+        );
+
+        assertEq(
+            Math.min(slashAmount2, delegator.operatorNetworkStake(network, bob)),
+            _slash(alice, network, bob, slashAmount2)
+        );
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
@@ -174,12 +233,12 @@ contract SlasherTest is Test {
                     slasherSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
-                delegatorIndex: 0,
+                delegatorIndex: 1,
                 delegatorParams: abi.encode(
-                    INetworkRestakeDelegator.InitParams({
+                    IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
                         networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        operatorNetworkLimitSetRoleHolder: alice
                     })
                 ),
                 withSlasher: false,
@@ -189,6 +248,43 @@ contract SlasherTest is Test {
         );
 
         return (Vault(vault_), FullRestakeDelegator(delegator_));
+    }
+
+    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (Vault, FullRestakeDelegator, Slasher)
+    {
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: 3,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                }),
+                delegatorIndex: 1,
+                delegatorParams: abi.encode(
+                    IFullRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkLimitSetRoleHolder: alice
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+
+        return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
     function _getSlasher(address vault_) internal returns (Slasher) {
@@ -294,9 +390,32 @@ contract SlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _slash(address user, address network, address operator, uint256 amount) internal {
+    function _setNetworkLimit(address user, address network, uint256 amount) internal {
         vm.startPrank(user);
-        slasher.slash(network, operator, amount);
+        delegator.setNetworkLimit(network, amount);
+        vm.stopPrank();
+    }
+
+    function _setOperatorNetworkLimit(address user, address network, address operator, uint256 amount) internal {
+        vm.startPrank(user);
+        delegator.setOperatorNetworkLimit(network, operator, amount);
+        vm.stopPrank();
+    }
+
+    function _slash(
+        address user,
+        address network,
+        address operator,
+        uint256 amount
+    ) internal returns (uint256 slashAmount) {
+        vm.startPrank(user);
+        slashAmount = slasher.slash(network, operator, amount);
+        vm.stopPrank();
+    }
+
+    function _setMaxNetworkLimit(address user, uint256 amount) internal {
+        vm.startPrank(user);
+        delegator.setMaxNetworkLimit(amount);
         vm.stopPrank();
     }
 }

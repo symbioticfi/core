@@ -206,19 +206,23 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
 
     function _onSlash(address network, address operator, uint256 slashedAmount) internal override {
         uint256 networkLimit_ = networkLimit(network);
-        if (networkLimit_ != type(uint256).max) {
-            _networkLimit[network].push(Time.timestamp(), networkLimit_ - slashedAmount);
-        }
-
         uint256 operatorNetworkShares_ = operatorNetworkShares(network, operator);
         uint256 operatorSlashedShares =
             slashedAmount.mulDiv(operatorNetworkShares_, operatorNetworkStake(network, operator), Math.Rounding.Ceil);
 
-        _totalOperatorNetworkShares[network].push(
-            Time.timestamp(), totalOperatorNetworkShares(network) - operatorSlashedShares
+        if (networkLimit_ != type(uint256).max) {
+            _insertCheckpoint(_networkLimit[network], Time.timestamp(), networkLimit_ - slashedAmount);
+        }
+
+        _insertCheckpoint(
+            _totalOperatorNetworkShares[network],
+            Time.timestamp(),
+            totalOperatorNetworkShares(network) - operatorSlashedShares
         );
 
-        _operatorNetworkShares[network][operator].push(Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares);
+        _insertCheckpoint(
+            _operatorNetworkShares[network][operator], Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares
+        );
     }
 
     function _initializeInternal(
