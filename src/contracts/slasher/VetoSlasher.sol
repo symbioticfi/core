@@ -50,6 +50,11 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
      */
     uint256 public resolverSetEpochsDelay;
 
+    /**
+     * @inheritdoc IVetoSlasher
+     */
+    mapping(address resolver => mapping(uint256 slashIndex => bool value)) public hasVetoed;
+
     mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) private _resolverShares;
 
     constructor(
@@ -158,7 +163,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
-        if (slashedAmount != 0) {
+        if (slashedAmount > 0) {
             _callOnSlash(request.network, request.operator, slashedAmount);
         }
 
@@ -188,6 +193,12 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         if (request.completed) {
             revert SlashRequestCompleted();
         }
+
+        if (hasVetoed[msg.sender][slashIndex]) {
+            revert AlreadyVetoed();
+        }
+
+        hasVetoed[msg.sender][slashIndex] = true;
 
         uint256 vetoedShares_ = Math.min(request.vetoedShares + resolverShares_, SHARES_BASE);
 
@@ -231,7 +242,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         }
 
         uint48 epochDuration = IVault(vault_).epochDuration();
-        if (epochDuration != 0 && params.vetoDuration + params.executeDuration > epochDuration) {
+        if (epochDuration > 0 && params.vetoDuration + params.executeDuration > epochDuration) {
             revert InvalidSlashDuration();
         }
 

@@ -22,7 +22,6 @@ interface IVault is IVaultStorage {
     error TooMuchWithdraw();
     error InvalidSlasherSetEpochsDelay();
     error NotDelegator();
-    error InsufficientSlash();
     error TooMuchSlash();
 
     /**

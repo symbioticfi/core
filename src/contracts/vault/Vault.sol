@@ -201,35 +201,32 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
 
-        if (slashedAmount == 0) {
-            revert InsufficientSlash();
+        if (slashedAmount > 0) {
+            uint256 totalSupply_ = totalSupply();
+            if (slashedAmount > totalSupply_) {
+                revert TooMuchSlash();
+            }
+
+            uint256 epoch = currentEpoch();
+            uint256 activeSupply_ = activeSupply();
+            uint256 withdrawals_ = withdrawals[epoch];
+            uint256 nextWithdrawals = withdrawals[epoch + 1];
+
+            uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, totalSupply_);
+            uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
+            uint256 activeSlashed = slashedAmount - nextWithdrawalsSlashed - withdrawalsSlashed;
+
+            if (activeSupply_ < activeSlashed) {
+                withdrawalsSlashed += activeSlashed - activeSupply_;
+                activeSlashed = activeSupply_;
+            }
+
+            _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+            withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
+            withdrawals[epoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
+
+            ICollateral(collateral).issueDebt(burner, slashedAmount);
         }
-
-        uint256 epoch = currentEpoch();
-        uint256 totalSupply_ = totalSupply();
-
-        if (slashedAmount > totalSupply_) {
-            revert TooMuchSlash();
-        }
-
-        uint256 activeSupply_ = activeSupply();
-        uint256 withdrawals_ = withdrawals[epoch];
-        uint256 nextWithdrawals = withdrawals[epoch + 1];
-
-        uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, totalSupply_);
-        uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
-        uint256 activeSlashed = slashedAmount - nextWithdrawalsSlashed - withdrawalsSlashed;
-
-        if (activeSupply_ < activeSlashed) {
-            withdrawalsSlashed += activeSlashed - activeSupply_;
-            activeSlashed = activeSupply_;
-        }
-
-        _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
-        withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
-        withdrawals[epoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-
-        ICollateral(collateral).issueDebt(burner, slashedAmount);
 
         emit OnSlash(msg.sender, slashedAmount);
     }
@@ -242,7 +239,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
 
-        if (_nextSlasher.timestamp != 0 && _nextSlasher.timestamp <= Time.timestamp()) {
+        if (_nextSlasher.timestamp > 0 && _nextSlasher.timestamp <= Time.timestamp()) {
             _slasher.address_ = _nextSlasher.address_;
             _nextSlasher.timestamp = 0;
             _nextSlasher.address_ = address(0);

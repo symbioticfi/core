@@ -661,6 +661,163 @@ contract NetworkRestakeDelegatorTest is Test {
         );
     }
 
+    function test_Slash(
+        uint48 epochDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkShares1,
+        uint256 operatorNetworkShares2,
+        uint256 slashAmount1,
+        uint256 slashAmount2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
+        operatorNetworkShares2 = bound(operatorNetworkShares2, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+        _registerOperator(bob);
+
+        _optInOperatorVault(alice);
+        _optInOperatorVault(bob);
+
+        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(bob, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1);
+        _setOperatorNetworkShares(alice, network, bob, operatorNetworkShares2);
+
+        blockTimestamp = blockTimestamp + 2 * vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, networkLimit - 1);
+
+        _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1 - 1);
+        _setOperatorNetworkShares(alice, network, bob, operatorNetworkShares2 - 1);
+
+        vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
+
+        _optInNetworkVault(network);
+
+        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
+        assertEq(delegator.networkLimit(network), networkLimit);
+        assertEq(
+            delegator.totalOperatorNetworkSharesIn(network, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares1 + operatorNetworkShares2 - 2
+        );
+        assertEq(delegator.totalOperatorNetworkShares(network), operatorNetworkShares1 + operatorNetworkShares2);
+        assertEq(
+            delegator.operatorNetworkSharesIn(network, alice, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares1 - 1
+        );
+        assertEq(delegator.operatorNetworkShares(network, alice), operatorNetworkShares1);
+        assertEq(
+            delegator.operatorNetworkSharesIn(network, bob, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares2 - 1
+        );
+        assertEq(delegator.operatorNetworkShares(network, bob), operatorNetworkShares2);
+
+        uint256 operatorNetworkStake1 = operatorNetworkShares1.mulDiv(
+            Math.min(networkLimit, depositAmount), operatorNetworkShares1 + operatorNetworkShares2
+        );
+        vm.assume(operatorNetworkStake1 > 0);
+        uint256 slashAmount1Real = Math.min(slashAmount1, operatorNetworkStake1);
+        assertEq(_slash(alice, network, alice, slashAmount1), slashAmount1Real);
+
+        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
+        assertEq(
+            delegator.networkLimit(network),
+            networkLimit == type(uint256).max ? networkLimit : networkLimit - slashAmount1Real
+        );
+        assertEq(
+            delegator.totalOperatorNetworkSharesIn(network, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares1 + operatorNetworkShares2 - 2
+        );
+        assertEq(
+            delegator.totalOperatorNetworkShares(network),
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
+                + operatorNetworkShares2
+        );
+        assertEq(
+            delegator.operatorNetworkSharesIn(network, alice, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares1 - 1
+        );
+        assertEq(
+            delegator.operatorNetworkShares(network, alice),
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
+        );
+        assertEq(
+            delegator.operatorNetworkSharesIn(network, bob, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares2 - 1
+        );
+        assertEq(delegator.operatorNetworkShares(network, bob), operatorNetworkShares2);
+
+        uint256 operatorNetworkStake2 = operatorNetworkShares2.mulDiv(
+            Math.min(networkLimit - slashAmount1Real, depositAmount - slashAmount1Real),
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
+                + operatorNetworkShares2
+        );
+        vm.assume(operatorNetworkStake2 > 0);
+        uint256 slashAmount2Real = Math.min(slashAmount2, operatorNetworkStake2);
+        assertEq(_slash(alice, network, bob, slashAmount2), slashAmount2Real);
+
+        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
+        assertEq(
+            delegator.networkLimit(network),
+            networkLimit == type(uint256).max ? networkLimit : networkLimit - slashAmount1Real - slashAmount2Real
+        );
+        assertEq(
+            delegator.totalOperatorNetworkSharesIn(network, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares1 + operatorNetworkShares2 - 2
+        );
+        assertEq(
+            delegator.totalOperatorNetworkShares(network),
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
+                + operatorNetworkShares2
+                - slashAmount2Real.mulDiv(operatorNetworkShares2, operatorNetworkStake2, Math.Rounding.Ceil)
+        );
+        assertEq(
+            delegator.operatorNetworkSharesIn(network, alice, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares1 - 1
+        );
+        assertEq(
+            delegator.operatorNetworkShares(network, alice),
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
+        );
+        assertEq(
+            delegator.operatorNetworkSharesIn(network, bob, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares2 - 1
+        );
+        assertEq(
+            delegator.operatorNetworkShares(network, bob),
+            operatorNetworkShares2
+                - slashAmount2Real.mulDiv(operatorNetworkShares2, operatorNetworkStake2, Math.Rounding.Ceil)
+        );
+
+        if (vault.totalSupply() == 0) {
+            assertEq(delegator.totalOperatorNetworkShares(network), 0);
+        }
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
@@ -693,6 +850,43 @@ contract NetworkRestakeDelegatorTest is Test {
         );
 
         return (Vault(vault_), NetworkRestakeDelegator(delegator_));
+    }
+
+    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (Vault, NetworkRestakeDelegator, Slasher)
+    {
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    slasherSetEpochsDelay: 3,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    slasherSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        networkLimitSetRoleHolder: alice,
+                        operatorNetworkSharesSetRoleHolder: alice
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+
+        return (Vault(vault_), NetworkRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
     function _getSlasher(address vault_) internal returns (Slasher) {
@@ -810,9 +1004,14 @@ contract NetworkRestakeDelegatorTest is Test {
         vm.stopPrank();
     }
 
-    function _slash(address user, address network, address operator, uint256 amount) internal {
+    function _slash(
+        address user,
+        address network,
+        address operator,
+        uint256 amount
+    ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slasher.slash(network, operator, amount);
+        slashAmount = slasher.slash(network, operator, amount);
         vm.stopPrank();
     }
 
