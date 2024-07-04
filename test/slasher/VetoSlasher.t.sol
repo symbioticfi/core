@@ -33,6 +33,8 @@ import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VetoSlasherTest is Test {
+    using Math for uint256;
+
     address owner;
     address alice;
     uint256 alicePrivateKey;
@@ -161,6 +163,7 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.resolverSetEpochsDelay(), 3);
         assertEq(slasher.resolverSharesAt(address(this), address(this), 0), 0);
         assertEq(slasher.resolverShares(address(this), address(this)), 0);
+        assertEq(slasher.hasVetoed(alice, 0), false);
     }
 
     function test_CreateRevertNotVault(
@@ -284,6 +287,999 @@ contract VetoSlasherTest is Test {
                 )
             )
         );
+    }
+
+    function test_RequestSlash(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 operatorNetworkLimit2,
+        uint256 slashAmount1,
+        uint256 slashAmount2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+        _registerOperator(bob);
+
+        _optInOperatorVault(alice);
+        _optInOperatorVault(bob);
+
+        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(bob, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, networkLimit - 1);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+        _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1 - 1);
+        _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2 - 1);
+
+        _optInNetworkVault(network);
+
+        assertEq(0, _requestSlash(alice, network, alice, slashAmount1));
+
+        (
+            address network_,
+            address operator_,
+            uint256 amount_,
+            uint48 vetoDeadline_,
+            uint48 executeDeadline_,
+            uint256 vetoedShares_,
+            bool completed_
+        ) = slasher.slashRequests(0);
+
+        assertEq(network_, network);
+        assertEq(operator_, alice);
+        assertEq(amount_, slashAmount1);
+        assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
+        assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
+        assertEq(vetoedShares_, 0);
+        assertEq(completed_, false);
+
+        assertEq(1, _requestSlash(alice, network, bob, slashAmount2));
+
+        (network_, operator_, amount_, vetoDeadline_, executeDeadline_, vetoedShares_, completed_) =
+            slasher.slashRequests(1);
+
+        assertEq(network_, network);
+        assertEq(operator_, bob);
+        assertEq(amount_, slashAmount2);
+        assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
+        assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
+        assertEq(vetoedShares_, 0);
+        assertEq(completed_, false);
+    }
+
+    function test_RequestSlashRevertInsufficientSlash(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 operatorNetworkLimit2,
+        uint256 slashAmount1,
+        uint256 slashAmount2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+        _registerOperator(bob);
+
+        _optInOperatorVault(alice);
+        _optInOperatorVault(bob);
+
+        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(bob, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, networkLimit - 1);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+        _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1 - 1);
+        _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2 - 1);
+
+        _optInNetworkVault(network);
+
+        vm.expectRevert(IVetoSlasher.InsufficientSlash.selector);
+        _requestSlash(alice, network, alice, 0);
+    }
+
+    function test_setResolverSharesBoth(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 resolverShares1,
+        uint256 resolverShares2,
+        uint256 resolverShares3
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+        resolverShares3 = bound(resolverShares3, 1, slasher.SHARES_BASE());
+
+        vm.assume(resolverShares3 <= resolverShares2);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        _setResolverShares(network, alice, resolverShares1);
+
+        assertEq(
+            slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            resolverShares1
+        );
+        assertEq(slasher.resolverShares(network, alice), resolverShares1);
+
+        _setResolverShares(network, bob, resolverShares2);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares2
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        blockTimestamp = blockTimestamp + vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + vault.epochDuration())), resolverShares1
+        );
+        assertEq(slasher.resolverShares(network, alice), resolverShares1);
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        _setResolverShares(network, bob, resolverShares3);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())), resolverShares3
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares2
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        blockTimestamp = blockTimestamp + vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())), resolverShares3
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares3
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        _setResolverShares(network, bob, resolverShares3 - 1);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares2
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        blockTimestamp = blockTimestamp + vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        blockTimestamp = blockTimestamp + vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares3 - 1
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+
+        blockTimestamp = blockTimestamp + vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            resolverShares3 - 1
+        );
+        assertEq(
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares3 - 1
+        );
+        assertEq(slasher.resolverShares(network, bob), resolverShares3 - 1);
+    }
+
+    function test_setResolverSharesBothRevertNotOperator(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 resolverShares1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        vm.expectRevert(IVetoSlasher.NotNetwork.selector);
+        _setResolverShares(bob, alice, resolverShares1);
+    }
+
+    function test_setResolverSharesBothRevertInvalidShares(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 resolverShares1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, slasher.SHARES_BASE() + 1, type(uint256).max);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        vm.expectRevert(IVetoSlasher.InvalidShares.selector);
+        _setResolverShares(network, alice, resolverShares1);
+    }
+
+    function test_ExecuteSlash(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        (
+            address network_,
+            address operator_,
+            uint256 amount_,
+            uint48 vetoDeadline_,
+            uint48 executeDeadline_,
+            uint256 vetoedShares_,
+            bool completed_
+        ) = slasher.slashRequests(0);
+
+        assertEq(network_, network);
+        assertEq(operator_, alice);
+        assertEq(amount_, slashAmount1);
+        assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
+        assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
+        assertEq(vetoedShares_, 0);
+        assertEq(completed_, false);
+
+        blockTimestamp = blockTimestamp + vetoDuration;
+        vm.warp(blockTimestamp);
+
+        assertEq(_executeSlash(alice, 0), slashAmount1);
+
+        assertEq(vault.totalSupply(), depositAmount - slashAmount1);
+
+        (network_, operator_, amount_, vetoDeadline_, executeDeadline_, vetoedShares_, completed_) =
+            slasher.slashRequests(0);
+
+        assertEq(network_, network);
+        assertEq(operator_, alice);
+        assertEq(amount_, slashAmount1);
+        assertEq(vetoDeadline_, uint48(blockTimestamp));
+        assertEq(executeDeadline_, uint48(blockTimestamp + slasher.executeDuration()));
+        assertEq(vetoedShares_, 0);
+        assertEq(completed_, true);
+    }
+
+    function test_ExecuteSlashRevertSlashRequestNotExist(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        blockTimestamp = blockTimestamp + vetoDuration;
+        vm.warp(blockTimestamp);
+
+        vm.expectRevert(IVetoSlasher.SlashRequestNotExist.selector);
+        _executeSlash(alice, 1);
+    }
+
+    function test_ExecuteSlashRevertVetoPeriodNotEnded(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        vm.expectRevert(IVetoSlasher.VetoPeriodNotEnded.selector);
+        _executeSlash(alice, 0);
+    }
+
+    function test_ExecuteSlashRevertSlashPeriodEnded(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        blockTimestamp = blockTimestamp + vetoDuration + executeDuration;
+        vm.warp(blockTimestamp);
+
+        vm.expectRevert(IVetoSlasher.SlashPeriodEnded.selector);
+        _executeSlash(alice, 0);
+    }
+
+    function test_ExecuteSlashRevertSlashRequestCompleted(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        blockTimestamp = blockTimestamp + vetoDuration;
+        vm.warp(blockTimestamp);
+
+        _executeSlash(alice, 0);
+
+        vm.expectRevert(IVetoSlasher.SlashRequestCompleted.selector);
+        _executeSlash(alice, 0);
+    }
+
+    function test_VetoSlash(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 resolverShares1,
+        uint256 resolverShares2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, bob, resolverShares2);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        _vetoSlash(alice, 0);
+
+        assertEq(slasher.hasVetoed(alice, 0), true);
+
+        (,,,,, uint256 vetoedShares_, bool completed_) = slasher.slashRequests(0);
+
+        assertEq(vetoedShares_, resolverShares1);
+        assertEq(completed_, vetoedShares_ == slasher.SHARES_BASE());
+
+        if (vetoedShares_ != slasher.SHARES_BASE()) {
+            _vetoSlash(bob, 0);
+
+            assertEq(slasher.hasVetoed(bob, 0), true);
+
+            (,,,,, vetoedShares_, completed_) = slasher.slashRequests(0);
+
+            assertEq(vetoedShares_, Math.min(resolverShares1 + resolverShares2, slasher.SHARES_BASE()));
+            assertEq(completed_, vetoedShares_ == slasher.SHARES_BASE());
+        }
+
+        if (vetoedShares_ != slasher.SHARES_BASE()) {
+            blockTimestamp = blockTimestamp + vetoDuration;
+            vm.warp(blockTimestamp);
+
+            assertEq(
+                _executeSlash(alice, 0),
+                (
+                    slashAmount1
+                        - slashAmount1.mulDiv(resolverShares1 + resolverShares2, slasher.SHARES_BASE(), Math.Rounding.Ceil)
+                )
+            );
+
+            assertEq(
+                vault.totalSupply(),
+                depositAmount
+                    - (
+                        slashAmount1
+                            - slashAmount1.mulDiv(resolverShares1 + resolverShares2, slasher.SHARES_BASE(), Math.Rounding.Ceil)
+                    )
+            );
+        }
+    }
+
+    function test_VetoSlashRevertSlashRequestNotExist(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 resolverShares1,
+        uint256 resolverShares2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, bob, resolverShares2);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        vm.expectRevert(IVetoSlasher.SlashRequestNotExist.selector);
+        _vetoSlash(alice, 1);
+    }
+
+    function test_VetoSlashRevertVetoPeriodEnded(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 resolverShares1,
+        uint256 resolverShares2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, bob, resolverShares2);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        blockTimestamp = blockTimestamp + vetoDuration;
+        vm.warp(blockTimestamp);
+
+        vm.expectRevert(IVetoSlasher.VetoPeriodEnded.selector);
+        _vetoSlash(alice, 0);
+    }
+
+    function test_VetoSlashRevertNotResolver(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 resolverShares1,
+        uint256 resolverShares2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, bob, resolverShares2);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        vm.expectRevert(IVetoSlasher.NotResolver.selector);
+        _vetoSlash(address(1), 0);
+    }
+
+    function test_VetoSlashRevertSlashRequestCompleted(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 resolverShares1,
+        uint256 resolverShares2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        _setResolverShares(network, alice, slasher.SHARES_BASE());
+        _setResolverShares(network, bob, resolverShares2);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        _vetoSlash(alice, 0);
+
+        vm.expectRevert(IVetoSlasher.SlashRequestCompleted.selector);
+        _vetoSlash(bob, 0);
+    }
+
+    function test_VetoSlashRevertAlreadyVetoed(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 resolverShares1,
+        uint256 resolverShares2
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 1, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE() - 1);
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, bob, resolverShares2);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1);
+
+        _vetoSlash(alice, 0);
+
+        vm.expectRevert(IVetoSlasher.AlreadyVetoed.selector);
+        _vetoSlash(alice, 0);
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
@@ -508,6 +1504,24 @@ contract VetoSlasherTest is Test {
     function _setResolverShares(address user, address resolver, uint256 shares) internal {
         vm.startPrank(user);
         slasher.setResolverShares(resolver, shares);
+        vm.stopPrank();
+    }
+
+    function _setNetworkLimit(address user, address network, uint256 amount) internal {
+        vm.startPrank(user);
+        delegator.setNetworkLimit(network, amount);
+        vm.stopPrank();
+    }
+
+    function _setOperatorNetworkLimit(address user, address network, address operator, uint256 amount) internal {
+        vm.startPrank(user);
+        delegator.setOperatorNetworkLimit(network, operator, amount);
+        vm.stopPrank();
+    }
+
+    function _setMaxNetworkLimit(address user, uint256 amount) internal {
+        vm.startPrank(user);
+        delegator.setMaxNetworkLimit(amount);
         vm.stopPrank();
     }
 }

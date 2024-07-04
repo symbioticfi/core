@@ -17,6 +17,7 @@ interface IVetoSlasher {
     error InvalidResolversLength();
     error InvalidResolverSetEpochsDelay();
     error ResolverAlreadySet();
+    error AlreadyVetoed();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
@@ -166,6 +167,14 @@ interface IVetoSlasher {
      * @return amount of the resolver's shares
      */
     function resolverShares(address network, address resolver) external view returns (uint256);
+
+    /**
+     * @notice Get if a resolver has vetoed a particular slash request.
+     * @param resolver address of the resolver
+     * @param slashIndex index of the slash request
+     * @return if the resolver has vetoed the slash request
+     */
+    function hasVetoed(address resolver, uint256 slashIndex) external view returns (bool);
 
     /**
      * @notice Request a slash using a network and a resolver for a particular operator by a given amount.

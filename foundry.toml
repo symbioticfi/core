@@ -20,7 +20,7 @@ quote_style = "double"
 tab_width = 4
 
 [fuzz]
-runs = 2048
+runs = 4096
 max_test_rejects = 262144
 
 [etherscan]

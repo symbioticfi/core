@@ -50,6 +50,11 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
      */
     uint256 public resolverSetEpochsDelay;
 
+    /**
+     * @inheritdoc IVetoSlasher
+     */
+    mapping(address resolver => mapping(uint256 slashIndex => bool value)) public hasVetoed;
+
     mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) private _resolverShares;
 
     constructor(
@@ -188,6 +193,12 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         if (request.completed) {
             revert SlashRequestCompleted();
         }
+
+        if (hasVetoed[msg.sender][slashIndex]) {
+            revert AlreadyVetoed();
+        }
+
+        hasVetoed[msg.sender][slashIndex] = true;
 
         uint256 vetoedShares_ = Math.min(request.vetoedShares + resolverShares_, SHARES_BASE);
 
