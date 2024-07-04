@@ -151,7 +151,7 @@ library Checkpoints {
      */
     function upperLookupRecent(Trace256 storage self, uint48 key) internal view returns (uint256) {
         uint208 idx = self._trace.upperLookupRecent(key);
-        return idx != 0 ? self._values[idx] : 0;
+        return idx > 0 ? self._values[idx] : 0;
     }
 
     /**
@@ -207,7 +207,7 @@ library Checkpoints {
      */
     function latest(Trace256 storage self) internal view returns (uint256) {
         uint208 idx = self._trace.latest();
-        return idx != 0 ? self._values[idx] : 0;
+        return idx > 0 ? self._values[idx] : 0;
     }
 
     function latestCheckpoint(Trace256 storage self) internal view returns (bool exists, uint48 _key, uint256 _value) {

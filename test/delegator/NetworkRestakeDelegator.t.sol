@@ -731,11 +731,11 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(delegator.operatorNetworkShares(network, bob), operatorNetworkShares2);
 
-        uint256 stake1 = operatorNetworkShares1.mulDiv(
+        uint256 operatorNetworkStake1 = operatorNetworkShares1.mulDiv(
             Math.min(networkLimit, depositAmount), operatorNetworkShares1 + operatorNetworkShares2
         );
-        vm.assume(stake1 > 0);
-        uint256 slashAmount1Real = Math.min(slashAmount1, stake1);
+        vm.assume(operatorNetworkStake1 > 0);
+        uint256 slashAmount1Real = Math.min(slashAmount1, operatorNetworkStake1);
         assertEq(_slash(alice, network, alice, slashAmount1), slashAmount1Real);
 
         assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
@@ -749,7 +749,8 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(
             delegator.totalOperatorNetworkShares(network),
-            operatorNetworkShares1 - slashAmount1Real.mulDiv(operatorNetworkShares1, stake1, Math.Rounding.Ceil)
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
                 + operatorNetworkShares2
         );
         assertEq(
@@ -758,7 +759,8 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(
             delegator.operatorNetworkShares(network, alice),
-            operatorNetworkShares1 - slashAmount1Real.mulDiv(operatorNetworkShares1, stake1, Math.Rounding.Ceil)
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
         );
         assertEq(
             delegator.operatorNetworkSharesIn(network, bob, uint48(2 * vault.epochDuration())),
@@ -766,13 +768,14 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(delegator.operatorNetworkShares(network, bob), operatorNetworkShares2);
 
-        uint256 stake2 = operatorNetworkShares2.mulDiv(
+        uint256 operatorNetworkStake2 = operatorNetworkShares2.mulDiv(
             Math.min(networkLimit - slashAmount1Real, depositAmount - slashAmount1Real),
-            operatorNetworkShares1 - slashAmount1Real.mulDiv(operatorNetworkShares1, stake1, Math.Rounding.Ceil)
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
                 + operatorNetworkShares2
         );
-        vm.assume(stake2 > 0);
-        uint256 slashAmount2Real = Math.min(slashAmount2, stake2);
+        vm.assume(operatorNetworkStake2 > 0);
+        uint256 slashAmount2Real = Math.min(slashAmount2, operatorNetworkStake2);
         assertEq(_slash(alice, network, bob, slashAmount2), slashAmount2Real);
 
         assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
@@ -786,8 +789,10 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(
             delegator.totalOperatorNetworkShares(network),
-            operatorNetworkShares1 - slashAmount1Real.mulDiv(operatorNetworkShares1, stake1, Math.Rounding.Ceil)
-                + operatorNetworkShares2 - slashAmount2Real.mulDiv(operatorNetworkShares2, stake2, Math.Rounding.Ceil)
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
+                + operatorNetworkShares2
+                - slashAmount2Real.mulDiv(operatorNetworkShares2, operatorNetworkStake2, Math.Rounding.Ceil)
         );
         assertEq(
             delegator.operatorNetworkSharesIn(network, alice, uint48(2 * vault.epochDuration())),
@@ -795,7 +800,8 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(
             delegator.operatorNetworkShares(network, alice),
-            operatorNetworkShares1 - slashAmount1Real.mulDiv(operatorNetworkShares1, stake1, Math.Rounding.Ceil)
+            operatorNetworkShares1
+                - slashAmount1Real.mulDiv(operatorNetworkShares1, operatorNetworkStake1, Math.Rounding.Ceil)
         );
         assertEq(
             delegator.operatorNetworkSharesIn(network, bob, uint48(2 * vault.epochDuration())),
@@ -803,8 +809,13 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         assertEq(
             delegator.operatorNetworkShares(network, bob),
-            operatorNetworkShares2 - slashAmount2Real.mulDiv(operatorNetworkShares2, stake2, Math.Rounding.Ceil)
+            operatorNetworkShares2
+                - slashAmount2Real.mulDiv(operatorNetworkShares2, operatorNetworkStake2, Math.Rounding.Ceil)
         );
+
+        if (vault.totalSupply() == 0) {
+            assertEq(delegator.totalOperatorNetworkShares(network), 0);
+        }
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {

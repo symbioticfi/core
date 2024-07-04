@@ -16,7 +16,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     address private immutable SELF;
 
     modifier uninitialized() {
-        if (_getInitializedVersion() != 0) {
+        if (_getInitializedVersion() > 0) {
             revert AlreadyInitialized();
         }
 

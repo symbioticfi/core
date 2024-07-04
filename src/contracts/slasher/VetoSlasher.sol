@@ -158,7 +158,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
-        if (slashedAmount != 0) {
+        if (slashedAmount > 0) {
             _callOnSlash(request.network, request.operator, slashedAmount);
         }
 
@@ -231,7 +231,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         }
 
         uint48 epochDuration = IVault(vault_).epochDuration();
-        if (epochDuration != 0 && params.vetoDuration + params.executeDuration > epochDuration) {
+        if (epochDuration > 0 && params.vetoDuration + params.executeDuration > epochDuration) {
             revert InvalidSlashDuration();
         }
 
