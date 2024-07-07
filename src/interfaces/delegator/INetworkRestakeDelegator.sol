@@ -5,6 +5,9 @@ import {IBaseDelegator} from "./IBaseDelegator.sol";
 interface INetworkRestakeDelegator is IBaseDelegator {
     error ExceedsMaxNetworkLimit();
     error MissingRoleHolders();
+    error InvalidLength();
+    error ZeroShares();
+    error DuplicateOperator();
 
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.
@@ -112,13 +115,17 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function setNetworkLimit(address network, uint256 amount) external;
 
     /**
-     * @notice Set an operator's shares for a network (what percentage,
+     * @notice Set an operators' shares for a network (what percentage,
      *         which is equal to the shares divided by the total operators' shares,
      *         of the network's stake the vault curator is ready to give to the operator).
      * @param network address of the network
-     * @param operator address of the operator
-     * @param shares new shares of the operator for the network
+     * @param operators array of addresses of the operators
+     * @param shares array of new shares of the operators for the network
      * @dev Only the OPERATOR_NETWORK_SHARES_SET_ROLE holder can call this function.
      */
-    function setOperatorNetworkShares(address network, address operator, uint256 shares) external;
+    function setOperatorsNetworkShares(
+        address network,
+        address[] calldata operators,
+        uint256[] calldata shares
+    ) external;
 }

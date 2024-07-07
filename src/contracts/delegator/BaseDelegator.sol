@@ -105,20 +105,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             return 0;
         }
 
-        minOperatorNetworkStakeDuring_ = Math.min(IVault(vault).activeSupply(), operatorNetworkStake(network, operator));
+        if (Time.timestamp() + duration >= IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration()) {
+            return 0;
+        }
 
-        uint48 epochDuration = IVault(vault).epochDuration();
-        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
-        uint48 delta = nextEpochStart - Time.timestamp();
-        if (Time.timestamp() + duration >= nextEpochStart) {
-            minOperatorNetworkStakeDuring_ =
-                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta));
-        }
-        if (Time.timestamp() + duration >= nextEpochStart + epochDuration) {
-            minOperatorNetworkStakeDuring_ = Math.min(
-                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta + epochDuration)
-            );
-        }
+        return _minOperatorNetworkStakeDuring(network, operator, duration);
     }
 
     /**
@@ -156,6 +147,12 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         emit OnSlash(network, operator, slashedAmount);
     }
+
+    function _minOperatorNetworkStakeDuring(
+        address network,
+        address operator,
+        uint48 duration
+    ) internal view virtual returns (uint256) {}
 
     function _setMaxNetworkLimit(uint256 amount) internal virtual {}
 

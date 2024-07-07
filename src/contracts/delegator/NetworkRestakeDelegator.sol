@@ -156,9 +156,13 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
-        uint48 timestamp = amount > networkLimit(network)
+        uint48 epochDuration = IVault(vault).epochDuration();
+        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
+        (, uint48 checkpointTimestamp,,) = _networkLimit[network].upperLookupRecentCheckpoint(nextEpochStart);
+
+        uint48 timestamp = checkpointTimestamp < Time.timestamp() && amount > networkLimit(network)
             ? Time.timestamp()
-            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+            : nextEpochStart + epochDuration;
 
         _insertCheckpoint(_networkLimit[network], timestamp, amount);
 
@@ -168,39 +172,95 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function setOperatorNetworkShares(
+    function setOperatorsNetworkShares(
+        address network,
+        address[] calldata operators,
+        uint256[] calldata shares
+    ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
+        uint256 length = operators.length;
+        if (length == 0 || length != shares.length) {
+            revert InvalidLength();
+        }
+
+        uint48 epochDuration = IVault(vault).epochDuration();
+        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
+        (, uint48 checkpointTimestamp,,) =
+            _totalOperatorNetworkShares[network].upperLookupRecentCheckpoint(nextEpochStart);
+
+        bool isInstantUpdate = checkpointTimestamp < Time.timestamp() && totalOperatorNetworkShares(network) == 0;
+        uint48 timestamp = isInstantUpdate ? Time.timestamp() : nextEpochStart + epochDuration;
+        uint256 totalOperatorNetworkShares_;
+        if (!isInstantUpdate) {
+            totalOperatorNetworkShares_ = _totalOperatorNetworkShares[network].latest();
+        }
+
+        for (uint256 i; i < length; ++i) {
+            if (isInstantUpdate) {
+                if (operatorNetworkShares(network, operators[i]) != 0) {
+                    revert DuplicateOperator();
+                }
+                if (shares[i] == 0) {
+                    revert ZeroShares();
+                }
+                totalOperatorNetworkShares_ += shares[i];
+            } else {
+                totalOperatorNetworkShares_ =
+                    totalOperatorNetworkShares_ - _operatorNetworkShares[network][operators[i]].latest() + shares[i];
+            }
+
+            _insertCheckpoint(_operatorNetworkShares[network][operators[i]], timestamp, shares[i]);
+
+            emit SetOperatorNetworkShares(network, operators[i], shares[i]);
+        }
+
+        _insertCheckpoint(_totalOperatorNetworkShares[network], timestamp, totalOperatorNetworkShares_);
+    }
+
+    function _minOperatorNetworkStakeDuring(
         address network,
         address operator,
-        uint256 shares
-    ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
-        uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
+        uint48 duration
+    ) internal view override returns (uint256 minOperatorNetworkStakeDuring_) {
+        uint48 epochDuration = IVault(vault).epochDuration();
 
-        _totalOperatorNetworkShares[network].push(
-            timestamp,
-            _totalOperatorNetworkShares[network].latest() - _operatorNetworkShares[network][operator].latest() + shares
-        );
-
-        _operatorNetworkShares[network][operator].push(timestamp, shares);
-
-        emit SetOperatorNetworkShares(network, operator, shares);
+        uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
+        if (totalOperatorNetworkShares_ != 0) {
+            minOperatorNetworkStakeDuring_ = operatorNetworkShares(network, operator).mulDiv(
+                Math.min(IVault(vault).activeSupply(), networkLimit(network)), totalOperatorNetworkShares_
+            );
+        }
+        if (Time.timestamp() + duration >= IVault(vault).currentEpochStart() + epochDuration) {
+            uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesIn(network, epochDuration);
+            minOperatorNetworkStakeDuring_ = totalOperatorNetworkSharesIn_ == 0
+                ? 0
+                : Math.min(
+                    minOperatorNetworkStakeDuring_,
+                    operatorNetworkSharesIn(network, operator, epochDuration).mulDiv(
+                        Math.min(IVault(vault).activeSupply(), networkLimitIn(network, epochDuration)),
+                        totalOperatorNetworkSharesIn_
+                    )
+                );
+        }
     }
 
     function _setMaxNetworkLimit(uint256 amount) internal override {
         Checkpoints.Trace256 storage _networkLimit_ = _networkLimit[msg.sender];
-        (, uint48 latestTimestamp1, uint256 latestValue1) = _networkLimit_.latestCheckpoint();
-        if (Time.timestamp() < latestTimestamp1) {
-            _networkLimit_.pop();
-            (, uint48 latestTimestamp2, uint256 latestValue2) = _networkLimit_.latestCheckpoint();
-            if (Time.timestamp() < latestTimestamp2) {
+        (bool exists, uint48 latestTimestamp1, uint256 latestValue1) = _networkLimit_.latestCheckpoint();
+        if (exists) {
+            if (Time.timestamp() < latestTimestamp1) {
                 _networkLimit_.pop();
-                _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), amount));
-                _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, amount));
+                (, uint48 latestTimestamp2, uint256 latestValue2) = _networkLimit_.latestCheckpoint();
+                if (Time.timestamp() < latestTimestamp2) {
+                    _networkLimit_.pop();
+                    _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), amount));
+                    _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, amount));
+                } else {
+                    _networkLimit_.push(Time.timestamp(), Math.min(latestValue2, amount));
+                }
+                _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, amount));
             } else {
-                _networkLimit_.push(Time.timestamp(), Math.min(latestValue2, amount));
+                _networkLimit_.push(Time.timestamp(), Math.min(latestValue1, amount));
             }
-            _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, amount));
-        } else {
-            _networkLimit_.push(Time.timestamp(), Math.min(latestValue1, amount));
         }
     }
 
