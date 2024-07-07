@@ -149,14 +149,14 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.networkStake(alice), 0);
         assertEq(delegator.operatorNetworkStakeIn(alice, alice, 0), 0);
         assertEq(delegator.operatorNetworkStake(alice, alice), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(alice, alice, 0), 0);
+        assertEq(delegator.minOperatorNetworkStake(alice, alice), 0);
         assertEq(delegator.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
         assertEq(delegator.OPERATOR_NETWORK_LIMIT_SET_ROLE(), keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE"));
-        assertEq(delegator.networkLimitIn(alice, 0), 0);
+        assertEq(delegator.networkLimitAt(alice, 0), 0);
         assertEq(delegator.networkLimit(alice), 0);
-        assertEq(delegator.totalOperatorNetworkLimitIn(alice, 0), 0);
+        assertEq(delegator.totalOperatorNetworkLimitAt(alice, 0), 0);
         assertEq(delegator.totalOperatorNetworkLimit(alice), 0);
-        assertEq(delegator.operatorNetworkLimitIn(alice, alice, 0), 0);
+        assertEq(delegator.operatorNetworkLimitAt(alice, alice, 0), 0);
         assertEq(delegator.operatorNetworkLimit(alice, alice), 0);
     }
 
@@ -238,14 +238,14 @@ contract FullRestakeDelegatorTest is Test {
 
         _setNetworkLimit(alice, network, amount1);
 
-        assertEq(delegator.networkLimitIn(network, 1), amount1);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.networkLimit(network), amount1);
 
         if (amount1 >= amount2) {
             _setNetworkLimit(alice, network, amount2);
 
-            assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), amount2);
-            assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration() - 1)), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration() - 1)), amount1);
             assertEq(delegator.networkLimit(network), amount1);
 
             blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
@@ -253,53 +253,53 @@ contract FullRestakeDelegatorTest is Test {
 
             _setNetworkLimit(alice, network, amount1);
 
-            assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), amount1);
-            assertEq(delegator.networkLimitIn(network, uint48(vault.epochDuration() - 1)), amount1);
-            assertEq(delegator.networkLimitIn(network, uint48(vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration() - 1)), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount2);
 
             blockTimestamp = vault.currentEpochStart() + vault.epochDuration() - 1;
             vm.warp(blockTimestamp);
 
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration() + 1), amount1);
-            assertEq(delegator.networkLimitIn(network, 1), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration() + 1)), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount2);
             assertEq(delegator.networkLimit(network), amount1);
 
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() + 1;
             vm.warp(blockTimestamp);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount1);
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration()), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount1);
             assertEq(delegator.networkLimit(network), amount1);
 
             _setNetworkLimit(alice, network, amount2);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration()), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount1);
             assertEq(delegator.networkLimit(network), amount1);
 
             _setNetworkLimit(alice, network, amount4);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration()), amount4);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount4);
             assertEq(delegator.networkLimit(network), amount4);
 
             _setNetworkLimit(alice, network, amount1);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount1);
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration()), amount4);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount1);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount4);
             assertEq(delegator.networkLimit(network), amount4);
 
             _setNetworkLimit(alice, network, amount2);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration()), amount4);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount4);
             assertEq(delegator.networkLimit(network), amount4);
 
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration();
             vm.warp(blockTimestamp);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.networkLimitIn(network, vault.epochDuration()), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount2);
             assertEq(delegator.networkLimit(network), amount2);
         } else {
             blockTimestamp = blockTimestamp + 1;
@@ -307,25 +307,25 @@ contract FullRestakeDelegatorTest is Test {
 
             _setNetworkLimit(alice, network, amount2);
 
-            assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), amount2);
+            assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount2);
             assertEq(delegator.networkLimit(network), amount2);
         }
 
         _setNetworkLimit(alice, network, amount3);
 
-        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), amount3);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount3);
         assertEq(delegator.networkLimit(network), amount2);
 
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
-        assertEq(delegator.networkLimitIn(network, 1), amount3);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.networkLimit(network), amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(delegator.networkLimitIn(network, 1), amount3);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.networkLimit(network), amount3);
 
         blockTimestamp = blockTimestamp + 1;
@@ -333,7 +333,7 @@ contract FullRestakeDelegatorTest is Test {
 
         _setNetworkLimit(alice, network, amount2);
 
-        assertEq(delegator.networkLimitIn(network, 1), amount2);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount2);
         assertEq(delegator.networkLimit(network), amount2);
     }
 
@@ -381,21 +381,33 @@ contract FullRestakeDelegatorTest is Test {
 
         _setOperatorNetworkLimit(alice, network, operator, amount1);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, operator, 1), amount1);
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount1);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount1);
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
         if (amount1 >= amount2) {
             _setOperatorNetworkLimit(alice, network, operator, amount2);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, uint48(2 * vault.epochDuration())), amount2);
             assertEq(
-                delegator.operatorNetworkLimitIn(network, operator, uint48(2 * vault.epochDuration() - 1)), amount1
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(
+                    network, operator, uint48(blockTimestamp + 2 * vault.epochDuration() - 1)
+                ),
+                amount1
             );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration())), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration() - 1)), amount1);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration() - 1)),
+                amount1
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
             blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
@@ -403,77 +415,166 @@ contract FullRestakeDelegatorTest is Test {
 
             _setOperatorNetworkLimit(alice, network, operator, amount1);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, uint48(2 * vault.epochDuration())), amount1);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, uint48(vault.epochDuration() - 1)), amount1);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, uint48(vault.epochDuration())), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration())), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, uint48(vault.epochDuration() - 1)), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, uint48(vault.epochDuration())), amount2);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount1
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration() - 1)),
+                amount1
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount1
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration() - 1)),
+                amount1
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount2
+            );
 
             blockTimestamp = vault.currentEpochStart() + vault.epochDuration() - 1;
             vm.warp(blockTimestamp);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration() + 1), amount1);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 1), amount2);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration() + 1)),
+                amount1
+            );
+            assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount2);
             assertEq(delegator.operatorNetworkLimit(network, operator), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration() + 1), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount2);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration() + 1)),
+                amount1
+            );
+            assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount2);
             assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() + 1;
             vm.warp(blockTimestamp);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount1);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration()), amount1);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount1
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount1
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration()), amount1);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount1
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount1
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
             _setOperatorNetworkLimit(alice, network, operator, amount2);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration()), amount1);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount1
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration()), amount1);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount1
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
             _setOperatorNetworkLimit(alice, network, operator, amount4);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration()), amount4);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount4
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount4);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration()), amount4);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount4
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount4);
 
             _setOperatorNetworkLimit(alice, network, operator, amount1);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount1);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration()), amount4);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount1
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount4
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount4);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount1);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration()), amount4);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount1
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount4
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount4);
 
             _setOperatorNetworkLimit(alice, network, operator, amount2);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration()), amount4);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount4
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount4);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration()), amount4);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount4
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount4);
 
             blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration();
             vm.warp(blockTimestamp);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, vault.epochDuration()), amount2);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + vault.epochDuration())),
+                amount2
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, vault.epochDuration()), amount2);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), amount2
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount2);
         } else {
             blockTimestamp = blockTimestamp + 1;
@@ -481,33 +582,44 @@ contract FullRestakeDelegatorTest is Test {
 
             _setOperatorNetworkLimit(alice, network, operator, amount2);
 
-            assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount2);
+            assertEq(
+                delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
             assertEq(delegator.operatorNetworkLimit(network, operator), amount2);
-            assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount2);
+            assertEq(
+                delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+                amount2
+            );
             assertEq(delegator.totalOperatorNetworkLimit(network), amount2);
         }
 
         _setOperatorNetworkLimit(alice, network, operator, amount3);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, operator, 2 * vault.epochDuration()), amount3);
+        assertEq(
+            delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            amount3
+        );
         assertEq(delegator.operatorNetworkLimit(network, operator), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 2 * vault.epochDuration()), amount3);
+        assertEq(
+            delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), amount3
+        );
         assertEq(delegator.totalOperatorNetworkLimit(network), amount2);
 
         blockTimestamp = vault.currentEpochStart() + 2 * vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, operator, 1), amount3);
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount3);
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, operator, 1), amount3);
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount3);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount3);
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount3);
 
         blockTimestamp = blockTimestamp + 1;
@@ -515,9 +627,9 @@ contract FullRestakeDelegatorTest is Test {
 
         _setOperatorNetworkLimit(alice, network, operator, amount2);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, operator, 1), amount2);
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount2);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount2);
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount2);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount2);
     }
 
@@ -534,6 +646,8 @@ contract FullRestakeDelegatorTest is Test {
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
         address network = bob;
         _registerNetwork(network, bob);
         _registerOperator(alice);
@@ -541,23 +655,28 @@ contract FullRestakeDelegatorTest is Test {
 
         _setOperatorNetworkLimit(alice, network, alice, amount1);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, alice, 1), amount1);
+        assertEq(delegator.operatorNetworkLimitAt(network, alice, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.operatorNetworkLimit(network, alice), amount1);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount1);
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
         _setOperatorNetworkLimit(alice, network, bob, amount2);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, bob, 1), amount2);
+        assertEq(delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 1)), amount2);
         assertEq(delegator.operatorNetworkLimit(network, bob), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, 1), amount1 + amount2);
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1 + amount2);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount1 + amount2);
 
         _setOperatorNetworkLimit(alice, network, bob, amount3);
 
-        assertEq(delegator.operatorNetworkLimitIn(network, bob, uint48(2 * vault.epochDuration())), amount3);
+        assertEq(
+            delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), amount3
+        );
         assertEq(delegator.operatorNetworkLimit(network, bob), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration())), amount1 + amount3);
+        assertEq(
+            delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            amount1 + amount3
+        );
         assertEq(delegator.totalOperatorNetworkLimit(network), amount1 + amount2);
     }
 
@@ -585,21 +704,23 @@ contract FullRestakeDelegatorTest is Test {
 
         _setNetworkLimit(alice, network, networkLimit1);
 
-        assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), networkLimit1);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), networkLimit1);
 
         blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         _setNetworkLimit(alice, network, networkLimit1);
 
-        assertEq(delegator.networkLimitIn(network, vault.epochDuration()), networkLimit1);
-        assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), networkLimit1);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), networkLimit1);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), networkLimit1);
 
         _setMaxNetworkLimit(network, maxNetworkLimit2);
 
         assertEq(delegator.maxNetworkLimit(network), maxNetworkLimit2);
-        assertEq(delegator.networkLimitIn(network, vault.epochDuration()), maxNetworkLimit2);
-        assertEq(delegator.networkLimitIn(network, 2 * vault.epochDuration()), maxNetworkLimit2);
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + vault.epochDuration())), maxNetworkLimit2);
+        assertEq(
+            delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), maxNetworkLimit2
+        );
     }
 
     function test_SetMaxNetworkLimitRevertNotNetwork(uint48 epochDuration, uint256 maxNetworkLimit) public {
@@ -654,20 +775,20 @@ contract FullRestakeDelegatorTest is Test {
         _registerOperator(alice);
         _registerOperator(bob);
 
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _optInOperatorVault(alice);
         _optInOperatorVault(bob);
 
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _optInOperatorNetwork(alice, address(network));
         _optInOperatorNetwork(bob, address(network));
 
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _deposit(alice, depositAmount);
 
@@ -677,8 +798,8 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkStake(network, alice), 0);
         assertEq(delegator.operatorNetworkStakeIn(network, bob, 1), 0);
         assertEq(delegator.operatorNetworkStake(network, bob), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _setNetworkLimit(alice, network, networkLimit);
 
@@ -688,8 +809,8 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkStake(network, alice), 0);
         assertEq(delegator.operatorNetworkStakeIn(network, bob, 1), 0);
         assertEq(delegator.operatorNetworkStake(network, bob), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration), 0);
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
 
@@ -710,10 +831,10 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkStakeIn(network, bob, 1), 0);
         assertEq(delegator.operatorNetworkStake(network, bob), 0);
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration),
+            delegator.minOperatorNetworkStake(network, alice),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
         );
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration), 0);
+        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
 
@@ -742,11 +863,11 @@ contract FullRestakeDelegatorTest is Test {
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2))
         );
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration),
+            delegator.minOperatorNetworkStake(network, alice),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
         );
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration),
+            delegator.minOperatorNetworkStake(network, bob),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2))
         );
 
@@ -777,11 +898,11 @@ contract FullRestakeDelegatorTest is Test {
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2))
         );
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration),
+            delegator.minOperatorNetworkStake(network, alice),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
         );
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration),
+            delegator.minOperatorNetworkStake(network, bob),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2))
         );
 
@@ -813,15 +934,13 @@ contract FullRestakeDelegatorTest is Test {
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2))
         );
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, alice, epochDuration),
+            delegator.minOperatorNetworkStake(network, alice),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
         );
         assertEq(
-            delegator.minOperatorNetworkStakeDuring(network, bob, epochDuration),
+            delegator.minOperatorNetworkStake(network, bob),
             Math.min(depositAmount, Math.min(networkLimit, Math.min(operatorNetworkLimit2, operatorNetworkLimit3)))
         );
-
-        assertEq(delegator.minOperatorNetworkStakeDuring(network, bob, 200 days + 1), 0);
     }
 
     function test_Slash(
@@ -842,6 +961,8 @@ contract FullRestakeDelegatorTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
 
         (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -871,20 +992,23 @@ contract FullRestakeDelegatorTest is Test {
 
         _optInNetworkVault(network);
 
-        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
+        assertEq(
+            delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), networkLimit - 1
+        );
         assertEq(delegator.networkLimit(network), networkLimit);
         assertEq(
-            delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration())),
+            delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
             operatorNetworkLimit1 + operatorNetworkLimit2 - 2
         );
         assertEq(delegator.totalOperatorNetworkLimit(network), operatorNetworkLimit1 + operatorNetworkLimit2);
         assertEq(
-            delegator.operatorNetworkLimitIn(network, alice, uint48(2 * vault.epochDuration())),
+            delegator.operatorNetworkLimitAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration())),
             operatorNetworkLimit1 - 1
         );
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
         assertEq(
-            delegator.operatorNetworkLimitIn(network, bob, uint48(2 * vault.epochDuration())), operatorNetworkLimit2 - 1
+            delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            operatorNetworkLimit2 - 1
         );
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2);
 
@@ -892,13 +1016,15 @@ contract FullRestakeDelegatorTest is Test {
             Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
         assertEq(_slash(alice, network, alice, slashAmount1), slashAmount1Real);
 
-        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
+        assertEq(
+            delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), networkLimit - 1
+        );
         assertEq(
             delegator.networkLimit(network),
             networkLimit == type(uint256).max ? networkLimit : networkLimit - slashAmount1Real
         );
         assertEq(
-            delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration())),
+            delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
             operatorNetworkLimit1 + operatorNetworkLimit2 - 2
         );
         assertEq(
@@ -906,12 +1032,13 @@ contract FullRestakeDelegatorTest is Test {
             operatorNetworkLimit1 + operatorNetworkLimit2 - slashAmount1Real
         );
         assertEq(
-            delegator.operatorNetworkLimitIn(network, alice, uint48(2 * vault.epochDuration())),
+            delegator.operatorNetworkLimitAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration())),
             operatorNetworkLimit1 - 1
         );
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1 - slashAmount1Real);
         assertEq(
-            delegator.operatorNetworkLimitIn(network, bob, uint48(2 * vault.epochDuration())), operatorNetworkLimit2 - 1
+            delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            operatorNetworkLimit2 - 1
         );
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2);
 
@@ -921,13 +1048,15 @@ contract FullRestakeDelegatorTest is Test {
         );
         assertEq(_slash(alice, network, bob, slashAmount2), slashAmount2Real);
 
-        assertEq(delegator.networkLimitIn(network, uint48(2 * vault.epochDuration())), networkLimit - 1);
+        assertEq(
+            delegator.networkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())), networkLimit - 1
+        );
         assertEq(
             delegator.networkLimit(network),
             networkLimit == type(uint256).max ? networkLimit : networkLimit - slashAmount1Real - slashAmount2Real
         );
         assertEq(
-            delegator.totalOperatorNetworkLimitIn(network, uint48(2 * vault.epochDuration())),
+            delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 2 * vault.epochDuration())),
             operatorNetworkLimit1 + operatorNetworkLimit2 - 2
         );
         assertEq(
@@ -935,12 +1064,13 @@ contract FullRestakeDelegatorTest is Test {
             operatorNetworkLimit1 + operatorNetworkLimit2 - slashAmount1Real - slashAmount2Real
         );
         assertEq(
-            delegator.operatorNetworkLimitIn(network, alice, uint48(2 * vault.epochDuration())),
+            delegator.operatorNetworkLimitAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration())),
             operatorNetworkLimit1 - 1
         );
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1 - slashAmount1Real);
         assertEq(
-            delegator.operatorNetworkLimitIn(network, bob, uint48(2 * vault.epochDuration())), operatorNetworkLimit2 - 1
+            delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            operatorNetworkLimit2 - 1
         );
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2 - slashAmount2Real);
     }
@@ -964,10 +1094,10 @@ contract FullRestakeDelegatorTest is Test {
                 }),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
-                    INetworkRestakeDelegator.InitParams({
+                    IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
                         networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        operatorNetworkLimitSetRoleHolder: alice
                     })
                 ),
                 withSlasher: false,

@@ -205,6 +205,7 @@ contract VaultTest is Test {
         assertEq(vault.currentEpochStart(), blockTimestamp);
         vm.expectRevert(IVaultStorage.NoPreviousEpoch.selector);
         vault.previousEpochStart();
+        assertEq(vault.nextEpochStart(), blockTimestamp + epochDuration);
         assertEq(vault.totalSupplyIn(0), 0);
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), 0);
@@ -236,6 +237,7 @@ contract VaultTest is Test {
         assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
         vm.expectRevert(IVaultStorage.NoPreviousEpoch.selector);
         vault.previousEpochStart();
+        assertEq(vault.nextEpochStart(), blockTimestamp + 1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -245,6 +247,7 @@ contract VaultTest is Test {
         assertEq(vault.currentEpoch(), 1);
         assertEq(vault.currentEpochStart(), blockTimestamp);
         assertEq(vault.previousEpochStart(), blockTimestamp - vault.epochDuration());
+        assertEq(vault.nextEpochStart(), blockTimestamp + vault.epochDuration());
 
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -254,6 +257,7 @@ contract VaultTest is Test {
         assertEq(vault.currentEpoch(), 1);
         assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
         assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
+        assertEq(vault.nextEpochStart(), blockTimestamp + 1);
     }
 
     function test_CreateRevertInvalidEpochDuration(uint256 slasherSetEpochsDelay) public {

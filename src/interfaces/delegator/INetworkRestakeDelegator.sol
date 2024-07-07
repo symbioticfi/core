@@ -51,13 +51,13 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function OPERATOR_NETWORK_SHARES_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get a network's limit in `duration` seconds
+     * @notice Get a network's limit at a given timestamp
      *         (how much stake the vault curator is ready to give to the network).
      * @param network address of the network
-     * @param duration duration to get the network's limit in
-     * @return limit of the network in `duration` seconds
+     * @param timestamp time point to get the network limit at
+     * @return limit of the network at the given timestamp
      */
-    function networkLimitIn(address network, uint48 duration) external view returns (uint256);
+    function networkLimitAt(address network, uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a network's limit (how much stake the vault curator is ready to give to the network).
@@ -67,12 +67,12 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function networkLimit(address network) external view returns (uint256);
 
     /**
-     * @notice Get a sum of operators' shares for a network in `duration` seconds.
+     * @notice Get a sum of operators' shares for a network at a given timestamp.
      * @param network address of the network
-     * @param duration duration to get the operator-network limit in
-     * @return total shares of the operators for the network in `duration` seconds
+     * @param timestamp time point to get the total operators' shares at
+     * @return total shares of the operators for the network at the given timestamp
      */
-    function totalOperatorNetworkSharesIn(address network, uint48 duration) external view returns (uint256);
+    function totalOperatorNetworkSharesAt(address network, uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a sum of operators' shares for a network.
@@ -82,18 +82,18 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function totalOperatorNetworkShares(address network) external view returns (uint256);
 
     /**
-     * @notice Get an operator's shares for a network in `duration` seconds (what percentage,
+     * @notice Get an operator's shares for a network at a given timestamp (what percentage,
      *         which is equal to the shares divided by the total operators' shares,
      *         of the network's stake the vault curator is ready to give to the operator).
      * @param network address of the network
      * @param operator address of the operator
-     * @param duration duration to get the operator-network shares in
-     * @return shares of the operator for the network in `duration` seconds
+     * @param timestamp time point to get the operator's shares at
+     * @return shares of the operator for the network at the given timestamp
      */
-    function operatorNetworkSharesIn(
+    function operatorNetworkSharesAt(
         address network,
         address operator,
-        uint48 duration
+        uint48 timestamp
     ) external view returns (uint256);
 
     /**

@@ -150,6 +150,13 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    function nextEpochStart() public view returns (uint48) {
+        return (epochDurationInit + (currentEpoch() + 1) * epochDuration).toUint48();
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     function activeSharesAt(uint48 timestamp) public view returns (uint256) {
         return _activeShares.upperLookupRecent(timestamp);
     }

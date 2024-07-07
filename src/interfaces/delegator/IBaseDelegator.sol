@@ -115,18 +115,26 @@ interface IBaseDelegator {
     function operatorNetworkStake(address network, address operator) external view returns (uint256);
 
     /**
-     * @notice Get a minimum stake that a given network will be able to slash
-     *         for a certain operator during `duration` (if no cross-slashing and no slashings by the network).
+     * @notice Get a minimum stake that a given network could be able to slash
+     *         for a certain operator at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
      * @param network address of the network
      * @param operator address of the operator
-     * @param duration duration to get the minimum slashable stake during
-     * @return minimum slashable stake during `duration`
+     * @return minimum slashable stake at the given timestamp until the end of the consequent epoch
      */
-    function minOperatorNetworkStakeDuring(
+    function minOperatorNetworkStakeAt(
         address network,
         address operator,
-        uint48 duration
+        uint48 timestamp
     ) external view returns (uint256);
+
+    /**
+     * @notice Get a minimum stake that a given network will be able to slash
+     *         for a certain operator until the end of the next epoch (if no cross-slashing and no slashings by the network).
+     * @param network address of the network
+     * @param operator address of the operator
+     * @return minimum slashable stake until the end of the next epoch
+     */
+    function minOperatorNetworkStake(address network, address operator) external view returns (uint256);
 
     /**
      * @notice Set a maximum limit for a network (how much stake the network is ready to get).

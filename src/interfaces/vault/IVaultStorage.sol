@@ -111,6 +111,12 @@ interface IVaultStorage {
     function previousEpochStart() external view returns (uint48);
 
     /**
+     * @notice Get a start of the next vault epoch.
+     * @return start of the next epoch
+     */
+    function nextEpochStart() external view returns (uint48);
+
+    /**
      * @notice Get a delay for a vault in epochs to update a slasher.
      * @return updating a slasher delay in epochs
      */

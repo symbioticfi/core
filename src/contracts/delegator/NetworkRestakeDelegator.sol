@@ -51,47 +51,47 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function networkLimitIn(address network, uint48 duration) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(Time.timestamp() + duration);
+    function networkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
+        return _networkLimit[network].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function networkLimit(address network) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(Time.timestamp());
+        return networkLimitAt(network, Time.timestamp());
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function totalOperatorNetworkSharesIn(address network, uint48 duration) public view returns (uint256) {
-        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp() + duration);
+    function totalOperatorNetworkSharesAt(address network, uint48 timestamp) public view returns (uint256) {
+        return _totalOperatorNetworkShares[network].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function totalOperatorNetworkShares(address network) public view returns (uint256) {
-        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp());
+        return totalOperatorNetworkSharesAt(network, Time.timestamp());
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function operatorNetworkSharesIn(
+    function operatorNetworkSharesAt(
         address network,
         address operator,
-        uint48 duration
+        uint48 timestamp
     ) public view returns (uint256) {
-        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp() + duration);
+        return _operatorNetworkShares[network][operator].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function operatorNetworkShares(address network, address operator) public view returns (uint256) {
-        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp());
+        return operatorNetworkSharesAt(network, operator, Time.timestamp());
     }
 
     /**
@@ -101,10 +101,10 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address network,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        if (totalOperatorNetworkSharesIn(network, duration) == 0) {
+        if (totalOperatorNetworkSharesAt(network, Time.timestamp() + duration) == 0) {
             return 0;
         }
-        return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitIn(network, duration));
+        return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitAt(network, Time.timestamp() + duration));
     }
 
     /**
@@ -125,11 +125,11 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesIn(network, duration);
+        uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesAt(network, Time.timestamp() + duration);
         if (totalOperatorNetworkSharesIn_ == 0) {
             return 0;
         }
-        return operatorNetworkSharesIn(network, operator, duration).mulDiv(
+        return operatorNetworkSharesAt(network, operator, Time.timestamp() + duration).mulDiv(
             networkStakeIn(network, duration), totalOperatorNetworkSharesIn_
         );
     }
@@ -157,7 +157,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         }
 
         uint48 epochDuration = IVault(vault).epochDuration();
-        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
+        uint48 nextEpochStart = IVault(vault).nextEpochStart();
         (, uint48 checkpointTimestamp,,) = _networkLimit[network].upperLookupRecentCheckpoint(nextEpochStart);
 
         uint48 timestamp = checkpointTimestamp < Time.timestamp() && amount > networkLimit(network)
@@ -182,13 +182,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert InvalidLength();
         }
 
-        uint48 epochDuration = IVault(vault).epochDuration();
-        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
         (, uint48 checkpointTimestamp,,) =
-            _totalOperatorNetworkShares[network].upperLookupRecentCheckpoint(nextEpochStart);
+            _totalOperatorNetworkShares[network].upperLookupRecentCheckpoint(IVault(vault).nextEpochStart());
 
         bool isInstantUpdate = checkpointTimestamp < Time.timestamp() && totalOperatorNetworkShares(network) == 0;
-        uint48 timestamp = isInstantUpdate ? Time.timestamp() : nextEpochStart + epochDuration;
+        uint48 timestamp =
+            isInstantUpdate ? Time.timestamp() : IVault(vault).nextEpochStart() + IVault(vault).epochDuration();
         uint256 totalOperatorNetworkShares_;
         if (!isInstantUpdate) {
             totalOperatorNetworkShares_ = _totalOperatorNetworkShares[network].latest();
@@ -216,31 +215,50 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         _insertCheckpoint(_totalOperatorNetworkShares[network], timestamp, totalOperatorNetworkShares_);
     }
 
-    function _minOperatorNetworkStakeDuring(
+    function _minOperatorNetworkStakeAt(
         address network,
         address operator,
-        uint48 duration
-    ) internal view override returns (uint256 minOperatorNetworkStakeDuring_) {
+        uint48 timestamp
+    ) internal view override returns (uint256) {
+        uint48 epochDuration = IVault(vault).epochDuration();
+
+        uint256 totalOperatorNetworkSharesAt_ = totalOperatorNetworkSharesAt(network, timestamp);
+        uint256 totalOperatorNetworkSharesAt__ = totalOperatorNetworkSharesAt(network, timestamp + epochDuration);
+
+        return Math.min(
+            totalOperatorNetworkSharesAt_ == 0
+                ? 0
+                : operatorNetworkShares(network, operator).mulDiv(
+                    Math.min(IVault(vault).activeSupplyAt(timestamp), networkLimit(network)), totalOperatorNetworkSharesAt_
+                ),
+            totalOperatorNetworkSharesAt__ == 0
+                ? 0
+                : operatorNetworkSharesAt(network, operator, timestamp + epochDuration).mulDiv(
+                    Math.min(IVault(vault).activeSupplyAt(timestamp), networkLimitAt(network, timestamp + epochDuration)),
+                    totalOperatorNetworkSharesAt__
+                )
+        );
+    }
+
+    function _minOperatorNetworkStake(address network, address operator) internal view override returns (uint256) {
         uint48 epochDuration = IVault(vault).epochDuration();
 
         uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
-        if (totalOperatorNetworkShares_ != 0) {
-            minOperatorNetworkStakeDuring_ = operatorNetworkShares(network, operator).mulDiv(
-                Math.min(IVault(vault).activeSupply(), networkLimit(network)), totalOperatorNetworkShares_
-            );
-        }
-        if (Time.timestamp() + duration >= IVault(vault).currentEpochStart() + epochDuration) {
-            uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesIn(network, epochDuration);
-            minOperatorNetworkStakeDuring_ = totalOperatorNetworkSharesIn_ == 0
+        uint256 totalOperatorNetworkSharesAt_ = totalOperatorNetworkSharesAt(network, Time.timestamp() + epochDuration);
+
+        return Math.min(
+            totalOperatorNetworkShares_ == 0
                 ? 0
-                : Math.min(
-                    minOperatorNetworkStakeDuring_,
-                    operatorNetworkSharesIn(network, operator, epochDuration).mulDiv(
-                        Math.min(IVault(vault).activeSupply(), networkLimitIn(network, epochDuration)),
-                        totalOperatorNetworkSharesIn_
-                    )
-                );
-        }
+                : operatorNetworkShares(network, operator).mulDiv(
+                    Math.min(IVault(vault).activeSupply(), networkLimit(network)), totalOperatorNetworkShares_
+                ),
+            totalOperatorNetworkSharesAt_ == 0
+                ? 0
+                : operatorNetworkSharesAt(network, operator, Time.timestamp() + epochDuration).mulDiv(
+                    Math.min(IVault(vault).activeSupply(), networkLimitAt(network, Time.timestamp() + epochDuration)),
+                    totalOperatorNetworkSharesAt_
+                )
+        );
     }
 
     function _setMaxNetworkLimit(uint256 amount) internal override {

@@ -34,8 +34,10 @@ contract OperatorOptInServiceTest is Test {
         service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         assertEq(service.WHERE_REGISTRY(), address(networkRegistry));
+        assertEq(service.isOptedInAt(alice, alice, 0), false);
         assertEq(service.isOptedIn(alice, alice), false);
-        assertEq(service.lastOptOut(alice, alice), 0);
+        assertEq(service.wasOptedInAfterDuring(alice, alice, 0, 0), false);
+        assertEq(service.wasOptedInAfter(alice, alice, 0), false);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         address operator = alice;
@@ -53,8 +55,17 @@ contract OperatorOptInServiceTest is Test {
         service.optIn(where);
         vm.stopPrank();
 
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 1)), false);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp)), true);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp + 1)), true);
         assertEq(service.isOptedIn(operator, where), true);
-        assertEq(service.lastOptOut(operator, where), 0);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp - 1), 0), false);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp - 1), 1), true);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp), 0), true);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp), 1), true);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp + 1), 0), true);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp + 1), 1), true);
+        assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp - 1)), true);
         assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp)), true);
         assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp + 1)), true);
 
@@ -62,15 +73,17 @@ contract OperatorOptInServiceTest is Test {
         vm.warp(blockTimestamp);
 
         assertEq(service.isOptedIn(operator, where), true);
-        assertEq(service.lastOptOut(operator, where), 0);
         assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp)), true);
 
         vm.startPrank(operator);
         service.optOut(where);
         vm.stopPrank();
 
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 1)), true);
         assertEq(service.isOptedIn(operator, where), false);
-        assertEq(service.lastOptOut(operator, where), blockTimestamp);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp), 0), true);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp), 1), true);
+        assertEq(service.wasOptedInAfterDuring(operator, where, uint48(blockTimestamp + 1), 1), false);
         assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp - 1)), true);
         assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp)), true);
         assertEq(service.wasOptedInAfter(operator, where, uint48(blockTimestamp + 1)), false);
@@ -79,21 +92,18 @@ contract OperatorOptInServiceTest is Test {
         vm.warp(blockTimestamp);
 
         assertEq(service.isOptedIn(operator, where), false);
-        assertEq(service.lastOptOut(operator, where), blockTimestamp - 1);
 
         vm.startPrank(operator);
         service.optIn(where);
         vm.stopPrank();
 
         assertEq(service.isOptedIn(operator, where), true);
-        assertEq(service.lastOptOut(operator, where), blockTimestamp - 1);
 
         vm.startPrank(operator);
         service.optOut(where);
         vm.stopPrank();
 
         assertEq(service.isOptedIn(operator, where), false);
-        assertEq(service.lastOptOut(operator, where), blockTimestamp);
     }
 
     function test_OptInRevertNotEntity() public {

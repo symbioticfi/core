@@ -93,10 +93,31 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function minOperatorNetworkStakeDuring(
+    function minOperatorNetworkStakeAt(
         address network,
         address operator,
-        uint48 duration
+        uint48 timestamp
+    ) external view returns (uint256 minOperatorNetworkStakeDuring_) {
+        if (
+            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfterDuring(
+                operator, vault, timestamp, IVault(vault).epochDuration()
+            )
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfterDuring(
+                    operator, network, timestamp, IVault(vault).epochDuration()
+                )
+        ) {
+            return 0;
+        }
+
+        return _minOperatorNetworkStakeAt(network, operator, timestamp);
+    }
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    function minOperatorNetworkStake(
+        address network,
+        address operator
     ) external view returns (uint256 minOperatorNetworkStakeDuring_) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
@@ -105,11 +126,7 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             return 0;
         }
 
-        if (Time.timestamp() + duration >= IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration()) {
-            return 0;
-        }
-
-        return _minOperatorNetworkStakeDuring(network, operator, duration);
+        return _minOperatorNetworkStake(network, operator);
     }
 
     /**
@@ -148,11 +165,13 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         emit OnSlash(network, operator, slashedAmount);
     }
 
-    function _minOperatorNetworkStakeDuring(
+    function _minOperatorNetworkStakeAt(
         address network,
         address operator,
-        uint48 duration
+        uint48 timestamp
     ) internal view virtual returns (uint256) {}
+
+    function _minOperatorNetworkStake(address network, address operator) internal view virtual returns (uint256) {}
 
     function _setMaxNetworkLimit(uint256 amount) internal virtual {}
 
