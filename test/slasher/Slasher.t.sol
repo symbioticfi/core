@@ -207,12 +207,12 @@ contract SlasherTest is Test {
         _optInNetworkVault(network);
 
         assertEq(
-            Math.min(slashAmount1, delegator.operatorNetworkStake(network, alice)),
+            Math.min(slashAmount1, delegator.operatorNetworkSlashableStake(network, alice)),
             _slash(alice, network, alice, slashAmount1)
         );
 
         assertEq(
-            Math.min(slashAmount2, delegator.operatorNetworkStake(network, bob)),
+            Math.min(slashAmount2, delegator.operatorNetworkSlashableStake(network, bob)),
             _slash(alice, network, bob, slashAmount2)
         );
     }

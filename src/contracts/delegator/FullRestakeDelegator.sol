@@ -6,6 +6,7 @@ import {BaseDelegator} from "./BaseDelegator.sol";
 import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IFullRestakeDelegatorHook} from "src/interfaces/delegator/hook/IFullRestakeDelegatorHook.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -59,7 +60,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
      * @inheritdoc IFullRestakeDelegator
      */
     function networkLimit(address network) public view returns (uint256) {
-        return networkLimitAt(network, Time.timestamp());
+        return _networkLimit[network].latest();
     }
 
     /**
@@ -73,7 +74,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
      * @inheritdoc IFullRestakeDelegator
      */
     function totalOperatorNetworkLimit(address network) public view returns (uint256) {
-        return totalOperatorNetworkLimitAt(network, Time.timestamp());
+        return _totalOperatorNetworkLimit[network].latest();
     }
 
     /**
@@ -91,13 +92,13 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
      * @inheritdoc IFullRestakeDelegator
      */
     function operatorNetworkLimit(address network, address operator) public view returns (uint256) {
-        return operatorNetworkLimitAt(network, operator, Time.timestamp());
+        return _operatorNetworkLimit[network][operator].latest();
     }
 
     /**
      * @inheritdoc IBaseDelegator
      */
-    function networkStakeIn(
+    function networkSlashableStakeIn(
         address network,
         uint48 duration
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
@@ -113,7 +114,12 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function networkStake(address network) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
+    function networkSlashableStake(address network)
+        public
+        view
+        override(IBaseDelegator, BaseDelegator)
+        returns (uint256)
+    {
         return
             Math.min(IVault(vault).totalSupply(), Math.min(networkLimit(network), totalOperatorNetworkLimit(network)));
     }
@@ -121,7 +127,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function operatorNetworkStakeIn(
+    function operatorNetworkSlashableStakeIn(
         address network,
         address operator,
         uint48 duration
@@ -138,7 +144,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function operatorNetworkStake(
+    function operatorNetworkSlashableStake(
         address network,
         address operator
     ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
@@ -155,15 +161,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
-        uint48 epochDuration = IVault(vault).epochDuration();
-        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
-        (, uint48 checkpointTimestamp,,) = _networkLimit[network].upperLookupRecentCheckpoint(nextEpochStart);
-
-        uint48 timestamp = checkpointTimestamp < Time.timestamp() && amount > networkLimit(network)
-            ? Time.timestamp()
-            : nextEpochStart + epochDuration;
-
-        _insertCheckpoint(_networkLimit[network], timestamp, amount);
+        _setNetworkLimit(network, amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -176,100 +174,64 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address operator,
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        uint48 epochDuration = IVault(vault).epochDuration();
-        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
-        (, uint48 checkpointTimestamp,,) =
-            _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(nextEpochStart);
-
-        uint48 timestamp;
-        uint256 totalOperatorNetworkLimit_;
-        if (checkpointTimestamp < Time.timestamp() && amount > operatorNetworkLimit(network, operator)) {
-            timestamp = Time.timestamp();
-            totalOperatorNetworkLimit_ =
-                totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount;
-        } else {
-            timestamp = nextEpochStart + epochDuration;
-            totalOperatorNetworkLimit_ = _totalOperatorNetworkLimit[network].latest()
-                - _operatorNetworkLimit[network][operator].latest() + amount;
-        }
-
-        _insertCheckpoint(_totalOperatorNetworkLimit[network], timestamp, totalOperatorNetworkLimit_);
-
-        _insertCheckpoint(_operatorNetworkLimit[network][operator], timestamp, amount);
+        _setOperatorNetworkLimit(network, operator, amount);
 
         emit SetOperatorNetworkLimit(network, operator, amount);
     }
 
-    function _minOperatorNetworkStakeAt(
+    function _setNetworkLimit(address network, uint256 amount) internal {
+        _networkLimit[network].push(Time.timestamp(), amount);
+    }
+
+    function _setOperatorNetworkLimit(address network, address operator, uint256 amount) internal {
+        _totalOperatorNetworkLimit[network].push(
+            Time.timestamp(), totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount
+        );
+        _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
+    }
+
+    function _operatorNetworkStakeAt(
         address network,
         address operator,
         uint48 timestamp
     ) internal view override returns (uint256) {
-        uint48 epochDuration = IVault(vault).epochDuration();
-
         return Math.min(
             IVault(vault).activeSupplyAt(timestamp),
-            Math.min(
-                Math.min(networkLimitAt(network, timestamp), operatorNetworkLimitAt(network, operator, timestamp)),
-                Math.min(
-                    networkLimitAt(network, timestamp + epochDuration),
-                    operatorNetworkLimitAt(network, operator, timestamp + epochDuration)
-                )
-            )
+            Math.min(networkLimitAt(network, timestamp), operatorNetworkLimitAt(network, operator, timestamp))
         );
     }
 
-    function _minOperatorNetworkStake(address network, address operator) internal view override returns (uint256) {
-        uint48 epochDuration = IVault(vault).epochDuration();
-
+    function _operatorNetworkStake(address network, address operator) internal view override returns (uint256) {
         return Math.min(
-            IVault(vault).activeSupply(),
-            Math.min(
-                Math.min(networkLimit(network), operatorNetworkLimit(network, operator)),
-                Math.min(
-                    networkLimitAt(network, Time.timestamp() + epochDuration),
-                    operatorNetworkLimitAt(network, operator, Time.timestamp() + epochDuration)
-                )
-            )
+            IVault(vault).activeSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
         );
     }
 
     function _setMaxNetworkLimit(uint256 amount) internal override {
-        Checkpoints.Trace256 storage _networkLimit_ = _networkLimit[msg.sender];
-        (bool exists, uint48 latestTimestamp1, uint256 latestValue1) = _networkLimit_.latestCheckpoint();
+        (bool exists,, uint256 latestValue) = _networkLimit[msg.sender].latestCheckpoint();
         if (exists) {
-            if (Time.timestamp() < latestTimestamp1) {
-                _networkLimit_.pop();
-                (, uint48 latestTimestamp2, uint256 latestValue2) = _networkLimit_.latestCheckpoint();
-                if (Time.timestamp() < latestTimestamp2) {
-                    _networkLimit_.pop();
-                    _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), amount));
-                    _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, amount));
-                } else {
-                    _networkLimit_.push(Time.timestamp(), Math.min(latestValue2, amount));
-                }
-                _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, amount));
-            } else {
-                _networkLimit_.push(Time.timestamp(), Math.min(latestValue1, amount));
-            }
+            _networkLimit[msg.sender].push(Time.timestamp(), Math.min(latestValue, amount));
         }
     }
 
-    function _onSlash(address network, address operator, uint256 slashedAmount) internal override {
-        uint256 networkLimit_ = networkLimit(network);
-        if (networkLimit_ != type(uint256).max) {
-            _insertCheckpoint(_networkLimit[network], Time.timestamp(), networkLimit_ - slashedAmount);
+    function _onSlash(
+        address network,
+        address operator,
+        uint256 slashedAmount,
+        uint48 captureTimestamp
+    ) internal override {
+        if (hook != address(0)) {
+            (bool success, bytes memory returndata) = hook.call{gas: 200_000}(
+                abi.encodeWithSelector(
+                    IFullRestakeDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
+                )
+            );
+            if (success && returndata.length == 64) {
+                (uint256 networkLimit_, uint256 operatorNetworkLimit_) = abi.decode(returndata, (uint256, uint256));
+                _setNetworkLimit(network, networkLimit_);
+                _setOperatorNetworkLimit(network, operator, operatorNetworkLimit_);
+            }
         }
-
-        _insertCheckpoint(
-            _totalOperatorNetworkLimit[network], Time.timestamp(), totalOperatorNetworkLimit(network) - slashedAmount
-        );
-
-        _insertCheckpoint(
-            _operatorNetworkLimit[network][operator],
-            Time.timestamp(),
-            operatorNetworkLimit(network, operator) - slashedAmount
-        );
     }
 
     function _initializeInternal(

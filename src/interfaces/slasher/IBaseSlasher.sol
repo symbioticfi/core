@@ -7,6 +7,7 @@ interface IBaseSlasher {
     error NotVault();
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();
+    error CaptureTimestampTooOld();
 
     /**
      * @notice Get the vault factory's address.

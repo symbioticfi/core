@@ -147,11 +147,11 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.maxNetworkLimit(alice), 0);
-        assertEq(delegator.networkStakeIn(alice, 0), 0);
-        assertEq(delegator.networkStake(alice), 0);
-        assertEq(delegator.operatorNetworkStakeIn(alice, alice, 0), 0);
+        assertEq(delegator.networkSlashableStakeIn(alice, 0), 0);
+        assertEq(delegator.networkSlashableStake(alice), 0);
+        assertEq(delegator.operatorNetworkSlashableStakeIn(alice, alice, 0), 0);
+        assertEq(delegator.operatorNetworkSlashableStake(alice, alice), 0);
         assertEq(delegator.operatorNetworkStake(alice, alice), 0);
-        assertEq(delegator.minOperatorNetworkStake(alice, alice), 0);
         assertEq(delegator.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
         assertEq(delegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), keccak256("OPERATOR_NETWORK_SHARES_SET_ROLE"));
         assertEq(delegator.networkLimitAt(alice, 0), 0);
@@ -680,42 +680,42 @@ contract NetworkRestakeDelegatorTest is Test {
         _registerOperator(alice);
         _registerOperator(bob);
 
-        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
+        assertEq(delegator.operatorNetworkStake(network, alice), 0);
+        assertEq(delegator.operatorNetworkStake(network, bob), 0);
 
         _optInOperatorVault(alice);
         _optInOperatorVault(bob);
 
-        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
+        assertEq(delegator.operatorNetworkStake(network, alice), 0);
+        assertEq(delegator.operatorNetworkStake(network, bob), 0);
 
         _optInOperatorNetwork(alice, address(network));
         _optInOperatorNetwork(bob, address(network));
 
-        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
+        assertEq(delegator.operatorNetworkStake(network, alice), 0);
+        assertEq(delegator.operatorNetworkStake(network, bob), 0);
 
         _deposit(alice, depositAmount);
 
-        assertEq(delegator.networkStakeIn(network, 1), 0);
-        assertEq(delegator.networkStake(network), 0);
-        assertEq(delegator.operatorNetworkStakeIn(network, alice, 1), 0);
+        assertEq(delegator.networkSlashableStakeIn(network, 1), 0);
+        assertEq(delegator.networkSlashableStake(network), 0);
+        assertEq(delegator.operatorNetworkSlashableStakeIn(network, alice, 1), 0);
+        assertEq(delegator.operatorNetworkSlashableStake(network, alice), 0);
+        assertEq(delegator.operatorNetworkSlashableStakeIn(network, bob, 1), 0);
+        assertEq(delegator.operatorNetworkSlashableStake(network, bob), 0);
         assertEq(delegator.operatorNetworkStake(network, alice), 0);
-        assertEq(delegator.operatorNetworkStakeIn(network, bob, 1), 0);
         assertEq(delegator.operatorNetworkStake(network, bob), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         _setNetworkLimit(alice, network, networkLimit);
 
-        assertEq(delegator.networkStakeIn(network, 1), 0);
-        assertEq(delegator.networkStake(network), 0);
-        assertEq(delegator.operatorNetworkStakeIn(network, alice, 1), 0);
+        assertEq(delegator.networkSlashableStakeIn(network, 1), 0);
+        assertEq(delegator.networkSlashableStake(network), 0);
+        assertEq(delegator.operatorNetworkSlashableStakeIn(network, alice, 1), 0);
+        assertEq(delegator.operatorNetworkSlashableStake(network, alice), 0);
+        assertEq(delegator.operatorNetworkSlashableStakeIn(network, bob, 1), 0);
+        assertEq(delegator.operatorNetworkSlashableStake(network, bob), 0);
         assertEq(delegator.operatorNetworkStake(network, alice), 0);
-        assertEq(delegator.operatorNetworkStakeIn(network, bob, 1), 0);
         assertEq(delegator.operatorNetworkStake(network, bob), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, alice), 0);
-        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         address[] memory operators = new address[](1);
         uint256[] memory shares = new uint256[](1);
@@ -727,23 +727,23 @@ contract NetworkRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 2 * vault.epochDuration();
         vm.warp(blockTimestamp);
 
-        assertEq(delegator.networkStakeIn(network, 1), Math.min(depositAmount, networkLimit));
-        assertEq(delegator.networkStake(network), Math.min(depositAmount, networkLimit));
+        assertEq(delegator.networkSlashableStakeIn(network, 1), Math.min(depositAmount, networkLimit));
+        assertEq(delegator.networkSlashableStake(network), Math.min(depositAmount, networkLimit));
         assertEq(
-            delegator.operatorNetworkStakeIn(network, alice, 1),
+            delegator.operatorNetworkSlashableStakeIn(network, alice, 1),
             operatorNetworkShares1.mulDiv(Math.min(depositAmount, networkLimit), operatorNetworkShares1)
         );
+        assertEq(
+            delegator.operatorNetworkSlashableStake(network, alice),
+            operatorNetworkShares1.mulDiv(Math.min(depositAmount, networkLimit), operatorNetworkShares1)
+        );
+        assertEq(delegator.operatorNetworkSlashableStakeIn(network, bob, 1), 0);
+        assertEq(delegator.operatorNetworkSlashableStake(network, bob), 0);
         assertEq(
             delegator.operatorNetworkStake(network, alice),
             operatorNetworkShares1.mulDiv(Math.min(depositAmount, networkLimit), operatorNetworkShares1)
         );
-        assertEq(delegator.operatorNetworkStakeIn(network, bob, 1), 0);
         assertEq(delegator.operatorNetworkStake(network, bob), 0);
-        assertEq(
-            delegator.minOperatorNetworkStake(network, alice),
-            operatorNetworkShares1.mulDiv(Math.min(depositAmount, networkLimit), operatorNetworkShares1)
-        );
-        assertEq(delegator.minOperatorNetworkStake(network, bob), 0);
 
         operators[0] = bob;
         shares[0] = operatorNetworkShares2;
@@ -752,11 +752,29 @@ contract NetworkRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 2 * vault.epochDuration();
         vm.warp(blockTimestamp);
 
-        assertEq(delegator.networkStakeIn(network, 1), Math.min(depositAmount, networkLimit));
-        assertEq(delegator.networkStake(network), Math.min(depositAmount, networkLimit));
+        assertEq(delegator.networkSlashableStakeIn(network, 1), Math.min(depositAmount, networkLimit));
+        assertEq(delegator.networkSlashableStake(network), Math.min(depositAmount, networkLimit));
         assertEq(
-            delegator.operatorNetworkStakeIn(network, alice, 1),
+            delegator.operatorNetworkSlashableStakeIn(network, alice, 1),
             operatorNetworkShares1.mulDiv(
+                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
+            )
+        );
+        assertEq(
+            delegator.operatorNetworkSlashableStake(network, alice),
+            operatorNetworkShares1.mulDiv(
+                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
+            )
+        );
+        assertEq(
+            delegator.operatorNetworkSlashableStakeIn(network, bob, 1),
+            operatorNetworkShares2.mulDiv(
+                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
+            )
+        );
+        assertEq(
+            delegator.operatorNetworkSlashableStake(network, bob),
+            operatorNetworkShares2.mulDiv(
                 Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
             )
         );
@@ -767,25 +785,7 @@ contract NetworkRestakeDelegatorTest is Test {
             )
         );
         assertEq(
-            delegator.operatorNetworkStakeIn(network, bob, 1),
-            operatorNetworkShares2.mulDiv(
-                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
-            )
-        );
-        assertEq(
             delegator.operatorNetworkStake(network, bob),
-            operatorNetworkShares2.mulDiv(
-                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
-            )
-        );
-        assertEq(
-            delegator.minOperatorNetworkStake(network, alice),
-            operatorNetworkShares1.mulDiv(
-                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
-            )
-        );
-        assertEq(
-            delegator.minOperatorNetworkStake(network, bob),
             operatorNetworkShares2.mulDiv(
                 Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
             )
@@ -796,35 +796,36 @@ contract NetworkRestakeDelegatorTest is Test {
         _setOperatorsNetworkShares(alice, network, operators, shares);
 
         assertEq(
-            delegator.networkStakeIn(network, uint48(2 * vault.epochDuration())), Math.min(depositAmount, networkLimit)
+            delegator.networkSlashableStakeIn(network, uint48(2 * vault.epochDuration())),
+            Math.min(depositAmount, networkLimit)
         );
-        assertEq(delegator.networkStake(network), Math.min(depositAmount, networkLimit));
+        assertEq(delegator.networkSlashableStake(network), Math.min(depositAmount, networkLimit));
         assertEq(
-            delegator.operatorNetworkStakeIn(network, alice, uint48(2 * vault.epochDuration())),
+            delegator.operatorNetworkSlashableStakeIn(network, alice, uint48(2 * vault.epochDuration())),
             operatorNetworkShares1.mulDiv(
+                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
+            )
+        );
+        assertEq(
+            delegator.operatorNetworkSlashableStake(network, alice),
+            operatorNetworkShares1.mulDiv(
+                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
+            )
+        );
+        assertEq(
+            delegator.operatorNetworkSlashableStakeIn(network, bob, uint48(2 * vault.epochDuration())),
+            operatorNetworkShares3.mulDiv(
+                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
+            )
+        );
+        assertEq(
+            delegator.operatorNetworkSlashableStake(network, bob),
+            operatorNetworkShares3.mulDiv(
                 Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
             )
         );
         assertEq(
             delegator.operatorNetworkStake(network, alice),
-            operatorNetworkShares1.mulDiv(
-                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
-            )
-        );
-        assertEq(
-            delegator.operatorNetworkStakeIn(network, bob, uint48(2 * vault.epochDuration())),
-            operatorNetworkShares3.mulDiv(
-                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
-            )
-        );
-        assertEq(
-            delegator.operatorNetworkStake(network, bob),
-            operatorNetworkShares3.mulDiv(
-                Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
-            )
-        );
-        assertEq(
-            delegator.minOperatorNetworkStake(network, alice),
             Math.min(
                 operatorNetworkShares1.mulDiv(
                     Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2
@@ -835,7 +836,7 @@ contract NetworkRestakeDelegatorTest is Test {
             )
         );
         assertEq(
-            delegator.minOperatorNetworkStake(network, bob),
+            delegator.operatorNetworkStake(network, bob),
             Math.min(
                 operatorNetworkShares2.mulDiv(
                     Math.min(depositAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares2

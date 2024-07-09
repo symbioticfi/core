@@ -100,6 +100,14 @@ contract OperatorOptInServiceTest is Test {
         assertEq(service.isOptedIn(operator, where), true);
 
         vm.startPrank(operator);
+        vm.expectRevert(IOptInService.OptOutCooldown.selector);
+        service.optOut(where);
+        vm.stopPrank();
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        vm.startPrank(operator);
         service.optOut(where);
         vm.stopPrank();
 

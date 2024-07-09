@@ -6,6 +6,7 @@ interface IOptInService {
     error NotWho();
     error NotOptedIn();
     error NotWhereEntity();
+    error OptOutCooldown();
 
     /**
      * @notice Emitted when an who opts into a "where" entity.

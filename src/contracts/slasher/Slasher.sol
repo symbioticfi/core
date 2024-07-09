@@ -8,6 +8,7 @@ import {IVault} from "src/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract Slasher is BaseSlasher, ISlasher {
     constructor(
@@ -34,21 +35,28 @@ contract Slasher is BaseSlasher, ISlasher {
     function slash(
         address network,
         address operator,
-        uint256 amount
-    ) external onlyNetworkMiddleware(network) returns (uint256) {
-        uint256 operateNetworkStake = IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(network, operator);
-        if (amount == 0 || operateNetworkStake == 0) {
+        uint256 amount,
+        uint48 captureTimestamp
+    ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
+        _baseChecks(network, operator, captureTimestamp);
+
+        uint256 stakeAmount =
+            IBaseDelegator(IVault(vault).delegator()).operatorNetworkStakeAt(network, operator, captureTimestamp);
+        slashedAmount = Math.min(
+            amount,
+            stakeAmount
+                - Math.min(
+                    slashAtDuring(network, operator, captureTimestamp, Time.timestamp() - captureTimestamp), stakeAmount
+                )
+        );
+        if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
 
-        if (amount > operateNetworkStake) {
-            amount = operateNetworkStake;
-        }
+        _updateCumulativeSlash(network, operator, slashedAmount);
 
-        _checkOptIns(network, operator);
+        _callOnSlash(network, operator, slashedAmount, captureTimestamp);
 
-        _callOnSlash(network, operator, amount);
-
-        return amount;
+        emit Slash(network, operator, slashedAmount, captureTimestamp);
     }
 }

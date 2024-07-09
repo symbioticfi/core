@@ -196,35 +196,50 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount) external {
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external {
         if (msg.sender != slasher()) {
             revert NotSlasher();
         }
 
+        uint256 currentEpoch_ = currentEpoch();
+        uint256 captureEpoch = epochAt(captureTimestamp);
+        if ((currentEpoch_ != 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
+            revert InvalidCaptureEpoch();
+        }
+
+        uint256 activeSupply_ = activeSupply();
+        uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
+        if (captureEpoch == currentEpoch_) {
+            uint256 slashableSupply = activeSupply_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            if (slashedAmount > 0) {
+                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
+                uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
+
+                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                withdrawals[captureEpoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
+            }
+        } else {
+            uint256 withdrawals_ = withdrawals[currentEpoch_];
+            uint256 slashableSupply = activeSupply_ + withdrawals_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            if (slashedAmount > 0) {
+                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
+                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableSupply);
+                uint256 withdrawalsSlashed = slashedAmount - activeSlashed - nextWithdrawalsSlashed;
+
+                if (withdrawals_ < withdrawalsSlashed) {
+                    nextWithdrawalsSlashed += withdrawalsSlashed - withdrawals_;
+                    withdrawalsSlashed = withdrawals_;
+                }
+
+                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                withdrawals[currentEpoch_ + 1] = nextWithdrawals - nextWithdrawalsSlashed;
+                withdrawals[currentEpoch_] = withdrawals_ - withdrawalsSlashed;
+            }
+        }
+
         if (slashedAmount > 0) {
-            uint256 totalSupply_ = totalSupply();
-            if (slashedAmount > totalSupply_) {
-                revert TooMuchSlash();
-            }
-
-            uint256 epoch = currentEpoch();
-            uint256 activeSupply_ = activeSupply();
-            uint256 withdrawals_ = withdrawals[epoch];
-            uint256 nextWithdrawals = withdrawals[epoch + 1];
-
-            uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, totalSupply_);
-            uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
-            uint256 activeSlashed = slashedAmount - nextWithdrawalsSlashed - withdrawalsSlashed;
-
-            if (activeSupply_ < activeSlashed) {
-                withdrawalsSlashed += activeSlashed - activeSupply_;
-                activeSlashed = activeSupply_;
-            }
-
-            _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
-            withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
-            withdrawals[epoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-
             ICollateral(collateral).issueDebt(burner, slashedAmount);
         }
 

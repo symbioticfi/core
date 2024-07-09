@@ -23,6 +23,7 @@ interface IVault is IVaultStorage {
     error InvalidSlasherSetEpochsDelay();
     error NotDelegator();
     error TooMuchSlash();
+    error InvalidCaptureEpoch();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -183,8 +184,10 @@ interface IVault is IVaultStorage {
     /**
      * @notice Slash callback for burning collateral.
      * @param slashedAmount amount to slash
+     * @param captureTimestamp time point when the stake was captured
+     * @dev Only the slasher can call this function.
      */
-    function onSlash(uint256 slashedAmount) external;
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external;
 
     /**
      * @notice Set a slasher (it provides networks a slashing mechanism).

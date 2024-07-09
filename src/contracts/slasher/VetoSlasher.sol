@@ -105,10 +105,18 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     function requestSlash(
         address network,
         address operator,
-        uint256 amount
+        uint256 amount,
+        uint48 captureTimestamp
     ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
         if (amount == 0) {
             revert InsufficientSlash();
+        }
+
+        if (
+            captureTimestamp < IVault(vault).epochDuration() - vetoDuration - executeDuration
+                || captureTimestamp >= Time.timestamp()
+        ) {
+            revert InvalidCaptureTimestamp();
         }
 
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
@@ -120,6 +128,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
                 network: network,
                 operator: operator,
                 amount: amount,
+                captureTimestamp: captureTimestamp,
                 vetoDeadline: vetoDeadline,
                 executeDeadline: executeDeadline,
                 vetoedShares: 0,
@@ -127,7 +136,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             })
         );
 
-        emit RequestSlash(slashIndex, network, operator, amount, vetoDeadline, executeDeadline);
+        emit RequestSlash(slashIndex, network, operator, amount, captureTimestamp, vetoDeadline, executeDeadline);
     }
 
     /**
@@ -152,19 +161,32 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert SlashRequestCompleted();
         }
 
-        _checkOptIns(request.network, request.operator);
+        _baseChecks(request.network, request.operator, request.captureTimestamp);
 
         request.completed = true;
 
+        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).operatorNetworkStakeAt(
+            request.network, request.operator, request.captureTimestamp
+        );
         slashedAmount = Math.min(
             request.amount,
-            IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(request.network, request.operator)
+            stakeAmount
+                - Math.min(
+                    slashAtDuring(
+                        request.network,
+                        request.operator,
+                        request.captureTimestamp,
+                        Time.timestamp() - request.captureTimestamp
+                    ),
+                    stakeAmount
+                )
         );
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
         if (slashedAmount > 0) {
-            _callOnSlash(request.network, request.operator, slashedAmount);
+            _updateCumulativeSlash(request.network, request.operator, slashedAmount);
+            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
