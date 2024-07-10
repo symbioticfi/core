@@ -142,10 +142,8 @@ contract SlasherFactoryTest is Test {
                     slasher: address(0),
                     burner: address(0xdEaD),
                     epochDuration: 1,
-                    slasherSetEpochsDelay: 3,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
-                    slasherSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,

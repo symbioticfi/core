@@ -26,23 +26,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function slasherIn(uint48 duration) public view returns (address) {
-        if (_nextSlasher.timestamp == 0 || Time.timestamp() + duration < _nextSlasher.timestamp) {
-            return _slasher.address_;
-        }
-        return _nextSlasher.address_;
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function slasher() public view returns (address) {
-        return slasherIn(0);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function totalSupplyIn(uint48 duration) public view returns (uint256) {
         uint256 epoch = currentEpoch();
         uint256 futureEpoch = epochAt(Time.timestamp() + duration);
@@ -197,7 +180,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external {
-        if (msg.sender != slasher()) {
+        if (msg.sender != slasher) {
             revert NotSlasher();
         }
 
@@ -249,26 +232,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setSlasher(address slasher_) external onlyRole(SLASHER_SET_ROLE) {
-        if (slasher_ != address(0) && !IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
-            revert NotSlasher();
-        }
-
-        if (_nextSlasher.timestamp > 0 && _nextSlasher.timestamp <= Time.timestamp()) {
-            _slasher.address_ = _nextSlasher.address_;
-            _nextSlasher.timestamp = 0;
-            _nextSlasher.address_ = address(0);
-        }
-
-        _nextSlasher.address_ = slasher_;
-        _nextSlasher.timestamp = (currentEpochStart() + slasherSetEpochsDelay * epochDuration).toUint48();
-
-        emit SetSlasher(slasher_);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
@@ -307,10 +270,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidCollateral();
         }
 
-        if (params.slasherSetEpochsDelay < 3) {
-            revert InvalidSlasherSetEpochsDelay();
-        }
-
         if (params.epochDuration == 0) {
             revert InvalidEpochDuration();
         }
@@ -327,23 +286,15 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         delegator = params.delegator;
 
+        slasher = params.slasher;
+
         burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        slasherSetEpochsDelay = params.slasherSetEpochsDelay;
-
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-
-        if (params.slasher == address(0)) {
-            if (params.slasherSetRoleHolder != address(0)) {
-                _grantRole(SLASHER_SET_ROLE, params.slasherSetRoleHolder);
-            }
-        } else {
-            _slasher.address_ = params.slasher;
         }
 
         if (params.depositWhitelist) {

@@ -15,11 +15,6 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant SLASHER_SET_ROLE = keccak256("SLASHER_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
 
     /**
@@ -55,17 +50,17 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    address public slasher;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint48 public epochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
      */
     uint48 public epochDuration;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint256 public slasherSetEpochsDelay;
 
     /**
      * @inheritdoc IVaultStorage
@@ -96,10 +91,6 @@ contract VaultStorage is IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     mapping(uint256 epoch => mapping(address account => bool value)) public isWithdrawalsClaimed;
-
-    Module internal _slasher;
-
-    DelayedModule internal _nextSlasher;
 
     Checkpoints.Trace256 internal _activeShares;
 

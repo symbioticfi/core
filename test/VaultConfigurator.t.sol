@@ -138,12 +138,10 @@ contract VaultConfiguratorTest is Test {
         address owner_,
         address burner,
         uint48 epochDuration,
-        uint256 slasherSetEpochsDelay,
         bool depositWhitelist,
         bool withSlasher
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
-        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 3, type(uint256).max);
         vm.assume(owner_ != address(0));
 
         (address vault_, address networkRestakeDelegator_, address slasher_) = vaultConfigurator.create(
@@ -156,10 +154,8 @@ contract VaultConfiguratorTest is Test {
                     slasher: address(0),
                     burner: burner,
                     epochDuration: epochDuration,
-                    slasherSetEpochsDelay: slasherSetEpochsDelay,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: address(100),
-                    slasherSetRoleHolder: address(101),
                     depositorWhitelistRoleHolder: address(102)
                 }),
                 delegatorIndex: 0,
@@ -190,10 +186,8 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.slasher(), withSlasher ? slasher_ : address(0));
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
-        assertEq(vault.slasherSetEpochsDelay(), slasherSetEpochsDelay);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), address(100)), true);
-        assertEq(vault.hasRole(vault.SLASHER_SET_ROLE(), address(101)), !withSlasher);
         assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(102)), depositWhitelist);
 
         assertEq(networkRestakeDelegator.vault(), vault_);

@@ -159,24 +159,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         uint48 captureTimestamp
     ) internal virtual {}
 
-    function _insertCheckpoint(Checkpoints.Trace256 storage checkpoints, uint48 key, uint256 value) internal {
-        (, uint48 latestTimestamp1, uint256 latestValue1) = checkpoints.latestCheckpoint();
-        if (key < latestTimestamp1) {
-            checkpoints.pop();
-            (, uint48 latestTimestamp2, uint256 latestValue2) = checkpoints.latestCheckpoint();
-            if (key < latestTimestamp2) {
-                checkpoints.pop();
-                checkpoints.push(key, value);
-                checkpoints.push(latestTimestamp2, latestValue2);
-            } else {
-                checkpoints.push(key, value);
-            }
-            checkpoints.push(latestTimestamp1, latestValue1);
-        } else {
-            checkpoints.push(key, value);
-        }
-    }
-
     function _initializeInternal(
         address vault_,
         bytes memory data

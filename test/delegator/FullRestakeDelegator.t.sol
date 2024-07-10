@@ -702,10 +702,8 @@ contract FullRestakeDelegatorTest is Test {
                     slasher: address(0),
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
-                    slasherSetEpochsDelay: 3,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
-                    slasherSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 1,
@@ -743,10 +741,8 @@ contract FullRestakeDelegatorTest is Test {
                     slasher: address(0),
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
-                    slasherSetEpochsDelay: 3,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
-                    slasherSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 1,
@@ -864,12 +860,6 @@ contract FullRestakeDelegatorTest is Test {
     function _setDepositorWhitelistStatus(address user, address depositor, bool status) internal {
         vm.startPrank(user);
         vault.setDepositorWhitelistStatus(depositor, status);
-        vm.stopPrank();
-    }
-
-    function _setSlasher(address user, address slasher_) internal {
-        vm.startPrank(user);
-        vault.setSlasher(slasher_);
         vm.stopPrank();
     }
 
