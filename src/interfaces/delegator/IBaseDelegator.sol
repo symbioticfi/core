@@ -94,21 +94,41 @@ interface IBaseDelegator {
     function maxNetworkLimit(address network) external view returns (uint256);
 
     /**
+     * @notice Get a maximum stake that a given network could be able to slash
+     *         for all operators at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
+     * @param network address of the network
+     * @param timestamp time point to capture the stake at
+     * @return network's stake at the given timestamp until the end of the consequent epoch
+     * @dev This function doesn't take operators' opt-ins into account.
+     */
+    function networkStakeAt(address network, uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a maximum stake that a given network will be able to slash
+     *         for all operators until the end of the next epoch (if no cross-slashing and no slashings by the network).
+     * @param network address of the network
+     * @return network's stake until the end of the next epoch
+     * @dev This function doesn't take operators' opt-ins into account.
+     */
+    function networkStake(address network) external view returns (uint256);
+
+    /**
      * @notice Get a stake that a given network could be able to slash
      *         for a certain operator at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
      * @param network address of the network
      * @param operator address of the operator
-     * @return minimum slashable stake at the given timestamp until the end of the consequent epoch
+     * @param timestamp time point to capture the stake at
+     * @return slashable stake at the given timestamp until the end of the consequent epoch
      * @dev Warning: it is not safe to use timestamp >= current one for the stake capturing, as it can change later.
      */
     function stakeAt(address network, address operator, uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get a minimum stake that a given network will be able to slash
+     * @notice Get a stake that a given network will be able to slash
      *         for a certain operator until the end of the next epoch (if no cross-slashing and no slashings by the network).
      * @param network address of the network
      * @param operator address of the operator
-     * @return minimum slashable stake until the end of the next epoch
+     * @return slashable stake until the end of the next epoch
      * @dev Warning: this function is not safe to use for the stake capturing, as it can change by the end of the block.
      */
     function stake(address network, address operator) external view returns (uint256);

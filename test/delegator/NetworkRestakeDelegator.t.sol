@@ -151,6 +151,8 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.maxNetworkLimit(alice), 0);
+        assertEq(delegator.networkStakeAt(alice, 0), 0);
+        assertEq(delegator.networkStake(alice), 0);
         assertEq(delegator.stakeAt(alice, alice, 0), 0);
         assertEq(delegator.stake(alice, alice), 0);
         assertEq(delegator.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
@@ -548,34 +550,40 @@ contract NetworkRestakeDelegatorTest is Test {
         _registerOperator(alice);
         _registerOperator(bob);
 
+        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _optInOperatorVault(alice);
         _optInOperatorVault(bob);
 
+        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _optInOperatorNetwork(alice, address(network));
         _optInOperatorNetwork(bob, address(network));
 
+        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _deposit(alice, depositAmount);
         _withdraw(alice, withdrawAmount);
 
+        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _setNetworkLimit(alice, network, networkLimit);
 
+        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1);
 
+        assertEq(delegator.networkStake(network), Math.min(depositAmount - withdrawAmount, networkLimit));
         assertEq(
             delegator.stake(network, alice),
             operatorNetworkShares1.mulDiv(
@@ -586,6 +594,7 @@ contract NetworkRestakeDelegatorTest is Test {
 
         _setOperatorNetworkShares(alice, network, bob, operatorNetworkShares2);
 
+        assertEq(delegator.networkStake(network), Math.min(depositAmount - withdrawAmount, networkLimit));
         assertEq(
             delegator.stake(network, alice),
             operatorNetworkShares1.mulDiv(
@@ -601,6 +610,18 @@ contract NetworkRestakeDelegatorTest is Test {
 
         _setOperatorNetworkShares(alice, network, bob, operatorNetworkShares2 - 1);
 
+        assertEq(
+            delegator.networkStakeAt(network, uint48(blockTimestamp)),
+            Math.min(depositAmount - withdrawAmount, networkLimit)
+        );
+        assertEq(delegator.networkStake(network), Math.min(depositAmount - withdrawAmount, networkLimit));
+        assertEq(
+            delegator.stake(network, alice),
+            operatorNetworkShares1.mulDiv(
+                Math.min(depositAmount - withdrawAmount, networkLimit),
+                operatorNetworkShares1 + operatorNetworkShares2 - 1
+            )
+        );
         assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp)),
             operatorNetworkShares1.mulDiv(
@@ -635,6 +656,15 @@ contract NetworkRestakeDelegatorTest is Test {
 
         _setOperatorNetworkShares(alice, network, bob, operatorNetworkShares3);
 
+        assertEq(
+            delegator.networkStakeAt(network, uint48(blockTimestamp - 1)),
+            Math.min(depositAmount - withdrawAmount, networkLimit)
+        );
+        assertEq(
+            delegator.networkStakeAt(network, uint48(blockTimestamp)),
+            Math.min(depositAmount - withdrawAmount, networkLimit)
+        );
+        assertEq(delegator.networkStake(network), Math.min(depositAmount - withdrawAmount, networkLimit));
         assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)),
             operatorNetworkShares1.mulDiv(
