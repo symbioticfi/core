@@ -94,45 +94,6 @@ interface IBaseDelegator {
     function maxNetworkLimit(address network) external view returns (uint256);
 
     /**
-     * @notice Get a maximum amount of collateral that can be slashed
-     *         by a particular network in `duration` seconds.
-     * @param network address of the network
-     * @param duration duration to get the slashable amount in
-     * @return maximum amount of the collateral that can be slashed by the network in `duration` seconds
-     */
-    function networkSlashableStakeIn(address network, uint48 duration) external view returns (uint256);
-
-    /**
-     * @notice Get a maximum amount of collateral that can be slashed
-     *         by a particular network.
-     * @param network address of the network
-     * @return maximum amount of the collateral that can be slashed by the network
-     */
-    function networkSlashableStake(address network) external view returns (uint256);
-
-    /**
-     * @notice Get a maximum amount of collateral that can be slashed
-     *         for a particular network and operator in `duration` seconds.
-     * @param network address of the network
-     * @param operator address of the operator
-     * @param duration duration to get the slashable amount in
-     * @return maximum amount of the collateral that can be slashed by the network for the operator in `duration` seconds
-     */
-    function operatorNetworkSlashableStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) external view returns (uint256);
-
-    /**
-     * @notice Get a maximum amount of collateral that can be slashed for a particular network, and operator.
-     * @param network address of the network
-     * @param operator address of the operator
-     * @return maximum amount of the collateral that can be slashed by the network for the operator
-     */
-    function operatorNetworkSlashableStake(address network, address operator) external view returns (uint256);
-
-    /**
      * @notice Get a stake that a given network could be able to slash
      *         for a certain operator at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
      * @param network address of the network
@@ -140,11 +101,7 @@ interface IBaseDelegator {
      * @return minimum slashable stake at the given timestamp until the end of the consequent epoch
      * @dev Warning: it is not safe to use timestamp >= current one for the stake capturing, as it can change later.
      */
-    function operatorNetworkStakeAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) external view returns (uint256);
+    function stakeAt(address network, address operator, uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a minimum stake that a given network will be able to slash
@@ -154,7 +111,7 @@ interface IBaseDelegator {
      * @return minimum slashable stake until the end of the next epoch
      * @dev Warning: this function is not safe to use for the stake capturing, as it can change by the end of the block.
      */
-    function operatorNetworkStake(address network, address operator) external view returns (uint256);
+    function stake(address network, address operator) external view returns (uint256);
 
     /**
      * @notice Set a maximum limit for a network (how much stake the network is ready to get).

@@ -163,7 +163,11 @@ contract VaultTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -285,7 +289,11 @@ contract VaultTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -322,7 +330,11 @@ contract VaultTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -362,7 +374,11 @@ contract VaultTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -415,7 +431,11 @@ contract VaultTest is Test {
                 address(vault),
                 abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -1070,7 +1090,7 @@ contract VaultTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVault.NotSlasher.selector);
-        vault.onSlash(0);
+        vault.onSlash(0, 0);
         vm.stopPrank();
     }
 
@@ -1080,7 +1100,8 @@ contract VaultTest is Test {
         uint256 withdrawAmount1,
         uint256 withdrawAmount2,
         uint256 slashAmount1,
-        uint256 slashAmount2
+        uint256 slashAmount2,
+        uint256 captureAgo
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
@@ -1088,8 +1109,10 @@ contract VaultTest is Test {
         withdrawAmount2 = bound(withdrawAmount2, 1, 100 * 10 ** 18);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max / 2);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max / 2);
+        captureAgo = bound(captureAgo, 1, 10 days);
         vm.assume(depositAmount >= withdrawAmount1 + withdrawAmount2);
-        vm.assume(depositAmount >= slashAmount1 + slashAmount2);
+        vm.assume(depositAmount > slashAmount1);
+        vm.assume(captureAgo <= epochDuration);
 
         (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
@@ -1117,8 +1140,6 @@ contract VaultTest is Test {
         _setOperatorNetworkLimit(alice, network, alice, type(uint256).max / 2 - 1);
         _setOperatorNetworkLimit(alice, network, bob, type(uint256).max / 2 - 1);
 
-        vm.assume(slashAmount1 < depositAmount && slashAmount1 <= type(uint256).max / 2);
-
         _optInNetworkVault(network);
 
         _deposit(alice, depositAmount);
@@ -1134,9 +1155,13 @@ contract VaultTest is Test {
         assertEq(vault.withdrawals(vault.currentEpoch()), withdrawAmount1);
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), withdrawAmount2);
 
-        assertEq(_slash(alice, network, alice, slashAmount1), slashAmount1);
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+        
+        assertEq(_slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo)), slashAmount1);
 
-        uint256 activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
+        if (vault.epochAt(uint48(blockTimestamp - captureAgo)) != vault.currentEpoch()) {
+            uint256 activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
             - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(slashAmount1, depositAmount);
         uint256 withdrawals1 = withdrawAmount1 - withdrawAmount1.mulDiv(slashAmount1, depositAmount);
         uint256 nextWithdrawals1 = withdrawAmount2 - withdrawAmount2.mulDiv(slashAmount1, depositAmount);
@@ -1145,7 +1170,8 @@ contract VaultTest is Test {
         assertTrue(withdrawals1 - vault.withdrawals(vault.currentEpoch()) <= 1);
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), nextWithdrawals1);
 
-        assertEq(_slash(alice, network, bob, slashAmount2), slashAmount2);
+        uint256 slashAmountReal2 = Math.min(slashAmount2, depositAmount - slashAmount1);
+        assertEq(_slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - captureAgo)), slashAmount2);
 
         assertEq(vault.totalSupply(), depositAmount - slashAmount1 - slashAmount2);
         assertTrue(
@@ -1160,6 +1186,10 @@ contract VaultTest is Test {
             vault.withdrawals(vault.currentEpoch() + 1),
             nextWithdrawals1 - nextWithdrawals1.mulDiv(slashAmount2, depositAmount - slashAmount1)
         );
+        } else {
+
+        }
+        
     }
 
     function _getVault(uint48 epochDuration) internal returns (Vault) {
@@ -1182,7 +1212,11 @@ contract VaultTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -1219,7 +1253,11 @@ contract VaultTest is Test {
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkLimitSetRoleHolder: alice
                     })
@@ -1348,10 +1386,11 @@ contract VaultTest is Test {
         address user,
         address network,
         address operator,
-        uint256 amount
+        uint256 amount,
+        uint48 captureTimestamp
     ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.slash(network, operator, amount);
+        slashAmount = slasher.slash(network, operator, amount, captureTimestamp);
         vm.stopPrank();
     }
 

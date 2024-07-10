@@ -112,8 +112,9 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InsufficientSlash();
         }
 
+        uint48 latestExecuteAt = Time.timestamp() + vetoDuration + executeDuration - 1;
         if (
-            captureTimestamp < IVault(vault).epochDuration() - vetoDuration - executeDuration
+            captureTimestamp < latestExecuteAt - Math.min(IVault(vault).epochDuration(), latestExecuteAt)
                 || captureTimestamp >= Time.timestamp()
         ) {
             revert InvalidCaptureTimestamp();
@@ -161,11 +162,11 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert SlashRequestCompleted();
         }
 
-        _baseChecks(request.network, request.operator, request.captureTimestamp);
+        _checkOptIns(request.network, request.operator, request.captureTimestamp);
 
         request.completed = true;
 
-        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).operatorNetworkStakeAt(
+        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             request.network, request.operator, request.captureTimestamp
         );
         slashedAmount = Math.min(

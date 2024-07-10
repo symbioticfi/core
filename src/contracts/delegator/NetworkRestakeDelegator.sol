@@ -96,66 +96,6 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     }
 
     /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkSlashableStakeIn(
-        address network,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        if (totalOperatorNetworkSharesAt(network, Time.timestamp() + duration) == 0) {
-            return 0;
-        }
-        return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitAt(network, Time.timestamp() + duration));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkSlashableStake(address network)
-        public
-        view
-        override(IBaseDelegator, BaseDelegator)
-        returns (uint256)
-    {
-        if (totalOperatorNetworkShares(network) == 0) {
-            return 0;
-        }
-        return Math.min(IVault(vault).totalSupply(), networkLimit(network));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkSlashableStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesAt(network, Time.timestamp() + duration);
-        if (totalOperatorNetworkSharesIn_ == 0) {
-            return 0;
-        }
-        return operatorNetworkSharesAt(network, operator, Time.timestamp() + duration).mulDiv(
-            networkSlashableStakeIn(network, duration), totalOperatorNetworkSharesIn_
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkSlashableStake(
-        address network,
-        address operator
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
-        if (totalOperatorNetworkShares_ == 0) {
-            return 0;
-        }
-        return
-            operatorNetworkShares(network, operator).mulDiv(networkSlashableStake(network), totalOperatorNetworkShares_);
-    }
-
-    /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function setNetworkLimit(address network, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
@@ -192,11 +132,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         _operatorNetworkShares[network][operator].push(Time.timestamp(), shares);
     }
 
-    function _operatorNetworkStakeAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) internal view override returns (uint256) {
+    function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {
         uint256 totalOperatorNetworkSharesAt_ = totalOperatorNetworkSharesAt(network, timestamp);
         return totalOperatorNetworkSharesAt_ == 0
             ? 0
@@ -206,7 +142,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             );
     }
 
-    function _operatorNetworkStake(address network, address operator) internal view override returns (uint256) {
+    function _stake(address network, address operator) internal view override returns (uint256) {
         uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
         return totalOperatorNetworkShares_ == 0
             ? 0

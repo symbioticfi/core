@@ -73,14 +73,23 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
+    /**
+     * @inheritdoc IBaseSlasher
+     */
     function cumulativeSlashAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
         return _cumulativeSlash[network][operator].upperLookupRecent(timestamp);
     }
 
+    /**
+     * @inheritdoc IBaseSlasher
+     */
     function cumulativeSlash(address network, address operator) public view returns (uint256) {
         return _cumulativeSlash[network][operator].latest();
     }
 
+    /**
+     * @inheritdoc IBaseSlasher
+     */
     function slashAtDuring(
         address network,
         address operator,
@@ -91,25 +100,19 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
             cumulativeSlashAt(network, operator, timestamp + duration) - cumulativeSlashAt(network, operator, timestamp);
     }
 
-    function _baseChecks(address network, address operator, uint48 captureTimestamp) internal view {
+    function _checkOptIns(address network, address operator, uint48 captureTimestamp) internal view {
         address vault_ = vault;
-        uint48 timestamp =
-            IVault(vault_).currentEpoch() > 0 ? IVault(vault_).previousEpochStart() : IVault(vault_).currentEpochStart();
 
-        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).wasOptedInAfter(network, vault_, timestamp)) {
+        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedInAt(network, vault_, captureTimestamp)) {
             revert NetworkNotOptedInVault();
         }
 
-        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).wasOptedInAfter(operator, vault_, timestamp)) {
+        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault_, captureTimestamp)) {
             revert OperatorNotOptedInVault();
         }
 
-        if (!IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).wasOptedInAfter(operator, network, timestamp)) {
+        if (!IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(operator, network, captureTimestamp)) {
             revert OperatorNotOptedInNetwork();
-        }
-
-        if (captureTimestamp < Time.timestamp() - IVault(vault_).epochDuration()) {
-            revert CaptureTimestampTooOld();
         }
     }
 

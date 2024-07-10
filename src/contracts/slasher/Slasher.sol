@@ -38,10 +38,13 @@ contract Slasher is BaseSlasher, ISlasher {
         uint256 amount,
         uint48 captureTimestamp
     ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
-        _baseChecks(network, operator, captureTimestamp);
+        _checkOptIns(network, operator, captureTimestamp);
 
-        uint256 stakeAmount =
-            IBaseDelegator(IVault(vault).delegator()).operatorNetworkStakeAt(network, operator, captureTimestamp);
+        if (captureTimestamp < Time.timestamp() - Math.min(IVault(vault).epochDuration(), Time.timestamp())) {
+            revert InvalidCaptureTimestamp();
+        }
+
+        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(network, operator, captureTimestamp);
         slashedAmount = Math.min(
             amount,
             stakeAmount

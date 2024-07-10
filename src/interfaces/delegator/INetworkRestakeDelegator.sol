@@ -5,9 +5,6 @@ import {IBaseDelegator} from "./IBaseDelegator.sol";
 interface INetworkRestakeDelegator is IBaseDelegator {
     error ExceedsMaxNetworkLimit();
     error MissingRoleHolders();
-    error InvalidLength();
-    error ZeroShares();
-    error DuplicateOperator();
 
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.

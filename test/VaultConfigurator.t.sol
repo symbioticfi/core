@@ -161,7 +161,11 @@ contract VaultConfiguratorTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: address(103)}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(103),
+                            hook: address(0),
+                            hookSetRoleHolder: address(0)
+                        }),
                         networkLimitSetRoleHolder: address(104),
                         operatorNetworkSharesSetRoleHolder: address(105)
                     })

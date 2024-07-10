@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 interface ISlasher {
     error InsufficientSlash();
+    error InvalidCaptureTimestamp();
 
     /**
      * @notice Emitted when a slash is performed.

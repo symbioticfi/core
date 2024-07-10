@@ -89,15 +89,14 @@ contract OptInService is IOptInService {
      * @inheritdoc IOptInService
      */
     function optOut(address where) external {
-        (bool exists, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[msg.sender][where].latestCheckpoint();
+        (, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[msg.sender][where].latestCheckpoint();
 
-        if (exists) {
-            if (latestValue == 0) {
-                revert NotOptedIn();
-            }
-            if (latestTimestamp == Time.timestamp()) {
-                revert OptOutCooldown();
-            }
+        if (latestValue == 0) {
+            revert NotOptedIn();
+        }
+
+        if (latestTimestamp == Time.timestamp()) {
+            revert OptOutCooldown();
         }
 
         _isOptedIn[msg.sender][where].push(Time.timestamp(), 0);

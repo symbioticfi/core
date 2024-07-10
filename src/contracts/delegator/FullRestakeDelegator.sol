@@ -96,64 +96,6 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     }
 
     /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkSlashableStakeIn(
-        address network,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            Math.min(
-                networkLimitAt(network, Time.timestamp() + duration),
-                totalOperatorNetworkLimitAt(network, Time.timestamp() + duration)
-            )
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkSlashableStake(address network)
-        public
-        view
-        override(IBaseDelegator, BaseDelegator)
-        returns (uint256)
-    {
-        return
-            Math.min(IVault(vault).totalSupply(), Math.min(networkLimit(network), totalOperatorNetworkLimit(network)));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkSlashableStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            Math.min(
-                networkLimitAt(network, Time.timestamp() + duration),
-                operatorNetworkLimitAt(network, operator, Time.timestamp() + duration)
-            )
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkSlashableStake(
-        address network,
-        address operator
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
-        );
-    }
-
-    /**
      * @inheritdoc IFullRestakeDelegator
      */
     function setNetworkLimit(address network, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
@@ -190,18 +132,14 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
     }
 
-    function _operatorNetworkStakeAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) internal view override returns (uint256) {
+    function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {
         return Math.min(
             IVault(vault).activeSupplyAt(timestamp),
             Math.min(networkLimitAt(network, timestamp), operatorNetworkLimitAt(network, operator, timestamp))
         );
     }
 
-    function _operatorNetworkStake(address network, address operator) internal view override returns (uint256) {
+    function _stake(address network, address operator) internal view override returns (uint256) {
         return Math.min(
             IVault(vault).activeSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
         );

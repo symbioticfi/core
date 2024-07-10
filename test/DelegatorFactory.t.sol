@@ -146,7 +146,11 @@ contract DelegatorFactoryTest is Test {
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
                         networkLimitSetRoleHolder: alice,
                         operatorNetworkSharesSetRoleHolder: alice
                     })
@@ -164,7 +168,11 @@ contract DelegatorFactoryTest is Test {
                 vault_,
                 abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: bob,
+                            hook: address(0),
+                            hookSetRoleHolder: bob
+                        }),
                         networkLimitSetRoleHolder: bob,
                         operatorNetworkSharesSetRoleHolder: bob
                     })
@@ -181,7 +189,11 @@ contract DelegatorFactoryTest is Test {
                 vault_,
                 abi.encode(
                     IFullRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: bob,
+                            hook: address(0),
+                            hookSetRoleHolder: bob
+                        }),
                         networkLimitSetRoleHolder: bob,
                         operatorNetworkLimitSetRoleHolder: bob
                     })

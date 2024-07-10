@@ -78,35 +78,7 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function networkSlashableStakeIn(address network, uint48 duration) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkSlashableStake(address network) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkSlashableStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkSlashableStake(address network, address operator) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStakeAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) public view returns (uint256) {
+    function stakeAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault, timestamp)
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(operator, network, timestamp)
@@ -114,13 +86,13 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             return 0;
         }
 
-        return _operatorNetworkStakeAt(network, operator, timestamp);
+        return _stakeAt(network, operator, timestamp);
     }
 
     /**
      * @inheritdoc IBaseDelegator
      */
-    function operatorNetworkStake(address network, address operator) external view returns (uint256) {
+    function stake(address network, address operator) external view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, network)
@@ -128,7 +100,7 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             return 0;
         }
 
-        return _operatorNetworkStake(network, operator);
+        return _stake(network, operator);
     }
 
     /**
@@ -164,7 +136,7 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             revert NotSlasher();
         }
 
-        if (slashedAmount > operatorNetworkStakeAt(network, operator, captureTimestamp)) {
+        if (slashedAmount > stakeAt(network, operator, captureTimestamp)) {
             revert TooMuchSlash();
         }
 
@@ -173,13 +145,9 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         emit OnSlash(network, operator, slashedAmount);
     }
 
-    function _operatorNetworkStakeAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) internal view virtual returns (uint256) {}
+    function _stakeAt(address network, address operator, uint48 timestamp) internal view virtual returns (uint256) {}
 
-    function _operatorNetworkStake(address network, address operator) internal view virtual returns (uint256) {}
+    function _stake(address network, address operator) internal view virtual returns (uint256) {}
 
     function _setMaxNetworkLimit(uint256 amount) internal virtual {}
 
