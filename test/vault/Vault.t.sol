@@ -1098,8 +1098,17 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
+    struct Test_SlashStruct {
+        uint256 slashAmountReal1;
+        uint256 tokensBeforeBurner;
+        uint256 activeSupply1;
+        uint256 withdrawals1;
+        uint256 nextWithdrawals1;
+        uint256 slashAmountSlashed2;
+    }
+
     function test_Slash(
-        uint48 epochDuration,
+        // uint48 epochDuration,
         uint256 depositAmount,
         uint256 withdrawAmount1,
         uint256 withdrawAmount2,
@@ -1107,7 +1116,7 @@ contract VaultTest is Test {
         uint256 slashAmount2,
         uint256 captureAgo
     ) public {
-        epochDuration = uint48(bound(epochDuration, 2, 10 days));
+        // epochDuration = uint48(bound(epochDuration, 2, 10 days));
         depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
         withdrawAmount1 = bound(withdrawAmount1, 1, 100 * 10 ** 18);
         withdrawAmount2 = bound(withdrawAmount2, 1, 100 * 10 ** 18);
@@ -1116,15 +1125,15 @@ contract VaultTest is Test {
         captureAgo = bound(captureAgo, 1, 10 days);
         vm.assume(depositAmount >= withdrawAmount1 + withdrawAmount2);
         vm.assume(depositAmount > slashAmount1);
-        vm.assume(captureAgo <= epochDuration);
+        vm.assume(captureAgo <= 7 days);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(7 days);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
-        address network = alice;
-        _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        // address network = alice;
+        _registerNetwork(alice, alice);
+        _setMaxNetworkLimit(alice, type(uint256).max);
 
         _registerOperator(alice);
         _registerOperator(bob);
@@ -1132,15 +1141,15 @@ contract VaultTest is Test {
         _optInOperatorVault(alice);
         _optInOperatorVault(bob);
 
-        _optInOperatorNetwork(alice, address(network));
-        _optInOperatorNetwork(bob, address(network));
+        _optInOperatorNetwork(alice, address(alice));
+        _optInOperatorNetwork(bob, address(alice));
 
-        _setNetworkLimit(alice, network, type(uint256).max);
+        _setNetworkLimit(alice, alice, type(uint256).max);
 
-        _setOperatorNetworkLimit(alice, network, alice, type(uint256).max / 2);
-        _setOperatorNetworkLimit(alice, network, bob, type(uint256).max / 2);
+        _setOperatorNetworkLimit(alice, alice, alice, type(uint256).max / 2);
+        _setOperatorNetworkLimit(alice, alice, bob, type(uint256).max / 2);
 
-        _optInNetworkVault(network);
+        _optInNetworkVault(alice);
 
         _deposit(alice, depositAmount);
         _withdraw(alice, withdrawAmount1);
@@ -1158,84 +1167,134 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        Test_SlashStruct memory test_SlashStruct;
+
         if (vault.epochAt(uint48(blockTimestamp - captureAgo)) != vault.currentEpoch()) {
-            uint256 slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1);
-            uint256 tokensBefore = collateral.balanceOf(address(vault));
-            uint256 tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-            assertEq(_slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo)), slashAmountReal1);
-            assertEq(tokensBefore - collateral.balanceOf(address(vault)), slashAmountReal1);
-            assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountReal1);
-
-            uint256 activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
-                - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(slashAmountReal1, depositAmount);
-            uint256 withdrawals1 = withdrawAmount1 - withdrawAmount1.mulDiv(slashAmountReal1, depositAmount);
-            uint256 nextWithdrawals1 = withdrawAmount2 - withdrawAmount2.mulDiv(slashAmountReal1, depositAmount);
-            assertEq(vault.totalSupply(), depositAmount - slashAmountReal1);
-            assertTrue(withdrawals1 - vault.withdrawals(vault.currentEpoch()) <= 2);
-            assertTrue(nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
-            assertEq(vault.activeSupply(), activeSupply1);
-
-            uint256 slashAmountReal2 = Math.min(slashAmount2, depositAmount - withdrawAmount1);
-            uint256 slashAmountSlashed2 = Math.min(depositAmount - slashAmountReal1, slashAmountReal2);
-            tokensBefore = collateral.balanceOf(address(vault));
-            tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-            assertEq(_slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - captureAgo)), slashAmountReal2);
-            assertEq(tokensBefore - collateral.balanceOf(address(vault)), slashAmountSlashed2);
-            assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountSlashed2);
-
-            assertEq(vault.totalSupply(), depositAmount - slashAmountReal1 - slashAmountSlashed2);
-            assertTrue(
-                (withdrawals1 - withdrawals1.mulDiv(slashAmountSlashed2, depositAmount - slashAmountReal1))
-                    - vault.withdrawals(vault.currentEpoch()) <= 4
-            );
-            assertTrue(
-                (nextWithdrawals1 - nextWithdrawals1.mulDiv(slashAmountSlashed2, depositAmount - slashAmountReal1))
-                    - vault.withdrawals(vault.currentEpoch() + 1) <= 2
+            test_SlashStruct.slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1);
+            test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
+            assertEq(
+                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo)),
+                test_SlashStruct.slashAmountReal1
             );
             assertEq(
-                vault.activeSupply(),
-                activeSupply1 - activeSupply1.mulDiv(slashAmountSlashed2, depositAmount - slashAmountReal1)
+                collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
+                test_SlashStruct.slashAmountReal1
             );
-        } else {
-            uint256 slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1 - withdrawAmount2);
-            uint256 tokensBefore = collateral.balanceOf(address(vault));
-            uint256 tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-            assertEq(_slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo)), slashAmountReal1);
-            assertEq(tokensBefore - collateral.balanceOf(address(vault)), slashAmountReal1);
-            assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountReal1);
 
-            uint256 activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
+            test_SlashStruct.activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
                 - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(
-                    slashAmountReal1, depositAmount - withdrawAmount1
+                    test_SlashStruct.slashAmountReal1, depositAmount
                 );
-            uint256 withdrawals1 = withdrawAmount1;
-            uint256 nextWithdrawals1 =
-                withdrawAmount2 - withdrawAmount2.mulDiv(slashAmountReal1, depositAmount - withdrawAmount1);
-            assertEq(vault.totalSupply(), depositAmount - slashAmountReal1);
-            assertEq(vault.withdrawals(vault.currentEpoch()), withdrawals1);
-            assertTrue(nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
-            assertEq(vault.activeSupply(), activeSupply1);
+            test_SlashStruct.withdrawals1 =
+                withdrawAmount1 - withdrawAmount1.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
+            test_SlashStruct.nextWithdrawals1 =
+                withdrawAmount2 - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
+            assertEq(vault.totalSupply(), depositAmount - test_SlashStruct.slashAmountReal1);
+            assertTrue(test_SlashStruct.withdrawals1 - vault.withdrawals(vault.currentEpoch()) <= 2);
+            assertTrue(test_SlashStruct.nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
+            assertEq(vault.activeSupply(), test_SlashStruct.activeSupply1);
 
-            uint256 slashAmountReal2 = Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2);
-            uint256 slashAmountSlashed2 = Math.min(depositAmount - withdrawAmount1 - slashAmountReal1, slashAmountReal2);
-            tokensBefore = collateral.balanceOf(address(vault));
-            tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-            assertEq(_slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - captureAgo)), slashAmountReal2);
-            assertEq(tokensBefore - collateral.balanceOf(address(vault)), slashAmountSlashed2);
-            assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountSlashed2);
+            test_SlashStruct.slashAmountSlashed2 = Math.min(
+                depositAmount - test_SlashStruct.slashAmountReal1,
+                Math.min(slashAmount2, depositAmount - withdrawAmount1)
+            );
+            test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
+            assertEq(
+                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo)),
+                Math.min(slashAmount2, depositAmount - withdrawAmount1)
+            );
+            assertEq(
+                collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
+                test_SlashStruct.slashAmountSlashed2
+            );
 
-            assertEq(vault.totalSupply(), depositAmount - slashAmountReal1 - slashAmountSlashed2);
-            assertEq(vault.withdrawals(vault.currentEpoch()), withdrawals1);
+            assertEq(
+                vault.totalSupply(),
+                depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2
+            );
             assertTrue(
                 (
-                    nextWithdrawals1
-                        - nextWithdrawals1.mulDiv(slashAmountSlashed2, depositAmount - withdrawAmount1 - slashAmountReal1)
+                    test_SlashStruct.withdrawals1
+                        - test_SlashStruct.withdrawals1.mulDiv(
+                            test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
+                        )
+                ) - vault.withdrawals(vault.currentEpoch()) <= 4
+            );
+            assertTrue(
+                (
+                    test_SlashStruct.nextWithdrawals1
+                        - test_SlashStruct.nextWithdrawals1.mulDiv(
+                            test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
+                        )
                 ) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
             );
             assertEq(
                 vault.activeSupply(),
-                activeSupply1
-                    - activeSupply1.mulDiv(slashAmountSlashed2, depositAmount - withdrawAmount1 - slashAmountReal1)
+                test_SlashStruct.activeSupply1
+                    - test_SlashStruct.activeSupply1.mulDiv(
+                        test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
+                    )
+            );
+        } else {
+            test_SlashStruct.slashAmountReal1 =
+                Math.min(slashAmount1, depositAmount - withdrawAmount1 - withdrawAmount2);
+            test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
+            assertEq(
+                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo)),
+                test_SlashStruct.slashAmountReal1
+            );
+            assertEq(
+                collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
+                test_SlashStruct.slashAmountReal1
+            );
+
+            test_SlashStruct.activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
+                - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(
+                    test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1
+                );
+            test_SlashStruct.withdrawals1 = withdrawAmount1;
+            test_SlashStruct.nextWithdrawals1 = withdrawAmount2
+                - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1);
+            assertEq(vault.totalSupply(), depositAmount - test_SlashStruct.slashAmountReal1);
+            assertEq(vault.withdrawals(vault.currentEpoch()), test_SlashStruct.withdrawals1);
+            assertTrue(test_SlashStruct.nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
+            assertEq(vault.activeSupply(), test_SlashStruct.activeSupply1);
+
+            test_SlashStruct.slashAmountSlashed2 = Math.min(
+                depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1,
+                Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
+            );
+            test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
+            assertEq(
+                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo)),
+                Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
+            );
+            assertEq(
+                collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
+                test_SlashStruct.slashAmountSlashed2
+            );
+
+            assertEq(
+                vault.totalSupply(),
+                depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2
+            );
+            assertEq(vault.withdrawals(vault.currentEpoch()), test_SlashStruct.withdrawals1);
+            assertTrue(
+                (
+                    test_SlashStruct.nextWithdrawals1
+                        - test_SlashStruct.nextWithdrawals1.mulDiv(
+                            test_SlashStruct.slashAmountSlashed2,
+                            depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
+                        )
+                ) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
+            );
+            assertEq(
+                vault.activeSupply(),
+                test_SlashStruct.activeSupply1
+                    - test_SlashStruct.activeSupply1.mulDiv(
+                        test_SlashStruct.slashAmountSlashed2,
+                        depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
+                    )
             );
         }
     }

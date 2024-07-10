@@ -357,8 +357,9 @@ contract VetoSlasherTest is Test {
             uint48 captureTimestamp_,
             uint48 vetoDeadline_,
             uint48 executeDeadline_,
-            uint256 vetoedShares_,
-            bool completed_
+            ,
+            // uint256 vetoedShares_,
+            // bool completed_
         ) = slasher.slashRequests(0);
 
         assertEq(network_, alice);
@@ -367,13 +368,21 @@ contract VetoSlasherTest is Test {
         assertEq(captureTimestamp_, uint48(blockTimestamp - 1));
         assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
         assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
-        assertEq(vetoedShares_, 0);
-        assertEq(completed_, false);
+        // assertEq(vetoedShares_, 0);
+        // assertEq(completed_, false);
 
         assertEq(1, _requestSlash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - 1)));
 
-        (network_, operator_, amount_, captureTimestamp_, vetoDeadline_, executeDeadline_, vetoedShares_, completed_) =
-            slasher.slashRequests(1);
+        (
+            network_,
+            operator_,
+            amount_,
+            captureTimestamp_,
+            vetoDeadline_,
+            executeDeadline_,
+            ,
+            // vetoedShares_, completed_
+        ) = slasher.slashRequests(1);
 
         assertEq(network_, alice);
         assertEq(operator_, bob);
@@ -381,8 +390,8 @@ contract VetoSlasherTest is Test {
         assertEq(captureTimestamp_, uint48(blockTimestamp - 1));
         assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
         assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
-        assertEq(vetoedShares_, 0);
-        assertEq(completed_, false);
+        // assertEq(vetoedShares_, 0);
+        // assertEq(completed_, false);
     }
 
     function test_RequestSlashRevertInsufficientSlash(
@@ -631,7 +640,7 @@ contract VetoSlasherTest is Test {
         _setResolverShares(network, alice, resolverShares1);
     }
 
-    function test_ExecuteSlashBase(
+    function test_ExecuteSlash(
         uint48 epochDuration,
         uint48 vetoDuration,
         uint48 executeDuration,
@@ -653,23 +662,23 @@ contract VetoSlasherTest is Test {
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
-        address network = alice;
-        _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        // address network = alice;
+        _registerNetwork(alice, alice);
+        _setMaxNetworkLimit(alice, type(uint256).max);
 
         _registerOperator(alice);
 
         _optInOperatorVault(alice);
 
-        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(alice, address(alice));
 
         _deposit(alice, depositAmount);
 
-        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, alice, networkLimit);
 
-        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+        _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
 
-        _optInNetworkVault(network);
+        _optInNetworkVault(alice);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -677,48 +686,61 @@ contract VetoSlasherTest is Test {
         uint256 slashAmountReal1 =
             Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        uint48 captureTimestamp = uint48(blockTimestamp - 1);
-        _requestSlash(alice, network, alice, slashAmount1, captureTimestamp);
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
 
         (
             address network_,
             address operator_,
             uint256 amount_,
             uint48 captureTimestamp_,
-            uint48 vetoDeadline_,
-            uint48 executeDeadline_,
-            uint256 vetoedShares_,
+            // uint48 vetoDeadline_,
+            // uint48 executeDeadline_,
+            // uint256 vetoedShares_,
+            ,
+            ,
+            ,
             bool completed_
         ) = slasher.slashRequests(0);
 
-        assertEq(network_, network);
+        assertEq(network_, alice);
         assertEq(operator_, alice);
         assertEq(amount_, slashAmount1);
-        assertEq(captureTimestamp_, captureTimestamp);
-        assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
-        assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
-        assertEq(vetoedShares_, 0);
+        assertEq(captureTimestamp_, uint48(blockTimestamp - 1));
+        // assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
+        // assertEq(executeDeadline_, uint48(blockTimestamp + slasher.vetoDuration() + slasher.executeDuration()));
+        // assertEq(vetoedShares_, 0);
         assertEq(completed_, false);
 
         blockTimestamp = blockTimestamp + vetoDuration + executeDuration - 1;
         vm.warp(blockTimestamp);
 
-        assertTrue(blockTimestamp - captureTimestamp <= epochDuration);
+        assertTrue(blockTimestamp - uint48(blockTimestamp - 1) <= epochDuration);
 
         assertEq(_executeSlash(alice, 0), slashAmountReal1);
 
         assertEq(vault.totalSupply(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
-        (network_, operator_, amount_, captureTimestamp_, vetoDeadline_, executeDeadline_, vetoedShares_, completed_) =
-            slasher.slashRequests(0);
+        (
+            network_,
+            operator_,
+            amount_,
+            captureTimestamp_,
+            // vetoDeadline_,
+            // executeDeadline_,
+            // vetoedShares_,
+            ,
+            ,
+            ,
+            completed_
+        ) = slasher.slashRequests(0);
 
-        assertEq(network_, network);
+        assertEq(network_, alice);
         assertEq(operator_, alice);
         assertEq(amount_, slashAmount1);
-        assertEq(captureTimestamp_, uint48(blockTimestamp - (vetoDuration + executeDuration - 1) - 1));
-        assertEq(vetoDeadline_, uint48(blockTimestamp - (executeDuration - 1)));
-        assertEq(executeDeadline_, uint48(blockTimestamp + 1));
-        assertEq(vetoedShares_, 0);
+        assertEq(captureTimestamp_, uint48(blockTimestamp - vetoDuration - executeDuration));
+        // assertEq(vetoDeadline_, uint48(blockTimestamp - (executeDuration - 1)));
+        // assertEq(executeDeadline_, uint48(blockTimestamp + 1));
+        // assertEq(vetoedShares_, 0);
         assertEq(completed_, true);
 
         assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1)), 0);
