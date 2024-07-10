@@ -240,7 +240,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         if (slashedAmount > 0) {
-            ICollateral(collateral).issueDebt(burner, slashedAmount);
+            IERC20(collateral).safeTransfer(burner, slashedAmount);
         }
 
         emit OnSlash(msg.sender, slashedAmount);
