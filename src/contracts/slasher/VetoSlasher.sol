@@ -64,7 +64,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
         address networkRegistry,
-        address slasherFactory
+        address slasherFactory,
+        uint64 entityType
     )
         BaseSlasher(
             vaultFactory,
@@ -72,7 +73,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             networkVaultOptInService,
             operatorVaultOptInService,
             operatorNetworkOptInService,
-            slasherFactory
+            slasherFactory,
+            entityType
         )
     {
         NETWORK_REGISTRY = networkRegistry;

@@ -9,6 +9,7 @@ import {IFactory} from "src/interfaces/common/IFactory.sol";
 import {IEntity} from "src/interfaces/common/IEntity.sol";
 
 import {SimpleEntity} from "test/mocks/SimpleEntity.sol";
+import {FakeEntity} from "test/mocks/FakeEntity.sol";
 
 contract FactoryTest is Test {
     address owner;
@@ -28,20 +29,20 @@ contract FactoryTest is Test {
     }
 
     function test_Create() public {
-        assertEq(factory.totalImplementations(), 0);
+        assertEq(factory.totalTypes(), 0);
         vm.expectRevert();
         factory.implementation(0);
 
-        address impl = address(new SimpleEntity(address(factory)));
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
 
-        assertEq(factory.totalImplementations(), 1);
+        assertEq(factory.totalTypes(), 1);
         assertEq(factory.implementation(0), impl);
 
-        impl = address(new SimpleEntity(address(factory)));
+        impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
 
-        assertEq(factory.totalImplementations(), 2);
+        assertEq(factory.totalTypes(), 2);
         assertEq(factory.implementation(1), impl);
 
         assertEq(factory.isEntity(alice), false);
@@ -50,10 +51,10 @@ contract FactoryTest is Test {
     }
 
     function test_CreateRevertInvalidIndex() public {
-        address impl = address(new SimpleEntity(address(factory)));
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
 
-        impl = address(new SimpleEntity(address(factory)));
+        impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
 
         vm.expectRevert();
@@ -63,16 +64,26 @@ contract FactoryTest is Test {
         factory.create(3, true, "");
     }
 
-    function test_WhitelistRevertInvalidImplementation() public {
-        address impl = address(new SimpleEntity(address(address(1))));
+    function test_WhitelistRevertInvalidImplementation1() public {
+        address impl = address(new SimpleEntity(address(address(1)), factory.totalTypes()));
+        vm.expectRevert(IFactory.InvalidImplementation.selector);
+        factory.whitelist(impl);
+    }
+
+    function test_WhitelistRevertInvalidImplementation2() public {
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
+        factory.whitelist(impl);
+
+        impl = address(new SimpleEntity(address(factory), factory.totalTypes() - 1));
         vm.expectRevert(IFactory.InvalidImplementation.selector);
         factory.whitelist(impl);
     }
 
     function test_WhitelistRevertAlreadyWhitelisted() public {
-        address impl = address(new SimpleEntity(address(factory)));
+        address impl = address(new FakeEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
 
+        FakeEntity(impl).setType(factory.totalTypes());
         vm.expectRevert(IFactory.AlreadyWhitelisted.selector);
         factory.whitelist(impl);
     }

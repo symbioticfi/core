@@ -11,10 +11,16 @@ abstract contract Entity is Initializable, IEntity {
      */
     address public immutable FACTORY;
 
-    constructor(address factory) {
+    /**
+     * @inheritdoc IEntity
+     */
+    uint64 public immutable TYPE;
+
+    constructor(address factory, uint64 type_) {
         _disableInitializers();
 
         FACTORY = factory;
+        TYPE = type_;
     }
 
     /**

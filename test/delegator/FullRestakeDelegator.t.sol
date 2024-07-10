@@ -83,7 +83,8 @@ contract FullRestakeDelegatorTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
@@ -94,7 +95,8 @@ contract FullRestakeDelegatorTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
@@ -106,7 +108,8 @@ contract FullRestakeDelegatorTest is Test {
                 address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(slasherImpl);
@@ -119,7 +122,8 @@ contract FullRestakeDelegatorTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);

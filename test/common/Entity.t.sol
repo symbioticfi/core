@@ -28,12 +28,20 @@ contract EntityTest is Test {
     }
 
     function test_Create() public {
-        address impl = address(new SimpleEntity(address(factory)));
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         assertEq(IEntity(impl).FACTORY(), address(factory));
         factory.whitelist(impl);
 
         address entity = factory.create(0, true, "");
         assertEq(IEntity(entity).FACTORY(), address(factory));
+        assertEq(IEntity(entity).TYPE(), 0);
+
+        impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
+        factory.whitelist(impl);
+
+        entity = factory.create(1, true, "");
+        assertEq(IEntity(entity).FACTORY(), address(factory));
+        assertEq(IEntity(entity).TYPE(), 1);
 
         vm.expectRevert();
         IEntity(entity).initialize("");

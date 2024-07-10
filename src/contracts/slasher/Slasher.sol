@@ -17,7 +17,8 @@ contract Slasher is BaseSlasher, ISlasher {
         address networkVaultOptInService,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
-        address slasherFactory
+        address slasherFactory,
+        uint64 entityType
     )
         BaseSlasher(
             vaultFactory,
@@ -25,7 +26,8 @@ contract Slasher is BaseSlasher, ISlasher {
             networkVaultOptInService,
             operatorVaultOptInService,
             operatorNetworkOptInService,
-            slasherFactory
+            slasherFactory,
+            entityType
         )
     {}
 

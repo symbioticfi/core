@@ -67,8 +67,9 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         address vaultFactory,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
-        address delegatorFactory
-    ) Entity(delegatorFactory) {
+        address delegatorFactory,
+        uint64 entityType
+    ) Entity(delegatorFactory, entityType) {
         NETWORK_REGISTRY = networkRegistry;
         VAULT_FACTORY = vaultFactory;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;

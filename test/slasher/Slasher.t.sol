@@ -85,7 +85,8 @@ contract SlasherTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
@@ -96,7 +97,8 @@ contract SlasherTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
@@ -108,7 +110,8 @@ contract SlasherTest is Test {
                 address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(slasherImpl);
@@ -121,7 +124,8 @@ contract SlasherTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);

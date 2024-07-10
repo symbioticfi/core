@@ -87,7 +87,8 @@ contract VetoSlasherTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
@@ -98,7 +99,8 @@ contract VetoSlasherTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
@@ -110,7 +112,8 @@ contract VetoSlasherTest is Test {
                 address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(slasherImpl);
@@ -123,7 +126,8 @@ contract VetoSlasherTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);

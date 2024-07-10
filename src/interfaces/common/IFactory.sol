@@ -8,30 +8,30 @@ interface IFactory is IRegistry {
     error InvalidImplementation();
 
     /**
-     * @notice Get the total number of whitelisted implementations.
-     * @return total number of implementations
+     * @notice Get the total number of whitelisted types.
+     * @return total number of types
      */
-    function totalImplementations() external view returns (uint64);
+    function totalTypes() external view returns (uint64);
 
     /**
-     * @notice Get the implementation for a given index.
-     * @param index position to get the implementation at
+     * @notice Get the implementation for a given type.
+     * @param type_ position to get the implementation at
      * @return address of the implementation
      */
-    function implementation(uint64 index) external view returns (address);
+    function implementation(uint64 type_) external view returns (address);
 
     /**
-     * @notice Whitelist a new implementation for entities.
+     * @notice Whitelist a new type of entities.
      * @param implementation address of the new implementation
      */
     function whitelist(address implementation) external;
 
     /**
      * @notice Create a new entity at the factory.
-     * @param index `index`-th implementation to use
+     * @param type_ type's implementation to use
      * @param withInitialize whether to call initialize on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint64 index, bool withInitialize, bytes memory data) external returns (address);
+    function create(uint64 type_, bool withInitialize, bytes memory data) external returns (address);
 }

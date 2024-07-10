@@ -38,14 +38,16 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address vaultFactory,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
-        address delegatorFactory
+        address delegatorFactory,
+        uint64 entityType
     )
         BaseDelegator(
             networkRegistry,
             vaultFactory,
             operatorVaultOptInService,
             operatorNetworkOptInService,
-            delegatorFactory
+            delegatorFactory,
+            entityType
         )
     {}
 
