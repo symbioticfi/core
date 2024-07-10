@@ -453,6 +453,58 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, network, alice, 0, uint48(blockTimestamp - 1));
     }
 
+    function test_RequestSlashRevertInvalidCaptureTimestamp(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint48 executeDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 captureAgo
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        executeDuration = uint48(bound(executeDuration, 1, type(uint48).max / 2));
+        vm.assume(vetoDuration + executeDuration <= epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration, executeDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        blockTimestamp = blockTimestamp + 10 * epochDuration;
+        vm.warp(blockTimestamp);
+
+        vm.assume(
+            captureAgo < blockTimestamp
+                && (captureAgo > epochDuration - (vetoDuration + executeDuration - 1) || captureAgo == 0)
+        );
+        vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo));
+    }
+
     function test_setResolverSharesBoth(
         uint48 epochDuration,
         uint48 vetoDuration,

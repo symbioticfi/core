@@ -524,6 +524,51 @@ contract SlasherTest is Test {
         _slash(alice, network, alice, zeroSlashAmount ? 0 : slashAmount1, uint48(blockTimestamp - 1));
     }
 
+    function test_SlashRevertInvalidCaptureTimestamp(
+        uint48 epochDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 captureAgo
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _optInOperatorVault(alice);
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        _optInNetworkVault(network);
+
+        blockTimestamp = blockTimestamp + 10 * epochDuration;
+        vm.warp(blockTimestamp);
+
+        vm.assume(captureAgo < blockTimestamp && (captureAgo > epochDuration || captureAgo == 0));
+
+        vm.expectRevert(ISlasher.InvalidCaptureTimestamp.selector);
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo));
+    }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
