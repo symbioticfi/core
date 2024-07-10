@@ -7,6 +7,7 @@ interface INetworkRestakeDelegatorHook {
      * @param operator address of the operator
      * @param slashedAmount amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
+     * @return isUpdate if the network limit or operator network shares must be updated
      * @return networkLimit new network limit
      * @return operatorNetworkShares new operator network shares
      */
@@ -15,5 +16,5 @@ interface INetworkRestakeDelegatorHook {
         address operator,
         uint256 slashedAmount,
         uint48 captureTimestamp
-    ) external returns (uint256 networkLimit, uint256 operatorNetworkShares);
+    ) external returns (bool isUpdate, uint256 networkLimit, uint256 operatorNetworkShares);
 }

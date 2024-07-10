@@ -187,10 +187,13 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
                     IFullRestakeDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
                 )
             );
-            if (success && returndata.length == 64) {
-                (uint256 networkLimit_, uint256 operatorNetworkLimit_) = abi.decode(returndata, (uint256, uint256));
-                _setNetworkLimit(network, networkLimit_);
-                _setOperatorNetworkLimit(network, operator, operatorNetworkLimit_);
+            if (success && returndata.length == 96) {
+                (bool isUpdate, uint256 networkLimit_, uint256 operatorNetworkLimit_) =
+                    abi.decode(returndata, (bool, uint256, uint256));
+                if (isUpdate) {
+                    _setNetworkLimit(network, networkLimit_);
+                    _setOperatorNetworkLimit(network, operator, operatorNetworkLimit_);
+                }
             }
         }
     }

@@ -195,10 +195,13 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                     INetworkRestakeDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
                 )
             );
-            if (success && returndata.length == 64) {
-                (uint256 networkLimit_, uint256 operatorNetworkShares_) = abi.decode(returndata, (uint256, uint256));
-                _setNetworkLimit(network, networkLimit_);
-                _setOperatorNetworkShares(network, operator, operatorNetworkShares_);
+            if (success && returndata.length == 96) {
+                (bool isUpdate, uint256 networkLimit_, uint256 operatorNetworkShares_) =
+                    abi.decode(returndata, (bool, uint256, uint256));
+                if (isUpdate) {
+                    _setNetworkLimit(network, networkLimit_);
+                    _setOperatorNetworkShares(network, operator, operatorNetworkShares_);
+                }
             }
         }
     }

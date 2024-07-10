@@ -139,7 +139,8 @@ contract VaultConfiguratorTest is Test {
         address burner,
         uint48 epochDuration,
         bool depositWhitelist,
-        bool withSlasher
+        bool withSlasher,
+        address hook
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
         vm.assume(owner_ != address(0));
@@ -156,15 +157,15 @@ contract VaultConfiguratorTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: address(100),
-                    depositorWhitelistRoleHolder: address(102)
+                    depositorWhitelistRoleHolder: address(101)
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(103),
-                            hook: address(0),
-                            hookSetRoleHolder: address(0)
+                            defaultAdminRoleHolder: address(102),
+                            hook: hook,
+                            hookSetRoleHolder: address(103)
                         }),
                         networkLimitSetRoleHolder: address(104),
                         operatorNetworkSharesSetRoleHolder: address(105)
@@ -188,10 +189,14 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), address(100)), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(102)), depositWhitelist);
+        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(101)), depositWhitelist);
 
         assertEq(networkRestakeDelegator.vault(), vault_);
-        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(103)), true);
+        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(102)), true);
+        assertEq(networkRestakeDelegator.hook(), hook);
+        assertEq(
+            networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(103)), hook == address(0)
+        );
         assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.NETWORK_LIMIT_SET_ROLE(), address(104)), true);
         assertEq(
             networkRestakeDelegator.hasRole(networkRestakeDelegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), address(105)),
