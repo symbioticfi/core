@@ -42,10 +42,8 @@ contract Slasher is BaseSlasher, ISlasher {
     ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
         _checkOptIns(network, operator, captureTimestamp);
 
-        if (
-            captureTimestamp < Time.timestamp() - Math.min(IVault(vault).epochDuration(), Time.timestamp())
-                || captureTimestamp >= Time.timestamp()
-        ) {
+        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
+        {
             revert InvalidCaptureTimestamp();
         }
 

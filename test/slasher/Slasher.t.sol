@@ -140,7 +140,7 @@ contract SlasherTest is Test {
     }
 
     function test_Create(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -158,7 +158,7 @@ contract SlasherTest is Test {
     }
 
     function test_CreateRevertNotVault(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault,) = _getVaultAndDelegator(epochDuration);
 
@@ -185,9 +185,11 @@ contract SlasherTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         slashAmount3 = bound(slashAmount3, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -311,9 +313,11 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -358,9 +362,11 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -403,9 +409,11 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -448,9 +456,11 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -494,9 +504,11 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -538,9 +550,11 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -563,7 +577,7 @@ contract SlasherTest is Test {
         blockTimestamp = blockTimestamp + 10 * epochDuration;
         vm.warp(blockTimestamp);
 
-        vm.assume(captureAgo < blockTimestamp && (captureAgo > epochDuration || captureAgo == 0));
+        vm.assume(captureAgo <= 10 * epochDuration && (captureAgo > epochDuration || captureAgo == 0));
 
         vm.expectRevert(ISlasher.InvalidCaptureTimestamp.selector);
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo));

@@ -31,6 +31,10 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_Create() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         assertEq(service.WHERE_REGISTRY(), address(networkRegistry));
@@ -39,7 +43,6 @@ contract OperatorOptInServiceTest is Test {
         assertEq(service.wasOptedInAfterDuring(alice, alice, 0, 0), false);
         assertEq(service.wasOptedInAfter(alice, alice, 0), false);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         address operator = alice;
         address where = bob;
 

@@ -142,7 +142,7 @@ contract VaultConfiguratorTest is Test {
         bool withSlasher,
         address hook
     ) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         vm.assume(owner_ != address(0));
 
         address[] memory networkLimitSetRoleHolders = new address[](1);

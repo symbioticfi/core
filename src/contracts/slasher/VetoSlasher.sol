@@ -109,9 +109,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InsufficientSlash();
         }
 
-        uint48 earliestExecuteAt = Time.timestamp() + vetoDuration;
         if (
-            captureTimestamp < earliestExecuteAt - Math.min(IVault(vault).epochDuration(), earliestExecuteAt)
+            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault).epochDuration()
                 || captureTimestamp >= Time.timestamp()
         ) {
             revert InvalidCaptureTimestamp();

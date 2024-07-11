@@ -139,7 +139,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_Create(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -163,7 +163,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_CreateRevertNotVault(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -194,7 +194,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_CreateRevertMissingRoleHolders(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -224,7 +224,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_CreateRevertZeroAddressRoleHolder1(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -255,7 +255,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_CreateRevertZeroAddressRoleHolder2(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -286,7 +286,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_CreateRevertDuplicateRoleHolder1(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -318,7 +318,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_CreateRevertDuplicateRoleHolder2(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -350,7 +350,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_OnSlashRevertNotSlasher(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
@@ -369,9 +369,11 @@ contract FullRestakeDelegatorTest is Test {
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
-        (vault, delegator) = _getVaultAndDelegator(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -445,9 +447,11 @@ contract FullRestakeDelegatorTest is Test {
         vm.assume(amount3 < amount2);
         vm.assume(amount4 > amount2 && amount4 > amount1);
 
-        (vault, delegator) = _getVaultAndDelegator(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -514,9 +518,11 @@ contract FullRestakeDelegatorTest is Test {
         amount2 = bound(amount2, 1, type(uint256).max / 2);
         vm.assume(amount3 < amount2);
 
-        (vault, delegator) = _getVaultAndDelegator(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         address network = bob;
         _registerNetwork(network, bob);
@@ -561,9 +567,11 @@ contract FullRestakeDelegatorTest is Test {
         vm.assume(maxNetworkLimit1 > maxNetworkLimit2);
         vm.assume(maxNetworkLimit1 >= networkLimit1 && networkLimit1 >= maxNetworkLimit2);
 
-        (vault, delegator) = _getVaultAndDelegator(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -594,7 +602,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_SetMaxNetworkLimitRevertNotNetwork(uint48 epochDuration, uint256 maxNetworkLimit) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -606,7 +614,7 @@ contract FullRestakeDelegatorTest is Test {
     }
 
     function test_SetMaxNetworkLimitRevertAlreadySet(uint48 epochDuration, uint256 maxNetworkLimit) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -634,9 +642,11 @@ contract FullRestakeDelegatorTest is Test {
         operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
         operatorNetworkLimit3 = bound(operatorNetworkLimit3, 0, type(uint256).max / 2);
 
-        (vault, delegator) = _getVaultAndDelegator(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -774,9 +784,11 @@ contract FullRestakeDelegatorTest is Test {
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
 
         address network = alice;
         _registerNetwork(network, alice);
@@ -843,6 +855,10 @@ contract FullRestakeDelegatorTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         address hook = address(new SimpleFullRestakeDelegatorHook());
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
@@ -884,8 +900,6 @@ contract FullRestakeDelegatorTest is Test {
         vault = Vault(vault_);
         delegator = FullRestakeDelegator(delegator_);
         slasher = Slasher(slasher_);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         address network = alice;
         _registerNetwork(network, alice);

@@ -142,6 +142,10 @@ contract VaultTest is Test {
     function test_Create(address burner, uint48 epochDuration, bool depositWhitelist) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -179,8 +183,6 @@ contract VaultTest is Test {
         );
 
         vault = Vault(vault_);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
@@ -420,10 +422,12 @@ contract VaultTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 tokensBefore = collateral.balanceOf(address(vault));
         uint256 shares1 = amount1 * 10 ** 0;
@@ -505,10 +509,12 @@ contract VaultTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares1 = amount1 * 10 ** 0;
         assertEq(_deposit(alice, amount1), shares1);
@@ -578,10 +584,12 @@ contract VaultTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         // uint48 epochDuration = 1;
         vault = _getVault(1);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         uint256 shares = _deposit(alice, amount1);
 
@@ -732,10 +740,12 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -761,10 +771,12 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -788,10 +800,12 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -813,10 +827,12 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -840,10 +856,12 @@ contract VaultTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
 
         _deposit(alice, amount1);
 
@@ -1002,9 +1020,11 @@ contract VaultTest is Test {
         vm.assume(depositAmount > slashAmount1);
         vm.assume(captureAgo <= 7 days);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(7 days);
-
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(7 days);
 
         // address network = alice;
         _registerNetwork(alice, alice);
