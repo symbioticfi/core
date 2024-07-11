@@ -5,17 +5,19 @@ import {IBaseDelegator} from "./IBaseDelegator.sol";
 interface IFullRestakeDelegator is IBaseDelegator {
     error ExceedsMaxNetworkLimit();
     error MissingRoleHolders();
+    error ZeroAddressRoleHolder();
+    error DuplicateRoleHolder();
 
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.
      * @param baseParams base parameters for delegators' deployment
-     * @param networkLimitSetRoleHolder address of the initial NETWORK_LIMIT_SET_ROLE holder
-     * @param operatorNetworkLimitSetRoleHolder address of the initial OPERATOR_NETWORK_LIMIT_SET_ROLE holder
+     * @param networkLimitSetRoleHolders array of addresses of the initial NETWORK_LIMIT_SET_ROLE holders
+     * @param operatorNetworkLimitSetRoleHolders array of addresses of the initial OPERATOR_NETWORK_LIMIT_SET_ROLE holders
      */
     struct InitParams {
         IBaseDelegator.BaseParams baseParams;
-        address networkLimitSetRoleHolder;
-        address operatorNetworkLimitSetRoleHolder;
+        address[] networkLimitSetRoleHolders;
+        address[] operatorNetworkLimitSetRoleHolders;
     }
 
     /**
@@ -104,7 +106,7 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @notice Set a network's limit (how much stake the vault curator is ready to give to the network).
      * @param network address of the network
      * @param amount new limit of the network
-     * @dev Only the NETWORK_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only a NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
     function setNetworkLimit(address network, uint256 amount) external;
 
@@ -114,7 +116,7 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @param network address of the network
      * @param operator address of the operator
      * @param amount new limit of the operator for the network
-     * @dev Only the OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only a OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
     function setOperatorNetworkLimit(address network, address operator, uint256 amount) external;
 }

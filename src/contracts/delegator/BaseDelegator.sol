@@ -7,6 +7,7 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
+import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -122,6 +123,9 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         emit SetMaxNetworkLimit(msg.sender, amount);
     }
+    /**
+     * @inheritdoc IBaseDelegator
+     */
 
     function setHook(address hook_) external onlyRole(HOOK_SET_ROLE) {
         hook = hook_;
@@ -141,7 +145,13 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             revert TooMuchSlash();
         }
 
-        _onSlash(network, operator, slashedAmount, captureTimestamp);
+        if (hook != address(0)) {
+            hook.call{gas: 300_000}(
+                abi.encodeWithSelector(
+                    IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
+                )
+            );
+        }
 
         emit OnSlash(network, operator, slashedAmount);
     }
@@ -151,13 +161,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     function _stake(address network, address operator) internal view virtual returns (uint256) {}
 
     function _setMaxNetworkLimit(uint256 amount) internal virtual {}
-
-    function _onSlash(
-        address network,
-        address operator,
-        uint256 slashedAmount,
-        uint48 captureTimestamp
-    ) internal virtual {}
 
     function _initializeInternal(
         address vault_,

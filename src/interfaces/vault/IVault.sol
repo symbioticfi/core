@@ -169,7 +169,7 @@ interface IVault is IVaultStorage {
     /**
      * @notice Enable/disable deposit whitelist.
      * @param status if enabling deposit whitelist
-     * @dev Only the DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
+     * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
     function setDepositWhitelist(bool status) external;
 
@@ -177,7 +177,7 @@ interface IVault is IVaultStorage {
      * @notice Set a depositor whitelist status.
      * @param account account for which the whitelist status is set
      * @param status if whitelisting the account
-     * @dev Only the DEPOSITOR_WHITELIST_ROLE holder can call this function.
+     * @dev Only a DEPOSITOR_WHITELIST_ROLE holder can call this function.
      */
     function setDepositorWhitelistStatus(address account, bool status) external;
 }

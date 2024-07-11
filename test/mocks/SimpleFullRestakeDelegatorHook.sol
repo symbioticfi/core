@@ -2,21 +2,15 @@
 pragma solidity 0.8.25;
 
 import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IFullRestakeDelegatorHook} from "src/interfaces/delegator/hook/IFullRestakeDelegatorHook.sol";
+import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 
-contract SimpleFullRestakeDelegatorHook is IFullRestakeDelegatorHook {
+contract SimpleFullRestakeDelegatorHook is IDelegatorHook {
     uint256 counter;
 
-    function onSlash(
-        address network,
-        address operator,
-        uint256 slashedAmount,
-        uint48 captureTimestamp
-    ) external returns (bool, uint256, uint256) {
+    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external {
         ++counter;
         if (counter == 2) {
-            return (true, IFullRestakeDelegator(msg.sender).networkLimit(network), 0);
+            IFullRestakeDelegator(msg.sender).setOperatorNetworkLimit(network, operator, 0);
         }
-        return (false, 0, 0);
     }
 }

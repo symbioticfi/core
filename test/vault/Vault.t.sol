@@ -142,6 +142,10 @@ contract VaultTest is Test {
     function test_Create(address burner, uint48 epochDuration, bool depositWhitelist) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -164,8 +168,8 @@ contract VaultTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -259,6 +263,10 @@ contract VaultTest is Test {
     function test_CreateRevertInvalidEpochDuration() public {
         uint48 epochDuration = 0;
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidEpochDuration.selector);
         vaultConfigurator.create(
@@ -283,8 +291,8 @@ contract VaultTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -297,6 +305,10 @@ contract VaultTest is Test {
     function test_CreateRevertInvalidCollateral(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidCollateral.selector);
         vaultConfigurator.create(
@@ -321,8 +333,8 @@ contract VaultTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -362,6 +374,10 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
         vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         address delegator_ = delegatorFactory.create(
             0,
             true,
@@ -374,8 +390,8 @@ contract VaultTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 )
             )
@@ -1159,6 +1175,10 @@ contract VaultTest is Test {
     }
 
     function _getVault(uint48 epochDuration) internal returns (Vault) {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -1181,8 +1201,8 @@ contract VaultTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -1198,6 +1218,10 @@ contract VaultTest is Test {
         internal
         returns (Vault, FullRestakeDelegator, Slasher)
     {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -1220,8 +1244,8 @@ contract VaultTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkLimitSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
                     })
                 ),
                 withSlasher: true,

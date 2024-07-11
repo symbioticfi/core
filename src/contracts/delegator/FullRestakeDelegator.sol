@@ -6,7 +6,6 @@ import {BaseDelegator} from "./BaseDelegator.sol";
 import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IFullRestakeDelegatorHook} from "src/interfaces/delegator/hook/IFullRestakeDelegatorHook.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -154,29 +153,6 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         }
     }
 
-    function _onSlash(
-        address network,
-        address operator,
-        uint256 slashedAmount,
-        uint48 captureTimestamp
-    ) internal override {
-        if (hook != address(0)) {
-            (bool success, bytes memory returndata) = hook.call{gas: 200_000}(
-                abi.encodeWithSelector(
-                    IFullRestakeDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
-                )
-            );
-            if (success && returndata.length == 96) {
-                (bool isUpdate, uint256 networkLimit_, uint256 operatorNetworkLimit_) =
-                    abi.decode(returndata, (bool, uint256, uint256));
-                if (isUpdate) {
-                    _setNetworkLimit(network, networkLimit_);
-                    _setOperatorNetworkLimit(network, operator, operatorNetworkLimit_);
-                }
-            }
-        }
-    }
-
     function _initializeInternal(
         address,
         bytes memory data
@@ -185,18 +161,33 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
 
         if (
             params.baseParams.defaultAdminRoleHolder == address(0)
-                && (
-                    params.networkLimitSetRoleHolder == address(0) || params.operatorNetworkLimitSetRoleHolder == address(0)
-                )
+                && (params.networkLimitSetRoleHolders.length == 0 || params.operatorNetworkLimitSetRoleHolders.length == 0)
         ) {
             revert MissingRoleHolders();
         }
 
-        if (params.networkLimitSetRoleHolder != address(0)) {
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        for (uint256 i; i < params.networkLimitSetRoleHolders.length; ++i) {
+            if (params.networkLimitSetRoleHolders[i] == address(0)) {
+                revert ZeroAddressRoleHolder();
+            }
+
+            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+                revert DuplicateRoleHolder();
+            }
+
+            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
-        if (params.operatorNetworkLimitSetRoleHolder != address(0)) {
-            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolder);
+
+        for (uint256 i; i < params.operatorNetworkLimitSetRoleHolders.length; ++i) {
+            if (params.operatorNetworkLimitSetRoleHolders[i] == address(0)) {
+                revert ZeroAddressRoleHolder();
+            }
+
+            if (hasRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i])) {
+                revert DuplicateRoleHolder();
+            }
+
+            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i]);
         }
 
         return params.baseParams;

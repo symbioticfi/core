@@ -570,6 +570,10 @@ contract SlasherTest is Test {
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -592,8 +596,8 @@ contract SlasherTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkLimitSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -609,6 +613,10 @@ contract SlasherTest is Test {
         internal
         returns (Vault, FullRestakeDelegator, Slasher)
     {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -631,8 +639,8 @@ contract SlasherTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkLimitSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
                     })
                 ),
                 withSlasher: true,

@@ -131,6 +131,10 @@ contract DelegatorFactoryTest is Test {
     }
 
     function test_Create() public {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -153,8 +157,8 @@ contract DelegatorFactoryTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -163,6 +167,8 @@ contract DelegatorFactoryTest is Test {
             })
         );
 
+        networkLimitSetRoleHolders[0] = bob;
+        operatorNetworkSharesSetRoleHolders[0] = bob;
         address networkRestakeDelegator = delegatorFactory.create(
             0,
             true,
@@ -175,8 +181,8 @@ contract DelegatorFactoryTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: bob
                         }),
-                        networkLimitSetRoleHolder: bob,
-                        operatorNetworkSharesSetRoleHolder: bob
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 )
             )
@@ -184,6 +190,9 @@ contract DelegatorFactoryTest is Test {
         assertEq(NetworkRestakeDelegator(networkRestakeDelegator).FACTORY(), address(delegatorFactory));
         assertEq(delegatorFactory.isEntity(networkRestakeDelegator), true);
 
+        networkLimitSetRoleHolders[0] = bob;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = bob;
         address fullRestakeDelegator = delegatorFactory.create(
             1,
             true,
@@ -196,8 +205,8 @@ contract DelegatorFactoryTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: bob
                         }),
-                        networkLimitSetRoleHolder: bob,
-                        operatorNetworkLimitSetRoleHolder: bob
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
                     })
                 )
             )

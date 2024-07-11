@@ -82,6 +82,7 @@ interface IBaseDelegator {
     /**
      * @notice Get the hook's address.
      * @return address of the hook
+     * @dev The hook can have arbitrary logic under certain functions, however, it doesn't affect the stake guarantees.
      */
     function hook() external view returns (address);
 
@@ -120,6 +121,14 @@ interface IBaseDelegator {
      * @dev Only a network can call this function.
      */
     function setMaxNetworkLimit(uint256 amount) external;
+
+    /**
+     * @notice Set a new hook.
+     * @param hook address of the hook
+     * @dev Only a HOOK_SET_ROLE holder can call this function.
+     *      The hook can have arbitrary logic under certain functions, however, it doesn't affect the stake guarantees.
+     */
+    function setHook(address hook) external;
 
     /**
      * @notice Called when a slash happens.

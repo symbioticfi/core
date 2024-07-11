@@ -169,6 +169,11 @@ contract NetworkRestakeDelegatorTest is Test {
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = bob;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = bob;
+
         vm.expectRevert(IBaseDelegator.NotVault.selector);
         delegatorFactory.create(
             0,
@@ -182,8 +187,8 @@ contract NetworkRestakeDelegatorTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: bob
                         }),
-                        networkLimitSetRoleHolder: bob,
-                        operatorNetworkSharesSetRoleHolder: bob
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 )
             )
@@ -195,9 +200,13 @@ contract NetworkRestakeDelegatorTest is Test {
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
+        address[] memory networkLimitSetRoleHolders = new address[](0);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = bob;
+
         vm.expectRevert(INetworkRestakeDelegator.MissingRoleHolders.selector);
         delegatorFactory.create(
-            1,
+            0,
             true,
             abi.encode(
                 address(vault),
@@ -208,8 +217,134 @@ contract NetworkRestakeDelegatorTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: address(1)
                         }),
-                        networkLimitSetRoleHolder: address(0),
-                        operatorNetworkSharesSetRoleHolder: bob
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertZeroAddressRoleHolder1(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = address(0);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = bob;
+
+        vm.expectRevert(INetworkRestakeDelegator.ZeroAddressRoleHolder.selector);
+        delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(0),
+                            hook: address(0),
+                            hookSetRoleHolder: address(1)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertZeroAddressRoleHolder2(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = bob;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = address(0);
+
+        vm.expectRevert(INetworkRestakeDelegator.ZeroAddressRoleHolder.selector);
+        delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(0),
+                            hook: address(0),
+                            hookSetRoleHolder: address(1)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertDuplicateRoleHolder1(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address[] memory networkLimitSetRoleHolders = new address[](2);
+        networkLimitSetRoleHolders[0] = bob;
+        networkLimitSetRoleHolders[1] = bob;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = bob;
+
+        vm.expectRevert(INetworkRestakeDelegator.DuplicateRoleHolder.selector);
+        delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(0),
+                            hook: address(0),
+                            hookSetRoleHolder: address(1)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertDuplicateRoleHolder2(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = bob;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](2);
+        operatorNetworkSharesSetRoleHolders[0] = bob;
+        operatorNetworkSharesSetRoleHolders[1] = bob;
+
+        vm.expectRevert(INetworkRestakeDelegator.DuplicateRoleHolder.selector);
+        delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(0),
+                            hook: address(0),
+                            hookSetRoleHolder: address(1)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 )
             )
@@ -806,22 +941,27 @@ contract NetworkRestakeDelegatorTest is Test {
     }
 
     function test_SlashWithHook(
-        uint48 epochDuration,
+        // uint48 epochDuration,
         uint256 depositAmount,
-        uint256 networkLimit,
+        // uint256 networkLimit,
         uint256 operatorNetworkShares1,
         uint256 slashAmount1,
         uint256 slashAmount2
     ) public {
-        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        // epochDuration = uint48(bound(epochDuration, 1, 10 days));
         depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        // networkLimit = bound(networkLimit, 1, type(uint256).max);
         operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
-        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(networkLimit, operatorNetworkShares1)));
+        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkShares1)));
 
         address hook = address(new SimpleNetworkRestakeDelegatorHook());
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](2);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        operatorNetworkSharesSetRoleHolders[1] = hook;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -831,7 +971,7 @@ contract NetworkRestakeDelegatorTest is Test {
                     delegator: address(0),
                     slasher: address(0),
                     burner: address(0xdEaD),
-                    epochDuration: epochDuration,
+                    epochDuration: 7 days,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
@@ -844,8 +984,8 @@ contract NetworkRestakeDelegatorTest is Test {
                             hook: hook,
                             hookSetRoleHolder: address(0)
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: true,
@@ -872,13 +1012,13 @@ contract NetworkRestakeDelegatorTest is Test {
 
         _deposit(alice, depositAmount);
 
-        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, type(uint256).max);
 
         _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1);
 
         _optInNetworkVault(network);
 
-        assertEq(delegator.networkLimit(network), networkLimit);
+        assertEq(delegator.networkLimit(network), type(uint256).max);
         assertEq(delegator.totalOperatorNetworkShares(network), operatorNetworkShares1);
         assertEq(delegator.operatorNetworkShares(network, alice), operatorNetworkShares1);
 
@@ -887,13 +1027,13 @@ contract NetworkRestakeDelegatorTest is Test {
 
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
 
-        assertEq(delegator.networkLimit(network), networkLimit);
+        assertEq(delegator.networkLimit(network), type(uint256).max);
         assertEq(delegator.totalOperatorNetworkShares(network), operatorNetworkShares1);
         assertEq(delegator.operatorNetworkShares(network, alice), operatorNetworkShares1);
 
         _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1));
 
-        assertEq(delegator.networkLimit(network), networkLimit);
+        assertEq(delegator.networkLimit(network), type(uint256).max);
         assertEq(delegator.totalOperatorNetworkShares(network), 0);
         assertEq(delegator.operatorNetworkShares(network, alice), 0);
     }
@@ -919,6 +1059,10 @@ contract NetworkRestakeDelegatorTest is Test {
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -941,8 +1085,8 @@ contract NetworkRestakeDelegatorTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -958,6 +1102,10 @@ contract NetworkRestakeDelegatorTest is Test {
         internal
         returns (Vault, NetworkRestakeDelegator, Slasher)
     {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
@@ -980,8 +1128,8 @@ contract NetworkRestakeDelegatorTest is Test {
                             hook: address(0),
                             hookSetRoleHolder: alice
                         }),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: true,

@@ -5,17 +5,19 @@ import {IBaseDelegator} from "./IBaseDelegator.sol";
 interface INetworkRestakeDelegator is IBaseDelegator {
     error ExceedsMaxNetworkLimit();
     error MissingRoleHolders();
+    error ZeroAddressRoleHolder();
+    error DuplicateRoleHolder();
 
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.
      * @param baseParams base parameters for delegators' deployment
-     * @param networkLimitSetRoleHolder address of the initial NETWORK_LIMIT_SET_ROLE holder
-     * @param operatorNetworkSharesSetRoleHolder address of the initial OPERATOR_NETWORK_SHARES_SET_ROLE holder
+     * @param networkLimitSetRoleHolders array of addresses of the initial NETWORK_LIMIT_SET_ROLE holders
+     * @param operatorNetworkSharesSetRoleHolders array of addresses of the initial OPERATOR_NETWORK_SHARES_SET_ROLE holders
      */
     struct InitParams {
         IBaseDelegator.BaseParams baseParams;
-        address networkLimitSetRoleHolder;
-        address operatorNetworkSharesSetRoleHolder;
+        address[] networkLimitSetRoleHolders;
+        address[] operatorNetworkSharesSetRoleHolders;
     }
 
     /**
@@ -107,7 +109,7 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @notice Set a network's limit (how much stake the vault curator is ready to give to the network).
      * @param network address of the network
      * @param amount new limit of the network
-     * @dev Only the NETWORK_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only a NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
     function setNetworkLimit(address network, uint256 amount) external;
 
@@ -118,7 +120,7 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @param network address of the network
      * @param operator address of the operator
      * @param shares new shares of the operator for the network
-     * @dev Only the OPERATOR_NETWORK_SHARES_SET_ROLE holder can call this function.
+     * @dev Only a OPERATOR_NETWORK_SHARES_SET_ROLE holder can call this function.
      */
     function setOperatorNetworkShares(address network, address operator, uint256 shares) external;
 }

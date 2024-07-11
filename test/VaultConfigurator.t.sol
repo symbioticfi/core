@@ -145,6 +145,10 @@ contract VaultConfiguratorTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
         vm.assume(owner_ != address(0));
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = address(104);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = address(105);
         (address vault_, address networkRestakeDelegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -167,8 +171,8 @@ contract VaultConfiguratorTest is Test {
                             hook: hook,
                             hookSetRoleHolder: address(103)
                         }),
-                        networkLimitSetRoleHolder: address(104),
-                        operatorNetworkSharesSetRoleHolder: address(105)
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: withSlasher,
