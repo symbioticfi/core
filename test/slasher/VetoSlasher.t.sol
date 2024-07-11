@@ -243,6 +243,82 @@ contract VetoSlasherTest is Test {
         );
     }
 
+    function test_CreateRevertVaultNotInitialized(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint256 resolverSetEpochsDelay
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        resolverSetEpochsDelay = bound(resolverSetEpochsDelay, 3, type(uint256).max);
+        vm.assume(vetoDuration < epochDuration);
+
+        vault = Vault(vaultFactory.create(1, alice, false, ""));
+
+        vm.expectRevert(IVetoSlasher.VaultNotInitialized.selector);
+        slasherFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                )
+            )
+        );
+
+        address[] memory networkLimitSetRoleHolders = new address[](0);
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](0);
+        delegator = FullRestakeDelegator(
+            delegatorFactory.create(
+                1,
+                true,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IFullRestakeDelegator.InitParams({
+                            baseParams: IBaseDelegator.BaseParams({
+                                defaultAdminRoleHolder: alice,
+                                hook: address(0),
+                                hookSetRoleHolder: alice
+                            }),
+                            networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                            operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                        })
+                    )
+                )
+            )
+        );
+
+        vault.initialize(
+            1,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(delegator),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: false,
+                    defaultAdminRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice
+                })
+            )
+        );
+
+        slasherFactory.create(
+            1,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                )
+            )
+        );
+    }
+
     function test_RequestSlash(
         // uint48 epochDuration,
         uint48 vetoDuration,

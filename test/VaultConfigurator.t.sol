@@ -211,4 +211,58 @@ contract VaultConfiguratorTest is Test {
             assertEq(slasher.vault(), vault_);
         }
     }
+
+    function test_CreateRevertDirtyInitParams(
+        address owner_,
+        address burner,
+        uint48 epochDuration,
+        bool depositWhitelist,
+        bool withSlasher,
+        address hook,
+        address delegator_,
+        address slasher_
+    ) public {
+        vm.assume(delegator_ != address(0) || slasher_ != address(0));
+
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        vm.assume(owner_ != address(0));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = address(104);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = address(105);
+
+        vm.expectRevert(IVaultConfigurator.DirtyInitParams.selector);
+        vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: owner_,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: slasher_,
+                    burner: burner,
+                    epochDuration: epochDuration,
+                    depositWhitelist: depositWhitelist,
+                    defaultAdminRoleHolder: address(100),
+                    depositorWhitelistRoleHolder: address(101)
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(102),
+                            hook: hook,
+                            hookSetRoleHolder: address(103)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: withSlasher,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+    }
 }

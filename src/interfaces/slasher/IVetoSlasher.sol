@@ -18,6 +18,7 @@ interface IVetoSlasher {
     error ResolverAlreadySet();
     error AlreadyVetoed();
     error InvalidCaptureTimestamp();
+    error VaultNotInitialized();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
