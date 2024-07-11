@@ -94,25 +94,6 @@ interface IBaseDelegator {
     function maxNetworkLimit(address network) external view returns (uint256);
 
     /**
-     * @notice Get a maximum stake that a given network could be able to slash
-     *         for all operators at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
-     * @param network address of the network
-     * @param timestamp time point to capture the stake at
-     * @return network's stake at the given timestamp until the end of the consequent epoch
-     * @dev This function doesn't take operators' opt-ins into account.
-     */
-    function networkStakeAt(address network, uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a maximum stake that a given network will be able to slash
-     *         for all operators until the end of the next epoch (if no cross-slashing and no slashings by the network).
-     * @param network address of the network
-     * @return network's stake until the end of the next epoch
-     * @dev This function doesn't take operators' opt-ins into account.
-     */
-    function networkStake(address network) external view returns (uint256);
-
-    /**
      * @notice Get a stake that a given network could be able to slash
      *         for a certain operator at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
      * @param network address of the network

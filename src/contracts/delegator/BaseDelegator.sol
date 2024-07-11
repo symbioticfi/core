@@ -79,16 +79,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function networkStakeAt(address network, uint48 timestamp) external view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStake(address network) external view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
     function stakeAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault, timestamp)

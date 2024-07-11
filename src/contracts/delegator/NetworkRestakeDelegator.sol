@@ -98,29 +98,6 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     }
 
     /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStakeAt(
-        address network,
-        uint48 timestamp
-    ) external view override(BaseDelegator, IBaseDelegator) returns (uint256) {
-        if (totalOperatorNetworkSharesAt(network, timestamp) == 0) {
-            return 0;
-        }
-        return Math.min(IVault(vault).activeSupplyAt(timestamp), networkLimitAt(network, timestamp));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStake(address network) external view override(BaseDelegator, IBaseDelegator) returns (uint256) {
-        if (totalOperatorNetworkShares(network) == 0) {
-            return 0;
-        }
-        return Math.min(IVault(vault).activeSupply(), networkLimit(network));
-    }
-
-    /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function setNetworkLimit(address network, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {

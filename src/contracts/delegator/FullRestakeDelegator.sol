@@ -98,27 +98,6 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     }
 
     /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStakeAt(
-        address network,
-        uint48 timestamp
-    ) external view override(BaseDelegator, IBaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).activeSupplyAt(timestamp),
-            Math.min(networkLimitAt(network, timestamp), totalOperatorNetworkLimitAt(network, timestamp))
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStake(address network) external view override(BaseDelegator, IBaseDelegator) returns (uint256) {
-        return
-            Math.min(IVault(vault).activeSupply(), Math.min(networkLimit(network), totalOperatorNetworkLimit(network)));
-    }
-
-    /**
      * @inheritdoc IFullRestakeDelegator
      */
     function setNetworkLimit(address network, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {

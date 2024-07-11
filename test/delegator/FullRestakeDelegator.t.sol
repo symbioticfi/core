@@ -150,8 +150,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.maxNetworkLimit(alice), 0);
-        assertEq(delegator.networkStakeAt(alice, 0), 0);
-        assertEq(delegator.networkStake(alice), 0);
         assertEq(delegator.stakeAt(alice, alice, 0), 0);
         assertEq(delegator.stake(alice, alice), 0);
         assertEq(delegator.NETWORK_LIMIT_SET_ROLE(), keccak256("NETWORK_LIMIT_SET_ROLE"));
@@ -512,45 +510,33 @@ contract FullRestakeDelegatorTest is Test {
         _registerOperator(alice);
         _registerOperator(bob);
 
-        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _optInOperatorVault(alice);
         _optInOperatorVault(bob);
 
-        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _optInOperatorNetwork(alice, address(network));
         _optInOperatorNetwork(bob, address(network));
 
-        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _deposit(alice, depositAmount);
 
-        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _setNetworkLimit(alice, network, networkLimit);
 
-        assertEq(delegator.networkStake(network), 0);
         assertEq(delegator.stake(network, alice), 0);
         assertEq(delegator.stake(network, bob), 0);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
 
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
-        );
-        assertEq(
-            delegator.networkStake(network), Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
-        );
         assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp)),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
@@ -563,14 +549,6 @@ contract FullRestakeDelegatorTest is Test {
 
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
 
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit2))
-        );
-        assertEq(
-            delegator.networkStake(network),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit2))
-        );
         assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp)),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
@@ -586,14 +564,6 @@ contract FullRestakeDelegatorTest is Test {
 
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2 - 1);
 
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit2 - 1))
-        );
-        assertEq(
-            delegator.networkStake(network),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit2 - 1))
-        );
         assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp)),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
@@ -615,18 +585,6 @@ contract FullRestakeDelegatorTest is Test {
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit3);
 
         assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp - 1)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit2 - 1))
-        );
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit3))
-        );
-        assertEq(
-            delegator.networkStake(network),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit3))
-        );
-        assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
         );
@@ -642,22 +600,6 @@ contract FullRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp - 2)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit2 - 1))
-        );
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp - 1)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit3))
-        );
-        assertEq(
-            delegator.networkStakeAt(network, uint48(blockTimestamp)),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit3))
-        );
-        assertEq(
-            delegator.networkStake(network),
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1 + operatorNetworkLimit3))
-        );
         assertEq(
             delegator.stakeAt(network, alice, uint48(blockTimestamp - 2)),
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
