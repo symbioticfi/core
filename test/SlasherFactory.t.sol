@@ -171,10 +171,7 @@ contract SlasherFactoryTest is Test {
         address vetoSlasher = slasherFactory.create(
             1,
             true,
-            abi.encode(
-                vault_,
-                abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, executeDuration: 1, resolverSetEpochsDelay: 3}))
-            )
+            abi.encode(vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, resolverSetEpochsDelay: 3})))
         );
 
         assertEq(VetoSlasher(vetoSlasher).FACTORY(), address(slasherFactory));
