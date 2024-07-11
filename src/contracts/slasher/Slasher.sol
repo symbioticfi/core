@@ -5,7 +5,6 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 
 import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -47,14 +46,7 @@ contract Slasher is BaseSlasher, ISlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(network, operator, captureTimestamp);
-        slashedAmount = Math.min(
-            amount,
-            stakeAmount
-                - Math.min(
-                    slashAtDuring(network, operator, captureTimestamp, Time.timestamp() - captureTimestamp), stakeAmount
-                )
-        );
+        slashedAmount = Math.min(amount, slashableStake(network, operator, captureTimestamp));
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }

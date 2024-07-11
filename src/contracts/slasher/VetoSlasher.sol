@@ -6,7 +6,6 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -105,15 +104,19 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         uint256 amount,
         uint48 captureTimestamp
     ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
-        if (amount == 0) {
-            revert InsufficientSlash();
-        }
-
+        address vault_ = vault;
         if (
-            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault).epochDuration()
+            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault_).epochDuration()
                 || captureTimestamp >= Time.timestamp()
         ) {
             revert InvalidCaptureTimestamp();
+        }
+
+        _checkOptIns(network, operator, captureTimestamp);
+
+        amount = Math.min(amount, slashableStake(network, operator, captureTimestamp));
+        if (amount == 0) {
+            revert InsufficientSlash();
         }
 
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
@@ -157,26 +160,10 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert SlashRequestCompleted();
         }
 
-        _checkOptIns(request.network, request.operator, request.captureTimestamp);
-
         request.completed = true;
 
-        uint256 stakeAmount = IBaseDelegator(IVault(vault_).delegator()).stakeAt(
-            request.network, request.operator, request.captureTimestamp
-        );
-        slashedAmount = Math.min(
-            request.amount,
-            stakeAmount
-                - Math.min(
-                    slashAtDuring(
-                        request.network,
-                        request.operator,
-                        request.captureTimestamp,
-                        Time.timestamp() - request.captureTimestamp
-                    ),
-                    stakeAmount
-                )
-        );
+        slashedAmount =
+            Math.min(request.amount, slashableStake(request.network, request.operator, request.captureTimestamp));
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 

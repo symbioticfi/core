@@ -101,6 +101,19 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
             cumulativeSlashAt(network, operator, timestamp + duration) - cumulativeSlashAt(network, operator, timestamp);
     }
 
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    function slashableStake(address network, address operator, uint48 captureTimestamp) public view returns (uint256) {
+        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
+        {
+            return 0;
+        }
+        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(network, operator, captureTimestamp);
+        return stakeAmount
+            - Math.min(slashAtDuring(network, operator, captureTimestamp, Time.timestamp() - captureTimestamp), stakeAmount);
+    }
+
     function _checkOptIns(address network, address operator, uint48 captureTimestamp) internal view {
         address vault_ = vault;
 

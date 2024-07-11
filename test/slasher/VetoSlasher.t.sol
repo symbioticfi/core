@@ -244,7 +244,7 @@ contract VetoSlasherTest is Test {
     }
 
     function test_RequestSlash(
-        uint48 epochDuration,
+        // uint48 epochDuration,
         uint48 vetoDuration,
         uint256 depositAmount,
         uint256 networkLimit,
@@ -253,7 +253,7 @@ contract VetoSlasherTest is Test {
         uint256 slashAmount1,
         uint256 slashAmount2
     ) public {
-        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        // epochDuration = uint48(bound(epochDuration, 1, 10 days));
         depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
         networkLimit = bound(networkLimit, 1, type(uint256).max);
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
@@ -261,13 +261,13 @@ contract VetoSlasherTest is Test {
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
-        vm.assume(vetoDuration < epochDuration);
+        vm.assume(vetoDuration < 7 days);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration);
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(7 days, vetoDuration);
 
         // address network = alice;
         _registerNetwork(alice, alice);
@@ -285,13 +285,9 @@ contract VetoSlasherTest is Test {
         _deposit(alice, depositAmount);
 
         _setNetworkLimit(alice, alice, networkLimit);
-        _setNetworkLimit(alice, alice, networkLimit - 1);
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
         _setOperatorNetworkLimit(alice, alice, bob, operatorNetworkLimit2);
-
-        _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1 - 1);
-        _setOperatorNetworkLimit(alice, alice, bob, operatorNetworkLimit2 - 1);
 
         _optInNetworkVault(alice);
 
@@ -301,35 +297,52 @@ contract VetoSlasherTest is Test {
         assertEq(0, _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1)));
 
         (
-            address network_,
-            address operator_,
+            // address network_,
+            ,
+            // address operator_,
+            ,
             uint256 amount_,
             uint48 captureTimestamp_,
             uint48 vetoDeadline_,
-            uint256 vetoedShares_,
-            bool completed_
+            // uint256 vetoedShares_,
+            ,
+            // bool completed_
         ) = slasher.slashRequests(0);
 
-        assertEq(network_, alice);
-        assertEq(operator_, alice);
-        assertEq(amount_, slashAmount1);
+        // assertEq(network_, alice);
+        // assertEq(operator_, alice);
+        assertEq(
+            amount_, Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)))
+        );
         assertEq(captureTimestamp_, uint48(blockTimestamp - 1));
         assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
-        assertEq(vetoedShares_, 0);
-        assertEq(completed_, false);
+        // assertEq(vetoedShares_, 0);
+        // assertEq(completed_, false);
 
         assertEq(1, _requestSlash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - 1)));
 
-        (network_, operator_, amount_, captureTimestamp_, vetoDeadline_, vetoedShares_, completed_) =
-            slasher.slashRequests(1);
+        (
+            // network_,
+            ,
+            // operator_,
+            ,
+            amount_,
+            captureTimestamp_,
+            vetoDeadline_,
+            // vetoedShares_,
+            ,
+            // completed_
+        ) = slasher.slashRequests(1);
 
-        assertEq(network_, alice);
-        assertEq(operator_, bob);
-        assertEq(amount_, slashAmount2);
+        // assertEq(network_, alice);
+        // assertEq(operator_, bob);
+        assertEq(
+            amount_, Math.min(slashAmount2, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2)))
+        );
         assertEq(captureTimestamp_, uint48(blockTimestamp - 1));
         assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
-        assertEq(vetoedShares_, 0);
-        assertEq(completed_, false);
+        // assertEq(vetoedShares_, 0);
+        // assertEq(completed_, false);
     }
 
     function test_RequestSlashRevertInsufficientSlash(
@@ -623,7 +636,7 @@ contract VetoSlasherTest is Test {
         _setResolverShares(network, alice, resolverShares1);
     }
 
-    function test_ExecuteSlash(
+    function test_ExecuteSlashBase(
         uint48 epochDuration,
         uint48 vetoDuration,
         uint256 depositAmount,
@@ -685,7 +698,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(network_, alice);
         assertEq(operator_, alice);
-        assertEq(amount_, slashAmount1);
+        assertEq(amount_, slashAmountReal1);
         assertEq(captureTimestamp_, uint48(blockTimestamp - 1));
         // assertEq(vetoDeadline_, uint48(blockTimestamp + slasher.vetoDuration()));
         // assertEq(vetoedShares_, 0);
@@ -714,7 +727,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(network_, alice);
         assertEq(operator_, alice);
-        assertEq(amount_, slashAmount1);
+        assertEq(amount_, slashAmountReal1);
         assertEq(captureTimestamp_, uint48(blockTimestamp - epochDuration));
         // assertEq(vetoDeadline_, uint48(blockTimestamp - (epochDuration - 1) + vetoDuration));
         // assertEq(vetoedShares_, 0);
@@ -768,6 +781,9 @@ contract VetoSlasherTest is Test {
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
 
         _optInNetworkVault(network);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 

@@ -142,6 +142,10 @@ contract SlasherTest is Test {
     function test_Create(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         slasher = _getSlasher(address(vault));
@@ -155,6 +159,7 @@ contract SlasherTest is Test {
         assertEq(slasher.cumulativeSlashAt(alice, alice, 0), 0);
         assertEq(slasher.cumulativeSlash(alice, alice), 0);
         assertEq(slasher.slashAtDuring(alice, alice, 0, 0), 0);
+        assertEq(slasher.slashableStake(alice, alice, 0), 0);
     }
 
     function test_CreateRevertNotVault(uint48 epochDuration) public {
@@ -166,7 +171,7 @@ contract SlasherTest is Test {
         slasherFactory.create(0, true, abi.encode(address(1), ""));
     }
 
-    function test_Slash(
+    function test_SlashBase(
         uint48 epochDuration,
         uint256 depositAmount,
         uint256 networkLimit,
@@ -216,6 +221,13 @@ contract SlasherTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp - epochDuration - 1)), 0);
+        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp)), 0);
+        assertEq(
+            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1)),
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1))
+        );
+
         assertEq(
             Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1))),
             _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1))
@@ -237,6 +249,18 @@ contract SlasherTest is Test {
         );
         assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 0), 0);
         assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 1), 0);
+        assertEq(
+            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1)),
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1))
+                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)))
+        );
+
+        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp - epochDuration - 1)), 0);
+        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp)), 0);
+        assertEq(
+            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1)),
+            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1))
+        );
 
         assertEq(
             Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1))),
@@ -259,6 +283,11 @@ contract SlasherTest is Test {
         );
         assertEq(slasher.slashAtDuring(alice, bob, uint48(blockTimestamp), 0), 0);
         assertEq(slasher.slashAtDuring(alice, bob, uint48(blockTimestamp), 1), 0);
+        assertEq(
+            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1)),
+            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1))
+                - Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1)))
+        );
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -298,6 +327,11 @@ contract SlasherTest is Test {
         assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 2), slashAmountReal3);
         assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 0), 0);
         assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 1), 0);
+        assertEq(
+            slasher.slashableStake(network, alice, uint48(blockTimestamp - 2)),
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))
+                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) - slashAmountReal3
+        );
     }
 
     function test_SlashRevertNotNetworkMiddleware(
