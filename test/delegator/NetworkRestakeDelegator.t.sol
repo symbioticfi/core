@@ -881,7 +881,7 @@ contract NetworkRestakeDelegatorTest is Test {
         assertGt(gasSpent, gasLeft - gasleft());
     }
 
-    function test_Slash(
+    function test_SlashBase(
         uint48 epochDuration,
         uint256 depositAmount,
         uint256 networkLimit,

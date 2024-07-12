@@ -89,7 +89,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
-        _setNetworkLimit(network, amount);
+        _networkLimit[network].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -102,17 +102,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address operator,
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        _setOperatorNetworkLimit(network, operator, amount);
+        _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
 
         emit SetOperatorNetworkLimit(network, operator, amount);
-    }
-
-    function _setNetworkLimit(address network, uint256 amount) internal {
-        _networkLimit[network].push(Time.timestamp(), amount);
-    }
-
-    function _setOperatorNetworkLimit(address network, address operator, uint256 amount) internal {
-        _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
     }
 
     function _stakeAt(
@@ -121,18 +113,20 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         uint48 timestamp,
         bytes memory hints
     ) internal view override returns (uint256, StakeBaseHints memory) {
-        StakeHints memory hints_ = abi.decode(hints, (StakeHints));
+        StakeHints memory stakesHints;
+        if (hints.length > 0) {
+            stakesHints = abi.decode(hints, (StakeHints));
+        }
+
         return (
             Math.min(
-                IVault(vault).activeStakeAt(timestamp, hints_.activeStakeHint),
+                IVault(vault).activeStakeAt(timestamp, stakesHints.activeStakeHint),
                 Math.min(
-                    _networkLimit[network].upperLookupRecent(timestamp, hints_.networkLimitHint),
-                    _operatorNetworkLimit[network][operator].upperLookupRecent(
-                        timestamp, hints_.operatorNetworkLimitHint
-                    )
+                    networkLimitAt(network, timestamp, stakesHints.networkLimitHint),
+                    operatorNetworkLimitAt(network, operator, timestamp, stakesHints.operatorNetworkLimitHint)
                 )
             ),
-            hints_.baseHints
+            stakesHints.baseHints
         );
     }
 

@@ -9,6 +9,8 @@ import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
 import {OptInService} from "src/contracts/service/OptInService.sol";
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 
+import {OptInServiceHints} from "src/contracts/hints/OptInServiceHints.sol";
+
 contract OperatorOptInServiceTest is Test {
     address owner;
     address alice;
@@ -174,5 +176,48 @@ contract OperatorOptInServiceTest is Test {
         vm.expectRevert(IOptInService.NotOptedIn.selector);
         service.optOut(where);
         vm.stopPrank();
+    }
+
+    function test_OptInWithHints() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        for (uint256 i; i < 10; ++i) {
+            vm.startPrank(operator);
+            service.optIn(where);
+            vm.stopPrank();
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+
+            vm.startPrank(operator);
+            service.optOut(where);
+            vm.stopPrank();
+        }
+
+        OptInServiceHints optInServiceHints = new OptInServiceHints();
+
+        bytes memory hint = optInServiceHints.optInHint(address(service), operator, where, uint48(blockTimestamp - 3));
+
+        uint256 gasLeft = gasleft();
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 3), ""), true);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 3), hint), true);
+        assertGt(gasSpent, gasLeft - gasleft());
     }
 }

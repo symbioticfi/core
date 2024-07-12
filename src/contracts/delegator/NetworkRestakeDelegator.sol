@@ -109,7 +109,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
-        _setNetworkLimit(network, amount);
+        _networkLimit[network].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -122,20 +122,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint256 shares
     ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
-        _setOperatorNetworkShares(network, operator, shares);
-
-        emit SetOperatorNetworkShares(network, operator, shares);
-    }
-
-    function _setNetworkLimit(address network, uint256 amount) internal {
-        _networkLimit[network].push(Time.timestamp(), amount);
-    }
-
-    function _setOperatorNetworkShares(address network, address operator, uint256 shares) internal {
         _totalOperatorNetworkShares[network].push(
             Time.timestamp(), totalOperatorNetworkShares(network) - operatorNetworkShares(network, operator) + shares
         );
         _operatorNetworkShares[network][operator].push(Time.timestamp(), shares);
+
+        emit SetOperatorNetworkShares(network, operator, shares);
     }
 
     function _stakeAt(
@@ -144,23 +136,24 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         uint48 timestamp,
         bytes memory hints
     ) internal view override returns (uint256, StakeBaseHints memory) {
-        StakeHints memory hints_ = abi.decode(hints, (StakeHints));
+        StakeHints memory stakesHints;
+        if (hints.length > 0) {
+            stakesHints = abi.decode(hints, (StakeHints));
+        }
 
-        uint256 totalOperatorNetworkSharesAt_ = _operatorNetworkShares[network][operator].upperLookupRecent(
-            timestamp, hints_.totalOperatorNetworkSharesHint
-        );
+        uint256 totalOperatorNetworkSharesAt_ =
+            totalOperatorNetworkSharesAt(network, timestamp, stakesHints.totalOperatorNetworkSharesHint);
         return totalOperatorNetworkSharesAt_ == 0
-            ? (0, hints_.baseHints)
+            ? (0, stakesHints.baseHints)
             : (
-                _operatorNetworkShares[network][operator].upperLookupRecent(timestamp, hints_.operatorNetworkSharesHint)
-                    .mulDiv(
+                operatorNetworkSharesAt(network, operator, timestamp, stakesHints.operatorNetworkSharesHint).mulDiv(
                     Math.min(
-                        IVault(vault).activeStakeAt(timestamp, hints_.activeStakeHint),
-                        _networkLimit[network].upperLookupRecent(timestamp, hints_.networkLimitHint)
+                        IVault(vault).activeStakeAt(timestamp, stakesHints.activeStakeHint),
+                        networkLimitAt(network, timestamp, stakesHints.networkLimitHint)
                     ),
                     totalOperatorNetworkSharesAt_
                 ),
-                hints_.baseHints
+                stakesHints.baseHints
             );
     }
 
