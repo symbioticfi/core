@@ -20,8 +20,8 @@ interface IBaseDelegator {
     }
 
     struct StakeBaseHints {
-        uint32 operatorVaultOptInHint;
-        uint32 operatorNetworkOptInHint;
+        bytes operatorVaultOptInHint;
+        bytes operatorNetworkOptInHint;
     }
 
     /**
@@ -100,15 +100,6 @@ interface IBaseDelegator {
     function maxNetworkLimit(address network) external view returns (uint256);
 
     /**
-     * @notice Get a hints data to get a stake for a certain operator at a given timestamp.
-     * @param network address of the network
-     * @param operator address of the operator
-     * @param timestamp time point to capture the stake at
-     * @return hints data to get a stake for a certain operator at a given timestamp
-     */
-    function stakeAtHints(address network, address operator, uint48 timestamp) external view returns (bytes memory);
-
-    /**
      * @notice Get a stake that a given network could be able to slash for a certain operator at a given timestamp
      *         until the end of the consequent epoch using hints (if no cross-slashing and no slashings by the network).
      * @param network address of the network
@@ -124,17 +115,6 @@ interface IBaseDelegator {
         uint48 timestamp,
         bytes memory hints
     ) external view returns (uint256);
-
-    /**
-     * @notice Get a stake that a given network could be able to slash
-     *         for a certain operator at a given timestamp until the end of the consequent epoch (if no cross-slashing and no slashings by the network).
-     * @param network address of the network
-     * @param operator address of the operator
-     * @param timestamp time point to capture the stake at
-     * @return slashable stake at the given timestamp until the end of the consequent epoch
-     * @dev Warning: it is not safe to use timestamp >= current one for the stake capturing, as it can change later.
-     */
-    function stakeAt(address network, address operator, uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a stake that a given network will be able to slash
@@ -167,7 +147,14 @@ interface IBaseDelegator {
      * @param operator address of the operator
      * @param slashedAmount amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
+     * @param hints hints for the checkpoints' indexes
      * @dev Only the vault's slasher can call this function.
      */
-    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external;
+    function onSlash(
+        address network,
+        address operator,
+        uint256 slashedAmount,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) external;
 }

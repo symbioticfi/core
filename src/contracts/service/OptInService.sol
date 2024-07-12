@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
+import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 
@@ -8,7 +10,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract OptInService is IOptInService {
+contract OptInService is StaticDelegateCallable, IOptInService {
     using Checkpoints for Checkpoints.Trace208;
 
     /**
@@ -31,28 +33,13 @@ contract OptInService is IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function isOptedInAt(address who, address where, uint48 timestamp, uint32 hint) external view returns (bool) {
-        return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
-    }
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    function isOptedInAt(address who, address where, uint48 timestamp) external view returns (bool) {
-        return _isOptedIn[who][where].upperLookupRecent(timestamp) == 1;
-    }
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    function isOptedInCheckpointAt(
+    function isOptedInAt(
         address who,
         address where,
-        uint48 timestamp
-    ) external view returns (bool, uint48, bool, uint32) {
-        (bool exists, uint48 key, uint208 value, uint32 pos) =
-            _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp);
-        return (exists, key, value == 1, pos);
+        uint48 timestamp,
+        bytes memory hint
+    ) external view returns (bool) {
+        return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
     }
 
     /**

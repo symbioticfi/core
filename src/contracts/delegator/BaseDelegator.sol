@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {Entity} from "src/contracts/common/Entity.sol";
+import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
 
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
@@ -14,7 +15,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
+contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeable, IBaseDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
@@ -80,26 +81,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function stakeAtHints(address network, address operator, uint48 timestamp) external view returns (bytes memory) {
-        (,,, uint32 operatorVaultOptInHint) =
-            IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInCheckpointAt(operator, vault, timestamp);
-        (,,, uint32 operatorNetworkOptInHint) =
-            IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInCheckpointAt(operator, network, timestamp);
-
-        return _stakeAtHints(
-            network,
-            operator,
-            timestamp,
-            StakeBaseHints({
-                operatorVaultOptInHint: operatorVaultOptInHint,
-                operatorNetworkOptInHint: operatorNetworkOptInHint
-            })
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
     function stakeAt(
         address network,
         address operator,
@@ -121,20 +102,6 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         }
 
         return stake_;
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function stakeAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
-        if (
-            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault, timestamp)
-                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(operator, network, timestamp)
-        ) {
-            return 0;
-        }
-
-        return _stakeAt(network, operator, timestamp);
     }
 
     /**
@@ -182,12 +149,18 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external {
+    function onSlash(
+        address network,
+        address operator,
+        uint256 slashedAmount,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) external {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
 
-        if (slashedAmount > stakeAt(network, operator, captureTimestamp)) {
+        if (slashedAmount > stakeAt(network, operator, captureTimestamp, hints)) {
             revert TooMuchSlash();
         }
 
@@ -202,21 +175,12 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         emit OnSlash(network, operator, slashedAmount);
     }
 
-    function _stakeAtHints(
-        address network,
-        address operator,
-        uint48 timestamp,
-        StakeBaseHints memory baseHints
-    ) internal view virtual returns (bytes memory) {}
-
     function _stakeAt(
         address network,
         address operator,
         uint48 timestamp,
         bytes memory hints
     ) internal view virtual returns (uint256, StakeBaseHints memory) {}
-
-    function _stakeAt(address network, address operator, uint48 timestamp) internal view virtual returns (uint256) {}
 
     function _stake(address network, address operator) internal view virtual returns (uint256) {}
 

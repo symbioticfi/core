@@ -42,32 +42,12 @@ interface IOptInService {
      * @param hint hint for the checkpoint index
      * @return if the "who" is opted-in at the given timestamp
      */
-    function isOptedInAt(address who, address where, uint48 timestamp, uint32 hint) external view returns (bool);
-
-    /**
-     * @notice Get if a given "who" is opted-in to a particular "where" entity at a given timestamp.
-     * @param who address of the "who"
-     * @param where address of the "where" registry
-     * @param timestamp time point to get if the "who" is opted-in at
-     * @return if the "who" is opted-in at the given timestamp
-     */
-    function isOptedInAt(address who, address where, uint48 timestamp) external view returns (bool);
-
-    /**
-     * @notice Get if a given "who" is opted-in to a particular "where" entity checkpoint at a given timestamp.
-     * @param who address of the "who"
-     * @param where address of the "where" registry
-     * @param timestamp time point to get if the "who" is opted-in at
-     * @return if the "who" is opted-in at the given timestamp
-     * @return timestamp of the checkpoint
-     * @return if the "who" is opted-in
-     * @return index of the checkpoint
-     */
-    function isOptedInCheckpointAt(
+    function isOptedInAt(
         address who,
         address where,
-        uint48 timestamp
-    ) external view returns (bool, uint48, bool, uint32);
+        uint48 timestamp,
+        bytes memory hint
+    ) external view returns (bool);
 
     /**
      * @notice Check if a given who is opted-in to a particular "where" entity.

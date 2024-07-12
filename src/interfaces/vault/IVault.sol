@@ -46,9 +46,9 @@ interface IVault is IVaultStorage {
     }
 
     struct ActiveBalanceHints {
-        uint32 activeSharesOfHint;
-        uint32 activeStakeHint;
-        uint32 activeSharesHint;
+        bytes activeSharesOfHint;
+        bytes activeStakeHint;
+        bytes activeSharesHint;
     }
 
     /**
@@ -116,19 +116,7 @@ interface IVault is IVaultStorage {
      * @param hints hints for checkpoints' indexes
      * @return active balance for the account at the timestamp
      */
-    function activeBalanceOfAt(
-        address account,
-        uint48 timestamp,
-        ActiveBalanceHints calldata hints
-    ) external view returns (uint256);
-
-    /**
-     * @notice Get an active balance for a particular account at a given timestamp.
-     * @param account account to get the active balance for
-     * @param timestamp time point to get the active balance for the account at
-     * @return active balance for the account at the timestamp
-     */
-    function activeBalanceOfAt(address account, uint48 timestamp) external view returns (uint256);
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.

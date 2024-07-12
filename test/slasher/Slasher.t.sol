@@ -156,10 +156,9 @@ contract SlasherTest is Test {
         assertEq(slasher.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
         assertEq(slasher.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(slasher.vault(), address(vault));
-        assertEq(slasher.cumulativeSlashAt(alice, alice, 0), 0);
+        assertEq(slasher.cumulativeSlashAt(alice, alice, 0, ""), 0);
         assertEq(slasher.cumulativeSlash(alice, alice), 0);
-        assertEq(slasher.slashAtDuring(alice, alice, 0, 0), 0);
-        assertEq(slasher.slashableStake(alice, alice, 0), 0);
+        assertEq(slasher.slashableStake(alice, alice, 0, ""), 0);
     }
 
     function test_CreateRevertNotVault(uint48 epochDuration) public {
@@ -221,72 +220,58 @@ contract SlasherTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp - epochDuration - 1)), 0);
-        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp)), 0);
+        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp - epochDuration - 1), ""), 0);
+        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp), ""), 0);
         assertEq(
-            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1)),
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1))
+            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), "")
         );
 
         assertEq(
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1))),
-            _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1))
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), "")),
+            _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "")
         );
 
-        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1)), 0);
+        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp)),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)))
+            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), ""))
         );
         assertEq(
             slasher.cumulativeSlash(alice, alice),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)))
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), ""))
         );
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 0), 0);
         assertEq(
-            slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 1),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)))
-        );
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 0), 0);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 1), 0);
-        assertEq(
-            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1)),
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1))
-                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1)))
+            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), ""))
         );
 
-        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp - epochDuration - 1)), 0);
-        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp)), 0);
+        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp - epochDuration - 1), ""), 0);
+        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp), ""), 0);
         assertEq(
-            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1)),
-            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1))
+            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), "")
         );
 
         assertEq(
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1))),
-            _slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1))
+            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), "")),
+            _slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1), "")
         );
 
-        assertEq(slasher.cumulativeSlashAt(alice, bob, uint48(blockTimestamp - 1)), 0);
+        assertEq(slasher.cumulativeSlashAt(alice, bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(
-            slasher.cumulativeSlashAt(alice, bob, uint48(blockTimestamp)),
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1)))
+            slasher.cumulativeSlashAt(alice, bob, uint48(blockTimestamp), ""),
+            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), ""))
         );
         assertEq(
             slasher.cumulativeSlash(alice, bob),
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1)))
+            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), ""))
         );
-        assertEq(slasher.slashAtDuring(alice, bob, uint48(blockTimestamp - 1), 0), 0);
         assertEq(
-            slasher.slashAtDuring(alice, bob, uint48(blockTimestamp - 1), 1),
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1)))
-        );
-        assertEq(slasher.slashAtDuring(alice, bob, uint48(blockTimestamp), 0), 0);
-        assertEq(slasher.slashAtDuring(alice, bob, uint48(blockTimestamp), 1), 0);
-        assertEq(
-            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1)),
-            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1))
-                - Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1)))
+            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), ""))
         );
 
         blockTimestamp = blockTimestamp + 1;
@@ -294,47 +279,34 @@ contract SlasherTest is Test {
 
         uint256 slashAmountReal3 = Math.min(
             slashAmount3,
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))
-                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2)))
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), ""))
         );
         vm.assume(slashAmountReal3 > 0);
-        assertEq(slashAmountReal3, _slash(alice, network, alice, slashAmount3, uint48(blockTimestamp - 2)));
+        assertEq(slashAmountReal3, _slash(alice, network, alice, slashAmount3, uint48(blockTimestamp - 2), ""));
 
-        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 2)), 0);
+        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 2), ""), 0);
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1)),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2)))
+            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), ""))
         );
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp)),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) + slashAmountReal3
+            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")) + slashAmountReal3
         );
         assertEq(
             slasher.cumulativeSlash(alice, alice),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) + slashAmountReal3
-        );
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 2), 0), 0);
-        assertEq(
-            slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 2), 1),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2)))
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")) + slashAmountReal3
         );
         assertEq(
-            slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 2), 2),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) + slashAmountReal3
-        );
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 0), 0);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 1), slashAmountReal3);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 2), slashAmountReal3);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 0), 0);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 1), 0);
-        assertEq(
-            slasher.slashableStake(network, alice, uint48(blockTimestamp - 2)),
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))
-                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) - slashAmountReal3
+            slasher.slashableStake(network, alice, uint48(blockTimestamp - 2), ""),
+            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), ""))
+                - slashAmountReal3
         );
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), 1),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) + slashAmountReal3
+            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), abi.encode(1)),
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")) + slashAmountReal3
         );
     }
 
@@ -384,7 +356,7 @@ contract SlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IBaseSlasher.NotNetworkMiddleware.selector);
-        _slash(bob, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _slash(bob, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
     function test_SlashRevertNetworkNotOptedInVault(
@@ -431,7 +403,7 @@ contract SlasherTest is Test {
         vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
 
         vm.expectRevert(IBaseSlasher.NetworkNotOptedInVault.selector);
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
     function test_SlashRevertOperatorNotOptedInVault(
@@ -478,7 +450,7 @@ contract SlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IBaseSlasher.OperatorNotOptedInVault.selector);
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
     function test_SlashRevertOperatorNotOptedInNetwork(
@@ -525,7 +497,7 @@ contract SlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IBaseSlasher.OperatorNotOptedInNetwork.selector);
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
     function test_SlashRevertInsufficientSlash(
@@ -571,7 +543,7 @@ contract SlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(ISlasher.InsufficientSlash.selector);
-        _slash(alice, network, alice, zeroSlashAmount ? 0 : slashAmount1, uint48(blockTimestamp - 1));
+        _slash(alice, network, alice, zeroSlashAmount ? 0 : slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
     function test_SlashRevertInvalidCaptureTimestamp(
@@ -618,7 +590,7 @@ contract SlasherTest is Test {
         vm.assume(captureAgo <= 10 * epochDuration && (captureAgo > epochDuration || captureAgo == 0));
 
         vm.expectRevert(ISlasher.InvalidCaptureTimestamp.selector);
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo));
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
@@ -818,10 +790,11 @@ contract SlasherTest is Test {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.slash(network, operator, amount, captureTimestamp);
+        slashAmount = slasher.slash(network, operator, amount, captureTimestamp, hints);
         vm.stopPrank();
     }
 

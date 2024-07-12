@@ -38,7 +38,7 @@ contract OperatorOptInServiceTest is Test {
         service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
 
         assertEq(service.WHERE_REGISTRY(), address(networkRegistry));
-        assertEq(service.isOptedInAt(alice, alice, 0), false);
+        assertEq(service.isOptedInAt(alice, alice, 0, ""), false);
         assertEq(service.isOptedIn(alice, alice), false);
 
         address operator = alice;
@@ -56,11 +56,11 @@ contract OperatorOptInServiceTest is Test {
         service.optIn(where);
         vm.stopPrank();
 
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 1)), false);
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp)), true);
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp + 1)), true);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 1), ""), false);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp), ""), true);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp + 1), ""), true);
         assertEq(service.isOptedIn(operator, where), true);
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp + 1), 0), true);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp + 1), abi.encode(0)), true);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -71,7 +71,7 @@ contract OperatorOptInServiceTest is Test {
         service.optOut(where);
         vm.stopPrank();
 
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 1)), true);
+        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 1), ""), true);
         assertEq(service.isOptedIn(operator, where), false);
 
         blockTimestamp = blockTimestamp + 1;

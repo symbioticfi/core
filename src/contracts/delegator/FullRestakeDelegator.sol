@@ -26,9 +26,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
      */
     bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
-    mapping(address network => Checkpoints.Trace256 value) private _networkLimit;
+    mapping(address network => Checkpoints.Trace256 value) internal _networkLimit;
 
-    mapping(address network => mapping(address operator => Checkpoints.Trace256 value)) private _operatorNetworkLimit;
+    mapping(address network => mapping(address operator => Checkpoints.Trace256 value)) internal _operatorNetworkLimit;
 
     constructor(
         address networkRegistry,
@@ -51,7 +51,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function networkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
+    function networkLimitAt(address network, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _networkLimit[network].upperLookupRecent(timestamp);
     }
 
@@ -68,7 +68,8 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     function operatorNetworkLimitAt(
         address network,
         address operator,
-        uint48 timestamp
+        uint48 timestamp,
+        bytes memory hint
     ) public view returns (uint256) {
         return _operatorNetworkLimit[network][operator].upperLookupRecent(timestamp);
     }
@@ -114,34 +115,13 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
     }
 
-    function _stakeAtHints(
-        address network,
-        address operator,
-        uint48 timestamp,
-        StakeBaseHints memory baseHints
-    ) internal view override returns (bytes memory) {
-        (,,, uint32 activeStakeHint) = IVault(vault).activeStakeCheckpointAt(timestamp);
-        (,,, uint32 networkLimitHint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
-        (,,, uint32 operatorNetworkLimitHint) =
-            _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
-
-        return abi.encode(
-            StakeHints({
-                baseHints: baseHints,
-                activeStakeHint: activeStakeHint,
-                networkLimitHint: networkLimitHint,
-                operatorNetworkLimitHint: operatorNetworkLimitHint
-            })
-        );
-    }
-
     function _stakeAt(
         address network,
         address operator,
         uint48 timestamp,
         bytes memory hints
-    ) internal view override returns (uint256, IBaseDelegator.StakeBaseHints memory) {
-        IFullRestakeDelegator.StakeHints memory hints_ = abi.decode(hints, (IFullRestakeDelegator.StakeHints));
+    ) internal view override returns (uint256, StakeBaseHints memory) {
+        StakeHints memory hints_ = abi.decode(hints, (StakeHints));
         return (
             Math.min(
                 IVault(vault).activeStakeAt(timestamp, hints_.activeStakeHint),
@@ -153,13 +133,6 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
                 )
             ),
             hints_.baseHints
-        );
-    }
-
-    function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {
-        return Math.min(
-            IVault(vault).activeStakeAt(timestamp),
-            Math.min(networkLimitAt(network, timestamp), operatorNetworkLimitAt(network, operator, timestamp))
         );
     }
 

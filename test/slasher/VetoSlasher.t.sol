@@ -163,8 +163,8 @@ contract VetoSlasherTest is Test {
         vm.expectRevert();
         slasher.slashRequests(0);
         assertEq(slasher.resolverSetEpochsDelay(), 3);
-        assertEq(slasher.resolverSharesAt(address(this), address(this), 0), 0);
-        assertEq(slasher.resolverShares(address(this), address(this)), 0);
+        assertEq(slasher.resolverSharesAt(address(this), address(this), 0, ""), 0);
+        assertEq(slasher.resolverShares(address(this), address(this), ""), 0);
         assertEq(slasher.hasVetoed(alice, 0), false);
     }
 
@@ -370,7 +370,7 @@ contract VetoSlasherTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(0, _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1)));
+        assertEq(0, _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), ""));
 
         (
             // address network_,
@@ -395,7 +395,7 @@ contract VetoSlasherTest is Test {
         // assertEq(vetoedShares_, 0);
         // assertEq(completed_, false);
 
-        assertEq(1, _requestSlash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - 1)));
+        assertEq(1, _requestSlash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - 1), ""));
 
         (
             // network_,
@@ -477,7 +477,7 @@ contract VetoSlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IVetoSlasher.InsufficientSlash.selector);
-        _requestSlash(alice, network, alice, 0, uint48(blockTimestamp - 1));
+        _requestSlash(alice, network, alice, 0, uint48(blockTimestamp - 1), "");
     }
 
     function test_RequestSlashRevertInvalidCaptureTimestamp(
@@ -526,7 +526,7 @@ contract VetoSlasherTest is Test {
 
         vm.assume(captureAgo <= 10 * epochDuration && (captureAgo > epochDuration - vetoDuration || captureAgo == 0));
         vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
-        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo));
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
     }
 
     function test_setResolverSharesBoth(
@@ -558,118 +558,127 @@ contract VetoSlasherTest is Test {
         _setResolverShares(network, alice, resolverShares1);
 
         assertEq(
-            slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
             resolverShares1
         );
-        assertEq(slasher.resolverShares(network, alice), resolverShares1);
+        assertEq(slasher.resolverShares(network, alice, ""), resolverShares1);
 
         _setResolverShares(network, bob, resolverShares2);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            resolverShares2
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + vault.epochDuration())), resolverShares1
+            slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + vault.epochDuration()), ""),
+            resolverShares1
         );
-        assertEq(slasher.resolverShares(network, alice), resolverShares1);
+        assertEq(slasher.resolverShares(network, alice, ""), resolverShares1);
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""), resolverShares2
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         _setResolverShares(network, bob, resolverShares3);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())), resolverShares3
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            resolverShares3
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            resolverShares2
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""), resolverShares2
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())), resolverShares3
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            resolverShares3
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares3
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            resolverShares3
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""), resolverShares2
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         _setResolverShares(network, bob, resolverShares3 - 1);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            resolverShares2
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""), resolverShares2
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares2
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""), resolverShares2
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares3 - 1
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""),
+            resolverShares3 - 1
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares2);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
         blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration())),
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
             resolverShares3 - 1
         );
         assertEq(
-            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares3 - 1
+            slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration()), ""),
+            resolverShares3 - 1
         );
-        assertEq(slasher.resolverShares(network, bob), resolverShares3 - 1);
+        assertEq(slasher.resolverShares(network, bob, ""), resolverShares3 - 1);
     }
 
     function test_setResolverSharesBothRevertNotOperator(
@@ -758,7 +767,7 @@ contract VetoSlasherTest is Test {
         uint256 slashAmountReal1 =
             Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         (
             address network_,
@@ -809,13 +818,9 @@ contract VetoSlasherTest is Test {
         // assertEq(vetoedShares_, 0);
         assertEq(completed_, true);
 
-        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1)), 0);
-        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp)), slashAmountReal1);
+        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), ""), slashAmountReal1);
         assertEq(slasher.cumulativeSlash(alice, alice), slashAmountReal1);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 0), 0);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp - 1), 1), slashAmountReal1);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 0), 0);
-        assertEq(slasher.slashAtDuring(alice, alice, uint48(blockTimestamp), 1), 0);
     }
 
     function test_ExecuteSlashRevertSlashRequestNotExist(
@@ -863,7 +868,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         blockTimestamp = blockTimestamp + vetoDuration;
         vm.warp(blockTimestamp);
@@ -917,7 +922,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.expectRevert(IVetoSlasher.VetoPeriodNotEnded.selector);
         _executeSlash(alice, 0);
@@ -968,7 +973,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         blockTimestamp = blockTimestamp + epochDuration + 1;
         vm.warp(blockTimestamp);
@@ -1022,7 +1027,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         blockTimestamp = blockTimestamp + vetoDuration;
         vm.warp(blockTimestamp);
@@ -1086,7 +1091,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         _vetoSlash(alice, 0);
 
@@ -1184,7 +1189,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.expectRevert(IVetoSlasher.SlashRequestNotExist.selector);
         _vetoSlash(alice, 1);
@@ -1243,7 +1248,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         blockTimestamp = blockTimestamp + vetoDuration;
         vm.warp(blockTimestamp);
@@ -1305,7 +1310,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.expectRevert(IVetoSlasher.NotResolver.selector);
         _vetoSlash(address(1), 0);
@@ -1364,7 +1369,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         _vetoSlash(alice, 0);
 
@@ -1425,7 +1430,7 @@ contract VetoSlasherTest is Test {
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
-        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1));
+        _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         _vetoSlash(alice, 0);
 
@@ -1626,10 +1631,11 @@ contract VetoSlasherTest is Test {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) internal returns (uint256 slashIndex) {
         vm.startPrank(user);
-        slashIndex = slasher.requestSlash(network, operator, amount, captureTimestamp);
+        slashIndex = slasher.requestSlash(network, operator, amount, captureTimestamp, hints);
         vm.stopPrank();
     }
 

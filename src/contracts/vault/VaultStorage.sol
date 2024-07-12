@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
+import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
@@ -8,7 +10,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract VaultStorage is IVaultStorage {
+contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
     using SafeCast for uint256;
 
@@ -148,22 +150,8 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesAt(uint48 timestamp, uint32 hint) public view returns (uint256) {
+    function activeSharesAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _activeShares.upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function activeSharesAt(uint48 timestamp) public view returns (uint256) {
-        return _activeShares.upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function activeSharesCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32) {
-        return _activeShares.upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -176,22 +164,8 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeStakeAt(uint48 timestamp, uint32 hint) public view returns (uint256) {
+    function activeStakeAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _activeStake.upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function activeStakeAt(uint48 timestamp) public view returns (uint256) {
-        return _activeStake.upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function activeStakeCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32) {
-        return _activeStake.upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -204,25 +178,8 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesOfAt(address account, uint48 timestamp, uint32 hint) public view returns (uint256) {
+    function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _activeSharesOf[account].upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function activeSharesOfAt(address account, uint48 timestamp) public view returns (uint256) {
-        return _activeSharesOf[account].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function activeSharesOfCheckpointAt(
-        address account,
-        uint48 timestamp
-    ) external view returns (bool, uint48, uint256, uint32) {
-        return _activeSharesOf[account].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**

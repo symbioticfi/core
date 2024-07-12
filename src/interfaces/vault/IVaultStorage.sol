@@ -117,24 +117,7 @@ interface IVaultStorage {
      * @param hint hint for the checkpoint index
      * @return total amount of active shares at the timestamp
      */
-    function activeSharesAt(uint48 timestamp, uint32 hint) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of active shares in the vault at a given timestamp.
-     * @param timestamp time point to get the total amount of active shares at
-     * @return total amount of active shares at the timestamp
-     */
-    function activeSharesAt(uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of active shares in the vault checkpoint at a given timestamp.
-     * @param timestamp time point to get the total amount of active shares checkpoint at
-     * @return if the checkpoint exists
-     * @return timestamp time point of the checkpoint
-     * @return amount of active shares at the checkpoint
-     * @return index of the checkpoint
-     */
-    function activeSharesCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32);
+    function activeSharesAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a total amount of active shares in the vault.
@@ -148,24 +131,7 @@ interface IVaultStorage {
      * @param hint hint for the checkpoint index
      * @return total amount of active stake at the timestamp
      */
-    function activeStakeAt(uint48 timestamp, uint32 hint) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of active stake in the vault at a given timestamp.
-     * @param timestamp time point to get the total active stake at
-     * @return total amount of active stake at the timestamp
-     */
-    function activeStakeAt(uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of active stake in the vault checkpoint at a given timestamp.
-     * @param timestamp time point to get the total active stake checkpoint at
-     * @return if the checkpoint exists
-     * @return timestamp time point of the checkpoint
-     * @return amount of active stake at the checkpoint
-     * @return index of the checkpoint
-     */
-    function activeStakeCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32);
+    function activeStakeAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a total amount of active stake in the vault.
@@ -180,29 +146,7 @@ interface IVaultStorage {
      * @param hint hint for the checkpoint index
      * @return amount of active shares for the account at the timestamp
      */
-    function activeSharesOfAt(address account, uint48 timestamp, uint32 hint) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of active shares for a particular account at a given timestamp.
-     * @param account account to get the amount of active shares for
-     * @param timestamp time point to get the amount of active shares for the account at
-     * @return amount of active shares for the account at the timestamp
-     */
-    function activeSharesOfAt(address account, uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get an activeSharesOf checkpoint for a particular account at a given timestamp.
-     * @param account account to get the activeSharesOf checkpoint for
-     * @param timestamp time point to get the activeSharesOf checkpoint for the account at
-     * @return if the checkpoint exists
-     * @return timestamp time point of the checkpoint
-     * @return amount of active shares at the checkpoint
-     * @return index of the checkpoint
-     */
-    function activeSharesOfCheckpointAt(
-        address account,
-        uint48 timestamp
-    ) external view returns (bool, uint48, uint256, uint32);
+    function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get an amount of active shares for a particular account.

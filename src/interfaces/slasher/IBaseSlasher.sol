@@ -8,6 +8,21 @@ interface IBaseSlasher {
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();
 
+    struct SlashableStakeHints {
+        bytes stakeHints;
+        bytes cumulativeSlashFromHint;
+    }
+
+    struct OptInHints {
+        bytes networkVaultOptInHint;
+        bytes operatorVaultOptInHint;
+        bytes operatorNetworkOptInHint;
+    }
+
+    struct OnSlashHints {
+        bytes delegatorOnSlashHints;
+    }
+
     /**
      * @notice Get the vault factory's address.
      * @return address of the vault factory
@@ -56,33 +71,8 @@ interface IBaseSlasher {
         address network,
         address operator,
         uint48 timestamp,
-        uint32 hint
+        bytes memory hint
     ) external view returns (uint256);
-
-    /**
-     * @notice Get a cumulative slash amount for an operator on a network until a given timestamp (inclusively).
-     * @param network address of the network
-     * @param operator address of the operator
-     * @param timestamp time point to get the cumulative slash amount until (inclusively)
-     * @return cumulative slash amount until the given timestamp (inclusively)
-     */
-    function cumulativeSlashAt(address network, address operator, uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a cumulative slash checkpoint for an operator on a network until a given timestamp (inclusively).
-     * @param network address of the network
-     * @param operator address of the operator
-     * @param timestamp time point to get the cumulative slash checkpoint until (inclusively)
-     * @return if the checkpoint exists
-     * @return timestamp of the checkpoint
-     * @return cumulative slash amount until the checkpoint
-     * @return index of the checkpoint
-     */
-    function cumulativeSlashCheckpointAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) external view returns (bool, uint48, uint256, uint32);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a network.
@@ -93,31 +83,17 @@ interface IBaseSlasher {
     function cumulativeSlash(address network, address operator) external view returns (uint256);
 
     /**
-     * @notice Get a slash amount for an operator on a network during a given time period.
-     * @param network address of the network
-     * @param operator address of the operator
-     * @param timestamp time point to start the time period (exclusively)
-     * @param duration duration of the time period
-     * @return slash amount during the given time period
-     * @dev The time period is (timestamp, timestamp + duration].
-     */
-    function slashAtDuring(
-        address network,
-        address operator,
-        uint48 timestamp,
-        uint48 duration
-    ) external view returns (uint256);
-
-    /**
-     * @notice Get a slashable amount of a stake got at a given capture timestamp.
+     * @notice Get a slashable amount of a stake got at a given capture timestamp using hints.
      * @param network address of the network
      * @param operator address of the operator
      * @param captureTimestamp time point to get the stake amount at
+     * @param hints hints for the checkpoints' indexes
      * @return slashable amount of the stake
      */
     function slashableStake(
         address network,
         address operator,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) external view returns (uint256);
 }
