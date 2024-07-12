@@ -143,35 +143,35 @@ interface IVaultStorage {
     function activeShares() external view returns (uint256);
 
     /**
-     * @notice Get a total amount of active supply in the vault at a given timestamp using a hint.
-     * @param timestamp time point to get the total active supply at
+     * @notice Get a total amount of active stake in the vault at a given timestamp using a hint.
+     * @param timestamp time point to get the total active stake at
      * @param hint hint for the checkpoint index
-     * @return total amount of active supply at the timestamp
+     * @return total amount of active stake at the timestamp
      */
-    function activeSupplyAt(uint48 timestamp, uint32 hint) external view returns (uint256);
+    function activeStakeAt(uint48 timestamp, uint32 hint) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of active supply in the vault at a given timestamp.
-     * @param timestamp time point to get the total active supply at
-     * @return total amount of active supply at the timestamp
+     * @notice Get a total amount of active stake in the vault at a given timestamp.
+     * @param timestamp time point to get the total active stake at
+     * @return total amount of active stake at the timestamp
      */
-    function activeSupplyAt(uint48 timestamp) external view returns (uint256);
+    function activeStakeAt(uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of active supply in the vault checkpoint at a given timestamp.
-     * @param timestamp time point to get the total active supply checkpoint at
+     * @notice Get a total amount of active stake in the vault checkpoint at a given timestamp.
+     * @param timestamp time point to get the total active stake checkpoint at
      * @return if the checkpoint exists
      * @return timestamp time point of the checkpoint
-     * @return amount of active supply at the checkpoint
+     * @return amount of active stake at the checkpoint
      * @return index of the checkpoint
      */
-    function activeSupplyCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32);
+    function activeStakeCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32);
 
     /**
-     * @notice Get a total amount of active supply in the vault.
-     * @return total amount of active supply
+     * @notice Get a total amount of active stake in the vault.
+     * @return total amount of active stake
      */
-    function activeSupply() external view returns (uint256);
+    function activeStake() external view returns (uint256);
 
     /**
      * @notice Get a total amount of active shares for a particular account at a given timestamp using a hint.

@@ -10,7 +10,7 @@ interface IFullRestakeDelegator is IBaseDelegator {
 
     struct StakeHints {
         IBaseDelegator.StakeBaseHints baseHints;
-        uint32 activeSupplyHint;
+        uint32 activeStakeHint;
         uint32 networkLimitHint;
         uint32 operatorNetworkLimitHint;
     }

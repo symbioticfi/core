@@ -670,7 +670,7 @@ contract VetoSlasherTest is Test {
             slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares3 - 1
         );
         assertEq(slasher.resolverShares(network, bob), resolverShares3 - 1);
-        assertEq(slasher.resolverSharesAt(network, bob, uint48(blockTimestamp), 2), resolverShares3 - 1);
+        assertEq(slasher.resolverSharesAt(network, bob, uint48(blockTimestamp), 1), resolverShares3 - 1);
     }
 
     function test_setResolverSharesBothRevertNotOperator(
@@ -788,7 +788,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(_executeSlash(alice, 0), slashAmountReal1);
 
-        assertEq(vault.totalSupply(), depositAmount - Math.min(slashAmountReal1, depositAmount));
+        assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
         (
             network_,
@@ -1122,7 +1122,7 @@ contract VetoSlasherTest is Test {
             );
 
             assertEq(
-                vault.totalSupply(),
+                vault.totalStake(),
                 depositAmount
                     - (
                         slashAmount1

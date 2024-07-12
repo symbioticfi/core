@@ -48,7 +48,7 @@ interface IVault is IVaultStorage {
 
     struct ActiveBalanceHints {
         uint32 activeSharesOfHint;
-        uint32 activeSupplyHint;
+        uint32 activeStakeHint;
         uint32 activeSharesHint;
     }
 
@@ -102,19 +102,10 @@ interface IVault is IVaultStorage {
     event SetDepositorWhitelistStatus(address indexed account, bool status);
 
     /**
-     * @notice Get a total amount of the collateral that can be slashed
-     *         in `duration` seconds (if there will be no new deposits and slash executions).
-     * @param duration duration to get the total amount of the slashable collateral in
-     * @return total amount of the slashable collateral in `duration` seconds
-     * @dev The result can be manipulated by the withdrawals if `epochAt(Time.timestamp() + duration) > currentEpoch() + 1`.
-     */
-    function totalSupplyIn(uint48 duration) external view returns (uint256);
-
-    /**
      * @notice Get a total amount of the collateral that can be slashed.
      * @return total amount of the slashable collateral
      */
-    function totalSupply() external view returns (uint256);
+    function totalStake() external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account at a given timestamp using hints.

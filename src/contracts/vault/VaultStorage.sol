@@ -94,7 +94,7 @@ contract VaultStorage is IVaultStorage {
 
     Checkpoints.Trace256 internal _activeShares;
 
-    Checkpoints.Trace256 internal _activeSupplies;
+    Checkpoints.Trace256 internal _activeStake;
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
@@ -176,29 +176,29 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSupplyAt(uint48 timestamp, uint32 hint) public view returns (uint256) {
-        return _activeSupplies.upperLookupRecent(timestamp, hint);
+    function activeStakeAt(uint48 timestamp, uint32 hint) public view returns (uint256) {
+        return _activeStake.upperLookupRecent(timestamp, hint);
     }
 
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSupplyAt(uint48 timestamp) public view returns (uint256) {
-        return _activeSupplies.upperLookupRecent(timestamp);
+    function activeStakeAt(uint48 timestamp) public view returns (uint256) {
+        return _activeStake.upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSupplyCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32) {
-        return _activeSupplies.upperLookupRecentCheckpoint(timestamp);
+    function activeStakeCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32) {
+        return _activeStake.upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSupply() public view returns (uint256) {
-        return _activeSupplies.latest();
+    function activeStake() public view returns (uint256) {
+        return _activeStake.latest();
     }
 
     /**

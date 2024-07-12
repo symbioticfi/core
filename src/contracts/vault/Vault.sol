@@ -26,27 +26,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function totalSupplyIn(uint48 duration) public view returns (uint256) {
+    function totalStake() public view returns (uint256) {
         uint256 epoch = currentEpoch();
-        uint256 futureEpoch = epochAt(Time.timestamp() + duration);
-
-        if (futureEpoch > epoch + 1) {
-            return activeSupply();
-        }
-
-        if (futureEpoch > epoch) {
-            return activeSupply() + withdrawals[futureEpoch];
-        }
-
-        return activeSupply() + withdrawals[epoch] + withdrawals[epoch + 1];
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function totalSupply() public view returns (uint256) {
-        uint256 epoch = currentEpoch();
-        return activeSupply() + withdrawals[epoch] + withdrawals[epoch + 1];
+        return activeStake() + withdrawals[epoch] + withdrawals[epoch + 1];
     }
 
     /**
@@ -59,7 +41,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     ) public view returns (uint256) {
         return ERC4626Math.previewRedeem(
             activeSharesOfAt(account, timestamp, hints.activeSharesOfHint),
-            activeSupplyAt(timestamp, hints.activeSupplyHint),
+            activeStakeAt(timestamp, hints.activeStakeHint),
             activeSharesAt(timestamp, hints.activeSharesHint)
         );
     }
@@ -69,7 +51,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function activeBalanceOfAt(address account, uint48 timestamp) public view returns (uint256) {
         return ERC4626Math.previewRedeem(
-            activeSharesOfAt(account, timestamp), activeSupplyAt(timestamp), activeSharesAt(timestamp)
+            activeSharesOfAt(account, timestamp), activeStakeAt(timestamp), activeSharesAt(timestamp)
         );
     }
 
@@ -77,7 +59,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function activeBalanceOf(address account) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
+        return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
     /**
@@ -112,12 +94,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
 
-        uint256 activeSupply_ = activeSupply();
+        uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
 
-        shares = ERC4626Math.previewDeposit(amount, activeShares_, activeSupply_);
+        shares = ERC4626Math.previewDeposit(amount, activeShares_, activeStake_);
 
-        _activeSupplies.push(Time.timestamp(), activeSupply_ + amount);
+        _activeStake.push(Time.timestamp(), activeStake_ + amount);
         _activeShares.push(Time.timestamp(), activeShares_ + shares);
         _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + shares);
 
@@ -136,16 +118,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientWithdrawal();
         }
 
-        uint256 activeSupply_ = activeSupply();
+        uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
         uint256 activeSharesOf_ = activeSharesOf(msg.sender);
 
-        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeSupply_);
+        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeStake_);
         if (burnedShares > activeSharesOf_) {
             revert TooMuchWithdraw();
         }
 
-        _activeSupplies.push(Time.timestamp(), activeSupply_ - amount);
+        _activeStake.push(Time.timestamp(), activeStake_ - amount);
         _activeShares.push(Time.timestamp(), activeShares_ - burnedShares);
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf_ - burnedShares);
 
@@ -205,25 +187,25 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidCaptureEpoch();
         }
 
-        uint256 activeSupply_ = activeSupply();
+        uint256 activeStake_ = activeStake();
         uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
         if (captureEpoch == currentEpoch_) {
-            uint256 slashableSupply = activeSupply_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            uint256 slashableStake = activeStake_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableStake);
             if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
+                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
 
-                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
                 withdrawals[captureEpoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
             }
         } else {
             uint256 withdrawals_ = withdrawals[currentEpoch_];
-            uint256 slashableSupply = activeSupply_ + withdrawals_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            uint256 slashableStake = activeStake_ + withdrawals_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableStake);
             if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
-                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableSupply);
+                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
+                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableStake);
                 uint256 withdrawalsSlashed = slashedAmount - activeSlashed - nextWithdrawalsSlashed;
 
                 if (withdrawals_ < withdrawalsSlashed) {
@@ -231,7 +213,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
                     withdrawalsSlashed = withdrawals_;
                 }
 
-                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
                 withdrawals[currentEpoch_ + 1] = nextWithdrawals - nextWithdrawalsSlashed;
                 withdrawals[currentEpoch_] = withdrawals_ - withdrawalsSlashed;
             }

@@ -876,7 +876,7 @@ contract NetworkRestakeDelegatorTest is Test {
         bytes memory hints = abi.encode(
             INetworkRestakeDelegator.StakeHints({
                 baseHints: IBaseDelegator.StakeBaseHints({operatorVaultOptInHint: 0, operatorNetworkOptInHint: 0}),
-                activeSupplyHint: 0,
+                activeStakeHint: 0,
                 networkLimitHint: 0,
                 operatorNetworkSharesHint: 0,
                 totalOperatorNetworkSharesHint: 0
@@ -893,7 +893,7 @@ contract NetworkRestakeDelegatorTest is Test {
         hints = abi.encode(
             INetworkRestakeDelegator.StakeHints({
                 baseHints: IBaseDelegator.StakeBaseHints({operatorVaultOptInHint: 0, operatorNetworkOptInHint: 0}),
-                activeSupplyHint: 0,
+                activeStakeHint: 0,
                 networkLimitHint: 0,
                 operatorNetworkSharesHint: 1,
                 totalOperatorNetworkSharesHint: 1

@@ -209,7 +209,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             : (
                 operatorNetworkSharesAt(network, operator, timestamp, hints_.operatorNetworkSharesHint).mulDiv(
                     Math.min(
-                        IVault(vault).activeSupplyAt(timestamp, hints_.activeSupplyHint),
+                        IVault(vault).activeStakeAt(timestamp, hints_.activeStakeHint),
                         networkLimitAt(network, timestamp, hints_.networkLimitHint)
                     ),
                     totalOperatorNetworkSharesAt_
@@ -223,7 +223,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return totalOperatorNetworkSharesAt_ == 0
             ? 0
             : operatorNetworkSharesAt(network, operator, timestamp).mulDiv(
-                Math.min(IVault(vault).activeSupplyAt(timestamp), networkLimitAt(network, timestamp)),
+                Math.min(IVault(vault).activeStakeAt(timestamp), networkLimitAt(network, timestamp)),
                 totalOperatorNetworkSharesAt_
             );
     }
@@ -233,7 +233,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return totalOperatorNetworkShares_ == 0
             ? 0
             : operatorNetworkShares(network, operator).mulDiv(
-                Math.min(IVault(vault).activeSupply(), networkLimit(network)), totalOperatorNetworkShares_
+                Math.min(IVault(vault).activeStake(), networkLimit(network)), totalOperatorNetworkShares_
             );
     }
 

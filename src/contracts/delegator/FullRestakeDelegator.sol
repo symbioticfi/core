@@ -203,7 +203,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         IFullRestakeDelegator.StakeHints memory hints_ = abi.decode(hints, (IFullRestakeDelegator.StakeHints));
         return (
             Math.min(
-                IVault(vault).activeSupplyAt(timestamp, hints_.activeSupplyHint),
+                IVault(vault).activeStakeAt(timestamp, hints_.activeStakeHint),
                 Math.min(
                     networkLimitAt(network, timestamp, hints_.networkLimitHint),
                     operatorNetworkLimitAt(network, operator, timestamp, hints_.operatorNetworkLimitHint)
@@ -215,14 +215,14 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
 
     function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {
         return Math.min(
-            IVault(vault).activeSupplyAt(timestamp),
+            IVault(vault).activeStakeAt(timestamp),
             Math.min(networkLimitAt(network, timestamp), operatorNetworkLimitAt(network, operator, timestamp))
         );
     }
 
     function _stake(address network, address operator) internal view override returns (uint256) {
         return Math.min(
-            IVault(vault).activeSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
+            IVault(vault).activeStake(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
         );
     }
 
