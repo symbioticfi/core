@@ -427,6 +427,13 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp)), amount4);
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount4);
         assertEq(delegator.networkLimit(network), amount4);
+
+        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
+            delegator.networkLimitCheckpointAt(network, uint48(blockTimestamp));
+        assertEq(checkpointExists, true);
+        assertEq(checkpointKey, uint48(blockTimestamp));
+        assertEq(checkpointValue, amount4);
+        assertEq(checkpointPos, 2);
     }
 
     function test_SetNetworkLimitRevertExceedsMaxNetworkLimit(
@@ -1281,7 +1288,7 @@ contract NetworkRestakeDelegatorTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(epoch);
         vm.stopPrank();
     }
 

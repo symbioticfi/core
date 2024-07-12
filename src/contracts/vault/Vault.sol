@@ -5,19 +5,19 @@ import {MigratableEntity} from "src/contracts/common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {ICollateral} from "src/interfaces/collateral/ICollateral.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
+contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable,MulticallUpgradeable,  IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
@@ -109,9 +109,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
-        if (claimer == address(0)) {
-            revert InvalidClaimer();
+    function withdraw(
+        address recipient,
+        uint256 amount
+    ) external returns (uint256 burnedShares, uint256 mintedShares) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
         }
 
         if (amount == 0) {
@@ -139,19 +142,15 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         withdrawals[epoch] = withdrawals_ + amount;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+        withdrawalSharesOf[epoch][recipient] += mintedShares;
 
-        emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
+        emit Withdraw(msg.sender, recipient, amount, burnedShares, mintedShares);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function claim(address recipient, uint256 epoch) external returns (uint256 amount) {
-        if (recipient == address(0)) {
-            revert InvalidRecipient();
-        }
-
+    function claim(uint256 epoch) external returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }
@@ -168,9 +167,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         isWithdrawalsClaimed[epoch][msg.sender] = true;
 
-        IERC20(collateral).safeTransfer(recipient, amount);
+        IERC20(collateral).safeTransfer(msg.sender, amount);
 
-        emit Claim(msg.sender, recipient, amount);
+        emit Claim(msg.sender, amount);
     }
 
     /**

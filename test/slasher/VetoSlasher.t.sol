@@ -1570,7 +1570,7 @@ contract VetoSlasherTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(epoch);
         vm.stopPrank();
     }
 
