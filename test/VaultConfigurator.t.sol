@@ -80,7 +80,8 @@ contract VaultConfiguratorTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
@@ -91,7 +92,8 @@ contract VaultConfiguratorTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
@@ -103,7 +105,8 @@ contract VaultConfiguratorTest is Test {
                 address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(slasherImpl);
@@ -116,7 +119,8 @@ contract VaultConfiguratorTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);
@@ -134,14 +138,17 @@ contract VaultConfiguratorTest is Test {
         address owner_,
         address burner,
         uint48 epochDuration,
-        uint256 slasherSetEpochsDelay,
         bool depositWhitelist,
-        bool withSlasher
+        bool withSlasher,
+        address hook
     ) public {
-        epochDuration = uint48(bound(epochDuration, 1, type(uint48).max));
-        slasherSetEpochsDelay = bound(slasherSetEpochsDelay, 3, type(uint256).max);
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         vm.assume(owner_ != address(0));
 
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = address(104);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = address(105);
         (address vault_, address networkRestakeDelegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -152,18 +159,20 @@ contract VaultConfiguratorTest is Test {
                     slasher: address(0),
                     burner: burner,
                     epochDuration: epochDuration,
-                    slasherSetEpochsDelay: slasherSetEpochsDelay,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: address(100),
-                    slasherSetRoleHolder: address(101),
-                    depositorWhitelistRoleHolder: address(102)
+                    depositorWhitelistRoleHolder: address(101)
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: address(103)}),
-                        networkLimitSetRoleHolder: address(104),
-                        operatorNetworkSharesSetRoleHolder: address(105)
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(102),
+                            hook: hook,
+                            hookSetRoleHolder: address(103)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: withSlasher,
@@ -182,14 +191,16 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.slasher(), withSlasher ? slasher_ : address(0));
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
-        assertEq(vault.slasherSetEpochsDelay(), slasherSetEpochsDelay);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), address(100)), true);
-        assertEq(vault.hasRole(vault.SLASHER_SET_ROLE(), address(101)), !withSlasher);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(102)), depositWhitelist);
+        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(101)), depositWhitelist);
 
         assertEq(networkRestakeDelegator.vault(), vault_);
-        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(103)), true);
+        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(102)), true);
+        assertEq(networkRestakeDelegator.hook(), hook);
+        assertEq(
+            networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(103)), hook == address(0)
+        );
         assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.NETWORK_LIMIT_SET_ROLE(), address(104)), true);
         assertEq(
             networkRestakeDelegator.hasRole(networkRestakeDelegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), address(105)),
@@ -199,5 +210,59 @@ contract VaultConfiguratorTest is Test {
         if (withSlasher) {
             assertEq(slasher.vault(), vault_);
         }
+    }
+
+    function test_CreateRevertDirtyInitParams(
+        address owner_,
+        address burner,
+        uint48 epochDuration,
+        bool depositWhitelist,
+        bool withSlasher,
+        address hook,
+        address delegator_,
+        address slasher_
+    ) public {
+        vm.assume(delegator_ != address(0) || slasher_ != address(0));
+
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        vm.assume(owner_ != address(0));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = address(104);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = address(105);
+
+        vm.expectRevert(IVaultConfigurator.DirtyInitParams.selector);
+        vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: owner_,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: slasher_,
+                    burner: burner,
+                    epochDuration: epochDuration,
+                    depositWhitelist: depositWhitelist,
+                    defaultAdminRoleHolder: address(100),
+                    depositorWhitelistRoleHolder: address(101)
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(102),
+                            hook: hook,
+                            hookSetRoleHolder: address(103)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: withSlasher,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
     }
 }

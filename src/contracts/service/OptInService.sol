@@ -4,9 +4,13 @@ pragma solidity 0.8.25;
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 
+import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract OptInService is IOptInService {
+    using Checkpoints for Checkpoints.Trace208;
+
     /**
      * @inheritdoc IOptInService
      */
@@ -17,15 +21,7 @@ contract OptInService is IOptInService {
      */
     address public immutable WHERE_REGISTRY;
 
-    /**
-     * @inheritdoc IOptInService
-     */
-    mapping(address who => mapping(address where => bool value)) public isOptedIn;
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    mapping(address who => mapping(address where => uint48 timestamp)) public lastOptOut;
+    mapping(address who => mapping(address where => Checkpoints.Trace208 value)) public _isOptedIn;
 
     constructor(address whoRegistry, address whereRegistry) {
         WHO_REGISTRY = whoRegistry;
@@ -35,8 +31,37 @@ contract OptInService is IOptInService {
     /**
      * @inheritdoc IOptInService
      */
+    function isOptedInAt(address who, address where, uint48 timestamp) external view returns (bool) {
+        return _isOptedIn[who][where].upperLookupRecent(timestamp) == 1;
+    }
+
+    /**
+     * @inheritdoc IOptInService
+     */
+    function isOptedIn(address who, address where) public view returns (bool) {
+        return _isOptedIn[who][where].latest() == 1;
+    }
+
+    /**
+     * @inheritdoc IOptInService
+     */
+    function wasOptedInAfterDuring(
+        address who,
+        address where,
+        uint48 timestamp,
+        uint48 duration
+    ) external view returns (bool) {
+        (bool exists, uint48 latestTimestamp, uint208 latestValue,) =
+            _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp + duration);
+        return exists && ((latestValue == 0 && latestTimestamp >= timestamp) || latestValue == 1);
+    }
+
+    /**
+     * @inheritdoc IOptInService
+     */
     function wasOptedInAfter(address who, address where, uint48 timestamp) external view returns (bool) {
-        return isOptedIn[who][where] || lastOptOut[who][where] >= timestamp;
+        (bool exists, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[who][where].latestCheckpoint();
+        return exists && ((latestValue == 0 && latestTimestamp >= timestamp) || latestValue == 1);
     }
 
     /**
@@ -51,11 +76,11 @@ contract OptInService is IOptInService {
             revert NotWhereEntity();
         }
 
-        if (isOptedIn[msg.sender][where]) {
+        if (isOptedIn(msg.sender, where)) {
             revert AlreadyOptedIn();
         }
 
-        isOptedIn[msg.sender][where] = true;
+        _isOptedIn[msg.sender][where].push(Time.timestamp(), 1);
 
         emit OptIn(msg.sender, where);
     }
@@ -64,12 +89,17 @@ contract OptInService is IOptInService {
      * @inheritdoc IOptInService
      */
     function optOut(address where) external {
-        if (!isOptedIn[msg.sender][where]) {
+        (, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[msg.sender][where].latestCheckpoint();
+
+        if (latestValue == 0) {
             revert NotOptedIn();
         }
 
-        isOptedIn[msg.sender][where] = false;
-        lastOptOut[msg.sender][where] = Time.timestamp();
+        if (latestTimestamp == Time.timestamp()) {
+            revert OptOutCooldown();
+        }
+
+        _isOptedIn[msg.sender][where].push(Time.timestamp(), 0);
 
         emit OptOut(msg.sender, where);
     }

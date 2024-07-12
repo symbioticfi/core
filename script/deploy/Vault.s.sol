@@ -13,7 +13,6 @@
 //         address collateral,
 //         uint48 epochDuration,
 //         uint48 vetoDuration,
-//         uint48 executeDuration,
 //         address stakerRewardsDistributor,
 //         uint256 adminFee,
 //         bool depositWhitelist
@@ -28,7 +27,6 @@
 //                     collateral: collateral,
 //                     epochDuration: epochDuration,
 //                     vetoDuration: vetoDuration,
-//                     executeDuration: executeDuration,
 //                     stakerRewardsDistributor: stakerRewardsDistributor,
 //                     adminFee: adminFee,
 //                     depositWhitelist: depositWhitelist

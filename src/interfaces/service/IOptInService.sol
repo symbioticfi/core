@@ -6,6 +6,7 @@ interface IOptInService {
     error NotWho();
     error NotOptedIn();
     error NotWhereEntity();
+    error OptOutCooldown();
 
     /**
      * @notice Emitted when an who opts into a "where" entity.
@@ -34,24 +35,44 @@ interface IOptInService {
     function WHERE_REGISTRY() external view returns (address);
 
     /**
+     * @notice Check if a given who is opted-in to a particular "where" entity at a given timestamp.
+     * @param who address of the who
+     * @param where address of the "where" registry
+     * @param timestamp time point to check if the who is opted-in at
+     * @return if the who is opted-in at the given timestamp
+     */
+    function isOptedInAt(address who, address where, uint48 timestamp) external view returns (bool);
+
+    /**
      * @notice Check if a given who is opted-in to a particular "where" entity.
      * @param who address of the who
      * @param where address of the "where" registry
+     * @return if the who is opted-in
      */
     function isOptedIn(address who, address where) external view returns (bool);
 
     /**
-     * @notice Get the timestamp of the last opt-out of a given who from a particular "where" entity.
+     * @notice Check if a given who was opted-in to a particular "where" entity after a given timestamp (inclusively) and during a given duration.
      * @param who address of the who
      * @param where address of the "where" registry
+     * @param timestamp time point to check if the who was opted-in after
+     * @param duration duration to check if the who was opted-in during
+     * @return if the who was opted-in after the given timestamp and during the given duration
+     * @dev The duration is inclusive, i.e. if the who was opted-in at the timestamp + duration, it is considered to be during the duration.
      */
-    function lastOptOut(address who, address where) external view returns (uint48);
+    function wasOptedInAfterDuring(
+        address who,
+        address where,
+        uint48 timestamp,
+        uint48 duration
+    ) external view returns (bool);
 
     /**
      * @notice Check if a given who was opted-in to a particular "where" entity after a given timestamp (inclusively).
      * @param who address of the who
      * @param where address of the "where" registry
      * @param timestamp time point to check if the who was opted-in after
+     * @return if the who was opted-in after the given timestamp
      */
     function wasOptedInAfter(address who, address where, uint48 timestamp) external view returns (bool);
 

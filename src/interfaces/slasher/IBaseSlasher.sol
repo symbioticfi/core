@@ -43,4 +43,50 @@ interface IBaseSlasher {
      * @return address of the vault to perform slashings on
      */
     function vault() external view returns (address);
+
+    /**
+     * @notice Get a cumulative slash amount for an operator on a network until a given timestamp (inclusively).
+     * @param network address of the network
+     * @param operator address of the operator
+     * @param timestamp time point to get the cumulative slash amount until (inclusively)
+     * @return cumulative slash amount until the given timestamp (inclusively)
+     */
+    function cumulativeSlashAt(address network, address operator, uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a cumulative slash amount for an operator on a network.
+     * @param network address of the network
+     * @param operator address of the operator
+     * @return cumulative slash amount
+     */
+    function cumulativeSlash(address network, address operator) external view returns (uint256);
+
+    /**
+     * @notice Get a slash amount for an operator on a network during a given time period.
+     * @param network address of the network
+     * @param operator address of the operator
+     * @param timestamp time point to start the time period (exclusively)
+     * @param duration duration of the time period
+     * @return slash amount during the given time period
+     * @dev The time period is (timestamp, timestamp + duration].
+     */
+    function slashAtDuring(
+        address network,
+        address operator,
+        uint48 timestamp,
+        uint48 duration
+    ) external view returns (uint256);
+
+    /**
+     * @notice Get a slashable amount of a stake got at a given capture timestamp.
+     * @param network address of the network
+     * @param operator address of the operator
+     * @param captureTimestamp time point to get the stake amount at
+     * @return slashable amount of the stake
+     */
+    function slashableStake(
+        address network,
+        address operator,
+        uint48 captureTimestamp
+    ) external view returns (uint256);
 }

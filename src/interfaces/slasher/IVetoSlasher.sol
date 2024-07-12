@@ -2,8 +2,7 @@
 pragma solidity 0.8.25;
 
 interface IVetoSlasher {
-    error InvalidExecuteDuration();
-    error InvalidSlashDuration();
+    error InvalidVetoDuration();
     error InsufficientSlash();
     error NotNetwork();
     error NotResolver();
@@ -18,16 +17,16 @@ interface IVetoSlasher {
     error InvalidResolverSetEpochsDelay();
     error ResolverAlreadySet();
     error AlreadyVetoed();
+    error InvalidCaptureTimestamp();
+    error VaultNotInitialized();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
      * @param vetoDuration duration of the veto period for a slash request
-     * @param executeDuration duration of the slash period for a slash request (after the veto duration has passed)
      * @param resolverSetEpochsDelay delay in epochs for a network to update resolvers' shares
      */
     struct InitParams {
         uint48 vetoDuration;
-        uint48 executeDuration;
         uint256 resolverSetEpochsDelay;
     }
 
@@ -36,16 +35,16 @@ interface IVetoSlasher {
      * @param network network that requested the slash
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param amount maximum amount of the collateral to be slashed
+     * @param captureTimestamp time point when the stake was captured
      * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
-     * @param executeDeadline deadline to execute slash (exclusively)
      * @param completed if the slash was vetoed/executed
      */
     struct SlashRequest {
         address network;
         address operator;
         uint256 amount;
+        uint48 captureTimestamp;
         uint48 vetoDeadline;
-        uint48 executeDeadline;
         uint256 vetoedShares;
         bool completed;
     }
@@ -56,16 +55,16 @@ interface IVetoSlasher {
      * @param network network that requested the slash
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param slashAmount maximum amount of the collateral to be slashed
+     * @param captureTimestamp time point when the stake was captured
      * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
-     * @param executeDeadline deadline to execute slash (exclusively)
      */
     event RequestSlash(
         uint256 indexed slashIndex,
         address indexed network,
         address indexed operator,
         uint256 slashAmount,
-        uint48 vetoDeadline,
-        uint48 executeDeadline
+        uint48 captureTimestamp,
+        uint48 vetoDeadline
     );
 
     /**
@@ -110,12 +109,6 @@ interface IVetoSlasher {
     function vetoDuration() external view returns (uint48);
 
     /**
-     * @notice Get a duration during which slash requests can be executed (after the veto period).
-     * @return duration of the slash period
-     */
-    function executeDuration() external view returns (uint48);
-
-    /**
      * @notice Get a total number of slash requests.
      * @return total number of slash requests
      */
@@ -127,8 +120,8 @@ interface IVetoSlasher {
      * @return network network that requested the slash
      * @return operator operator that could be slashed (if the request is not vetoed)
      * @return amount maximum amount of the collateral to be slashed
+     * @return captureTimestamp time point when the stake was captured
      * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
-     * @return executeDeadline deadline to execute slash (exclusively)
      * @return vetoedShares amount of the shares of the request vetoed
      * @return completed if the slash was vetoed/executed
      */
@@ -139,8 +132,8 @@ interface IVetoSlasher {
             address network,
             address operator,
             uint256 amount,
+            uint48 captureTimestamp,
             uint48 vetoDeadline,
-            uint48 executeDeadline,
             uint256 vetoedShares,
             bool completed
         );
@@ -181,10 +174,16 @@ interface IVetoSlasher {
      * @param network address of the network
      * @param operator address of the operator
      * @param amount maximum amount of the collateral to be slashed
+     * @param captureTimestamp time point when the stake was captured
      * @return slashIndex index of the slash request
      * @dev Only network middleware can call this function.
      */
-    function requestSlash(address network, address operator, uint256 amount) external returns (uint256 slashIndex);
+    function requestSlash(
+        address network,
+        address operator,
+        uint256 amount,
+        uint48 captureTimestamp
+    ) external returns (uint256 slashIndex);
 
     /**
      * @notice Execute a slash with a given slash index.

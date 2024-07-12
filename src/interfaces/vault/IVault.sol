@@ -20,9 +20,9 @@ interface IVault is IVaultStorage {
     error NotWhitelistedDepositor();
     error NotSlasher();
     error TooMuchWithdraw();
-    error InvalidSlasherSetEpochsDelay();
     error NotDelegator();
     error TooMuchSlash();
+    error InvalidCaptureEpoch();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -31,10 +31,8 @@ interface IVault is IVaultStorage {
      * @param slasher vault's slasher to provide a slashing mechanism to networks
      * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
-     * @param slasherSetEpochsDelay delay in epochs to set a new slasher
      * @param depositWhitelist if enabling deposit whitelist
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
-     * @param slasherSetRoleHolder address of the initial SLASHER_SET_ROLE holder
      * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
      */
     struct InitParams {
@@ -43,10 +41,8 @@ interface IVault is IVaultStorage {
         address slasher;
         address burner;
         uint48 epochDuration;
-        uint256 slasherSetEpochsDelay;
         bool depositWhitelist;
         address defaultAdminRoleHolder;
-        address slasherSetRoleHolder;
         address depositorWhitelistRoleHolder;
     }
 
@@ -87,12 +83,6 @@ interface IVault is IVaultStorage {
     event OnSlash(address indexed slasher, uint256 slashedAmount);
 
     /**
-     * @notice Emitted when a slasher is set (it provides networks a slashing mechanism).
-     * @param slasher address of the slasher
-     */
-    event SetSlasher(address slasher);
-
-    /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.
      * @param depositWhitelist if enabled deposit whitelist
      */
@@ -104,18 +94,6 @@ interface IVault is IVaultStorage {
      * @param status if whitelisted the account
      */
     event SetDepositorWhitelistStatus(address indexed account, bool status);
-
-    /**
-     * @notice Get a slasher in `duration` seconds (it provides networks a slashing mechanism).
-     * @return address of the slasher in `duration` seconds
-     */
-    function slasherIn(uint48 duration) external view returns (address);
-
-    /**
-     * @notice Get a slasher (it provides networks a slashing mechanism).
-     * @return address of the slasher
-     */
-    function slasher() external view returns (address);
 
     /**
      * @notice Get a total amount of the collateral that can be slashed
@@ -183,20 +161,15 @@ interface IVault is IVaultStorage {
     /**
      * @notice Slash callback for burning collateral.
      * @param slashedAmount amount to slash
+     * @param captureTimestamp time point when the stake was captured
+     * @dev Only the slasher can call this function.
      */
-    function onSlash(uint256 slashedAmount) external;
-
-    /**
-     * @notice Set a slasher (it provides networks a slashing mechanism).
-     * @param slasher address of the slasher
-     * @dev Only the SLASHER_SET_ROLE holder can call this function.
-     */
-    function setSlasher(address slasher) external;
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external;
 
     /**
      * @notice Enable/disable deposit whitelist.
      * @param status if enabling deposit whitelist
-     * @dev Only the DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
+     * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
     function setDepositWhitelist(bool status) external;
 
@@ -204,7 +177,7 @@ interface IVault is IVaultStorage {
      * @notice Set a depositor whitelist status.
      * @param account account for which the whitelist status is set
      * @param status if whitelisting the account
-     * @dev Only the DEPOSITOR_WHITELIST_ROLE holder can call this function.
+     * @dev Only a DEPOSITOR_WHITELIST_ROLE holder can call this function.
      */
     function setDepositorWhitelistStatus(address account, bool status) external;
 }

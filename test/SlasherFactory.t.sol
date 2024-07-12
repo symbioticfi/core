@@ -77,7 +77,8 @@ contract SlasherFactoryTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
@@ -88,7 +89,8 @@ contract SlasherFactoryTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
@@ -100,7 +102,8 @@ contract SlasherFactoryTest is Test {
                 address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(slasherImpl);
@@ -113,7 +116,8 @@ contract SlasherFactoryTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);
@@ -128,6 +132,10 @@ contract SlasherFactoryTest is Test {
     }
 
     function test_Create() public {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -138,18 +146,20 @@ contract SlasherFactoryTest is Test {
                     slasher: address(0),
                     burner: address(0xdEaD),
                     epochDuration: 1,
-                    slasherSetEpochsDelay: 3,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
-                    slasherSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -165,10 +175,7 @@ contract SlasherFactoryTest is Test {
         address vetoSlasher = slasherFactory.create(
             1,
             true,
-            abi.encode(
-                vault_,
-                abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, executeDuration: 1, resolverSetEpochsDelay: 3}))
-            )
+            abi.encode(vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, resolverSetEpochsDelay: 3})))
         );
 
         assertEq(VetoSlasher(vetoSlasher).FACTORY(), address(slasherFactory));

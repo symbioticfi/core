@@ -37,115 +37,63 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address vaultFactory,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
-        address delegatorFactory
+        address delegatorFactory,
+        uint64 entityType
     )
         BaseDelegator(
             networkRegistry,
             vaultFactory,
             operatorVaultOptInService,
             operatorNetworkOptInService,
-            delegatorFactory
+            delegatorFactory,
+            entityType
         )
     {}
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function networkLimitIn(address network, uint48 duration) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(Time.timestamp() + duration);
+    function networkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
+        return _networkLimit[network].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function networkLimit(address network) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(Time.timestamp());
+        return _networkLimit[network].latest();
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function totalOperatorNetworkSharesIn(address network, uint48 duration) public view returns (uint256) {
-        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp() + duration);
+    function totalOperatorNetworkSharesAt(address network, uint48 timestamp) public view returns (uint256) {
+        return _totalOperatorNetworkShares[network].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function totalOperatorNetworkShares(address network) public view returns (uint256) {
-        return _totalOperatorNetworkShares[network].upperLookupRecent(Time.timestamp());
+        return _totalOperatorNetworkShares[network].latest();
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function operatorNetworkSharesIn(
+    function operatorNetworkSharesAt(
         address network,
         address operator,
-        uint48 duration
+        uint48 timestamp
     ) public view returns (uint256) {
-        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp() + duration);
+        return _operatorNetworkShares[network][operator].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
     function operatorNetworkShares(address network, address operator) public view returns (uint256) {
-        return _operatorNetworkShares[network][operator].upperLookupRecent(Time.timestamp());
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStakeIn(
-        address network,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        if (totalOperatorNetworkSharesIn(network, duration) == 0) {
-            return 0;
-        }
-        return Math.min(IVault(vault).totalSupplyIn(duration), networkLimitIn(network, duration));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStake(address network) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        if (totalOperatorNetworkShares(network) == 0) {
-            return 0;
-        }
-        return Math.min(IVault(vault).totalSupply(), networkLimit(network));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        uint256 totalOperatorNetworkSharesIn_ = totalOperatorNetworkSharesIn(network, duration);
-        if (totalOperatorNetworkSharesIn_ == 0) {
-            return 0;
-        }
-        return operatorNetworkSharesIn(network, operator, duration).mulDiv(
-            networkStakeIn(network, duration), totalOperatorNetworkSharesIn_
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStake(
-        address network,
-        address operator
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
-        if (totalOperatorNetworkShares_ == 0) {
-            return 0;
-        }
-        return operatorNetworkShares(network, operator).mulDiv(networkStake(network), totalOperatorNetworkShares_);
+        return _operatorNetworkShares[network][operator].latest();
     }
 
     /**
@@ -156,11 +104,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
-        uint48 timestamp = amount > networkLimit(network)
-            ? Time.timestamp()
-            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
-
-        _insertCheckpoint(_networkLimit[network], timestamp, amount);
+        _setNetworkLimit(network, amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -173,56 +117,46 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint256 shares
     ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
-        uint48 timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
-
-        _totalOperatorNetworkShares[network].push(
-            timestamp,
-            _totalOperatorNetworkShares[network].latest() - _operatorNetworkShares[network][operator].latest() + shares
-        );
-
-        _operatorNetworkShares[network][operator].push(timestamp, shares);
+        _setOperatorNetworkShares(network, operator, shares);
 
         emit SetOperatorNetworkShares(network, operator, shares);
     }
 
-    function _setMaxNetworkLimit(uint256 amount) internal override {
-        Checkpoints.Trace256 storage _networkLimit_ = _networkLimit[msg.sender];
-        (, uint48 latestTimestamp1, uint256 latestValue1) = _networkLimit_.latestCheckpoint();
-        if (Time.timestamp() < latestTimestamp1) {
-            _networkLimit_.pop();
-            (, uint48 latestTimestamp2, uint256 latestValue2) = _networkLimit_.latestCheckpoint();
-            if (Time.timestamp() < latestTimestamp2) {
-                _networkLimit_.pop();
-                _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), amount));
-                _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, amount));
-            } else {
-                _networkLimit_.push(Time.timestamp(), Math.min(latestValue2, amount));
-            }
-            _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, amount));
-        } else {
-            _networkLimit_.push(Time.timestamp(), Math.min(latestValue1, amount));
-        }
+    function _setNetworkLimit(address network, uint256 amount) internal {
+        _networkLimit[network].push(Time.timestamp(), amount);
     }
 
-    function _onSlash(address network, address operator, uint256 slashedAmount) internal override {
-        uint256 networkLimit_ = networkLimit(network);
-        uint256 operatorNetworkShares_ = operatorNetworkShares(network, operator);
-        uint256 operatorSlashedShares =
-            slashedAmount.mulDiv(operatorNetworkShares_, operatorNetworkStake(network, operator), Math.Rounding.Ceil);
+    function _setOperatorNetworkShares(address network, address operator, uint256 shares) internal {
+        _totalOperatorNetworkShares[network].push(
+            Time.timestamp(), totalOperatorNetworkShares(network) - operatorNetworkShares(network, operator) + shares
+        );
+        _operatorNetworkShares[network][operator].push(Time.timestamp(), shares);
+    }
 
-        if (networkLimit_ != type(uint256).max) {
-            _insertCheckpoint(_networkLimit[network], Time.timestamp(), networkLimit_ - slashedAmount);
+    function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {
+        uint256 totalOperatorNetworkSharesAt_ = totalOperatorNetworkSharesAt(network, timestamp);
+        return totalOperatorNetworkSharesAt_ == 0
+            ? 0
+            : operatorNetworkSharesAt(network, operator, timestamp).mulDiv(
+                Math.min(IVault(vault).activeSupplyAt(timestamp), networkLimitAt(network, timestamp)),
+                totalOperatorNetworkSharesAt_
+            );
+    }
+
+    function _stake(address network, address operator) internal view override returns (uint256) {
+        uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(network);
+        return totalOperatorNetworkShares_ == 0
+            ? 0
+            : operatorNetworkShares(network, operator).mulDiv(
+                Math.min(IVault(vault).activeSupply(), networkLimit(network)), totalOperatorNetworkShares_
+            );
+    }
+
+    function _setMaxNetworkLimit(uint256 amount) internal override {
+        (bool exists,, uint256 latestValue) = _networkLimit[msg.sender].latestCheckpoint();
+        if (exists) {
+            _networkLimit[msg.sender].push(Time.timestamp(), Math.min(latestValue, amount));
         }
-
-        _insertCheckpoint(
-            _totalOperatorNetworkShares[network],
-            Time.timestamp(),
-            totalOperatorNetworkShares(network) - operatorSlashedShares
-        );
-
-        _insertCheckpoint(
-            _operatorNetworkShares[network][operator], Time.timestamp(), operatorNetworkShares_ - operatorSlashedShares
-        );
     }
 
     function _initializeInternal(
@@ -233,19 +167,33 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
 
         if (
             params.baseParams.defaultAdminRoleHolder == address(0)
-                && (
-                    params.networkLimitSetRoleHolder == address(0)
-                        || params.operatorNetworkSharesSetRoleHolder == address(0)
-                )
+                && (params.networkLimitSetRoleHolders.length == 0 || params.operatorNetworkSharesSetRoleHolders.length == 0)
         ) {
             revert MissingRoleHolders();
         }
 
-        if (params.networkLimitSetRoleHolder != address(0)) {
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        for (uint256 i; i < params.networkLimitSetRoleHolders.length; ++i) {
+            if (params.networkLimitSetRoleHolders[i] == address(0)) {
+                revert ZeroAddressRoleHolder();
+            }
+
+            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+                revert DuplicateRoleHolder();
+            }
+
+            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
-        if (params.operatorNetworkSharesSetRoleHolder != address(0)) {
-            _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolder);
+
+        for (uint256 i; i < params.operatorNetworkSharesSetRoleHolders.length; ++i) {
+            if (params.operatorNetworkSharesSetRoleHolders[i] == address(0)) {
+                revert ZeroAddressRoleHolder();
+            }
+
+            if (hasRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i])) {
+                revert DuplicateRoleHolder();
+            }
+
+            _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i]);
         }
 
         return params.baseParams;

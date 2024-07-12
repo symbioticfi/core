@@ -21,22 +21,22 @@ contract Factory is Registry, Ownable, IFactory {
     /**
      * @inheritdoc IFactory
      */
-    function totalImplementations() public view returns (uint64) {
+    function totalTypes() public view returns (uint64) {
         return uint64(_whitelistedImplementations.length());
     }
 
     /**
      * @inheritdoc IFactory
      */
-    function implementation(uint64 index) public view returns (address) {
-        return _whitelistedImplementations.at(index);
+    function implementation(uint64 type_) public view returns (address) {
+        return _whitelistedImplementations.at(type_);
     }
 
     /**
      * @inheritdoc IFactory
      */
     function whitelist(address implementation_) external onlyOwner {
-        if (IEntity(implementation_).FACTORY() != address(this)) {
+        if (IEntity(implementation_).FACTORY() != address(this) || IEntity(implementation_).TYPE() != totalTypes()) {
             revert InvalidImplementation();
         }
         if (!_whitelistedImplementations.add(implementation_)) {
@@ -47,8 +47,8 @@ contract Factory is Registry, Ownable, IFactory {
     /**
      * @inheritdoc IFactory
      */
-    function create(uint64 index, bool withInitialize, bytes memory data) external returns (address entity_) {
-        entity_ = implementation(index).cloneDeterministic(keccak256(abi.encode(totalEntities(), index, data)));
+    function create(uint64 type_, bool withInitialize, bytes memory data) external returns (address entity_) {
+        entity_ = implementation(type_).cloneDeterministic(keccak256(abi.encode(totalEntities(), type_, data)));
 
         _addEntity(entity_);
 

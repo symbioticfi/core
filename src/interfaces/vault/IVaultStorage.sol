@@ -6,30 +6,6 @@ interface IVaultStorage {
     error NoPreviousEpoch();
 
     /**
-     * @notice Structure for a module.
-     * @param address_ address of the module
-     */
-    struct Module {
-        address address_;
-    }
-
-    /**
-     * @notice Structure for a module that will be set in the future (if a new address won't be set).
-     * @param address_ address of the module
-     * @param timestamp timestamp when the module will be set
-     */
-    struct DelayedModule {
-        address address_;
-        uint48 timestamp;
-    }
-
-    /**
-     * @notice Get a slasher setter's role.
-     * @return identifier of the slasher setter role
-     */
-    function SLASHER_SET_ROLE() external view returns (bytes32);
-
-    /**
      * @notice Get a deposit whitelist enabler/disabler's role.
      * @return identifier of the whitelist enabler/disabler role
      */
@@ -72,6 +48,12 @@ interface IVaultStorage {
     function delegator() external view returns (address);
 
     /**
+     * @notice Get a slasher (it provides networks a slashing mechanism).
+     * @return address of the slasher
+     */
+    function slasher() external view returns (address);
+
+    /**
      * @notice Get a time point of the epoch duration set.
      * @return time point of the epoch duration set
      */
@@ -111,10 +93,10 @@ interface IVaultStorage {
     function previousEpochStart() external view returns (uint48);
 
     /**
-     * @notice Get a delay for a vault in epochs to update a slasher.
-     * @return updating a slasher delay in epochs
+     * @notice Get a start of the next vault epoch.
+     * @return start of the next epoch
      */
-    function slasherSetEpochsDelay() external view returns (uint256);
+    function nextEpochStart() external view returns (uint48);
 
     /**
      * @notice Get if the deposit whitelist is enabled.

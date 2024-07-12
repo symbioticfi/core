@@ -7,11 +7,11 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
+import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
@@ -22,6 +22,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
      * @inheritdoc IBaseDelegator
      */
     uint64 public constant VERSION = 1;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    bytes32 public constant HOOK_SET_ROLE = keccak256("HOOK_SET_ROLE");
 
     /**
      * @inheritdoc IBaseDelegator
@@ -51,6 +56,11 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
+    address public hook;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
     mapping(address network => uint256 value) public maxNetworkLimit;
 
     constructor(
@@ -58,8 +68,9 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         address vaultFactory,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
-        address delegatorFactory
-    ) Entity(delegatorFactory) {
+        address delegatorFactory,
+        uint64 entityType
+    ) Entity(delegatorFactory, entityType) {
         NETWORK_REGISTRY = networkRegistry;
         VAULT_FACTORY = vaultFactory;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
@@ -69,35 +80,21 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function networkStakeIn(address network, uint48 duration) public view virtual returns (uint256) {}
+    function stakeAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
+        if (
+            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault, timestamp)
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(operator, network, timestamp)
+        ) {
+            return 0;
+        }
+
+        return _stakeAt(network, operator, timestamp);
+    }
 
     /**
      * @inheritdoc IBaseDelegator
      */
-    function networkStake(address network) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStake(address network, address operator) public view virtual returns (uint256) {}
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function minOperatorNetworkStakeDuring(
-        address network,
-        address operator,
-        uint48 duration
-    ) external view returns (uint256 minOperatorNetworkStakeDuring_) {
+    function stake(address network, address operator) external view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, network)
@@ -105,20 +102,7 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
             return 0;
         }
 
-        minOperatorNetworkStakeDuring_ = Math.min(IVault(vault).activeSupply(), operatorNetworkStake(network, operator));
-
-        uint48 epochDuration = IVault(vault).epochDuration();
-        uint48 nextEpochStart = IVault(vault).currentEpochStart() + epochDuration;
-        uint48 delta = nextEpochStart - Time.timestamp();
-        if (Time.timestamp() + duration >= nextEpochStart) {
-            minOperatorNetworkStakeDuring_ =
-                Math.min(minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta));
-        }
-        if (Time.timestamp() + duration >= nextEpochStart + epochDuration) {
-            minOperatorNetworkStakeDuring_ = Math.min(
-                minOperatorNetworkStakeDuring_, operatorNetworkStakeIn(network, operator, delta + epochDuration)
-            );
-        }
+        return _stake(network, operator);
     }
 
     /**
@@ -139,45 +123,44 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         emit SetMaxNetworkLimit(msg.sender, amount);
     }
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+
+    function setHook(address hook_) external onlyRole(HOOK_SET_ROLE) {
+        hook = hook_;
+
+        emit SetHook(hook_);
+    }
 
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(address network, address operator, uint256 slashedAmount) external {
+    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
 
-        if (slashedAmount > operatorNetworkStake(network, operator)) {
+        if (slashedAmount > stakeAt(network, operator, captureTimestamp)) {
             revert TooMuchSlash();
         }
 
-        _onSlash(network, operator, slashedAmount);
+        if (hook != address(0)) {
+            hook.call{gas: 300_000}(
+                abi.encodeWithSelector(
+                    IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
+                )
+            );
+        }
 
         emit OnSlash(network, operator, slashedAmount);
     }
 
+    function _stakeAt(address network, address operator, uint48 timestamp) internal view virtual returns (uint256) {}
+
+    function _stake(address network, address operator) internal view virtual returns (uint256) {}
+
     function _setMaxNetworkLimit(uint256 amount) internal virtual {}
-
-    function _onSlash(address network, address operator, uint256 slashedAmount) internal virtual {}
-
-    function _insertCheckpoint(Checkpoints.Trace256 storage checkpoints, uint48 key, uint256 value) internal {
-        (, uint48 latestTimestamp1, uint256 latestValue1) = checkpoints.latestCheckpoint();
-        if (key < latestTimestamp1) {
-            checkpoints.pop();
-            (, uint48 latestTimestamp2, uint256 latestValue2) = checkpoints.latestCheckpoint();
-            if (key < latestTimestamp2) {
-                checkpoints.pop();
-                checkpoints.push(key, value);
-                checkpoints.push(latestTimestamp2, latestValue2);
-            } else {
-                checkpoints.push(key, value);
-            }
-            checkpoints.push(latestTimestamp1, latestValue1);
-        } else {
-            checkpoints.push(key, value);
-        }
-    }
 
     function _initializeInternal(
         address vault_,
@@ -197,6 +180,14 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         if (baseParams.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
+        }
+
+        if (baseParams.hook != address(0)) {
+            hook = baseParams.hook;
+        } else {
+            if (baseParams.hookSetRoleHolder != address(0)) {
+                _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
+            }
         }
     }
 }

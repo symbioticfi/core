@@ -6,7 +6,6 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -43,11 +42,6 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    uint48 public executeDuration;
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
     uint256 public resolverSetEpochsDelay;
 
     /**
@@ -64,7 +58,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
         address networkRegistry,
-        address slasherFactory
+        address slasherFactory,
+        uint64 entityType
     )
         BaseSlasher(
             vaultFactory,
@@ -72,7 +67,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             networkVaultOptInService,
             operatorVaultOptInService,
             operatorNetworkOptInService,
-            slasherFactory
+            slasherFactory,
+            entityType
         )
     {
         NETWORK_REGISTRY = networkRegistry;
@@ -105,14 +101,25 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     function requestSlash(
         address network,
         address operator,
-        uint256 amount
+        uint256 amount,
+        uint48 captureTimestamp
     ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
+        address vault_ = vault;
+        if (
+            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault_).epochDuration()
+                || captureTimestamp >= Time.timestamp()
+        ) {
+            revert InvalidCaptureTimestamp();
+        }
+
+        _checkOptIns(network, operator, captureTimestamp);
+
+        amount = Math.min(amount, slashableStake(network, operator, captureTimestamp));
         if (amount == 0) {
             revert InsufficientSlash();
         }
 
         uint48 vetoDeadline = Time.timestamp() + vetoDuration;
-        uint48 executeDeadline = vetoDeadline + executeDuration;
 
         slashIndex = slashRequests.length;
         slashRequests.push(
@@ -120,14 +127,14 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
                 network: network,
                 operator: operator,
                 amount: amount,
+                captureTimestamp: captureTimestamp,
                 vetoDeadline: vetoDeadline,
-                executeDeadline: executeDeadline,
                 vetoedShares: 0,
                 completed: false
             })
         );
 
-        emit RequestSlash(slashIndex, network, operator, amount, vetoDeadline, executeDeadline);
+        emit RequestSlash(slashIndex, network, operator, amount, captureTimestamp, vetoDeadline);
     }
 
     /**
@@ -144,7 +151,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert VetoPeriodNotEnded();
         }
 
-        if (request.executeDeadline <= Time.timestamp()) {
+        address vault_ = vault;
+        if (Time.timestamp() - request.captureTimestamp > IVault(vault_).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
@@ -152,19 +160,16 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert SlashRequestCompleted();
         }
 
-        _checkOptIns(request.network, request.operator);
-
         request.completed = true;
 
-        slashedAmount = Math.min(
-            request.amount,
-            IBaseDelegator(IVault(vault).delegator()).operatorNetworkStake(request.network, request.operator)
-        );
+        slashedAmount =
+            Math.min(request.amount, slashableStake(request.network, request.operator, request.captureTimestamp));
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
         if (slashedAmount > 0) {
-            _callOnSlash(request.network, request.operator, slashedAmount);
+            _updateCumulativeSlash(request.network, request.operator, slashedAmount);
+            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -237,13 +242,12 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     function _initializeInternal(address vault_, bytes memory data) internal override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
-        if (params.executeDuration == 0) {
-            revert InvalidExecuteDuration();
-        }
-
         uint48 epochDuration = IVault(vault_).epochDuration();
-        if (epochDuration > 0 && params.vetoDuration + params.executeDuration > epochDuration) {
-            revert InvalidSlashDuration();
+        if (epochDuration == 0) {
+            revert VaultNotInitialized();
+        }
+        if (params.vetoDuration >= epochDuration) {
+            revert InvalidVetoDuration();
         }
 
         if (params.resolverSetEpochsDelay < 3) {
@@ -251,7 +255,6 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         }
 
         vetoDuration = params.vetoDuration;
-        executeDuration = params.executeDuration;
 
         resolverSetEpochsDelay = params.resolverSetEpochsDelay;
     }

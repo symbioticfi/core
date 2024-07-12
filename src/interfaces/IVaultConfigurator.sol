@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 import {IVault} from "src/interfaces/vault/IVault.sol";
 
 interface IVaultConfigurator {
+    error DirtyInitParams();
+
     /**
      * @notice Initial parameters needed for a vault with a delegator and a slashher deployment.
      * @param version entity's version to use

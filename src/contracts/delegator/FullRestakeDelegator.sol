@@ -37,104 +37,63 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address vaultFactory,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
-        address delegatorFactory
+        address delegatorFactory,
+        uint64 entityType
     )
         BaseDelegator(
             networkRegistry,
             vaultFactory,
             operatorVaultOptInService,
             operatorNetworkOptInService,
-            delegatorFactory
+            delegatorFactory,
+            entityType
         )
     {}
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function networkLimitIn(address network, uint48 duration) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(Time.timestamp() + duration);
+    function networkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
+        return _networkLimit[network].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
     function networkLimit(address network) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(Time.timestamp());
+        return _networkLimit[network].latest();
     }
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function totalOperatorNetworkLimitIn(address network, uint48 duration) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecent(Time.timestamp() + duration);
+    function totalOperatorNetworkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
+        return _totalOperatorNetworkLimit[network].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
     function totalOperatorNetworkLimit(address network) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecent(Time.timestamp());
+        return _totalOperatorNetworkLimit[network].latest();
     }
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function operatorNetworkLimitIn(address network, address operator, uint48 duration) public view returns (uint256) {
-        return _operatorNetworkLimit[network][operator].upperLookupRecent(Time.timestamp() + duration);
+    function operatorNetworkLimitAt(
+        address network,
+        address operator,
+        uint48 timestamp
+    ) public view returns (uint256) {
+        return _operatorNetworkLimit[network][operator].upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
     function operatorNetworkLimit(address network, address operator) public view returns (uint256) {
-        return _operatorNetworkLimit[network][operator].upperLookupRecent(Time.timestamp());
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStakeIn(
-        address network,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            Math.min(networkLimitIn(network, duration), totalOperatorNetworkLimitIn(network, duration))
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function networkStake(address network) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return
-            Math.min(IVault(vault).totalSupply(), Math.min(networkLimit(network), totalOperatorNetworkLimit(network)));
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStakeIn(
-        address network,
-        address operator,
-        uint48 duration
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupplyIn(duration),
-            Math.min(networkLimitIn(network, duration), operatorNetworkLimitIn(network, operator, duration))
-        );
-    }
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    function operatorNetworkStake(
-        address network,
-        address operator
-    ) public view override(IBaseDelegator, BaseDelegator) returns (uint256) {
-        return Math.min(
-            IVault(vault).totalSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
-        );
+        return _operatorNetworkLimit[network][operator].latest();
     }
 
     /**
@@ -145,11 +104,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
-        uint48 timestamp = amount > networkLimit(network)
-            ? Time.timestamp()
-            : IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
-
-        _insertCheckpoint(_networkLimit[network], timestamp, amount);
+        _setNetworkLimit(network, amount);
 
         emit SetNetworkLimit(network, amount);
     }
@@ -162,59 +117,40 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address operator,
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
-        uint48 timestamp;
-        uint256 totalOperatorNetworkLimit_;
-        if (amount > operatorNetworkLimit(network, operator)) {
-            timestamp = Time.timestamp();
-            totalOperatorNetworkLimit_ =
-                totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount;
-        } else {
-            timestamp = IVault(vault).currentEpochStart() + 2 * IVault(vault).epochDuration();
-            totalOperatorNetworkLimit_ = _totalOperatorNetworkLimit[network].latest()
-                - _operatorNetworkLimit[network][operator].latest() + amount;
-        }
-
-        _insertCheckpoint(_totalOperatorNetworkLimit[network], timestamp, totalOperatorNetworkLimit_);
-
-        _insertCheckpoint(_operatorNetworkLimit[network][operator], timestamp, amount);
+        _setOperatorNetworkLimit(network, operator, amount);
 
         emit SetOperatorNetworkLimit(network, operator, amount);
     }
 
-    function _setMaxNetworkLimit(uint256 amount) internal override {
-        Checkpoints.Trace256 storage _networkLimit_ = _networkLimit[msg.sender];
-        (, uint48 latestTimestamp1, uint256 latestValue1) = _networkLimit_.latestCheckpoint();
-        if (Time.timestamp() < latestTimestamp1) {
-            _networkLimit_.pop();
-            (, uint48 latestTimestamp2, uint256 latestValue2) = _networkLimit_.latestCheckpoint();
-            if (Time.timestamp() < latestTimestamp2) {
-                _networkLimit_.pop();
-                _networkLimit_.push(Time.timestamp(), Math.min(_networkLimit_.latest(), amount));
-                _networkLimit_.push(latestTimestamp2, Math.min(latestValue2, amount));
-            } else {
-                _networkLimit_.push(Time.timestamp(), Math.min(latestValue2, amount));
-            }
-            _networkLimit_.push(latestTimestamp1, Math.min(latestValue1, amount));
-        } else {
-            _networkLimit_.push(Time.timestamp(), Math.min(latestValue1, amount));
-        }
+    function _setNetworkLimit(address network, uint256 amount) internal {
+        _networkLimit[network].push(Time.timestamp(), amount);
     }
 
-    function _onSlash(address network, address operator, uint256 slashedAmount) internal override {
-        uint256 networkLimit_ = networkLimit(network);
-        if (networkLimit_ != type(uint256).max) {
-            _insertCheckpoint(_networkLimit[network], Time.timestamp(), networkLimit_ - slashedAmount);
+    function _setOperatorNetworkLimit(address network, address operator, uint256 amount) internal {
+        _totalOperatorNetworkLimit[network].push(
+            Time.timestamp(), totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount
+        );
+        _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
+    }
+
+    function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {
+        return Math.min(
+            IVault(vault).activeSupplyAt(timestamp),
+            Math.min(networkLimitAt(network, timestamp), operatorNetworkLimitAt(network, operator, timestamp))
+        );
+    }
+
+    function _stake(address network, address operator) internal view override returns (uint256) {
+        return Math.min(
+            IVault(vault).activeSupply(), Math.min(networkLimit(network), operatorNetworkLimit(network, operator))
+        );
+    }
+
+    function _setMaxNetworkLimit(uint256 amount) internal override {
+        (bool exists,, uint256 latestValue) = _networkLimit[msg.sender].latestCheckpoint();
+        if (exists) {
+            _networkLimit[msg.sender].push(Time.timestamp(), Math.min(latestValue, amount));
         }
-
-        _insertCheckpoint(
-            _totalOperatorNetworkLimit[network], Time.timestamp(), totalOperatorNetworkLimit(network) - slashedAmount
-        );
-
-        _insertCheckpoint(
-            _operatorNetworkLimit[network][operator],
-            Time.timestamp(),
-            operatorNetworkLimit(network, operator) - slashedAmount
-        );
     }
 
     function _initializeInternal(
@@ -225,18 +161,33 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
 
         if (
             params.baseParams.defaultAdminRoleHolder == address(0)
-                && (
-                    params.networkLimitSetRoleHolder == address(0) || params.operatorNetworkLimitSetRoleHolder == address(0)
-                )
+                && (params.networkLimitSetRoleHolders.length == 0 || params.operatorNetworkLimitSetRoleHolders.length == 0)
         ) {
             revert MissingRoleHolders();
         }
 
-        if (params.networkLimitSetRoleHolder != address(0)) {
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolder);
+        for (uint256 i; i < params.networkLimitSetRoleHolders.length; ++i) {
+            if (params.networkLimitSetRoleHolders[i] == address(0)) {
+                revert ZeroAddressRoleHolder();
+            }
+
+            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+                revert DuplicateRoleHolder();
+            }
+
+            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
-        if (params.operatorNetworkLimitSetRoleHolder != address(0)) {
-            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolder);
+
+        for (uint256 i; i < params.operatorNetworkLimitSetRoleHolders.length; ++i) {
+            if (params.operatorNetworkLimitSetRoleHolders[i] == address(0)) {
+                revert ZeroAddressRoleHolder();
+            }
+
+            if (hasRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i])) {
+                revert DuplicateRoleHolder();
+            }
+
+            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i]);
         }
 
         return params.baseParams;

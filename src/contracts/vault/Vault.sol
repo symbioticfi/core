@@ -26,23 +26,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function slasherIn(uint48 duration) public view returns (address) {
-        if (_nextSlasher.timestamp == 0 || Time.timestamp() + duration < _nextSlasher.timestamp) {
-            return _slasher.address_;
-        }
-        return _nextSlasher.address_;
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function slasher() public view returns (address) {
-        return slasherIn(0);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
     function totalSupplyIn(uint48 duration) public view returns (uint256) {
         uint256 epoch = currentEpoch();
         uint256 futureEpoch = epochAt(Time.timestamp() + duration);
@@ -196,59 +179,54 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount) external {
-        if (msg.sender != slasher()) {
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external {
+        if (msg.sender != slasher) {
             revert NotSlasher();
+        }
+
+        uint256 currentEpoch_ = currentEpoch();
+        uint256 captureEpoch = epochAt(captureTimestamp);
+        if ((currentEpoch_ != 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
+            revert InvalidCaptureEpoch();
+        }
+
+        uint256 activeSupply_ = activeSupply();
+        uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
+        if (captureEpoch == currentEpoch_) {
+            uint256 slashableSupply = activeSupply_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            if (slashedAmount > 0) {
+                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
+                uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
+
+                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                withdrawals[captureEpoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
+            }
+        } else {
+            uint256 withdrawals_ = withdrawals[currentEpoch_];
+            uint256 slashableSupply = activeSupply_ + withdrawals_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            if (slashedAmount > 0) {
+                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
+                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableSupply);
+                uint256 withdrawalsSlashed = slashedAmount - activeSlashed - nextWithdrawalsSlashed;
+
+                if (withdrawals_ < withdrawalsSlashed) {
+                    nextWithdrawalsSlashed += withdrawalsSlashed - withdrawals_;
+                    withdrawalsSlashed = withdrawals_;
+                }
+
+                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                withdrawals[currentEpoch_ + 1] = nextWithdrawals - nextWithdrawalsSlashed;
+                withdrawals[currentEpoch_] = withdrawals_ - withdrawalsSlashed;
+            }
         }
 
         if (slashedAmount > 0) {
-            uint256 totalSupply_ = totalSupply();
-            if (slashedAmount > totalSupply_) {
-                revert TooMuchSlash();
-            }
-
-            uint256 epoch = currentEpoch();
-            uint256 activeSupply_ = activeSupply();
-            uint256 withdrawals_ = withdrawals[epoch];
-            uint256 nextWithdrawals = withdrawals[epoch + 1];
-
-            uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, totalSupply_);
-            uint256 withdrawalsSlashed = slashedAmount.mulDiv(withdrawals_, totalSupply_);
-            uint256 activeSlashed = slashedAmount - nextWithdrawalsSlashed - withdrawalsSlashed;
-
-            if (activeSupply_ < activeSlashed) {
-                withdrawalsSlashed += activeSlashed - activeSupply_;
-                activeSlashed = activeSupply_;
-            }
-
-            _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
-            withdrawals[epoch] = withdrawals_ - withdrawalsSlashed;
-            withdrawals[epoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-
-            ICollateral(collateral).issueDebt(burner, slashedAmount);
+            IERC20(collateral).safeTransfer(burner, slashedAmount);
         }
 
         emit OnSlash(msg.sender, slashedAmount);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function setSlasher(address slasher_) external onlyRole(SLASHER_SET_ROLE) {
-        if (slasher_ != address(0) && !IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
-            revert NotSlasher();
-        }
-
-        if (_nextSlasher.timestamp > 0 && _nextSlasher.timestamp <= Time.timestamp()) {
-            _slasher.address_ = _nextSlasher.address_;
-            _nextSlasher.timestamp = 0;
-            _nextSlasher.address_ = address(0);
-        }
-
-        _nextSlasher.address_ = slasher_;
-        _nextSlasher.timestamp = (currentEpochStart() + slasherSetEpochsDelay * epochDuration).toUint48();
-
-        emit SetSlasher(slasher_);
     }
 
     /**
@@ -292,10 +270,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidCollateral();
         }
 
-        if (params.slasherSetEpochsDelay < 3) {
-            revert InvalidSlasherSetEpochsDelay();
-        }
-
         if (params.epochDuration == 0) {
             revert InvalidEpochDuration();
         }
@@ -312,23 +286,15 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         delegator = params.delegator;
 
+        slasher = params.slasher;
+
         burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
-        slasherSetEpochsDelay = params.slasherSetEpochsDelay;
-
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-
-        if (params.slasher == address(0)) {
-            if (params.slasherSetRoleHolder != address(0)) {
-                _grantRole(SLASHER_SET_ROLE, params.slasherSetRoleHolder);
-            }
-        } else {
-            _slasher.address_ = params.slasher;
         }
 
         if (params.depositWhitelist) {

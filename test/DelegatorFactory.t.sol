@@ -76,7 +76,8 @@ contract DelegatorFactoryTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
@@ -87,7 +88,8 @@ contract DelegatorFactoryTest is Test {
                 address(vaultFactory),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(delegatorFactory)
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
@@ -99,7 +101,8 @@ contract DelegatorFactoryTest is Test {
                 address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(slasherImpl);
@@ -112,7 +115,8 @@ contract DelegatorFactoryTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
-                address(slasherFactory)
+                address(slasherFactory),
+                slasherFactory.totalTypes()
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);
@@ -127,6 +131,10 @@ contract DelegatorFactoryTest is Test {
     }
 
     function test_Create() public {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -137,18 +145,20 @@ contract DelegatorFactoryTest is Test {
                     slasher: address(0),
                     burner: address(0xdEaD),
                     epochDuration: 1,
-                    slasherSetEpochsDelay: 3,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
-                    slasherSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: alice}),
-                        networkLimitSetRoleHolder: alice,
-                        operatorNetworkSharesSetRoleHolder: alice
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: false,
@@ -157,6 +167,8 @@ contract DelegatorFactoryTest is Test {
             })
         );
 
+        networkLimitSetRoleHolders[0] = bob;
+        operatorNetworkSharesSetRoleHolders[0] = bob;
         address networkRestakeDelegator = delegatorFactory.create(
             0,
             true,
@@ -164,9 +176,13 @@ contract DelegatorFactoryTest is Test {
                 vault_,
                 abi.encode(
                     INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
-                        networkLimitSetRoleHolder: bob,
-                        operatorNetworkSharesSetRoleHolder: bob
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: bob,
+                            hook: address(0),
+                            hookSetRoleHolder: bob
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                     })
                 )
             )
@@ -174,6 +190,9 @@ contract DelegatorFactoryTest is Test {
         assertEq(NetworkRestakeDelegator(networkRestakeDelegator).FACTORY(), address(delegatorFactory));
         assertEq(delegatorFactory.isEntity(networkRestakeDelegator), true);
 
+        networkLimitSetRoleHolders[0] = bob;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = bob;
         address fullRestakeDelegator = delegatorFactory.create(
             1,
             true,
@@ -181,9 +200,13 @@ contract DelegatorFactoryTest is Test {
                 vault_,
                 abi.encode(
                     IFullRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: bob}),
-                        networkLimitSetRoleHolder: bob,
-                        operatorNetworkLimitSetRoleHolder: bob
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: bob,
+                            hook: address(0),
+                            hookSetRoleHolder: bob
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
                     })
                 )
             )
