@@ -145,6 +145,21 @@ interface IVetoSlasher {
     function resolverSetEpochsDelay() external view returns (uint256);
 
     /**
+     * @notice Get a resolver's shares at a particular timestamp using a hint.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param timestamp timestamp to get the shares at
+     * @param hint hint for the checkpoint index
+     * @return amount of the resolver's shares
+     */
+    function resolverSharesAt(
+        address network,
+        address resolver,
+        uint48 timestamp,
+        uint32 hint
+    ) external view returns (uint256);
+
+    /**
      * @notice Get a resolver's shares at a particular timestamp.
      * @param network address of the network
      * @param resolver address of the resolver
@@ -152,6 +167,22 @@ interface IVetoSlasher {
      * @return amount of the resolver's shares
      */
     function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a resolver's shares checkpoint at a particular timestamp.
+     * @param network address of the network
+     * @param resolver address of the resolver
+     * @param timestamp timestamp to get the shares checkpoint at
+     * @return if the checkpoint exists
+     * @return timestamp of the checkpoint
+     * @return amount of the resolver's shares
+     * @return index of the checkpoint
+     */
+    function resolverSharesCheckpointAt(
+        address network,
+        address resolver,
+        uint48 timestamp
+    ) external view returns (bool, uint48, uint256, uint32);
 
     /**
      * @notice Get a resolver's shares.

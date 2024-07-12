@@ -46,6 +46,12 @@ interface IVault is IVaultStorage {
         address depositorWhitelistRoleHolder;
     }
 
+    struct ActiveBalanceHints {
+        uint32 activeSharesOfHint;
+        uint32 activeSupplyHint;
+        uint32 activeSharesHint;
+    }
+
     /**
      * @notice Emitted when a deposit is made.
      * @param depositor account that made the deposit
@@ -109,6 +115,19 @@ interface IVault is IVaultStorage {
      * @return total amount of the slashable collateral
      */
     function totalSupply() external view returns (uint256);
+
+    /**
+     * @notice Get an active balance for a particular account at a given timestamp using hints.
+     * @param account account to get the active balance for
+     * @param timestamp time point to get the active balance for the account at
+     * @param hints hints for checkpoints' indexes
+     * @return active balance for the account at the timestamp
+     */
+    function activeBalanceOfAt(
+        address account,
+        uint48 timestamp,
+        ActiveBalanceHints calldata hints
+    ) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account at a given timestamp.

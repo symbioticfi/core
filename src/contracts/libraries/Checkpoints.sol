@@ -57,13 +57,13 @@ library Checkpoints {
      * (index of the checkpoint with key lower or equal than the search key).
      */
     function upperLookupRecent(Trace208 storage self, uint48 key, uint32 hint) internal view returns (uint208) {
-        Checkpoint208 memory hintCheckpoint = at(self, hint);
-        if (hintCheckpoint._key == key) {
-            return hintCheckpoint._value;
+        Checkpoint208 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return checkpoint._value;
         }
 
-        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
-            return hintCheckpoint._value;
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return checkpoint._value;
         }
 
         return upperLookupRecent(self, key);
@@ -95,6 +95,23 @@ library Checkpoints {
 
         OZCheckpoints.Checkpoint208 memory checkpoint = _unsafeAccess(self._trace._checkpoints, pos - 1);
         return (true, checkpoint._key, checkpoint._value, uint32(pos - 1));
+    }
+
+    function upperLookupRecentCheckpoint(
+        Trace208 storage self,
+        uint48 key,
+        uint32 hint
+    ) internal view returns (bool, uint48, uint208, uint32) {
+        Checkpoint208 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return (true, checkpoint._key, checkpoint._value, hint);
+        }
+
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return (true, checkpoint._key, checkpoint._value, hint);
+        }
+
+        return upperLookupRecentCheckpoint(self, key);
     }
 
     /**
@@ -162,13 +179,13 @@ library Checkpoints {
      * (index of the checkpoint with key lower or equal than the search key).
      */
     function upperLookupRecent(Trace256 storage self, uint48 key, uint32 hint) internal view returns (uint256) {
-        Checkpoint256 memory hintCheckpoint = at(self, hint);
-        if (hintCheckpoint._key == key) {
-            return hintCheckpoint._value;
+        Checkpoint256 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return checkpoint._value;
         }
 
-        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
-            return hintCheckpoint._value;
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return checkpoint._value;
         }
 
         return upperLookupRecent(self, key);
@@ -200,6 +217,23 @@ library Checkpoints {
 
         OZCheckpoints.Checkpoint208 memory checkpoint = _unsafeAccess(self._trace._checkpoints, pos - 1);
         return (true, checkpoint._key, self._values[checkpoint._value], uint32(pos - 1));
+    }
+
+    function upperLookupRecentCheckpoint(
+        Trace256 storage self,
+        uint48 key,
+        uint32 hint
+    ) internal view returns (bool, uint48, uint256, uint32) {
+        Checkpoint256 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+        }
+
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+        }
+
+        return upperLookupRecentCheckpoint(self, key);
     }
 
     /**

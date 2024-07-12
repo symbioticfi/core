@@ -45,6 +45,21 @@ interface IBaseSlasher {
     function vault() external view returns (address);
 
     /**
+     * @notice Get a cumulative slash amount for an operator on a network until a given timestamp (inclusively) using a hint.
+     * @param network address of the network
+     * @param operator address of the operator
+     * @param timestamp time point to get the cumulative slash amount until (inclusively)
+     * @param hint hint for the checkpoint index
+     * @return cumulative slash amount until the given timestamp (inclusively)
+     */
+    function cumulativeSlashAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        uint32 hint
+    ) external view returns (uint256);
+
+    /**
      * @notice Get a cumulative slash amount for an operator on a network until a given timestamp (inclusively).
      * @param network address of the network
      * @param operator address of the operator
@@ -52,6 +67,22 @@ interface IBaseSlasher {
      * @return cumulative slash amount until the given timestamp (inclusively)
      */
     function cumulativeSlashAt(address network, address operator, uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a cumulative slash checkpoint for an operator on a network until a given timestamp (inclusively).
+     * @param network address of the network
+     * @param operator address of the operator
+     * @param timestamp time point to get the cumulative slash checkpoint until (inclusively)
+     * @return if the checkpoint exists
+     * @return timestamp of the checkpoint
+     * @return cumulative slash amount until the checkpoint
+     * @return index of the checkpoint
+     */
+    function cumulativeSlashCheckpointAt(
+        address network,
+        address operator,
+        uint48 timestamp
+    ) external view returns (bool, uint48, uint256, uint32);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a network.

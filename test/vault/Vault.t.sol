@@ -470,11 +470,35 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1 + shares2);
         assertEq(vault.activeShares(), shares1 + shares2);
+        uint256 gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), 1), shares1);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), 0), shares1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), 0), shares1 + shares2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), 1), shares1 + shares2);
+        assertGt(gasSpent, gasLeft - gasleft());
         assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), amount1);
         assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1 + amount2);
         assertEq(vault.activeSupply(), amount1 + amount2);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1 + shares2);
+        gasLeft = gasleft();
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1), 1), amount1);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1), 0), amount1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp), 0), amount1 + amount2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp), 1), amount1 + amount2);
+        assertGt(gasSpent, gasLeft - gasleft());
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), shares1);
+        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), shares1 + shares2);
         assertEq(vault.activeSharesOf(alice), shares1 + shares2);
         (checkpointExists, checkpointKey, checkpointValue, checkpointPos) =
             vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp - 1));
@@ -488,9 +512,9 @@ contract VaultTest is Test {
         assertEq(checkpointKey, blockTimestamp);
         assertEq(checkpointValue, shares1 + shares2);
         assertEq(checkpointPos, 1);
-        uint256 gasLeft = gasleft();
+        gasLeft = gasleft();
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), 1), shares1);
-        uint256 gasSpent = gasLeft - gasleft();
+        gasSpent = gasLeft - gasleft();
         gasLeft = gasleft();
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), 0), shares1);
         assertGt(gasSpent, gasLeft - gasleft());
@@ -503,6 +527,46 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 + amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp - 1),
+                IVault.ActiveBalanceHints({activeSharesOfHint: 1, activeSupplyHint: 1, activeSharesHint: 1})
+            ),
+            amount1
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp - 1),
+                IVault.ActiveBalanceHints({activeSharesOfHint: 0, activeSupplyHint: 0, activeSharesHint: 0})
+            ),
+            amount1
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp),
+                IVault.ActiveBalanceHints({activeSharesOfHint: 0, activeSupplyHint: 0, activeSharesHint: 0})
+            ),
+            amount1 + amount2
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp),
+                IVault.ActiveBalanceHints({activeSharesOfHint: 1, activeSupplyHint: 1, activeSharesHint: 1})
+            ),
+            amount1 + amount2
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
     }
 
     function test_DepositBoth(uint256 amount1, uint256 amount2) public {

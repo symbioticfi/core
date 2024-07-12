@@ -80,6 +80,32 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
+    function stakeAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) public view returns (uint256) {
+        (uint256 stake_, StakeBaseHints memory baseHints) = _stakeAt(network, operator, timestamp, hints);
+
+        if (
+            stake_ == 0
+                || !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
+                    operator, vault, timestamp, baseHints.operatorVaultOptInHint
+                )
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
+                    operator, network, timestamp, baseHints.operatorNetworkOptInHint
+                )
+        ) {
+            return 0;
+        }
+
+        return stake_;
+    }
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
     function stakeAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault, timestamp)
@@ -155,6 +181,13 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
 
         emit OnSlash(network, operator, slashedAmount);
     }
+
+    function _stakeAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) internal view virtual returns (uint256, StakeBaseHints memory) {}
 
     function _stakeAt(address network, address operator, uint48 timestamp) internal view virtual returns (uint256) {}
 

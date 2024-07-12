@@ -148,8 +148,22 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    function activeSharesAt(uint48 timestamp, uint32 hint) public view returns (uint256) {
+        return _activeShares.upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     function activeSharesAt(uint48 timestamp) public view returns (uint256) {
         return _activeShares.upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSharesCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32) {
+        return _activeShares.upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -162,8 +176,22 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    function activeSupplyAt(uint48 timestamp, uint32 hint) public view returns (uint256) {
+        return _activeSupplies.upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     function activeSupplyAt(uint48 timestamp) public view returns (uint256) {
         return _activeSupplies.upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function activeSupplyCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32) {
+        return _activeSupplies.upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -176,7 +204,7 @@ contract VaultStorage is IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesOfAt(address account, uint48 timestamp, uint32 hint) external view returns (uint256) {
+    function activeSharesOfAt(address account, uint48 timestamp, uint32 hint) public view returns (uint256) {
         return _activeSharesOf[account].upperLookupRecent(timestamp, hint);
     }
 

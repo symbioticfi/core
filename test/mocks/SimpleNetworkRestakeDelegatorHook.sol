@@ -7,7 +7,7 @@ import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 contract SimpleNetworkRestakeDelegatorHook is IDelegatorHook {
     uint256 counter;
 
-    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external {
+    function onSlash(address network, address operator, uint256, uint48) external {
         ++counter;
         if (counter == 2) {
             INetworkRestakeDelegator(msg.sender).setOperatorNetworkShares(network, operator, 0);

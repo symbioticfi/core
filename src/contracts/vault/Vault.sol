@@ -52,6 +52,21 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
+    function activeBalanceOfAt(
+        address account,
+        uint48 timestamp,
+        ActiveBalanceHints calldata hints
+    ) public view returns (uint256) {
+        return ERC4626Math.previewRedeem(
+            activeSharesOfAt(account, timestamp, hints.activeSharesOfHint),
+            activeSupplyAt(timestamp, hints.activeSupplyHint),
+            activeSharesAt(timestamp, hints.activeSharesHint)
+        );
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function activeBalanceOfAt(address account, uint48 timestamp) public view returns (uint256) {
         return ERC4626Math.previewRedeem(
             activeSharesOfAt(account, timestamp), activeSupplyAt(timestamp), activeSharesAt(timestamp)

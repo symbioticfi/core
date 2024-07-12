@@ -402,6 +402,19 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.networkLimit(network), amount3);
 
+        uint256 gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1), 0), amount3);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1), 1), amount3);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp - 1), 1), amount2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp - 1), 0), amount2);
+        assertGt(gasSpent, gasLeft - gasleft());
+
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -489,6 +502,31 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp)), amount3);
         assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.totalOperatorNetworkLimit(network), amount3);
+
+        uint256 gasLeft = gasleft();
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1), 0), amount3);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1), 1), amount3);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1), 0), amount3);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1), 1), amount3);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp - 1), 1), amount2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp - 1), 0), amount2);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1), 1), amount2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1), 0), amount2);
+        assertGt(gasSpent, gasLeft - gasleft());
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -741,6 +779,35 @@ contract FullRestakeDelegatorTest is Test {
             Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2 - 1))
         );
         assertEq(delegator.stake(network, bob), Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit3)));
+
+        bytes memory hints = abi.encode(
+            IFullRestakeDelegator.StakeHints({
+                baseHints: IBaseDelegator.StakeBaseHints({operatorVaultOptInHint: 0, operatorNetworkOptInHint: 0}),
+                activeSupplyHint: 0,
+                networkLimitHint: 0,
+                operatorNetworkLimitHint: 0
+            })
+        );
+        uint256 gasLeft = gasleft();
+        assertEq(
+            delegator.stakeAt(network, bob, uint48(blockTimestamp), hints),
+            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit3))
+        );
+        uint256 gasSpent = gasLeft - gasleft();
+        hints = abi.encode(
+            IFullRestakeDelegator.StakeHints({
+                baseHints: IBaseDelegator.StakeBaseHints({operatorVaultOptInHint: 0, operatorNetworkOptInHint: 0}),
+                activeSupplyHint: 0,
+                networkLimitHint: 0,
+                operatorNetworkLimitHint: 1
+            })
+        );
+        gasLeft = gasleft();
+        assertEq(
+            delegator.stakeAt(network, bob, uint48(blockTimestamp), hints),
+            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit3))
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);

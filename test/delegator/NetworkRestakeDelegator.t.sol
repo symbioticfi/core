@@ -404,6 +404,19 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.networkLimit(network), amount3);
 
+        uint256 gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1), 0), amount3);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1), 1), amount3);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp - 1), 1), amount2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp - 1), 0), amount2);
+        assertGt(gasSpent, gasLeft - gasleft());
+
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -530,6 +543,41 @@ contract NetworkRestakeDelegatorTest is Test {
             amount3 + amount3
         );
         assertEq(delegator.totalOperatorNetworkShares(network), amount3 + amount3);
+
+        uint256 gasLeft = gasleft();
+        assertEq(delegator.operatorNetworkSharesAt(network, bob, uint48(blockTimestamp + 1), 0), amount3);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.operatorNetworkSharesAt(network, bob, uint48(blockTimestamp + 1), 1), amount3);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(delegator.totalOperatorNetworkSharesAt(network, uint48(blockTimestamp + 1), 0), amount3 + amount3);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(delegator.totalOperatorNetworkSharesAt(network, uint48(blockTimestamp + 1), 1), amount3 + amount3);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(
+            delegator.operatorNetworkSharesAt(network, bob, uint48(blockTimestamp - vault.epochDuration()), 1), amount2
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            delegator.operatorNetworkSharesAt(network, bob, uint48(blockTimestamp - vault.epochDuration()), 0), amount2
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(
+            delegator.totalOperatorNetworkSharesAt(network, uint48(blockTimestamp - vault.epochDuration()), 1),
+            amount1 + amount2
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            delegator.totalOperatorNetworkSharesAt(network, uint48(blockTimestamp - vault.epochDuration()), 0),
+            amount1 + amount2
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -824,6 +872,41 @@ contract NetworkRestakeDelegatorTest is Test {
                 Math.min(depositAmount - withdrawAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
             )
         );
+
+        bytes memory hints = abi.encode(
+            INetworkRestakeDelegator.StakeHints({
+                baseHints: IBaseDelegator.StakeBaseHints({operatorVaultOptInHint: 0, operatorNetworkOptInHint: 0}),
+                activeSupplyHint: 0,
+                networkLimitHint: 0,
+                operatorNetworkSharesHint: 0,
+                totalOperatorNetworkSharesHint: 0
+            })
+        );
+        uint256 gasLeft = gasleft();
+        assertEq(
+            delegator.stakeAt(network, bob, uint48(blockTimestamp), hints),
+            operatorNetworkShares3.mulDiv(
+                Math.min(depositAmount - withdrawAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
+            )
+        );
+        uint256 gasSpent = gasLeft - gasleft();
+        hints = abi.encode(
+            INetworkRestakeDelegator.StakeHints({
+                baseHints: IBaseDelegator.StakeBaseHints({operatorVaultOptInHint: 0, operatorNetworkOptInHint: 0}),
+                activeSupplyHint: 0,
+                networkLimitHint: 0,
+                operatorNetworkSharesHint: 1,
+                totalOperatorNetworkSharesHint: 1
+            })
+        );
+        gasLeft = gasleft();
+        assertEq(
+            delegator.stakeAt(network, bob, uint48(blockTimestamp), hints),
+            operatorNetworkShares3.mulDiv(
+                Math.min(depositAmount - withdrawAmount, networkLimit), operatorNetworkShares1 + operatorNetworkShares3
+            )
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
     }
 
     function test_Slash(

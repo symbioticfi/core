@@ -53,8 +53,25 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
+    function networkLimitAt(address network, uint48 timestamp, uint32 hint) public view returns (uint256) {
+        return _networkLimit[network].upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IFullRestakeDelegator
+     */
     function networkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
         return _networkLimit[network].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IFullRestakeDelegator
+     */
+    function networkLimitCheckpointAt(
+        address network,
+        uint48 timestamp
+    ) public view returns (bool, uint48, uint256, uint32) {
+        return _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -67,8 +84,29 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
+    function totalOperatorNetworkLimitAt(
+        address network,
+        uint48 timestamp,
+        uint32 hint
+    ) public view returns (uint256) {
+        return _totalOperatorNetworkLimit[network].upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IFullRestakeDelegator
+     */
     function totalOperatorNetworkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
         return _totalOperatorNetworkLimit[network].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IFullRestakeDelegator
+     */
+    function totalOperatorNetworkLimitCheckpointAt(
+        address network,
+        uint48 timestamp
+    ) public view returns (bool, uint48, uint256, uint32) {
+        return _totalOperatorNetworkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -84,9 +122,32 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     function operatorNetworkLimitAt(
         address network,
         address operator,
+        uint48 timestamp,
+        uint32 hint
+    ) public view returns (uint256) {
+        return _operatorNetworkLimit[network][operator].upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IFullRestakeDelegator
+     */
+    function operatorNetworkLimitAt(
+        address network,
+        address operator,
         uint48 timestamp
     ) public view returns (uint256) {
         return _operatorNetworkLimit[network][operator].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IFullRestakeDelegator
+     */
+    function operatorNetworkLimitCheckpointAt(
+        address network,
+        address operator,
+        uint48 timestamp
+    ) public view returns (bool, uint48, uint256, uint32) {
+        return _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -131,6 +192,25 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             Time.timestamp(), totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount
         );
         _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
+    }
+
+    function _stakeAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) internal view override returns (uint256, IBaseDelegator.StakeBaseHints memory) {
+        IFullRestakeDelegator.StakeHints memory hints_ = abi.decode(hints, (IFullRestakeDelegator.StakeHints));
+        return (
+            Math.min(
+                IVault(vault).activeSupplyAt(timestamp, hints_.activeSupplyHint),
+                Math.min(
+                    networkLimitAt(network, timestamp, hints_.networkLimitHint),
+                    operatorNetworkLimitAt(network, operator, timestamp, hints_.operatorNetworkLimitHint)
+                )
+            ),
+            hints_.baseHints
+        );
     }
 
     function _stakeAt(address network, address operator, uint48 timestamp) internal view override returns (uint256) {

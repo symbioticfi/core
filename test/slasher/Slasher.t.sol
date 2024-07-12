@@ -332,6 +332,10 @@ contract SlasherTest is Test {
             delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))
                 - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) - slashAmountReal3
         );
+        assertEq(
+            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), 1),
+            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2))) + slashAmountReal3
+        );
     }
 
     function test_SlashRevertNotNetworkMiddleware(

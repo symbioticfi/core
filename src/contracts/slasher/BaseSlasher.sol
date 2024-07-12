@@ -77,8 +77,31 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
     /**
      * @inheritdoc IBaseSlasher
      */
+    function cumulativeSlashAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        uint32 hint
+    ) public view returns (uint256) {
+        return _cumulativeSlash[network][operator].upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
     function cumulativeSlashAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
         return _cumulativeSlash[network][operator].upperLookupRecent(timestamp);
+    }
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    function cumulativeSlashCheckpointAt(
+        address network,
+        address operator,
+        uint48 timestamp
+    ) public view returns (bool, uint48, uint256, uint32) {
+        return _cumulativeSlash[network][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**

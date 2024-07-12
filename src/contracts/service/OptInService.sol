@@ -31,6 +31,13 @@ contract OptInService is IOptInService {
     /**
      * @inheritdoc IOptInService
      */
+    function isOptedInAt(address who, address where, uint48 timestamp, uint32 hint) external view returns (bool) {
+        return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
+    }
+
+    /**
+     * @inheritdoc IOptInService
+     */
     function isOptedInAt(address who, address where, uint48 timestamp) external view returns (bool) {
         return _isOptedIn[who][where].upperLookupRecent(timestamp) == 1;
     }
@@ -38,30 +45,21 @@ contract OptInService is IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function isOptedIn(address who, address where) public view returns (bool) {
-        return _isOptedIn[who][where].latest() == 1;
-    }
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    function wasOptedInAfterDuring(
+    function isOptedInCheckpointAt(
         address who,
         address where,
-        uint48 timestamp,
-        uint48 duration
-    ) external view returns (bool) {
-        (bool exists, uint48 latestTimestamp, uint208 latestValue,) =
-            _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp + duration);
-        return exists && ((latestValue == 0 && latestTimestamp >= timestamp) || latestValue == 1);
+        uint48 timestamp
+    ) external view returns (bool, uint48, bool, uint32) {
+        (bool exists, uint48 key, uint208 value, uint32 pos) =
+            _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp);
+        return (exists, key, value == 1, pos);
     }
 
     /**
      * @inheritdoc IOptInService
      */
-    function wasOptedInAfter(address who, address where, uint48 timestamp) external view returns (bool) {
-        (bool exists, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[who][where].latestCheckpoint();
-        return exists && ((latestValue == 0 && latestTimestamp >= timestamp) || latestValue == 1);
+    function isOptedIn(address who, address where) public view returns (bool) {
+        return _isOptedIn[who][where].latest() == 1;
     }
 
     /**

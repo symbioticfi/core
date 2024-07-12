@@ -112,11 +112,29 @@ interface IVaultStorage {
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
+     * @notice Get a total amount of active shares in the vault at a given timestamp using a hint.
+     * @param timestamp time point to get the total amount of active shares at
+     * @param hint hint for the checkpoint index
+     * @return total amount of active shares at the timestamp
+     */
+    function activeSharesAt(uint48 timestamp, uint32 hint) external view returns (uint256);
+
+    /**
      * @notice Get a total amount of active shares in the vault at a given timestamp.
      * @param timestamp time point to get the total amount of active shares at
      * @return total amount of active shares at the timestamp
      */
     function activeSharesAt(uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of active shares in the vault checkpoint at a given timestamp.
+     * @param timestamp time point to get the total amount of active shares checkpoint at
+     * @return if the checkpoint exists
+     * @return timestamp time point of the checkpoint
+     * @return amount of active shares at the checkpoint
+     * @return index of the checkpoint
+     */
+    function activeSharesCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32);
 
     /**
      * @notice Get a total amount of active shares in the vault.
@@ -125,11 +143,29 @@ interface IVaultStorage {
     function activeShares() external view returns (uint256);
 
     /**
+     * @notice Get a total amount of active supply in the vault at a given timestamp using a hint.
+     * @param timestamp time point to get the total active supply at
+     * @param hint hint for the checkpoint index
+     * @return total amount of active supply at the timestamp
+     */
+    function activeSupplyAt(uint48 timestamp, uint32 hint) external view returns (uint256);
+
+    /**
      * @notice Get a total amount of active supply in the vault at a given timestamp.
      * @param timestamp time point to get the total active supply at
      * @return total amount of active supply at the timestamp
      */
     function activeSupplyAt(uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get a total amount of active supply in the vault checkpoint at a given timestamp.
+     * @param timestamp time point to get the total active supply checkpoint at
+     * @return if the checkpoint exists
+     * @return timestamp time point of the checkpoint
+     * @return amount of active supply at the checkpoint
+     * @return index of the checkpoint
+     */
+    function activeSupplyCheckpointAt(uint48 timestamp) external view returns (bool, uint48, uint256, uint32);
 
     /**
      * @notice Get a total amount of active supply in the vault.
