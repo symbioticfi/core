@@ -84,31 +84,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function resolverSharesAt(
-        address network,
-        address resolver,
-        uint48 timestamp,
-        uint32 hint
-    ) public view returns (uint256) {
-        return _resolverShares[network][resolver].upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
     function resolverSharesAt(address network, address resolver, uint48 timestamp) public view returns (uint256) {
         return _resolverShares[network][resolver].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    function resolverSharesCheckpointAt(
-        address network,
-        address resolver,
-        uint48 timestamp
-    ) public view returns (bool, uint48, uint256, uint32) {
-        return _resolverShares[network][resolver].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**

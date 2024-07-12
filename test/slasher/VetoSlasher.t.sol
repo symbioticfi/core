@@ -670,7 +670,6 @@ contract VetoSlasherTest is Test {
             slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + vault.epochDuration())), resolverShares3 - 1
         );
         assertEq(slasher.resolverShares(network, bob), resolverShares3 - 1);
-        assertEq(slasher.resolverSharesAt(network, bob, uint48(blockTimestamp), 1), resolverShares3 - 1);
     }
 
     function test_setResolverSharesBothRevertNotOperator(

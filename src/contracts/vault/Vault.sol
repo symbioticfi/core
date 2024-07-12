@@ -17,7 +17,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable,MulticallUpgradeable,  IVault {
+contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, MulticallUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;

@@ -28,8 +28,6 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
 
     mapping(address network => Checkpoints.Trace256 value) private _networkLimit;
 
-    mapping(address network => Checkpoints.Trace256 value) private _totalOperatorNetworkLimit;
-
     mapping(address network => mapping(address operator => Checkpoints.Trace256 value)) private _operatorNetworkLimit;
 
     constructor(
@@ -53,25 +51,8 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function networkLimitAt(address network, uint48 timestamp, uint32 hint) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
     function networkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
         return _networkLimit[network].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
-    function networkLimitCheckpointAt(
-        address network,
-        uint48 timestamp
-    ) public view returns (bool, uint48, uint256, uint32) {
-        return _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -84,70 +65,12 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function totalOperatorNetworkLimitAt(
-        address network,
-        uint48 timestamp,
-        uint32 hint
-    ) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
-    function totalOperatorNetworkLimitAt(address network, uint48 timestamp) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
-    function totalOperatorNetworkLimitCheckpointAt(
-        address network,
-        uint48 timestamp
-    ) public view returns (bool, uint48, uint256, uint32) {
-        return _totalOperatorNetworkLimit[network].upperLookupRecentCheckpoint(timestamp);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
-    function totalOperatorNetworkLimit(address network) public view returns (uint256) {
-        return _totalOperatorNetworkLimit[network].latest();
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
-    function operatorNetworkLimitAt(
-        address network,
-        address operator,
-        uint48 timestamp,
-        uint32 hint
-    ) public view returns (uint256) {
-        return _operatorNetworkLimit[network][operator].upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
     function operatorNetworkLimitAt(
         address network,
         address operator,
         uint48 timestamp
     ) public view returns (uint256) {
         return _operatorNetworkLimit[network][operator].upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
-    function operatorNetworkLimitCheckpointAt(
-        address network,
-        address operator,
-        uint48 timestamp
-    ) public view returns (bool, uint48, uint256, uint32) {
-        return _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     /**
@@ -188,10 +111,28 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     }
 
     function _setOperatorNetworkLimit(address network, address operator, uint256 amount) internal {
-        _totalOperatorNetworkLimit[network].push(
-            Time.timestamp(), totalOperatorNetworkLimit(network) - operatorNetworkLimit(network, operator) + amount
-        );
         _operatorNetworkLimit[network][operator].push(Time.timestamp(), amount);
+    }
+
+    function _stakeAtHints(
+        address network,
+        address operator,
+        uint48 timestamp,
+        StakeBaseHints memory baseHints
+    ) internal view override returns (bytes memory) {
+        (,,, uint32 activeStakeHint) = IVault(vault).activeStakeCheckpointAt(timestamp);
+        (,,, uint32 networkLimitHint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
+        (,,, uint32 operatorNetworkLimitHint) =
+            _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
+
+        return abi.encode(
+            StakeHints({
+                baseHints: baseHints,
+                activeStakeHint: activeStakeHint,
+                networkLimitHint: networkLimitHint,
+                operatorNetworkLimitHint: operatorNetworkLimitHint
+            })
+        );
     }
 
     function _stakeAt(
@@ -205,8 +146,10 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             Math.min(
                 IVault(vault).activeStakeAt(timestamp, hints_.activeStakeHint),
                 Math.min(
-                    networkLimitAt(network, timestamp, hints_.networkLimitHint),
-                    operatorNetworkLimitAt(network, operator, timestamp, hints_.operatorNetworkLimitHint)
+                    _networkLimit[network].upperLookupRecent(timestamp, hints_.networkLimitHint),
+                    _operatorNetworkLimit[network][operator].upperLookupRecent(
+                        timestamp, hints_.operatorNetworkLimitHint
+                    )
                 )
             ),
             hints_.baseHints

@@ -156,8 +156,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.OPERATOR_NETWORK_LIMIT_SET_ROLE(), keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE"));
         assertEq(delegator.networkLimitAt(alice, 0), 0);
         assertEq(delegator.networkLimit(alice), 0);
-        assertEq(delegator.totalOperatorNetworkLimitAt(alice, 0), 0);
-        assertEq(delegator.totalOperatorNetworkLimit(alice), 0);
         assertEq(delegator.operatorNetworkLimitAt(alice, alice, 0), 0);
         assertEq(delegator.operatorNetworkLimit(alice, alice), 0);
     }
@@ -402,19 +400,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.networkLimit(network), amount3);
 
-        uint256 gasLeft = gasleft();
-        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1), 0), amount3);
-        uint256 gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1), 1), amount3);
-        assertGt(gasSpent, gasLeft - gasleft());
-        gasLeft = gasleft();
-        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp - 1), 1), amount2);
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp - 1), 0), amount2);
-        assertGt(gasSpent, gasLeft - gasleft());
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -425,12 +410,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp)), amount4);
         assertEq(delegator.networkLimitAt(network, uint48(blockTimestamp + 1)), amount4);
         assertEq(delegator.networkLimit(network), amount4);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
-            delegator.networkLimitCheckpointAt(network, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
-        assertEq(checkpointKey, uint48(blockTimestamp));
-        assertEq(checkpointValue, amount4);
-        assertEq(checkpointPos, 2);
     }
 
     function test_SetNetworkLimitRevertExceedsMaxNetworkLimit(
@@ -482,18 +461,12 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp)), amount1);
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount1);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp)), amount1);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
         _setOperatorNetworkLimit(alice, network, operator, amount2);
 
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp)), amount2);
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount2);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp)), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount2);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -504,35 +477,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp)), amount3);
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount3);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1)), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp)), amount3);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount3);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount3);
-
-        uint256 gasLeft = gasleft();
-        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1), 0), amount3);
-        uint256 gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1), 1), amount3);
-        assertGt(gasSpent, gasLeft - gasleft());
-        gasLeft = gasleft();
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1), 0), amount3);
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1), 1), amount3);
-        assertGt(gasSpent, gasLeft - gasleft());
-        gasLeft = gasleft();
-        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp - 1), 1), amount2);
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp - 1), 0), amount2);
-        assertGt(gasSpent, gasLeft - gasleft());
-        gasLeft = gasleft();
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1), 1), amount2);
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1), 0), amount2);
-        assertGt(gasSpent, gasLeft - gasleft());
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -544,25 +488,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp)), amount4);
         assertEq(delegator.operatorNetworkLimitAt(network, operator, uint48(blockTimestamp + 1)), amount4);
         assertEq(delegator.operatorNetworkLimit(network, operator), amount4);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 2)), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1)), amount3);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp)), amount4);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount4);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount4);
-
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
-            delegator.operatorNetworkLimitCheckpointAt(network, operator, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
-        assertEq(checkpointKey, uint48(blockTimestamp));
-        assertEq(checkpointValue, amount4);
-        assertEq(checkpointPos, 2);
-
-        (checkpointExists, checkpointKey, checkpointValue, checkpointPos) =
-            delegator.totalOperatorNetworkLimitCheckpointAt(network, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
-        assertEq(checkpointKey, uint48(blockTimestamp));
-        assertEq(checkpointValue, amount4);
-        assertEq(checkpointPos, 2);
     }
 
     function test_SetOperatorNetworkLimitBoth(
@@ -591,15 +516,11 @@ contract FullRestakeDelegatorTest is Test {
 
         assertEq(delegator.operatorNetworkLimitAt(network, alice, uint48(blockTimestamp + 1)), amount1);
         assertEq(delegator.operatorNetworkLimit(network, alice), amount1);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount1);
 
         _setOperatorNetworkLimit(alice, network, bob, amount2);
 
         assertEq(delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 1)), amount2);
         assertEq(delegator.operatorNetworkLimit(network, bob), amount2);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1 + amount2);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount1 + amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -609,9 +530,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp - 1)), amount2);
         assertEq(delegator.operatorNetworkLimitAt(network, bob, uint48(blockTimestamp + 1)), amount3);
         assertEq(delegator.operatorNetworkLimit(network, bob), amount3);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp - 1)), amount1 + amount2);
-        assertEq(delegator.totalOperatorNetworkLimitAt(network, uint48(blockTimestamp + 1)), amount1 + amount3);
-        assertEq(delegator.totalOperatorNetworkLimit(network), amount1 + amount3);
     }
 
     function test_SetMaxNetworkLimit(
@@ -900,7 +818,6 @@ contract FullRestakeDelegatorTest is Test {
         _optInNetworkVault(network);
 
         assertEq(delegator.networkLimit(network), networkLimit);
-        assertEq(delegator.totalOperatorNetworkLimit(network), operatorNetworkLimit1 + operatorNetworkLimit2);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2);
 
@@ -912,7 +829,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(_slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1)), slashAmount1Real);
 
         assertEq(delegator.networkLimit(network), networkLimit);
-        assertEq(delegator.totalOperatorNetworkLimit(network), operatorNetworkLimit1 + operatorNetworkLimit2);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2);
 
@@ -921,7 +837,6 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(_slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1)), slashAmount2Real);
 
         assertEq(delegator.networkLimit(network), networkLimit);
-        assertEq(delegator.totalOperatorNetworkLimit(network), operatorNetworkLimit1 + operatorNetworkLimit2);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2);
     }
@@ -1007,7 +922,6 @@ contract FullRestakeDelegatorTest is Test {
         _optInNetworkVault(network);
 
         assertEq(delegator.networkLimit(network), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkLimit(network), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
 
         blockTimestamp = blockTimestamp + 1;
@@ -1016,13 +930,11 @@ contract FullRestakeDelegatorTest is Test {
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1));
 
         assertEq(delegator.networkLimit(network), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkLimit(network), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
 
         _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1));
 
         assertEq(delegator.networkLimit(network), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkLimit(network), 0);
         assertEq(delegator.operatorNetworkLimit(network, alice), 0);
     }
 

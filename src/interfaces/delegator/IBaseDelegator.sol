@@ -100,6 +100,15 @@ interface IBaseDelegator {
     function maxNetworkLimit(address network) external view returns (uint256);
 
     /**
+     * @notice Get a hints data to get a stake for a certain operator at a given timestamp.
+     * @param network address of the network
+     * @param operator address of the operator
+     * @param timestamp time point to capture the stake at
+     * @return hints data to get a stake for a certain operator at a given timestamp
+     */
+    function stakeAtHints(address network, address operator, uint48 timestamp) external view returns (bytes memory);
+
+    /**
      * @notice Get a stake that a given network could be able to slash for a certain operator at a given timestamp
      *         until the end of the consequent epoch using hints (if no cross-slashing and no slashings by the network).
      * @param network address of the network
