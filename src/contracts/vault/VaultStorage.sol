@@ -193,7 +193,7 @@ contract VaultStorage is IVaultStorage {
     function activeSharesOfCheckpointAt(
         address account,
         uint48 timestamp
-    ) external view returns (bool, uint48, uint256, uint256) {
+    ) external view returns (bool, uint48, uint256, uint32) {
         return _activeSharesOf[account].upperLookupRecentCheckpoint(timestamp);
     }
 
