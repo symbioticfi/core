@@ -9,7 +9,7 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     error DuplicateRoleHolder();
 
     struct StakeHints {
-        StakeBaseHints baseHints;
+        bytes baseHints;
         bytes activeStakeHint;
         bytes networkLimitHint;
         bytes totalOperatorNetworkSharesHint;

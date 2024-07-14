@@ -45,7 +45,7 @@ interface IVault is IVaultStorage {
         address depositorWhitelistRoleHolder;
     }
 
-    struct ActiveBalanceHints {
+    struct ActiveBalanceOfHints {
         bytes activeSharesOfHint;
         bytes activeStakeHint;
         bytes activeSharesHint;

@@ -96,8 +96,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function resolverShares(address network, address resolver, bytes memory) public view returns (uint256) {
-        return resolverSharesAt(network, resolver, Time.timestamp(), "");
+    function resolverShares(address network, address resolver, bytes memory hint) public view returns (uint256) {
+        return resolverSharesAt(network, resolver, Time.timestamp(), hint);
     }
 
     /**
@@ -174,14 +174,15 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         request.completed = true;
 
-        slashedAmount =
-            Math.min(request.amount, slashableStake(request.network, request.operator, request.captureTimestamp, ""));
+        slashedAmount = Math.min(
+            request.amount, slashableStake(request.network, request.operator, request.captureTimestamp, new bytes(0))
+        );
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
         if (slashedAmount > 0) {
             _updateCumulativeSlash(request.network, request.operator, slashedAmount);
-            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp, "");
+            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp, new bytes(0));
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -197,7 +198,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        uint256 resolverShares_ = resolverShares(request.network, msg.sender, "");
+        uint256 resolverShares_ = resolverShares(request.network, msg.sender, new bytes(0));
 
         if (resolverShares_ == 0) {
             revert NotResolver();
@@ -236,7 +237,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InvalidShares();
         }
 
-        uint48 timestamp = shares > resolverShares(msg.sender, resolver, "")
+        uint48 timestamp = shares > resolverShares(msg.sender, resolver, new bytes(0))
             ? Time.timestamp()
             : (IVault(vault).currentEpochStart() + resolverSetEpochsDelay * IVault(vault).epochDuration()).toUint48();
 

@@ -11,7 +11,11 @@ contract OptInServiceHints is Hints, OptInService {
 
     constructor() OptInService(address(0), address(0)) {}
 
-    function optInHintInner(address who, address where, uint48 timestamp) external view returns (uint32 hint) {
+    function optInHintInternal(
+        address who,
+        address where,
+        uint48 timestamp
+    ) external view internalFunction returns (uint32 hint) {
         (,,, hint) = _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp);
     }
 
@@ -21,8 +25,15 @@ contract OptInServiceHints is Hints, OptInService {
         address where,
         uint48 timestamp
     ) external returns (bytes memory) {
-        return _selfStaticDelegateCall(
-            optInService, abi.encodeWithSelector(OptInServiceHints.optInHintInner.selector, who, where, timestamp)
+        bytes memory hint = _selfStaticDelegateCall(
+            optInService, abi.encodeWithSelector(OptInServiceHints.optInHintInternal.selector, who, where, timestamp)
+        );
+
+        return _optimizeHint(
+            optInService,
+            abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, ""),
+            abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, hint),
+            hint
         );
     }
 }

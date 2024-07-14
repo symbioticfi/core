@@ -24,6 +24,10 @@ interface IBaseDelegator {
         bytes operatorNetworkOptInHint;
     }
 
+    struct OnSlashHints {
+        bytes stakeHints;
+    }
+
     /**
      * @notice Emitted when a network's maximum limit is set.
      * @param network address of the network

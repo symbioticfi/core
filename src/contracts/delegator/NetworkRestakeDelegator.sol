@@ -54,7 +54,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
      * @inheritdoc INetworkRestakeDelegator
      */
     function networkLimitAt(address network, uint48 timestamp, bytes memory hint) public view returns (uint256) {
-        return _networkLimit[network].upperLookupRecent(timestamp);
+        return _networkLimit[network].upperLookupRecent(timestamp, hint);
     }
 
     /**
@@ -72,7 +72,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         uint48 timestamp,
         bytes memory hint
     ) public view returns (uint256) {
-        return _totalOperatorNetworkShares[network].upperLookupRecent(timestamp);
+        return _totalOperatorNetworkShares[network].upperLookupRecent(timestamp, hint);
     }
 
     /**
@@ -91,7 +91,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         uint48 timestamp,
         bytes memory hint
     ) public view returns (uint256) {
-        return _operatorNetworkShares[network][operator].upperLookupRecent(timestamp);
+        return _operatorNetworkShares[network][operator].upperLookupRecent(timestamp, hint);
     }
 
     /**
@@ -135,7 +135,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint48 timestamp,
         bytes memory hints
-    ) internal view override returns (uint256, StakeBaseHints memory) {
+    ) internal view override returns (uint256, bytes memory) {
         StakeHints memory stakesHints;
         if (hints.length > 0) {
             stakesHints = abi.decode(hints, (StakeHints));

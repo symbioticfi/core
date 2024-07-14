@@ -726,10 +726,12 @@ contract FullRestakeDelegatorTest is Test {
 
         bytes memory hints = abi.encode(
             IFullRestakeDelegator.StakeHints({
-                baseHints: IBaseDelegator.StakeBaseHints({
-                    operatorVaultOptInHint: abi.encode(0),
-                    operatorNetworkOptInHint: abi.encode(0)
-                }),
+                baseHints: abi.encode(
+                    IBaseDelegator.StakeBaseHints({
+                        operatorVaultOptInHint: abi.encode(0),
+                        operatorNetworkOptInHint: abi.encode(0)
+                    })
+                ),
                 activeStakeHint: abi.encode(0),
                 networkLimitHint: abi.encode(0),
                 operatorNetworkLimitHint: abi.encode(0)
@@ -743,10 +745,12 @@ contract FullRestakeDelegatorTest is Test {
         uint256 gasSpent = gasLeft - gasleft();
         hints = abi.encode(
             IFullRestakeDelegator.StakeHints({
-                baseHints: IBaseDelegator.StakeBaseHints({
-                    operatorVaultOptInHint: abi.encode(0),
-                    operatorNetworkOptInHint: abi.encode(0)
-                }),
+                baseHints: abi.encode(
+                    IBaseDelegator.StakeBaseHints({
+                        operatorVaultOptInHint: abi.encode(0),
+                        operatorNetworkOptInHint: abi.encode(0)
+                    })
+                ),
                 activeStakeHint: abi.encode(0),
                 networkLimitHint: abi.encode(0),
                 operatorNetworkLimitHint: abi.encode(1)

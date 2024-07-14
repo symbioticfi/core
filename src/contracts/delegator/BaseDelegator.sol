@@ -87,15 +87,19 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         uint48 timestamp,
         bytes memory hints
     ) public view returns (uint256) {
-        (uint256 stake_, StakeBaseHints memory baseHints) = _stakeAt(network, operator, timestamp, hints);
+        (uint256 stake_, bytes memory baseHints) = _stakeAt(network, operator, timestamp, hints);
+        StakeBaseHints memory stakeBaseHints;
+        if (baseHints.length > 0) {
+            stakeBaseHints = abi.decode(baseHints, (StakeBaseHints));
+        }
 
         if (
             stake_ == 0
                 || !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
-                    operator, vault, timestamp, baseHints.operatorVaultOptInHint
+                    operator, vault, timestamp, stakeBaseHints.operatorVaultOptInHint
                 )
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
-                    operator, network, timestamp, baseHints.operatorNetworkOptInHint
+                    operator, network, timestamp, stakeBaseHints.operatorNetworkOptInHint
                 )
         ) {
             return 0;
@@ -156,11 +160,16 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         uint48 captureTimestamp,
         bytes memory hints
     ) external {
+        OnSlashHints memory onSlashHints;
+        if (hints.length > 0) {
+            onSlashHints = abi.decode(hints, (OnSlashHints));
+        }
+
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
 
-        if (slashedAmount > stakeAt(network, operator, captureTimestamp, hints)) {
+        if (slashedAmount > stakeAt(network, operator, captureTimestamp, onSlashHints.stakeHints)) {
             revert TooMuchSlash();
         }
 
@@ -180,7 +189,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         address operator,
         uint48 timestamp,
         bytes memory hints
-    ) internal view virtual returns (uint256, StakeBaseHints memory) {}
+    ) internal view virtual returns (uint256, bytes memory) {}
 
     function _stake(address network, address operator) internal view virtual returns (uint256) {}
 

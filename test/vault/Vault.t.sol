@@ -502,7 +502,7 @@ contract VaultTest is Test {
                 alice,
                 uint48(blockTimestamp - 1),
                 abi.encode(
-                    IVault.ActiveBalanceHints({
+                    IVault.ActiveBalanceOfHints({
                         activeSharesOfHint: abi.encode(1),
                         activeStakeHint: abi.encode(1),
                         activeSharesHint: abi.encode(1)
@@ -518,7 +518,7 @@ contract VaultTest is Test {
                 alice,
                 uint48(blockTimestamp - 1),
                 abi.encode(
-                    IVault.ActiveBalanceHints({
+                    IVault.ActiveBalanceOfHints({
                         activeSharesOfHint: abi.encode(0),
                         activeStakeHint: abi.encode(0),
                         activeSharesHint: abi.encode(0)
@@ -534,7 +534,7 @@ contract VaultTest is Test {
                 alice,
                 uint48(blockTimestamp),
                 abi.encode(
-                    IVault.ActiveBalanceHints({
+                    IVault.ActiveBalanceOfHints({
                         activeSharesOfHint: abi.encode(0),
                         activeStakeHint: abi.encode(0),
                         activeSharesHint: abi.encode(0)
@@ -550,7 +550,7 @@ contract VaultTest is Test {
                 alice,
                 uint48(blockTimestamp),
                 abi.encode(
-                    IVault.ActiveBalanceHints({
+                    IVault.ActiveBalanceOfHints({
                         activeSharesOfHint: abi.encode(1),
                         activeStakeHint: abi.encode(1),
                         activeSharesHint: abi.encode(1)
