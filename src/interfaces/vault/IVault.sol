@@ -134,6 +134,12 @@ interface IVault is IVaultStorage {
     function withdrawalsOf(uint256 epoch, address account) external view returns (uint256);
 
     /**
+     * @notice Get a total amount of the collateral that can be slashed for a given account.
+     * @return total amount of the slashable collateral
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit

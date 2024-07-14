@@ -61,6 +61,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
             ERC4626Math.previewRedeem(withdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
+    function balanceOf(address account) external view returns (uint256) {
+        uint256 epoch = currentEpoch();
+        return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
+    }
+
     constructor(
         address delegatorFactory,
         address slasherFactory,
