@@ -36,7 +36,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
      */
     function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
         ActiveBalanceOfHints memory activeBalanceOfHints;
-        if (hints.length != 0) {
+        if (hints.length > 0) {
             activeBalanceOfHints = abi.decode(hints, (ActiveBalanceOfHints));
         }
         return ERC4626Math.previewRedeem(
@@ -181,7 +181,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
 
         uint256 currentEpoch_ = currentEpoch();
         uint256 captureEpoch = epochAt(captureTimestamp);
-        if ((currentEpoch_ != 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
+        if ((currentEpoch_ > 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
             revert InvalidCaptureEpoch();
         }
 

@@ -111,7 +111,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         bytes memory hints
     ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
         RequestSlashHints memory requestSlashHints;
-        if (hints.length != 0) {
+        if (hints.length > 0) {
             requestSlashHints = abi.decode(hints, (RequestSlashHints));
         }
 

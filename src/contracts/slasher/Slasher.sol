@@ -41,7 +41,7 @@ contract Slasher is BaseSlasher, ISlasher {
         bytes memory hints
     ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
         SlashHints memory slashHints;
-        if (hints.length != 0) {
+        if (hints.length > 0) {
             slashHints = abi.decode(hints, (SlashHints));
         }
 

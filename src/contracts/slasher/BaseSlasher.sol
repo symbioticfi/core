@@ -104,7 +104,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         bytes memory hints
     ) public view returns (uint256) {
         SlashableStakeHints memory slashableStakeHints;
-        if (hints.length != 0) {
+        if (hints.length > 0) {
             slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
         }
 
@@ -130,7 +130,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         bytes memory hints
     ) internal view {
         OptInHints memory optInHints;
-        if (hints.length != 0) {
+        if (hints.length > 0) {
             optInHints = abi.decode(hints, (OptInHints));
         }
 
@@ -173,7 +173,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         bytes memory hints
     ) internal virtual {
         OnSlashHints memory onSlashHints;
-        if (hints.length != 0) {
+        if (hints.length > 0) {
             onSlashHints = abi.decode(hints, (OnSlashHints));
         }
 
