@@ -1251,6 +1251,12 @@ contract NetworkRestakeDelegatorTest is Test {
         vm.stopPrank();
     }
 
+    function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
+        vm.startPrank(user);
+        amount = vault.claimBatch(epochs);
+        vm.stopPrank();
+    }
+
     function _optInNetworkVault(address user) internal {
         vm.startPrank(user);
         networkVaultOptInService.optIn(address(vault));

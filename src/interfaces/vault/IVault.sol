@@ -22,6 +22,7 @@ interface IVault is IVaultStorage {
     error NotDelegator();
     error TooMuchSlash();
     error InvalidCaptureEpoch();
+    error InvalidLengthEpochs();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -171,6 +172,13 @@ interface IVault is IVaultStorage {
      * @return amount amount of the collateral claimed
      */
     function claim(uint256 epoch) external returns (uint256 amount);
+
+    /**
+     * @notice Claim collateral from the vault for multiple epochs.
+     * @param epochs epochs to claim the collateral for
+     * @return amount amount of the collateral claimed
+     */
+    function claimBatch(uint256[] calldata epochs) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.

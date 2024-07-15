@@ -881,6 +881,188 @@ contract VaultTest is Test {
         _claim(alice, currentEpoch - 2);
     }
 
+    function test_ClaimBatch(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](2);
+        epochs[0] = vault.currentEpoch() - 1;
+        epochs[1] = vault.currentEpoch() - 2;
+
+        uint256 tokensBefore = collateral.balanceOf(address(vault));
+        uint256 tokensBeforeAlice = collateral.balanceOf(alice);
+        assertEq(_claimBatch(alice, epochs), amount2 + amount3);
+        assertEq(tokensBefore - collateral.balanceOf(address(vault)), amount2 + amount3);
+        assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2 + amount3);
+
+        assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
+    }
+
+    function test_ClaimBatchRevertInvalidLengthEpochs(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](0);
+        vm.expectRevert(IVault.InvalidLengthEpochs.selector);
+        _claimBatch(alice, epochs);
+    }
+
+    function test_ClaimBatchRevertInvalidEpoch(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](2);
+        epochs[0] = vault.currentEpoch() - 1;
+        epochs[1] = vault.currentEpoch();
+
+        vm.expectRevert(IVault.InvalidEpoch.selector);
+        _claimBatch(alice, epochs);
+    }
+
+    function test_ClaimBatchRevertAlreadyClaimed(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](2);
+        epochs[0] = vault.currentEpoch() - 1;
+        epochs[1] = vault.currentEpoch() - 1;
+
+        vm.expectRevert(IVault.AlreadyClaimed.selector);
+        _claimBatch(alice, epochs);
+    }
+
+    function test_ClaimBatchRevertInsufficientClaim(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](2);
+        epochs[0] = vault.currentEpoch() - 1;
+        epochs[1] = vault.currentEpoch() - 3;
+
+        vm.expectRevert(IVault.InsufficientClaim.selector);
+        _claimBatch(alice, epochs);
+    }
+
     function test_SetDepositWhitelist() public {
         uint48 epochDuration = 1;
 
@@ -1322,6 +1504,12 @@ contract VaultTest is Test {
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
         amount = vault.claim(epoch);
+        vm.stopPrank();
+    }
+
+    function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
+        vm.startPrank(user);
+        amount = vault.claimBatch(epochs);
         vm.stopPrank();
     }
 

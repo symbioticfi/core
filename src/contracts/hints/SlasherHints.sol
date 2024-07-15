@@ -267,11 +267,11 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address resolver,
         uint48 timestamp
     ) external returns (bytes memory) {
-        bytes memory resolverSharesHint = resolverSharesHint(slasher, network, resolver, timestamp);
+        bytes memory resolverSharesHint_ = resolverSharesHint(slasher, network, resolver, timestamp);
 
         bytes memory hints;
-        if (resolverSharesHint.length > 0) {
-            hints = abi.encode(SetResolverSharesHints({resolverSharesHint: resolverSharesHint}));
+        if (resolverSharesHint_.length > 0) {
+            hints = abi.encode(SetResolverSharesHints({resolverSharesHint: resolverSharesHint_}));
         }
 
         return hints;
