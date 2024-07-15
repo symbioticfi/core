@@ -8,6 +8,14 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     error ZeroAddressRoleHolder();
     error DuplicateRoleHolder();
 
+    /**
+     * @notice Hints for a stake.
+     * @param baseHints base hints
+     * @param activeStakeHint hint for the active stake checkpoint
+     * @param networkLimitHint hint for the network limit checkpoint
+     * @param totalOperatorNetworkSharesHint hint for the total operator-network shares checkpoint
+     * @param operatorNetworkSharesHint hint for the operator-network shares checkpoint
+     */
     struct StakeHints {
         bytes baseHints;
         bytes activeStakeHint;

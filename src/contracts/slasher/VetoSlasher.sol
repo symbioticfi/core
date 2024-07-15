@@ -152,7 +152,12 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount) {
+    function executeSlash(uint256 slashIndex, bytes memory hints) external returns (uint256 slashedAmount) {
+        ExecuteSlashHints memory executeSlashHints;
+        if (hints.length > 0) {
+            executeSlashHints = abi.decode(hints, (ExecuteSlashHints));
+        }
+
         if (slashIndex >= slashRequests.length) {
             revert SlashRequestNotExist();
         }
@@ -175,14 +180,23 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         request.completed = true;
 
         slashedAmount = Math.min(
-            request.amount, slashableStake(request.network, request.operator, request.captureTimestamp, new bytes(0))
+            request.amount,
+            slashableStake(
+                request.network, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+            )
         );
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
         if (slashedAmount > 0) {
             _updateCumulativeSlash(request.network, request.operator, slashedAmount);
-            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp, new bytes(0));
+            _callOnSlash(
+                request.network,
+                request.operator,
+                slashedAmount,
+                request.captureTimestamp,
+                executeSlashHints.onSlashHints
+            );
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -191,14 +205,19 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function vetoSlash(uint256 slashIndex) external {
+    function vetoSlash(uint256 slashIndex, bytes memory hints) external {
+        VetoSlashHints memory vetoSlashHints;
+        if (hints.length > 0) {
+            vetoSlashHints = abi.decode(hints, (VetoSlashHints));
+        }
+
         if (slashIndex >= slashRequests.length) {
             revert SlashRequestNotExist();
         }
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        uint256 resolverShares_ = resolverShares(request.network, msg.sender, new bytes(0));
+        uint256 resolverShares_ = resolverShares(request.network, msg.sender, vetoSlashHints.resolverSharesHint);
 
         if (resolverShares_ == 0) {
             revert NotResolver();
@@ -228,7 +247,12 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         emit VetoSlash(slashIndex, msg.sender, resolverShares_);
     }
 
-    function setResolverShares(address resolver, uint256 shares) external {
+    function setResolverShares(address resolver, uint256 shares, bytes memory hints) external {
+        SetResolverSharesHints memory setResolverSharesHints;
+        if (hints.length > 0) {
+            setResolverSharesHints = abi.decode(hints, (SetResolverSharesHints));
+        }
+
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -237,7 +261,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InvalidShares();
         }
 
-        uint48 timestamp = shares > resolverShares(msg.sender, resolver, new bytes(0))
+        uint48 timestamp = shares > resolverShares(msg.sender, resolver, setResolverSharesHints.resolverSharesHint)
             ? Time.timestamp()
             : (IVault(vault).currentEpochStart() + resolverSetEpochsDelay * IVault(vault).epochDuration()).toUint48();
 

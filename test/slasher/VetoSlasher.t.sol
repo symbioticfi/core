@@ -555,7 +555,7 @@ contract VetoSlasherTest is Test {
         address network = alice;
         _registerNetwork(network, alice);
 
-        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, alice, resolverShares1, "");
 
         assertEq(
             slasher.resolverSharesAt(network, alice, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
@@ -563,7 +563,7 @@ contract VetoSlasherTest is Test {
         );
         assertEq(slasher.resolverShares(network, alice, ""), resolverShares1);
 
-        _setResolverShares(network, bob, resolverShares2);
+        _setResolverShares(network, bob, resolverShares2, "");
 
         assertEq(
             slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
@@ -584,7 +584,7 @@ contract VetoSlasherTest is Test {
         );
         assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
-        _setResolverShares(network, bob, resolverShares3);
+        _setResolverShares(network, bob, resolverShares3, "");
 
         assertEq(
             slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
@@ -615,7 +615,7 @@ contract VetoSlasherTest is Test {
         );
         assertEq(slasher.resolverShares(network, bob, ""), resolverShares2);
 
-        _setResolverShares(network, bob, resolverShares3 - 1);
+        _setResolverShares(network, bob, resolverShares3 - 1, "");
 
         assertEq(
             slasher.resolverSharesAt(network, bob, uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
@@ -698,7 +698,7 @@ contract VetoSlasherTest is Test {
         _registerNetwork(network, alice);
 
         vm.expectRevert(IVetoSlasher.NotNetwork.selector);
-        _setResolverShares(bob, alice, resolverShares1);
+        _setResolverShares(bob, alice, resolverShares1, "");
     }
 
     function test_setResolverSharesBothRevertInvalidShares(
@@ -718,7 +718,7 @@ contract VetoSlasherTest is Test {
         _registerNetwork(network, alice);
 
         vm.expectRevert(IVetoSlasher.InvalidShares.selector);
-        _setResolverShares(network, alice, resolverShares1);
+        _setResolverShares(network, alice, resolverShares1, "");
     }
 
     function test_ExecuteSlashBase(
@@ -794,7 +794,7 @@ contract VetoSlasherTest is Test {
 
         assertTrue(blockTimestamp - uint48(blockTimestamp - 1) <= epochDuration);
 
-        assertEq(_executeSlash(alice, 0), slashAmountReal1);
+        assertEq(_executeSlash(alice, 0, ""), slashAmountReal1);
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
@@ -874,7 +874,7 @@ contract VetoSlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IVetoSlasher.SlashRequestNotExist.selector);
-        _executeSlash(alice, 1);
+        _executeSlash(alice, 1, "");
     }
 
     function test_ExecuteSlashRevertVetoPeriodNotEnded(
@@ -925,7 +925,7 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.expectRevert(IVetoSlasher.VetoPeriodNotEnded.selector);
-        _executeSlash(alice, 0);
+        _executeSlash(alice, 0, "");
     }
 
     function test_ExecuteSlashRevertSlashPeriodEnded(
@@ -979,7 +979,7 @@ contract VetoSlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IVetoSlasher.SlashPeriodEnded.selector);
-        _executeSlash(alice, 0);
+        _executeSlash(alice, 0, "");
     }
 
     function test_ExecuteSlashRevertSlashRequestCompleted(
@@ -1032,10 +1032,10 @@ contract VetoSlasherTest is Test {
         blockTimestamp = blockTimestamp + vetoDuration;
         vm.warp(blockTimestamp);
 
-        _executeSlash(alice, 0);
+        _executeSlash(alice, 0, "");
 
         vm.expectRevert(IVetoSlasher.SlashRequestCompleted.selector);
-        _executeSlash(alice, 0);
+        _executeSlash(alice, 0, "");
     }
 
     function test_VetoSlash(
@@ -1083,8 +1083,8 @@ contract VetoSlasherTest is Test {
 
         _optInNetworkVault(alice);
 
-        _setResolverShares(alice, alice, resolverShares1);
-        _setResolverShares(alice, bob, resolverShares2);
+        _setResolverShares(alice, alice, resolverShares1, "");
+        _setResolverShares(alice, bob, resolverShares2, "");
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1093,7 +1093,7 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        _vetoSlash(alice, 0);
+        _vetoSlash(alice, 0, "");
 
         assertEq(slasher.hasVetoed(alice, 0), true);
 
@@ -1103,7 +1103,7 @@ contract VetoSlasherTest is Test {
         assertEq(completed_, vetoedShares_ == slasher.SHARES_BASE());
 
         if (vetoedShares_ != slasher.SHARES_BASE()) {
-            _vetoSlash(bob, 0);
+            _vetoSlash(bob, 0, "");
 
             assertEq(slasher.hasVetoed(bob, 0), true);
 
@@ -1118,7 +1118,7 @@ contract VetoSlasherTest is Test {
             vm.warp(blockTimestamp);
 
             assertEq(
-                _executeSlash(alice, 0),
+                _executeSlash(alice, 0, ""),
                 (
                     slashAmount1
                         - slashAmount1.mulDiv(resolverShares1 + resolverShares2, slasher.SHARES_BASE(), Math.Rounding.Ceil)
@@ -1181,8 +1181,8 @@ contract VetoSlasherTest is Test {
 
         _optInNetworkVault(alice);
 
-        _setResolverShares(alice, alice, resolverShares1);
-        _setResolverShares(alice, bob, resolverShares2);
+        _setResolverShares(alice, alice, resolverShares1, "");
+        _setResolverShares(alice, bob, resolverShares2, "");
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1192,7 +1192,7 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.expectRevert(IVetoSlasher.SlashRequestNotExist.selector);
-        _vetoSlash(alice, 1);
+        _vetoSlash(alice, 1, "");
     }
 
     function test_VetoSlashRevertVetoPeriodEnded(
@@ -1240,8 +1240,8 @@ contract VetoSlasherTest is Test {
 
         _optInNetworkVault(alice);
 
-        _setResolverShares(alice, alice, resolverShares1);
-        _setResolverShares(alice, bob, resolverShares2);
+        _setResolverShares(alice, alice, resolverShares1, "");
+        _setResolverShares(alice, bob, resolverShares2, "");
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1254,7 +1254,7 @@ contract VetoSlasherTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IVetoSlasher.VetoPeriodEnded.selector);
-        _vetoSlash(alice, 0);
+        _vetoSlash(alice, 0, "");
     }
 
     function test_VetoSlashRevertNotResolver(
@@ -1302,8 +1302,8 @@ contract VetoSlasherTest is Test {
 
         _optInNetworkVault(alice);
 
-        _setResolverShares(alice, alice, resolverShares1);
-        _setResolverShares(alice, bob, resolverShares2);
+        _setResolverShares(alice, alice, resolverShares1, "");
+        _setResolverShares(alice, bob, resolverShares2, "");
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1313,7 +1313,7 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.expectRevert(IVetoSlasher.NotResolver.selector);
-        _vetoSlash(address(1), 0);
+        _vetoSlash(address(1), 0, "");
     }
 
     function test_VetoSlashRevertSlashRequestCompleted(
@@ -1361,8 +1361,8 @@ contract VetoSlasherTest is Test {
 
         _optInNetworkVault(alice);
 
-        _setResolverShares(alice, alice, slasher.SHARES_BASE());
-        _setResolverShares(alice, bob, resolverShares2);
+        _setResolverShares(alice, alice, slasher.SHARES_BASE(), "");
+        _setResolverShares(alice, bob, resolverShares2, "");
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1371,10 +1371,10 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        _vetoSlash(alice, 0);
+        _vetoSlash(alice, 0, "");
 
         vm.expectRevert(IVetoSlasher.SlashRequestCompleted.selector);
-        _vetoSlash(bob, 0);
+        _vetoSlash(bob, 0, "");
     }
 
     function test_VetoSlashRevertAlreadyVetoed(
@@ -1422,8 +1422,8 @@ contract VetoSlasherTest is Test {
 
         _optInNetworkVault(alice);
 
-        _setResolverShares(alice, alice, resolverShares1);
-        _setResolverShares(alice, bob, resolverShares2);
+        _setResolverShares(alice, alice, resolverShares1, "");
+        _setResolverShares(alice, bob, resolverShares2, "");
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1432,10 +1432,10 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        _vetoSlash(alice, 0);
+        _vetoSlash(alice, 0, "");
 
         vm.expectRevert(IVetoSlasher.AlreadyVetoed.selector);
-        _vetoSlash(alice, 0);
+        _vetoSlash(alice, 0, "");
     }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
@@ -1639,21 +1639,25 @@ contract VetoSlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _executeSlash(address user, uint256 slashIndex) internal returns (uint256 slashAmount) {
+    function _executeSlash(
+        address user,
+        uint256 slashIndex,
+        bytes memory hints
+    ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.executeSlash(slashIndex);
+        slashAmount = slasher.executeSlash(slashIndex, hints);
         vm.stopPrank();
     }
 
-    function _vetoSlash(address user, uint256 slashIndex) internal {
+    function _vetoSlash(address user, uint256 slashIndex, bytes memory hints) internal {
         vm.startPrank(user);
-        slasher.vetoSlash(slashIndex);
+        slasher.vetoSlash(slashIndex, hints);
         vm.stopPrank();
     }
 
-    function _setResolverShares(address user, address resolver, uint256 shares) internal {
+    function _setResolverShares(address user, address resolver, uint256 shares, bytes memory hints) internal {
         vm.startPrank(user);
-        slasher.setResolverShares(resolver, shares);
+        slasher.setResolverShares(resolver, shares, hints);
         vm.stopPrank();
     }
 

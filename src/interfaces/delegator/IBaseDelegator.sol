@@ -19,11 +19,20 @@ interface IBaseDelegator {
         address hookSetRoleHolder;
     }
 
+    /**
+     * @notice Base hints for a stake.
+     * @param operatorVaultOptInHint hint for the operator-vault opt-in
+     * @param operatorNetworkOptInHint hint for the operator-network opt-in
+     */
     struct StakeBaseHints {
         bytes operatorVaultOptInHint;
         bytes operatorNetworkOptInHint;
     }
 
+    /**
+     * @notice Hints for an on-slash action.
+     * @param stakeHints hints for the stake checkpoints
+     */
     struct OnSlashHints {
         bytes stakeHints;
     }

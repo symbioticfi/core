@@ -45,6 +45,12 @@ interface IVault is IVaultStorage {
         address depositorWhitelistRoleHolder;
     }
 
+    /**
+     * @notice Hints for an active balance.
+     * @param activeSharesOfHint hint for the active shares of checkpoint
+     * @param activeStakeHint hint for the active stake checkpoint
+     * @param activeSharesHint hint for the active shares checkpoint
+     */
     struct ActiveBalanceOfHints {
         bytes activeSharesOfHint;
         bytes activeStakeHint;

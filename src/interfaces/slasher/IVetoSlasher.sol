@@ -20,11 +20,6 @@ interface IVetoSlasher {
     error InvalidCaptureTimestamp();
     error VaultNotInitialized();
 
-    struct RequestSlashHints {
-        bytes optInHints;
-        bytes slashableStakeHints;
-    }
-
     /**
      * @notice Initial parameters needed for a slasher deployment.
      * @param vetoDuration duration of the veto period for a slash request
@@ -52,6 +47,42 @@ interface IVetoSlasher {
         uint48 vetoDeadline;
         uint256 vetoedShares;
         bool completed;
+    }
+
+    /**
+     * @notice Hints for a slash request.
+     * @param optInHints hints for the opt-in checkpoints
+     * @param slashableStakeHints hints for the slashable stake checkpoints
+     */
+    struct RequestSlashHints {
+        bytes optInHints;
+        bytes slashableStakeHints;
+    }
+
+    /**
+     * @notice Hints for a slash execute.
+     * @param slashableStakeHints hints for the slashable stake checkpoints
+     * @param onSlashHints hints for the on-slash checkpoints
+     */
+    struct ExecuteSlashHints {
+        bytes slashableStakeHints;
+        bytes onSlashHints;
+    }
+
+    /**
+     * @notice Hints for a slash veto.
+     * @param resolverSharesHint hint for the resolver's shares checkpoint
+     */
+    struct VetoSlashHints {
+        bytes resolverSharesHint;
+    }
+
+    /**
+     * @notice Hints for a resolver shares set.
+     * @param resolverSharesHint hint for the resolver's shares checkpoint
+     */
+    struct SetResolverSharesHints {
+        bytes resolverSharesHint;
     }
 
     /**
@@ -200,25 +231,28 @@ interface IVetoSlasher {
     ) external returns (uint256 slashIndex);
 
     /**
-     * @notice Execute a slash with a given slash index.
+     * @notice Execute a slash with a given slash index using hints.
      * @param slashIndex index of the slash request
+     * @param hints hints for checkpoints' indexes
      * @return slashedAmount amount of the collateral slashed
      * @dev Anyone can call this function.
      */
-    function executeSlash(uint256 slashIndex) external returns (uint256 slashedAmount);
+    function executeSlash(uint256 slashIndex, bytes memory hints) external returns (uint256 slashedAmount);
 
     /**
-     * @notice Veto a slash with a given slash index.
+     * @notice Veto a slash with a given slash index using hints.
      * @param slashIndex index of the slash request
+     * @param hints hints for checkpoints' indexes
      * @dev Only a resolver can call this function.
      */
-    function vetoSlash(uint256 slashIndex) external;
+    function vetoSlash(uint256 slashIndex, bytes memory hints) external;
 
     /**
-     * @notice Set a resolver's shares for a network.
+     * @notice Set a resolver's shares for a network using hints.
      * @param resolver address of the resolver
      * @param shares amount of the shares to set (up to SHARES_BASE inclusively)
+     * @param hints hints for checkpoints' indexes
      * @dev Only a network can call this function.
      */
-    function setResolverShares(address resolver, uint256 shares) external;
+    function setResolverShares(address resolver, uint256 shares, bytes memory hints) external;
 }
