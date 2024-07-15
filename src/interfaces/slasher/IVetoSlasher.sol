@@ -2,23 +2,20 @@
 pragma solidity 0.8.25;
 
 interface IVetoSlasher {
-    error InvalidVetoDuration();
+    error AlreadyVetoed();
     error InsufficientSlash();
+    error InvalidCaptureTimestamp();
+    error InvalidResolverSetEpochsDelay();
+    error InvalidShares();
+    error InvalidVetoDuration();
     error NotNetwork();
     error NotResolver();
-    error SlashRequestCompleted();
     error SlashPeriodEnded();
+    error SlashRequestCompleted();
     error SlashRequestNotExist();
+    error VaultNotInitialized();
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
-    error InvalidShares();
-    error InvalidTotalShares();
-    error InvalidResolversLength();
-    error InvalidResolverSetEpochsDelay();
-    error ResolverAlreadySet();
-    error AlreadyVetoed();
-    error InvalidCaptureTimestamp();
-    error VaultNotInitialized();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.

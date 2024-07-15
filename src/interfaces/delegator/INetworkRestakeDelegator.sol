@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 import {IBaseDelegator} from "./IBaseDelegator.sol";
 
 interface INetworkRestakeDelegator is IBaseDelegator {
+    error DuplicateRoleHolder();
     error ExceedsMaxNetworkLimit();
     error MissingRoleHolders();
     error ZeroAddressRoleHolder();
-    error DuplicateRoleHolder();
 
     /**
      * @notice Hints for a stake.

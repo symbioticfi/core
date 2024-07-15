@@ -2,8 +2,8 @@
 pragma solidity 0.8.25;
 
 interface IBaseSlasher {
-    error NotNetworkMiddleware();
     error NetworkNotOptedInVault();
+    error NotNetworkMiddleware();
     error NotVault();
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();

@@ -10,19 +10,18 @@ interface IVault is IVaultStorage {
     error InsufficientDeposit();
     error InsufficientWithdrawal();
     error InvalidAccount();
+    error InvalidCaptureEpoch();
     error InvalidCollateral();
     error InvalidEpoch();
     error InvalidEpochDuration();
+    error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
     error NoDepositWhitelist();
-    error NotWhitelistedDepositor();
-    error NotSlasher();
-    error TooMuchWithdraw();
     error NotDelegator();
-    error TooMuchSlash();
-    error InvalidCaptureEpoch();
-    error InvalidLengthEpochs();
+    error NotSlasher();
+    error NotWhitelistedDepositor();
+    error TooMuchWithdraw();
 
     /**
      * @notice Initial parameters needed for a vault deployment.

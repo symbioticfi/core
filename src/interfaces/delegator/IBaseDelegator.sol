@@ -2,8 +2,8 @@ pragma solidity 0.8.25;
 
 interface IBaseDelegator {
     error AlreadySet();
-    error NotSlasher();
     error NotNetwork();
+    error NotSlasher();
     error NotVault();
     error TooMuchSlash();
 

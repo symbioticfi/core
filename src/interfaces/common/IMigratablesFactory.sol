@@ -9,7 +9,6 @@ interface IMigratablesFactory is IRegistry {
     error InvalidVersion();
     error NotOwner();
     error OldVersion();
-    error AlreadyInitialized();
 
     /**
      * @notice Get the last available version.

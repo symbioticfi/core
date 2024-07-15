@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 interface IOptInService {
     error AlreadyOptedIn();
-    error NotWho();
     error NotOptedIn();
     error NotWhereEntity();
+    error NotWho();
     error OptOutCooldown();
 
     /**
