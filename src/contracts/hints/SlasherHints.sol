@@ -33,8 +33,8 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address network,
         address operator,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _cumulativeSlash[network][operator].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _cumulativeSlash[network][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     function cumulativeSlashHint(
@@ -43,14 +43,23 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address operator,
         uint48 timestamp
     ) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            slasher,
-            abi.encodeWithSelector(BaseSlasherHints.cumulativeSlashHintInternal.selector, network, operator, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                slasher,
+                abi.encodeWithSelector(
+                    BaseSlasherHints.cumulativeSlashHintInternal.selector, network, operator, timestamp
+                )
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             slasher,
-            abi.encodeWithSelector(BaseSlasher.cumulativeSlashAt.selector, network, operator, timestamp, ""),
+            abi.encodeWithSelector(BaseSlasher.cumulativeSlashAt.selector, network, operator, timestamp, new bytes(0)),
             abi.encodeWithSelector(BaseSlasher.cumulativeSlashAt.selector, network, operator, timestamp, hint),
             hint
         );
@@ -183,8 +192,8 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address network,
         address resolver,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _resolverShares[network][resolver].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _resolverShares[network][resolver].upperLookupRecentCheckpoint(timestamp);
     }
 
     function resolverSharesHint(
@@ -193,14 +202,23 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address resolver,
         uint48 timestamp
     ) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            slasher,
-            abi.encodeWithSelector(VetoSlasherHints.resolverSharesHintInternal.selector, network, resolver, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                slasher,
+                abi.encodeWithSelector(
+                    VetoSlasherHints.resolverSharesHintInternal.selector, network, resolver, timestamp
+                )
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             slasher,
-            abi.encodeWithSelector(VetoSlasher.resolverSharesAt.selector, network, resolver, timestamp, ""),
+            abi.encodeWithSelector(VetoSlasher.resolverSharesAt.selector, network, resolver, timestamp, new bytes(0)),
             abi.encodeWithSelector(VetoSlasher.resolverSharesAt.selector, network, resolver, timestamp, hint),
             hint
         );

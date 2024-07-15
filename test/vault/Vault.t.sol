@@ -30,6 +30,8 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import {VaultHints} from "src/contracts/hints/VaultHints.sol";
+
 contract VaultTest is Test {
     using Math for uint256;
 
@@ -1377,6 +1379,116 @@ contract VaultTest is Test {
                     )
             );
         }
+    }
+
+    struct GasStruct {
+        uint256 gasSpent1;
+        uint256 gasSpent2;
+    }
+
+    struct HintStruct {
+        uint256 num;
+        bool back;
+        uint256 secondsAgo;
+    }
+
+    function test_ActiveSharesHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        epochDuration = uint48(bound(epochDuration, 1, 7 days));
+        hintStruct.num = bound(hintStruct.num, 0, 25);
+        hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        vault = _getVault(epochDuration);
+
+        for (uint256 i; i < hintStruct.num; ++i) {
+            _deposit(alice, amount1);
+
+            blockTimestamp = blockTimestamp + epochDuration;
+            vm.warp(blockTimestamp);
+        }
+
+        uint48 timestamp =
+            uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+        VaultHints vaultHints = new VaultHints();
+        bytes memory hint = vaultHints.activeSharesHint(address(vault), timestamp);
+
+        GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+        vault.activeSharesAt(timestamp, new bytes(0));
+        gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+        vault.activeSharesAt(timestamp, hint);
+        gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+        assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    }
+
+    function test_ActiveStakeHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        epochDuration = uint48(bound(epochDuration, 1, 7 days));
+        hintStruct.num = bound(hintStruct.num, 0, 25);
+        hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        vault = _getVault(epochDuration);
+
+        for (uint256 i; i < hintStruct.num; ++i) {
+            _deposit(alice, amount1);
+
+            blockTimestamp = blockTimestamp + epochDuration;
+            vm.warp(blockTimestamp);
+        }
+
+        uint48 timestamp =
+            uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+        VaultHints vaultHints = new VaultHints();
+        bytes memory hint = vaultHints.activeStakeHint(address(vault), timestamp);
+
+        GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+        vault.activeStakeAt(timestamp, new bytes(0));
+        gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+        vault.activeStakeAt(timestamp, hint);
+        gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+        assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    }
+
+    function test_ActiveSharesOfHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        epochDuration = uint48(bound(epochDuration, 1, 7 days));
+        hintStruct.num = bound(hintStruct.num, 0, 25);
+        hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        vault = _getVault(epochDuration);
+
+        for (uint256 i; i < hintStruct.num; ++i) {
+            _deposit(alice, amount1);
+
+            blockTimestamp = blockTimestamp + epochDuration;
+            vm.warp(blockTimestamp);
+        }
+
+        uint48 timestamp =
+            uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+        VaultHints vaultHints = new VaultHints();
+        bytes memory hint = vaultHints.activeSharesOfHint(address(vault), alice, timestamp);
+
+        GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+        vault.activeSharesOfAt(alice, timestamp, new bytes(0));
+        gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+        vault.activeSharesOfAt(alice, timestamp, hint);
+        gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+        assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     }
 
     function _getVault(uint48 epochDuration) internal returns (Vault) {

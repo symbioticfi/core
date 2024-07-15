@@ -112,19 +112,28 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
     function networkLimitHintInternal(
         address network,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
     function networkLimitHint(address delegator, address network, uint48 timestamp) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            delegator,
-            abi.encodeWithSelector(NetworkRestakeDelegatorHints.networkLimitHintInternal.selector, network, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                delegator,
+                abi.encodeWithSelector(
+                    NetworkRestakeDelegatorHints.networkLimitHintInternal.selector, network, timestamp
+                )
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             delegator,
-            abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, network, timestamp, ""),
+            abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, network, timestamp, new bytes(0)),
             abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, network, timestamp, hint),
             hint
         );
@@ -134,8 +143,8 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _operatorNetworkShares[network][operator].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _operatorNetworkShares[network][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     function operatorNetworkSharesHint(
@@ -144,17 +153,27 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         address operator,
         uint48 timestamp
     ) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            delegator,
-            abi.encodeWithSelector(
-                NetworkRestakeDelegatorHints.operatorNetworkSharesHintInternal.selector, network, operator, timestamp
-            )
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                delegator,
+                abi.encodeWithSelector(
+                    NetworkRestakeDelegatorHints.operatorNetworkSharesHintInternal.selector,
+                    network,
+                    operator,
+                    timestamp
+                )
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             delegator,
             abi.encodeWithSelector(
-                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, network, operator, timestamp, ""
+                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, network, operator, timestamp, new bytes(0)
             ),
             abi.encodeWithSelector(
                 NetworkRestakeDelegator.operatorNetworkSharesAt.selector, network, operator, timestamp, hint
@@ -166,8 +185,8 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
     function totalOperatorNetworkSharesHintInternal(
         address network,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _totalOperatorNetworkShares[network].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _totalOperatorNetworkShares[network].upperLookupRecentCheckpoint(timestamp);
     }
 
     function totalOperatorNetworkSharesHint(
@@ -175,17 +194,24 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         address network,
         uint48 timestamp
     ) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            delegator,
-            abi.encodeWithSelector(
-                NetworkRestakeDelegatorHints.totalOperatorNetworkSharesHintInternal.selector, network, timestamp
-            )
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                delegator,
+                abi.encodeWithSelector(
+                    NetworkRestakeDelegatorHints.totalOperatorNetworkSharesHintInternal.selector, network, timestamp
+                )
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             delegator,
             abi.encodeWithSelector(
-                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, network, timestamp, ""
+                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, network, timestamp, new bytes(0)
             ),
             abi.encodeWithSelector(
                 NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, network, timestamp, hint
@@ -249,19 +275,26 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
     function networkLimitHintInternal(
         address network,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
     function networkLimitHint(address delegator, address network, uint48 timestamp) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            delegator,
-            abi.encodeWithSelector(FullRestakeDelegatorHints.networkLimitHintInternal.selector, network, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                delegator,
+                abi.encodeWithSelector(FullRestakeDelegatorHints.networkLimitHintInternal.selector, network, timestamp)
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             delegator,
-            abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, network, timestamp, ""),
+            abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, network, timestamp, new bytes(0)),
             abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, network, timestamp, hint),
             hint
         );
@@ -271,8 +304,8 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     function operatorNetworkLimitHint(
@@ -281,17 +314,24 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
         address operator,
         uint48 timestamp
     ) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            delegator,
-            abi.encodeWithSelector(
-                FullRestakeDelegatorHints.operatorNetworkLimitHintInternal.selector, network, operator, timestamp
-            )
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                delegator,
+                abi.encodeWithSelector(
+                    FullRestakeDelegatorHints.operatorNetworkLimitHintInternal.selector, network, operator, timestamp
+                )
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             delegator,
             abi.encodeWithSelector(
-                FullRestakeDelegator.operatorNetworkLimitAt.selector, network, operator, timestamp, ""
+                FullRestakeDelegator.operatorNetworkLimitAt.selector, network, operator, timestamp, new bytes(0)
             ),
             abi.encodeWithSelector(
                 FullRestakeDelegator.operatorNetworkLimitAt.selector, network, operator, timestamp, hint

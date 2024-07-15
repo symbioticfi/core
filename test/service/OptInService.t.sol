@@ -178,7 +178,22 @@ contract OperatorOptInServiceTest is Test {
         vm.stopPrank();
     }
 
-    function test_OptInWithHints() public {
+    struct GasStruct {
+        uint256 gasSpent1;
+        uint256 gasSpent2;
+    }
+
+    struct HintStruct {
+        uint256 num;
+        bool back;
+        uint256 secondsAgo;
+    }
+
+    function test_OptInWithHints(uint48 epochDuration, uint256 num, HintStruct memory hintStruct) public {
+        epochDuration = uint48(bound(epochDuration, 1, 7 days));
+        hintStruct.num = bound(hintStruct.num, 0, 25);
+        hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -196,12 +211,12 @@ contract OperatorOptInServiceTest is Test {
         networkRegistry.registerNetwork();
         vm.stopPrank();
 
-        for (uint256 i; i < 10; ++i) {
+        for (uint256 i; i < hintStruct.num / 2; ++i) {
             vm.startPrank(operator);
             service.optIn(where);
             vm.stopPrank();
 
-            blockTimestamp = blockTimestamp + 1;
+            blockTimestamp = blockTimestamp + epochDuration;
             vm.warp(blockTimestamp);
 
             vm.startPrank(operator);
@@ -209,15 +224,33 @@ contract OperatorOptInServiceTest is Test {
             vm.stopPrank();
         }
 
+        for (uint256 i; i < hintStruct.num / 2; ++i) {
+            vm.startPrank(operator);
+            service.optIn(where);
+            vm.stopPrank();
+
+            blockTimestamp = blockTimestamp + epochDuration;
+            vm.warp(blockTimestamp);
+
+            vm.startPrank(operator);
+            service.optOut(where);
+            vm.stopPrank();
+
+            blockTimestamp = blockTimestamp + 1;
+            vm.warp(blockTimestamp);
+        }
+
+        uint48 timestamp =
+            uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
         OptInServiceHints optInServiceHints = new OptInServiceHints();
+        bytes memory hint = optInServiceHints.optInHint(address(service), operator, where, timestamp);
 
-        bytes memory hint = optInServiceHints.optInHint(address(service), operator, where, uint48(blockTimestamp - 3));
-
-        uint256 gasLeft = gasleft();
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 3), ""), true);
-        uint256 gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
-        assertEq(service.isOptedInAt(operator, where, uint48(blockTimestamp - 3), hint), true);
-        assertGt(gasSpent, gasLeft - gasleft());
+        GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+        service.isOptedInAt(operator, where, timestamp, "");
+        gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+        service.isOptedInAt(operator, where, timestamp, hint);
+        gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+        assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     }
 }

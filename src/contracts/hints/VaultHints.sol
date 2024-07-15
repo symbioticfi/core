@@ -12,35 +12,59 @@ contract VaultHints is Hints, Vault {
 
     constructor() Vault(address(0), address(0), address(0)) {}
 
-    function activeStakeHintInternal(uint48 timestamp) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _activeStake.upperLookupRecentCheckpoint(timestamp);
+    function activeStakeHintInternal(uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
+        (exists,,, hint) = _activeStake.upperLookupRecentCheckpoint(timestamp);
     }
 
     function activeStakeHint(address vault, uint48 timestamp) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            vault, abi.encodeWithSelector(VaultHints.activeStakeHintInternal.selector, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                vault, abi.encodeWithSelector(VaultHints.activeStakeHintInternal.selector, timestamp)
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             vault,
-            abi.encodeWithSelector(VaultStorage.activeStakeAt.selector, timestamp, ""),
+            abi.encodeWithSelector(VaultStorage.activeStakeAt.selector, timestamp, new bytes(0)),
             abi.encodeWithSelector(VaultStorage.activeStakeAt.selector, timestamp, hint),
             hint
         );
     }
 
-    function activeSharesHintInternal(uint48 timestamp) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _activeShares.upperLookupRecentCheckpoint(timestamp);
+    function activeSharesHintInternal(uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
+        (exists,,, hint) = _activeShares.upperLookupRecentCheckpoint(timestamp);
     }
 
     function activeSharesHint(address vault, uint48 timestamp) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            vault, abi.encodeWithSelector(VaultHints.activeSharesHintInternal.selector, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                vault, abi.encodeWithSelector(VaultHints.activeSharesHintInternal.selector, timestamp)
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             vault,
-            abi.encodeWithSelector(VaultStorage.activeSharesAt.selector, timestamp, ""),
+            abi.encodeWithSelector(VaultStorage.activeSharesAt.selector, timestamp, new bytes(0)),
             abi.encodeWithSelector(VaultStorage.activeSharesAt.selector, timestamp, hint),
             hint
         );
@@ -49,18 +73,25 @@ contract VaultHints is Hints, Vault {
     function activeSharesOfHintInternal(
         address account,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _activeSharesOf[account].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _activeSharesOf[account].upperLookupRecentCheckpoint(timestamp);
     }
 
     function activeSharesOfHint(address vault, address account, uint48 timestamp) public returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            vault, abi.encodeWithSelector(VaultHints.activeSharesOfHintInternal.selector, account, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                vault, abi.encodeWithSelector(VaultHints.activeSharesOfHintInternal.selector, account, timestamp)
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             vault,
-            abi.encodeWithSelector(VaultStorage.activeSharesOfAt.selector, account, timestamp, ""),
+            abi.encodeWithSelector(VaultStorage.activeSharesOfAt.selector, account, timestamp, new bytes(0)),
             abi.encodeWithSelector(VaultStorage.activeSharesOfAt.selector, account, timestamp, hint),
             hint
         );

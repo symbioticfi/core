@@ -15,8 +15,8 @@ contract OptInServiceHints is Hints, OptInService {
         address who,
         address where,
         uint48 timestamp
-    ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp);
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp);
     }
 
     function optInHint(
@@ -25,13 +25,21 @@ contract OptInServiceHints is Hints, OptInService {
         address where,
         uint48 timestamp
     ) external returns (bytes memory) {
-        bytes memory hint = _selfStaticDelegateCall(
-            optInService, abi.encodeWithSelector(OptInServiceHints.optInHintInternal.selector, who, where, timestamp)
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                optInService,
+                abi.encodeWithSelector(OptInServiceHints.optInHintInternal.selector, who, where, timestamp)
+            ),
+            (bool, uint32)
         );
+        bytes memory hint;
+        if (exists) {
+            hint = abi.encode(hint_);
+        }
 
         return _optimizeHint(
             optInService,
-            abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, ""),
+            abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, new bytes(0)),
             abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, hint),
             hint
         );
