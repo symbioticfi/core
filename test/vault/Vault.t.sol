@@ -208,27 +208,21 @@ contract VaultTest is Test {
         vm.expectRevert(IVaultStorage.NoPreviousEpoch.selector);
         vault.previousEpochStart();
         assertEq(vault.nextEpochStart(), blockTimestamp + epochDuration);
-        assertEq(vault.totalSupplyIn(0), 0);
-        assertEq(vault.totalSupply(), 0);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), 0);
+        assertEq(vault.totalStake(), 0);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeShares(), 0);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), 0);
-        assertEq(vault.activeSupply(), 0);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), 0);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), 0);
+        assertEq(vault.activeStake(), 0);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeSharesOf(alice), 0);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointExists, false);
-        assertEq(checkpointKey, 0);
-        assertEq(checkpointValue, 0);
-        assertEq(checkpointPos, 0);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), 0);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeBalanceOf(alice), 0);
         assertEq(vault.withdrawals(0), 0);
         assertEq(vault.withdrawalShares(0), 0);
         assertEq(vault.isWithdrawalsClaimed(0, alice), false);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
+        assertEq(vault.balanceOf(alice), 0);
 
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -434,28 +428,20 @@ contract VaultTest is Test {
         assertEq(_deposit(alice, amount1), shares1);
         assertEq(collateral.balanceOf(address(vault)) - tokensBefore, amount1);
 
-        assertEq(vault.totalSupplyIn(0), amount1);
-        assertEq(vault.totalSupplyIn(1), amount1);
-        assertEq(vault.totalSupplyIn(2), amount1);
-        assertEq(vault.totalSupply(), amount1);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), 0);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1);
+        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1);
         assertEq(vault.activeShares(), shares1);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), 0);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1);
-        assertEq(vault.activeSupply(), amount1);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), 0);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1);
+        assertEq(vault.activeStake(), amount1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares1);
         assertEq(vault.activeSharesOf(alice), shares1);
-        (bool checkpointExists, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
-        assertEq(checkpointKey, blockTimestamp);
-        assertEq(checkpointValue, shares1);
-        assertEq(checkpointPos, 0);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), 0);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
+        assertEq(vault.balanceOf(alice), amount1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -463,46 +449,120 @@ contract VaultTest is Test {
         uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
         assertEq(_deposit(alice, amount2), shares2);
 
-        assertEq(vault.totalSupplyIn(0), amount1 + amount2);
-        assertEq(vault.totalSupplyIn(1), amount1 + amount2);
-        assertEq(vault.totalSupplyIn(2), amount1 + amount2);
-        assertEq(vault.totalSupply(), amount1 + amount2);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares1);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1 + shares2);
+        assertEq(vault.totalStake(), amount1 + amount2);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeShares(), shares1 + shares2);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), amount1);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1 + amount2);
-        assertEq(vault.activeSupply(), amount1 + amount2);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1 + shares2);
-        assertEq(vault.activeSharesOf(alice), shares1 + shares2);
-        (checkpointExists, checkpointKey, checkpointValue, checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp - 1));
-        assertEq(checkpointExists, true);
-        assertEq(checkpointKey, blockTimestamp - 1);
-        assertEq(checkpointValue, shares1);
-        assertEq(checkpointPos, 0);
-        (checkpointExists, checkpointKey, checkpointValue, checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointExists, true);
-        assertEq(checkpointKey, blockTimestamp);
-        assertEq(checkpointValue, shares1 + shares2);
-        assertEq(checkpointPos, 1);
         uint256 gasLeft = gasleft();
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), 1), shares1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), abi.encode(1)), shares1);
         uint256 gasSpent = gasLeft - gasleft();
         gasLeft = gasleft();
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), 0), shares1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), abi.encode(0)), shares1);
         assertGt(gasSpent, gasLeft - gasleft());
         gasLeft = gasleft();
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), 0), shares1 + shares2);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), abi.encode(0)), shares1 + shares2);
         gasSpent = gasLeft - gasleft();
         gasLeft = gasleft();
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), 1), shares1 + shares2);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), abi.encode(1)), shares1 + shares2);
         assertGt(gasSpent, gasLeft - gasleft());
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 + amount2);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 + amount2);
+        assertEq(vault.activeStake(), amount1 + amount2);
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), abi.encode(1)), amount1);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), abi.encode(0)), amount1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), abi.encode(0)), amount1 + amount2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), abi.encode(1)), amount1 + amount2);
+        assertGt(gasSpent, gasLeft - gasleft());
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), shares1 + shares2);
+        assertEq(vault.activeSharesOf(alice), shares1 + shares2);
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), abi.encode(1)), shares1);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), abi.encode(0)), shares1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), abi.encode(0)), shares1 + shares2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), abi.encode(1)), shares1 + shares2);
+        assertGt(gasSpent, gasLeft - gasleft());
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 + amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
+        assertEq(vault.balanceOf(alice), amount1 + amount2);
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp - 1),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(1),
+                        activeStakeHint: abi.encode(1),
+                        activeSharesHint: abi.encode(1)
+                    })
+                )
+            ),
+            amount1
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp - 1),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(0),
+                        activeStakeHint: abi.encode(0),
+                        activeSharesHint: abi.encode(0)
+                    })
+                )
+            ),
+            amount1
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(0),
+                        activeStakeHint: abi.encode(0),
+                        activeSharesHint: abi.encode(0)
+                    })
+                )
+            ),
+            amount1 + amount2
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(1),
+                        activeStakeHint: abi.encode(1),
+                        activeSharesHint: abi.encode(1)
+                    })
+                )
+            ),
+            amount1 + amount2
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
     }
 
     function test_DepositBoth(uint256 amount1, uint256 amount2) public {
@@ -525,35 +585,27 @@ contract VaultTest is Test {
         uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
         assertEq(_deposit(bob, amount2), shares2);
 
-        assertEq(vault.totalSupply(), amount1 + amount2);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares1);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares1 + shares2);
+        assertEq(vault.totalStake(), amount1 + amount2);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeShares(), shares1 + shares2);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), amount1);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1 + amount2);
-        assertEq(vault.activeSupply(), amount1 + amount2);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares1);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 + amount2);
+        assertEq(vault.activeStake(), amount1 + amount2);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares1);
         assertEq(vault.activeSharesOf(alice), shares1);
-        (, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointKey, blockTimestamp - 1);
-        assertEq(checkpointValue, shares1);
-        assertEq(checkpointPos, 0);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
-        assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1)), 0);
-        assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp)), shares2);
+        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp), ""), shares2);
         assertEq(vault.activeSharesOf(bob), shares2);
-        (, checkpointKey, checkpointValue, checkpointPos) =
-            vault.activeSharesOfCheckpointAt(bob, uint48(blockTimestamp));
-        assertEq(checkpointKey, blockTimestamp);
-        assertEq(checkpointValue, shares2);
-        assertEq(checkpointPos, 0);
-        assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1)), 0);
-        assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp)), amount2);
+        assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp), ""), amount2);
         assertEq(vault.activeBalanceOf(bob), amount2);
+        assertEq(vault.balanceOf(bob), amount2);
     }
 
     function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
@@ -602,26 +654,18 @@ contract VaultTest is Test {
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
 
-        assertEq(vault.totalSupplyIn(0), amount1);
-        assertEq(vault.totalSupplyIn(1), amount1);
-        assertEq(vault.totalSupplyIn(2), amount1 - amount2);
-        assertEq(vault.totalSupply(), amount1);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares - burnedShares);
+        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - burnedShares);
         assertEq(vault.activeShares(), shares - burnedShares);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), amount1);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1 - amount2);
-        assertEq(vault.activeSupply(), amount1 - amount2);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - amount2);
+        assertEq(vault.activeStake(), amount1 - amount2);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares - burnedShares);
         assertEq(vault.activeSharesOf(alice), shares - burnedShares);
-        (, uint48 checkpointKey, uint256 checkpointValue, uint256 checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointKey, blockTimestamp);
-        assertEq(checkpointValue, shares - burnedShares);
-        assertEq(checkpointPos, 1);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 - amount2);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 - amount2);
         assertEq(vault.withdrawals(vault.currentEpoch()), 0);
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), amount2);
@@ -632,6 +676,7 @@ contract VaultTest is Test {
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), mintedShares);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
+        assertEq(vault.balanceOf(alice), amount1);
 
         shares -= burnedShares;
 
@@ -644,26 +689,18 @@ contract VaultTest is Test {
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
 
-        assertEq(vault.totalSupplyIn(0), amount1);
-        assertEq(vault.totalSupplyIn(1), amount1 - amount2);
-        assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
-        assertEq(vault.totalSupply(), amount1);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1)), shares);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp)), shares - burnedShares);
+        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - burnedShares);
         assertEq(vault.activeShares(), shares - burnedShares);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp - 1)), amount1 - amount2);
-        assertEq(vault.activeSupplyAt(uint48(blockTimestamp)), amount1 - amount2 - amount3);
-        assertEq(vault.activeSupply(), amount1 - amount2 - amount3);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1)), shares);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp)), shares - burnedShares);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1 - amount2);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - amount2 - amount3);
+        assertEq(vault.activeStake(), amount1 - amount2 - amount3);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares - burnedShares);
         assertEq(vault.activeSharesOf(alice), shares - burnedShares);
-        (, checkpointKey, checkpointValue, checkpointPos) =
-            vault.activeSharesOfCheckpointAt(alice, uint48(blockTimestamp));
-        assertEq(checkpointKey, blockTimestamp);
-        assertEq(checkpointValue, shares - burnedShares);
-        assertEq(checkpointPos, 2);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1)), amount1 - amount2);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp)), amount1 - amount2 - amount3);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - amount2);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - amount2 - amount3);
         assertEq(vault.activeBalanceOf(alice), amount1 - amount2 - amount3);
         assertEq(vault.withdrawals(vault.currentEpoch() - 1), 0);
         assertEq(vault.withdrawals(vault.currentEpoch()), amount2);
@@ -677,27 +714,22 @@ contract VaultTest is Test {
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), amount2 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), amount3 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
+        assertEq(vault.balanceOf(alice), amount1);
 
         shares -= burnedShares;
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.totalSupplyIn(0), amount1 - amount2);
-        assertEq(vault.totalSupplyIn(1), amount1 - amount2 - amount3);
-        assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
-        assertEq(vault.totalSupply(), amount1 - amount2);
+        assertEq(vault.totalStake(), amount1 - amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.totalSupplyIn(0), amount1 - amount2 - amount3);
-        assertEq(vault.totalSupplyIn(1), amount1 - amount2 - amount3);
-        assertEq(vault.totalSupplyIn(2), amount1 - amount2 - amount3);
-        assertEq(vault.totalSupply(), amount1 - amount2 - amount3);
+        assertEq(vault.totalStake(), amount1 - amount2 - amount3);
     }
 
-    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
+    function test_WithdrawRevertInvalidRecipient(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -705,7 +737,7 @@ contract VaultTest is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVault.InvalidClaimer.selector);
+        vm.expectRevert(IVault.InvalidRecipient.selector);
         vm.startPrank(alice);
         vault.withdraw(address(0), amount1);
         vm.stopPrank();
@@ -764,35 +796,6 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2);
 
         assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
-    }
-
-    function test_ClaimRevertInvalidRecipient(uint256 amount1, uint256 amount2) public {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        vm.assume(amount1 >= amount2);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-        blockTimestamp = blockTimestamp + 1_720_700_948;
-        vm.warp(blockTimestamp);
-
-        uint48 epochDuration = 1;
-        vault = _getVault(epochDuration);
-
-        _deposit(alice, amount1);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        _withdraw(alice, amount2);
-
-        blockTimestamp = blockTimestamp + 2;
-        vm.warp(blockTimestamp);
-
-        vm.startPrank(alice);
-        uint256 currentEpoch = vault.currentEpoch();
-        vm.expectRevert(IVault.InvalidRecipient.selector);
-        vault.claim(address(0), currentEpoch - 1);
-        vm.stopPrank();
     }
 
     function test_ClaimRevertInvalidEpoch(uint256 amount1, uint256 amount2) public {
@@ -994,7 +997,7 @@ contract VaultTest is Test {
     struct Test_SlashStruct {
         uint256 slashAmountReal1;
         uint256 tokensBeforeBurner;
-        uint256 activeSupply1;
+        uint256 activeStake1;
         uint256 withdrawals1;
         uint256 nextWithdrawals1;
         uint256 slashAmountSlashed2;
@@ -1054,8 +1057,8 @@ contract VaultTest is Test {
 
         _withdraw(alice, withdrawAmount2);
 
-        assertEq(vault.totalSupply(), depositAmount);
-        assertEq(vault.activeSupply(), depositAmount - withdrawAmount1 - withdrawAmount2);
+        assertEq(vault.totalStake(), depositAmount);
+        assertEq(vault.activeStake(), depositAmount - withdrawAmount1 - withdrawAmount2);
         assertEq(vault.withdrawals(vault.currentEpoch()), withdrawAmount1);
         assertEq(vault.withdrawals(vault.currentEpoch() + 1), withdrawAmount2);
 
@@ -1068,7 +1071,7 @@ contract VaultTest is Test {
             test_SlashStruct.slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
-                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo)),
+                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""),
                 test_SlashStruct.slashAmountReal1
             );
             assertEq(
@@ -1076,7 +1079,7 @@ contract VaultTest is Test {
                 test_SlashStruct.slashAmountReal1
             );
 
-            test_SlashStruct.activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
+            test_SlashStruct.activeStake1 = depositAmount - withdrawAmount1 - withdrawAmount2
                 - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(
                     test_SlashStruct.slashAmountReal1, depositAmount
                 );
@@ -1084,10 +1087,10 @@ contract VaultTest is Test {
                 withdrawAmount1 - withdrawAmount1.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
             test_SlashStruct.nextWithdrawals1 =
                 withdrawAmount2 - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
-            assertEq(vault.totalSupply(), depositAmount - test_SlashStruct.slashAmountReal1);
+            assertEq(vault.totalStake(), depositAmount - test_SlashStruct.slashAmountReal1);
             assertTrue(test_SlashStruct.withdrawals1 - vault.withdrawals(vault.currentEpoch()) <= 2);
             assertTrue(test_SlashStruct.nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
-            assertEq(vault.activeSupply(), test_SlashStruct.activeSupply1);
+            assertEq(vault.activeStake(), test_SlashStruct.activeStake1);
 
             test_SlashStruct.slashAmountSlashed2 = Math.min(
                 depositAmount - test_SlashStruct.slashAmountReal1,
@@ -1095,7 +1098,7 @@ contract VaultTest is Test {
             );
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
-                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo)),
+                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
                 Math.min(slashAmount2, depositAmount - withdrawAmount1)
             );
             assertEq(
@@ -1104,7 +1107,7 @@ contract VaultTest is Test {
             );
 
             assertEq(
-                vault.totalSupply(),
+                vault.totalStake(),
                 depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2
             );
             assertTrue(
@@ -1124,9 +1127,9 @@ contract VaultTest is Test {
                 ) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
             );
             assertEq(
-                vault.activeSupply(),
-                test_SlashStruct.activeSupply1
-                    - test_SlashStruct.activeSupply1.mulDiv(
+                vault.activeStake(),
+                test_SlashStruct.activeStake1
+                    - test_SlashStruct.activeStake1.mulDiv(
                         test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
                     )
             );
@@ -1135,7 +1138,7 @@ contract VaultTest is Test {
                 Math.min(slashAmount1, depositAmount - withdrawAmount1 - withdrawAmount2);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
-                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo)),
+                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""),
                 test_SlashStruct.slashAmountReal1
             );
             assertEq(
@@ -1143,17 +1146,17 @@ contract VaultTest is Test {
                 test_SlashStruct.slashAmountReal1
             );
 
-            test_SlashStruct.activeSupply1 = depositAmount - withdrawAmount1 - withdrawAmount2
+            test_SlashStruct.activeStake1 = depositAmount - withdrawAmount1 - withdrawAmount2
                 - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(
                     test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1
                 );
             test_SlashStruct.withdrawals1 = withdrawAmount1;
             test_SlashStruct.nextWithdrawals1 = withdrawAmount2
                 - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1);
-            assertEq(vault.totalSupply(), depositAmount - test_SlashStruct.slashAmountReal1);
+            assertEq(vault.totalStake(), depositAmount - test_SlashStruct.slashAmountReal1);
             assertEq(vault.withdrawals(vault.currentEpoch()), test_SlashStruct.withdrawals1);
             assertTrue(test_SlashStruct.nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
-            assertEq(vault.activeSupply(), test_SlashStruct.activeSupply1);
+            assertEq(vault.activeStake(), test_SlashStruct.activeStake1);
 
             test_SlashStruct.slashAmountSlashed2 = Math.min(
                 depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1,
@@ -1161,7 +1164,7 @@ contract VaultTest is Test {
             );
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
-                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo)),
+                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
                 Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
             );
             assertEq(
@@ -1170,7 +1173,7 @@ contract VaultTest is Test {
             );
 
             assertEq(
-                vault.totalSupply(),
+                vault.totalStake(),
                 depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2
             );
             assertEq(vault.withdrawals(vault.currentEpoch()), test_SlashStruct.withdrawals1);
@@ -1184,9 +1187,9 @@ contract VaultTest is Test {
                 ) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
             );
             assertEq(
-                vault.activeSupply(),
-                test_SlashStruct.activeSupply1
-                    - test_SlashStruct.activeSupply1.mulDiv(
+                vault.activeStake(),
+                test_SlashStruct.activeStake1
+                    - test_SlashStruct.activeStake1.mulDiv(
                         test_SlashStruct.slashAmountSlashed2,
                         depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
                     )
@@ -1318,7 +1321,7 @@ contract VaultTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(epoch);
         vm.stopPrank();
     }
 
@@ -1387,10 +1390,11 @@ contract VaultTest is Test {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.slash(network, operator, amount, captureTimestamp);
+        slashAmount = slasher.slash(network, operator, amount, captureTimestamp, hints);
         vm.stopPrank();
     }
 

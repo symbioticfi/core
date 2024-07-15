@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {Entity} from "src/contracts/common/Entity.sol";
+import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
 
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
@@ -14,7 +15,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
+contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeable, IBaseDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
@@ -80,15 +81,31 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function stakeAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
+    function stakeAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) public view returns (uint256) {
+        (uint256 stake_, bytes memory baseHints) = _stakeAt(network, operator, timestamp, hints);
+        StakeBaseHints memory stakeBaseHints;
+        if (baseHints.length > 0) {
+            stakeBaseHints = abi.decode(baseHints, (StakeBaseHints));
+        }
+
         if (
-            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault, timestamp)
-                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(operator, network, timestamp)
+            stake_ == 0
+                || !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
+                    operator, vault, timestamp, stakeBaseHints.operatorVaultOptInHint
+                )
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
+                    operator, network, timestamp, stakeBaseHints.operatorNetworkOptInHint
+                )
         ) {
             return 0;
         }
 
-        return _stakeAt(network, operator, timestamp);
+        return stake_;
     }
 
     /**
@@ -136,12 +153,23 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external {
+    function onSlash(
+        address network,
+        address operator,
+        uint256 slashedAmount,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) external {
+        OnSlashHints memory onSlashHints;
+        if (hints.length > 0) {
+            onSlashHints = abi.decode(hints, (OnSlashHints));
+        }
+
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
 
-        if (slashedAmount > stakeAt(network, operator, captureTimestamp)) {
+        if (slashedAmount > stakeAt(network, operator, captureTimestamp, onSlashHints.stakeHints)) {
             revert TooMuchSlash();
         }
 
@@ -156,7 +184,12 @@ contract BaseDelegator is Entity, AccessControlUpgradeable, IBaseDelegator {
         emit OnSlash(network, operator, slashedAmount);
     }
 
-    function _stakeAt(address network, address operator, uint48 timestamp) internal view virtual returns (uint256) {}
+    function _stakeAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) internal view virtual returns (uint256, bytes memory) {}
 
     function _stake(address network, address operator) internal view virtual returns (uint256) {}
 

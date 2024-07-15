@@ -20,6 +20,11 @@ interface IVetoSlasher {
     error InvalidCaptureTimestamp();
     error VaultNotInitialized();
 
+    struct RequestSlashHints {
+        bytes optInHints;
+        bytes slashableStakeHints;
+    }
+
     /**
      * @notice Initial parameters needed for a slasher deployment.
      * @param vetoDuration duration of the veto period for a slash request
@@ -145,21 +150,28 @@ interface IVetoSlasher {
     function resolverSetEpochsDelay() external view returns (uint256);
 
     /**
-     * @notice Get a resolver's shares at a particular timestamp.
+     * @notice Get a resolver's shares at a particular timestamp using a hint.
      * @param network address of the network
      * @param resolver address of the resolver
      * @param timestamp timestamp to get the shares at
+     * @param hints hints for the checkpoint index
      * @return amount of the resolver's shares
      */
-    function resolverSharesAt(address network, address resolver, uint48 timestamp) external view returns (uint256);
+    function resolverSharesAt(
+        address network,
+        address resolver,
+        uint48 timestamp,
+        bytes memory hints
+    ) external view returns (uint256);
 
     /**
-     * @notice Get a resolver's shares.
+     * @notice Get a resolver's shares using a hint.
      * @param network address of the network
      * @param resolver address of the resolver
+     * @param hint hint for the checkpoint index
      * @return amount of the resolver's shares
      */
-    function resolverShares(address network, address resolver) external view returns (uint256);
+    function resolverShares(address network, address resolver, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get if a resolver has vetoed a particular slash request.
@@ -170,11 +182,12 @@ interface IVetoSlasher {
     function hasVetoed(address resolver, uint256 slashIndex) external view returns (bool);
 
     /**
-     * @notice Request a slash using a network and a resolver for a particular operator by a given amount.
+     * @notice Request a slash using a network and a resolver for a particular operator by a given amount using hints.
      * @param network address of the network
      * @param operator address of the operator
      * @param amount maximum amount of the collateral to be slashed
      * @param captureTimestamp time point when the stake was captured
+     * @param hints hints for checkpoints' indexes
      * @return slashIndex index of the slash request
      * @dev Only network middleware can call this function.
      */
@@ -182,7 +195,8 @@ interface IVetoSlasher {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) external returns (uint256 slashIndex);
 
     /**

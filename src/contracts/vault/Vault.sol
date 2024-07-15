@@ -5,19 +5,19 @@ import {MigratableEntity} from "src/contracts/common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {ICollateral} from "src/interfaces/collateral/ICollateral.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
+contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, MulticallUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
@@ -26,35 +26,23 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function totalSupplyIn(uint48 duration) public view returns (uint256) {
+    function totalStake() public view returns (uint256) {
         uint256 epoch = currentEpoch();
-        uint256 futureEpoch = epochAt(Time.timestamp() + duration);
-
-        if (futureEpoch > epoch + 1) {
-            return activeSupply();
-        }
-
-        if (futureEpoch > epoch) {
-            return activeSupply() + withdrawals[futureEpoch];
-        }
-
-        return activeSupply() + withdrawals[epoch] + withdrawals[epoch + 1];
+        return activeStake() + withdrawals[epoch] + withdrawals[epoch + 1];
     }
 
     /**
      * @inheritdoc IVault
      */
-    function totalSupply() public view returns (uint256) {
-        uint256 epoch = currentEpoch();
-        return activeSupply() + withdrawals[epoch] + withdrawals[epoch + 1];
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function activeBalanceOfAt(address account, uint48 timestamp) public view returns (uint256) {
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
+        ActiveBalanceOfHints memory activeBalanceOfHints;
+        if (hints.length > 0) {
+            activeBalanceOfHints = abi.decode(hints, (ActiveBalanceOfHints));
+        }
         return ERC4626Math.previewRedeem(
-            activeSharesOfAt(account, timestamp), activeSupplyAt(timestamp), activeSharesAt(timestamp)
+            activeSharesOfAt(account, timestamp, activeBalanceOfHints.activeSharesOfHint),
+            activeStakeAt(timestamp, activeBalanceOfHints.activeStakeHint),
+            activeSharesAt(timestamp, activeBalanceOfHints.activeSharesHint)
         );
     }
 
@@ -62,7 +50,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function activeBalanceOf(address account) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(activeSharesOf(account), activeSupply(), activeShares());
+        return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
     /**
@@ -71,6 +59,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function withdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
         return
             ERC4626Math.previewRedeem(withdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function balanceOf(address account) external view returns (uint256) {
+        uint256 epoch = currentEpoch();
+        return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
     }
 
     constructor(
@@ -97,12 +93,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
 
-        uint256 activeSupply_ = activeSupply();
+        uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
 
-        shares = ERC4626Math.previewDeposit(amount, activeShares_, activeSupply_);
+        shares = ERC4626Math.previewDeposit(amount, activeShares_, activeStake_);
 
-        _activeSupplies.push(Time.timestamp(), activeSupply_ + amount);
+        _activeStake.push(Time.timestamp(), activeStake_ + amount);
         _activeShares.push(Time.timestamp(), activeShares_ + shares);
         _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + shares);
 
@@ -112,25 +108,28 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
-        if (claimer == address(0)) {
-            revert InvalidClaimer();
+    function withdraw(
+        address recipient,
+        uint256 amount
+    ) external returns (uint256 burnedShares, uint256 mintedShares) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
         }
 
         if (amount == 0) {
             revert InsufficientWithdrawal();
         }
 
-        uint256 activeSupply_ = activeSupply();
+        uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
         uint256 activeSharesOf_ = activeSharesOf(msg.sender);
 
-        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeSupply_);
+        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeStake_);
         if (burnedShares > activeSharesOf_) {
             revert TooMuchWithdraw();
         }
 
-        _activeSupplies.push(Time.timestamp(), activeSupply_ - amount);
+        _activeStake.push(Time.timestamp(), activeStake_ - amount);
         _activeShares.push(Time.timestamp(), activeShares_ - burnedShares);
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf_ - burnedShares);
 
@@ -142,19 +141,15 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         withdrawals[epoch] = withdrawals_ + amount;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+        withdrawalSharesOf[epoch][recipient] += mintedShares;
 
-        emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
+        emit Withdraw(msg.sender, recipient, amount, burnedShares, mintedShares);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function claim(address recipient, uint256 epoch) external returns (uint256 amount) {
-        if (recipient == address(0)) {
-            revert InvalidRecipient();
-        }
-
+    function claim(uint256 epoch) external returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }
@@ -171,9 +166,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         isWithdrawalsClaimed[epoch][msg.sender] = true;
 
-        IERC20(collateral).safeTransfer(recipient, amount);
+        IERC20(collateral).safeTransfer(msg.sender, amount);
 
-        emit Claim(msg.sender, recipient, amount);
+        emit Claim(msg.sender, amount);
     }
 
     /**
@@ -186,29 +181,29 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         uint256 currentEpoch_ = currentEpoch();
         uint256 captureEpoch = epochAt(captureTimestamp);
-        if ((currentEpoch_ != 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
+        if ((currentEpoch_ > 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
             revert InvalidCaptureEpoch();
         }
 
-        uint256 activeSupply_ = activeSupply();
+        uint256 activeStake_ = activeStake();
         uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
         if (captureEpoch == currentEpoch_) {
-            uint256 slashableSupply = activeSupply_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            uint256 slashableStake = activeStake_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableStake);
             if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
+                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
 
-                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
                 withdrawals[captureEpoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
             }
         } else {
             uint256 withdrawals_ = withdrawals[currentEpoch_];
-            uint256 slashableSupply = activeSupply_ + withdrawals_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableSupply);
+            uint256 slashableStake = activeStake_ + withdrawals_ + nextWithdrawals;
+            slashedAmount = Math.min(slashedAmount, slashableStake);
             if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeSupply_, slashableSupply);
-                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableSupply);
+                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
+                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableStake);
                 uint256 withdrawalsSlashed = slashedAmount - activeSlashed - nextWithdrawalsSlashed;
 
                 if (withdrawals_ < withdrawalsSlashed) {
@@ -216,7 +211,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
                     withdrawalsSlashed = withdrawals_;
                 }
 
-                _activeSupplies.push(Time.timestamp(), activeSupply_ - activeSlashed);
+                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
                 withdrawals[currentEpoch_ + 1] = nextWithdrawals - nextWithdrawalsSlashed;
                 withdrawals[currentEpoch_] = withdrawals_ - withdrawalsSlashed;
             }

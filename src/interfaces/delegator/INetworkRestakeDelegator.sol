@@ -8,6 +8,14 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     error ZeroAddressRoleHolder();
     error DuplicateRoleHolder();
 
+    struct StakeHints {
+        bytes baseHints;
+        bytes activeStakeHint;
+        bytes networkLimitHint;
+        bytes totalOperatorNetworkSharesHint;
+        bytes operatorNetworkSharesHint;
+    }
+
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.
      * @param baseParams base parameters for delegators' deployment
@@ -50,13 +58,14 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function OPERATOR_NETWORK_SHARES_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get a network's limit at a given timestamp
+     * @notice Get a network's limit at a given timestamp using a hint
      *         (how much stake the vault curator is ready to give to the network).
      * @param network address of the network
      * @param timestamp time point to get the network limit at
+     * @param hint hint for checkpoint index
      * @return limit of the network at the given timestamp
      */
-    function networkLimitAt(address network, uint48 timestamp) external view returns (uint256);
+    function networkLimitAt(address network, uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a network's limit (how much stake the vault curator is ready to give to the network).
@@ -66,12 +75,17 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function networkLimit(address network) external view returns (uint256);
 
     /**
-     * @notice Get a sum of operators' shares for a network at a given timestamp.
+     * @notice Get a sum of operators' shares for a network at a given timestamp using a hint.
      * @param network address of the network
      * @param timestamp time point to get the total operators' shares at
+     * @param hint hint for checkpoint index
      * @return total shares of the operators for the network at the given timestamp
      */
-    function totalOperatorNetworkSharesAt(address network, uint48 timestamp) external view returns (uint256);
+    function totalOperatorNetworkSharesAt(
+        address network,
+        uint48 timestamp,
+        bytes memory hint
+    ) external view returns (uint256);
 
     /**
      * @notice Get a sum of operators' shares for a network.
@@ -81,18 +95,20 @@ interface INetworkRestakeDelegator is IBaseDelegator {
     function totalOperatorNetworkShares(address network) external view returns (uint256);
 
     /**
-     * @notice Get an operator's shares for a network at a given timestamp (what percentage,
+     * @notice Get an operator's shares for a network at a given timestamp using a hint (what percentage,
      *         which is equal to the shares divided by the total operators' shares,
      *         of the network's stake the vault curator is ready to give to the operator).
      * @param network address of the network
      * @param operator address of the operator
      * @param timestamp time point to get the operator's shares at
+     * @param hint hint for checkpoint index
      * @return shares of the operator for the network at the given timestamp
      */
     function operatorNetworkSharesAt(
         address network,
         address operator,
-        uint48 timestamp
+        uint48 timestamp,
+        bytes memory hint
     ) external view returns (uint256);
 
     /**

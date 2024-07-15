@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {Entity} from "src/contracts/common/Entity.sol";
+import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
 
 import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
@@ -15,7 +16,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-abstract contract BaseSlasher is Entity, IBaseSlasher {
+abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
 
     /**
@@ -48,7 +49,7 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
      */
     address public vault;
 
-    mapping(address network => mapping(address operator => Checkpoints.Trace256 amount)) private _cumulativeSlash;
+    mapping(address network => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
     modifier onlyNetworkMiddleware(address network) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
@@ -77,8 +78,13 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
     /**
      * @inheritdoc IBaseSlasher
      */
-    function cumulativeSlashAt(address network, address operator, uint48 timestamp) public view returns (uint256) {
-        return _cumulativeSlash[network][operator].upperLookupRecent(timestamp);
+    function cumulativeSlashAt(
+        address network,
+        address operator,
+        uint48 timestamp,
+        bytes memory hint
+    ) public view returns (uint256) {
+        return _cumulativeSlash[network][operator].upperLookupRecent(timestamp, hint);
     }
 
     /**
@@ -91,41 +97,66 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
     /**
      * @inheritdoc IBaseSlasher
      */
-    function slashAtDuring(
+    function slashableStake(
         address network,
         address operator,
-        uint48 timestamp,
-        uint48 duration
+        uint48 captureTimestamp,
+        bytes memory hints
     ) public view returns (uint256) {
-        return
-            cumulativeSlashAt(network, operator, timestamp + duration) - cumulativeSlashAt(network, operator, timestamp);
-    }
+        SlashableStakeHints memory slashableStakeHints;
+        if (hints.length > 0) {
+            slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
+        }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
-    function slashableStake(address network, address operator, uint48 captureTimestamp) public view returns (uint256) {
         if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
         {
             return 0;
         }
-        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(network, operator, captureTimestamp);
+        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+            network, operator, captureTimestamp, slashableStakeHints.stakeHints
+        );
         return stakeAmount
-            - Math.min(slashAtDuring(network, operator, captureTimestamp, Time.timestamp() - captureTimestamp), stakeAmount);
+            - Math.min(
+                cumulativeSlash(network, operator)
+                    - cumulativeSlashAt(network, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
+                stakeAmount
+            );
     }
 
-    function _checkOptIns(address network, address operator, uint48 captureTimestamp) internal view {
+    function _checkOptIns(
+        address network,
+        address operator,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) internal view {
+        OptInHints memory optInHints;
+        if (hints.length > 0) {
+            optInHints = abi.decode(hints, (OptInHints));
+        }
+
         address vault_ = vault;
 
-        if (!IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedInAt(network, vault_, captureTimestamp)) {
+        if (
+            !IOptInService(NETWORK_VAULT_OPT_IN_SERVICE).isOptedInAt(
+                network, vault_, captureTimestamp, optInHints.networkVaultOptInHint
+            )
+        ) {
             revert NetworkNotOptedInVault();
         }
 
-        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(operator, vault_, captureTimestamp)) {
+        if (
+            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
+                operator, vault_, captureTimestamp, optInHints.operatorVaultOptInHint
+            )
+        ) {
             revert OperatorNotOptedInVault();
         }
 
-        if (!IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(operator, network, captureTimestamp)) {
+        if (
+            !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
+                operator, network, captureTimestamp, optInHints.operatorNetworkOptInHint
+            )
+        ) {
             revert OperatorNotOptedInNetwork();
         }
     }
@@ -138,11 +169,19 @@ abstract contract BaseSlasher is Entity, IBaseSlasher {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) internal virtual {
+        OnSlashHints memory onSlashHints;
+        if (hints.length > 0) {
+            onSlashHints = abi.decode(hints, (OnSlashHints));
+        }
+
         address vault_ = vault;
 
-        IBaseDelegator(IVault(vault_).delegator()).onSlash(network, operator, amount, captureTimestamp);
+        IBaseDelegator(IVault(vault_).delegator()).onSlash(
+            network, operator, amount, captureTimestamp, onSlashHints.delegatorOnSlashHints
+        );
 
         IVault(vault_).onSlash(amount, captureTimestamp);
     }

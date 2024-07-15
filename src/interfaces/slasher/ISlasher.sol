@@ -5,6 +5,12 @@ interface ISlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
 
+    struct SlashHints {
+        bytes optInHints;
+        bytes slashableStakeHints;
+        bytes onSlashHints;
+    }
+
     /**
      * @notice Emitted when a slash is performed.
      * @param network network that requested the slash
@@ -15,11 +21,12 @@ interface ISlasher {
     event Slash(address indexed network, address indexed operator, uint256 slashedAmount, uint48 captureTimestamp);
 
     /**
-     * @notice Perform a slash using a network for a particular operator by a given amount.
+     * @notice Perform a slash using a network for a particular operator by a given amount using hints.
      * @param network address of the network
      * @param operator address of the operator
      * @param amount maximum amount of the collateral to be slashed
      * @param captureTimestamp time point when the stake was captured
+     * @param hints hints for checkpoints' indexes
      * @return slashedAmount amount of the collateral slashed
      * @dev Only a network middleware can call this function.
      */
@@ -27,6 +34,7 @@ interface ISlasher {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) external returns (uint256 slashedAmount);
 }

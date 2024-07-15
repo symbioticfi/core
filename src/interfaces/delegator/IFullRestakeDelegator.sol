@@ -8,6 +8,13 @@ interface IFullRestakeDelegator is IBaseDelegator {
     error ZeroAddressRoleHolder();
     error DuplicateRoleHolder();
 
+    struct StakeHints {
+        bytes baseHints;
+        bytes activeStakeHint;
+        bytes networkLimitHint;
+        bytes operatorNetworkLimitHint;
+    }
+
     /**
      * @notice Initial parameters needed for a full restaking delegator deployment.
      * @param baseParams base parameters for delegators' deployment
@@ -49,13 +56,14 @@ interface IFullRestakeDelegator is IBaseDelegator {
     function OPERATOR_NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get a network's limit at a given timestamp
+     * @notice Get a network's limit at a given timestamp using a hint
      *         (how much stake the vault curator is ready to give to the network).
      * @param network address of the network
      * @param timestamp time point to get the network limit at
+     * @param hint hint for checkpoint index
      * @return limit of the network at the given timestamp
      */
-    function networkLimitAt(address network, uint48 timestamp) external view returns (uint256);
+    function networkLimitAt(address network, uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a network's limit (how much stake the vault curator is ready to give to the network).
@@ -65,32 +73,19 @@ interface IFullRestakeDelegator is IBaseDelegator {
     function networkLimit(address network) external view returns (uint256);
 
     /**
-     * @notice Get a sum of operators' limits for a network at a given timestamp.
-     * @param network address of the network
-     * @param timestamp time point to get the total limit of the operators for the network at
-     * @return total limit of the operators for the network at the given timestamp
-     */
-    function totalOperatorNetworkLimitAt(address network, uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a sum of operators' limits for a network.
-     * @param network address of the network
-     * @return total limit of the operators for the network
-     */
-    function totalOperatorNetworkLimit(address network) external view returns (uint256);
-
-    /**
-     * @notice Get an operator's limit for a network at a given timestamp
+     * @notice Get an operator's limit for a network at a given timestamp using a hint
      *         (how much stake the vault curator is ready to give to the operator for the network).
      * @param network address of the network
      * @param operator address of the operator
      * @param timestamp time point to get the operator's limit for the network at
+     * @param hint hint for checkpoint index
      * @return limit of the operator for the network at the given timestamp
      */
     function operatorNetworkLimitAt(
         address network,
         address operator,
-        uint48 timestamp
+        uint48 timestamp,
+        bytes memory hint
     ) external view returns (uint256);
 
     /**

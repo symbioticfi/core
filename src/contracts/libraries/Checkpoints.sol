@@ -56,14 +56,19 @@ library Checkpoints {
      * NOTE: This is a variant of {upperLookupRecent} that can be optimized by getting the hint
      * (index of the checkpoint with key lower or equal than the search key).
      */
-    function upperLookupRecent(Trace208 storage self, uint48 key, uint32 hint) internal view returns (uint208) {
-        Checkpoint208 memory hintCheckpoint = at(self, hint);
-        if (hintCheckpoint._key == key) {
-            return hintCheckpoint._value;
+    function upperLookupRecent(Trace208 storage self, uint48 key, bytes memory hint_) internal view returns (uint208) {
+        if (hint_.length == 0) {
+            return upperLookupRecent(self, key);
         }
 
-        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
-            return hintCheckpoint._value;
+        uint32 hint = abi.decode(hint_, (uint32));
+        Checkpoint208 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return checkpoint._value;
+        }
+
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return checkpoint._value;
         }
 
         return upperLookupRecent(self, key);
@@ -95,6 +100,28 @@ library Checkpoints {
 
         OZCheckpoints.Checkpoint208 memory checkpoint = _unsafeAccess(self._trace._checkpoints, pos - 1);
         return (true, checkpoint._key, checkpoint._value, uint32(pos - 1));
+    }
+
+    function upperLookupRecentCheckpoint(
+        Trace208 storage self,
+        uint48 key,
+        bytes memory hint_
+    ) internal view returns (bool, uint48, uint208, uint32) {
+        if (hint_.length == 0) {
+            return upperLookupRecentCheckpoint(self, key);
+        }
+
+        uint32 hint = abi.decode(hint_, (uint32));
+        Checkpoint208 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return (true, checkpoint._key, checkpoint._value, hint);
+        }
+
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return (true, checkpoint._key, checkpoint._value, hint);
+        }
+
+        return upperLookupRecentCheckpoint(self, key);
     }
 
     /**
@@ -161,14 +188,19 @@ library Checkpoints {
      * NOTE: This is a variant of {upperLookupRecent} that can be optimized by getting the hint
      * (index of the checkpoint with key lower or equal than the search key).
      */
-    function upperLookupRecent(Trace256 storage self, uint48 key, uint32 hint) internal view returns (uint256) {
-        Checkpoint256 memory hintCheckpoint = at(self, hint);
-        if (hintCheckpoint._key == key) {
-            return hintCheckpoint._value;
+    function upperLookupRecent(Trace256 storage self, uint48 key, bytes memory hint_) internal view returns (uint256) {
+        if (hint_.length == 0) {
+            return upperLookupRecent(self, key);
         }
 
-        if (hintCheckpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
-            return hintCheckpoint._value;
+        uint32 hint = abi.decode(hint_, (uint32));
+        Checkpoint256 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return checkpoint._value;
+        }
+
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return checkpoint._value;
         }
 
         return upperLookupRecent(self, key);
@@ -200,6 +232,28 @@ library Checkpoints {
 
         OZCheckpoints.Checkpoint208 memory checkpoint = _unsafeAccess(self._trace._checkpoints, pos - 1);
         return (true, checkpoint._key, self._values[checkpoint._value], uint32(pos - 1));
+    }
+
+    function upperLookupRecentCheckpoint(
+        Trace256 storage self,
+        uint48 key,
+        bytes memory hint_
+    ) internal view returns (bool, uint48, uint256, uint32) {
+        if (hint_.length == 0) {
+            return upperLookupRecentCheckpoint(self, key);
+        }
+
+        uint32 hint = abi.decode(hint_, (uint32));
+        Checkpoint256 memory checkpoint = at(self, hint);
+        if (checkpoint._key == key) {
+            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+        }
+
+        if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
+            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+        }
+
+        return upperLookupRecentCheckpoint(self, key);
     }
 
     /**

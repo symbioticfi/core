@@ -10,7 +10,6 @@ interface IVault is IVaultStorage {
     error InsufficientDeposit();
     error InsufficientWithdrawal();
     error InvalidAccount();
-    error InvalidClaimer();
     error InvalidCollateral();
     error InvalidEpoch();
     error InvalidEpochDuration();
@@ -46,6 +45,12 @@ interface IVault is IVaultStorage {
         address depositorWhitelistRoleHolder;
     }
 
+    struct ActiveBalanceOfHints {
+        bytes activeSharesOfHint;
+        bytes activeStakeHint;
+        bytes activeSharesHint;
+    }
+
     /**
      * @notice Emitted when a deposit is made.
      * @param depositor account that made the deposit
@@ -58,22 +63,25 @@ interface IVault is IVaultStorage {
     /**
      * @notice Emitted when a withdrawal is made.
      * @param withdrawer account that made the withdrawal
-     * @param claimer account that needs to claim the withdrawal
+     * @param recipient account that needs to claim the withdrawal
      * @param amount amount of the collateral withdrawn
      * @param burnedShares amount of the active shares burned
      * @param mintedShares amount of the epoch withdrawal shares minted
      */
     event Withdraw(
-        address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares
+        address indexed withdrawer,
+        address indexed recipient,
+        uint256 amount,
+        uint256 burnedShares,
+        uint256 mintedShares
     );
 
     /**
      * @notice Emitted when a claim is made.
      * @param claimer account that claimed
-     * @param recipient account that received the collateral
      * @param amount amount of the collateral claimed
      */
-    event Claim(address indexed claimer, address indexed recipient, uint256 amount);
+    event Claim(address indexed claimer, uint256 amount);
 
     /**
      * @notice Emitted when a slash happened.
@@ -96,27 +104,19 @@ interface IVault is IVaultStorage {
     event SetDepositorWhitelistStatus(address indexed account, bool status);
 
     /**
-     * @notice Get a total amount of the collateral that can be slashed
-     *         in `duration` seconds (if there will be no new deposits and slash executions).
-     * @param duration duration to get the total amount of the slashable collateral in
-     * @return total amount of the slashable collateral in `duration` seconds
-     * @dev The result can be manipulated by the withdrawals if `epochAt(Time.timestamp() + duration) > currentEpoch() + 1`.
-     */
-    function totalSupplyIn(uint48 duration) external view returns (uint256);
-
-    /**
      * @notice Get a total amount of the collateral that can be slashed.
      * @return total amount of the slashable collateral
      */
-    function totalSupply() external view returns (uint256);
+    function totalStake() external view returns (uint256);
 
     /**
-     * @notice Get an active balance for a particular account at a given timestamp.
+     * @notice Get an active balance for a particular account at a given timestamp using hints.
      * @param account account to get the active balance for
      * @param timestamp time point to get the active balance for the account at
+     * @param hints hints for checkpoints' indexes
      * @return active balance for the account at the timestamp
      */
-    function activeBalanceOfAt(address account, uint48 timestamp) external view returns (uint256);
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.
@@ -134,6 +134,12 @@ interface IVault is IVaultStorage {
     function withdrawalsOf(uint256 epoch, address account) external view returns (uint256);
 
     /**
+     * @notice Get a total amount of the collateral that can be slashed for a given account.
+     * @return total amount of the slashable collateral
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit
@@ -143,20 +149,22 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).
-     * @param claimer account that needs to claim the withdrawal
+     * @param recipient account that needs to claim the withdrawal
      * @param amount amount of the collateral to withdraw
      * @return burnedShares amount of the active shares burned
      * @return mintedShares amount of the epoch withdrawal shares minted
      */
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares);
+    function withdraw(
+        address recipient,
+        uint256 amount
+    ) external returns (uint256 burnedShares, uint256 mintedShares);
 
     /**
      * @notice Claim collateral from the vault.
-     * @param recipient account that receives the collateral
      * @param epoch epoch to claim the collateral for
      * @return amount amount of the collateral claimed
      */
-    function claim(address recipient, uint256 epoch) external returns (uint256 amount);
+    function claim(uint256 epoch) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.

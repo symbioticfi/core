@@ -49,7 +49,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
      */
     mapping(address resolver => mapping(uint256 slashIndex => bool value)) public hasVetoed;
 
-    mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) private _resolverShares;
+    mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) internal _resolverShares;
 
     constructor(
         address vaultFactory,
@@ -84,15 +84,20 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function resolverSharesAt(address network, address resolver, uint48 timestamp) public view returns (uint256) {
-        return _resolverShares[network][resolver].upperLookupRecent(timestamp);
+    function resolverSharesAt(
+        address network,
+        address resolver,
+        uint48 timestamp,
+        bytes memory hint
+    ) public view returns (uint256) {
+        return _resolverShares[network][resolver].upperLookupRecent(timestamp, hint);
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
-    function resolverShares(address network, address resolver) public view returns (uint256) {
-        return resolverSharesAt(network, resolver, Time.timestamp());
+    function resolverShares(address network, address resolver, bytes memory hint) public view returns (uint256) {
+        return resolverSharesAt(network, resolver, Time.timestamp(), hint);
     }
 
     /**
@@ -102,8 +107,14 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
+        RequestSlashHints memory requestSlashHints;
+        if (hints.length > 0) {
+            requestSlashHints = abi.decode(hints, (RequestSlashHints));
+        }
+
         address vault_ = vault;
         if (
             captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault_).epochDuration()
@@ -112,9 +123,10 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        _checkOptIns(network, operator, captureTimestamp);
+        _checkOptIns(network, operator, captureTimestamp, requestSlashHints.optInHints);
 
-        amount = Math.min(amount, slashableStake(network, operator, captureTimestamp));
+        amount =
+            Math.min(amount, slashableStake(network, operator, captureTimestamp, requestSlashHints.slashableStakeHints));
         if (amount == 0) {
             revert InsufficientSlash();
         }
@@ -162,14 +174,15 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         request.completed = true;
 
-        slashedAmount =
-            Math.min(request.amount, slashableStake(request.network, request.operator, request.captureTimestamp));
+        slashedAmount = Math.min(
+            request.amount, slashableStake(request.network, request.operator, request.captureTimestamp, new bytes(0))
+        );
 
         slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
 
         if (slashedAmount > 0) {
             _updateCumulativeSlash(request.network, request.operator, slashedAmount);
-            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp);
+            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp, new bytes(0));
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
@@ -185,7 +198,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        uint256 resolverShares_ = resolverShares(request.network, msg.sender);
+        uint256 resolverShares_ = resolverShares(request.network, msg.sender, new bytes(0));
 
         if (resolverShares_ == 0) {
             revert NotResolver();
@@ -224,7 +237,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InvalidShares();
         }
 
-        uint48 timestamp = shares > resolverShares(msg.sender, resolver)
+        uint48 timestamp = shares > resolverShares(msg.sender, resolver, new bytes(0))
             ? Time.timestamp()
             : (IVault(vault).currentEpochStart() + resolverSetEpochsDelay * IVault(vault).epochDuration()).toUint48();
 

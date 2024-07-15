@@ -37,23 +37,30 @@ contract Slasher is BaseSlasher, ISlasher {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp
+        uint48 captureTimestamp,
+        bytes memory hints
     ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
-        _checkOptIns(network, operator, captureTimestamp);
+        SlashHints memory slashHints;
+        if (hints.length > 0) {
+            slashHints = abi.decode(hints, (SlashHints));
+        }
+
+        _checkOptIns(network, operator, captureTimestamp, slashHints.optInHints);
 
         if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
         {
             revert InvalidCaptureTimestamp();
         }
 
-        slashedAmount = Math.min(amount, slashableStake(network, operator, captureTimestamp));
+        slashedAmount =
+            Math.min(amount, slashableStake(network, operator, captureTimestamp, slashHints.slashableStakeHints));
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
 
         _updateCumulativeSlash(network, operator, slashedAmount);
 
-        _callOnSlash(network, operator, slashedAmount, captureTimestamp);
+        _callOnSlash(network, operator, slashedAmount, captureTimestamp, slashHints.onSlashHints);
 
         emit Slash(network, operator, slashedAmount, captureTimestamp);
     }

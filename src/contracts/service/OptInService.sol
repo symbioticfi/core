@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
+import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+
 import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 
@@ -8,7 +10,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract OptInService is IOptInService {
+contract OptInService is StaticDelegateCallable, IOptInService {
     using Checkpoints for Checkpoints.Trace208;
 
     /**
@@ -31,8 +33,13 @@ contract OptInService is IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function isOptedInAt(address who, address where, uint48 timestamp) external view returns (bool) {
-        return _isOptedIn[who][where].upperLookupRecent(timestamp) == 1;
+    function isOptedInAt(
+        address who,
+        address where,
+        uint48 timestamp,
+        bytes memory hint
+    ) external view returns (bool) {
+        return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
     }
 
     /**
@@ -40,28 +47,6 @@ contract OptInService is IOptInService {
      */
     function isOptedIn(address who, address where) public view returns (bool) {
         return _isOptedIn[who][where].latest() == 1;
-    }
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    function wasOptedInAfterDuring(
-        address who,
-        address where,
-        uint48 timestamp,
-        uint48 duration
-    ) external view returns (bool) {
-        (bool exists, uint48 latestTimestamp, uint208 latestValue,) =
-            _isOptedIn[who][where].upperLookupRecentCheckpoint(timestamp + duration);
-        return exists && ((latestValue == 0 && latestTimestamp >= timestamp) || latestValue == 1);
-    }
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    function wasOptedInAfter(address who, address where, uint48 timestamp) external view returns (bool) {
-        (bool exists, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[who][where].latestCheckpoint();
-        return exists && ((latestValue == 0 && latestTimestamp >= timestamp) || latestValue == 1);
     }
 
     /**
