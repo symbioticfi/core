@@ -122,7 +122,11 @@ interface IVault is IVaultStorage {
      * @param hints hints for checkpoints' indexes
      * @return active balance for the account at the timestamp
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
+    function activeBalanceOfAt(
+        address account,
+        uint48 timestamp,
+        bytes calldata hints
+    ) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.

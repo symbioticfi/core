@@ -188,7 +188,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
 
     function _initializeInternal(address vault_, bytes memory data) internal virtual {}
 
-    function _initialize(bytes memory data) internal override {
+    function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {

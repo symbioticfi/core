@@ -224,7 +224,7 @@ interface IVetoSlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external returns (uint256 slashIndex);
 
     /**
@@ -234,7 +234,7 @@ interface IVetoSlasher {
      * @return slashedAmount amount of the collateral slashed
      * @dev Anyone can call this function.
      */
-    function executeSlash(uint256 slashIndex, bytes memory hints) external returns (uint256 slashedAmount);
+    function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);
 
     /**
      * @notice Veto a slash with a given slash index using hints.
@@ -242,7 +242,7 @@ interface IVetoSlasher {
      * @param hints hints for checkpoints' indexes
      * @dev Only a resolver can call this function.
      */
-    function vetoSlash(uint256 slashIndex, bytes memory hints) external;
+    function vetoSlash(uint256 slashIndex, bytes calldata hints) external;
 
     /**
      * @notice Set a resolver's shares for a network using hints.
@@ -251,5 +251,5 @@ interface IVetoSlasher {
      * @param hints hints for checkpoints' indexes
      * @dev Only a network can call this function.
      */
-    function setResolverShares(address resolver, uint256 shares, bytes memory hints) external;
+    function setResolverShares(address resolver, uint256 shares, bytes calldata hints) external;
 }

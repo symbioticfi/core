@@ -41,6 +41,6 @@ interface ISlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external returns (uint256 slashedAmount);
 }

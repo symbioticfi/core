@@ -56,7 +56,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
         uint64 version,
         address owner_,
         bool withInitialize,
-        bytes memory data
+        bytes calldata data
     ) external returns (address entity_) {
         entity_ = address(
             new MigratableEntityProxy{salt: keccak256(abi.encode(totalEntities(), version, owner_, data))}(
@@ -73,7 +73,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function migrate(address entity_, uint64 newVersion, bytes memory data) external checkEntity(entity_) {
+    function migrate(address entity_, uint64 newVersion, bytes calldata data) external checkEntity(entity_) {
         if (msg.sender != Ownable(entity_).owner()) {
             revert NotOwner();
         }

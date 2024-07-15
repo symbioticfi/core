@@ -168,6 +168,6 @@ interface IBaseDelegator {
         address operator,
         uint256 slashedAmount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external;
 }

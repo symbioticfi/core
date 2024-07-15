@@ -33,7 +33,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata hints) public view returns (uint256) {
         ActiveBalanceOfHints memory activeBalanceOfHints;
         if (hints.length > 0) {
             activeBalanceOfHints = abi.decode(hints, (ActiveBalanceOfHints));
@@ -277,7 +277,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Claim(msg.sender, amount);
     }
 
-    function _initialize(uint64, address, bytes memory data) internal override {
+    function _initialize(uint64, address, bytes calldata data) internal override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
         if (params.collateral == address(0)) {
@@ -320,7 +320,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
     }
 
-    function _migrate(uint64, bytes memory) internal override {
+    function _migrate(uint64, bytes calldata) internal override {
         revert();
     }
 }

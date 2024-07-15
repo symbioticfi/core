@@ -33,5 +33,5 @@ interface IFactory is IRegistry {
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint64 type_, bool withInitialize, bytes memory data) external returns (address);
+    function create(uint64 type_, bool withInitialize, bytes calldata data) external returns (address);
 }

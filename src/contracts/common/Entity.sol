@@ -26,9 +26,9 @@ abstract contract Entity is Initializable, IEntity {
     /**
      * @inheritdoc IEntity
      */
-    function initialize(bytes memory data) external initializer {
+    function initialize(bytes calldata data) external initializer {
         _initialize(data);
     }
 
-    function _initialize(bytes memory) internal virtual {}
+    function _initialize(bytes calldata) internal virtual {}
 }

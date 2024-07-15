@@ -43,7 +43,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     function initialize(
         uint64 initialVersion,
         address owner_,
-        bytes memory data
+        bytes calldata data
     ) external uninitialized reinitializer(initialVersion) {
         if (SELF != IMigratablesFactory(FACTORY).implementation(initialVersion)) {
             revert InvalidInitialVersion();
@@ -57,7 +57,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     /**
      * @inheritdoc IMigratableEntity
      */
-    function migrate(uint64 newVersion, bytes memory data) external reinitializer(newVersion) {
+    function migrate(uint64 newVersion, bytes calldata data) external reinitializer(newVersion) {
         if (msg.sender != FACTORY) {
             revert NotFactory();
         }
@@ -65,7 +65,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
         _migrate(newVersion, data);
     }
 
-    function _initialize(uint64, address, bytes memory) internal virtual {}
+    function _initialize(uint64, address, bytes calldata) internal virtual {}
 
-    function _migrate(uint64, bytes memory) internal virtual {}
+    function _migrate(uint64, bytes calldata) internal virtual {}
 }

@@ -108,7 +108,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
         RequestSlashHints memory requestSlashHints;
         if (hints.length > 0) {
@@ -152,7 +152,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function executeSlash(uint256 slashIndex, bytes memory hints) external returns (uint256 slashedAmount) {
+    function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount) {
         ExecuteSlashHints memory executeSlashHints;
         if (hints.length > 0) {
             executeSlashHints = abi.decode(hints, (ExecuteSlashHints));
@@ -205,7 +205,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function vetoSlash(uint256 slashIndex, bytes memory hints) external {
+    function vetoSlash(uint256 slashIndex, bytes calldata hints) external {
         VetoSlashHints memory vetoSlashHints;
         if (hints.length > 0) {
             vetoSlashHints = abi.decode(hints, (VetoSlashHints));
@@ -247,7 +247,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
         emit VetoSlash(slashIndex, msg.sender, resolverShares_);
     }
 
-    function setResolverShares(address resolver, uint256 shares, bytes memory hints) external {
+    function setResolverShares(address resolver, uint256 shares, bytes calldata hints) external {
         SetResolverSharesHints memory setResolverSharesHints;
         if (hints.length > 0) {
             setResolverSharesHints = abi.decode(hints, (SetResolverSharesHints));

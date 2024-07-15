@@ -46,7 +46,7 @@ interface IOptInService {
         address who,
         address where,
         uint48 timestamp,
-        bytes memory hint
+        bytes calldata hint
     ) external view returns (bool);
 
     /**

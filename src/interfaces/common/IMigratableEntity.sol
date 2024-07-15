@@ -25,12 +25,12 @@ interface IMigratableEntity {
      * @param owner initial owner of the entity
      * @param data some data to use
      */
-    function initialize(uint64 initialVersion, address owner, bytes memory data) external;
+    function initialize(uint64 initialVersion, address owner, bytes calldata data) external;
 
     /**
      * @notice Migrate this entity to a particular newer version using a given data.
      * @param newVersion new version of the entity
      * @param data some data to use
      */
-    function migrate(uint64 newVersion, bytes memory data) external;
+    function migrate(uint64 newVersion, bytes calldata data) external;
 }

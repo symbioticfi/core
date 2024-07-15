@@ -158,7 +158,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         address operator,
         uint256 slashedAmount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external {
         OnSlashHints memory onSlashHints;
         if (hints.length > 0) {
@@ -200,7 +200,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         bytes memory data
     ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
 
-    function _initialize(bytes memory data) internal override {
+    function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {

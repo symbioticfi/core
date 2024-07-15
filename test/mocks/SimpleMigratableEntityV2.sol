@@ -17,7 +17,7 @@ contract SimpleMigratableEntityV2 is MigratableEntity {
         b = b_;
     }
 
-    function _migrate(uint64, bytes memory data) internal override {
+    function _migrate(uint64, bytes calldata data) internal override {
         uint256 b_ = abi.decode(data, (uint256));
         b = b_;
     }
