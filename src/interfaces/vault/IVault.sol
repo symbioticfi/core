@@ -10,18 +10,18 @@ interface IVault is IVaultStorage {
     error InsufficientDeposit();
     error InsufficientWithdrawal();
     error InvalidAccount();
+    error InvalidCaptureEpoch();
     error InvalidCollateral();
     error InvalidEpoch();
     error InvalidEpochDuration();
+    error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
     error NoDepositWhitelist();
-    error NotWhitelistedDepositor();
-    error NotSlasher();
-    error TooMuchWithdraw();
     error NotDelegator();
-    error TooMuchSlash();
-    error InvalidCaptureEpoch();
+    error NotSlasher();
+    error NotWhitelistedDepositor();
+    error TooMuchWithdraw();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -45,6 +45,12 @@ interface IVault is IVaultStorage {
         address depositorWhitelistRoleHolder;
     }
 
+    /**
+     * @notice Hints for an active balance.
+     * @param activeSharesOfHint hint for the active shares of checkpoint
+     * @param activeStakeHint hint for the active stake checkpoint
+     * @param activeSharesHint hint for the active shares checkpoint
+     */
     struct ActiveBalanceOfHints {
         bytes activeSharesOfHint;
         bytes activeStakeHint;
@@ -116,7 +122,11 @@ interface IVault is IVaultStorage {
      * @param hints hints for checkpoints' indexes
      * @return active balance for the account at the timestamp
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
+    function activeBalanceOfAt(
+        address account,
+        uint48 timestamp,
+        bytes calldata hints
+    ) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.
@@ -165,6 +175,13 @@ interface IVault is IVaultStorage {
      * @return amount amount of the collateral claimed
      */
     function claim(uint256 epoch) external returns (uint256 amount);
+
+    /**
+     * @notice Claim collateral from the vault for multiple epochs.
+     * @param epochs epochs to claim the collateral for
+     * @return amount amount of the collateral claimed
+     */
+    function claimBatch(uint256[] calldata epochs) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.

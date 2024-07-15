@@ -38,7 +38,7 @@ contract Slasher is BaseSlasher, ISlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
         SlashHints memory slashHints;
         if (hints.length > 0) {

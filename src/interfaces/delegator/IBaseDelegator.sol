@@ -2,8 +2,8 @@ pragma solidity 0.8.25;
 
 interface IBaseDelegator {
     error AlreadySet();
-    error NotSlasher();
     error NotNetwork();
+    error NotSlasher();
     error NotVault();
     error TooMuchSlash();
 
@@ -19,11 +19,20 @@ interface IBaseDelegator {
         address hookSetRoleHolder;
     }
 
+    /**
+     * @notice Base hints for a stake.
+     * @param operatorVaultOptInHint hint for the operator-vault opt-in
+     * @param operatorNetworkOptInHint hint for the operator-network opt-in
+     */
     struct StakeBaseHints {
         bytes operatorVaultOptInHint;
         bytes operatorNetworkOptInHint;
     }
 
+    /**
+     * @notice Hints for an on-slash action.
+     * @param stakeHints hints for the stake checkpoints
+     */
     struct OnSlashHints {
         bytes stakeHints;
     }
@@ -159,6 +168,6 @@ interface IBaseDelegator {
         address operator,
         uint256 slashedAmount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external;
 }

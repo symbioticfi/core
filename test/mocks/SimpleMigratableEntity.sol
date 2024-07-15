@@ -12,7 +12,7 @@ contract SimpleMigratableEntity is MigratableEntity {
         a = _a;
     }
 
-    function _migrate(uint64, bytes memory) internal override {
+    function _migrate(uint64, bytes calldata) internal override {
         revert();
     }
 }

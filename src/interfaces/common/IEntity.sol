@@ -18,5 +18,5 @@ interface IEntity {
      * @notice Initialize this entity contract using a given data.
      * @param data some data to use
      */
-    function initialize(bytes memory data) external;
+    function initialize(bytes calldata data) external;
 }

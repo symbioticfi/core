@@ -11,13 +11,12 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, MulticallUpgradeable, IVault {
+contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
@@ -34,7 +33,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
     /**
      * @inheritdoc IVault
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata hints) public view returns (uint256) {
         ActiveBalanceOfHints memory activeBalanceOfHints;
         if (hints.length > 0) {
             activeBalanceOfHints = abi.decode(hints, (ActiveBalanceOfHints));
@@ -150,25 +149,25 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
      * @inheritdoc IVault
      */
     function claim(uint256 epoch) external returns (uint256 amount) {
-        if (epoch >= currentEpoch()) {
-            revert InvalidEpoch();
-        }
-
-        if (isWithdrawalsClaimed[epoch][msg.sender]) {
-            revert AlreadyClaimed();
-        }
-
-        amount = withdrawalsOf(epoch, msg.sender);
-
-        if (amount == 0) {
-            revert InsufficientClaim();
-        }
-
-        isWithdrawalsClaimed[epoch][msg.sender] = true;
+        amount = _claim(epoch);
 
         IERC20(collateral).safeTransfer(msg.sender, amount);
+    }
 
-        emit Claim(msg.sender, amount);
+    /**
+     * @inheritdoc IVault
+     */
+    function claimBatch(uint256[] calldata epochs) external returns (uint256 amount) {
+        uint256 length = epochs.length;
+        if (length == 0) {
+            revert InvalidLengthEpochs();
+        }
+
+        for (uint256 i; i < length; ++i) {
+            amount += _claim(epochs[i]);
+        }
+
+        IERC20(collateral).safeTransfer(msg.sender, amount);
     }
 
     /**
@@ -258,7 +257,27 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
         emit SetDepositorWhitelistStatus(account, status);
     }
 
-    function _initialize(uint64, address, bytes memory data) internal override {
+    function _claim(uint256 epoch) private returns (uint256 amount) {
+        if (epoch >= currentEpoch()) {
+            revert InvalidEpoch();
+        }
+
+        if (isWithdrawalsClaimed[epoch][msg.sender]) {
+            revert AlreadyClaimed();
+        }
+
+        amount = withdrawalsOf(epoch, msg.sender);
+
+        if (amount == 0) {
+            revert InsufficientClaim();
+        }
+
+        isWithdrawalsClaimed[epoch][msg.sender] = true;
+
+        emit Claim(msg.sender, amount);
+    }
+
+    function _initialize(uint64, address, bytes calldata data) internal override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
         if (params.collateral == address(0)) {
@@ -301,7 +320,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Mult
         }
     }
 
-    function _migrate(uint64, bytes memory) internal override {
+    function _migrate(uint64, bytes calldata) internal override {
         revert();
     }
 }

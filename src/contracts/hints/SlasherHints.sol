@@ -224,4 +224,56 @@ contract VetoSlasherHints is Hints, VetoSlasher {
 
         return hints;
     }
+
+    function executeSlashHints(
+        address slasher,
+        address network,
+        address operator,
+        uint48 captureTimestamp
+    ) external returns (bytes memory) {
+        bytes memory slashableStakeHints =
+            BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
+        bytes memory onSlashHints =
+            BaseSlasherHints(BASE_SLASHER_HINTS).onSlashHints(slasher, network, operator, captureTimestamp);
+
+        bytes memory hints;
+        if (slashableStakeHints.length > 0 || onSlashHints.length > 0) {
+            hints =
+                abi.encode(ExecuteSlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: onSlashHints}));
+        }
+
+        return hints;
+    }
+
+    function vetoSlashHints(
+        address slasher,
+        address network,
+        address resolver,
+        uint48 captureTimestamp
+    ) external returns (bytes memory) {
+        bytes memory resolverSharesHint_ = resolverSharesHint(slasher, network, resolver, captureTimestamp);
+
+        bytes memory hints;
+        if (resolverSharesHint_.length > 0) {
+            hints = abi.encode(VetoSlashHints({resolverSharesHint: resolverSharesHint_}));
+        }
+
+        return hints;
+    }
+
+    function setResolverSharesHints(
+        address slasher,
+        address network,
+        address resolver,
+        uint48 timestamp
+    ) external returns (bytes memory) {
+        bytes memory resolverSharesHint_ = resolverSharesHint(slasher, network, resolver, timestamp);
+
+        bytes memory hints;
+        if (resolverSharesHint_.length > 0) {
+            hints = abi.encode(SetResolverSharesHints({resolverSharesHint: resolverSharesHint_}));
+        }
+
+        return hints;
+    }
 }

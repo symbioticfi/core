@@ -5,6 +5,12 @@ interface ISlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
 
+    /**
+     * @notice Hints for a slash.
+     * @param optInHints hints for the opt-in checkpoints
+     * @param slashableStakeHints hints for the slashable stake checkpoints
+     * @param onSlashHints hints for the on-slash checkpoints
+     */
     struct SlashHints {
         bytes optInHints;
         bytes slashableStakeHints;
@@ -35,6 +41,6 @@ interface ISlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
-        bytes memory hints
+        bytes calldata hints
     ) external returns (uint256 slashedAmount);
 }

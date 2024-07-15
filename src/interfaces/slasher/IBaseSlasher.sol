@@ -2,23 +2,38 @@
 pragma solidity 0.8.25;
 
 interface IBaseSlasher {
-    error NotNetworkMiddleware();
     error NetworkNotOptedInVault();
+    error NotNetworkMiddleware();
     error NotVault();
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();
 
+    /**
+     * @notice Hints for a slashable stake.
+     * @param stakeHints hints for the stake checkpoints
+     * @param cumulativeSlashFromHint hint for the cumulative slash amount at "from" timestamp
+     */
     struct SlashableStakeHints {
         bytes stakeHints;
         bytes cumulativeSlashFromHint;
     }
 
+    /**
+     * @notice Hints for opt-in checks.
+     * @param networkVaultOptInHint hints for the network-vault opt-in
+     * @param operatorVaultOptInHint hints for the operator-vault opt-in
+     * @param operatorNetworkOptInHint hints for the operator-network opt-in
+     */
     struct OptInHints {
         bytes networkVaultOptInHint;
         bytes operatorVaultOptInHint;
         bytes operatorNetworkOptInHint;
     }
 
+    /**
+     * @notice Hints for on slash actions.
+     * @param delegatorOnSlashHints hints for the delegator's on-slash action
+     */
     struct OnSlashHints {
         bytes delegatorOnSlashHints;
     }

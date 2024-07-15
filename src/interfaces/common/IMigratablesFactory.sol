@@ -9,7 +9,6 @@ interface IMigratablesFactory is IRegistry {
     error InvalidVersion();
     error NotOwner();
     error OldVersion();
-    error AlreadyInitialized();
 
     /**
      * @notice Get the last available version.
@@ -40,7 +39,12 @@ interface IMigratablesFactory is IRegistry {
      * @param data initial data for the entity creation
      * @return address of the entity
      */
-    function create(uint64 version, address owner, bool withInitialize, bytes memory data) external returns (address);
+    function create(
+        uint64 version,
+        address owner,
+        bool withInitialize,
+        bytes calldata data
+    ) external returns (address);
 
     /**
      * @notice Migrate a given entity to a given newer version.
@@ -49,5 +53,5 @@ interface IMigratablesFactory is IRegistry {
      * @param data some data to reinitialize the contract with
      * @dev Only the entity's owner can call this function.
      */
-    function migrate(address entity, uint64 newVersion, bytes memory data) external;
+    function migrate(address entity, uint64 newVersion, bytes calldata data) external;
 }

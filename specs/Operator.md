@@ -12,10 +12,6 @@ In Symbiotic, the operator can be either an EOA or a contract registered in the 
 
 ---
 
-To attract stake, the operator must opt into networks and vaults by calling the `optIn()` method in the `OperatorNetworkOptInService` and `OperatorVaultOptInService` accordingly. The `OPERATOR_NETWORK_LIMIT_SET_ROLE` then allocates stake to the operator by calling `Vault.setOperatorNetworkLimit()`.
-
----
-
 The operator opts into the network to join it. Each network independently decides whether to include the operator in its active operator set based on various factors, such as reputation, stake amount, and other relevant criteria.
 
 ---
