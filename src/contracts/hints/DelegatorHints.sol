@@ -89,27 +89,12 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
         );
 
         if (operatorVaultOptInHint.length != 0 || operatorNetworkOptInHint.length != 0) {
-            uint256 N = 3;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(
-                StakeBaseHints({operatorVaultOptInHint: operatorVaultOptInHint, operatorNetworkOptInHint: new bytes(0)})
-            );
-            hints[2] = abi.encode(
+            return abi.encode(
                 StakeBaseHints({
                     operatorVaultOptInHint: operatorVaultOptInHint,
                     operatorNetworkOptInHint: operatorNetworkOptInHint
                 })
             );
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    BaseDelegatorHints._stakeBaseHints.selector, delegator, network, operator, timestamp, hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
         }
     }
 
@@ -141,29 +126,7 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
         bytes memory stakeHints_ = stakeHints(delegator, network, operator, captureTimestamp);
         bytes memory hints_;
         if (stakeHints_.length != 0) {
-            hints_ = abi.encode(OnSlashHints({stakeHints: stakeHints_}));
-        }
-
-        if (hints_.length > 0) {
-            uint256 N = 2;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = hints_;
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    BaseDelegatorHints._onSlash.selector,
-                    delegator,
-                    network,
-                    operator,
-                    amount,
-                    captureTimestamp,
-                    hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
+            return abi.encode(OnSlashHints({stakeHints: stakeHints_}));
         }
     }
 }
@@ -202,22 +165,10 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] =
-                abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, network, timestamp, hints[i]);
-        }
-
-        return _optimizeHint(delegator, datas, hints);
     }
 
     function operatorNetworkSharesHintInternal(
@@ -246,23 +197,10 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] = abi.encodeWithSelector(
-                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, network, operator, timestamp, hints[i]
-            );
-        }
-
-        return _optimizeHint(delegator, datas, hints);
     }
 
     function totalOperatorNetworkSharesHintInternal(
@@ -286,23 +224,10 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] = abi.encodeWithSelector(
-                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, network, timestamp, hints[i]
-            );
-        }
-
-        return _optimizeHint(delegator, datas, hints);
     }
 
     function stakeHints(
@@ -325,10 +250,7 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
             baseHints.length != 0 || activeStakeHint.length != 0 || networkLimitHint_.length != 0
                 || operatorNetworkSharesHint_.length != 0 || totalOperatorNetworkSharesHint_.length != 0
         ) {
-            uint256 N = 2;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(
+            return abi.encode(
                 StakeHints({
                     baseHints: baseHints,
                     activeStakeHint: activeStakeHint,
@@ -337,13 +259,6 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
                     totalOperatorNetworkSharesHint: totalOperatorNetworkSharesHint_
                 })
             );
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] =
-                    abi.encodeWithSelector(BaseDelegator.stakeAt.selector, network, operator, timestamp, hints[i]);
-            }
-
-            return _optimizeHint(delegator, datas, hints);
         }
     }
 }
@@ -380,22 +295,10 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] =
-                abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, network, timestamp, hints[i]);
-        }
-
-        return _optimizeHint(delegator, datas, hints);
     }
 
     function operatorNetworkLimitHintInternal(
@@ -421,23 +324,10 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] = abi.encodeWithSelector(
-                FullRestakeDelegator.operatorNetworkLimitAt.selector, network, operator, timestamp, hints[i]
-            );
-        }
-
-        return _optimizeHint(delegator, datas, hints);
     }
 
     function stakeHints(
@@ -459,10 +349,7 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
             baseHints.length != 0 || activeStakeHint.length != 0 || networkLimitHint_.length != 0
                 || operatorNetworkLimitHint_.length != 0
         ) {
-            uint256 N = 2;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(
+            return abi.encode(
                 StakeHints({
                     baseHints: baseHints,
                     activeStakeHint: activeStakeHint,
@@ -470,13 +357,6 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
                     operatorNetworkLimitHint: operatorNetworkLimitHint_
                 })
             );
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] =
-                    abi.encodeWithSelector(BaseDelegator.stakeAt.selector, network, operator, timestamp, hints[i]);
-            }
-
-            return _optimizeHint(delegator, datas, hints);
         }
     }
 }

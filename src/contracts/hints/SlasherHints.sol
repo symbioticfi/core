@@ -60,22 +60,10 @@ contract BaseSlasherHints is Hints, BaseSlasher {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] =
-                abi.encodeWithSelector(BaseSlasher.cumulativeSlashAt.selector, network, operator, timestamp, hints[i]);
-        }
-
-        return _optimizeHint(slasher, datas, hints);
     }
 
     function slashableStakeHints(
@@ -91,20 +79,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         bytes memory cumulativeSlashFromHint = cumulativeSlashHint(slasher, network, operator, captureTimestamp);
 
         if (stakeHints.length > 0 || cumulativeSlashFromHint.length > 0) {
-            uint256 N = 2;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(
+            return abi.encode(
                 SlashableStakeHints({stakeHints: stakeHints, cumulativeSlashFromHint: cumulativeSlashFromHint})
             );
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    BaseSlasher.slashableStake.selector, network, operator, captureTimestamp, hints[i]
-                );
-            }
-
-            return _optimizeHint(slasher, datas, hints);
         }
     }
 
@@ -168,38 +145,13 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         if (
             networkVaultOptInHint.length > 0 || operatorVaultOptInHint.length > 0 || operatorNetworkOptInHint.length > 0
         ) {
-            uint256 N = 4;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(
-                OptInHints({
-                    networkVaultOptInHint: networkVaultOptInHint,
-                    operatorVaultOptInHint: new bytes(0),
-                    operatorNetworkOptInHint: new bytes(0)
-                })
-            );
-            hints[2] = abi.encode(
-                OptInHints({
-                    networkVaultOptInHint: networkVaultOptInHint,
-                    operatorVaultOptInHint: operatorVaultOptInHint,
-                    operatorNetworkOptInHint: new bytes(0)
-                })
-            );
-            hints[3] = abi.encode(
+            return abi.encode(
                 OptInHints({
                     networkVaultOptInHint: networkVaultOptInHint,
                     operatorVaultOptInHint: operatorVaultOptInHint,
                     operatorNetworkOptInHint: operatorNetworkOptInHint
                 })
             );
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    BaseSlasherHints._optIns.selector, slasher, network, operator, timestamp, hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
         }
     }
 
@@ -237,24 +189,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
             Vault(BaseSlasher(slasher).vault()).delegator(), network, operator, amount, captureTimestamp
         );
 
-        bytes memory hints_;
         if (delegatorOnSlashHints.length > 0) {
-            hints_ = abi.encode(OnSlashHints({delegatorOnSlashHints: delegatorOnSlashHints}));
+            return abi.encode(OnSlashHints({delegatorOnSlashHints: delegatorOnSlashHints}));
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hints_;
-
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] = abi.encodeWithSelector(
-                BaseSlasherHints._onSlash.selector, slasher, network, operator, amount, captureTimestamp, hints[i]
-            );
-        }
-
-        return _optimizeHint(address(this), datas, hints);
     }
 }
 
@@ -338,42 +275,13 @@ contract SlasherHints is Hints, Slasher {
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
 
         if (optInHints.length > 0 || slashableStakeHints.length > 0 || onSlashHints.length > 0) {
-            uint256 N = 4;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(
-                SlashHints({optInHints: optInHints, slashableStakeHints: new bytes(0), onSlashHints: new bytes(0)})
-            );
-            hints[2] = abi.encode(
-                SlashHints({
-                    optInHints: optInHints,
-                    slashableStakeHints: slashableStakeHints,
-                    onSlashHints: new bytes(0)
-                })
-            );
-            hints[3] = abi.encode(
+            return abi.encode(
                 SlashHints({
                     optInHints: optInHints,
                     slashableStakeHints: slashableStakeHints,
                     onSlashHints: onSlashHints
                 })
             );
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    SlasherHints._slash.selector,
-                    slasher,
-                    msgSender,
-                    network,
-                    operator,
-                    amount,
-                    captureTimestamp,
-                    hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
         }
     }
 }
@@ -414,22 +322,10 @@ contract VetoSlasherHints is Hints, VetoSlasher {
             ),
             (bool, uint32)
         );
-        bytes memory hint;
+
         if (exists) {
-            hint = abi.encode(hint_);
+            return abi.encode(hint_);
         }
-
-        uint256 N = 2;
-        bytes[] memory hints = new bytes[](N);
-        hints[0] = new bytes(0);
-        hints[1] = hint;
-        bytes[] memory datas = new bytes[](N);
-        for (uint256 i; i < N; ++i) {
-            datas[i] =
-                abi.encodeWithSelector(VetoSlasher.resolverSharesAt.selector, network, resolver, timestamp, hints[i]);
-        }
-
-        return _optimizeHint(slasher, datas, hints);
     }
 
     function _requestSlash(
@@ -494,27 +390,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
 
         if (optInHints.length > 0 || slashableStakeHints.length > 0) {
-            uint256 N = 3;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(RequestSlashHints({optInHints: optInHints, slashableStakeHints: new bytes(0)}));
-            hints[2] = abi.encode(RequestSlashHints({optInHints: optInHints, slashableStakeHints: slashableStakeHints}));
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    VetoSlasherHints._requestSlash.selector,
-                    slasher,
-                    msgSender,
-                    network,
-                    operator,
-                    amount,
-                    captureTimestamp,
-                    hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
+            return abi.encode(RequestSlashHints({optInHints: optInHints, slashableStakeHints: slashableStakeHints}));
         }
     }
 
@@ -590,22 +466,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         );
 
         if (slashableStakeHints.length > 0 || onSlashHints.length > 0) {
-            uint256 N = 3;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] =
-                abi.encode(ExecuteSlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: new bytes(0)}));
-            hints[2] =
-                abi.encode(ExecuteSlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: onSlashHints}));
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    VetoSlasherHints._executeSlash.selector, slasher, msgSender, slashIndex, hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
+            return abi.encode(ExecuteSlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: onSlashHints}));
         }
     }
 
@@ -661,19 +522,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         bytes memory resolverSharesHint_ = resolverSharesHint(slasher, network, msgSender, Time.timestamp());
 
         if (resolverSharesHint_.length > 0) {
-            uint256 N = 2;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(VetoSlashHints({resolverSharesHint: resolverSharesHint_}));
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    VetoSlasherHints._vetoSlash.selector, slasher, msgSender, slashIndex, hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
+            return abi.encode(VetoSlashHints({resolverSharesHint: resolverSharesHint_}));
         }
     }
 
@@ -715,19 +564,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         bytes memory resolverSharesHint_ = resolverSharesHint(slasher, msgSender, resolver, Time.timestamp());
 
         if (resolverSharesHint_.length > 0) {
-            uint256 N = 2;
-            bytes[] memory hints = new bytes[](N);
-            hints[0] = new bytes(0);
-            hints[1] = abi.encode(SetResolverSharesHints({resolverSharesHint: resolverSharesHint_}));
-
-            bytes[] memory datas = new bytes[](N);
-            for (uint256 i; i < N; ++i) {
-                datas[i] = abi.encodeWithSelector(
-                    VetoSlasherHints._setResolverShares.selector, slasher, msgSender, resolver, shares, hints[i]
-                );
-            }
-
-            return _optimizeHint(address(this), datas, hints);
+            return abi.encode(SetResolverSharesHints({resolverSharesHint: resolverSharesHint_}));
         }
     }
 }
