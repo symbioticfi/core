@@ -37,11 +37,15 @@ contract OptInServiceHints is Hints, OptInService {
             hint = abi.encode(hint_);
         }
 
-        return _optimizeHint(
-            optInService,
-            abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, new bytes(0)),
-            abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, hint),
-            hint
-        );
+        uint256 N = 2;
+        bytes[] memory hints = new bytes[](N);
+        hints[0] = new bytes(0);
+        hints[1] = hint;
+        bytes[] memory datas = new bytes[](N);
+        for (uint256 i; i < N; ++i) {
+            datas[i] = abi.encodeWithSelector(OptInService.isOptedInAt.selector, who, where, timestamp, hints[i]);
+        }
+
+        return _optimizeHint(optInService, datas, hints);
     }
 }
