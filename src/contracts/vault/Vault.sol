@@ -15,8 +15,9 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
+contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
@@ -77,7 +78,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function deposit(address onBehalfOf, uint256 amount) external returns (uint256 shares) {
+    function deposit(address onBehalfOf, uint256 amount) external nonReentrant returns (uint256 shares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -86,11 +87,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotWhitelistedDepositor();
         }
 
+        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
+        amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+
         if (amount == 0) {
             revert InsufficientDeposit();
         }
-
-        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
@@ -148,7 +151,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function claim(uint256 epoch) external returns (uint256 amount) {
+    function claim(uint256 epoch) external nonReentrant returns (uint256 amount) {
         amount = _claim(epoch);
 
         IERC20(collateral).safeTransfer(msg.sender, amount);
@@ -157,7 +160,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function claimBatch(uint256[] calldata epochs) external returns (uint256 amount) {
+    function claimBatch(uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
         uint256 length = epochs.length;
         if (length == 0) {
             revert InvalidLengthEpochs();
@@ -295,6 +298,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (params.slasher != address(0) && !IRegistry(SLASHER_FACTORY).isEntity(params.slasher)) {
             revert NotSlasher();
         }
+
+        __ReentrancyGuard_init();
 
         collateral = params.collateral;
 

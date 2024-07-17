@@ -21,6 +21,7 @@ import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
 import {Token} from "test/mocks/Token.sol";
+import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
@@ -52,6 +53,7 @@ contract VaultTest is Test {
     OptInService operatorNetworkOptInService;
 
     SimpleCollateral collateral;
+    FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
 
     Vault vault;
@@ -132,6 +134,7 @@ contract VaultTest is Test {
 
         Token token = new Token("Token");
         collateral = new SimpleCollateral(address(token));
+        feeOnTransferCollateral = new FeeOnTransferToken("FeeOnTransferToken");
 
         collateral.mint(token.totalSupply());
 
@@ -561,6 +564,205 @@ contract VaultTest is Test {
                 )
             ),
             amount1 + amount2
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
+    }
+
+    function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 2, 100 * 10 ** 18);
+        amount2 = bound(amount2, 2, 100 * 10 ** 18);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        {
+            address[] memory networkLimitSetRoleHolders = new address[](1);
+            networkLimitSetRoleHolders[0] = alice;
+            address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+            operatorNetworkSharesSetRoleHolders[0] = alice;
+            (address vault_,,) = vaultConfigurator.create(
+                IVaultConfigurator.InitParams({
+                    version: vaultFactory.lastVersion(),
+                    owner: alice,
+                    vaultParams: IVault.InitParams({
+                        collateral: address(feeOnTransferCollateral),
+                        delegator: address(0),
+                        slasher: address(0),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        defaultAdminRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice
+                    }),
+                    delegatorIndex: 0,
+                    delegatorParams: abi.encode(
+                        INetworkRestakeDelegator.InitParams({
+                            baseParams: IBaseDelegator.BaseParams({
+                                defaultAdminRoleHolder: alice,
+                                hook: address(0),
+                                hookSetRoleHolder: alice
+                            }),
+                            networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                            operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                        })
+                    ),
+                    withSlasher: false,
+                    slasherIndex: 0,
+                    slasherParams: ""
+                })
+            );
+
+            vault = Vault(vault_);
+        }
+
+        uint256 tokensBefore = feeOnTransferCollateral.balanceOf(address(vault));
+        uint256 shares1 = (amount1 - 1) * 10 ** 0;
+        feeOnTransferCollateral.transfer(alice, amount1 + 1);
+        vm.startPrank(alice);
+        feeOnTransferCollateral.approve(address(vault), amount1);
+        assertEq(vault.deposit(alice, amount1), shares1);
+        vm.stopPrank();
+        assertEq(feeOnTransferCollateral.balanceOf(address(vault)) - tokensBefore, amount1 - 1);
+
+        assertEq(vault.totalStake(), amount1 - 1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1);
+        assertEq(vault.activeShares(), shares1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - 1);
+        assertEq(vault.activeStake(), amount1 - 1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares1);
+        assertEq(vault.activeSharesOf(alice), shares1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1);
+        assertEq(vault.activeBalanceOf(alice), amount1 - 1);
+        assertEq(vault.balanceOf(alice), amount1 - 1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint256 shares2 = (amount2 - 1) * (shares1 + 10 ** 0) / (amount1 - 1 + 1);
+        feeOnTransferCollateral.transfer(alice, amount2 + 1);
+        vm.startPrank(alice);
+        feeOnTransferCollateral.approve(address(vault), amount2);
+        assertEq(vault.deposit(alice, amount2), shares2);
+        vm.stopPrank();
+
+        assertEq(vault.totalStake(), amount1 - 1 + amount2 - 1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1 + shares2);
+        assertEq(vault.activeShares(), shares1 + shares2);
+        uint256 gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), abi.encode(1)), shares1);
+        uint256 gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), abi.encode(0)), shares1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), abi.encode(0)), shares1 + shares2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), abi.encode(1)), shares1 + shares2);
+        assertGt(gasSpent, gasLeft - gasleft());
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1 - 1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - 1 + amount2 - 1);
+        assertEq(vault.activeStake(), amount1 - 1 + amount2 - 1);
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), abi.encode(1)), amount1 - 1);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), abi.encode(0)), amount1 - 1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), abi.encode(0)), amount1 - 1 + amount2 - 1);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), abi.encode(1)), amount1 - 1 + amount2 - 1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), shares1 + shares2);
+        assertEq(vault.activeSharesOf(alice), shares1 + shares2);
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), abi.encode(1)), shares1);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), abi.encode(0)), shares1);
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), abi.encode(0)), shares1 + shares2);
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), abi.encode(1)), shares1 + shares2);
+        assertGt(gasSpent, gasLeft - gasleft());
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - 1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1 + amount2 - 1);
+        assertEq(vault.activeBalanceOf(alice), amount1 - 1 + amount2 - 1);
+        assertEq(vault.balanceOf(alice), amount1 - 1 + amount2 - 1);
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp - 1),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(1),
+                        activeStakeHint: abi.encode(1),
+                        activeSharesHint: abi.encode(1)
+                    })
+                )
+            ),
+            amount1 - 1
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp - 1),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(0),
+                        activeStakeHint: abi.encode(0),
+                        activeSharesHint: abi.encode(0)
+                    })
+                )
+            ),
+            amount1 - 1
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(0),
+                        activeStakeHint: abi.encode(0),
+                        activeSharesHint: abi.encode(0)
+                    })
+                )
+            ),
+            amount1 - 1 + amount2 - 1
+        );
+        gasSpent = gasLeft - gasleft();
+        gasLeft = gasleft();
+        assertEq(
+            vault.activeBalanceOfAt(
+                alice,
+                uint48(blockTimestamp),
+                abi.encode(
+                    IVault.ActiveBalanceOfHints({
+                        activeSharesOfHint: abi.encode(1),
+                        activeStakeHint: abi.encode(1),
+                        activeSharesHint: abi.encode(1)
+                    })
+                )
+            ),
+            amount1 - 1 + amount2 - 1
         );
         assertGt(gasSpent, gasLeft - gasleft());
     }
@@ -1201,7 +1403,7 @@ contract VaultTest is Test {
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max / 2);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max / 2);
         captureAgo = bound(captureAgo, 1, 10 days);
-        vm.assume(depositAmount >= withdrawAmount1 + withdrawAmount2);
+        vm.assume(depositAmount > withdrawAmount1 + withdrawAmount2);
         vm.assume(depositAmount > slashAmount1);
         vm.assume(captureAgo <= 7 days);
 
