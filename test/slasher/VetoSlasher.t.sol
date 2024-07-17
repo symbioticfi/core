@@ -1062,8 +1062,8 @@ contract VetoSlasherTest is Test {
 
         (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration);
 
-        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE());
-        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE());
+        resolverShares1 = bound(resolverShares1, 1, slasher.SHARES_BASE() - 1);
+        resolverShares2 = bound(resolverShares2, 1, slasher.SHARES_BASE() - 1);
 
         // address network = alice;
         _registerNetwork(alice, alice);
@@ -1088,6 +1088,9 @@ contract VetoSlasherTest is Test {
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
+
+        _setResolverShares(alice, alice, resolverShares1 + 1, "");
+        _setResolverShares(alice, bob, resolverShares2 + 1, "");
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
 
