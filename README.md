@@ -1,3 +1,5 @@
+## ⚠️ Disclaimer: This code is going through audits. It is NOT intended for a production use yet.
+
 ## Symbiotic
 
 **Symbiotic is a shared security protocol enabling decentralized networks to control and customize their own multi-asset restaking implementation.**
