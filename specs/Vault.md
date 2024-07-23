@@ -121,5 +121,5 @@ forge script script/deploy/VaultFactory.s.sol:VaultFactoryScript 0x0000000000000
 Deployment script: [click](../script/deploy/Vault.s.sol)
 
 ```shell
-forge script script/deploy/Vault.s.sol:VaultScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 0 0 0x0000000000000000000000000000000000000000 0 false --sig "run(address,address,address,uint48,uint48,uint48,address,uint256,bool)" --broadcast --rpc-url=$ETH_RPC_URL
+forge script script/deploy/Vault.s.sol:VaultScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 false --sig "run(address,address,address,uint48,bool)" --broadcast --rpc-url=$ETH_RPC_URL
 ```
