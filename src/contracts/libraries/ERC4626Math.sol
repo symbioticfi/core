@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
- * @dev This library add helper functions for ERC4626 math operations.
+ * @dev This library adds helper functions for ERC4626 math operations.
  */
 library ERC4626Math {
     using Math for uint256;
