@@ -143,7 +143,7 @@ library Checkpoints {
     }
 
     /**
-     * @dev Returns checkpoint at given position.
+     * @dev Returns checkpoint at a given position.
      */
     function at(Trace208 storage self, uint32 pos) internal view returns (Checkpoint208 memory) {
         OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos);
