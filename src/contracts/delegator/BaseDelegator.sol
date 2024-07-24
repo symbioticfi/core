@@ -173,12 +173,15 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
             revert TooMuchSlash();
         }
 
-        if (hook != address(0)) {
-            hook.call{gas: 300_000}(
-                abi.encodeWithSelector(
-                    IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
-                )
+        address hook_ = hook;
+        if (hook_ != address(0)) {
+            bytes memory calldata_ = abi.encodeWithSelector(
+                IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
             );
+            /// @solidity memory-safe-assembly
+            assembly {
+                pop(call(250000, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+            }
         }
 
         emit OnSlash(network, operator, slashedAmount);
