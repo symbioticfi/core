@@ -332,7 +332,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         }
     }
 
-    function _migrate(uint64, bytes calldata) internal override {
+    function _migrate(uint64, uint64, bytes calldata) internal override {
         revert();
     }
 }
