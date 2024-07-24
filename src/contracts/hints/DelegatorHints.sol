@@ -36,7 +36,7 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) public returns (bytes memory) {
+    ) public view returns (bytes memory) {
         if (BaseDelegator(delegator).TYPE() == 0) {
             return NetworkRestakeDelegatorHints(NETWORK_RESTAKE_DELEGATOR_HINTS).stakeHints(
                 delegator, network, operator, timestamp
@@ -77,7 +77,7 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
             BaseDelegator(delegator).OPERATOR_VAULT_OPT_IN_SERVICE(),
             operator,
@@ -122,7 +122,7 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory stakeHints_ = stakeHints(delegator, network, operator, captureTimestamp);
         bytes memory hints_;
         if (stakeHints_.length != 0) {
@@ -155,7 +155,11 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         (exists,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(address delegator, address network, uint48 timestamp) public returns (bytes memory) {
+    function networkLimitHint(
+        address delegator,
+        address network,
+        uint48 timestamp
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -184,7 +188,7 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) public returns (bytes memory) {
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -214,7 +218,7 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         address delegator,
         address network,
         uint48 timestamp
-    ) public returns (bytes memory) {
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -235,7 +239,7 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory baseHints =
             BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, network, operator, timestamp);
 
@@ -287,7 +291,11 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
         (exists,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(address delegator, address network, uint48 timestamp) public returns (bytes memory) {
+    function networkLimitHint(
+        address delegator,
+        address network,
+        uint48 timestamp
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -314,7 +322,7 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) public returns (bytes memory) {
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -335,7 +343,7 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
         address network,
         address operator,
         uint48 timestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory baseHints =
             BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, network, operator, timestamp);
 

@@ -50,7 +50,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address network,
         address operator,
         uint48 timestamp
-    ) public returns (bytes memory) {
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 slasher,
@@ -71,7 +71,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address network,
         address operator,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory stakeHints = BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeHints(
             Vault(BaseSlasher(slasher).vault()).delegator(), network, operator, captureTimestamp
         );
@@ -129,7 +129,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address network,
         address operator,
         uint48 timestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory networkVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
             BaseSlasher(slasher).NETWORK_VAULT_OPT_IN_SERVICE(), network, BaseSlasher(slasher).vault(), timestamp
         );
@@ -184,7 +184,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory delegatorOnSlashHints = BaseDelegatorHints(BASE_DELEGATOR_HINTS).onSlashHints(
             Vault(BaseSlasher(slasher).vault()).delegator(), network, operator, amount, captureTimestamp
         );
@@ -261,7 +261,7 @@ contract SlasherHints is Hints, Slasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory onSlashHints = BaseSlasherHints(BASE_SLASHER_HINTS).onSlashHints(
             slasher,
             network,
@@ -312,7 +312,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address network,
         address resolver,
         uint48 timestamp
-    ) public returns (bytes memory) {
+    ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 slasher,
@@ -383,7 +383,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory optInHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).optInHints(slasher, network, operator, captureTimestamp);
         bytes memory slashableStakeHints =
@@ -451,7 +451,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address slasher,
         address msgSender,
         uint256 slashIndex
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         (address network, address operator, uint256 amount, uint48 captureTimestamp,, uint256 vetoedShares,) =
             VetoSlasher(slasher).slashRequests(slashIndex);
 
@@ -515,7 +515,11 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         }
     }
 
-    function vetoSlashHints(address slasher, address msgSender, uint256 slashIndex) external returns (bytes memory) {
+    function vetoSlashHints(
+        address slasher,
+        address msgSender,
+        uint256 slashIndex
+    ) external view returns (bytes memory) {
         (address network, address operator, uint256 amount, uint48 captureTimestamp,, uint256 vetoedShares,) =
             VetoSlasher(slasher).slashRequests(slashIndex);
 
@@ -560,7 +564,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address msgSender,
         address resolver,
         uint256 shares
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory resolverSharesHint_ = resolverSharesHint(slasher, msgSender, resolver, Time.timestamp());
 
         if (resolverSharesHint_.length > 0) {

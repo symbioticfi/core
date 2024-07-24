@@ -21,7 +21,7 @@ contract VaultHints is Hints, Vault {
         (exists,,, hint) = _activeStake.upperLookupRecentCheckpoint(timestamp);
     }
 
-    function activeStakeHint(address vault, uint48 timestamp) public returns (bytes memory) {
+    function activeStakeHint(address vault, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 vault, abi.encodeWithSelector(VaultHints.activeStakeHintInternal.selector, timestamp)
@@ -43,7 +43,7 @@ contract VaultHints is Hints, Vault {
         (exists,,, hint) = _activeShares.upperLookupRecentCheckpoint(timestamp);
     }
 
-    function activeSharesHint(address vault, uint48 timestamp) public returns (bytes memory) {
+    function activeSharesHint(address vault, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 vault, abi.encodeWithSelector(VaultHints.activeSharesHintInternal.selector, timestamp)
@@ -63,7 +63,7 @@ contract VaultHints is Hints, Vault {
         (exists,,, hint) = _activeSharesOf[account].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function activeSharesOfHint(address vault, address account, uint48 timestamp) public returns (bytes memory) {
+    function activeSharesOfHint(address vault, address account, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 vault, abi.encodeWithSelector(VaultHints.activeSharesOfHintInternal.selector, account, timestamp)
@@ -76,7 +76,11 @@ contract VaultHints is Hints, Vault {
         }
     }
 
-    function activeBalanceOfHints(address vault, address account, uint48 timestamp) external returns (bytes memory) {
+    function activeBalanceOfHints(
+        address vault,
+        address account,
+        uint48 timestamp
+    ) external view returns (bytes memory) {
         bytes memory activeSharesOfHint_ = activeSharesOfHint(vault, account, timestamp);
         bytes memory activeStakeHint_ = activeStakeHint(vault, timestamp);
         bytes memory activeSharesHint_ = activeSharesHint(vault, timestamp);

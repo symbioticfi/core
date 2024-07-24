@@ -23,8 +23,8 @@ abstract contract Hints {
         _;
     }
 
-    function _selfStaticDelegateCall(address target, bytes memory dataInternal) internal returns (bytes memory) {
-        (, bytes memory returnDataInternal) = target.call(
+    function _selfStaticDelegateCall(address target, bytes memory dataInternal) internal view returns (bytes memory) {
+        (, bytes memory returnDataInternal) = target.staticcall(
             abi.encodeWithSelector(StaticDelegateCallable.staticDelegateCall.selector, address(this), dataInternal)
         );
         (bool success, bytes memory returnData) = abi.decode(returnDataInternal, (bool, bytes));

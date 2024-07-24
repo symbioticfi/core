@@ -23,7 +23,7 @@ contract VaultScript is Script {
         networkLimitSetRoleHolders[0] = owner;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
         operatorNetworkLimitSetRoleHolders[0] = owner;
-        (address vault_, address delegator_, ) = IVaultConfigurator(vaultConfigurator).create(
+        (address vault_, address delegator_,) = IVaultConfigurator(vaultConfigurator).create(
             IVaultConfigurator.InitParams({
                 version: IMigratablesFactory(IVaultConfigurator(vaultConfigurator).VAULT_FACTORY()).lastVersion(),
                 owner: owner,

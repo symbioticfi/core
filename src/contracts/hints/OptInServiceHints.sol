@@ -24,7 +24,7 @@ contract OptInServiceHints is Hints, OptInService {
         address who,
         address where,
         uint48 timestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 optInService,
