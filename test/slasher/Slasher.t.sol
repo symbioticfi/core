@@ -47,7 +47,6 @@ contract SlasherTest is Test {
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     NetworkMiddlewareService networkMiddlewareService;
-    OptInService networkVaultOptInService;
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
@@ -71,7 +70,6 @@ contract SlasherTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -107,7 +105,6 @@ contract SlasherTest is Test {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(slasherFactory),
@@ -120,7 +117,6 @@ contract SlasherTest is Test {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
@@ -152,7 +148,6 @@ contract SlasherTest is Test {
 
         assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
         assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
-        assertEq(slasher.NETWORK_VAULT_OPT_IN_SERVICE(), address(networkVaultOptInService));
         assertEq(slasher.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
         assertEq(slasher.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(slasher.vault(), address(vault));
@@ -214,8 +209,6 @@ contract SlasherTest is Test {
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
-
-        _optInNetworkVault(network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -350,60 +343,11 @@ contract SlasherTest is Test {
 
         vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
 
-        _optInNetworkVault(network);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IBaseSlasher.NotNetworkMiddleware.selector);
         _slash(bob, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
-    }
-
-    function test_SlashRevertNetworkNotOptedInVault(
-        uint48 epochDuration,
-        uint256 depositAmount,
-        uint256 networkLimit,
-        uint256 operatorNetworkLimit1,
-        uint256 slashAmount1
-    ) public {
-        epochDuration = uint48(bound(epochDuration, 1, 10 days));
-        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
-        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
-
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
-        blockTimestamp = blockTimestamp + 1_720_700_948;
-        vm.warp(blockTimestamp);
-
-        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
-
-        address network = alice;
-        _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
-
-        _registerOperator(alice);
-
-        _optInOperatorVault(alice);
-
-        _optInOperatorNetwork(alice, address(network));
-
-        _deposit(alice, depositAmount);
-
-        _setNetworkLimit(alice, network, networkLimit);
-        _setNetworkLimit(alice, network, networkLimit - 1);
-
-        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
-
-        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1 - 1);
-
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
-
-        vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
-
-        vm.expectRevert(IBaseSlasher.NetworkNotOptedInVault.selector);
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
     function test_SlashRevertOperatorNotOptedInVault(
@@ -443,8 +387,6 @@ contract SlasherTest is Test {
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1 - 1);
 
         vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
-
-        _optInNetworkVault(network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -491,8 +433,6 @@ contract SlasherTest is Test {
 
         vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
 
-        _optInNetworkVault(network);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -537,8 +477,6 @@ contract SlasherTest is Test {
 
         vm.assume(slashAmount1 < depositAmount && slashAmount1 < networkLimit);
 
-        _optInNetworkVault(network);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -581,8 +519,6 @@ contract SlasherTest is Test {
         _setNetworkLimit(alice, network, networkLimit);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(network);
 
         blockTimestamp = blockTimestamp + 10 * epochDuration;
         vm.warp(blockTimestamp);
@@ -728,18 +664,6 @@ contract SlasherTest is Test {
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
         amount = vault.claimBatch(epochs);
-        vm.stopPrank();
-    }
-
-    function _optInNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optIn(address(vault));
-        vm.stopPrank();
-    }
-
-    function _optOutNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optOut(address(vault));
         vm.stopPrank();
     }
 

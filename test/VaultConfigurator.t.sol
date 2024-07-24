@@ -42,7 +42,6 @@ contract VaultConfiguratorTest is Test {
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     NetworkMiddlewareService networkMiddlewareService;
-    OptInService networkVaultOptInService;
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
@@ -66,7 +65,6 @@ contract VaultConfiguratorTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -102,7 +100,6 @@ contract VaultConfiguratorTest is Test {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(slasherFactory),
@@ -115,7 +112,6 @@ contract VaultConfiguratorTest is Test {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),

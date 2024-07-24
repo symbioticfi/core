@@ -46,7 +46,6 @@ contract FullRestakeDelegatorTest is Test {
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     NetworkMiddlewareService networkMiddlewareService;
-    OptInService networkVaultOptInService;
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
@@ -70,7 +69,6 @@ contract FullRestakeDelegatorTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -106,7 +104,6 @@ contract FullRestakeDelegatorTest is Test {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(slasherFactory),
@@ -119,7 +116,6 @@ contract FullRestakeDelegatorTest is Test {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
@@ -427,7 +423,6 @@ contract FullRestakeDelegatorTest is Test {
         _registerNetwork(network, bob);
 
         _setMaxNetworkLimit(network, maxNetworkLimit);
-        _optInNetworkVault(network);
 
         vm.expectRevert(IFullRestakeDelegator.ExceedsMaxNetworkLimit.selector);
         _setNetworkLimit(alice, network, amount1);
@@ -831,8 +826,6 @@ contract FullRestakeDelegatorTest is Test {
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2);
 
-        _optInNetworkVault(network);
-
         assertEq(delegator.networkLimit(network), networkLimit);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network, bob), operatorNetworkLimit2);
@@ -934,8 +927,6 @@ contract FullRestakeDelegatorTest is Test {
         _setNetworkLimit(alice, network, type(uint256).max);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(network);
 
         assertEq(delegator.networkLimit(network), type(uint256).max);
         assertEq(delegator.operatorNetworkLimit(network, alice), operatorNetworkLimit1);
@@ -1109,18 +1100,6 @@ contract FullRestakeDelegatorTest is Test {
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
         amount = vault.claimBatch(epochs);
-        vm.stopPrank();
-    }
-
-    function _optInNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optIn(address(vault));
-        vm.stopPrank();
-    }
-
-    function _optOutNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optOut(address(vault));
         vm.stopPrank();
     }
 

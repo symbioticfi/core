@@ -49,7 +49,6 @@ contract VetoSlasherTest is Test {
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     NetworkMiddlewareService networkMiddlewareService;
-    OptInService networkVaultOptInService;
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
@@ -73,7 +72,6 @@ contract VetoSlasherTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -109,7 +107,6 @@ contract VetoSlasherTest is Test {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(slasherFactory),
@@ -122,7 +119,6 @@ contract VetoSlasherTest is Test {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(networkRegistry),
@@ -152,7 +148,6 @@ contract VetoSlasherTest is Test {
 
         assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
         assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
-        assertEq(slasher.NETWORK_VAULT_OPT_IN_SERVICE(), address(networkVaultOptInService));
         assertEq(slasher.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
         assertEq(slasher.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(slasher.vault(), address(vault));
@@ -365,8 +360,6 @@ contract VetoSlasherTest is Test {
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
         _setOperatorNetworkLimit(alice, alice, bob, operatorNetworkLimit2);
 
-        _optInNetworkVault(alice);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -471,8 +464,6 @@ contract VetoSlasherTest is Test {
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1 - 1);
         _setOperatorNetworkLimit(alice, network, bob, operatorNetworkLimit2 - 1);
 
-        _optInNetworkVault(network);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -518,8 +509,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, network, networkLimit);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(network);
 
         blockTimestamp = blockTimestamp + 10 * epochDuration;
         vm.warp(blockTimestamp);
@@ -759,8 +748,6 @@ contract VetoSlasherTest is Test {
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
 
-        _optInNetworkVault(alice);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -861,8 +848,6 @@ contract VetoSlasherTest is Test {
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
 
-        _optInNetworkVault(network);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -915,8 +900,6 @@ contract VetoSlasherTest is Test {
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
 
-        _optInNetworkVault(network);
-
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
@@ -965,8 +948,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, network, networkLimit);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1019,8 +1000,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, network, networkLimit);
 
         _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(network);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1080,8 +1059,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, alice, networkLimit);
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(alice);
 
         _setResolverShares(alice, alice, resolverShares1, "");
         _setResolverShares(alice, bob, resolverShares2, "");
@@ -1182,8 +1159,6 @@ contract VetoSlasherTest is Test {
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
 
-        _optInNetworkVault(alice);
-
         _setResolverShares(alice, alice, resolverShares1, "");
         _setResolverShares(alice, bob, resolverShares2, "");
 
@@ -1240,8 +1215,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, alice, networkLimit);
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(alice);
 
         _setResolverShares(alice, alice, resolverShares1, "");
         _setResolverShares(alice, bob, resolverShares2, "");
@@ -1303,8 +1276,6 @@ contract VetoSlasherTest is Test {
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
 
-        _optInNetworkVault(alice);
-
         _setResolverShares(alice, alice, resolverShares1, "");
         _setResolverShares(alice, bob, resolverShares2, "");
 
@@ -1361,8 +1332,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, alice, networkLimit);
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(alice);
 
         _setResolverShares(alice, alice, slasher.SHARES_BASE(), "");
         _setResolverShares(alice, bob, resolverShares2, "");
@@ -1422,8 +1391,6 @@ contract VetoSlasherTest is Test {
         _setNetworkLimit(alice, alice, networkLimit);
 
         _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
-
-        _optInNetworkVault(alice);
 
         _setResolverShares(alice, alice, resolverShares1, "");
         _setResolverShares(alice, bob, resolverShares2, "");
@@ -1584,18 +1551,6 @@ contract VetoSlasherTest is Test {
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
         amount = vault.claimBatch(epochs);
-        vm.stopPrank();
-    }
-
-    function _optInNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optIn(address(vault));
-        vm.stopPrank();
-    }
-
-    function _optOutNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optOut(address(vault));
         vm.stopPrank();
     }
 

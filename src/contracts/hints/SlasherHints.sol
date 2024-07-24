@@ -22,7 +22,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     constructor(
         address baseDelegatorHints,
         address optInServiceHints
-    ) BaseSlasher(address(0), address(0), address(0), address(0), address(0), address(0), 0) {
+    ) BaseSlasher(address(0), address(0), address(0), address(0), address(0), 0) {
         BASE_DELEGATOR_HINTS = baseDelegatorHints;
         OPT_IN_SERVICE_HINTS = optInServiceHints;
         SLASHER_HINTS = address(new SlasherHints(address(this)));
@@ -84,10 +84,6 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address operator,
         uint48 timestamp
     ) external returns (bytes memory) {
-        bytes memory networkVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
-            BaseSlasher(slasher).NETWORK_VAULT_OPT_IN_SERVICE(), network, BaseSlasher(slasher).vault(), timestamp
-        );
-
         bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
             BaseSlasher(slasher).OPERATOR_VAULT_OPT_IN_SERVICE(), operator, BaseSlasher(slasher).vault(), timestamp
         );
@@ -96,20 +92,14 @@ contract BaseSlasherHints is Hints, BaseSlasher {
             BaseSlasher(slasher).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, network, timestamp
         );
 
-        bytes memory hints;
-        if (
-            networkVaultOptInHint.length > 0 || operatorVaultOptInHint.length > 0 || operatorNetworkOptInHint.length > 0
-        ) {
-            hints = abi.encode(
+        if (operatorVaultOptInHint.length > 0 || operatorNetworkOptInHint.length > 0) {
+            return abi.encode(
                 OptInHints({
-                    networkVaultOptInHint: networkVaultOptInHint,
                     operatorVaultOptInHint: operatorVaultOptInHint,
                     operatorNetworkOptInHint: operatorNetworkOptInHint
                 })
             );
         }
-
-        return hints;
     }
 
     function onSlashHints(
@@ -134,9 +124,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
 contract SlasherHints is Hints, Slasher {
     address public immutable BASE_SLASHER_HINTS;
 
-    constructor(address baseSlasherHints)
-        Slasher(address(0), address(0), address(0), address(0), address(0), address(0), 0)
-    {
+    constructor(address baseSlasherHints) Slasher(address(0), address(0), address(0), address(0), address(0), 0) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 
@@ -174,7 +162,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
     address public immutable BASE_SLASHER_HINTS;
 
     constructor(address baseSlasherHints)
-        VetoSlasher(address(0), address(0), address(0), address(0), address(0), address(0), address(0), 0)
+        VetoSlasher(address(0), address(0), address(0), address(0), address(0), address(0), 0)
     {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }

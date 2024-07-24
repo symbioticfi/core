@@ -13,7 +13,6 @@ contract Slasher is BaseSlasher, ISlasher {
     constructor(
         address vaultFactory,
         address networkMiddlewareService,
-        address networkVaultOptInService,
         address operatorVaultOptInService,
         address operatorNetworkOptInService,
         address slasherFactory,
@@ -22,7 +21,6 @@ contract Slasher is BaseSlasher, ISlasher {
         BaseSlasher(
             vaultFactory,
             networkMiddlewareService,
-            networkVaultOptInService,
             operatorVaultOptInService,
             operatorNetworkOptInService,
             slasherFactory,

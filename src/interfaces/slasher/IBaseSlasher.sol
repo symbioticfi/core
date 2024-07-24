@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 interface IBaseSlasher {
-    error NetworkNotOptedInVault();
     error NotNetworkMiddleware();
     error NotVault();
     error OperatorNotOptedInNetwork();
@@ -20,12 +19,10 @@ interface IBaseSlasher {
 
     /**
      * @notice Hints for opt-in checks.
-     * @param networkVaultOptInHint hints for the network-vault opt-in
      * @param operatorVaultOptInHint hints for the operator-vault opt-in
      * @param operatorNetworkOptInHint hints for the operator-network opt-in
      */
     struct OptInHints {
-        bytes networkVaultOptInHint;
         bytes operatorVaultOptInHint;
         bytes operatorNetworkOptInHint;
     }
@@ -49,12 +46,6 @@ interface IBaseSlasher {
      * @return address of the network middleware service
      */
     function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
-
-    /**
-     * @notice Get the network-vault opt-in service's address.
-     * @return address of the network-vault opt-in service
-     */
-    function NETWORK_VAULT_OPT_IN_SERVICE() external view returns (address);
 
     /**
      * @notice Get the operator-vault opt-in service's address.
