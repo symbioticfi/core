@@ -11,6 +11,7 @@ interface IVault is IVaultStorage {
     error InsufficientWithdrawal();
     error InvalidAccount();
     error InvalidCaptureEpoch();
+    error InvalidClaimer();
     error InvalidCollateral();
     error InvalidEpoch();
     error InvalidEpochDuration();
@@ -69,25 +70,32 @@ interface IVault is IVaultStorage {
     /**
      * @notice Emitted when a withdrawal is made.
      * @param withdrawer account that made the withdrawal
-     * @param recipient account that needs to claim the withdrawal
+     * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral withdrawn
      * @param burnedShares amount of the active shares burned
      * @param mintedShares amount of the epoch withdrawal shares minted
      */
     event Withdraw(
-        address indexed withdrawer,
-        address indexed recipient,
-        uint256 amount,
-        uint256 burnedShares,
-        uint256 mintedShares
+        address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares
     );
 
     /**
      * @notice Emitted when a claim is made.
      * @param claimer account that claimed
+     * @param recipient account that received the collateral
+     * @param epoch epoch the collateral was claimed for
      * @param amount amount of the collateral claimed
      */
-    event Claim(address indexed claimer, uint256 amount);
+    event Claim(address indexed claimer, address indexed recipient, uint256 epoch, uint256 amount);
+
+    /**
+     * @notice Emitted when a batch claim is made.
+     * @param claimer account that claimed
+     * @param recipient account that received the collateral
+     * @param epochs epochs the collateral was claimed for
+     * @param amount amount of the collateral claimed
+     */
+    event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] epochs, uint256 amount);
 
     /**
      * @notice Emitted when a slash happened.
@@ -159,29 +167,28 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).
-     * @param recipient account that needs to claim the withdrawal
+     * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral to withdraw
      * @return burnedShares amount of the active shares burned
      * @return mintedShares amount of the epoch withdrawal shares minted
      */
-    function withdraw(
-        address recipient,
-        uint256 amount
-    ) external returns (uint256 burnedShares, uint256 mintedShares);
+    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares);
 
     /**
      * @notice Claim collateral from the vault.
+     * @param recipient account that receives the collateral
      * @param epoch epoch to claim the collateral for
      * @return amount amount of the collateral claimed
      */
-    function claim(uint256 epoch) external returns (uint256 amount);
+    function claim(address recipient, uint256 epoch) external returns (uint256 amount);
 
     /**
      * @notice Claim collateral from the vault for multiple epochs.
+     * @param recipient account that receives the collateral
      * @param epochs epochs to claim the collateral for
      * @return amount amount of the collateral claimed
      */
-    function claimBatch(uint256[] calldata epochs) external returns (uint256 amount);
+    function claimBatch(address recipient, uint256[] calldata epochs) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.

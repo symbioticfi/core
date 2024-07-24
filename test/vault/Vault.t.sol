@@ -927,7 +927,7 @@ contract VaultTest is Test {
         assertEq(vault.totalStake(), amount1 - amount2 - amount3);
     }
 
-    function test_WithdrawRevertInvalidRecipient(uint256 amount1) public {
+    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -935,7 +935,7 @@ contract VaultTest is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vm.expectRevert(IVault.InvalidClaimer.selector);
         vm.startPrank(alice);
         vault.withdraw(address(0), amount1);
         vm.stopPrank();
@@ -994,6 +994,35 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2);
 
         assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
+    }
+
+    function test_ClaimRevertInvalidRecipient(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        vm.startPrank(alice);
+        uint256 currentEpoch = vault.currentEpoch();
+        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vault.claim(address(0), currentEpoch - 1);
+        vm.stopPrank();
     }
 
     function test_ClaimRevertInvalidEpoch(uint256 amount1, uint256 amount2) public {
@@ -1118,6 +1147,44 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2 + amount3);
 
         assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
+    }
+
+    function test_ClaimBatchRevertInvalidRecipient(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](2);
+        epochs[0] = vault.currentEpoch() - 1;
+        epochs[1] = vault.currentEpoch() - 2;
+
+        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vm.startPrank(alice);
+        vault.claimBatch(address(0), epochs);
+        vm.stopPrank();
     }
 
     function test_ClaimBatchRevertInvalidLengthEpochs(uint256 amount1, uint256 amount2, uint256 amount3) public {
@@ -1699,13 +1766,13 @@ contract VaultTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(epoch);
+        amount = vault.claim(user, epoch);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(epochs);
+        amount = vault.claimBatch(user, epochs);
         vm.stopPrank();
     }
 

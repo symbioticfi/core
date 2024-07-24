@@ -110,12 +110,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function withdraw(
-        address recipient,
-        uint256 amount
-    ) external returns (uint256 burnedShares, uint256 mintedShares) {
-        if (recipient == address(0)) {
-            revert InvalidRecipient();
+    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
+        if (claimer == address(0)) {
+            revert InvalidClaimer();
         }
 
         if (amount == 0) {
@@ -143,24 +140,34 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
 
         withdrawals[epoch] = withdrawals_ + amount;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][recipient] += mintedShares;
+        withdrawalSharesOf[epoch][claimer] += mintedShares;
 
-        emit Withdraw(msg.sender, recipient, amount, burnedShares, mintedShares);
+        emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function claim(uint256 epoch) external nonReentrant returns (uint256 amount) {
+    function claim(address recipient, uint256 epoch) external nonReentrant returns (uint256 amount) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
         amount = _claim(epoch);
 
-        IERC20(collateral).safeTransfer(msg.sender, amount);
+        IERC20(collateral).safeTransfer(recipient, amount);
+
+        emit Claim(msg.sender, recipient, epoch, amount);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function claimBatch(uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
+    function claimBatch(address recipient, uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
         uint256 length = epochs.length;
         if (length == 0) {
             revert InvalidLengthEpochs();
@@ -170,7 +177,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
             amount += _claim(epochs[i]);
         }
 
-        IERC20(collateral).safeTransfer(msg.sender, amount);
+        IERC20(collateral).safeTransfer(recipient, amount);
+
+        emit ClaimBatch(msg.sender, recipient, epochs, amount);
     }
 
     /**
@@ -276,8 +285,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         }
 
         isWithdrawalsClaimed[epoch][msg.sender] = true;
-
-        emit Claim(msg.sender, amount);
     }
 
     function _initialize(uint64, address, bytes calldata data) internal override {
