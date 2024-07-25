@@ -127,11 +127,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
             optInHints = abi.decode(hints, (OptInHints));
         }
 
-        address vault_ = vault;
-
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
-                operator, vault_, captureTimestamp, optInHints.operatorVaultOptInHint
+                operator, vault, captureTimestamp, optInHints.operatorVaultOptInHint
             )
         ) {
             revert OperatorNotOptedInVault();

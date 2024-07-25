@@ -43,12 +43,12 @@ contract Slasher is BaseSlasher, ISlasher {
             slashHints = abi.decode(hints, (SlashHints));
         }
 
-        _checkOptIns(network, operator, captureTimestamp, slashHints.optInHints);
-
         if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
         {
             revert InvalidCaptureTimestamp();
         }
+
+        _checkOptIns(network, operator, captureTimestamp, slashHints.optInHints);
 
         slashedAmount =
             Math.min(amount, slashableStake(network, operator, captureTimestamp, slashHints.slashableStakeHints));

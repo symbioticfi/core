@@ -113,9 +113,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             requestSlashHints = abi.decode(hints, (RequestSlashHints));
         }
 
-        address vault_ = vault;
         if (
-            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault_).epochDuration()
+            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault).epochDuration()
                 || captureTimestamp >= Time.timestamp()
         ) {
             revert InvalidCaptureTimestamp();
@@ -166,8 +165,7 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert VetoPeriodNotEnded();
         }
 
-        address vault_ = vault;
-        if (Time.timestamp() - request.captureTimestamp > IVault(vault_).epochDuration()) {
+        if (Time.timestamp() - request.captureTimestamp > IVault(vault).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
