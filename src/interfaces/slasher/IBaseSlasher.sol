@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 interface IBaseSlasher {
     error NotNetworkMiddleware();
     error NotVault();
+    error OutdatedCaptureTimestamp();
     error OperatorNotOptedInNetwork();
     error OperatorNotOptedInVault();
 
@@ -64,6 +65,13 @@ interface IBaseSlasher {
      * @return address of the vault to perform slashings on
      */
     function vault() external view returns (address);
+
+    /**
+     * @notice Get a latest capture timestamp that was slashed on a network.
+     * @param network address of the network
+     * @return latest capture timestamp that was slashed
+     */
+    function latestSlashedCaptureTimestamp(address network) external view returns (uint48);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a network until a given timestamp (inclusively) using a hint.

@@ -44,6 +44,11 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
      */
     address public vault;
 
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    mapping(address network => uint48 value) public latestSlashedCaptureTimestamp;
+
     mapping(address network => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
     modifier onlyNetworkMiddleware(address network) {
@@ -114,6 +119,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
                     - cumulativeSlashAt(network, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
                 stakeAmount
             );
+    }
+
+    function _checkLatestSlashedCaptureTimestamp(address network, uint48 captureTimestamp) internal view {
+        if (captureTimestamp < latestSlashedCaptureTimestamp[network]) {
+            revert OutdatedCaptureTimestamp();
+        }
     }
 
     function _checkOptIns(

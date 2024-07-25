@@ -120,6 +120,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert InvalidCaptureTimestamp();
         }
 
+        _checkLatestSlashedCaptureTimestamp(network, captureTimestamp);
+
         _checkOptIns(network, operator, captureTimestamp, requestSlashHints.optInHints);
 
         amount =
@@ -169,11 +171,17 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
             revert SlashPeriodEnded();
         }
 
+        _checkLatestSlashedCaptureTimestamp(request.network, request.captureTimestamp);
+
         if (request.completed) {
             revert SlashRequestCompleted();
         }
 
         request.completed = true;
+
+        if (latestSlashedCaptureTimestamp[request.network] < request.captureTimestamp) {
+            latestSlashedCaptureTimestamp[request.network] = request.captureTimestamp;
+        }
 
         slashedAmount = Math.min(
             request.amount,
