@@ -127,34 +127,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         }
     }
 
-    function _checkOptIns(
-        address network,
-        address operator,
-        uint48 captureTimestamp,
-        bytes memory hints
-    ) internal view {
-        OptInHints memory optInHints;
-        if (hints.length > 0) {
-            optInHints = abi.decode(hints, (OptInHints));
-        }
-
-        if (
-            !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
-                operator, vault, captureTimestamp, optInHints.operatorVaultOptInHint
-            )
-        ) {
-            revert OperatorNotOptedInVault();
-        }
-
-        if (
-            !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
-                operator, network, captureTimestamp, optInHints.operatorNetworkOptInHint
-            )
-        ) {
-            revert OperatorNotOptedInNetwork();
-        }
-    }
-
     function _updateCumulativeSlash(address network, address operator, uint256 amount) internal {
         _cumulativeSlash[network][operator].push(Time.timestamp(), cumulativeSlash(network, operator) + amount);
     }

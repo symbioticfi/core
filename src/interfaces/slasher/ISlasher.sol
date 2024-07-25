@@ -7,12 +7,10 @@ interface ISlasher {
 
     /**
      * @notice Hints for a slash.
-     * @param optInHints hints for the opt-in checkpoints
      * @param slashableStakeHints hints for the slashable stake checkpoints
      * @param onSlashHints hints for the on-slash checkpoints
      */
     struct SlashHints {
-        bytes optInHints;
         bytes slashableStakeHints;
         bytes onSlashHints;
     }

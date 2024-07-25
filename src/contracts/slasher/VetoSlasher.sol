@@ -122,8 +122,6 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         _checkLatestSlashedCaptureTimestamp(network, captureTimestamp);
 
-        _checkOptIns(network, operator, captureTimestamp, requestSlashHints.optInHints);
-
         amount =
             Math.min(amount, slashableStake(network, operator, captureTimestamp, requestSlashHints.slashableStakeHints));
         if (amount == 0) {

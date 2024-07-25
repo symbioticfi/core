@@ -48,11 +48,9 @@ interface IVetoSlasher {
 
     /**
      * @notice Hints for a slash request.
-     * @param optInHints hints for the opt-in checkpoints
      * @param slashableStakeHints hints for the slashable stake checkpoints
      */
     struct RequestSlashHints {
-        bytes optInHints;
         bytes slashableStakeHints;
     }
 

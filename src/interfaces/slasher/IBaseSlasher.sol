@@ -5,8 +5,6 @@ interface IBaseSlasher {
     error NotNetworkMiddleware();
     error NotVault();
     error OutdatedCaptureTimestamp();
-    error OperatorNotOptedInNetwork();
-    error OperatorNotOptedInVault();
 
     /**
      * @notice Hints for a slashable stake.
@@ -16,16 +14,6 @@ interface IBaseSlasher {
     struct SlashableStakeHints {
         bytes stakeHints;
         bytes cumulativeSlashFromHint;
-    }
-
-    /**
-     * @notice Hints for opt-in checks.
-     * @param operatorVaultOptInHint hints for the operator-vault opt-in
-     * @param operatorNetworkOptInHint hints for the operator-network opt-in
-     */
-    struct OptInHints {
-        bytes operatorVaultOptInHint;
-        bytes operatorNetworkOptInHint;
     }
 
     /**

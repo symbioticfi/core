@@ -50,8 +50,6 @@ contract Slasher is BaseSlasher, ISlasher {
 
         _checkLatestSlashedCaptureTimestamp(network, captureTimestamp);
 
-        _checkOptIns(network, operator, captureTimestamp, slashHints.optInHints);
-
         slashedAmount =
             Math.min(amount, slashableStake(network, operator, captureTimestamp, slashHints.slashableStakeHints));
         if (slashedAmount == 0) {

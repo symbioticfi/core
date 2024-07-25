@@ -7,7 +7,6 @@ import {Slasher} from "src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
 import {Vault} from "src/contracts/vault/Vault.sol";
 import {BaseDelegatorHints} from "./DelegatorHints.sol";
-import {OptInServiceHints} from "./OptInServiceHints.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -15,16 +14,13 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
 
     address public immutable BASE_DELEGATOR_HINTS;
-    address public immutable OPT_IN_SERVICE_HINTS;
     address public immutable SLASHER_HINTS;
     address public immutable VETO_SLASHER_HINTS;
 
-    constructor(
-        address baseDelegatorHints,
-        address optInServiceHints
-    ) BaseSlasher(address(0), address(0), address(0), address(0), address(0), 0) {
+    constructor(address baseDelegatorHints)
+        BaseSlasher(address(0), address(0), address(0), address(0), address(0), 0)
+    {
         BASE_DELEGATOR_HINTS = baseDelegatorHints;
-        OPT_IN_SERVICE_HINTS = optInServiceHints;
         SLASHER_HINTS = address(new SlasherHints(address(this)));
         VETO_SLASHER_HINTS = address(new VetoSlasherHints(address(this)));
     }
@@ -68,36 +64,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
 
         bytes memory cumulativeSlashFromHint = cumulativeSlashHint(slasher, network, operator, captureTimestamp);
 
-        bytes memory hints;
         if (stakeHints.length > 0 || cumulativeSlashFromHint.length > 0) {
-            hints = abi.encode(
-                SlashableStakeHints({stakeHints: stakeHints, cumulativeSlashFromHint: cumulativeSlashFromHint})
-            );
-        }
-
-        return hints;
-    }
-
-    function optInHints(
-        address slasher,
-        address network,
-        address operator,
-        uint48 timestamp
-    ) external returns (bytes memory) {
-        bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
-            BaseSlasher(slasher).OPERATOR_VAULT_OPT_IN_SERVICE(), operator, BaseSlasher(slasher).vault(), timestamp
-        );
-
-        bytes memory operatorNetworkOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
-            BaseSlasher(slasher).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, network, timestamp
-        );
-
-        if (operatorVaultOptInHint.length > 0 || operatorNetworkOptInHint.length > 0) {
             return abi.encode(
-                OptInHints({
-                    operatorVaultOptInHint: operatorVaultOptInHint,
-                    operatorNetworkOptInHint: operatorNetworkOptInHint
-                })
+                SlashableStakeHints({stakeHints: stakeHints, cumulativeSlashFromHint: cumulativeSlashFromHint})
             );
         }
     }
@@ -112,12 +81,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
             Vault(BaseSlasher(slasher).vault()).delegator(), network, operator, captureTimestamp
         );
 
-        bytes memory hints;
         if (delegatorOnSlashHints.length > 0) {
-            hints = abi.encode(OnSlashHints({delegatorOnSlashHints: delegatorOnSlashHints}));
+            return abi.encode(OnSlashHints({delegatorOnSlashHints: delegatorOnSlashHints}));
         }
-
-        return hints;
     }
 }
 
@@ -134,25 +100,14 @@ contract SlasherHints is Hints, Slasher {
         address operator,
         uint48 captureTimestamp
     ) external returns (bytes memory) {
-        bytes memory optInHints =
-            BaseSlasherHints(BASE_SLASHER_HINTS).optInHints(slasher, network, operator, captureTimestamp);
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
         bytes memory onSlashHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).onSlashHints(slasher, network, operator, captureTimestamp);
 
-        bytes memory hints;
-        if (optInHints.length > 0 || slashableStakeHints.length > 0 || onSlashHints.length > 0) {
-            hints = abi.encode(
-                SlashHints({
-                    optInHints: optInHints,
-                    slashableStakeHints: slashableStakeHints,
-                    onSlashHints: onSlashHints
-                })
-            );
+        if (slashableStakeHints.length > 0 || onSlashHints.length > 0) {
+            return abi.encode(SlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: onSlashHints}));
         }
-
-        return hints;
     }
 }
 
@@ -186,12 +141,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
             abi.encodeWithSelector(VetoSlasherHints.resolverSharesHintInternal.selector, network, resolver, timestamp)
         );
 
-        return _optimizeHint(
-            slasher,
-            abi.encodeWithSelector(VetoSlasher.resolverSharesAt.selector, network, resolver, timestamp, ""),
-            abi.encodeWithSelector(VetoSlasher.resolverSharesAt.selector, network, resolver, timestamp, hint),
-            hint
-        );
+        return abi.encode(hint);
     }
 
     function requestSlashHints(
@@ -200,17 +150,12 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address operator,
         uint48 captureTimestamp
     ) external returns (bytes memory) {
-        bytes memory optInHints =
-            BaseSlasherHints(BASE_SLASHER_HINTS).optInHints(slasher, network, operator, captureTimestamp);
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
 
-        bytes memory hints;
-        if (optInHints.length > 0 || slashableStakeHints.length > 0) {
-            hints = abi.encode(RequestSlashHints({optInHints: optInHints, slashableStakeHints: slashableStakeHints}));
+        if (slashableStakeHints.length > 0) {
+            return abi.encode(RequestSlashHints({slashableStakeHints: slashableStakeHints}));
         }
-
-        return hints;
     }
 
     function executeSlashHints(
