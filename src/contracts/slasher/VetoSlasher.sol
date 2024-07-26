@@ -54,21 +54,10 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
     constructor(
         address vaultFactory,
         address networkMiddlewareService,
-        address operatorVaultOptInService,
-        address operatorNetworkOptInService,
         address networkRegistry,
         address slasherFactory,
         uint64 entityType
-    )
-        BaseSlasher(
-            vaultFactory,
-            networkMiddlewareService,
-            operatorVaultOptInService,
-            operatorNetworkOptInService,
-            slasherFactory,
-            entityType
-        )
-    {
+    ) BaseSlasher(vaultFactory, networkMiddlewareService, slasherFactory, entityType) {
         NETWORK_REGISTRY = networkRegistry;
     }
 

@@ -13,20 +13,9 @@ contract Slasher is BaseSlasher, ISlasher {
     constructor(
         address vaultFactory,
         address networkMiddlewareService,
-        address operatorVaultOptInService,
-        address operatorNetworkOptInService,
         address slasherFactory,
         uint64 entityType
-    )
-        BaseSlasher(
-            vaultFactory,
-            networkMiddlewareService,
-            operatorVaultOptInService,
-            operatorNetworkOptInService,
-            slasherFactory,
-            entityType
-        )
-    {}
+    ) BaseSlasher(vaultFactory, networkMiddlewareService, slasherFactory, entityType) {}
 
     /**
      * @inheritdoc ISlasher

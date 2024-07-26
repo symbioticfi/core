@@ -37,18 +37,6 @@ interface IBaseSlasher {
     function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
 
     /**
-     * @notice Get the operator-vault opt-in service's address.
-     * @return address of the operator-vault opt-in service
-     */
-    function OPERATOR_VAULT_OPT_IN_SERVICE() external view returns (address);
-
-    /**
-     * @notice Get the operator-network opt-in service's address.
-     * @return address of the operator-network opt-in service
-     */
-    function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
-
-    /**
      * @notice Get the vault's address.
      * @return address of the vault to perform slashings on
      */

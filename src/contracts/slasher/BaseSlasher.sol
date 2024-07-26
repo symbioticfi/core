@@ -27,16 +27,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
     /**
      * @inheritdoc IBaseSlasher
      */
-    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
-
-    /**
-     * @inheritdoc IBaseSlasher
-     */
-    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
-
-    /**
-     * @inheritdoc IBaseSlasher
-     */
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
@@ -62,15 +52,11 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
     constructor(
         address vaultFactory,
         address networkMiddlewareService,
-        address operatorVaultOptInService,
-        address operatorNetworkOptInService,
         address slasherFactory,
         uint64 entityType
     ) Entity(slasherFactory, entityType) {
         VAULT_FACTORY = vaultFactory;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
-        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
-        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
     /**
