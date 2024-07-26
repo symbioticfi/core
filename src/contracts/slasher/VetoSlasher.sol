@@ -217,7 +217,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        uint256 resolverShares_ = resolverShares(request.network, msg.sender, vetoSlashHints.resolverSharesHint);
+        uint256 resolverShares_ =
+            resolverSharesAt(request.network, msg.sender, request.captureTimestamp, vetoSlashHints.resolverSharesHint);
 
         if (resolverShares_ == 0) {
             revert NotResolver();
