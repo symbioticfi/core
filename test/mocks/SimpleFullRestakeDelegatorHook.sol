@@ -7,7 +7,7 @@ import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 contract SimpleFullRestakeDelegatorHook is IDelegatorHook {
     uint256 counter;
 
-    function onSlash(address network, address operator, uint256, uint48) external {
+    function onSlash(address network, address operator, uint256, uint48, bytes calldata) external {
         ++counter;
         if (counter == 2) {
             IFullRestakeDelegator(msg.sender).setOperatorNetworkLimit(network, operator, 0);

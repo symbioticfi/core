@@ -153,7 +153,13 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external {
+    function onSlash(
+        address network,
+        address operator,
+        uint256 slashedAmount,
+        uint48 captureTimestamp,
+        bytes memory data
+    ) external {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
@@ -161,7 +167,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         address hook_ = hook;
         if (hook_ != address(0)) {
             bytes memory calldata_ = abi.encodeWithSelector(
-                IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
+                IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp, data
             );
             /// @solidity memory-safe-assembly
             assembly {

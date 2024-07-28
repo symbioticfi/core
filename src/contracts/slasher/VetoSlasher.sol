@@ -6,6 +6,7 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
@@ -153,7 +154,8 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert VetoPeriodNotEnded();
         }
 
-        if (Time.timestamp() - request.captureTimestamp > IVault(vault).epochDuration()) {
+        address vault_ = vault;
+        if (Time.timestamp() - request.captureTimestamp > IVault(vault_).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
@@ -182,7 +184,13 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             _updateCumulativeSlash(request.network, request.operator, slashedAmount);
         }
 
-        _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp);
+        IBaseDelegator(IVault(vault_).delegator()).onSlash(
+            request.network, request.operator, slashedAmount, request.captureTimestamp, abi.encode(slashIndex)
+        );
+
+        if (slashedAmount > 0) {
+            IVault(vault_).onSlash(slashedAmount, request.captureTimestamp);
+        }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
     }

@@ -151,7 +151,14 @@ interface IBaseDelegator {
      * @param operator address of the operator
      * @param slashedAmount amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
+     * @param data some additional data
      * @dev Only the vault's slasher can call this function.
      */
-    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external;
+    function onSlash(
+        address network,
+        address operator,
+        uint256 slashedAmount,
+        uint48 captureTimestamp,
+        bytes calldata data
+    ) external;
 }

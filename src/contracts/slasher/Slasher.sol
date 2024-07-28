@@ -5,6 +5,7 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 
 import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -32,8 +33,10 @@ contract Slasher is BaseSlasher, ISlasher {
             slashHints = abi.decode(hints, (SlashHints));
         }
 
-        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
-        {
+        address vault_ = vault;
+        if (
+            captureTimestamp < Time.timestamp() - IVault(vault_).epochDuration() || captureTimestamp >= Time.timestamp()
+        ) {
             revert InvalidCaptureTimestamp();
         }
 
@@ -51,7 +54,11 @@ contract Slasher is BaseSlasher, ISlasher {
 
         _updateCumulativeSlash(network, operator, slashedAmount);
 
-        _callOnSlash(network, operator, slashedAmount, captureTimestamp);
+        IBaseDelegator(IVault(vault_).delegator()).onSlash(
+            network, operator, slashedAmount, captureTimestamp, new bytes(0)
+        );
+
+        IVault(vault_).onSlash(slashedAmount, captureTimestamp);
 
         emit Slash(network, operator, slashedAmount, captureTimestamp);
     }
