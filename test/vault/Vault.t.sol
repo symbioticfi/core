@@ -192,7 +192,7 @@ contract VaultTest is Test {
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), alice), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), depositWhitelist);
+        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
         assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
         vm.expectRevert(IVaultStorage.InvalidTimestamp.selector);
@@ -402,6 +402,54 @@ contract VaultTest is Test {
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
+                })
+            )
+        );
+    }
+
+    function test_CreateRevertMissingRoles(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        address delegator_ = delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.MissingRoles.selector);
+        vault.initialize(
+            lastVersion,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: true,
+                    defaultAdminRoleHolder: address(0),
+                    depositorWhitelistRoleHolder: address(0)
                 })
             )
         );

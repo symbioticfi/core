@@ -306,6 +306,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
             revert NotSlasher();
         }
 
+        if (
+            params.depositWhitelist && params.defaultAdminRoleHolder == address(0)
+                && params.depositorWhitelistRoleHolder == address(0)
+        ) {
+            revert MissingRoles();
+        }
+
         __ReentrancyGuard_init();
 
         collateral = params.collateral;
@@ -319,16 +326,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
 
+        depositWhitelist = params.depositWhitelist;
+
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         }
 
-        if (params.depositWhitelist) {
-            depositWhitelist = true;
-
-            if (params.depositorWhitelistRoleHolder != address(0)) {
-                _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
-            }
+        if (params.depositorWhitelistRoleHolder != address(0)) {
+            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         }
     }
 

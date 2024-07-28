@@ -199,16 +199,14 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
 
         IBaseDelegator.BaseParams memory baseParams = _initializeInternal(vault_, data_);
 
+        hook = baseParams.hook;
+
         if (baseParams.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
         }
 
-        if (baseParams.hook != address(0)) {
-            hook = baseParams.hook;
-        } else {
-            if (baseParams.hookSetRoleHolder != address(0)) {
-                _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
-            }
+        if (baseParams.hookSetRoleHolder != address(0)) {
+            _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
         }
     }
 }

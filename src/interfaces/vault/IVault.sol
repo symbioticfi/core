@@ -18,6 +18,7 @@ interface IVault is IVaultStorage {
     error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
+    error MissingRoles();
     error NoDepositWhitelist();
     error NotDelegator();
     error NotSlasher();
