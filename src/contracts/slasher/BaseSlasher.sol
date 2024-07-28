@@ -121,19 +121,11 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         address network,
         address operator,
         uint256 amount,
-        uint48 captureTimestamp,
-        bytes memory hints
+        uint48 captureTimestamp
     ) internal virtual {
-        OnSlashHints memory onSlashHints;
-        if (hints.length > 0) {
-            onSlashHints = abi.decode(hints, (OnSlashHints));
-        }
-
         address vault_ = vault;
 
-        IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            network, operator, amount, captureTimestamp, onSlashHints.delegatorOnSlashHints
-        );
+        IBaseDelegator(IVault(vault_).delegator()).onSlash(network, operator, amount, captureTimestamp);
 
         IVault(vault_).onSlash(amount, captureTimestamp);
     }

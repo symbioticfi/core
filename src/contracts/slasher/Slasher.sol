@@ -51,7 +51,7 @@ contract Slasher is BaseSlasher, ISlasher {
 
         _updateCumulativeSlash(network, operator, slashedAmount);
 
-        _callOnSlash(network, operator, slashedAmount, captureTimestamp, slashHints.onSlashHints);
+        _callOnSlash(network, operator, slashedAmount, captureTimestamp);
 
         emit Slash(network, operator, slashedAmount, captureTimestamp);
     }

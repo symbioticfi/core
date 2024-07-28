@@ -8,11 +8,9 @@ interface ISlasher {
     /**
      * @notice Hints for a slash.
      * @param slashableStakeHints hints for the slashable stake checkpoints
-     * @param onSlashHints hints for the on-slash checkpoints
      */
     struct SlashHints {
         bytes slashableStakeHints;
-        bytes onSlashHints;
     }
 
     /**

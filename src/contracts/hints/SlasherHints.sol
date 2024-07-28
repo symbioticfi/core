@@ -68,21 +68,6 @@ contract BaseSlasherHints is Hints, BaseSlasher {
             );
         }
     }
-
-    function onSlashHints(
-        address slasher,
-        address network,
-        address operator,
-        uint48 captureTimestamp
-    ) external returns (bytes memory) {
-        bytes memory delegatorOnSlashHints = BaseDelegatorHints(BASE_DELEGATOR_HINTS).onSlashHints(
-            Vault(BaseSlasher(slasher).vault()).delegator(), network, operator, captureTimestamp
-        );
-
-        if (delegatorOnSlashHints.length > 0) {
-            return abi.encode(OnSlashHints({delegatorOnSlashHints: delegatorOnSlashHints}));
-        }
-    }
 }
 
 contract SlasherHints is Hints, Slasher {
@@ -100,11 +85,9 @@ contract SlasherHints is Hints, Slasher {
     ) external returns (bytes memory) {
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
-        bytes memory onSlashHints =
-            BaseSlasherHints(BASE_SLASHER_HINTS).onSlashHints(slasher, network, operator, captureTimestamp);
 
-        if (slashableStakeHints.length > 0 || onSlashHints.length > 0) {
-            return abi.encode(SlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: onSlashHints}));
+        if (slashableStakeHints.length > 0) {
+            return abi.encode(SlashHints({slashableStakeHints: slashableStakeHints}));
         }
     }
 }
@@ -162,16 +145,10 @@ contract VetoSlasherHints is Hints, VetoSlasher {
     ) external returns (bytes memory) {
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, network, operator, captureTimestamp);
-        bytes memory onSlashHints =
-            BaseSlasherHints(BASE_SLASHER_HINTS).onSlashHints(slasher, network, operator, captureTimestamp);
 
-        bytes memory hints;
-        if (slashableStakeHints.length > 0 || onSlashHints.length > 0) {
-            hints =
-                abi.encode(ExecuteSlashHints({slashableStakeHints: slashableStakeHints, onSlashHints: onSlashHints}));
+        if (slashableStakeHints.length > 0) {
+            return abi.encode(ExecuteSlashHints({slashableStakeHints: slashableStakeHints}));
         }
-
-        return hints;
     }
 
     function vetoSlashHints(

@@ -57,11 +57,9 @@ interface IVetoSlasher {
     /**
      * @notice Hints for a slash execute.
      * @param slashableStakeHints hints for the slashable stake checkpoints
-     * @param onSlashHints hints for the on-slash checkpoints
      */
     struct ExecuteSlashHints {
         bytes slashableStakeHints;
-        bytes onSlashHints;
     }
 
     /**

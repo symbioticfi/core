@@ -346,7 +346,7 @@ contract FullRestakeDelegatorTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IBaseDelegator.NotSlasher.selector);
-        delegator.onSlash(address(0), address(0), 0, 0, "");
+        delegator.onSlash(address(0), address(0), 0, 0);
         vm.stopPrank();
     }
 

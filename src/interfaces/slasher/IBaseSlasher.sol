@@ -17,14 +17,6 @@ interface IBaseSlasher {
     }
 
     /**
-     * @notice Hints for on slash actions.
-     * @param delegatorOnSlashHints hints for the delegator's on-slash action
-     */
-    struct OnSlashHints {
-        bytes delegatorOnSlashHints;
-    }
-
-    /**
      * @notice Get the vault factory's address.
      * @return address of the vault factory
      */

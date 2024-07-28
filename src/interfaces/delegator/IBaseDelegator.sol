@@ -5,7 +5,6 @@ interface IBaseDelegator {
     error NotNetwork();
     error NotSlasher();
     error NotVault();
-    error TooMuchSlash();
 
     /**
      * @notice Base parameters needed for delegators' deployment.
@@ -27,14 +26,6 @@ interface IBaseDelegator {
     struct StakeBaseHints {
         bytes operatorVaultOptInHint;
         bytes operatorNetworkOptInHint;
-    }
-
-    /**
-     * @notice Hints for an on-slash action.
-     * @param stakeHints hints for the stake checkpoints
-     */
-    struct OnSlashHints {
-        bytes stakeHints;
     }
 
     /**
@@ -160,14 +151,7 @@ interface IBaseDelegator {
      * @param operator address of the operator
      * @param slashedAmount amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
-     * @param hints hints for the checkpoints' indexes
      * @dev Only the vault's slasher can call this function.
      */
-    function onSlash(
-        address network,
-        address operator,
-        uint256 slashedAmount,
-        uint48 captureTimestamp,
-        bytes calldata hints
-    ) external;
+    function onSlash(address network, address operator, uint256 slashedAmount, uint48 captureTimestamp) external;
 }

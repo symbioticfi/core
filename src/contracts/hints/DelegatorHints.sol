@@ -75,21 +75,6 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
 
         return hints;
     }
-
-    function onSlashHints(
-        address delegator,
-        address network,
-        address operator,
-        uint48 captureTimestamp
-    ) external returns (bytes memory) {
-        bytes memory stakeHints_ = stakeHints(delegator, network, operator, captureTimestamp);
-        bytes memory hints;
-        if (stakeHints_.length != 0) {
-            hints = abi.encode(OnSlashHints({stakeHints: stakeHints_}));
-        }
-
-        return hints;
-    }
 }
 
 contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
