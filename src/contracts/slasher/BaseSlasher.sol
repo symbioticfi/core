@@ -127,7 +127,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
 
         IBaseDelegator(IVault(vault_).delegator()).onSlash(network, operator, amount, captureTimestamp);
 
-        IVault(vault_).onSlash(amount, captureTimestamp);
+        if (amount > 0) {
+            IVault(vault_).onSlash(amount, captureTimestamp);
+        }
     }
 
     function _initializeInternal(address vault_, bytes memory data) internal virtual {}

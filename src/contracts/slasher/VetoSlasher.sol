@@ -181,8 +181,9 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         if (slashedAmount > 0) {
             _updateCumulativeSlash(request.network, request.operator, slashedAmount);
-            _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp);
         }
+
+        _callOnSlash(request.network, request.operator, slashedAmount, request.captureTimestamp);
 
         emit ExecuteSlash(slashIndex, slashedAmount);
     }
