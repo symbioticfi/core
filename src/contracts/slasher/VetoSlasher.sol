@@ -11,10 +11,9 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
+contract VetoSlasher is BaseSlasher, IVetoSlasher {
     using Math for uint256;
     using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace256;
