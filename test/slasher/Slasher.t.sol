@@ -32,7 +32,12 @@ import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+
 contract SlasherTest is Test {
+    using Subnetwork for bytes32;
+    using Subnetwork for address;
+
     address owner;
     address alice;
     uint256 alicePrivateKey;
@@ -145,9 +150,9 @@ contract SlasherTest is Test {
         assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
         assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
         assertEq(slasher.vault(), address(vault));
-        assertEq(slasher.cumulativeSlashAt(alice, alice, 0, ""), 0);
-        assertEq(slasher.cumulativeSlash(alice, alice), 0);
-        assertEq(slasher.slashableStake(alice, alice, 0, ""), 0);
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, 0, ""), 0);
+        assertEq(slasher.cumulativeSlash(alice.subnetwork(0), alice), 0);
+        assertEq(slasher.slashableStake(alice.subnetwork(0), alice, 0, ""), 0);
     }
 
     function test_CreateRevertNotVault(uint48 epochDuration) public {
@@ -159,7 +164,7 @@ contract SlasherTest is Test {
         slasherFactory.create(0, true, abi.encode(address(1), ""));
     }
 
-    function test_SlashBase(
+    function test_Slash(
         uint48 epochDuration,
         uint256 depositAmount,
         uint256 networkLimit,
@@ -186,7 +191,7 @@ contract SlasherTest is Test {
 
         address network = alice;
         _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
 
         _registerOperator(alice);
         _registerOperator(bob);
@@ -207,58 +212,60 @@ contract SlasherTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp - epochDuration - 1), ""), 0);
-        assertEq(slasher.slashableStake(network, alice, uint48(blockTimestamp), ""), 0);
         assertEq(
-            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), "")
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - epochDuration - 1), ""), 0
+        );
+        assertEq(slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp), ""), 0);
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
         );
 
         assertEq(
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), "")),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")),
             _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "")
         );
 
-        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), ""),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), ""))
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
         );
         assertEq(
-            slasher.cumulativeSlash(alice, alice),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), ""))
+            slasher.cumulativeSlash(alice.subnetwork(0), alice),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
         );
         assertEq(
-            slasher.slashableStake(network, alice, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), "")
-                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 1), ""))
-        );
-
-        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp - epochDuration - 1), ""), 0);
-        assertEq(slasher.slashableStake(network, bob, uint48(blockTimestamp), ""), 0);
-        assertEq(
-            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), "")
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
         );
 
+        assertEq(slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp - epochDuration - 1), ""), 0);
+        assertEq(slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp), ""), 0);
         assertEq(
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), "")),
+            slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), "")
+        );
+
+        assertEq(
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), "")),
             _slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1), "")
         );
 
-        assertEq(slasher.cumulativeSlashAt(alice, bob, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(
-            slasher.cumulativeSlashAt(alice, bob, uint48(blockTimestamp), ""),
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), ""))
+            slasher.cumulativeSlashAt(alice.subnetwork(0), bob, uint48(blockTimestamp), ""),
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""))
         );
         assertEq(
-            slasher.cumulativeSlash(alice, bob),
-            Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), ""))
+            slasher.cumulativeSlash(alice.subnetwork(0), bob),
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""))
         );
         assertEq(
-            slasher.slashableStake(network, bob, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), "")
-                - Math.min(slashAmount2, delegator.stakeAt(network, bob, uint48(blockTimestamp - 1), ""))
+            slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""))
         );
 
         blockTimestamp = blockTimestamp + 1;
@@ -266,34 +273,320 @@ contract SlasherTest is Test {
 
         uint256 slashAmountReal3 = Math.min(
             slashAmount3,
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")
-                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), ""))
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
         );
         vm.assume(slashAmountReal3 > 0);
         assertEq(slashAmountReal3, _slash(alice, network, alice, slashAmount3, uint48(blockTimestamp - 2), ""));
 
-        assertEq(slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 2), ""), 0);
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 2), ""), 0);
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp - 1), ""),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), ""))
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
         );
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), ""),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")) + slashAmountReal3
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
         );
         assertEq(
-            slasher.cumulativeSlash(alice, alice),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")) + slashAmountReal3
+            slasher.cumulativeSlash(alice.subnetwork(0), alice),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
         );
         assertEq(
-            slasher.slashableStake(network, alice, uint48(blockTimestamp - 2), ""),
-            delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")
-                - Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), ""))
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
                 - slashAmountReal3
         );
         assertEq(
-            slasher.cumulativeSlashAt(alice, alice, uint48(blockTimestamp), abi.encode(1)),
-            Math.min(slashAmount1, delegator.stakeAt(network, alice, uint48(blockTimestamp - 2), "")) + slashAmountReal3
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), abi.encode(1)),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
+        );
+    }
+
+    function test_SlashSubnetworks(
+        uint48 epochDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 operatorNetworkLimit2,
+        uint256 slashAmount1,
+        uint256 slashAmount2,
+        uint256 slashAmount3
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 2, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+        slashAmount3 = bound(slashAmount3, 1, type(uint256).max);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        _registerOperator(alice);
+        _registerOperator(bob);
+
+        _optInOperatorVault(alice);
+        _optInOperatorVault(bob);
+
+        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(bob, address(network));
+
+        _deposit(alice, depositAmount);
+
+        vm.startPrank(network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        delegator.setNetworkLimit(network.subnetwork(0), networkLimit);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        delegator.setOperatorNetworkLimit(network.subnetwork(0), alice, operatorNetworkLimit1);
+        vm.stopPrank();
+        vm.startPrank(alice);
+        delegator.setOperatorNetworkLimit(network.subnetwork(0), bob, operatorNetworkLimit2);
+        vm.stopPrank();
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - epochDuration - 1), ""), 0
+        );
+        assertEq(slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp), ""), 0);
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
+        );
+
+        vm.startPrank(alice);
+        assertEq(
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")),
+            slasher.slash(network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), "")
+        );
+        vm.stopPrank();
+
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.cumulativeSlash(alice.subnetwork(0), alice),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
+        );
+
+        assertEq(slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp - epochDuration - 1), ""), 0);
+        assertEq(slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp), ""), 0);
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), "")
+        );
+
+        vm.startPrank(alice);
+        assertEq(
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), "")),
+            slasher.slash(network.subnetwork(0), bob, slashAmount2, uint48(blockTimestamp - 1), "")
+        );
+        vm.stopPrank();
+
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), bob, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(0), bob, uint48(blockTimestamp), ""),
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.cumulativeSlash(alice.subnetwork(0), bob),
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(0), bob, uint48(blockTimestamp - 1), ""))
+        );
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint256 slashAmountReal3 = Math.min(
+            slashAmount3,
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+        );
+        vm.assume(slashAmountReal3 > 0);
+
+        vm.startPrank(alice);
+        assertEq(
+            slashAmountReal3, slasher.slash(network.subnetwork(0), alice, slashAmount3, uint48(blockTimestamp - 2), "")
+        );
+        vm.stopPrank();
+
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 2), ""), 0);
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+        );
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
+        );
+        assertEq(
+            slasher.cumulativeSlash(alice.subnetwork(0), alice),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
+        );
+        assertEq(
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                - slashAmountReal3
+        );
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), abi.encode(1)),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
+        );
+
+        _deposit(alice, depositAmount);
+
+        vm.startPrank(network);
+        delegator.setMaxNetworkLimit(1, type(uint256).max);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        delegator.setNetworkLimit(network.subnetwork(1), networkLimit);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        delegator.setOperatorNetworkLimit(network.subnetwork(1), alice, operatorNetworkLimit1);
+        vm.stopPrank();
+        vm.startPrank(alice);
+        delegator.setOperatorNetworkLimit(network.subnetwork(1), bob, operatorNetworkLimit2);
+        vm.stopPrank();
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.slashableStake(network.subnetwork(1), alice, uint48(blockTimestamp - epochDuration - 1), ""), 0
+        );
+        assertEq(slasher.slashableStake(network.subnetwork(1), alice, uint48(blockTimestamp), ""), 0);
+        assertEq(
+            slasher.slashableStake(network.subnetwork(1), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 1), "")
+        );
+
+        vm.startPrank(alice);
+        assertEq(
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 1), "")),
+            slasher.slash(network.subnetwork(1), alice, slashAmount1, uint48(blockTimestamp - 1), "")
+        );
+        vm.stopPrank();
+
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(1), alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(1), alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.cumulativeSlash(alice.subnetwork(1), alice),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.slashableStake(network.subnetwork(1), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 1), ""))
+        );
+
+        assertEq(slasher.slashableStake(network.subnetwork(1), bob, uint48(blockTimestamp - epochDuration - 1), ""), 0);
+        assertEq(slasher.slashableStake(network.subnetwork(1), bob, uint48(blockTimestamp), ""), 0);
+        assertEq(
+            slasher.slashableStake(network.subnetwork(1), bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(1), bob, uint48(blockTimestamp - 1), "")
+        );
+
+        vm.startPrank(alice);
+        assertEq(
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(1), bob, uint48(blockTimestamp - 1), "")),
+            slasher.slash(network.subnetwork(1), bob, slashAmount2, uint48(blockTimestamp - 1), "")
+        );
+        vm.stopPrank();
+
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(1), bob, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(1), bob, uint48(blockTimestamp), ""),
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(1), bob, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.cumulativeSlash(alice.subnetwork(1), bob),
+            Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(1), bob, uint48(blockTimestamp - 1), ""))
+        );
+        assertEq(
+            slasher.slashableStake(network.subnetwork(1), bob, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(1), bob, uint48(blockTimestamp - 1), "")
+                - Math.min(slashAmount2, delegator.stakeAt(network.subnetwork(1), bob, uint48(blockTimestamp - 1), ""))
+        );
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        slashAmountReal3 = Math.min(
+            slashAmount3,
+            delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""))
+        );
+        vm.assume(slashAmountReal3 > 0);
+        vm.startPrank(alice);
+        assertEq(
+            slashAmountReal3, slasher.slash(network.subnetwork(1), alice, slashAmount3, uint48(blockTimestamp - 2), "")
+        );
+        vm.stopPrank();
+
+        assertEq(slasher.cumulativeSlashAt(alice.subnetwork(1), alice, uint48(blockTimestamp - 2), ""), 0);
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(1), alice, uint48(blockTimestamp - 1), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""))
+        );
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(1), alice, uint48(blockTimestamp), ""),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
+        );
+        assertEq(
+            slasher.cumulativeSlash(alice.subnetwork(1), alice),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
+        );
+        assertEq(
+            slasher.slashableStake(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""),
+            delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), "")
+                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""))
+                - slashAmountReal3
+        );
+        assertEq(
+            slasher.cumulativeSlashAt(alice.subnetwork(1), alice, uint48(blockTimestamp), abi.encode(1)),
+            Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(1), alice, uint48(blockTimestamp - 2), ""))
+                + slashAmountReal3
         );
     }
 
@@ -324,7 +617,7 @@ contract SlasherTest is Test {
 
         address network = alice;
         _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
 
         _registerOperator(alice);
         _registerOperator(bob);
@@ -372,7 +665,7 @@ contract SlasherTest is Test {
 
         address network = alice;
         _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
 
         _registerOperator(alice);
 
@@ -420,7 +713,7 @@ contract SlasherTest is Test {
 
         address network = alice;
         _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
 
         _registerOperator(alice);
 
@@ -464,7 +757,7 @@ contract SlasherTest is Test {
 
         address network = alice;
         _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, type(uint256).max);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
 
         _registerOperator(alice);
 
@@ -663,13 +956,13 @@ contract SlasherTest is Test {
 
     function _setNetworkLimit(address user, address network, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setNetworkLimit(network, amount);
+        delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
     }
 
     function _setOperatorNetworkLimit(address user, address network, address operator, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setOperatorNetworkLimit(network, operator, amount);
+        delegator.setOperatorNetworkLimit(network.subnetwork(0), operator, amount);
         vm.stopPrank();
     }
 
@@ -682,13 +975,13 @@ contract SlasherTest is Test {
         bytes memory hints
     ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.slash(network, operator, amount, captureTimestamp, hints);
+        slashAmount = slasher.slash(network.subnetwork(0), operator, amount, captureTimestamp, hints);
         vm.stopPrank();
     }
 
-    function _setMaxNetworkLimit(address user, uint256 amount) internal {
+    function _setMaxNetworkLimit(address user, uint96 identifier, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setMaxNetworkLimit(amount);
+        delegator.setMaxNetworkLimit(identifier, amount);
         vm.stopPrank();
     }
 }

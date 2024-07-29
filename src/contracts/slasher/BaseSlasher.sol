@@ -7,17 +7,18 @@ import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallabl
 import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
+    using Subnetwork for bytes32;
 
     /**
      * @inheritdoc IBaseSlasher
@@ -37,12 +38,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
     /**
      * @inheritdoc IBaseSlasher
      */
-    mapping(address network => uint48 value) public latestSlashedCaptureTimestamp;
+    mapping(bytes32 subnetwork => uint48 value) public latestSlashedCaptureTimestamp;
 
-    mapping(address network => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
+    mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
-    modifier onlyNetworkMiddleware(address network) {
-        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
+    modifier onlyNetworkMiddleware(bytes32 subnetwork) {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
@@ -63,26 +64,26 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
      * @inheritdoc IBaseSlasher
      */
     function cumulativeSlashAt(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp,
         bytes memory hint
     ) public view returns (uint256) {
-        return _cumulativeSlash[network][operator].upperLookupRecent(timestamp, hint);
+        return _cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
     /**
      * @inheritdoc IBaseSlasher
      */
-    function cumulativeSlash(address network, address operator) public view returns (uint256) {
-        return _cumulativeSlash[network][operator].latest();
+    function cumulativeSlash(bytes32 subnetwork, address operator) public view returns (uint256) {
+        return _cumulativeSlash[subnetwork][operator].latest();
     }
 
     /**
      * @inheritdoc IBaseSlasher
      */
     function slashableStake(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 captureTimestamp,
         bytes memory hints
@@ -97,24 +98,24 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
             return 0;
         }
         uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
-            network, operator, captureTimestamp, slashableStakeHints.stakeHints
+            subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints
         );
         return stakeAmount
             - Math.min(
-                cumulativeSlash(network, operator)
-                    - cumulativeSlashAt(network, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
+                cumulativeSlash(subnetwork, operator)
+                    - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
                 stakeAmount
             );
     }
 
-    function _checkLatestSlashedCaptureTimestamp(address network, uint48 captureTimestamp) internal view {
-        if (captureTimestamp < latestSlashedCaptureTimestamp[network]) {
+    function _checkLatestSlashedCaptureTimestamp(bytes32 subnetwork, uint48 captureTimestamp) internal view {
+        if (captureTimestamp < latestSlashedCaptureTimestamp[subnetwork]) {
             revert OutdatedCaptureTimestamp();
         }
     }
 
-    function _updateCumulativeSlash(address network, address operator, uint256 amount) internal {
-        _cumulativeSlash[network][operator].push(Time.timestamp(), cumulativeSlash(network, operator) + amount);
+    function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
+        _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
     }
 
     function _initializeInternal(address vault_, bytes memory data) internal virtual {}

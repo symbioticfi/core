@@ -35,45 +35,45 @@ interface IBaseSlasher {
     function vault() external view returns (address);
 
     /**
-     * @notice Get a latest capture timestamp that was slashed on a network.
-     * @param network address of the network
+     * @notice Get a latest capture timestamp that was slashed on a subnetwork.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return latest capture timestamp that was slashed
      */
-    function latestSlashedCaptureTimestamp(address network) external view returns (uint48);
+    function latestSlashedCaptureTimestamp(bytes32 subnetwork) external view returns (uint48);
 
     /**
-     * @notice Get a cumulative slash amount for an operator on a network until a given timestamp (inclusively) using a hint.
-     * @param network address of the network
+     * @notice Get a cumulative slash amount for an operator on a subnetwork until a given timestamp (inclusively) using a hint.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param timestamp time point to get the cumulative slash amount until (inclusively)
      * @param hint hint for the checkpoint index
      * @return cumulative slash amount until the given timestamp (inclusively)
      */
     function cumulativeSlashAt(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp,
         bytes memory hint
     ) external view returns (uint256);
 
     /**
-     * @notice Get a cumulative slash amount for an operator on a network.
-     * @param network address of the network
+     * @notice Get a cumulative slash amount for an operator on a subnetwork.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @return cumulative slash amount
      */
-    function cumulativeSlash(address network, address operator) external view returns (uint256);
+    function cumulativeSlash(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
      * @notice Get a slashable amount of a stake got at a given capture timestamp using hints.
-     * @param network address of the network
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param captureTimestamp time point to get the stake amount at
      * @param hints hints for the checkpoints' indexes
      * @return slashable amount of the stake
      */
     function slashableStake(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 captureTimestamp,
         bytes memory hints

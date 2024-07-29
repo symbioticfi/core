@@ -9,6 +9,7 @@ import {IVault} from "src/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -17,12 +18,8 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 contract VetoSlasher is BaseSlasher, IVetoSlasher {
     using Math for uint256;
     using SafeCast for uint256;
-    using Checkpoints for Checkpoints.Trace256;
-
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    uint256 public constant SHARES_BASE = 10 ** 18;
+    using Checkpoints for Checkpoints.Trace208;
+    using Subnetwork for address;
 
     /**
      * @inheritdoc IVetoSlasher
@@ -44,12 +41,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
      */
     uint256 public resolverSetEpochsDelay;
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
-    mapping(address resolver => mapping(uint256 slashIndex => bool value)) public hasVetoed;
-
-    mapping(address network => mapping(address resolver => Checkpoints.Trace256 shares)) internal _resolverShares;
+    mapping(bytes32 subnetwork => Checkpoints.Trace208 value) internal _resolver;
 
     constructor(
         address vaultFactory,
@@ -71,32 +63,27 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function resolverSharesAt(
-        address network,
-        address resolver,
-        uint48 timestamp,
-        bytes memory hint
-    ) public view returns (uint256) {
-        return _resolverShares[network][resolver].upperLookupRecent(timestamp, hint);
+    function resolverAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (address) {
+        return address(uint160(_resolver[subnetwork].upperLookupRecent(timestamp, hint)));
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
-    function resolverShares(address network, address resolver, bytes memory hint) public view returns (uint256) {
-        return resolverSharesAt(network, resolver, Time.timestamp(), hint);
+    function resolver(bytes32 subnetwork, bytes memory hint) public view returns (address) {
+        return resolverAt(subnetwork, Time.timestamp(), hint);
     }
 
     /**
      * @inheritdoc IVetoSlasher
      */
     function requestSlash(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
         bytes calldata hints
-    ) external onlyNetworkMiddleware(network) returns (uint256 slashIndex) {
+    ) external onlyNetworkMiddleware(subnetwork) returns (uint256 slashIndex) {
         RequestSlashHints memory requestSlashHints;
         if (hints.length > 0) {
             requestSlashHints = abi.decode(hints, (RequestSlashHints));
@@ -109,10 +96,11 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        _checkLatestSlashedCaptureTimestamp(network, captureTimestamp);
+        _checkLatestSlashedCaptureTimestamp(subnetwork, captureTimestamp);
 
-        amount =
-            Math.min(amount, slashableStake(network, operator, captureTimestamp, requestSlashHints.slashableStakeHints));
+        amount = Math.min(
+            amount, slashableStake(subnetwork, operator, captureTimestamp, requestSlashHints.slashableStakeHints)
+        );
         if (amount == 0) {
             revert InsufficientSlash();
         }
@@ -122,17 +110,16 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         slashIndex = slashRequests.length;
         slashRequests.push(
             SlashRequest({
-                network: network,
+                subnetwork: subnetwork,
                 operator: operator,
                 amount: amount,
                 captureTimestamp: captureTimestamp,
                 vetoDeadline: vetoDeadline,
-                vetoedShares: 0,
                 completed: false
             })
         );
 
-        emit RequestSlash(slashIndex, network, operator, amount, captureTimestamp, vetoDeadline);
+        emit RequestSlash(slashIndex, subnetwork, operator, amount, captureTimestamp, vetoDeadline);
     }
 
     /**
@@ -150,7 +137,10 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        if (request.vetoDeadline > Time.timestamp()) {
+        if (
+            request.vetoDeadline > Time.timestamp()
+                && resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.resolverHint) != address(0)
+        ) {
             revert VetoPeriodNotEnded();
         }
 
@@ -159,7 +149,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert SlashPeriodEnded();
         }
 
-        _checkLatestSlashedCaptureTimestamp(request.network, request.captureTimestamp);
+        _checkLatestSlashedCaptureTimestamp(request.subnetwork, request.captureTimestamp);
 
         if (request.completed) {
             revert SlashRequestCompleted();
@@ -167,25 +157,23 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         request.completed = true;
 
-        if (latestSlashedCaptureTimestamp[request.network] < request.captureTimestamp) {
-            latestSlashedCaptureTimestamp[request.network] = request.captureTimestamp;
+        if (latestSlashedCaptureTimestamp[request.subnetwork] < request.captureTimestamp) {
+            latestSlashedCaptureTimestamp[request.subnetwork] = request.captureTimestamp;
         }
 
         slashedAmount = Math.min(
             request.amount,
             slashableStake(
-                request.network, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+                request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
             )
         );
 
-        slashedAmount -= slashedAmount.mulDiv(request.vetoedShares, SHARES_BASE, Math.Rounding.Ceil);
-
         if (slashedAmount > 0) {
-            _updateCumulativeSlash(request.network, request.operator, slashedAmount);
+            _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
         }
 
         IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            request.network, request.operator, slashedAmount, request.captureTimestamp, abi.encode(slashIndex)
+            request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, abi.encode(slashIndex)
         );
 
         if (slashedAmount > 0) {
@@ -210,10 +198,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        uint256 resolverShares_ =
-            resolverSharesAt(request.network, msg.sender, request.captureTimestamp, vetoSlashHints.resolverSharesHint);
-
-        if (resolverShares_ == 0) {
+        if (msg.sender != resolverAt(request.subnetwork, request.captureTimestamp, vetoSlashHints.resolverHint)) {
             revert NotResolver();
         }
 
@@ -225,49 +210,35 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert SlashRequestCompleted();
         }
 
-        if (hasVetoed[msg.sender][slashIndex]) {
-            revert AlreadyVetoed();
-        }
+        request.completed = true;
 
-        hasVetoed[msg.sender][slashIndex] = true;
-
-        uint256 vetoedShares_ = Math.min(request.vetoedShares + resolverShares_, SHARES_BASE);
-
-        request.vetoedShares = vetoedShares_;
-        if (vetoedShares_ == SHARES_BASE) {
-            request.completed = true;
-        }
-
-        emit VetoSlash(slashIndex, msg.sender, resolverShares_);
+        emit VetoSlash(slashIndex, msg.sender);
     }
 
-    function setResolverShares(address resolver, uint256 shares, bytes calldata hints) external {
-        SetResolverSharesHints memory setResolverSharesHints;
+    function setResolver(uint96 identifier, address resolver_, bytes calldata hints) external {
+        SetResolverHints memory setResolverHints;
         if (hints.length > 0) {
-            setResolverSharesHints = abi.decode(hints, (SetResolverSharesHints));
+            setResolverHints = abi.decode(hints, (SetResolverHints));
         }
 
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
 
-        if (shares > SHARES_BASE) {
-            revert InvalidShares();
-        }
-
-        uint48 timestamp = shares > resolverShares(msg.sender, resolver, setResolverSharesHints.resolverSharesHint)
+        address vault_ = vault;
+        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
+        uint48 timestamp = resolver(subnetwork, setResolverHints.resolverHint) == address(0)
             ? Time.timestamp()
-            : (IVault(vault).currentEpochStart() + resolverSetEpochsDelay * IVault(vault).epochDuration()).toUint48();
+            : (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration()).toUint48();
 
-        Checkpoints.Trace256 storage _resolverShares_ = _resolverShares[msg.sender][resolver];
-        (, uint48 latestTimestamp,) = _resolverShares_.latestCheckpoint();
+        (, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
         if (latestTimestamp > Time.timestamp()) {
-            _resolverShares_.pop();
+            _resolver[subnetwork].pop();
         }
 
-        _resolverShares_.push(timestamp, shares);
+        _resolver[subnetwork].push(timestamp, uint160(resolver_));
 
-        emit SetResolver(msg.sender, resolver, shares);
+        emit SetResolver(subnetwork, resolver_);
     }
 
     function _initializeInternal(address vault_, bytes memory data) internal override {

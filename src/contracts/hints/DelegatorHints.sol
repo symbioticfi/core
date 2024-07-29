@@ -10,9 +10,11 @@ import {VaultHints} from "./VaultHints.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 contract BaseDelegatorHints is Hints, BaseDelegator {
     using Checkpoints for Checkpoints.Trace256;
+    using Subnetwork for bytes32;
 
     address public immutable OPT_IN_SERVICE_HINTS;
     address public immutable NETWORK_RESTAKE_DELEGATOR_HINTS;
@@ -32,24 +34,24 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
 
     function stakeHints(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) public returns (bytes memory) {
         if (BaseDelegator(address(this)).TYPE() == 0) {
             return NetworkRestakeDelegatorHints(NETWORK_RESTAKE_DELEGATOR_HINTS).stakeHints(
-                delegator, network, operator, timestamp
+                delegator, subnetwork, operator, timestamp
             );
         } else if (BaseDelegator(address(this)).TYPE() == 1) {
             return FullRestakeDelegatorHints(FULL_RESTAKE_DELEGATOR_HINTS).stakeHints(
-                delegator, network, operator, timestamp
+                delegator, subnetwork, operator, timestamp
             );
         }
     }
 
     function stakeBaseHints(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) external returns (bytes memory) {
@@ -60,7 +62,7 @@ contract BaseDelegatorHints is Hints, BaseDelegator {
             timestamp
         );
         bytes memory operatorNetworkOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
-            BaseDelegator(delegator).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, network, timestamp
+            BaseDelegator(delegator).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, subnetwork.network(), timestamp
         );
 
         bytes memory hints;
@@ -95,85 +97,87 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
     }
 
     function networkLimitHintInternal(
-        address network,
+        bytes32 subnetwork,
         uint48 timestamp
     ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
+        (,,, hint) = _networkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(address delegator, address network, uint48 timestamp) public returns (bytes memory) {
+    function networkLimitHint(address delegator, bytes32 subnetwork, uint48 timestamp) public returns (bytes memory) {
         bytes memory hint = _selfStaticDelegateCall(
             delegator,
-            abi.encodeWithSelector(NetworkRestakeDelegatorHints.networkLimitHintInternal.selector, network, timestamp)
+            abi.encodeWithSelector(
+                NetworkRestakeDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
+            )
         );
 
         return _optimizeHint(
             delegator,
-            abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, network, timestamp, ""),
-            abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, network, timestamp, hint),
+            abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, subnetwork, timestamp, ""),
+            abi.encodeWithSelector(NetworkRestakeDelegator.networkLimitAt.selector, subnetwork, timestamp, hint),
             hint
         );
     }
 
     function operatorNetworkSharesHintInternal(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _operatorNetworkShares[network][operator].upperLookupRecentCheckpoint(timestamp);
+        (,,, hint) = _operatorNetworkShares[subnetwork][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     function operatorNetworkSharesHint(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) public returns (bytes memory) {
         bytes memory hint = _selfStaticDelegateCall(
             delegator,
             abi.encodeWithSelector(
-                NetworkRestakeDelegatorHints.operatorNetworkSharesHintInternal.selector, network, operator, timestamp
+                NetworkRestakeDelegatorHints.operatorNetworkSharesHintInternal.selector, subnetwork, operator, timestamp
             )
         );
 
         return _optimizeHint(
             delegator,
             abi.encodeWithSelector(
-                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, network, operator, timestamp, ""
+                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, subnetwork, operator, timestamp, ""
             ),
             abi.encodeWithSelector(
-                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, network, operator, timestamp, hint
+                NetworkRestakeDelegator.operatorNetworkSharesAt.selector, subnetwork, operator, timestamp, hint
             ),
             hint
         );
     }
 
     function totalOperatorNetworkSharesHintInternal(
-        address network,
+        bytes32 subnetwork,
         uint48 timestamp
     ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _totalOperatorNetworkShares[network].upperLookupRecentCheckpoint(timestamp);
+        (,,, hint) = _totalOperatorNetworkShares[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
     function totalOperatorNetworkSharesHint(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         uint48 timestamp
     ) public returns (bytes memory) {
         bytes memory hint = _selfStaticDelegateCall(
             delegator,
             abi.encodeWithSelector(
-                NetworkRestakeDelegatorHints.totalOperatorNetworkSharesHintInternal.selector, network, timestamp
+                NetworkRestakeDelegatorHints.totalOperatorNetworkSharesHintInternal.selector, subnetwork, timestamp
             )
         );
 
         return _optimizeHint(
             delegator,
             abi.encodeWithSelector(
-                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, network, timestamp, ""
+                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, subnetwork, timestamp, ""
             ),
             abi.encodeWithSelector(
-                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, network, timestamp, hint
+                NetworkRestakeDelegator.totalOperatorNetworkSharesAt.selector, subnetwork, timestamp, hint
             ),
             hint
         );
@@ -181,18 +185,18 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
 
     function stakeHints(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) external returns (bytes memory) {
         bytes memory baseHints =
-            BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, network, operator, timestamp);
+            BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator, timestamp);
 
         bytes memory activeStakeHint = VaultHints(VAULT_HINTS).activeStakeHint(vault, timestamp);
 
-        bytes memory networkLimitHint_ = networkLimitHint(delegator, network, timestamp);
-        bytes memory operatorNetworkSharesHint_ = operatorNetworkSharesHint(delegator, network, operator, timestamp);
-        bytes memory totalOperatorNetworkSharesHint_ = totalOperatorNetworkSharesHint(delegator, network, timestamp);
+        bytes memory networkLimitHint_ = networkLimitHint(delegator, subnetwork, timestamp);
+        bytes memory operatorNetworkSharesHint_ = operatorNetworkSharesHint(delegator, subnetwork, operator, timestamp);
+        bytes memory totalOperatorNetworkSharesHint_ = totalOperatorNetworkSharesHint(delegator, subnetwork, timestamp);
 
         bytes memory hints;
         if (
@@ -232,54 +236,54 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
     }
 
     function networkLimitHintInternal(
-        address network,
+        bytes32 subnetwork,
         uint48 timestamp
     ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _networkLimit[network].upperLookupRecentCheckpoint(timestamp);
+        (,,, hint) = _networkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(address delegator, address network, uint48 timestamp) public returns (bytes memory) {
+    function networkLimitHint(address delegator, bytes32 subnetwork, uint48 timestamp) public returns (bytes memory) {
         bytes memory hint = _selfStaticDelegateCall(
             delegator,
-            abi.encodeWithSelector(FullRestakeDelegatorHints.networkLimitHintInternal.selector, network, timestamp)
+            abi.encodeWithSelector(FullRestakeDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp)
         );
 
         return _optimizeHint(
             delegator,
-            abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, network, timestamp, ""),
-            abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, network, timestamp, hint),
+            abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, subnetwork, timestamp, ""),
+            abi.encodeWithSelector(FullRestakeDelegator.networkLimitAt.selector, subnetwork, timestamp, hint),
             hint
         );
     }
 
     function operatorNetworkLimitHintInternal(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) external view internalFunction returns (uint32 hint) {
-        (,,, hint) = _operatorNetworkLimit[network][operator].upperLookupRecentCheckpoint(timestamp);
+        (,,, hint) = _operatorNetworkLimit[subnetwork][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
     function operatorNetworkLimitHint(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) public returns (bytes memory) {
         bytes memory hint = _selfStaticDelegateCall(
             delegator,
             abi.encodeWithSelector(
-                FullRestakeDelegatorHints.operatorNetworkLimitHintInternal.selector, network, operator, timestamp
+                FullRestakeDelegatorHints.operatorNetworkLimitHintInternal.selector, subnetwork, operator, timestamp
             )
         );
 
         return _optimizeHint(
             delegator,
             abi.encodeWithSelector(
-                FullRestakeDelegator.operatorNetworkLimitAt.selector, network, operator, timestamp, ""
+                FullRestakeDelegator.operatorNetworkLimitAt.selector, subnetwork, operator, timestamp, ""
             ),
             abi.encodeWithSelector(
-                FullRestakeDelegator.operatorNetworkLimitAt.selector, network, operator, timestamp, hint
+                FullRestakeDelegator.operatorNetworkLimitAt.selector, subnetwork, operator, timestamp, hint
             ),
             hint
         );
@@ -287,17 +291,17 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
 
     function stakeHints(
         address delegator,
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp
     ) external returns (bytes memory) {
         bytes memory baseHints =
-            BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, network, operator, timestamp);
+            BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator, timestamp);
 
         bytes memory activeStakeHint = VaultHints(VAULT_HINTS).activeStakeHint(vault, timestamp);
 
-        bytes memory networkLimitHint_ = networkLimitHint(delegator, network, timestamp);
-        bytes memory operatorNetworkLimitHint_ = operatorNetworkLimitHint(delegator, network, operator, timestamp);
+        bytes memory networkLimitHint_ = networkLimitHint(delegator, subnetwork, timestamp);
+        bytes memory operatorNetworkLimitHint_ = operatorNetworkLimitHint(delegator, subnetwork, operator, timestamp);
 
         bytes memory hints;
         if (

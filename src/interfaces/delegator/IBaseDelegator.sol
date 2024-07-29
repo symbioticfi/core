@@ -29,19 +29,19 @@ interface IBaseDelegator {
     }
 
     /**
-     * @notice Emitted when a network's maximum limit is set.
-     * @param network address of the network
-     * @param amount new maximum network's limit (how much stake the network is ready to get)
+     * @notice Emitted when a subnetwork's maximum limit is set.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param amount new maximum subnetwork's limit (how much stake the subnetwork is ready to get)
      */
-    event SetMaxNetworkLimit(address indexed network, uint256 amount);
+    event SetMaxNetworkLimit(bytes32 indexed subnetwork, uint256 amount);
 
     /**
      * @notice Emitted when a slash happened.
-     * @param network address of the network
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param slashedAmount amount of the collateral slashed
      */
-    event OnSlash(address indexed network, address indexed operator, uint256 slashedAmount);
+    event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 slashedAmount);
 
     /**
      * @notice Emitted when a hook is set.
@@ -96,17 +96,17 @@ interface IBaseDelegator {
     function hook() external view returns (address);
 
     /**
-     * @notice Get a particular network's maximum limit
-     *         (meaning the network is not ready to get more as a stake).
-     * @param network address of the network
-     * @return maximum limit of the network
+     * @notice Get a particular subnetwork's maximum limit
+     *         (meaning the subnetwork is not ready to get more as a stake).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @return maximum limit of the subnetwork
      */
-    function maxNetworkLimit(address network) external view returns (uint256);
+    function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256);
 
     /**
-     * @notice Get a stake that a given network could be able to slash for a certain operator at a given timestamp
-     *         until the end of the consequent epoch using hints (if no cross-slashing and no slashings by the network).
-     * @param network address of the network
+     * @notice Get a stake that a given subnetwork could be able to slash for a certain operator at a given timestamp
+     *         until the end of the consequent epoch using hints (if no cross-slashing and no slashings by the subnetwork).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param timestamp time point to capture the stake at
      * @param hints hints for the checkpoints' indexes
@@ -114,28 +114,29 @@ interface IBaseDelegator {
      * @dev Warning: it is not safe to use timestamp >= current one for the stake capturing, as it can change later.
      */
     function stakeAt(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp,
         bytes memory hints
     ) external view returns (uint256);
 
     /**
-     * @notice Get a stake that a given network will be able to slash
-     *         for a certain operator until the end of the next epoch (if no cross-slashing and no slashings by the network).
-     * @param network address of the network
+     * @notice Get a stake that a given subnetwork will be able to slash
+     *         for a certain operator until the end of the next epoch (if no cross-slashing and no slashings by the subnetwork).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @return slashable stake until the end of the next epoch
      * @dev Warning: this function is not safe to use for the stake capturing, as it can change by the end of the block.
      */
-    function stake(address network, address operator) external view returns (uint256);
+    function stake(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
-     * @notice Set a maximum limit for a network (how much stake the network is ready to get).
-     * @param amount new maximum network's limit
+     * @notice Set a maximum limit for a subnetwork (how much stake the subnetwork is ready to get).
+     * identifier identifier of the subnetwork
+     * @param amount new maximum subnetwork's limit
      * @dev Only a network can call this function.
      */
-    function setMaxNetworkLimit(uint256 amount) external;
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external;
 
     /**
      * @notice Set a new hook.
@@ -147,7 +148,7 @@ interface IBaseDelegator {
 
     /**
      * @notice Called when a slash happens.
-     * @param network address of the network
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param slashedAmount amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
@@ -155,7 +156,7 @@ interface IBaseDelegator {
      * @dev Only the vault's slasher can call this function.
      */
     function onSlash(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint256 slashedAmount,
         uint48 captureTimestamp,

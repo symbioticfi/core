@@ -31,8 +31,12 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+
 contract VaultTest is Test {
     using Math for uint256;
+    using Subnetwork for bytes32;
+    using Subnetwork for address;
 
     address owner;
     address alice;
@@ -1522,7 +1526,7 @@ contract VaultTest is Test {
 
         // address network = alice;
         _registerNetwork(alice, alice);
-        _setMaxNetworkLimit(alice, type(uint256).max);
+        _setMaxNetworkLimit(alice, 0, type(uint256).max);
 
         _registerOperator(alice);
         _registerOperator(bob);
@@ -1858,13 +1862,13 @@ contract VaultTest is Test {
 
     function _setNetworkLimit(address user, address network, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setNetworkLimit(network, amount);
+        delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
     }
 
     function _setOperatorNetworkLimit(address user, address network, address operator, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setOperatorNetworkLimit(network, operator, amount);
+        delegator.setOperatorNetworkLimit(network.subnetwork(0), operator, amount);
         vm.stopPrank();
     }
 
@@ -1877,13 +1881,13 @@ contract VaultTest is Test {
         bytes memory hints
     ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.slash(network, operator, amount, captureTimestamp, hints);
+        slashAmount = slasher.slash(network.subnetwork(0), operator, amount, captureTimestamp, hints);
         vm.stopPrank();
     }
 
-    function _setMaxNetworkLimit(address user, uint256 amount) internal {
+    function _setMaxNetworkLimit(address user, uint96 identifier, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setMaxNetworkLimit(amount);
+        delegator.setMaxNetworkLimit(identifier, amount);
         vm.stopPrank();
     }
 }

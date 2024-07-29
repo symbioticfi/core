@@ -22,12 +22,12 @@ contract Slasher is BaseSlasher, ISlasher {
      * @inheritdoc ISlasher
      */
     function slash(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
         bytes calldata hints
-    ) external onlyNetworkMiddleware(network) returns (uint256 slashedAmount) {
+    ) external onlyNetworkMiddleware(subnetwork) returns (uint256 slashedAmount) {
         SlashHints memory slashHints;
         if (hints.length > 0) {
             slashHints = abi.decode(hints, (SlashHints));
@@ -40,26 +40,26 @@ contract Slasher is BaseSlasher, ISlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        _checkLatestSlashedCaptureTimestamp(network, captureTimestamp);
+        _checkLatestSlashedCaptureTimestamp(subnetwork, captureTimestamp);
 
         slashedAmount =
-            Math.min(amount, slashableStake(network, operator, captureTimestamp, slashHints.slashableStakeHints));
+            Math.min(amount, slashableStake(subnetwork, operator, captureTimestamp, slashHints.slashableStakeHints));
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
 
-        if (latestSlashedCaptureTimestamp[network] < captureTimestamp) {
-            latestSlashedCaptureTimestamp[network] = captureTimestamp;
+        if (latestSlashedCaptureTimestamp[subnetwork] < captureTimestamp) {
+            latestSlashedCaptureTimestamp[subnetwork] = captureTimestamp;
         }
 
-        _updateCumulativeSlash(network, operator, slashedAmount);
+        _updateCumulativeSlash(subnetwork, operator, slashedAmount);
 
         IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            network, operator, slashedAmount, captureTimestamp, new bytes(0)
+            subnetwork, operator, slashedAmount, captureTimestamp, new bytes(0)
         );
 
         IVault(vault_).onSlash(slashedAmount, captureTimestamp);
 
-        emit Slash(network, operator, slashedAmount, captureTimestamp);
+        emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
     }
 }
