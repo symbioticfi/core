@@ -1,20 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Hints} from "./Hints.sol";
-import {BaseSlasher} from "src/contracts/slasher/BaseSlasher.sol";
-import {Slasher} from "src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
-import {Vault} from "src/contracts/vault/Vault.sol";
 import {BaseDelegatorHints} from "./DelegatorHints.sol";
-
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
-import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {BaseSlasher} from "src/contracts/slasher/BaseSlasher.sol";
+import {Hints} from "./Hints.sol";
+import {Slasher} from "src/contracts/slasher/Slasher.sol";
+import {Vault} from "src/contracts/vault/Vault.sol";
+import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 

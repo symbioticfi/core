@@ -1485,9 +1485,7 @@ contract VetoSlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1509,9 +1507,7 @@ contract VetoSlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
     //     }
 
     //     for (uint256 i; i < hintStruct.num / 2; ++i) {
@@ -1519,9 +1515,7 @@ contract VetoSlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1543,9 +1537,7 @@ contract VetoSlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
 
     //         blockTimestamp = blockTimestamp + 1;
     //         vm.warp(blockTimestamp);
@@ -1620,7 +1612,6 @@ contract VetoSlasherTest is Test {
     //     for (uint256 i; i < hintStruct.num; ++i) {
     //         _optInOperatorVault(alice);
     //         _optInOperatorNetwork(alice, address(network));
-    //         _optInNetworkVault(network);
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1640,7 +1631,6 @@ contract VetoSlasherTest is Test {
 
     //         _optOutOperatorVault(alice);
     //         _optOutOperatorNetwork(alice, address(network));
-    //         _optOutNetworkVault(network);
     //     }
 
     //     uint48 timestamp = uint48(blockTimestamp - hintStruct.secondsAgo);
@@ -1720,7 +1710,6 @@ contract VetoSlasherTest is Test {
     //     for (uint256 i; i < hintStruct.num; ++i) {
     //         _optInOperatorVault(alice);
     //         _optInOperatorNetwork(alice, address(network));
-    //         _optInNetworkVault(network);
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1741,7 +1730,6 @@ contract VetoSlasherTest is Test {
 
     //         _optOutOperatorVault(alice);
     //         _optOutOperatorNetwork(alice, address(network));
-    //         _optOutNetworkVault(network);
     //     }
 
     //     uint48 timestamp = uint48(blockTimestamp - hintStruct.secondsAgo);

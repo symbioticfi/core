@@ -3,14 +3,14 @@ pragma solidity 0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
 
-import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     using Checkpoints for Checkpoints.Trace256;

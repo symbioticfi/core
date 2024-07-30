@@ -42,7 +42,7 @@ library Checkpoints {
     }
 
     /**
-     * @dev Returns the value in the last (most recent) checkpoint with key lower or equal than the search key, or zero
+     * @dev Returns the value in the last (most recent) checkpoint with a key lower or equal than the search key, or zero
      * if there is none.
      */
     function upperLookupRecent(Trace208 storage self, uint48 key) internal view returns (uint208) {
@@ -50,11 +50,11 @@ library Checkpoints {
     }
 
     /**
-     * @dev Returns the value in the last (most recent) checkpoint with key lower or equal than the search key, or zero
+     * @dev Returns the value in the last (most recent) checkpoint with a key lower or equal than the search key, or zero
      * if there is none.
      *
      * NOTE: This is a variant of {upperLookupRecent} that can be optimized by getting the hint
-     * (index of the checkpoint with key lower or equal than the search key).
+     * (index of the checkpoint with a key lower or equal than the search key).
      */
     function upperLookupRecent(Trace208 storage self, uint48 key, bytes memory hint_) internal view returns (uint208) {
         if (hint_.length == 0) {
@@ -74,6 +74,10 @@ library Checkpoints {
         return upperLookupRecent(self, key);
     }
 
+    /**
+     * @dev Returns whether there is a checkpoint with a key lower or equal than the search key in the structure (i.e. it is not empty),
+     * and if so the key and value in the checkpoint, and its position in the trace.
+     */
     function upperLookupRecentCheckpoint(
         Trace208 storage self,
         uint48 key
@@ -102,6 +106,13 @@ library Checkpoints {
         return (true, checkpoint._key, checkpoint._value, uint32(pos - 1));
     }
 
+    /**
+     * @dev Returns whether there is a checkpoint with a key lower or equal than the search key in the structure (i.e. it is not empty),
+     * and if so the key and value in the checkpoint, and its position in the trace.
+     *
+     * NOTE: This is a variant of {upperLookupRecentCheckpoint} that can be optimized by getting the hint
+     * (index of the checkpoint with a key lower or equal than the search key).
+     */
     function upperLookupRecentCheckpoint(
         Trace208 storage self,
         uint48 key,
@@ -131,25 +142,32 @@ library Checkpoints {
         return self._trace.latest();
     }
 
+    /**
+     * @dev Returns whether there is a checkpoint in the structure (i.e. it is not empty), and if so the key and value
+     * in the most recent checkpoint.
+     */
     function latestCheckpoint(Trace208 storage self) internal view returns (bool, uint48, uint208) {
         return self._trace.latestCheckpoint();
     }
 
     /**
-     * @dev Returns the number of checkpoint.
+     * @dev Returns a total number of checkpoints.
      */
     function length(Trace208 storage self) internal view returns (uint256) {
         return self._trace.length();
     }
 
     /**
-     * @dev Returns checkpoint at given position.
+     * @dev Returns checkpoint at a given position.
      */
     function at(Trace208 storage self, uint32 pos) internal view returns (Checkpoint208 memory) {
         OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos);
         return Checkpoint208({_key: checkpoint._key, _value: checkpoint._value});
     }
 
+    /**
+     * @dev Pops the last (most recent) checkpoint.
+     */
     function pop(Trace208 storage self) internal returns (uint208 value) {
         value = self._trace.latest();
         self._trace._checkpoints.pop();
@@ -173,7 +191,7 @@ library Checkpoints {
     }
 
     /**
-     * @dev Returns the value in the last (most recent) checkpoint with key lower or equal than the search key, or zero
+     * @dev Returns the value in the last (most recent) checkpoint with a key lower or equal than the search key, or zero
      * if there is none.
      */
     function upperLookupRecent(Trace256 storage self, uint48 key) internal view returns (uint256) {
@@ -182,11 +200,11 @@ library Checkpoints {
     }
 
     /**
-     * @dev Returns the value in the last (most recent) checkpoint with key lower or equal than the search key, or zero
+     * @dev Returns the value in the last (most recent) checkpoint with a key lower or equal than the search key, or zero
      * if there is none.
      *
      * NOTE: This is a variant of {upperLookupRecent} that can be optimized by getting the hint
-     * (index of the checkpoint with key lower or equal than the search key).
+     * (index of the checkpoint with a key lower or equal than the search key).
      */
     function upperLookupRecent(Trace256 storage self, uint48 key, bytes memory hint_) internal view returns (uint256) {
         if (hint_.length == 0) {
@@ -206,6 +224,10 @@ library Checkpoints {
         return upperLookupRecent(self, key);
     }
 
+    /**
+     * @dev Returns whether there is a checkpoint with a key lower or equal than the search key in the structure (i.e. it is not empty),
+     * and if so the key and value in the checkpoint, and its position in the trace.
+     */
     function upperLookupRecentCheckpoint(
         Trace256 storage self,
         uint48 key
@@ -234,6 +256,13 @@ library Checkpoints {
         return (true, checkpoint._key, self._values[checkpoint._value], uint32(pos - 1));
     }
 
+    /**
+     * @dev Returns whether there is a checkpoint with a key lower or equal than the search key in the structure (i.e. it is not empty),
+     * and if so the key and value in the checkpoint, and its position in the trace.
+     *
+     * NOTE: This is a variant of {upperLookupRecentCheckpoint} that can be optimized by getting the hint
+     * (index of the checkpoint with a key lower or equal than the search key).
+     */
     function upperLookupRecentCheckpoint(
         Trace256 storage self,
         uint48 key,
@@ -264,6 +293,10 @@ library Checkpoints {
         return idx > 0 ? self._values[idx] : 0;
     }
 
+    /**
+     * @dev Returns whether there is a checkpoint in the structure (i.e. it is not empty), and if so the key and value
+     * in the most recent checkpoint.
+     */
     function latestCheckpoint(Trace256 storage self) internal view returns (bool exists, uint48 _key, uint256 _value) {
         uint256 idx;
         (exists, _key, idx) = self._trace.latestCheckpoint();
@@ -271,20 +304,23 @@ library Checkpoints {
     }
 
     /**
-     * @dev Returns the number of checkpoint.
+     * @dev Returns a total number of checkpoints.
      */
     function length(Trace256 storage self) internal view returns (uint256) {
         return self._trace.length();
     }
 
     /**
-     * @dev Returns checkpoint at given position.
+     * @dev Returns checkpoint at a given position.
      */
     function at(Trace256 storage self, uint32 pos) internal view returns (Checkpoint256 memory) {
         OZCheckpoints.Checkpoint208 memory checkpoint = self._trace.at(pos);
         return Checkpoint256({_key: checkpoint._key, _value: self._values[checkpoint._value]});
     }
 
+    /**
+     * @dev Pops the last (most recent) checkpoint.
+     */
     function pop(Trace256 storage self) internal returns (uint256 value) {
         uint208 idx = self._trace.latest();
         if (idx == 0) {
@@ -293,14 +329,14 @@ library Checkpoints {
         value = self._values[idx];
         self._trace._checkpoints.pop();
     }
+
     /**
-     * @dev Return the index of the last (most recent) checkpoint with key lower or equal than the search key, or `high`
+     * @dev Return the index of the last (most recent) checkpoint with a key lower or equal than the search key, or `high`
      * if there is none. `low` and `high` define a section where to do the search, with inclusive `low` and exclusive
      * `high`.
      *
      * WARNING: `high` should not be greater than the array's length.
      */
-
     function _upperBinaryLookup(
         OZCheckpoints.Checkpoint208[] storage self,
         uint96 key,
@@ -319,7 +355,7 @@ library Checkpoints {
     }
 
     /**
-     * @dev Access an element of the array without performing bounds check. The position is assumed to be within bounds.
+     * @dev Access an element of the array without performing a bounds check. The position is assumed to be within bounds.
      */
     function _unsafeAccess(
         OZCheckpoints.Checkpoint208[] storage self,

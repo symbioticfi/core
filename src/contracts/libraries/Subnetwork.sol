@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
+/**
+ * @dev This library adds functions to work with subnetworks.
+ */
 library Subnetwork {
     function subnetwork(address network_, uint96 identifier_) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(network_)) << 96 | identifier_);

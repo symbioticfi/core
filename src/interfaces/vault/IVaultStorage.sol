@@ -36,7 +36,7 @@ interface IVaultStorage {
     function collateral() external view returns (address);
 
     /**
-     * @dev Get a burner to issue debt to (e.g. 0xdEaD or some unwrapper contract).
+     * @dev Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
      * @return address of the burner
      */
     function burner() external view returns (address);
@@ -112,16 +112,16 @@ interface IVaultStorage {
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
-     * @notice Get a total amount of active shares in the vault at a given timestamp using a hint.
-     * @param timestamp time point to get the total amount of active shares at
+     * @notice Get a total number of active shares in the vault at a given timestamp using a hint.
+     * @param timestamp time point to get the total number of active shares at
      * @param hint hint for the checkpoint index
-     * @return total amount of active shares at the timestamp
+     * @return total number of active shares at the timestamp
      */
     function activeSharesAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of active shares in the vault.
-     * @return total amount of active shares
+     * @notice Get a total number of active shares in the vault.
+     * @return total number of active shares
      */
     function activeShares() external view returns (uint256);
 
@@ -140,18 +140,18 @@ interface IVaultStorage {
     function activeStake() external view returns (uint256);
 
     /**
-     * @notice Get a total amount of active shares for a particular account at a given timestamp using a hint.
-     * @param account account to get the amount of active shares for
-     * @param timestamp time point to get the amount of active shares for the account at
+     * @notice Get a total number of active shares for a particular account at a given timestamp using a hint.
+     * @param account account to get the number of active shares for
+     * @param timestamp time point to get the number of active shares for the account at
      * @param hint hint for the checkpoint index
-     * @return amount of active shares for the account at the timestamp
+     * @return number of active shares for the account at the timestamp
      */
     function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
-     * @notice Get an amount of active shares for a particular account.
-     * @param account account to get the amount of active shares for
-     * @return amount of active shares for the account
+     * @notice Get a number of active shares for a particular account.
+     * @param account account to get the number of active shares for
+     * @return number of active shares for the account
      */
     function activeSharesOf(address account) external view returns (uint256);
 
@@ -163,17 +163,17 @@ interface IVaultStorage {
     function withdrawals(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of withdrawal shares at a given epoch.
-     * @param epoch epoch to get the total amount of withdrawal shares at
-     * @return total amount of withdrawal shares at the epoch
+     * @notice Get a total number of withdrawal shares at a given epoch.
+     * @param epoch epoch to get the total number of withdrawal shares at
+     * @return total number of withdrawal shares at the epoch
      */
     function withdrawalShares(uint256 epoch) external view returns (uint256);
 
     /**
-     * @notice Get an amount of withdrawal shares for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the amount of withdrawal shares for the account at
-     * @param account account to get the amount of withdrawal shares for
-     * @return amount of withdrawal shares for the account at the epoch
+     * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).
+     * @param epoch epoch to get the number of withdrawal shares for the account at
+     * @param account account to get the number of withdrawal shares for
+     * @return number of withdrawal shares for the account at the epoch
      */
     function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
 

@@ -4,11 +4,11 @@ pragma solidity 0.8.25;
 import {Entity} from "src/contracts/common/Entity.sol";
 import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
 
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";

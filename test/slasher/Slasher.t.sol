@@ -834,8 +834,6 @@ contract SlasherTest is Test {
 
     //     _setOperatorNetworkLimit(alice, network, alice, type(uint256).max);
 
-    //     _optInNetworkVault(network);
-
     //     for (uint256 i; i < hintStruct.num; ++i) {
     //         blockTimestamp = blockTimestamp + 1;
     //         vm.warp(blockTimestamp);
@@ -881,9 +879,6 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
 
     //         blockTimestamp = blockTimestamp + epochDuration;
     //         vm.warp(blockTimestamp);
@@ -891,9 +886,6 @@ contract SlasherTest is Test {
     //         _optOutOperatorVault(alice);
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
-    //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
     //         }
     //     }
 
@@ -902,9 +894,6 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
 
     //         blockTimestamp = blockTimestamp + epochDuration;
     //         vm.warp(blockTimestamp);
@@ -912,9 +901,6 @@ contract SlasherTest is Test {
     //         _optOutOperatorVault(alice);
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
-    //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
     //         }
 
     //         blockTimestamp = blockTimestamp + 1;
@@ -967,8 +953,6 @@ contract SlasherTest is Test {
     //     _setNetworkLimit(alice, network, type(uint256).max);
 
     //     _setOperatorNetworkLimit(alice, network, alice, type(uint256).max);
-
-    //     _optInNetworkVault(network);
 
     //     for (uint256 i; i < hintStruct.num; ++i) {
     //         _optInOperatorVault(alice);
@@ -1029,9 +1013,6 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
 
     //         _deposit(alice, amount1);
     //         _setNetworkLimit(alice, network, amount1);
@@ -1043,9 +1024,6 @@ contract SlasherTest is Test {
     //         _optOutOperatorVault(alice);
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
-    //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
     //         }
     //     }
 
@@ -1054,9 +1032,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, amount1);
     //         _setNetworkLimit(alice, network, amount1);
@@ -1069,9 +1045,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
 
     //         blockTimestamp = blockTimestamp + 1;
     //         vm.warp(blockTimestamp);
@@ -1137,9 +1111,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1158,9 +1130,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
     //     }
 
     //     for (uint256 i; i < hintStruct.num / 2; ++i) {
@@ -1168,9 +1138,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1189,9 +1157,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
 
     //         blockTimestamp = blockTimestamp + 1;
     //         vm.warp(blockTimestamp);
@@ -1258,9 +1224,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1279,9 +1243,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
     //     }
 
     //     for (uint256 i; i < hintStruct.num / 2; ++i) {
@@ -1289,9 +1251,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optInOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optInNetworkVault(network);
-    //         }
+    //
 
     //         _deposit(alice, inputParams.depositAmount);
     //         _setNetworkLimit(alice, network, inputParams.networkLimit);
@@ -1310,9 +1270,7 @@ contract SlasherTest is Test {
     //         if (hintStruct.num % 2 == 0) {
     //             _optOutOperatorNetwork(alice, address(network));
     //         }
-    //         if (hintStruct.num % 3 == 0) {
-    //             _optOutNetworkVault(network);
-    //         }
+    //
 
     //         blockTimestamp = blockTimestamp + 1;
     //         vm.warp(blockTimestamp);

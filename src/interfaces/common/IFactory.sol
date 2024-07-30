@@ -27,7 +27,7 @@ interface IFactory is IRegistry {
     function implementation(uint64 type_) external view returns (address);
 
     /**
-     * @notice Whitelist a new type of entities.
+     * @notice Whitelist a new type of entity.
      * @param implementation address of the new implementation
      */
     function whitelist(address implementation) external;
@@ -35,7 +35,7 @@ interface IFactory is IRegistry {
     /**
      * @notice Create a new entity at the factory.
      * @param type_ type's implementation to use
-     * @param withInitialize whether to call initialize on the entity
+     * @param withInitialize whether to call `initialize()` on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      */

@@ -15,7 +15,7 @@ interface IEntity {
     function TYPE() external view returns (uint64);
 
     /**
-     * @notice Initialize this entity contract using a given data.
+     * @notice Initialize this entity contract by using a given data.
      * @param data some data to use
      */
     function initialize(bytes calldata data) external;

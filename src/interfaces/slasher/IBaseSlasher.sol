@@ -9,7 +9,7 @@ interface IBaseSlasher {
     /**
      * @notice Hints for a slashable stake.
      * @param stakeHints hints for the stake checkpoints
-     * @param cumulativeSlashFromHint hint for the cumulative slash amount at "from" timestamp
+     * @param cumulativeSlashFromHint hint for the cumulative slash amount at a capture timestamp
      */
     struct SlashableStakeHints {
         bytes stakeHints;
@@ -35,7 +35,7 @@ interface IBaseSlasher {
     function vault() external view returns (address);
 
     /**
-     * @notice Get a latest capture timestamp that was slashed on a subnetwork.
+     * @notice Get the latest capture timestamp that was slashed on a subnetwork.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return latest capture timestamp that was slashed
      */

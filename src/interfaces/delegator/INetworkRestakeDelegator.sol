@@ -47,7 +47,7 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @notice Emitted when an operator's shares inside a subnetwork are set.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @param shares new operator's inside the subnetwork shares (what percentage,
+     * @param shares new operator's shares inside the subnetwork (what percentage,
      *               which is equal to the shares divided by the total operators' shares,
      *               of the subnetwork's stake the vault curator is ready to give to the operator)
      */
@@ -144,7 +144,7 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param shares new shares of the operator for the subnetwork
-     * @dev Only a OPERATOR_NETWORK_SHARES_SET_ROLE holder can call this function.
+     * @dev Only an OPERATOR_NETWORK_SHARES_SET_ROLE holder can call this function.
      */
     function setOperatorNetworkShares(bytes32 subnetwork, address operator, uint256 shares) external;
 }

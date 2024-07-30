@@ -3,17 +3,17 @@ pragma solidity 0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
 
-import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract VetoSlasher is BaseSlasher, IVetoSlasher {
     using Math for uint256;

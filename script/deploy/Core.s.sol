@@ -33,7 +33,6 @@ contract CoreScript is Script {
         MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));
         MetadataService networkMetadataService = new MetadataService(address(networkRegistry));
         NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        OptInService networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         OptInService operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         OptInService operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -101,7 +100,6 @@ contract CoreScript is Script {
         console2.log("OperatorMetadataService: ", address(operatorMetadataService));
         console2.log("NetworkMetadataService: ", address(networkMetadataService));
         console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
-        console2.log("NetworkVaultOptInService: ", address(networkVaultOptInService));
         console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
         console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
         console2.log("VaultConfigurator: ", address(vaultConfigurator));

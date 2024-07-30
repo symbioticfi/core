@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
 
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";

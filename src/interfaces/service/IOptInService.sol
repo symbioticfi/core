@@ -9,14 +9,14 @@ interface IOptInService {
     error OptOutCooldown();
 
     /**
-     * @notice Emitted when an who opts into a "where" entity.
+     * @notice Emitted when a "who" opts into a "where" entity.
      * @param who address of the "who"
      * @param where address of the "where" entity
      */
     event OptIn(address indexed who, address indexed where);
 
     /**
-     * @notice Emitted when an who opts out from a "where" entity.
+     * @notice Emitted when a "who" opts out from a "where" entity.
      * @param who address of the "who"
      * @param where address of the "where" entity
      */
@@ -50,7 +50,7 @@ interface IOptInService {
     ) external view returns (bool);
 
     /**
-     * @notice Check if a given who is opted-in to a particular "where" entity.
+     * @notice Check if a given "who" is opted-in to a particular "where" entity.
      * @param who address of the "who"
      * @param where address of the "where" registry
      * @return if the "who" is opted-in
@@ -58,13 +58,13 @@ interface IOptInService {
     function isOptedIn(address who, address where) external view returns (bool);
 
     /**
-     * @notice Opt-in a calling who to a particular "where" entity.
+     * @notice Opt-in a calling "who" to a particular "where" entity.
      * @param where address of the "where" registry
      */
     function optIn(address where) external;
 
     /**
-     * @notice Opt-out a calling who from a particular "where" entity.
+     * @notice Opt-out a calling "who" from a particular "where" entity.
      * @param where address of the "where" registry
      */
     function optOut(address where) external;

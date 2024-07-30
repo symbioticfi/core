@@ -126,7 +126,7 @@ interface IBaseDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @return slashable stake until the end of the next epoch
-     * @dev Warning: this function is not safe to use for the stake capturing, as it can change by the end of the block.
+     * @dev Warning: this function is not safe to use for stake capturing, as it can change by the end of the block.
      */
     function stake(bytes32 subnetwork, address operator) external view returns (uint256);
 

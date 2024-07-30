@@ -48,7 +48,7 @@ interface IMigratablesFactory is IRegistry {
      * @notice Create a new entity at the factory.
      * @param version entity's version to use
      * @param owner initial owner of the entity
-     * @param withInitialize whether to call initialize on the entity
+     * @param withInitialize whether to call `initialize()` on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      */

@@ -20,7 +20,7 @@ interface IMigratableEntity {
     function version() external view returns (uint64);
 
     /**
-     * @notice Initialize this entity contract using a given data, and setting a particular version and owner.
+     * @notice Initialize this entity contract by using a given data and setting a particular version and owner.
      * @param initialVersion initial version of the entity
      * @param owner initial owner of the entity
      * @param data some data to use

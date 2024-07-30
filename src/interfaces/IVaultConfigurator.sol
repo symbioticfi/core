@@ -11,11 +11,11 @@ interface IVaultConfigurator {
      * @param version entity's version to use
      * @param owner initial owner of the entity
      * @param vaultParams parameters for the vault initialization
-     * @param delegatorIndex delegator's index of the implementation to deploy (used only if vaultParams.delegator == address(0))
-     * @param delegatorParams parameters for the delegator initialization (used only if vaultParams.delegator == address(0))
+     * @param delegatorIndex delegator's index of the implementation to deploy
+     * @param delegatorParams parameters for the delegator initialization
      * @param withSlasher whether to deploy a slasher or not
-     * @param slasherIndex slasher's index of the implementation to deploy (used only if vaultParams.slasher == address(0) and withSlasher == true)
-     * @param slasherParams parameters for the slasher initialization (used only if vaultParams.slasher == address(0) and withSlasher == true)
+     * @param slasherIndex slasher's index of the implementation to deploy (used only if withSlasher == true)
+     * @param slasherParams parameters for the slasher initialization (used only if withSlasher == true)
      */
     struct InitParams {
         uint64 version;

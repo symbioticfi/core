@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Hints} from "./Hints.sol";
 import {BaseDelegator} from "src/contracts/delegator/BaseDelegator.sol";
 import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
+import {Hints} from "./Hints.sol";
 import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {Vault} from "src/contracts/vault/Vault.sol";
-import {VaultHints} from "./VaultHints.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";
-
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
+import {VaultHints} from "./VaultHints.sol";
+import {Vault} from "src/contracts/vault/Vault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";

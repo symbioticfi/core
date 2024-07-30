@@ -5,10 +5,10 @@ import {Entity} from "src/contracts/common/Entity.sol";
 import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
 
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
+import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IRegistry} from "src/interfaces/common/IRegistry.sol";
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
-import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";

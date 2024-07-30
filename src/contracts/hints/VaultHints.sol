@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 import {Hints} from "./Hints.sol";
-import {VaultStorage} from "src/contracts/vault/VaultStorage.sol";
 import {Vault} from "src/contracts/vault/Vault.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";

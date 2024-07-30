@@ -45,7 +45,7 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @notice Emitted when an operator's limit for a subnetwork is set.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @param amount new operator's for the subnetwork limit
+     * @param amount new operator's limit for the subnetwork
      *               (how much stake the vault curator is ready to give to the operator for the subnetwork)
      */
     event SetOperatorNetworkLimit(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
@@ -118,7 +118,7 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param amount new limit of the operator for the subnetwork
-     * @dev Only a OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
+     * @dev Only an OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
     function setOperatorNetworkLimit(bytes32 subnetwork, address operator, uint256 amount) external;
 }

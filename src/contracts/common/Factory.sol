@@ -6,9 +6,9 @@ import {Registry} from "./Registry.sol";
 import {IEntity} from "src/interfaces/common/IEntity.sol";
 import {IFactory} from "src/interfaces/common/IFactory.sol";
 
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract Factory is Registry, Ownable, IFactory {
     using EnumerableSet for EnumerableSet.AddressSet;

@@ -30,7 +30,7 @@ interface IVault is IVaultStorage {
      * @param collateral vault's underlying collateral
      * @param delegator vault's delegator to delegate the stake to networks and operators
      * @param slasher vault's slasher to provide a slashing mechanism to networks
-     * @param burner vault's burner to issue debt to (e.g. 0xdEaD or some unwrapper contract)
+     * @param burner vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param depositWhitelist if enabling deposit whitelist
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
