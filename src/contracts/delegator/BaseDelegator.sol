@@ -182,22 +182,6 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         emit OnSlash(subnetwork, operator, slashedAmount);
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view virtual returns (uint256, bytes memory) {}
-
-    function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
-
-    function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
-
-    function _initializeInternal(
-        address vault_,
-        bytes memory data
-    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
-
     function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
@@ -207,7 +191,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
 
         vault = vault_;
 
-        IBaseDelegator.BaseParams memory baseParams = _initializeInternal(vault_, data_);
+        IBaseDelegator.BaseParams memory baseParams = ___initialize(vault_, data_);
 
         hook = baseParams.hook;
 
@@ -219,4 +203,20 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
             _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
         }
     }
+
+    function _stakeAt(
+        bytes32 subnetwork,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) internal view virtual returns (uint256, bytes memory) {}
+
+    function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
+
+    function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
+
+    function ___initialize(
+        address vault_,
+        bytes memory data
+    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
 }

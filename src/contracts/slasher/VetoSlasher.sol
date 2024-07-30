@@ -241,7 +241,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit SetResolver(subnetwork, resolver_);
     }
 
-    function _initializeInternal(address vault_, bytes memory data) internal override {
+    function ___initialize(address vault_, bytes memory data) internal override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         uint48 epochDuration = IVault(vault_).epochDuration();

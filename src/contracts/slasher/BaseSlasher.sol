@@ -118,8 +118,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
     }
 
-    function _initializeInternal(address vault_, bytes memory data) internal virtual {}
-
     function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
@@ -129,6 +127,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
 
         vault = vault_;
 
-        _initializeInternal(vault_, data_);
+        ___initialize(vault_, data_);
     }
+
+    function ___initialize(address vault_, bytes memory data) internal virtual {}
 }

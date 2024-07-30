@@ -62,10 +62,14 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
             revert NotFactory();
         }
 
-        __migrate(_getInitializedVersion(), newVersion, data);
+        _migrateInternal(_getInitializedVersion(), newVersion, data);
     }
 
-    function __migrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) private reinitializer(newVersion) {
+    function _migrateInternal(
+        uint64 oldVersion,
+        uint64 newVersion,
+        bytes calldata data
+    ) private reinitializer(newVersion) {
         _migrate(oldVersion, newVersion, data);
     }
 

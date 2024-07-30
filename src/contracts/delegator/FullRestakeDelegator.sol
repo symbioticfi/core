@@ -144,10 +144,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         }
     }
 
-    function _initializeInternal(
-        address,
-        bytes memory data
-    ) internal override returns (IBaseDelegator.BaseParams memory) {
+    function ___initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 
         if (
