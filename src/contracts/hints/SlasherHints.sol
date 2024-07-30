@@ -94,7 +94,7 @@ contract SlasherHints is Hints, Slasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
@@ -122,7 +122,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         (exists,,, hint) = _resolver[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function resolverHint(address slasher, bytes32 subnetwork, uint48 timestamp) public returns (bytes memory) {
+    function resolverHint(address slasher, bytes32 subnetwork, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 slasher, abi.encodeWithSelector(VetoSlasherHints.resolverHintInternal.selector, subnetwork, timestamp)
@@ -142,7 +142,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
@@ -156,7 +156,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         bytes32 subnetwork,
         address operator,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory resolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
@@ -170,7 +170,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address slasher,
         bytes32 subnetwork,
         uint48 captureTimestamp
-    ) external returns (bytes memory) {
+    ) external view returns (bytes memory) {
         bytes memory resolverHint_ = resolverHint(slasher, subnetwork, captureTimestamp);
 
         if (resolverHint_.length > 0) {
@@ -178,7 +178,11 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         }
     }
 
-    function setResolverHints(address slasher, bytes32 subnetwork, uint48 timestamp) external returns (bytes memory) {
+    function setResolverHints(
+        address slasher,
+        bytes32 subnetwork,
+        uint48 timestamp
+    ) external view returns (bytes memory) {
         bytes memory resolverHint_ = resolverHint(slasher, subnetwork, timestamp);
 
         if (resolverHint_.length > 0) {
