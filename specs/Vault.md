@@ -57,12 +57,12 @@ The size of the epoch is not specified. However, all the epochs are consecutive 
 
 #### Constraints
 
-- $\text{totalSupply} = \text{active} + \text{W}_\text{epoch} + \text{W}_\text{epoch + 1}$ - a total amount of the collateral that can be slashed at the moment
+- $`\text{totalSupply} = \text{active} + \text{W}_\text{epoch} + \text{W}_\text{epoch + 1}`$ - a total amount of the collateral that can be slashed at the moment
 
 - During withdrawal:
 
   1. $\text{active} \rightarrow \text{active} - \text{amount}$
-  2. $\text{W}_\text{epoch + 1} \rightarrow \text{W}_\text{epoch + 1} + \text{amount}$
+  2. $`\text{W}_\text{epoch + 1} \rightarrow \text{W}_\text{epoch + 1} + \text{amount}`$
 
 - During deposit:
 
@@ -72,8 +72,8 @@ The size of the epoch is not specified. However, all the epochs are consecutive 
 
   1. $\text{q} = \text{1} - \frac{\text{amount}}{\text{totalSupply}}$
   2. $\text{active} \rightarrow \text{active} \cdot \text{q}$
-  3. $\text{W}_\text{epoch} \rightarrow \text{W}_\text{epoch} \cdot \text{q}$
-  4. $\text{W}_\text{epoch + 1} \rightarrow \text{W}_\text{epoch + 1} \cdot \text{q}$
+  3. $`\text{W}_\text{epoch} \rightarrow \text{W}_\text{epoch} \cdot \text{q}`$
+  4. $`\text{W}_\text{epoch + 1} \rightarrow \text{W}_\text{epoch + 1} \cdot \text{q}`$
 
 - $\forall \text{k} > \text{0}, \text{W}_\text{epoch - k}$ - claimable
 

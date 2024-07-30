@@ -4,7 +4,7 @@ In Symbiotic, networks are represented through a network address (either an EOA 
 
 ---
 
-A network epoch (let's name it $\text{NETWORK\_EPOCH}$) is a period while a certain operator set, obtained given the captured stake, operates for the good of the network. The epoch plus the vault's veto and execute phases' durations should not exceed the duration of the vault's epoch to **ensure that withdrawals do not impact the captured stake** (however, the conditions can be softer in practice).
+A network epoch (let's name it $`\text{NETWORK\_EPOCH}`$) is a period while a certain operator set, obtained given the captured stake, operates for the good of the network. The epoch plus the vault's veto and execute phases' durations should not exceed the duration of the vault's epoch to **ensure that withdrawals do not impact the captured stake** (however, the conditions can be softer in practice).
 
 ---
 
