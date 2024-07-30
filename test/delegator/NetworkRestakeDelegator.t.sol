@@ -31,6 +31,9 @@ import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SimpleNetworkRestakeDelegatorHook} from "test/mocks/SimpleNetworkRestakeDelegatorHook.sol";
 
+import {BaseDelegatorHints, NetworkRestakeDelegatorHints} from "src/contracts/hints/DelegatorHints.sol";
+import {OptInServiceHints} from "src/contracts/hints/OptInServiceHints.sol";
+import {VaultHints} from "src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 contract NetworkRestakeDelegatorTest is Test {
@@ -61,6 +64,8 @@ contract NetworkRestakeDelegatorTest is Test {
     Vault vault;
     NetworkRestakeDelegator delegator;
     Slasher slasher;
+
+    BaseDelegatorHints baseDelegatorHints;
 
     function setUp() public {
         owner = address(this);
@@ -1214,6 +1219,667 @@ contract NetworkRestakeDelegatorTest is Test {
 
         assertEq(delegator.hook(), hook);
     }
+
+    // struct GasStruct {
+    //     uint256 gasSpent1;
+    //     uint256 gasSpent2;
+    // }
+
+    // struct HintStruct {
+    //     uint256 num;
+    //     bool back;
+    //     uint256 secondsAgo;
+    // }
+
+    // function test_NetworkLimitHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+    //     _setMaxNetworkLimit(network, type(uint256).max);
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _setNetworkLimit(alice, network, amount1);
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     OptInServiceHints optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     NetworkRestakeDelegatorHints networkRestakeDelegatorHints =
+    //         NetworkRestakeDelegatorHints(baseDelegatorHints.NETWORK_RESTAKE_DELEGATOR_HINTS());
+    //     bytes memory hint = networkRestakeDelegatorHints.networkLimitHint(address(delegator), network, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     delegator.networkLimitAt(network, timestamp, new bytes(0));
+    //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     delegator.networkLimitAt(network, timestamp, hint);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // function test_OperatorNetworkSharesHint(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct
+    // ) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _setOperatorNetworkShares(alice, network, alice, amount1);
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     OptInServiceHints optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     NetworkRestakeDelegatorHints networkRestakeDelegatorHints =
+    //         NetworkRestakeDelegatorHints(baseDelegatorHints.NETWORK_RESTAKE_DELEGATOR_HINTS());
+    //     bytes memory hint =
+    //         networkRestakeDelegatorHints.operatorNetworkSharesHint(address(delegator), network, alice, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     delegator.operatorNetworkSharesAt(network, alice, timestamp, new bytes(0));
+    //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     delegator.operatorNetworkSharesAt(network, alice, timestamp, hint);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // function test_TotalOperatorNetworkSharesHint(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct
+    // ) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _setOperatorNetworkShares(alice, network, alice, amount1);
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     OptInServiceHints optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     NetworkRestakeDelegatorHints networkRestakeDelegatorHints =
+    //         NetworkRestakeDelegatorHints(baseDelegatorHints.NETWORK_RESTAKE_DELEGATOR_HINTS());
+    //     bytes memory hint =
+    //         networkRestakeDelegatorHints.totalOperatorNetworkSharesHint(address(delegator), network, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     delegator.totalOperatorNetworkSharesAt(network, timestamp, new bytes(0));
+    //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     delegator.totalOperatorNetworkSharesAt(network, timestamp, hint);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // struct StakeBaseHintsUint32 {
+    //     bool withOperatorVaultOptInHint;
+    //     uint32 operatorVaultOptInHint;
+    //     bool withOperatorNetworkOptInHint;
+    //     uint32 operatorNetworkOptInHint;
+    // }
+
+    // function test_StakeBaseHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     StakeBaseHintsUint32 memory stakeBaseHintsUint32
+    // ) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+    //     if (stakeBaseHintsUint32.withOperatorVaultOptInHint) {
+    //         stakeBaseHintsUint32.operatorVaultOptInHint =
+    //             uint32(bound(stakeBaseHintsUint32.operatorVaultOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeBaseHintsUint32.withOperatorNetworkOptInHint) {
+    //         stakeBaseHintsUint32.operatorNetworkOptInHint =
+    //             uint32(bound(stakeBaseHintsUint32.operatorNetworkOptInHint, 0, 10 * hintStruct.num));
+    //     }
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+    //     }
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     OptInServiceHints optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     bytes memory hints = baseDelegatorHints.stakeBaseHints(address(delegator), network, alice, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     bytes memory stakeBaseHints = abi.encode(
+    //         IBaseDelegator.StakeBaseHints({
+    //             operatorVaultOptInHint: stakeBaseHintsUint32.withOperatorVaultOptInHint
+    //                 ? abi.encode(stakeBaseHintsUint32.operatorVaultOptInHint)
+    //                 : new bytes(0),
+    //             operatorNetworkOptInHint: stakeBaseHintsUint32.withOperatorNetworkOptInHint
+    //                 ? abi.encode(stakeBaseHintsUint32.operatorNetworkOptInHint)
+    //                 : new bytes(0)
+    //         })
+    //     );
+    //     try baseDelegatorHints._stakeBaseHints(address(delegator), network, alice, timestamp, stakeBaseHints) {
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     } catch {
+    //         baseDelegatorHints._stakeBaseHints(address(delegator), network, alice, timestamp, new bytes(0));
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     }
+
+    //     baseDelegatorHints._stakeBaseHints(address(delegator), network, alice, timestamp, hints);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // struct StakeHintsUint32 {
+    //     bool withBaseHints;
+    //     StakeBaseHintsUint32 baseHints;
+    //     bool withActiveStakeHint;
+    //     uint32 activeStakeHint;
+    //     bool withNetworkLimitHint;
+    //     uint32 networkLimitHint;
+    //     bool withOperatorNetworkSharesHint;
+    //     uint32 operatorNetworkSharesHint;
+    //     bool withTotalOperatorNetworkSharesHint;
+    //     uint32 totalOperatorNetworkSharesHint;
+    // }
+
+    // function test_StakeHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     StakeHintsUint32 memory stakeHintsUint32
+    // ) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+    //     if (stakeHintsUint32.baseHints.withOperatorVaultOptInHint) {
+    //         stakeHintsUint32.baseHints.operatorVaultOptInHint =
+    //             uint32(bound(stakeHintsUint32.baseHints.operatorVaultOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.baseHints.withOperatorNetworkOptInHint) {
+    //         stakeHintsUint32.baseHints.operatorNetworkOptInHint =
+    //             uint32(bound(stakeHintsUint32.baseHints.operatorNetworkOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withActiveStakeHint) {
+    //         stakeHintsUint32.activeStakeHint = uint32(bound(stakeHintsUint32.activeStakeHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withNetworkLimitHint) {
+    //         stakeHintsUint32.networkLimitHint = uint32(bound(stakeHintsUint32.networkLimitHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withOperatorNetworkSharesHint) {
+    //         stakeHintsUint32.operatorNetworkSharesHint =
+    //             uint32(bound(stakeHintsUint32.operatorNetworkSharesHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withTotalOperatorNetworkSharesHint) {
+    //         stakeHintsUint32.totalOperatorNetworkSharesHint =
+    //             uint32(bound(stakeHintsUint32.totalOperatorNetworkSharesHint, 0, 10 * hintStruct.num));
+    //     }
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+    //     }
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     OptInServiceHints optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     NetworkRestakeDelegatorHints networkRestakeDelegatorHints =
+    //         NetworkRestakeDelegatorHints(baseDelegatorHints.NETWORK_RESTAKE_DELEGATOR_HINTS());
+    //     bytes memory hints = networkRestakeDelegatorHints.stakeHints(address(delegator), network, alice, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     bytes memory stakeBaseHints;
+    //     if (stakeHintsUint32.withBaseHints) {
+    //         stakeBaseHints = abi.encode(
+    //             IBaseDelegator.StakeBaseHints({
+    //                 operatorVaultOptInHint: stakeHintsUint32.baseHints.withOperatorVaultOptInHint
+    //                     ? abi.encode(stakeHintsUint32.baseHints.operatorVaultOptInHint)
+    //                     : new bytes(0),
+    //                 operatorNetworkOptInHint: stakeHintsUint32.baseHints.withOperatorNetworkOptInHint
+    //                     ? abi.encode(stakeHintsUint32.baseHints.operatorNetworkOptInHint)
+    //                     : new bytes(0)
+    //             })
+    //         );
+    //     }
+
+    //     bytes memory stakeHints = abi.encode(
+    //         INetworkRestakeDelegator.StakeHints({
+    //             baseHints: stakeBaseHints,
+    //             activeStakeHint: stakeHintsUint32.withActiveStakeHint
+    //                 ? abi.encode(stakeHintsUint32.activeStakeHint)
+    //                 : new bytes(0),
+    //             networkLimitHint: stakeHintsUint32.withNetworkLimitHint
+    //                 ? abi.encode(stakeHintsUint32.networkLimitHint)
+    //                 : new bytes(0),
+    //             operatorNetworkSharesHint: stakeHintsUint32.withOperatorNetworkSharesHint
+    //                 ? abi.encode(stakeHintsUint32.operatorNetworkSharesHint)
+    //                 : new bytes(0),
+    //             totalOperatorNetworkSharesHint: stakeHintsUint32.withTotalOperatorNetworkSharesHint
+    //                 ? abi.encode(stakeHintsUint32.totalOperatorNetworkSharesHint)
+    //                 : new bytes(0)
+    //         })
+    //     );
+
+    //     try delegator.stakeAt(network, alice, timestamp, stakeHints) {
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     } catch {
+    //         delegator.stakeAt(network, alice, timestamp, new bytes(0));
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     }
+
+    //     delegator.stakeAt(network, alice, timestamp, hints);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // function test_BaseStakeHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     StakeHintsUint32 memory stakeHintsUint32
+    // ) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+    //     if (stakeHintsUint32.baseHints.withOperatorVaultOptInHint) {
+    //         stakeHintsUint32.baseHints.operatorVaultOptInHint =
+    //             uint32(bound(stakeHintsUint32.baseHints.operatorVaultOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.baseHints.withOperatorNetworkOptInHint) {
+    //         stakeHintsUint32.baseHints.operatorNetworkOptInHint =
+    //             uint32(bound(stakeHintsUint32.baseHints.operatorNetworkOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withActiveStakeHint) {
+    //         stakeHintsUint32.activeStakeHint = uint32(bound(stakeHintsUint32.activeStakeHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withNetworkLimitHint) {
+    //         stakeHintsUint32.networkLimitHint = uint32(bound(stakeHintsUint32.networkLimitHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withOperatorNetworkSharesHint) {
+    //         stakeHintsUint32.operatorNetworkSharesHint =
+    //             uint32(bound(stakeHintsUint32.operatorNetworkSharesHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (stakeHintsUint32.withTotalOperatorNetworkSharesHint) {
+    //         stakeHintsUint32.totalOperatorNetworkSharesHint =
+    //             uint32(bound(stakeHintsUint32.totalOperatorNetworkSharesHint, 0, 10 * hintStruct.num));
+    //     }
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+    //     }
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     OptInServiceHints optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     NetworkRestakeDelegatorHints networkRestakeDelegatorHints =
+    //         NetworkRestakeDelegatorHints(baseDelegatorHints.NETWORK_RESTAKE_DELEGATOR_HINTS());
+    //     bytes memory hints = networkRestakeDelegatorHints.stakeHints(address(delegator), network, alice, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     bytes memory stakeBaseHints;
+    //     if (stakeHintsUint32.withBaseHints) {
+    //         stakeBaseHints = abi.encode(
+    //             IBaseDelegator.StakeBaseHints({
+    //                 operatorVaultOptInHint: stakeHintsUint32.baseHints.withOperatorVaultOptInHint
+    //                     ? abi.encode(stakeHintsUint32.baseHints.operatorVaultOptInHint)
+    //                     : new bytes(0),
+    //                 operatorNetworkOptInHint: stakeHintsUint32.baseHints.withOperatorNetworkOptInHint
+    //                     ? abi.encode(stakeHintsUint32.baseHints.operatorNetworkOptInHint)
+    //                     : new bytes(0)
+    //             })
+    //         );
+    //     }
+
+    //     bytes memory stakeHints = abi.encode(
+    //         INetworkRestakeDelegator.StakeHints({
+    //             baseHints: stakeBaseHints,
+    //             activeStakeHint: stakeHintsUint32.withActiveStakeHint
+    //                 ? abi.encode(stakeHintsUint32.activeStakeHint)
+    //                 : new bytes(0),
+    //             networkLimitHint: stakeHintsUint32.withNetworkLimitHint
+    //                 ? abi.encode(stakeHintsUint32.networkLimitHint)
+    //                 : new bytes(0),
+    //             operatorNetworkSharesHint: stakeHintsUint32.withOperatorNetworkSharesHint
+    //                 ? abi.encode(stakeHintsUint32.operatorNetworkSharesHint)
+    //                 : new bytes(0),
+    //             totalOperatorNetworkSharesHint: stakeHintsUint32.withTotalOperatorNetworkSharesHint
+    //                 ? abi.encode(stakeHintsUint32.totalOperatorNetworkSharesHint)
+    //                 : new bytes(0)
+    //         })
+    //     );
+
+    //     try delegator.stakeAt(network, alice, timestamp, stakeHints) {
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     } catch {
+    //         delegator.stakeAt(network, alice, timestamp, new bytes(0));
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     }
+
+    //     delegator.stakeAt(network, alice, timestamp, hints);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // struct OnSlashHintsUint32 {
+    //     bool withHints;
+    //     StakeHintsUint32 hints;
+    // }
+
+    // function test_OnSlashHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     OnSlashHintsUint32 memory onSlashHintsUint32
+    // ) public {
+    //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+    //     if (onSlashHintsUint32.hints.baseHints.withOperatorVaultOptInHint) {
+    //         onSlashHintsUint32.hints.baseHints.operatorVaultOptInHint =
+    //             uint32(bound(onSlashHintsUint32.hints.baseHints.operatorVaultOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (onSlashHintsUint32.hints.baseHints.withOperatorNetworkOptInHint) {
+    //         onSlashHintsUint32.hints.baseHints.operatorNetworkOptInHint =
+    //             uint32(bound(onSlashHintsUint32.hints.baseHints.operatorNetworkOptInHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (onSlashHintsUint32.hints.withActiveStakeHint) {
+    //         onSlashHintsUint32.hints.activeStakeHint =
+    //             uint32(bound(onSlashHintsUint32.hints.activeStakeHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (onSlashHintsUint32.hints.withNetworkLimitHint) {
+    //         onSlashHintsUint32.hints.networkLimitHint =
+    //             uint32(bound(onSlashHintsUint32.hints.networkLimitHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (onSlashHintsUint32.hints.withOperatorNetworkSharesHint) {
+    //         onSlashHintsUint32.hints.operatorNetworkSharesHint =
+    //             uint32(bound(onSlashHintsUint32.hints.operatorNetworkSharesHint, 0, 10 * hintStruct.num));
+    //     }
+    //     if (onSlashHintsUint32.hints.withTotalOperatorNetworkSharesHint) {
+    //         onSlashHintsUint32.hints.totalOperatorNetworkSharesHint =
+    //             uint32(bound(onSlashHintsUint32.hints.totalOperatorNetworkSharesHint, 0, 10 * hintStruct.num));
+    //     }
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+    //     }
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + epochDuration;
+    //         vm.warp(blockTimestamp);
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     baseDelegatorHints = new BaseDelegatorHints(address(new OptInServiceHints()), address(new VaultHints()));
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+
+    //     bytes memory stakeHints;
+    //     if (onSlashHintsUint32.withHints) {
+    //         stakeHints = abi.encode(
+    //             INetworkRestakeDelegator.StakeHints({
+    //                 baseHints: onSlashHintsUint32.hints.withBaseHints
+    //                     ? abi.encode(
+    //                         IBaseDelegator.StakeBaseHints({
+    //                             operatorVaultOptInHint: onSlashHintsUint32.hints.baseHints.withOperatorVaultOptInHint
+    //                                 ? abi.encode(onSlashHintsUint32.hints.baseHints.operatorVaultOptInHint)
+    //                                 : new bytes(0),
+    //                             operatorNetworkOptInHint: onSlashHintsUint32.hints.baseHints.withOperatorNetworkOptInHint
+    //                                 ? abi.encode(onSlashHintsUint32.hints.baseHints.operatorNetworkOptInHint)
+    //                                 : new bytes(0)
+    //                         })
+    //                     )
+    //                     : new bytes(0),
+    //                 activeStakeHint: onSlashHintsUint32.hints.withActiveStakeHint
+    //                     ? abi.encode(onSlashHintsUint32.hints.activeStakeHint)
+    //                     : new bytes(0),
+    //                 networkLimitHint: onSlashHintsUint32.hints.withNetworkLimitHint
+    //                     ? abi.encode(onSlashHintsUint32.hints.networkLimitHint)
+    //                     : new bytes(0),
+    //                 operatorNetworkSharesHint: onSlashHintsUint32.hints.withOperatorNetworkSharesHint
+    //                     ? abi.encode(onSlashHintsUint32.hints.operatorNetworkSharesHint)
+    //                     : new bytes(0),
+    //                 totalOperatorNetworkSharesHint: onSlashHintsUint32.hints.withTotalOperatorNetworkSharesHint
+    //                     ? abi.encode(onSlashHintsUint32.hints.totalOperatorNetworkSharesHint)
+    //                     : new bytes(0)
+    //             })
+    //         );
+    //     }
+
+    //     try baseDelegatorHints._onSlash(
+    //         address(delegator),
+    //         network,
+    //         alice,
+    //         amount1,
+    //         timestamp,
+    //         abi.encode(IBaseDelegator.OnSlashHints({stakeHints: stakeHints}))
+    //     ) {
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     } catch {
+    //         baseDelegatorHints._onSlash(address(delegator), network, alice, amount1, timestamp, new bytes(0));
+    //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     }
+
+    //     bytes memory hints = baseDelegatorHints.onSlashHints(address(delegator), network, alice, amount1, timestamp);
+    //     baseDelegatorHints._onSlash(address(delegator), network, alice, amount1, timestamp, hints);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
 
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, NetworkRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);

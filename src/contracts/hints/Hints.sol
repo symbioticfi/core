@@ -23,8 +23,8 @@ abstract contract Hints {
         _;
     }
 
-    function _selfStaticDelegateCall(address target, bytes memory dataInternal) internal returns (bytes memory) {
-        (, bytes memory returnDataInternal) = target.call(
+    function _selfStaticDelegateCall(address target, bytes memory dataInternal) internal view returns (bytes memory) {
+        (, bytes memory returnDataInternal) = target.staticcall(
             abi.encodeWithSelector(StaticDelegateCallable.staticDelegateCall.selector, address(this), dataInternal)
         );
         (bool success, bytes memory returnData) = abi.decode(returnDataInternal, (bool, bytes));
@@ -45,12 +45,21 @@ abstract contract Hints {
 
     function _optimizeHint(
         address target,
-        bytes memory dataWithoutHint,
-        bytes memory dataWithHint,
-        bytes memory hint
-    ) internal view returns (bytes memory) {
-        uint256 gasSpentWithoutHint = _estimateGas(target, dataWithoutHint);
-        uint256 gasSpentWithHint = _estimateGas(target, dataWithHint);
-        return gasSpentWithHint < gasSpentWithoutHint ? hint : new bytes(0);
+        bytes[] memory datas,
+        bytes[] memory hints
+    ) internal view returns (bytes memory lowestHint) {
+        uint256 length = datas.length;
+        for (uint256 i; i < length; ++i) {
+            target.functionStaticCall(datas[i]);
+        }
+
+        uint256 lowestGas = type(uint256).max;
+        for (uint256 i; i < length; ++i) {
+            uint256 gasSpent = _estimateGas(target, datas[i]);
+            if (gasSpent < lowestGas || (gasSpent == lowestGas && datas[i].length < lowestHint.length)) {
+                lowestGas = gasSpent;
+                lowestHint = hints[i];
+            }
+        }
     }
 }

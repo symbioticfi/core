@@ -32,6 +32,10 @@ import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
 import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import {BaseSlasherHints, VetoSlasherHints} from "src/contracts/hints/SlasherHints.sol";
+import {BaseDelegatorHints} from "src/contracts/hints/DelegatorHints.sol";
+import {OptInServiceHints} from "src/contracts/hints/OptInServiceHints.sol";
+import {VaultHints} from "src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 contract VetoSlasherTest is Test {
@@ -62,6 +66,11 @@ contract VetoSlasherTest is Test {
     Vault vault;
     FullRestakeDelegator delegator;
     VetoSlasher slasher;
+
+    OptInServiceHints optInServiceHints;
+    BaseDelegatorHints baseDelegatorHints;
+    BaseSlasherHints baseSlasherHints;
+    VetoSlasherHints vetoSlasherHints;
 
     function setUp() public {
         owner = address(this);
@@ -1337,6 +1346,495 @@ contract VetoSlasherTest is Test {
         _vetoSlash(alice, 0, "");
     }
 
+    // struct GasStruct {
+    //     uint256 gasSpent1;
+    //     uint256 gasSpent2;
+    // }
+
+    // struct HintStruct {
+    //     uint256 num;
+    //     bool back;
+    //     uint256 secondsAgo;
+    // }
+
+    // function test_ResolverSharesHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, 0);
+
+    //     amount1 = bound(amount1, 0, slasher.SHARES_BASE());
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _setResolverShares(alice, alice, amount1, "");
+
+    //         blockTimestamp = blockTimestamp + 3 * epochDuration;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     optInServiceHints = new OptInServiceHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(new VaultHints()));
+    //     baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints), address(optInServiceHints));
+    //     vetoSlasherHints = VetoSlasherHints(baseSlasherHints.VETO_SLASHER_HINTS());
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     slasher.resolverSharesAt(network, alice, timestamp, "");
+    //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+
+    //     bytes memory hints = vetoSlasherHints.resolverSharesHint(address(slasher), network, alice, timestamp);
+    //     slasher.resolverSharesAt(network, alice, timestamp, hints);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // function test_ResolverSharesHintNow(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, 0);
+
+    //     amount1 = bound(amount1, 0, slasher.SHARES_BASE());
+
+    //     address network = alice;
+    //     _registerNetwork(network, alice);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _setResolverShares(alice, alice, amount1, "");
+
+    //         blockTimestamp = blockTimestamp + 3 * epochDuration;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp = uint48(blockTimestamp);
+
+    //     optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints), address(optInServiceHints));
+    //     vetoSlasherHints = VetoSlasherHints(baseSlasherHints.VETO_SLASHER_HINTS());
+    //     bytes memory hints = vetoSlasherHints.resolverSharesHint(address(slasher), network, alice, timestamp);
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     slasher.resolverShares(network, alice, "");
+    //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
+    //     slasher.resolverShares(network, alice, hints);
+    //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // struct InputParams {
+    //     uint256 depositAmount;
+    //     uint256 networkLimit;
+    //     uint256 operatorNetworkLimit;
+    //     uint256 slashAmount;
+    // }
+
+    // function test_RequestSlashHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     InputParams memory inputParams
+    // ) public {
+    //     amount1 = bound(amount1, 1, 10 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 2 * epochDuration);
+    //     inputParams.slashAmount = bound(inputParams.slashAmount, 1, 1 * 10 ** 18);
+    //     inputParams.depositAmount =
+    //         bound(inputParams.depositAmount, Math.max(1, inputParams.slashAmount * hintStruct.num), 1000 * 10 ** 18);
+    //     inputParams.networkLimit = bound(inputParams.networkLimit, inputParams.slashAmount, type(uint256).max);
+    //     inputParams.operatorNetworkLimit =
+    //         bound(inputParams.operatorNetworkLimit, inputParams.slashAmount, type(uint256).max);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, 0);
+    //     VetoSlasherHintsHelper vetoSlasherHintsHelper = new VetoSlasherHintsHelper();
+
+    //     address network = alice;
+    //     address middleware = address(vetoSlasherHintsHelper);
+    //     _registerNetwork(network, middleware);
+    //     _setMaxNetworkLimit(network, type(uint256).max);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+    //         if (hintStruct.num % 3 == 0) {
+    //             _optInNetworkVault(network);
+    //         }
+
+    //         _deposit(alice, inputParams.depositAmount);
+    //         _setNetworkLimit(alice, network, inputParams.networkLimit);
+    //         _setOperatorNetworkLimit(alice, network, alice, inputParams.operatorNetworkLimit);
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+
+    //         if (hintStruct.num % 2 == 0) {
+    //             vm.startPrank(alice);
+    //             try slasher.requestSlash(network, alice, inputParams.slashAmount, uint48(blockTimestamp - 1), "")
+    //             returns (uint256 slashIndex) {
+    //                 slasher.executeSlash(slashIndex, "");
+    //             } catch {}
+    //             vm.stopPrank();
+    //         }
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+    //         if (hintStruct.num % 3 == 0) {
+    //             _optOutNetworkVault(network);
+    //         }
+    //     }
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _optInOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optInOperatorNetwork(alice, address(network));
+    //         }
+    //         if (hintStruct.num % 3 == 0) {
+    //             _optInNetworkVault(network);
+    //         }
+
+    //         _deposit(alice, inputParams.depositAmount);
+    //         _setNetworkLimit(alice, network, inputParams.networkLimit);
+    //         _setOperatorNetworkLimit(alice, network, alice, inputParams.operatorNetworkLimit);
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+
+    //         if (hintStruct.num % 2 == 0) {
+    //             vm.startPrank(alice);
+    //             try slasher.requestSlash(network, alice, inputParams.slashAmount, uint48(blockTimestamp - 1), "")
+    //             returns (uint256 slashIndex) {
+    //                 slasher.executeSlash(slashIndex, "");
+    //             } catch {}
+    //             vm.stopPrank();
+    //         }
+
+    //         _optOutOperatorVault(alice);
+    //         if (hintStruct.num % 2 == 0) {
+    //             _optOutOperatorNetwork(alice, address(network));
+    //         }
+    //         if (hintStruct.num % 3 == 0) {
+    //             _optOutNetworkVault(network);
+    //         }
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     uint48 timestamp =
+    //         uint48(hintStruct.back ? blockTimestamp - hintStruct.secondsAgo : blockTimestamp + hintStruct.secondsAgo);
+
+    //     optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints), address(optInServiceHints));
+    //     vetoSlasherHints = VetoSlasherHints(baseSlasherHints.VETO_SLASHER_HINTS());
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     try vetoSlasherHintsHelper.tryRequestSlash(
+    //         address(slasher), network, alice, inputParams.slashAmount, timestamp, ""
+    //     ) {} catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent1 = gasSpent;
+    //     }
+
+    //     bytes memory hints = vetoSlasherHints.requestSlashHints(
+    //         address(slasher), middleware, network, alice, inputParams.slashAmount, timestamp
+    //     );
+    //     try vetoSlasherHintsHelper.tryRequestSlash(
+    //         address(slasher), network, alice, inputParams.slashAmount, timestamp, hints
+    //     ) {} catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent2 = gasSpent;
+    //     }
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // function test_ExecuteSlashHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     InputParams memory inputParams
+    // ) public {
+    //     amount1 = bound(amount1, 1, 10 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 1, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 1, Math.min(hintStruct.num, epochDuration));
+    //     inputParams.slashAmount = bound(inputParams.slashAmount, 1, 1 * 10 ** 18);
+    //     inputParams.depositAmount = bound(
+    //         inputParams.depositAmount, Math.max(1, inputParams.slashAmount * (hintStruct.num + 1)), 1000 * 10 ** 18
+    //     );
+    //     inputParams.networkLimit = bound(
+    //         inputParams.networkLimit, Math.max(1, inputParams.slashAmount * (hintStruct.num + 1)), type(uint256).max
+    //     );
+    //     inputParams.operatorNetworkLimit = bound(
+    //         inputParams.operatorNetworkLimit,
+    //         Math.max(1, inputParams.slashAmount * (hintStruct.num + 1)),
+    //         type(uint256).max
+    //     );
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, 0);
+    //     VetoSlasherHintsHelper vetoSlasherHintsHelper = new VetoSlasherHintsHelper();
+
+    //     address network = alice;
+    //     address middleware = alice;
+    //     _registerNetwork(network, middleware);
+    //     _setMaxNetworkLimit(network, type(uint256).max);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _optInOperatorVault(alice);
+    //         _optInOperatorNetwork(alice, address(network));
+    //         _optInNetworkVault(network);
+
+    //         _deposit(alice, inputParams.depositAmount);
+    //         _setNetworkLimit(alice, network, inputParams.networkLimit);
+    //         _setOperatorNetworkLimit(alice, network, alice, inputParams.operatorNetworkLimit);
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+
+    //         if (hintStruct.num % 2 == 0) {
+    //             vm.startPrank(alice);
+    //             try slasher.requestSlash(network, alice, inputParams.slashAmount, uint48(blockTimestamp - 1), "")
+    //             returns (uint256 slashIndex) {
+    //                 slasher.executeSlash(slashIndex, "");
+    //             } catch {}
+    //             vm.stopPrank();
+    //         }
+
+    //         _optOutOperatorVault(alice);
+    //         _optOutOperatorNetwork(alice, address(network));
+    //         _optOutNetworkVault(network);
+    //     }
+
+    //     uint48 timestamp = uint48(blockTimestamp - hintStruct.secondsAgo);
+
+    //     optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints), address(optInServiceHints));
+    //     vetoSlasherHints = VetoSlasherHints(baseSlasherHints.VETO_SLASHER_HINTS());
+
+    //     vm.startPrank(middleware);
+    //     uint256 slashIndex = slasher.requestSlash(network, alice, inputParams.slashAmount, timestamp, "");
+    //     vm.stopPrank();
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     try vetoSlasherHintsHelper.tryExecuteSlash(address(slasher), slashIndex, "") {}
+    //     catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent1 = gasSpent;
+    //     }
+
+    //     bytes memory hints = vetoSlasherHints.executeSlashHints(address(slasher), address(vetoSlasherHints), slashIndex);
+    //     try vetoSlasherHintsHelper.tryExecuteSlash(address(slasher), slashIndex, hints) {}
+    //     catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent2 = gasSpent;
+    //     }
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // struct InputParamsVeto {
+    //     uint256 depositAmount;
+    //     uint256 networkLimit;
+    //     uint256 operatorNetworkLimit;
+    //     uint256 slashAmount;
+    //     uint256 shares;
+    // }
+
+    // function test_VetoSlashHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     InputParamsVeto memory inputParams
+    // ) public {
+    //     amount1 = bound(amount1, 1, 10 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 2, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 1, 25);
+    //     hintStruct.secondsAgo = 1;
+    //     inputParams.slashAmount = bound(inputParams.slashAmount, 1, 1 * 10 ** 18);
+    //     inputParams.depositAmount = bound(
+    //         inputParams.depositAmount, Math.max(1, inputParams.slashAmount * (hintStruct.num + 1)), 1000 * 10 ** 18
+    //     );
+    //     inputParams.networkLimit = bound(
+    //         inputParams.networkLimit, Math.max(1, inputParams.slashAmount * (hintStruct.num + 1)), type(uint256).max
+    //     );
+    //     inputParams.operatorNetworkLimit = bound(
+    //         inputParams.operatorNetworkLimit,
+    //         Math.max(1, inputParams.slashAmount * (hintStruct.num + 1)),
+    //         type(uint256).max
+    //     );
+    //     inputParams.shares = bound(inputParams.shares, hintStruct.num * 10, 10 ** 18);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, epochDuration - 1);
+    //     VetoSlasherHintsHelper vetoSlasherHintsHelper = new VetoSlasherHintsHelper();
+
+    //     address network = alice;
+    //     address middleware = alice;
+    //     _registerNetwork(network, middleware);
+    //     _setMaxNetworkLimit(network, type(uint256).max);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num; ++i) {
+    //         _optInOperatorVault(alice);
+    //         _optInOperatorNetwork(alice, address(network));
+    //         _optInNetworkVault(network);
+
+    //         _deposit(alice, inputParams.depositAmount);
+    //         _setNetworkLimit(alice, network, inputParams.networkLimit);
+    //         _setOperatorNetworkLimit(alice, network, alice, inputParams.operatorNetworkLimit);
+    //         _setResolverShares(alice, address(vetoSlasherHintsHelper), inputParams.shares - (hintStruct.num - i), "");
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+
+    //         // if (hintStruct.num % 2 == 0) {
+    //         //     vm.startPrank(alice);
+    //         //     try slasher.requestSlash(network, alice, inputParams.slashAmount, uint48(blockTimestamp - 1), "")
+    //         //     returns (uint256 slashIndex) {
+    //         //         slasher.executeSlash(slashIndex, "");
+    //         //     } catch {}
+    //         //     vm.stopPrank();
+    //         // }
+
+    //         _optOutOperatorVault(alice);
+    //         _optOutOperatorNetwork(alice, address(network));
+    //         _optOutNetworkVault(network);
+    //     }
+
+    //     uint48 timestamp = uint48(blockTimestamp - hintStruct.secondsAgo);
+
+    //     optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints), address(optInServiceHints));
+    //     vetoSlasherHints = VetoSlasherHints(baseSlasherHints.VETO_SLASHER_HINTS());
+
+    //     vm.startPrank(middleware);
+    //     uint256 slashIndex = slasher.requestSlash(network, alice, inputParams.slashAmount, timestamp, "");
+    //     vm.stopPrank();
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     try vetoSlasherHintsHelper.tryVetoSlash(address(slasher), slashIndex, "") {}
+    //     catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent1 = gasSpent;
+    //     }
+
+    //     bytes memory hints =
+    //         vetoSlasherHints.vetoSlashHints(address(slasher), address(vetoSlasherHintsHelper), slashIndex);
+    //     try vetoSlasherHintsHelper.tryVetoSlash(address(slasher), slashIndex, hints) {}
+    //     catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent2 = gasSpent;
+    //     }
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
+    // function test_SetResolverSharesHints(
+    //     uint256 amount1,
+    //     uint48 epochDuration,
+    //     HintStruct memory hintStruct,
+    //     InputParamsVeto memory inputParams
+    // ) public {
+    //     amount1 = bound(amount1, 1, 10 * 10 ** 18);
+    //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
+    //     hintStruct.num = bound(hintStruct.num, 0, 25);
+    //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 2 * epochDuration);
+    //     inputParams.slashAmount = bound(inputParams.slashAmount, 1, 1 * 10 ** 18);
+    //     inputParams.depositAmount =
+    //         bound(inputParams.depositAmount, Math.max(1, inputParams.slashAmount * hintStruct.num), 1000 * 10 ** 18);
+    //     inputParams.networkLimit = bound(inputParams.networkLimit, inputParams.slashAmount, type(uint256).max);
+    //     inputParams.operatorNetworkLimit =
+    //         bound(inputParams.operatorNetworkLimit, inputParams.slashAmount, type(uint256).max);
+    //     inputParams.shares = bound(inputParams.shares, hintStruct.num * 10, 10 ** 18);
+
+    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     blockTimestamp = blockTimestamp + 1_720_700_948;
+    //     vm.warp(blockTimestamp);
+
+    //     (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, 0);
+    //     VetoSlasherHintsHelper vetoSlasherHintsHelper = new VetoSlasherHintsHelper();
+
+    //     address network = address(vetoSlasherHintsHelper);
+    //     _registerNetwork(network, alice);
+    //     _setMaxNetworkLimit(network, type(uint256).max);
+
+    //     _registerOperator(alice);
+
+    //     for (uint256 i; i < hintStruct.num / 2; ++i) {
+    //         _setResolverShares(network, alice, inputParams.shares - (hintStruct.num - i), "");
+
+    //         blockTimestamp = blockTimestamp + 1;
+    //         vm.warp(blockTimestamp);
+    //     }
+
+    //     optInServiceHints = new OptInServiceHints();
+    //     VaultHints vaultHints = new VaultHints();
+    //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+    //     baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints), address(optInServiceHints));
+    //     vetoSlasherHints = VetoSlasherHints(baseSlasherHints.VETO_SLASHER_HINTS());
+
+    //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
+    //     try vetoSlasherHintsHelper.trySetResolverShares(address(slasher), alice, inputParams.shares, "") {}
+    //     catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent1 = gasSpent;
+    //     }
+
+    //     bytes memory hints = VetoSlasherHints(vetoSlasherHints).setResolverSharesHints(
+    //         address(slasher), address(vetoSlasherHintsHelper), alice, inputParams.shares
+    //     );
+    //     try vetoSlasherHintsHelper.trySetResolverShares(address(slasher), alice, inputParams.shares, hints) {}
+    //     catch (bytes memory data) {
+    //         (bool reverted, uint256 gasSpent) = abi.decode(data, (bool, uint256));
+    //         gasStruct.gasSpent2 = gasSpent;
+    //     }
+    //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
+    // }
+
     function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
@@ -1570,5 +2068,69 @@ contract VetoSlasherTest is Test {
         vm.startPrank(user);
         delegator.setMaxNetworkLimit(identifier, amount);
         vm.stopPrank();
+    }
+}
+
+contract VetoSlasherHintsHelper is Test {
+    function tryRequestSlash(
+        address slasher,
+        bytes32 subnetwork,
+        address operator,
+        uint256 amount,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) external returns (bool reverted) {
+        try VetoSlasher(slasher).requestSlash(subnetwork, operator, amount, captureTimestamp, hints) {}
+        catch {
+            reverted = true;
+        }
+        bytes memory revertData = abi.encode(reverted, vm.lastCallGas().gasTotalUsed);
+        assembly {
+            revert(add(32, revertData), mload(revertData))
+        }
+    }
+
+    function tryExecuteSlash(
+        address slasher,
+        uint256 slashIndex,
+        bytes memory hints
+    ) external returns (bool reverted) {
+        try VetoSlasher(slasher).executeSlash(slashIndex, hints) {}
+        catch {
+            reverted = true;
+        }
+
+        bytes memory revertData = abi.encode(reverted, vm.lastCallGas().gasTotalUsed);
+        assembly {
+            revert(add(32, revertData), mload(revertData))
+        }
+    }
+
+    function tryVetoSlash(address slasher, uint256 slashIndex, bytes memory hints) external returns (bool reverted) {
+        try VetoSlasher(slasher).vetoSlash(slashIndex, hints) {}
+        catch {
+            reverted = true;
+        }
+        bytes memory revertData = abi.encode(reverted, vm.lastCallGas().gasTotalUsed);
+        assembly {
+            revert(add(32, revertData), mload(revertData))
+        }
+    }
+
+    function trySetResolver(
+        address slasher,
+        uint96 identifier,
+        address resolver,
+        uint256 shares,
+        bytes memory hints
+    ) external returns (bool reverted) {
+        try VetoSlasher(slasher).setResolver(identifier, resolver, hints) {}
+        catch {
+            reverted = true;
+        }
+        bytes memory revertData = abi.encode(reverted, vm.lastCallGas().gasTotalUsed);
+        assembly {
+            revert(add(32, revertData), mload(revertData))
+        }
     }
 }
