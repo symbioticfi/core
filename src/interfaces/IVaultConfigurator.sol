@@ -7,7 +7,7 @@ interface IVaultConfigurator {
     error DirtyInitParams();
 
     /**
-     * @notice Initial parameters needed for a vault with a delegator and a slashher deployment.
+     * @notice Initial parameters needed for a vault with a delegator and a slasher deployment.
      * @param version entity's version to use
      * @param owner initial owner of the entity
      * @param vaultParams parameters for the vault initialization
