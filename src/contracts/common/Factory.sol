@@ -42,6 +42,8 @@ contract Factory is Registry, Ownable, IFactory {
         if (!_whitelistedImplementations.add(implementation_)) {
             revert AlreadyWhitelisted();
         }
+
+        emit Whitelist(implementation_);
     }
 
     /**

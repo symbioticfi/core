@@ -47,6 +47,8 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
         if (!_whitelistedImplementations.add(implementation_)) {
             revert AlreadyWhitelisted();
         }
+
+        emit Whitelist(implementation_);
     }
 
     /**
@@ -85,5 +87,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
         IMigratableEntityProxy(entity_).upgradeToAndCall(
             implementation(newVersion), abi.encodeWithSelector(IMigratableEntity.migrate.selector, newVersion, data)
         );
+
+        emit Migrate(entity_, newVersion);
     }
 }

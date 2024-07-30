@@ -8,6 +8,12 @@ interface IFactory is IRegistry {
     error InvalidImplementation();
 
     /**
+     * @notice Emitted when a new type is whitelisted.
+     * @param implementation address of the new implementation
+     */
+    event Whitelist(address indexed implementation);
+
+    /**
      * @notice Get the total number of whitelisted types.
      * @return total number of types
      */
