@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
 import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
@@ -23,7 +23,7 @@ contract OptInService is StaticDelegateCallable, IOptInService {
      */
     address public immutable WHERE_REGISTRY;
 
-    mapping(address who => mapping(address where => Checkpoints.Trace208 value)) public _isOptedIn;
+    mapping(address who => mapping(address where => Checkpoints.Trace208 value)) internal _isOptedIn;
 
     constructor(address whoRegistry, address whereRegistry) {
         WHO_REGISTRY = whoRegistry;

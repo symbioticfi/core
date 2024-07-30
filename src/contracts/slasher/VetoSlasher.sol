@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
@@ -217,7 +217,8 @@ contract VetoSlasher is BaseSlasher, AccessControlUpgradeable, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        uint256 resolverShares_ = resolverShares(request.network, msg.sender, vetoSlashHints.resolverSharesHint);
+        uint256 resolverShares_ =
+            resolverSharesAt(request.network, msg.sender, request.captureTimestamp, vetoSlashHints.resolverSharesHint);
 
         if (resolverShares_ == 0) {
             revert NotResolver();

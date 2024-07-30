@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
 interface IVaultStorage {
@@ -18,14 +18,14 @@ interface IVaultStorage {
     function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get the delegator fatory's address.
-     * @return address of the delegator fatory
+     * @notice Get the delegator factory's address.
+     * @return address of the delegator factory
      */
     function DELEGATOR_FACTORY() external view returns (address);
 
     /**
-     * @notice Get the slasher fatory's address.
-     * @return address of the slasher fatory
+     * @notice Get the slasher factory's address.
+     * @return address of the slasher factory
      */
     function SLASHER_FACTORY() external view returns (address);
 
