@@ -4,4 +4,4 @@ Symbiotic supports various modes of handling slashing incidents through the intr
 
 ---
 
-A resolver is an address that can veto a particular slashing request in the vault. It listens to the slashing requests and when it finds the request it has some time to veto the request or agree with the slashing. Note, that a resolver does not veto the request, such a request will be considered approved for slashing by the resolver. Each slashing request has its own veto deadline defined by the vault.
+A resolver is an address that can veto a particular slashing request in the slasher module of the vault. It listens to the slashing requests and when it finds the request it has some time to veto the request or agree with the slashing. Note, that if a resolver does not veto the request, such a request will be considered approved for slashing by the resolver. Each slashing request has its own veto deadline defined by the vault.
