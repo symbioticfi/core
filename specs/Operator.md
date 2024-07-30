@@ -12,11 +12,17 @@ In Symbiotic, the operator can be either an EOA or a contract registered in the 
 
 ---
 
-The operator opts into the network to join it. Each network independently decides whether to include the operator in its active operator set based on various factors, such as reputation, stake amount, and other relevant criteria.
+Let the vault be $V$, the delegator module of the vault is $D$ and slasher module is $S$.
+
+To raise the stake, the operator must opt into networks and vaults by calling the `optIn()` method in the `OperatorNetworkOptInService` and `OperatorVaultOptInService` accordingly. The `OPERATOR_NETWORK_LIMIT_SET_ROLE` then allocates the stake to the operator by calling `D.setOperatorNetworkLimit()`.
 
 ---
 
-The entire amount of stake is subject to slashing. The operator's stake becomes active and subject to slashing after the conclusion of the vault's epoch that follows the opt-in processes to both the network and the vault.
+The operator opts into the network to validate it. Based on various factors, such as reputation, stake amount, and other relevant criteria each network independently decides whether to include the operator in the active operator set or not.
+
+---
+
+The operator's stake becomes active and subject to slashing immediately after the opt-in process to both the network and the vault. However, the corresponding role in the vault can apply the timelock for allocating a stake for additional guarantees for operators. The slashing process is implemented in the $S$ module.
 
 ### Deploy
 

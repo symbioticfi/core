@@ -14,7 +14,36 @@ Vaults are configurable and can be deployed in an immutable, pre-configured way,
 
 ---
 
-Each vault has a predefined collateral token. The address of this token can be obtained via the `collateral()` method of the vault. The collateral token must satisfy [the `ICollateral` interface](../src/interfaces/base/ICollateral.sol). All the operations and accounting within the vault are performed only with the collateral token. However, the rewards within the vault can be in different tokens. All the funds are represented in shares internally but the external interaction is done in absolute amounts of funds.
+Each vault has a predefined collateral token. The address of this token can be obtained via the `collateral()` method of the vault. The collateral token must satisfy the `IERC20` interface. All the operations and accounting within the vault are performed only with the collateral token. However, the rewards within the vault can be in different tokens. All the funds are represented in shares internally but the external interaction is done in absolute amounts of funds.
+
+The Vault contract consists of three modules:
+
+1. Accounting
+2. Slashing logic
+3. Limits and delegation logic
+
+Accounting is performed within the vault itself. Slashing logic is handled by the Slasher module. One important aspect not yet mentioned is the validation of slashing requirements.
+
+When a slashing request is sent, the system verifies its validity. Specifically, it checks that the operator is opted into the vault, and is interacting with the network.
+
+We use separate OptIn service contracts to connect vaults, operators, and networks.
+
+1. The operator must be opted into the vault.
+2. The operator must be opted into the network.
+
+These connections are made using OptIn service contracts.
+
+If all opt-ins are confirmed, the operator is considered to be working with the network through the vault as a stake provider. Only then can the operator be slashed.
+
+To get guarantees, the network calls the Delegator module. In case of slashing, it calls the Slasher module, which will then call the Vault and the Delegator module. This module also checks the provided guarantees as well as the slashed amount of funds to ensure it does not exceed the guaranteed amount.
+
+---
+
+A network can use flexible mechanics to keep its operator set state up-to-date, e.g., it’s convenient to use a conveyor approach for updating the stakes while keeping slashing guarantees for every particular version of the operator set:
+
+1. At the beginning of every epoch the network can capture the state from vaults and their stake amount (this doesn’t require any on-chain interactions).
+2. After this, the network will have slashing guarantees until the end of the next epoch, so it can use this state at least for one epoch.
+3. When the epoch finishes and a slashing incident has taken place, the network will have time not less than a single epoch to request-veto-execute slash and go back to step 1 in parallel.
 
 ---
 
@@ -62,45 +91,78 @@ Consider the user **requests** the withdrawal at $\text{epoch}$. The user can **
 
 ---
 
-Each slashing incident consists of 3 separate actions:
+In the Symbiotic protocol, a slasher module is optional. However, the text below describes the core principles when the vault has a slasher module.
 
-1. Request slash - `requestSlash()`
-2. Veto slash - `vetoSlash()` (optional)
-3. Execute slash - `executeSlash()`
+Consider the network captures the stake of the operator at moment $t$. To do so, it calls the $stakeAt $ function with a given network, operator, and $timestamp$ (moment of capturing guarantees). Let $S$ be the resulting stake. This value is valid for $d$ = EPOCH_SIZE time. From this point, the pair $(S, t)$ is a guarantee given by the vault to the network. The guarantee is valid from the $timestamp $ moment to $timestamp + d$.
 
-The network's middleware calls the `requestSlash()` method with a given `operator`, `resolver`, and `amount`. In return, it receives the `requestIndex` of the slashing. The slashing is **not applied instantly**.
+Essentially, slashing is the enforcement of the guarantees described above. Currently, there are two types of slashing: instant and veto-slashing.
 
-- The slashing **can be vetoed during the veto phase** by the `resolver`, and such a slashing will not be executed.
-- If the veto phase is passed and the slashing is not vetoed, it can be executed via the `executeSlash()` method. Anyone can call this method after the veto phase has passed.
-- Important to note that each slashing has an `executeDeadline`. If the slashing was not executed before `executeDeadline` it can't be executed anymore.
+#### Instant slashing
 
-Each slashing **reduces the limits** of the slashed operator and the network requested to slash. After the slashing all the user's funds are decreased **proportionally**.
+Instant slashing is executed immediately when a request comes in.
 
----
+#### Veto slashing
 
-An operator-network limit is the maximum amount of funds the network can slash if it requests a slashing of the given operator. In other words, it means the maximum operator's stake in the network.
+Veto slashing consists of two stages: the Veto Phase and the Execute Phase.
 
-If such a **slashing request is executed** the operator-network **limit will be decreased** by the slashed amount. Deposits and withdrawals do not affect the limit. However, the `OPERATOR_NETWORK_LIMIT_SET_ROLE` holder can change it (decrease or increase) manually according to the $\text{totalSupply}$ of the vault and the current limits.
+After submitting a slashing request, there is a period of V time to issue a veto on the slashing. The veto can be made by designated participants in the vault, known as resolvers. If the slashing is not resolved after this phase, there is a period of E time to execute the slashing. Any participant can execute it. The network must consider how much time is left until the end of the guarantee before sending the slashing request.
 
 ---
 
-A network-resolver limit is the maximum amount of funds the network can slash if it requests a slashing with the given resolver. In other words, it means the maximum stake delegated to the network using a certain resolver.
+Delegator is a separate module that connects to the Vault. The purpose of this module is to set limits for operators and networks, with the limits representing the operators' stake and the networks' stake. Currently, there are two types of delegators implemented:
 
-In general, its logic is the same as for the operator-network limit. However, the `NETWORK_RESOLVER_LIMIT_SET_ROLE` holder can change it, and it can be accessed via the `networkResolverLimit()` method.
+1. FullRestakeDelegator
+2. NetworkRestakeDelegator
 
-Also, each network-resolver pair has its **_max network-resolver limit_** (which is set by the network) that defines the maximum value of the network-resolver limit that can be set. It serves as a **cap of funds the network wishes to secure itself with**. It can be accessed via the `maxNetworkResolverLimit()` function.
+Symbiotic is a restaking protocol, and these modules differ in how the restaking process is carried out. The modules will be described further:
 
----
+There are obvious re-staking trade-offs with cross-slashing when stake can be reduced asynchronously. Networks should manage these risks by:
 
-A decrease in the limits produced by the appropriate role holder is not applied instantly but when the $\text{epoch + 1}$ ends (considering that it is an $\text{epoch}$ at the moment). However, an increase in the limits is an instant action.
+1. Maintaining a safe re-staking ratio.
+2. Choosing the right stake-capturing ratio to minimize reaction time.
 
-When the network $\text{N}$ attempts to slash the given operator $\text{Op}$ with the given resolver $\text{R}$, the maximum amount of funds it can slash is the following:
+Here we describe common technical information for both modules.
 
-$$
-\text{slashableAmount} = \min (\text{totalSupply}, \min (\text{networkResolverLimit}(\text{N}, \text{R}), \text{operatorNetworkLimit}(\text{Op}, \text{N})))
-$$
+Let $NL_{j}$ be the limit of the $j^{th}$ network. This limit can be considered as the network's stake, meaning the amount of funds delegated to the network. $NL_{j}$ is set by a special role in the delegator module. However, the module normalizes it. Let the vault’s active supply be $AS$.
 
----
+Then $NS_{j} = \min(NL_{j}, AS)$ - network stake.
+
+Additionally, the modules have a max network limit $mNL_{j}$, which is set by the networks themselves. This serves as the maximum possible amount of funds that can be delegated to the network. It is guaranteed that $NL_{j} \leq mNL_{j}$. This limit is mainly used by networks to manage a safe restaking ratio.
+
+If the $i^{th}$ operator is slashed by $x$ in the $j^{th}$ network his stake can be decreased:
+
+$NL_{j}(new) = NL_{j} - x$
+
+Also, it should be mentioned that in the case of slashing, these modules have special hooks that call the method to process the change of limits. In general, we don't need such a method to exist because all the limits can be changed manually and instantly w/o changing already given guarantees.
+
+#### NetworkRestakeDelegator
+
+The main goal of this delegator is to allow restaking between multiple networks but restrict operators from being restaked within the same network. The operators' stakes are represented as shares in the network's stake.
+
+Each network's stakes are divided across operators.
+
+Let the $i^{th}$ operator’s share in the $j^{th}$ network be $\lambda_{i, j}$.
+
+Then
+
+1. $\lambda_{i, j} \cdot NS_{j}$ - the $i^{th}$ operator’s stake in the $j^{th}$ network
+2. $\sum_{i}\lambda_{i, j} \cdot NS_{j} = NS_{j}$
+
+We can conclude that slashing decreases the share of a specific operator and does not affect other operators in the same network. However, the $TS$ of the vault will decrease after slashing, which can cause other $NS_{j'}$ for $j' \neq j$ to decrease.
+
+#### FullRestakeDelegator
+
+This module performs restaking for both operators and networks simultaneously. The stake in the vault is shared between operators and networks. The designated role can change these stakes. If a network slashes an operator, it may cause a decrease in the stake of other restaked operators even in the same network. However, it depends on the distribution of the stakes in the module.
+
+In this module, we introduce so-called limits for operators. Each operator has its own limit in every network.
+
+Let the $i^{th}$ operator’s limit in the $j^{th}$ network be $OpL_{i, j}$. Such a limit is considered as a stake of the operators.
+
+$OpS_{i, j} = min(OpL_{i, j}, NS_j)$ - the $i^{th}$ operator’s stake in the $j^{th}$ network
+
+As already stated, this module enables restaking for operators. This means the sum of operators' stakes in the network can exceed the network’s own stake. This module is useful when operators have an insurance fund for slashing and are curated by a trusted party.
+
+Such a slashing can lead to a situation where all the other operators' stakes will decrease.
 
 ### Deploy
 
