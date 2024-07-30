@@ -11,6 +11,19 @@ interface IMigratablesFactory is IRegistry {
     error OldVersion();
 
     /**
+     * @notice Emitted when a new implementation is whitelisted.
+     * @param implementation address of the new implementation
+     */
+    event Whitelist(address indexed implementation);
+
+    /**
+     * @notice Emitted when an entity is migrated to a new version.
+     * @param entity address of the entity
+     * @param newVersion new version of the entity
+     */
+    event Migrate(address indexed entity, uint64 newVersion);
+
+    /**
      * @notice Get the last available version.
      * @return version of the last implementation
      * @dev If zero, no implementations are whitelisted.

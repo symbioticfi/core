@@ -7,28 +7,24 @@ interface ISlasher {
 
     /**
      * @notice Hints for a slash.
-     * @param optInHints hints for the opt-in checkpoints
      * @param slashableStakeHints hints for the slashable stake checkpoints
-     * @param onSlashHints hints for the on-slash checkpoints
      */
     struct SlashHints {
-        bytes optInHints;
         bytes slashableStakeHints;
-        bytes onSlashHints;
     }
 
     /**
      * @notice Emitted when a slash is performed.
-     * @param network network that requested the slash
+     * @param subnetwork subnetwork that requested the slash
      * @param operator operator that is slashed
      * @param slashedAmount amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
      */
-    event Slash(address indexed network, address indexed operator, uint256 slashedAmount, uint48 captureTimestamp);
+    event Slash(bytes32 indexed subnetwork, address indexed operator, uint256 slashedAmount, uint48 captureTimestamp);
 
     /**
-     * @notice Perform a slash using a network for a particular operator by a given amount using hints.
-     * @param network address of the network
+     * @notice Perform a slash using a subnetwork for a particular operator by a given amount using hints.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param amount maximum amount of the collateral to be slashed
      * @param captureTimestamp time point when the stake was captured
@@ -37,7 +33,7 @@ interface ISlasher {
      * @dev Only a network middleware can call this function.
      */
     function slash(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint256 amount,
         uint48 captureTimestamp,

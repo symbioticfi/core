@@ -69,9 +69,6 @@ contract CoreScript is Script {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(slasherFactory),
                 slasherFactory.totalTypes()
             )
@@ -82,9 +79,6 @@ contract CoreScript is Script {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(networkRegistry),
                 address(slasherFactory),
                 slasherFactory.totalTypes()

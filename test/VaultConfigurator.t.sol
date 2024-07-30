@@ -42,7 +42,6 @@ contract VaultConfiguratorTest is Test {
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     NetworkMiddlewareService networkMiddlewareService;
-    OptInService networkVaultOptInService;
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
@@ -66,7 +65,6 @@ contract VaultConfiguratorTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -102,9 +100,6 @@ contract VaultConfiguratorTest is Test {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(slasherFactory),
                 slasherFactory.totalTypes()
             )
@@ -115,9 +110,6 @@ contract VaultConfiguratorTest is Test {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(networkRegistry),
                 address(slasherFactory),
                 slasherFactory.totalTypes()
@@ -193,14 +185,12 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), address(100)), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(101)), depositWhitelist);
+        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(101)), true);
 
         assertEq(networkRestakeDelegator.vault(), vault_);
         assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(102)), true);
         assertEq(networkRestakeDelegator.hook(), hook);
-        assertEq(
-            networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(103)), hook == address(0)
-        );
+        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(103)), true);
         assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.NETWORK_LIMIT_SET_ROLE(), address(104)), true);
         assertEq(
             networkRestakeDelegator.hasRole(networkRestakeDelegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), address(105)),

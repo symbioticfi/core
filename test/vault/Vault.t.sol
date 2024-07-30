@@ -32,9 +32,12 @@ import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {VaultHints} from "src/contracts/hints/VaultHints.sol";
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 contract VaultTest is Test {
     using Math for uint256;
+    using Subnetwork for bytes32;
+    using Subnetwork for address;
 
     address owner;
     address alice;
@@ -50,7 +53,6 @@ contract VaultTest is Test {
     MetadataService operatorMetadataService;
     MetadataService networkMetadataService;
     NetworkMiddlewareService networkMiddlewareService;
-    OptInService networkVaultOptInService;
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
@@ -75,7 +77,6 @@ contract VaultTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        networkVaultOptInService = new OptInService(address(networkRegistry), address(vaultFactory));
         operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
         operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
 
@@ -111,9 +112,6 @@ contract VaultTest is Test {
             new Slasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(slasherFactory),
                 slasherFactory.totalTypes()
             )
@@ -124,9 +122,6 @@ contract VaultTest is Test {
             new VetoSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
-                address(networkVaultOptInService),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(networkRegistry),
                 address(slasherFactory),
                 slasherFactory.totalTypes()
@@ -202,7 +197,7 @@ contract VaultTest is Test {
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), alice), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), depositWhitelist);
+        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
         assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
         vm.expectRevert(IVaultStorage.InvalidTimestamp.selector);
@@ -412,6 +407,54 @@ contract VaultTest is Test {
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
+                })
+            )
+        );
+    }
+
+    function test_CreateRevertMissingRoles(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        address delegator_ = delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.MissingRoles.selector);
+        vault.initialize(
+            lastVersion,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: true,
+                    defaultAdminRoleHolder: address(0),
+                    depositorWhitelistRoleHolder: address(0)
                 })
             )
         );
@@ -933,7 +976,7 @@ contract VaultTest is Test {
         assertEq(vault.totalStake(), amount1 - amount2 - amount3);
     }
 
-    function test_WithdrawRevertInvalidRecipient(uint256 amount1) public {
+    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -941,7 +984,7 @@ contract VaultTest is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vm.expectRevert(IVault.InvalidClaimer.selector);
         vm.startPrank(alice);
         vault.withdraw(address(0), amount1);
         vm.stopPrank();
@@ -1000,6 +1043,35 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2);
 
         assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
+    }
+
+    function test_ClaimRevertInvalidRecipient(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        vm.startPrank(alice);
+        uint256 currentEpoch = vault.currentEpoch();
+        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vault.claim(address(0), currentEpoch - 1);
+        vm.stopPrank();
     }
 
     function test_ClaimRevertInvalidEpoch(uint256 amount1, uint256 amount2) public {
@@ -1124,6 +1196,44 @@ contract VaultTest is Test {
         assertEq(collateral.balanceOf(alice) - tokensBeforeAlice, amount2 + amount3);
 
         assertEq(vault.isWithdrawalsClaimed(vault.currentEpoch() - 1, alice), true);
+    }
+
+    function test_ClaimBatchRevertInvalidRecipient(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        uint256[] memory epochs = new uint256[](2);
+        epochs[0] = vault.currentEpoch() - 1;
+        epochs[1] = vault.currentEpoch() - 2;
+
+        vm.expectRevert(IVault.InvalidRecipient.selector);
+        vm.startPrank(alice);
+        vault.claimBatch(address(0), epochs);
+        vm.stopPrank();
     }
 
     function test_ClaimBatchRevertInvalidLengthEpochs(uint256 amount1, uint256 amount2, uint256 amount3) public {
@@ -1417,7 +1527,7 @@ contract VaultTest is Test {
 
         // address network = alice;
         _registerNetwork(alice, alice);
-        _setMaxNetworkLimit(alice, type(uint256).max);
+        _setMaxNetworkLimit(alice, 0, type(uint256).max);
 
         _registerOperator(alice);
         _registerOperator(bob);
@@ -1432,8 +1542,6 @@ contract VaultTest is Test {
 
         _setOperatorNetworkLimit(alice, alice, alice, type(uint256).max / 2);
         _setOperatorNetworkLimit(alice, alice, bob, type(uint256).max / 2);
-
-        _optInNetworkVault(alice);
 
         _deposit(alice, depositAmount);
         _withdraw(alice, withdrawAmount1);
@@ -1912,25 +2020,13 @@ contract VaultTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(epoch);
+        amount = vault.claim(user, epoch);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(epochs);
-        vm.stopPrank();
-    }
-
-    function _optInNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optIn(address(vault));
-        vm.stopPrank();
-    }
-
-    function _optOutNetworkVault(address user) internal {
-        vm.startPrank(user);
-        networkVaultOptInService.optOut(address(vault));
+        amount = vault.claimBatch(user, epochs);
         vm.stopPrank();
     }
 
@@ -1972,13 +2068,13 @@ contract VaultTest is Test {
 
     function _setNetworkLimit(address user, address network, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setNetworkLimit(network, amount);
+        delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
     }
 
     function _setOperatorNetworkLimit(address user, address network, address operator, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setOperatorNetworkLimit(network, operator, amount);
+        delegator.setOperatorNetworkLimit(network.subnetwork(0), operator, amount);
         vm.stopPrank();
     }
 
@@ -1991,13 +2087,13 @@ contract VaultTest is Test {
         bytes memory hints
     ) internal returns (uint256 slashAmount) {
         vm.startPrank(user);
-        slashAmount = slasher.slash(network, operator, amount, captureTimestamp, hints);
+        slashAmount = slasher.slash(network.subnetwork(0), operator, amount, captureTimestamp, hints);
         vm.stopPrank();
     }
 
-    function _setMaxNetworkLimit(address user, uint256 amount) internal {
+    function _setMaxNetworkLimit(address user, uint96 identifier, uint256 amount) internal {
         vm.startPrank(user);
-        delegator.setMaxNetworkLimit(amount);
+        delegator.setMaxNetworkLimit(identifier, amount);
         vm.stopPrank();
     }
 }

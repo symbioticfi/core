@@ -37,6 +37,11 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    bool public depositWhitelist;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     address public collateral;
 
     /**
@@ -63,11 +68,6 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     uint48 public epochDuration;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    bool public depositWhitelist;
 
     /**
      * @inheritdoc IVaultStorage

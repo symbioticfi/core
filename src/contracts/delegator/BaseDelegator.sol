@@ -11,6 +11,7 @@ import {IOptInService} from "src/interfaces/service/IOptInService.sol";
 import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
 
 import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -18,6 +19,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeable, IBaseDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+    using Subnetwork for bytes32;
+    using Subnetwork for address;
 
     /**
      * @inheritdoc IBaseDelegator
@@ -62,7 +65,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    mapping(address network => uint256 value) public maxNetworkLimit;
+    mapping(bytes32 subnetwork => uint256 value) public maxNetworkLimit;
 
     constructor(
         address networkRegistry,
@@ -82,12 +85,12 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
      * @inheritdoc IBaseDelegator
      */
     function stakeAt(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp,
         bytes memory hints
     ) public view returns (uint256) {
-        (uint256 stake_, bytes memory baseHints) = _stakeAt(network, operator, timestamp, hints);
+        (uint256 stake_, bytes memory baseHints) = _stakeAt(subnetwork, operator, timestamp, hints);
         StakeBaseHints memory stakeBaseHints;
         if (baseHints.length > 0) {
             stakeBaseHints = abi.decode(baseHints, (StakeBaseHints));
@@ -99,7 +102,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
                     operator, vault, timestamp, stakeBaseHints.operatorVaultOptInHint
                 )
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
-                    operator, network, timestamp, stakeBaseHints.operatorNetworkOptInHint
+                    operator, subnetwork.network(), timestamp, stakeBaseHints.operatorNetworkOptInHint
                 )
         ) {
             return 0;
@@ -111,39 +114,40 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    function stake(address network, address operator) external view returns (uint256) {
+    function stake(bytes32 subnetwork, address operator) external view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
-                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, network)
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, subnetwork.network())
         ) {
             return 0;
         }
 
-        return _stake(network, operator);
+        return _stake(subnetwork, operator);
     }
 
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setMaxNetworkLimit(uint256 amount) external {
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
 
-        if (maxNetworkLimit[msg.sender] == amount) {
+        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
+        if (maxNetworkLimit[subnetwork] == amount) {
             revert AlreadySet();
         }
 
-        maxNetworkLimit[msg.sender] = amount;
+        maxNetworkLimit[subnetwork] = amount;
 
-        _setMaxNetworkLimit(amount);
+        _setMaxNetworkLimit(subnetwork, amount);
 
-        emit SetMaxNetworkLimit(msg.sender, amount);
+        emit SetMaxNetworkLimit(subnetwork, amount);
     }
+
     /**
      * @inheritdoc IBaseDelegator
      */
-
     function setHook(address hook_) external onlyRole(HOOK_SET_ROLE) {
         hook = hook_;
 
@@ -154,51 +158,29 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
      * @inheritdoc IBaseDelegator
      */
     function onSlash(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint256 slashedAmount,
         uint48 captureTimestamp,
-        bytes calldata hints
+        bytes memory data
     ) external {
-        OnSlashHints memory onSlashHints;
-        if (hints.length > 0) {
-            onSlashHints = abi.decode(hints, (OnSlashHints));
-        }
-
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
 
-        if (slashedAmount > stakeAt(network, operator, captureTimestamp, onSlashHints.stakeHints)) {
-            revert TooMuchSlash();
-        }
-
-        if (hook != address(0)) {
-            hook.call{gas: 300_000}(
-                abi.encodeWithSelector(
-                    IDelegatorHook.onSlash.selector, network, operator, slashedAmount, captureTimestamp
-                )
+        address hook_ = hook;
+        if (hook_ != address(0)) {
+            bytes memory calldata_ = abi.encodeWithSelector(
+                IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
             );
+            /// @solidity memory-safe-assembly
+            assembly {
+                pop(call(250000, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+            }
         }
 
-        emit OnSlash(network, operator, slashedAmount);
+        emit OnSlash(subnetwork, operator, slashedAmount);
     }
-
-    function _stakeAt(
-        address network,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view virtual returns (uint256, bytes memory) {}
-
-    function _stake(address network, address operator) internal view virtual returns (uint256) {}
-
-    function _setMaxNetworkLimit(uint256 amount) internal virtual {}
-
-    function _initializeInternal(
-        address vault_,
-        bytes memory data
-    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
 
     function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
@@ -209,18 +191,32 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
 
         vault = vault_;
 
-        IBaseDelegator.BaseParams memory baseParams = _initializeInternal(vault_, data_);
+        IBaseDelegator.BaseParams memory baseParams = ___initialize(vault_, data_);
+
+        hook = baseParams.hook;
 
         if (baseParams.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
         }
 
-        if (baseParams.hook != address(0)) {
-            hook = baseParams.hook;
-        } else {
-            if (baseParams.hookSetRoleHolder != address(0)) {
-                _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
-            }
+        if (baseParams.hookSetRoleHolder != address(0)) {
+            _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
         }
     }
+
+    function _stakeAt(
+        bytes32 subnetwork,
+        address operator,
+        uint48 timestamp,
+        bytes memory hints
+    ) internal view virtual returns (uint256, bytes memory) {}
+
+    function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
+
+    function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
+
+    function ___initialize(
+        address vault_,
+        bytes memory data
+    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
 }

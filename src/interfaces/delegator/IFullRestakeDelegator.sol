@@ -12,8 +12,8 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @notice Hints for a stake.
      * @param baseHints base hints
      * @param activeStakeHint hint for the active stake checkpoint
-     * @param networkLimitHint hint for the network limit checkpoint
-     * @param operatorNetworkLimitHint hint for the operator-network limit checkpoint
+     * @param networkLimitHint hint for the subnetwork limit checkpoint
+     * @param operatorNetworkLimitHint hint for the operator-subnetwork limit checkpoint
      */
     struct StakeHints {
         bytes baseHints;
@@ -35,90 +35,90 @@ interface IFullRestakeDelegator is IBaseDelegator {
     }
 
     /**
-     * @notice Emitted when a network's limit is set.
-     * @param network address of the network
-     * @param amount new network's limit (how much stake the vault curator is ready to give to the network)
+     * @notice Emitted when a subnetwork's limit is set.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param amount new subnetwork's limit (how much stake the vault curator is ready to give to the subnetwork)
      */
-    event SetNetworkLimit(address indexed network, uint256 amount);
+    event SetNetworkLimit(bytes32 indexed subnetwork, uint256 amount);
 
     /**
-     * @notice Emitted when an operator's limit for a network is set.
-     * @param network address of the network
+     * @notice Emitted when an operator's limit for a subnetwork is set.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @param amount new operator's for the network limit
-     *               (how much stake the vault curator is ready to give to the operator for the network)
+     * @param amount new operator's for the subnetwork limit
+     *               (how much stake the vault curator is ready to give to the operator for the subnetwork)
      */
-    event SetOperatorNetworkLimit(address indexed network, address indexed operator, uint256 amount);
+    event SetOperatorNetworkLimit(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
 
     /**
-     * @notice Get a network limit setter's role.
-     * @return identifier of the network limit setter role
+     * @notice Get a subnetwork limit setter's role.
+     * @return identifier of the subnetwork limit setter role
      */
     function NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get an operator-network limit setter's role.
-     * @return identifier of the operator-network limit setter role
+     * @notice Get an operator-subnetwork limit setter's role.
+     * @return identifier of the operator-subnetwork limit setter role
      */
     function OPERATOR_NETWORK_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get a network's limit at a given timestamp using a hint
-     *         (how much stake the vault curator is ready to give to the network).
-     * @param network address of the network
-     * @param timestamp time point to get the network limit at
+     * @notice Get a subnetwork's limit at a given timestamp using a hint
+     *         (how much stake the vault curator is ready to give to the subnetwork).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param timestamp time point to get the subnetwork limit at
      * @param hint hint for checkpoint index
-     * @return limit of the network at the given timestamp
+     * @return limit of the subnetwork at the given timestamp
      */
-    function networkLimitAt(address network, uint48 timestamp, bytes memory hint) external view returns (uint256);
+    function networkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
-     * @notice Get a network's limit (how much stake the vault curator is ready to give to the network).
-     * @param network address of the network
-     * @return limit of the network
+     * @notice Get a subnetwork's limit (how much stake the vault curator is ready to give to the subnetwork).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @return limit of the subnetwork
      */
-    function networkLimit(address network) external view returns (uint256);
+    function networkLimit(bytes32 subnetwork) external view returns (uint256);
 
     /**
-     * @notice Get an operator's limit for a network at a given timestamp using a hint
-     *         (how much stake the vault curator is ready to give to the operator for the network).
-     * @param network address of the network
+     * @notice Get an operator's limit for a subnetwork at a given timestamp using a hint
+     *         (how much stake the vault curator is ready to give to the operator for the subnetwork).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @param timestamp time point to get the operator's limit for the network at
+     * @param timestamp time point to get the operator's limit for the subnetwork at
      * @param hint hint for checkpoint index
-     * @return limit of the operator for the network at the given timestamp
+     * @return limit of the operator for the subnetwork at the given timestamp
      */
     function operatorNetworkLimitAt(
-        address network,
+        bytes32 subnetwork,
         address operator,
         uint48 timestamp,
         bytes memory hint
     ) external view returns (uint256);
 
     /**
-     * @notice Get an operator's limit for a network.
-     *         (how much stake the vault curator is ready to give to the operator for the network)
-     * @param network address of the network
+     * @notice Get an operator's limit for a subnetwork.
+     *         (how much stake the vault curator is ready to give to the operator for the subnetwork)
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @return limit of the operator for the network
+     * @return limit of the operator for the subnetwork
      */
-    function operatorNetworkLimit(address network, address operator) external view returns (uint256);
+    function operatorNetworkLimit(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
-     * @notice Set a network's limit (how much stake the vault curator is ready to give to the network).
-     * @param network address of the network
-     * @param amount new limit of the network
+     * @notice Set a subnetwork's limit (how much stake the vault curator is ready to give to the subnetwork).
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param amount new limit of the subnetwork
      * @dev Only a NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
-    function setNetworkLimit(address network, uint256 amount) external;
+    function setNetworkLimit(bytes32 subnetwork, uint256 amount) external;
 
     /**
-     * @notice Set an operator's limit for a network.
-     *         (how much stake the vault curator is ready to give to the operator for the network)
-     * @param network address of the network
+     * @notice Set an operator's limit for a subnetwork.
+     *         (how much stake the vault curator is ready to give to the operator for the subnetwork)
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @param amount new limit of the operator for the network
+     * @param amount new limit of the operator for the subnetwork
      * @dev Only a OPERATOR_NETWORK_LIMIT_SET_ROLE holder can call this function.
      */
-    function setOperatorNetworkLimit(address network, address operator, uint256 amount) external;
+    function setOperatorNetworkLimit(bytes32 subnetwork, address operator, uint256 amount) external;
 }
