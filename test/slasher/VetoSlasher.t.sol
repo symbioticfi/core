@@ -302,6 +302,7 @@ contract VetoSlasherTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 })
             )
@@ -1840,6 +1841,7 @@ contract VetoSlasherTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -1883,6 +1885,7 @@ contract VetoSlasherTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 1,

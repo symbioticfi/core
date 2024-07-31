@@ -1319,6 +1319,7 @@ contract SlasherTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 1,
@@ -1362,6 +1363,7 @@ contract SlasherTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 1,

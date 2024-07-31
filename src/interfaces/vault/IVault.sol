@@ -34,6 +34,7 @@ interface IVault is IVaultStorage {
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param depositWhitelist if enabling deposit whitelist
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
+     * @param depositWhitelistSetRoleHolder address of the initial DEPOSIT_WHITELIST_SET_ROLE holder
      * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
      */
     struct InitParams {
@@ -44,6 +45,7 @@ interface IVault is IVaultStorage {
         uint48 epochDuration;
         bool depositWhitelist;
         address defaultAdminRoleHolder;
+        address depositWhitelistSetRoleHolder;
         address depositorWhitelistRoleHolder;
     }
 

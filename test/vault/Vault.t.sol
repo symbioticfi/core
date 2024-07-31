@@ -162,6 +162,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -277,6 +278,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -319,6 +321,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -358,6 +361,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 })
             )
@@ -406,6 +410,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 })
             )
@@ -454,6 +459,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: true,
                     defaultAdminRoleHolder: address(0),
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: address(0)
                 })
             )
@@ -639,6 +645,7 @@ contract VaultTest is Test {
                         epochDuration: epochDuration,
                         depositWhitelist: false,
                         defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice
                     }),
                     delegatorIndex: 0,
@@ -1913,6 +1920,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -1956,6 +1964,7 @@ contract VaultTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 1,

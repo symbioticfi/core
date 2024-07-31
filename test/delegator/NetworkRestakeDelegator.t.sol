@@ -1140,6 +1140,7 @@ contract NetworkRestakeDelegatorTest is Test {
                     epochDuration: 7 days,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -1898,6 +1899,7 @@ contract NetworkRestakeDelegatorTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
@@ -1941,6 +1943,7 @@ contract NetworkRestakeDelegatorTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,

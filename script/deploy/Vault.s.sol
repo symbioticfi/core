@@ -35,6 +35,7 @@ contract VaultScript is Script {
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: owner,
+                    depositWhitelistSetRoleHolder: owner,
                     depositorWhitelistRoleHolder: owner
                 }),
                 delegatorIndex: 0,

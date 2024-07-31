@@ -332,6 +332,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         }
 
+        if (params.depositWhitelistSetRoleHolder != address(0)) {
+            _grantRole(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
+        }
+
         if (params.depositorWhitelistRoleHolder != address(0)) {
             _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         }

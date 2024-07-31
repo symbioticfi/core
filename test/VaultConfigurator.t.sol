@@ -153,6 +153,7 @@ contract VaultConfiguratorTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: address(100),
+                    depositWhitelistSetRoleHolder: address(99),
                     depositorWhitelistRoleHolder: address(101)
                 }),
                 delegatorIndex: 0,
@@ -185,6 +186,7 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), address(100)), true);
+        assertEq(vault.hasRole(vault.DEPOSIT_WHITELIST_SET_ROLE(), address(99)), true);
         assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(101)), true);
 
         assertEq(networkRestakeDelegator.vault(), vault_);
@@ -235,6 +237,7 @@ contract VaultConfiguratorTest is Test {
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
                     defaultAdminRoleHolder: address(100),
+                    depositWhitelistSetRoleHolder: address(99),
                     depositorWhitelistRoleHolder: address(101)
                 }),
                 delegatorIndex: 0,

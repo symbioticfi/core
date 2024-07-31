@@ -139,6 +139,7 @@ contract DelegatorFactoryTest is Test {
                     epochDuration: 1,
                     depositWhitelist: false,
                     defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
                     depositorWhitelistRoleHolder: alice
                 }),
                 delegatorIndex: 0,
