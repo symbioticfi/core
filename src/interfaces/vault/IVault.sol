@@ -164,9 +164,13 @@ interface IVault is IVaultStorage {
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit
-     * @return shares amount of the active shares minted
+     * @return depositedAmount amount of the collateral deposited
+     * @return mintedShares amount of the active shares minted
      */
-    function deposit(address onBehalfOf, uint256 amount) external returns (uint256 shares);
+    function deposit(
+        address onBehalfOf,
+        uint256 amount
+    ) external returns (uint256 depositedAmount, uint256 mintedShares);
 
     /**
      * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).

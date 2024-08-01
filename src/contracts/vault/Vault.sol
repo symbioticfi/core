@@ -78,7 +78,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function deposit(address onBehalfOf, uint256 amount) external nonReentrant returns (uint256 shares) {
+    function deposit(
+        address onBehalfOf,
+        uint256 amount
+    ) external nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -89,22 +92,22 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
 
         uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
         IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
-        amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+        depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
 
-        if (amount == 0) {
+        if (depositedAmount == 0) {
             revert InsufficientDeposit();
         }
 
         uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
 
-        shares = ERC4626Math.previewDeposit(amount, activeShares_, activeStake_);
+        mintedShares = ERC4626Math.previewDeposit(depositedAmount, activeShares_, activeStake_);
 
-        _activeStake.push(Time.timestamp(), activeStake_ + amount);
-        _activeShares.push(Time.timestamp(), activeShares_ + shares);
-        _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + shares);
+        _activeStake.push(Time.timestamp(), activeStake_ + depositedAmount);
+        _activeShares.push(Time.timestamp(), activeShares_ + mintedShares);
+        _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + mintedShares);
 
-        emit Deposit(msg.sender, onBehalfOf, amount, shares);
+        emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
     }
 
     /**

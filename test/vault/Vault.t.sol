@@ -479,7 +479,11 @@ contract VaultTest is Test {
 
         uint256 tokensBefore = collateral.balanceOf(address(vault));
         uint256 shares1 = amount1 * 10 ** 0;
-        assertEq(_deposit(alice, amount1), shares1);
+        {
+            (uint256 depositedAmount, uint256 mintedShares) = _deposit(alice, amount1);
+            assertEq(depositedAmount, amount1);
+            assertEq(mintedShares, shares1);
+        }
         assertEq(collateral.balanceOf(address(vault)) - tokensBefore, amount1);
 
         assertEq(vault.totalStake(), amount1);
@@ -501,7 +505,11 @@ contract VaultTest is Test {
         vm.warp(blockTimestamp);
 
         uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
-        assertEq(_deposit(alice, amount2), shares2);
+        {
+            (uint256 depositedAmount, uint256 mintedShares) = _deposit(alice, amount2);
+            assertEq(depositedAmount, amount2);
+            assertEq(mintedShares, shares2);
+        }
 
         assertEq(vault.totalStake(), amount1 + amount2);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
@@ -674,7 +682,11 @@ contract VaultTest is Test {
         feeOnTransferCollateral.transfer(alice, amount1 + 1);
         vm.startPrank(alice);
         feeOnTransferCollateral.approve(address(vault), amount1);
-        assertEq(vault.deposit(alice, amount1), shares1);
+        {
+            (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(alice, amount1);
+            assertEq(depositedAmount, amount1 - 1);
+            assertEq(mintedShares, shares1);
+        }
         vm.stopPrank();
         assertEq(feeOnTransferCollateral.balanceOf(address(vault)) - tokensBefore, amount1 - 1);
 
@@ -700,7 +712,11 @@ contract VaultTest is Test {
         feeOnTransferCollateral.transfer(alice, amount2 + 1);
         vm.startPrank(alice);
         feeOnTransferCollateral.approve(address(vault), amount2);
-        assertEq(vault.deposit(alice, amount2), shares2);
+        {
+            (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(alice, amount2);
+            assertEq(depositedAmount, amount2 - 1);
+            assertEq(mintedShares, shares2);
+        }
         vm.stopPrank();
 
         assertEq(vault.totalStake(), amount1 - 1 + amount2 - 1);
@@ -831,13 +847,21 @@ contract VaultTest is Test {
         vault = _getVault(epochDuration);
 
         uint256 shares1 = amount1 * 10 ** 0;
-        assertEq(_deposit(alice, amount1), shares1);
+        {
+            (uint256 depositedAmount, uint256 mintedShares) = _deposit(alice, amount1);
+            assertEq(depositedAmount, amount1);
+            assertEq(mintedShares, shares1);
+        }
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
         uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
-        assertEq(_deposit(bob, amount2), shares2);
+        {
+            (uint256 depositedAmount, uint256 mintedShares) = _deposit(bob, amount2);
+            assertEq(depositedAmount, amount2);
+            assertEq(mintedShares, shares2);
+        }
 
         assertEq(vault.totalStake(), amount1 + amount2);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
@@ -897,7 +921,7 @@ contract VaultTest is Test {
         // uint48 epochDuration = 1;
         vault = _getVault(1);
 
-        uint256 shares = _deposit(alice, amount1);
+        (, uint256 shares) = _deposit(alice, amount1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -2013,11 +2037,11 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _deposit(address user, uint256 amount) internal returns (uint256 shares) {
+    function _deposit(address user, uint256 amount) internal returns (uint256 depositedAmount, uint256 mintedShares) {
         collateral.transfer(user, amount);
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
-        shares = vault.deposit(user, amount);
+        (depositedAmount, mintedShares) = vault.deposit(user, amount);
         vm.stopPrank();
     }
 

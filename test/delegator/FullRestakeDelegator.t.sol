@@ -1725,11 +1725,11 @@ contract FullRestakeDelegatorTest is Test {
         vm.stopPrank();
     }
 
-    function _deposit(address user, uint256 amount) internal returns (uint256 shares) {
+    function _deposit(address user, uint256 amount) internal returns (uint256 depositedAmount, uint256 mintedShares) {
         collateral.transfer(user, amount);
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
-        shares = vault.deposit(user, amount);
+        (depositedAmount, mintedShares) = vault.deposit(user, amount);
         vm.stopPrank();
     }
 
