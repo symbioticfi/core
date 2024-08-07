@@ -80,6 +80,10 @@ interface IBaseDelegator {
      */
     function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
 
+    /**
+     * @notice Get a hook setter's role.
+     * @return identifier of the hook setter role
+     */
     function HOOK_SET_ROLE() external view returns (bytes32);
 
     /**
