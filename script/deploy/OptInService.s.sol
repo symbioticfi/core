@@ -5,11 +5,11 @@ import "forge-std/Script.sol";
 
 import {OptInService} from "src/contracts/service/OptInService.sol";
 
-contract OperatorOptInServiceScript is Script {
-    function run(address operatorRegistry, address whereRegistry) public {
+contract OptInServiceScript is Script {
+    function run(address whoRegistry, address whereRegistry) public {
         vm.startBroadcast();
 
-        new OptInService(operatorRegistry, whereRegistry);
+        new OptInService(whoRegistry, whereRegistry);
 
         vm.stopBroadcast();
     }
