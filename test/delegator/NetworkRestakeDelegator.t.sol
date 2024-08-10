@@ -1923,10 +1923,9 @@ contract NetworkRestakeDelegatorTest is Test {
         return (Vault(vault_), NetworkRestakeDelegator(delegator_));
     }
 
-    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
-        internal
-        returns (Vault, NetworkRestakeDelegator, Slasher)
-    {
+    function _getVaultAndDelegatorAndSlasher(
+        uint48 epochDuration
+    ) internal returns (Vault, NetworkRestakeDelegator, Slasher) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);

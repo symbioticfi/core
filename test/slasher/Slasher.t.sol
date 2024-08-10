@@ -1343,10 +1343,9 @@ contract SlasherTest is Test {
         return (Vault(vault_), FullRestakeDelegator(delegator_));
     }
 
-    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
-        internal
-        returns (Vault, FullRestakeDelegator, Slasher)
-    {
+    function _getVaultAndDelegatorAndSlasher(
+        uint48 epochDuration
+    ) internal returns (Vault, FullRestakeDelegator, Slasher) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);

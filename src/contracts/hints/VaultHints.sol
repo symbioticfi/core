@@ -11,12 +11,9 @@ contract VaultHints is Hints, Vault {
 
     constructor() Vault(address(0), address(0), address(0)) {}
 
-    function activeStakeHintInternal(uint48 timestamp)
-        external
-        view
-        internalFunction
-        returns (bool exists, uint32 hint)
-    {
+    function activeStakeHintInternal(
+        uint48 timestamp
+    ) external view internalFunction returns (bool exists, uint32 hint) {
         (exists,,, hint) = _activeStake.upperLookupRecentCheckpoint(timestamp);
     }
 
@@ -33,12 +30,9 @@ contract VaultHints is Hints, Vault {
         }
     }
 
-    function activeSharesHintInternal(uint48 timestamp)
-        external
-        view
-        internalFunction
-        returns (bool exists, uint32 hint)
-    {
+    function activeSharesHintInternal(
+        uint48 timestamp
+    ) external view internalFunction returns (bool exists, uint32 hint) {
         (exists,,, hint) = _activeShares.upperLookupRecentCheckpoint(timestamp);
     }
 
