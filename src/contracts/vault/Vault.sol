@@ -23,6 +23,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
+    constructor(
+        address delegatorFactory,
+        address slasherFactory,
+        address vaultFactory
+    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
+
     /**
      * @inheritdoc IVault
      */
@@ -68,12 +74,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         uint256 epoch = currentEpoch();
         return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
     }
-
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
 
     /**
      * @inheritdoc IVault
