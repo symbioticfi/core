@@ -173,8 +173,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
             bytes memory calldata_ = abi.encodeWithSelector(
                 IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
             );
-            /// @solidity memory-safe-assembly
-            assembly {
+            assembly ("memory-safe") {
                 pop(call(250000, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
             }
         }
