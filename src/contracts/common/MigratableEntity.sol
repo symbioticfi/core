@@ -49,7 +49,9 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
             revert InvalidInitialVersion();
         }
 
-        __Ownable_init(owner_);
+        if (owner_ != address(0)) {
+            __Ownable_init(owner_);
+        }
 
         _initialize(initialVersion, owner_, data);
     }

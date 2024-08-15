@@ -12,6 +12,7 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract BaseSlasherHints is Hints, BaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
@@ -152,12 +153,19 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         address operator,
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
-        bytes memory resolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
+        bytes memory captureResolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
+        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp());
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
-        if (resolverHint.length > 0 || slashableStakeHints.length > 0) {
-            return abi.encode(ExecuteSlashHints({resolverHint: resolverHint, slashableStakeHints: slashableStakeHints}));
+        if (captureResolverHint.length > 0 || currentResolverHint.length > 0 || slashableStakeHints.length > 0) {
+            return abi.encode(
+                ExecuteSlashHints({
+                    captureResolverHint: captureResolverHint,
+                    currentResolverHint: currentResolverHint,
+                    slashableStakeHints: slashableStakeHints
+                })
+            );
         }
     }
 
@@ -166,10 +174,13 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         bytes32 subnetwork,
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
-        bytes memory resolverHint_ = resolverHint(slasher, subnetwork, captureTimestamp);
+        bytes memory captureResolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
+        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp());
 
-        if (resolverHint_.length > 0) {
-            return abi.encode(VetoSlashHints({resolverHint: resolverHint_}));
+        if (captureResolverHint.length > 0 || currentResolverHint.length > 0) {
+            return abi.encode(
+                VetoSlashHints({captureResolverHint: captureResolverHint, currentResolverHint: currentResolverHint})
+            );
         }
     }
 

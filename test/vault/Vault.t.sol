@@ -139,7 +139,7 @@ contract VaultTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create(address burner, uint48 epochDuration, bool depositWhitelist) public {
+    function test_Create2(address burner, uint48 epochDuration, bool depositWhitelist) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
@@ -153,7 +153,7 @@ contract VaultTest is Test {
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
-                owner: alice,
+                owner: address(0),
                 vaultParams: IVault.InitParams({
                     collateral: address(collateral),
                     delegator: address(0),
@@ -190,7 +190,7 @@ contract VaultTest is Test {
         assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
         assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
 
-        assertEq(vault.owner(), alice);
+        assertEq(vault.owner(), address(0));
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.delegator(), delegator_);
         assertEq(vault.slasher(), address(0));

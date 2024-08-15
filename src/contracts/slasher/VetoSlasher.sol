@@ -138,8 +138,10 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         SlashRequest storage request = slashRequests[slashIndex];
 
         if (
-            request.vetoDeadline > Time.timestamp()
-                && resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.resolverHint) != address(0)
+            resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.captureResolverHint)
+                != address(0)
+                && resolverAt(request.subnetwork, Time.timestamp(), executeSlashHints.currentResolverHint) != address(0)
+                && request.vetoDeadline > Time.timestamp()
         ) {
             revert VetoPeriodNotEnded();
         }
@@ -198,7 +200,16 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
-        if (msg.sender != resolverAt(request.subnetwork, request.captureTimestamp, vetoSlashHints.resolverHint)) {
+        address captureResolver =
+            resolverAt(request.subnetwork, request.captureTimestamp, vetoSlashHints.captureResolverHint);
+        if (
+            captureResolver == address(0)
+                || resolverAt(request.subnetwork, Time.timestamp(), vetoSlashHints.currentResolverHint) == address(0)
+        ) {
+            revert NoResolver();
+        }
+
+        if (msg.sender != captureResolver) {
             revert NotResolver();
         }
 
@@ -241,7 +252,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit SetResolver(subnetwork, resolver_);
     }
 
-    function ___initialize(address vault_, bytes memory data) internal override {
+    function __initialize(address vault_, bytes memory data) internal override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         uint48 epochDuration = IVault(vault_).epochDuration();

@@ -6,6 +6,7 @@ interface IVetoSlasher {
     error InvalidCaptureTimestamp();
     error InvalidResolverSetEpochsDelay();
     error InvalidVetoDuration();
+    error NoResolver();
     error NotNetwork();
     error NotResolver();
     error SlashPeriodEnded();
@@ -53,20 +54,24 @@ interface IVetoSlasher {
 
     /**
      * @notice Hints for a slash execute.
-     * @param resolverHint hint for the resolver checkpoint
+     * @param captureResolverHint hint for the resolver checkpoint at the capture time
+     * @param currentResolverHint hint for the resolver checkpoint at the current time
      * @param slashableStakeHints hints for the slashable stake checkpoints
      */
     struct ExecuteSlashHints {
-        bytes resolverHint;
+        bytes captureResolverHint;
+        bytes currentResolverHint;
         bytes slashableStakeHints;
     }
 
     /**
      * @notice Hints for a slash veto.
-     * @param resolverHint hint for the resolver checkpoint
+     * @param captureResolverHint hint for the resolver checkpoint at the capture time
+     * @param currentResolverHint hint for the resolver checkpoint at the current time
      */
     struct VetoSlashHints {
-        bytes resolverHint;
+        bytes captureResolverHint;
+        bytes currentResolverHint;
     }
 
     /**

@@ -173,8 +173,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
             bytes memory calldata_ = abi.encodeWithSelector(
                 IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
             );
-            /// @solidity memory-safe-assembly
-            assembly {
+            assembly ("memory-safe") {
                 pop(call(250000, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
             }
         }
@@ -191,7 +190,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
 
         vault = vault_;
 
-        IBaseDelegator.BaseParams memory baseParams = ___initialize(vault_, data_);
+        IBaseDelegator.BaseParams memory baseParams = __initialize(vault_, data_);
 
         hook = baseParams.hook;
 
@@ -215,7 +214,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
 
-    function ___initialize(
+    function __initialize(
         address vault_,
         bytes memory data
     ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
