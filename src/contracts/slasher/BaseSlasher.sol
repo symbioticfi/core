@@ -127,8 +127,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
 
         vault = vault_;
 
-        ___initialize(vault_, data_);
+        __initialize(vault_, data_);
     }
 
-    function ___initialize(address vault_, bytes memory data) internal virtual {}
+    function __initialize(address vault_, bytes memory data) internal virtual {}
 }

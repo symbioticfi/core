@@ -175,7 +175,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         }
     }
 
-    function ___initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
+    function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 
         if (
