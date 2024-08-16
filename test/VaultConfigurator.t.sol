@@ -131,6 +131,8 @@ contract VaultConfiguratorTest is Test {
         address burner,
         uint48 epochDuration,
         bool depositWhitelist,
+        bool isDepositLimit,
+        uint256 depositLimit,
         bool withSlasher,
         address hook
     ) public {
@@ -138,9 +140,9 @@ contract VaultConfiguratorTest is Test {
         vm.assume(owner_ != address(0));
 
         address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = address(104);
+        networkLimitSetRoleHolders[0] = address(106);
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = address(105);
+        operatorNetworkSharesSetRoleHolders[0] = address(107);
         (address vault_, address networkRestakeDelegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -152,17 +154,21 @@ contract VaultConfiguratorTest is Test {
                     burner: burner,
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
+                    isDepositLimit: isDepositLimit,
+                    depositLimit: depositLimit,
                     defaultAdminRoleHolder: address(100),
                     depositWhitelistSetRoleHolder: address(99),
-                    depositorWhitelistRoleHolder: address(101)
+                    depositorWhitelistRoleHolder: address(101),
+                    isDepositLimitSetRoleHolder: address(102),
+                    depositLimitSetRoleHolder: address(103)
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(102),
+                            defaultAdminRoleHolder: address(104),
                             hook: hook,
-                            hookSetRoleHolder: address(103)
+                            hookSetRoleHolder: address(105)
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -185,17 +191,21 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
+        assertEq(vault.isDepositLimit(), isDepositLimit);
+        assertEq(vault.depositLimit(), depositLimit);
         assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), address(100)), true);
         assertEq(vault.hasRole(vault.DEPOSIT_WHITELIST_SET_ROLE(), address(99)), true);
         assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), address(101)), true);
+        assertEq(vault.hasRole(vault.IS_DEPOSIT_LIMIT_SET_ROLE(), address(102)), true);
+        assertEq(vault.hasRole(vault.DEPOSIT_LIMIT_SET_ROLE(), address(103)), true);
 
         assertEq(networkRestakeDelegator.vault(), vault_);
-        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(102)), true);
+        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(104)), true);
         assertEq(networkRestakeDelegator.hook(), hook);
-        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(103)), true);
-        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.NETWORK_LIMIT_SET_ROLE(), address(104)), true);
+        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(105)), true);
+        assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.NETWORK_LIMIT_SET_ROLE(), address(106)), true);
         assertEq(
-            networkRestakeDelegator.hasRole(networkRestakeDelegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), address(105)),
+            networkRestakeDelegator.hasRole(networkRestakeDelegator.OPERATOR_NETWORK_SHARES_SET_ROLE(), address(107)),
             true
         );
 
@@ -220,9 +230,9 @@ contract VaultConfiguratorTest is Test {
         vm.assume(owner_ != address(0));
 
         address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = address(104);
+        networkLimitSetRoleHolders[0] = address(106);
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = address(105);
+        operatorNetworkSharesSetRoleHolders[0] = address(107);
 
         vm.expectRevert(IVaultConfigurator.DirtyInitParams.selector);
         vaultConfigurator.create(
@@ -236,17 +246,21 @@ contract VaultConfiguratorTest is Test {
                     burner: burner,
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: address(100),
                     depositWhitelistSetRoleHolder: address(99),
-                    depositorWhitelistRoleHolder: address(101)
+                    depositorWhitelistRoleHolder: address(101),
+                    isDepositLimitSetRoleHolder: address(102),
+                    depositLimitSetRoleHolder: address(103)
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(102),
+                            defaultAdminRoleHolder: address(104),
                             hook: hook,
-                            hookSetRoleHolder: address(103)
+                            hookSetRoleHolder: address(105)
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders

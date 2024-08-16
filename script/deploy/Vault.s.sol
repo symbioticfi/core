@@ -18,6 +18,7 @@ contract VaultScript is Script {
         address collateral,
         uint48 epochDuration,
         bool depositWhitelist,
+        uint256 depositLimit,
         uint64 delegatorIndex,
         bool withSlasher,
         uint64 slasherIndex,
@@ -42,9 +43,13 @@ contract VaultScript is Script {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
+                    isDepositLimit: depositLimit != 0,
+                    depositLimit: depositLimit,
                     defaultAdminRoleHolder: owner,
                     depositWhitelistSetRoleHolder: owner,
-                    depositorWhitelistRoleHolder: owner
+                    depositorWhitelistRoleHolder: owner,
+                    isDepositLimitSetRoleHolder: owner,
+                    depositLimitSetRoleHolder: owner
                 }),
                 delegatorIndex: delegatorIndex,
                 delegatorParams: delegatorIndex == 0

@@ -98,6 +98,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
             revert InsufficientDeposit();
         }
 
+        if (isDepositLimit && totalStake() + depositedAmount > depositLimit) {
+            revert DepositLimitReached();
+        }
+
         uint256 activeStake_ = activeStake();
         uint256 activeShares_ = activeShares();
 
@@ -272,6 +276,36 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         emit SetDepositorWhitelistStatus(account, status);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
+    function setIsDepositLimit(bool status) external onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+        if (isDepositLimit == status) {
+            revert AlreadySet();
+        }
+
+        isDepositLimit = status;
+
+        emit SetIsDepositLimit(status);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setDepositLimit(uint256 limit) external onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+        if (limit != 0 && !isDepositLimit) {
+            revert NoDepositLimit();
+        }
+
+        if (depositLimit == limit) {
+            revert AlreadySet();
+        }
+
+        depositLimit = limit;
+
+        emit SetDepositLimit(limit);
+    }
+
     function _claim(uint256 epoch) private returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
@@ -309,11 +343,20 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
             revert NotSlasher();
         }
 
-        if (
-            params.depositWhitelist && params.defaultAdminRoleHolder == address(0)
-                && params.depositorWhitelistRoleHolder == address(0)
-        ) {
-            revert MissingRoles();
+        if (params.defaultAdminRoleHolder == address(0)) {
+            if (params.depositWhitelist && params.depositorWhitelistRoleHolder == address(0)) {
+                revert MissingRoles();
+            }
+
+            if (params.isDepositLimitSetRoleHolder == address(0)) {
+                if (!params.isDepositLimit) {
+                    if (params.depositLimit != 0 || params.depositLimitSetRoleHolder != address(0)) {
+                        revert MissingRoles();
+                    }
+                } else if (params.depositLimit == 0 && params.depositLimitSetRoleHolder == address(0)) {
+                    revert MissingRoles();
+                }
+            }
         }
 
         __ReentrancyGuard_init();
@@ -334,13 +377,17 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         }
-
         if (params.depositWhitelistSetRoleHolder != address(0)) {
             _grantRole(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
         }
-
         if (params.depositorWhitelistRoleHolder != address(0)) {
             _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
+        }
+        if (params.isDepositLimitSetRoleHolder != address(0)) {
+            _grantRole(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
+        }
+        if (params.depositLimitSetRoleHolder != address(0)) {
+            _grantRole(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
         }
     }
 

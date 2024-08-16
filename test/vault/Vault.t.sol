@@ -139,7 +139,13 @@ contract VaultTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create2(address burner, uint48 epochDuration, bool depositWhitelist) public {
+    function test_Create2(
+        address burner,
+        uint48 epochDuration,
+        bool depositWhitelist,
+        bool isDepositLimit,
+        uint256 depositLimit
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
@@ -161,9 +167,13 @@ contract VaultTest is Test {
                     burner: burner,
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
+                    isDepositLimit: isDepositLimit,
+                    depositLimit: depositLimit,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
@@ -277,9 +287,13 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
@@ -320,9 +334,13 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
@@ -360,9 +378,13 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 })
             )
         );
@@ -409,15 +431,19 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 })
             )
         );
     }
 
-    function test_CreateRevertMissingRoles(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoles1(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -458,9 +484,172 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: true,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: address(0),
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: address(0)
+                    depositorWhitelistRoleHolder: address(0),
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: address(0)
+                })
+            )
+        );
+    }
+
+    function test_CreateRevertMissingRoles2(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        address delegator_ = delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.MissingRoles.selector);
+        vault.initialize(
+            lastVersion,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: false,
+                    isDepositLimit: true,
+                    depositLimit: 0,
+                    defaultAdminRoleHolder: address(0),
+                    depositWhitelistSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: address(0),
+                    isDepositLimitSetRoleHolder: address(0),
+                    depositLimitSetRoleHolder: address(0)
+                })
+            )
+        );
+    }
+
+    function test_CreateRevertMissingRoles3(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        address delegator_ = delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.MissingRoles.selector);
+        vault.initialize(
+            lastVersion,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
+                    defaultAdminRoleHolder: address(0),
+                    depositWhitelistSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: address(0),
+                    isDepositLimitSetRoleHolder: address(0),
+                    depositLimitSetRoleHolder: alice
+                })
+            )
+        );
+    }
+
+    function test_CreateRevertMissingRoles4(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+
+        uint64 lastVersion = vaultFactory.lastVersion();
+        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        address delegator_ = delegatorFactory.create(
+            0,
+            true,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.MissingRoles.selector);
+        vault.initialize(
+            lastVersion,
+            alice,
+            abi.encode(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: delegator_,
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 1,
+                    defaultAdminRoleHolder: address(0),
+                    depositWhitelistSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: address(0),
+                    isDepositLimitSetRoleHolder: address(0),
+                    depositLimitSetRoleHolder: address(0)
                 })
             )
         );
@@ -652,9 +841,13 @@ contract VaultTest is Test {
                         burner: address(0xdEaD),
                         epochDuration: epochDuration,
                         depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
                         defaultAdminRoleHolder: alice,
                         depositWhitelistSetRoleHolder: alice,
-                        depositorWhitelistRoleHolder: alice
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
                     }),
                     delegatorIndex: 0,
                     delegatorParams: abi.encode(
@@ -1510,6 +1703,129 @@ contract VaultTest is Test {
         _setDepositorWhitelistStatus(alice, bob, true);
     }
 
+    function test_SetIsDepositLimit() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+        assertEq(vault.isDepositLimit(), true);
+
+        _setIsDepositLimit(alice, false);
+        assertEq(vault.isDepositLimit(), false);
+    }
+
+    function test_SetIsDepositLimitRevertAlreadySet() public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+
+        vm.expectRevert(IVault.AlreadySet.selector);
+        _setIsDepositLimit(alice, true);
+    }
+
+    function test_SetDepositLimit(uint256 limit1, uint256 limit2, uint256 depositAmount) public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+        assertEq(vault.depositLimit(), 0);
+
+        limit1 = bound(limit1, 1, type(uint256).max);
+        _grantDepositLimitSetRole(alice, alice);
+        _setDepositLimit(alice, limit1);
+        assertEq(vault.depositLimit(), limit1);
+
+        limit2 = bound(limit2, 1, 1000 ether);
+        vm.assume(limit2 != limit1);
+        _setDepositLimit(alice, limit2);
+        assertEq(vault.depositLimit(), limit2);
+
+        depositAmount = bound(depositAmount, 1, limit2);
+        _deposit(alice, depositAmount);
+    }
+
+    function test_SetDepositLimitToNull(uint256 limit1) public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        limit1 = bound(limit1, 1, type(uint256).max);
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+        _grantDepositLimitSetRole(alice, alice);
+        _setDepositLimit(alice, limit1);
+
+        _setIsDepositLimit(alice, false);
+
+        _setDepositLimit(alice, 0);
+
+        assertEq(vault.depositLimit(), 0);
+    }
+
+    function test_SetDepositLimitRevertDepositLimitReached(uint256 depositAmount, uint256 limit) public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, 1);
+
+        limit = bound(limit, 2, 1000 ether);
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+        _grantDepositLimitSetRole(alice, alice);
+        _setDepositLimit(alice, limit);
+
+        depositAmount = bound(depositAmount, limit, 2000 ether);
+
+        collateral.transfer(alice, depositAmount);
+        vm.startPrank(alice);
+        collateral.approve(address(vault), depositAmount);
+        vm.expectRevert(IVault.DepositLimitReached.selector);
+        vault.deposit(alice, depositAmount);
+        vm.stopPrank();
+    }
+
+    function test_SetDepositLimitRevertNoDepositLimit(uint256 limit1, uint256 limit2) public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        limit1 = bound(limit1, 1, type(uint256).max);
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+        _grantDepositLimitSetRole(alice, alice);
+        _setDepositLimit(alice, limit1);
+
+        _setIsDepositLimit(alice, false);
+
+        limit2 = bound(limit2, 1, type(uint256).max);
+        vm.assume(limit2 != limit1);
+        vm.expectRevert(IVault.NoDepositLimit.selector);
+        _setDepositLimit(alice, limit2);
+    }
+
+    function test_SetDepositLimitRevertAlreadySet(uint256 limit) public {
+        uint48 epochDuration = 1;
+
+        vault = _getVault(epochDuration);
+
+        limit = bound(limit, 1, type(uint256).max);
+        _grantIsDepositLimitSetRole(alice, alice);
+        _setIsDepositLimit(alice, true);
+        _grantDepositLimitSetRole(alice, alice);
+        _setDepositLimit(alice, limit);
+
+        vm.expectRevert(IVault.AlreadySet.selector);
+        _setDepositLimit(alice, limit);
+    }
+
     function test_OnSlashRevertNotSlasher() public {
         uint48 epochDuration = 1;
 
@@ -1943,9 +2259,13 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
@@ -1986,9 +2306,13 @@ contract VaultTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
@@ -2033,6 +2357,18 @@ contract VaultTest is Test {
     function _grantDepositWhitelistSetRole(address user, address account) internal {
         vm.startPrank(user);
         Vault(address(vault)).grantRole(vault.DEPOSIT_WHITELIST_SET_ROLE(), account);
+        vm.stopPrank();
+    }
+
+    function _grantIsDepositLimitSetRole(address user, address account) internal {
+        vm.startPrank(user);
+        Vault(address(vault)).grantRole(vault.IS_DEPOSIT_LIMIT_SET_ROLE(), account);
+        vm.stopPrank();
+    }
+
+    function _grantDepositLimitSetRole(address user, address account) internal {
+        vm.startPrank(user);
+        Vault(address(vault)).grantRole(vault.DEPOSIT_LIMIT_SET_ROLE(), account);
         vm.stopPrank();
     }
 
@@ -2086,15 +2422,27 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _setDepositWhitelist(address user, bool depositWhitelist) internal {
+    function _setDepositWhitelist(address user, bool status) internal {
         vm.startPrank(user);
-        vault.setDepositWhitelist(depositWhitelist);
+        vault.setDepositWhitelist(status);
         vm.stopPrank();
     }
 
     function _setDepositorWhitelistStatus(address user, address depositor, bool status) internal {
         vm.startPrank(user);
         vault.setDepositorWhitelistStatus(depositor, status);
+        vm.stopPrank();
+    }
+
+    function _setIsDepositLimit(address user, bool status) internal {
+        vm.startPrank(user);
+        vault.setIsDepositLimit(status);
+        vm.stopPrank();
+    }
+
+    function _setDepositLimit(address user, uint256 amount) internal {
+        vm.startPrank(user);
+        vault.setDepositLimit(amount);
         vm.stopPrank();
     }
 

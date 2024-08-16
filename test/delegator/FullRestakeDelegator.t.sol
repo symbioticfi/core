@@ -931,9 +931,13 @@ contract FullRestakeDelegatorTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: 7 days,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
@@ -1627,9 +1631,13 @@ contract FullRestakeDelegatorTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
@@ -1670,9 +1678,13 @@ contract FullRestakeDelegatorTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(

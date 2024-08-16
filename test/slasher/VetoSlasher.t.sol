@@ -301,9 +301,13 @@ contract VetoSlasherTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 })
             )
         );
@@ -2035,9 +2039,13 @@ contract VetoSlasherTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
@@ -2079,9 +2087,13 @@ contract VetoSlasherTest is Test {
                     burner: address(0xdEaD),
                     epochDuration: epochDuration,
                     depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
                     defaultAdminRoleHolder: alice,
                     depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
                 }),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
