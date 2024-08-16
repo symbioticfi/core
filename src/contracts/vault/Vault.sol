@@ -374,6 +374,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
 
         depositWhitelist = params.depositWhitelist;
 
+        isDepositLimit = params.isDepositLimit;
+        depositLimit = params.depositLimit;
+
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         }
