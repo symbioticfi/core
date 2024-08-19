@@ -344,16 +344,22 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         }
 
         if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.depositWhitelist && params.depositorWhitelistRoleHolder == address(0)) {
-                revert MissingRoles();
+            if (params.depositWhitelistSetRoleHolder == address(0)) {
+                if (params.depositWhitelist) {
+                    if (params.depositorWhitelistRoleHolder == address(0)) {
+                        revert MissingRoles();
+                    }
+                } else if (params.depositorWhitelistRoleHolder != address(0)) {
+                    revert MissingRoles();
+                }
             }
 
             if (params.isDepositLimitSetRoleHolder == address(0)) {
-                if (!params.isDepositLimit) {
-                    if (params.depositLimit != 0 || params.depositLimitSetRoleHolder != address(0)) {
+                if (params.isDepositLimit) {
+                    if (params.depositLimit == 0 && params.depositLimitSetRoleHolder == address(0)) {
                         revert MissingRoles();
                     }
-                } else if (params.depositLimit == 0 && params.depositLimitSetRoleHolder == address(0)) {
+                } else if (params.depositLimit != 0 || params.depositLimitSetRoleHolder != address(0)) {
                     revert MissingRoles();
                 }
             }
