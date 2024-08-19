@@ -414,6 +414,59 @@ contract VetoSlasherTest is Test {
         // assertEq(completed_, false);
     }
 
+    function test_RequestSlashRevertNotNetworkMiddleware(
+        // uint48 epochDuration,
+        uint48 vetoDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 operatorNetworkLimit2,
+        uint256 slashAmount1,
+        uint256 slashAmount2
+    ) public {
+        // epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        vm.assume(vetoDuration < 7 days);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(7 days, vetoDuration);
+
+        // address network = alice;
+        _registerNetwork(alice, alice);
+        _setMaxNetworkLimit(alice, 0, type(uint256).max);
+
+        _registerOperator(alice);
+        _registerOperator(bob);
+
+        _optInOperatorVault(alice);
+        _optInOperatorVault(bob);
+
+        _optInOperatorNetwork(alice, address(alice));
+        _optInOperatorNetwork(bob, address(alice));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, alice, networkLimit);
+
+        _setOperatorNetworkLimit(alice, alice, alice, operatorNetworkLimit1);
+        _setOperatorNetworkLimit(alice, alice, bob, operatorNetworkLimit2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        vm.expectRevert(IBaseSlasher.NotNetworkMiddleware.selector);
+        _requestSlash(bob, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+    }
+
     function test_RequestSlashRevertInsufficientSlash(
         uint48 epochDuration,
         uint48 vetoDuration,
@@ -858,6 +911,58 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), ""), slashAmountReal1);
         assertEq(slasher.cumulativeSlash(alice.subnetwork(0), alice), slashAmountReal1);
+    }
+
+    function test_ExecuteSlashRevertNotNetworkMiddleware(
+        uint48 epochDuration,
+        uint48 vetoDuration,
+        uint256 depositAmount,
+        uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        vm.assume(vetoDuration < epochDuration);
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
+
+        _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+
+        blockTimestamp = blockTimestamp + vetoDuration;
+        vm.warp(blockTimestamp);
+
+        vm.expectRevert(IBaseSlasher.NotNetworkMiddleware.selector);
+        _executeSlash(bob, 0, "");
     }
 
     function test_ExecuteSlashRevertOutdatedCaptureTimestamp1(
