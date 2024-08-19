@@ -43,9 +43,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
     modifier onlyNetworkMiddleware(bytes32 subnetwork) {
-        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
-            revert NotNetworkMiddleware();
-        }
+        _checkNetworkMiddleware(subnetwork);
 
         _;
     }
@@ -106,6 +104,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
                     - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
                 stakeAmount
             );
+    }
+
+    function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
+            revert NotNetworkMiddleware();
+        }
     }
 
     function _checkLatestSlashedCaptureTimestamp(bytes32 subnetwork, uint48 captureTimestamp) internal view {

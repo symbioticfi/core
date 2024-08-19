@@ -137,6 +137,8 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         SlashRequest storage request = slashRequests[slashIndex];
 
+        _checkNetworkMiddleware(request.subnetwork);
+
         if (
             resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.captureResolverHint)
                 != address(0)
