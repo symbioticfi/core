@@ -197,7 +197,6 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         if (baseParams.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, baseParams.defaultAdminRoleHolder);
         }
-
         if (baseParams.hookSetRoleHolder != address(0)) {
             _grantRole(HOOK_SET_ROLE, baseParams.hookSetRoleHolder);
         }

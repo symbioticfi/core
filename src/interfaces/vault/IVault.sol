@@ -6,6 +6,7 @@ import {IVaultStorage} from "./IVaultStorage.sol";
 interface IVault is IVaultStorage {
     error AlreadyClaimed();
     error AlreadySet();
+    error DepositLimitReached();
     error InsufficientClaim();
     error InsufficientDeposit();
     error InsufficientWithdrawal();
@@ -19,6 +20,7 @@ interface IVault is IVaultStorage {
     error InvalidOnBehalfOf();
     error InvalidRecipient();
     error MissingRoles();
+    error NoDepositLimit();
     error NoDepositWhitelist();
     error NotDelegator();
     error NotSlasher();
@@ -33,9 +35,13 @@ interface IVault is IVaultStorage {
      * @param burner vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param depositWhitelist if enabling deposit whitelist
+     * @param isDepositLimit if enabling deposit limit
+     * @param depositLimit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param depositWhitelistSetRoleHolder address of the initial DEPOSIT_WHITELIST_SET_ROLE holder
      * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
+     * @param isDepositLimitSetRoleHolder address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder
+     * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
      */
     struct InitParams {
         address collateral;
@@ -44,9 +50,13 @@ interface IVault is IVaultStorage {
         address burner;
         uint48 epochDuration;
         bool depositWhitelist;
+        bool isDepositLimit;
+        uint256 depositLimit;
         address defaultAdminRoleHolder;
         address depositWhitelistSetRoleHolder;
         address depositorWhitelistRoleHolder;
+        address isDepositLimitSetRoleHolder;
+        address depositLimitSetRoleHolder;
     }
 
     /**
@@ -109,9 +119,9 @@ interface IVault is IVaultStorage {
 
     /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.
-     * @param depositWhitelist if enabled deposit whitelist
+     * @param status if enabled deposit whitelist
      */
-    event SetDepositWhitelist(bool depositWhitelist);
+    event SetDepositWhitelist(bool status);
 
     /**
      * @notice Emitted when a depositor whitelist status is set.
@@ -119,6 +129,18 @@ interface IVault is IVaultStorage {
      * @param status if whitelisted the account
      */
     event SetDepositorWhitelistStatus(address indexed account, bool status);
+
+    /**
+     * @notice Emitted when a deposit limit status is enabled/disabled.
+     * @param status if enabled deposit limit
+     */
+    event SetIsDepositLimit(bool status);
+
+    /**
+     * @notice Emitted when a deposit limit is set.
+     * @param limit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
+     */
+    event SetDepositLimit(uint256 limit);
 
     /**
      * @notice Get a total amount of the collateral that can be slashed.
@@ -219,4 +241,18 @@ interface IVault is IVaultStorage {
      * @dev Only a DEPOSITOR_WHITELIST_ROLE holder can call this function.
      */
     function setDepositorWhitelistStatus(address account, bool status) external;
+
+    /**
+     * @notice Enable/disable deposit limit.
+     * @param status if enabling deposit limit
+     * @dev Only a IS_DEPOSIT_LIMIT_SET_ROLE holder can call this function.
+     */
+    function setIsDepositLimit(bool status) external;
+
+    /**
+     * @notice Set a deposit limit.
+     * @param limit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
+     * @dev Only a DEPOSIT_LIMIT_SET_ROLE holder can call this function.
+     */
+    function setDepositLimit(uint256 limit) external;
 }

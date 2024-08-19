@@ -18,6 +18,18 @@ interface IVaultStorage {
     function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
 
     /**
+     * @notice Get a deposit limit enabler/disabler's role.
+     * @return identifier of the deposit limit enabler/disabler role
+     */
+    function IS_DEPOSIT_LIMIT_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get a deposit limit setter's role.
+     * @return identifier of the deposit limit setter role
+     */
+    function DEPOSIT_LIMIT_SET_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Get the delegator factory's address.
      * @return address of the delegator factory
      */
@@ -110,6 +122,18 @@ interface IVaultStorage {
      * @return if the account is whitelisted as a depositor
      */
     function isDepositorWhitelisted(address account) external view returns (bool);
+
+    /**
+     * @notice Get if the deposit limit is set.
+     * @return if the deposit limit is set
+     */
+    function isDepositLimit() external view returns (bool);
+
+    /**
+     * @notice Get a deposit limit (maximum amount of the collateral that can be in the vault simultaneously).
+     * @return deposit limit
+     */
+    function depositLimit() external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault at a given timestamp using a hint.

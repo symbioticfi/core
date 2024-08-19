@@ -27,6 +27,16 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    bytes32 public constant IS_DEPOSIT_LIMIT_SET_ROLE = keccak256("IS_DEPOSIT_LIMIT_SET_ROLE");
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bytes32 public constant DEPOSIT_LIMIT_SET_ROLE = keccak256("DEPOSIT_LIMIT_SET_ROLE");
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     address public immutable DELEGATOR_FACTORY;
 
     /**
@@ -38,6 +48,11 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     bool public depositWhitelist;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bool public isDepositLimit;
 
     /**
      * @inheritdoc IVaultStorage
@@ -68,6 +83,11 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     uint48 public epochDuration;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint256 public depositLimit;
 
     /**
      * @inheritdoc IVaultStorage
