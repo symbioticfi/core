@@ -14,7 +14,19 @@ contract Factory is Registry, Ownable, IFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Clones for address;
 
+    /**
+     * @inheritdoc IFactory
+     */
+    mapping(uint64 type_ => bool value) public blacklisted;
+
     EnumerableSet.AddressSet private _whitelistedImplementations;
+
+    modifier checkType(uint64 type_) {
+        if (type_ >= totalTypes()) {
+            revert InvalidType();
+        }
+        _;
+    }
 
     constructor(address owner_) Ownable(owner_) {}
 
@@ -44,6 +56,19 @@ contract Factory is Registry, Ownable, IFactory {
         }
 
         emit Whitelist(implementation_);
+    }
+
+    /**
+     * @inheritdoc IFactory
+     */
+    function blacklist(uint64 type_) external onlyOwner checkType(type_) {
+        if (blacklisted[type_]) {
+            revert AlreadyBlacklisted();
+        }
+
+        blacklisted[type_] = true;
+
+        emit Blacklist(type_);
     }
 
     /**

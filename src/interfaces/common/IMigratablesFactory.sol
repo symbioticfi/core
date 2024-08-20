@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {IRegistry} from "./IRegistry.sol";
 
 interface IMigratablesFactory is IRegistry {
+    error AlreadyBlacklisted();
     error AlreadyWhitelisted();
     error InvalidImplementation();
     error InvalidVersion();
@@ -15,6 +16,13 @@ interface IMigratablesFactory is IRegistry {
      * @param implementation address of the new implementation
      */
     event Whitelist(address indexed implementation);
+
+    /**
+     * @notice Emitted when a version is blacklisted (e.g., in case of invalid implementation).
+     * @param version version that was blacklisted
+     * @dev The given version is still deployable.
+     */
+    event Blacklist(uint64 indexed version);
 
     /**
      * @notice Emitted when an entity is migrated to a new version.
@@ -39,10 +47,25 @@ interface IMigratablesFactory is IRegistry {
     function implementation(uint64 version) external view returns (address);
 
     /**
+     * @notice Get if a version is blacklisted (e.g., in case of invalid implementation).
+     * @param version version to check
+     * @return whether the version is blacklisted
+     * @dev The given version is still deployable.
+     */
+    function blacklisted(uint64 version) external view returns (bool);
+
+    /**
      * @notice Whitelist a new implementation for entities.
      * @param implementation address of the new implementation
      */
     function whitelist(address implementation) external;
+
+    /**
+     * @notice Blacklist a version of entities.
+     * @param version version to blacklist
+     * @dev The given version will still be deployable.
+     */
+    function blacklist(uint64 version) external;
 
     /**
      * @notice Create a new entity at the factory.
