@@ -192,7 +192,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external {
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external nonReentrant {
         if (msg.sender != slasher) {
             revert NotSlasher();
         }
@@ -245,7 +245,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    function setDepositWhitelist(bool status) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
         }
@@ -258,7 +258,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setDepositorWhitelistStatus(address account, bool status) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+    function setDepositorWhitelistStatus(
+        address account,
+        bool status
+    ) external nonReentrant onlyRole(DEPOSITOR_WHITELIST_ROLE) {
         if (account == address(0)) {
             revert InvalidAccount();
         }
@@ -279,7 +282,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setIsDepositLimit(bool status) external onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    function setIsDepositLimit(bool status) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
         }
@@ -292,7 +295,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setDepositLimit(uint256 limit) external onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    function setDepositLimit(uint256 limit) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (limit != 0 && !isDepositLimit) {
             revert NoDepositLimit();
         }

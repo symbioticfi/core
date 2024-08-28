@@ -14,9 +14,10 @@ import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
 import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
+abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
 
@@ -128,6 +129,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, IBaseSlasher {
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
+
+        __ReentrancyGuard_init();
 
         vault = vault_;
 

@@ -15,8 +15,15 @@ import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeable, IBaseDelegator {
+contract BaseDelegator is
+    Entity,
+    StaticDelegateCallable,
+    AccessControlUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IBaseDelegator
+{
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using Subnetwork for bytes32;
@@ -138,7 +145,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external {
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -158,7 +165,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setHook(address hook_) external onlyRole(HOOK_SET_ROLE) {
+    function setHook(address hook_) external nonReentrant onlyRole(HOOK_SET_ROLE) {
         hook = hook_;
 
         emit SetHook(hook_);
@@ -173,7 +180,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         uint256 slashedAmount,
         uint48 captureTimestamp,
         bytes memory data
-    ) external {
+    ) external nonReentrant {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
@@ -202,6 +209,8 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
+
+        __ReentrancyGuard_init();
 
         vault = vault_;
 
