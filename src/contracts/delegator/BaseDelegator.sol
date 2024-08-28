@@ -30,6 +30,16 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
+    uint256 public constant HOOK_GAS_LIMIT = 250_000;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    uint256 public constant HOOK_RESERVE = 20_000;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
     bytes32 public constant HOOK_SET_ROLE = keccak256("HOOK_SET_ROLE");
 
     /**
@@ -173,8 +183,13 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
             bytes memory calldata_ = abi.encodeWithSelector(
                 IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
             );
+
+            if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
+                revert InsufficientHookGas();
+            }
+
             assembly ("memory-safe") {
-                pop(call(250000, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+                pop(call(HOOK_GAS_LIMIT, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
             }
         }
 
