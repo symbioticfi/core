@@ -61,7 +61,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function networkLimit(bytes32 subnetwork) public view returns (uint256) {
+    function networkLimit(
+        bytes32 subnetwork
+    ) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
@@ -79,7 +81,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function totalOperatorNetworkShares(bytes32 subnetwork) public view returns (uint256) {
+    function totalOperatorNetworkShares(
+        bytes32 subnetwork
+    ) public view returns (uint256) {
         return _totalOperatorNetworkShares[subnetwork].latest();
     }
 

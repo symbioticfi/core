@@ -19,14 +19,18 @@ contract MetadataService is IMetadataService {
      */
     mapping(address entity => string value) public metadataURL;
 
-    constructor(address registry) {
+    constructor(
+        address registry
+    ) {
         REGISTRY = registry;
     }
 
     /**
      * @inheritdoc IMetadataService
      */
-    function setMetadataURL(string calldata metadataURL_) external {
+    function setMetadataURL(
+        string calldata metadataURL_
+    ) external {
         if (!IRegistry(REGISTRY).isEntity(msg.sender)) {
             revert NotEntity();
         }

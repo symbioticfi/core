@@ -54,7 +54,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function activeBalanceOf(address account) public view returns (uint256) {
+    function activeBalanceOf(
+        address account
+    ) public view returns (uint256) {
         return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
@@ -69,7 +71,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function balanceOf(address account) external view returns (uint256) {
+    function balanceOf(
+        address account
+    ) external view returns (uint256) {
         uint256 epoch = currentEpoch();
         return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
     }
@@ -244,7 +248,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setDepositWhitelist(bool status) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    function setDepositWhitelist(
+        bool status
+    ) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
         }
@@ -281,7 +287,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setIsDepositLimit(bool status) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    function setIsDepositLimit(
+        bool status
+    ) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
         }
@@ -294,7 +302,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setDepositLimit(uint256 limit) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    function setDepositLimit(
+        uint256 limit
+    ) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (limit != 0 && !isDepositLimit) {
             revert NoDepositLimit();
         }
@@ -308,7 +318,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositLimit(limit);
     }
 
-    function _claim(uint256 epoch) private returns (uint256 amount) {
+    function _claim(
+        uint256 epoch
+    ) private returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }

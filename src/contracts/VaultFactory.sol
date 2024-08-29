@@ -6,5 +6,7 @@ import {MigratablesFactory} from "src/contracts/common/MigratablesFactory.sol";
 import {IVaultFactory} from "src/interfaces/IVaultFactory.sol";
 
 contract VaultFactory is MigratablesFactory, IVaultFactory {
-    constructor(address owner_) MigratablesFactory(owner_) {}
+    constructor(
+        address owner_
+    ) MigratablesFactory(owner_) {}
 }

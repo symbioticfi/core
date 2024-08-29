@@ -128,7 +128,9 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function epochAt(uint48 timestamp) public view returns (uint256) {
+    function epochAt(
+        uint48 timestamp
+    ) public view returns (uint256) {
         if (timestamp < epochDurationInit) {
             revert InvalidTimestamp();
         }
@@ -205,7 +207,9 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesOf(address account) public view returns (uint256) {
+    function activeSharesOf(
+        address account
+    ) public view returns (uint256) {
         return _activeSharesOf[account].latest();
     }
 }

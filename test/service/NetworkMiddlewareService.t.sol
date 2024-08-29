@@ -27,7 +27,9 @@ contract MiddlewareServiceTest is Test {
         registry = new NetworkRegistry();
     }
 
-    function test_Create(address middleware) public {
+    function test_Create(
+        address middleware
+    ) public {
         vm.assume(middleware != address(0));
 
         service = INetworkMiddlewareService(address(new NetworkMiddlewareService(address(registry))));
@@ -46,7 +48,9 @@ contract MiddlewareServiceTest is Test {
         assertEq(service.middleware(alice), middleware);
     }
 
-    function test_SetMiddlewareRevertNotNetwork(address middleware) public {
+    function test_SetMiddlewareRevertNotNetwork(
+        address middleware
+    ) public {
         vm.assume(middleware != address(0));
 
         service = INetworkMiddlewareService(address(new NetworkMiddlewareService(address(registry))));
@@ -57,7 +61,9 @@ contract MiddlewareServiceTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetMiddlewareRevertAlreadySet(address middleware) public {
+    function test_SetMiddlewareRevertAlreadySet(
+        address middleware
+    ) public {
         vm.assume(middleware != address(0));
 
         service = INetworkMiddlewareService(address(new NetworkMiddlewareService(address(registry))));

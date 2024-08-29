@@ -43,7 +43,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
 
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
-    modifier onlyNetworkMiddleware(bytes32 subnetwork) {
+    modifier onlyNetworkMiddleware(
+        bytes32 subnetwork
+    ) {
         _checkNetworkMiddleware(subnetwork);
 
         _;
@@ -107,7 +109,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             );
     }
 
-    function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
+    function _checkNetworkMiddleware(
+        bytes32 subnetwork
+    ) internal view {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
@@ -123,7 +127,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
     }
 
-    function _initialize(bytes calldata data) internal override {
+    function _initialize(
+        bytes calldata data
+    ) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {

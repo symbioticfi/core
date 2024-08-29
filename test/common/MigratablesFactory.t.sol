@@ -79,7 +79,9 @@ contract MigratablesFactoryTest is Test {
         factory.create(3, alice, true, "");
     }
 
-    function test_Migrate(uint256 a) public {
+    function test_Migrate(
+        uint256 a
+    ) public {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 

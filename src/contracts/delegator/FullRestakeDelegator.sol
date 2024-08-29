@@ -59,7 +59,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function networkLimit(bytes32 subnetwork) public view returns (uint256) {
+    function networkLimit(
+        bytes32 subnetwork
+    ) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 

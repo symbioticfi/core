@@ -9,20 +9,28 @@ contract RebaseToken is ERC20 {
 
     uint256 multiplier = 1000;
 
-    constructor(string memory name_) ERC20(name_, "") {
+    constructor(
+        string memory name_
+    ) ERC20(name_, "") {
         uint256 amount = 1_000_000 * 1e18;
         _mint(msg.sender, amount.mulDiv(1000, multiplier));
     }
 
-    function setMultiplier(uint256 multiplier_) external {
+    function setMultiplier(
+        uint256 multiplier_
+    ) external {
         multiplier = multiplier_;
     }
 
-    function sharesOf(address user) public view returns (uint256) {
+    function sharesOf(
+        address user
+    ) public view returns (uint256) {
         return super.balanceOf(user);
     }
 
-    function balanceOf(address user) public view override returns (uint256) {
+    function balanceOf(
+        address user
+    ) public view override returns (uint256) {
         return super.balanceOf(user).mulDiv(multiplier, 1000);
     }
 

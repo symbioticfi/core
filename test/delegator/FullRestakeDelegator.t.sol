@@ -141,7 +141,9 @@ contract FullRestakeDelegatorTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create(uint48 epochDuration) public {
+    function test_Create(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -163,7 +165,9 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimit(alice.subnetwork(0), alice), 0);
     }
 
-    function test_CreateRevertNotVault(uint48 epochDuration) public {
+    function test_CreateRevertNotVault(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -194,7 +198,9 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoleHolders(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoleHolders(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -224,7 +230,9 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertZeroAddressRoleHolder1(uint48 epochDuration) public {
+    function test_CreateRevertZeroAddressRoleHolder1(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -255,7 +263,9 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertZeroAddressRoleHolder2(uint48 epochDuration) public {
+    function test_CreateRevertZeroAddressRoleHolder2(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -286,7 +296,9 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertDuplicateRoleHolder1(uint48 epochDuration) public {
+    function test_CreateRevertDuplicateRoleHolder1(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -318,7 +330,9 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertDuplicateRoleHolder2(uint48 epochDuration) public {
+    function test_CreateRevertDuplicateRoleHolder2(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -350,7 +364,9 @@ contract FullRestakeDelegatorTest is Test {
         );
     }
 
-    function test_OnSlashRevertNotSlasher(uint48 epochDuration) public {
+    function test_OnSlashRevertNotSlasher(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -1110,7 +1126,9 @@ contract FullRestakeDelegatorTest is Test {
         }
     }
 
-    function test_SetHook(uint48 epochDuration) public {
+    function test_SetHook(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -1731,7 +1749,9 @@ contract FullRestakeDelegatorTest is Test {
     //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     // }
 
-    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
+    function _getVaultAndDelegator(
+        uint48 epochDuration
+    ) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -1823,11 +1843,15 @@ contract FullRestakeDelegatorTest is Test {
         return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _getSlasher(address vault_) internal returns (Slasher) {
+    function _getSlasher(
+        address vault_
+    ) internal returns (Slasher) {
         return Slasher(slasherFactory.create(0, true, abi.encode(address(vault_), "")));
     }
 
-    function _registerOperator(address user) internal {
+    function _registerOperator(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -1878,13 +1902,17 @@ contract FullRestakeDelegatorTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(address user) internal {
+    function _optInOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(address user) internal {
+    function _optOutOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

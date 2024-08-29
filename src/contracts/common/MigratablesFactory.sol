@@ -23,14 +23,18 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
-    modifier checkVersion(uint64 version) {
+    modifier checkVersion(
+        uint64 version
+    ) {
         if (version == 0 || version > lastVersion()) {
             revert InvalidVersion();
         }
         _;
     }
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(
+        address owner_
+    ) Ownable(owner_) {}
 
     /**
      * @inheritdoc IMigratablesFactory
@@ -42,14 +46,18 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function implementation(uint64 version) public view checkVersion(version) returns (address) {
+    function implementation(
+        uint64 version
+    ) public view checkVersion(version) returns (address) {
         return _whitelistedImplementations.at(version - 1);
     }
 
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function whitelist(address implementation_) external onlyOwner {
+    function whitelist(
+        address implementation_
+    ) external onlyOwner {
         if (IMigratableEntity(implementation_).FACTORY() != address(this)) {
             revert InvalidImplementation();
         }
@@ -63,7 +71,9 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function blacklist(uint64 version) external onlyOwner checkVersion(version) {
+    function blacklist(
+        uint64 version
+    ) external onlyOwner checkVersion(version) {
         if (blacklisted[version]) {
             revert AlreadyBlacklisted();
         }

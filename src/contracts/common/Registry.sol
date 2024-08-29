@@ -10,7 +10,9 @@ abstract contract Registry is IRegistry {
 
     EnumerableSet.AddressSet private _entities;
 
-    modifier checkEntity(address account) {
+    modifier checkEntity(
+        address account
+    ) {
         _checkEntity(account);
         _;
     }
@@ -18,7 +20,9 @@ abstract contract Registry is IRegistry {
     /**
      * @inheritdoc IRegistry
      */
-    function isEntity(address entity_) public view returns (bool) {
+    function isEntity(
+        address entity_
+    ) public view returns (bool) {
         return _entities.contains(entity_);
     }
 
@@ -32,17 +36,23 @@ abstract contract Registry is IRegistry {
     /**
      * @inheritdoc IRegistry
      */
-    function entity(uint256 index) public view returns (address) {
+    function entity(
+        uint256 index
+    ) public view returns (address) {
         return _entities.at(index);
     }
 
-    function _addEntity(address entity_) internal {
+    function _addEntity(
+        address entity_
+    ) internal {
         _entities.add(entity_);
 
         emit AddEntity(entity_);
     }
 
-    function _checkEntity(address account) internal view {
+    function _checkEntity(
+        address account
+    ) internal view {
         if (!isEntity(account)) {
             revert EntityNotExist();
         }

@@ -15,14 +15,18 @@ contract NetworkMiddlewareService is INetworkMiddlewareService {
      */
     mapping(address network => address value) public middleware;
 
-    constructor(address networkRegistry) {
+    constructor(
+        address networkRegistry
+    ) {
         NETWORK_REGISTRY = networkRegistry;
     }
 
     /**
      * @inheritdoc INetworkMiddlewareService
      */
-    function setMiddleware(address middleware_) external {
+    function setMiddleware(
+        address middleware_
+    ) external {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }

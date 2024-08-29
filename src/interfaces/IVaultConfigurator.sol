@@ -53,5 +53,7 @@ interface IVaultConfigurator {
      * @return delegator address of the delegator
      * @return slasher address of the slasher
      */
-    function create(InitParams calldata params) external returns (address vault, address delegator, address slasher);
+    function create(
+        InitParams calldata params
+    ) external returns (address vault, address delegator, address slasher);
 }

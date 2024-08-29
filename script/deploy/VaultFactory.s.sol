@@ -6,7 +6,9 @@ import "forge-std/Script.sol";
 import {VaultFactory} from "src/contracts/VaultFactory.sol";
 
 contract VaultFactoryScript is Script {
-    function run(address owner) public {
+    function run(
+        address owner
+    ) public {
         vm.startBroadcast();
 
         new VaultFactory(owner);

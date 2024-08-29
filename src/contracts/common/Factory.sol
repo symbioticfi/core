@@ -22,14 +22,18 @@ contract Factory is Registry, Ownable, IFactory {
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
-    modifier checkType(uint64 type_) {
+    modifier checkType(
+        uint64 type_
+    ) {
         if (type_ >= totalTypes()) {
             revert InvalidType();
         }
         _;
     }
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(
+        address owner_
+    ) Ownable(owner_) {}
 
     /**
      * @inheritdoc IFactory
@@ -41,14 +45,18 @@ contract Factory is Registry, Ownable, IFactory {
     /**
      * @inheritdoc IFactory
      */
-    function implementation(uint64 type_) public view returns (address) {
+    function implementation(
+        uint64 type_
+    ) public view returns (address) {
         return _whitelistedImplementations.at(type_);
     }
 
     /**
      * @inheritdoc IFactory
      */
-    function whitelist(address implementation_) external onlyOwner {
+    function whitelist(
+        address implementation_
+    ) external onlyOwner {
         if (IEntity(implementation_).FACTORY() != address(this) || IEntity(implementation_).TYPE() != totalTypes()) {
             revert InvalidImplementation();
         }
@@ -62,7 +70,9 @@ contract Factory is Registry, Ownable, IFactory {
     /**
      * @inheritdoc IFactory
      */
-    function blacklist(uint64 type_) external onlyOwner checkType(type_) {
+    function blacklist(
+        uint64 type_
+    ) external onlyOwner checkType(type_) {
         if (blacklisted[type_]) {
             revert AlreadyBlacklisted();
         }

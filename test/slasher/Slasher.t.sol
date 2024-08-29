@@ -145,7 +145,9 @@ contract SlasherTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create(uint48 epochDuration) public {
+    function test_Create(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
@@ -164,7 +166,9 @@ contract SlasherTest is Test {
         assertEq(slasher.slashableStake(alice.subnetwork(0), alice, 0, ""), 0);
     }
 
-    function test_CreateRevertNotVault(uint48 epochDuration) public {
+    function test_CreateRevertNotVault(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault,) = _getVaultAndDelegator(epochDuration);
@@ -1302,7 +1306,9 @@ contract SlasherTest is Test {
     //     assertLt(gasStruct.gasSpent1 - gasStruct.gasSpent2, 60_000);
     // }
 
-    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
+    function _getVaultAndDelegator(
+        uint48 epochDuration
+    ) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -1394,11 +1400,15 @@ contract SlasherTest is Test {
         return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _getSlasher(address vault_) internal returns (Slasher) {
+    function _getSlasher(
+        address vault_
+    ) internal returns (Slasher) {
         return Slasher(slasherFactory.create(0, true, abi.encode(address(vault_), "")));
     }
 
-    function _registerOperator(address user) internal {
+    function _registerOperator(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -1449,13 +1459,17 @@ contract SlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(address user) internal {
+    function _optInOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(address user) internal {
+    function _optOutOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

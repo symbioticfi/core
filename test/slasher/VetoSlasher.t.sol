@@ -2129,7 +2129,9 @@ contract VetoSlasherTest is Test {
     //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     // }
 
-    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
+    function _getVaultAndDelegator(
+        uint48 epochDuration
+    ) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -2234,7 +2236,9 @@ contract VetoSlasherTest is Test {
         );
     }
 
-    function _registerOperator(address user) internal {
+    function _registerOperator(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -2285,13 +2289,17 @@ contract VetoSlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(address user) internal {
+    function _optInOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(address user) internal {
+    function _optOutOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

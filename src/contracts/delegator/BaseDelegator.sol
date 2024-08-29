@@ -165,7 +165,9 @@ contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setHook(address hook_) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+    function setHook(
+        address hook_
+    ) external nonReentrant onlyRole(HOOK_SET_ROLE) {
         hook = hook_;
 
         emit SetHook(hook_);
@@ -203,7 +205,9 @@ contract BaseDelegator is
         emit OnSlash(subnetwork, operator, slashedAmount);
     }
 
-    function _initialize(bytes calldata data) internal override {
+    function _initialize(
+        bytes calldata data
+    ) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {

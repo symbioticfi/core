@@ -34,7 +34,9 @@ contract VaultConfigurator is IVaultConfigurator {
     /**
      * @inheritdoc IVaultConfigurator
      */
-    function create(InitParams memory params) public returns (address, address, address) {
+    function create(
+        InitParams memory params
+    ) public returns (address, address, address) {
         if (params.vaultParams.delegator != address(0) || params.vaultParams.slasher != address(0)) {
             revert DirtyInitParams();
         }

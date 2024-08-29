@@ -69,7 +69,9 @@ contract SimpleCollateral is ERC20, ICollateral {
         return DECIMALS;
     }
 
-    function mint(uint256 amount) public {
+    function mint(
+        uint256 amount
+    ) public {
         if (amount == 0) {
             revert();
         }

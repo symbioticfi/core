@@ -10,7 +10,9 @@ import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 contract EntityProxy is Proxy, Initializable, IEntityProxy {
     address private immutable IMPLEMENTATION;
 
-    constructor(address implementation) {
+    constructor(
+        address implementation
+    ) {
         IMPLEMENTATION = implementation;
     }
 
@@ -24,7 +26,9 @@ contract EntityProxy is Proxy, Initializable, IEntityProxy {
     /**
      * @inheritdoc Proxy
      */
-    function _delegate(address implementation) internal override {
+    function _delegate(
+        address implementation
+    ) internal override {
         if (msg.sig != IEntity.initialize.selector && _getInitializedVersion() == 0) {
             revert NotInitialized();
         }

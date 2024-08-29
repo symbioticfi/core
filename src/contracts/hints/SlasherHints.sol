@@ -21,7 +21,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     address public immutable SLASHER_HINTS;
     address public immutable VETO_SLASHER_HINTS;
 
-    constructor(address baseDelegatorHints) BaseSlasher(address(0), address(0), address(0), 0) {
+    constructor(
+        address baseDelegatorHints
+    ) BaseSlasher(address(0), address(0), address(0), 0) {
         BASE_DELEGATOR_HINTS = baseDelegatorHints;
         SLASHER_HINTS = address(new SlasherHints(address(this)));
         VETO_SLASHER_HINTS = address(new VetoSlasherHints(address(this)));
@@ -79,7 +81,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
 contract SlasherHints is Hints, Slasher {
     address public immutable BASE_SLASHER_HINTS;
 
-    constructor(address baseSlasherHints) Slasher(address(0), address(0), address(0), 0) {
+    constructor(
+        address baseSlasherHints
+    ) Slasher(address(0), address(0), address(0), 0) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 
@@ -107,7 +111,9 @@ contract VetoSlasherHints is Hints, VetoSlasher {
 
     address public immutable BASE_SLASHER_HINTS;
 
-    constructor(address baseSlasherHints) VetoSlasher(address(0), address(0), address(0), address(0), 0) {
+    constructor(
+        address baseSlasherHints
+    ) VetoSlasher(address(0), address(0), address(0), address(0), 0) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 

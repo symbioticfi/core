@@ -29,7 +29,9 @@ abstract contract MigratableEntity is
         _;
     }
 
-    constructor(address factory) {
+    constructor(
+        address factory
+    ) {
         _disableInitializers();
 
         FACTORY = factory;

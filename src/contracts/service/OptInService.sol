@@ -52,7 +52,9 @@ contract OptInService is StaticDelegateCallable, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function optIn(address where) external {
+    function optIn(
+        address where
+    ) external {
         if (!IRegistry(WHO_REGISTRY).isEntity(msg.sender)) {
             revert NotWho();
         }
@@ -73,7 +75,9 @@ contract OptInService is StaticDelegateCallable, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function optOut(address where) external {
+    function optOut(
+        address where
+    ) external {
         (, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[msg.sender][where].latestCheckpoint();
 
         if (latestValue == 0) {

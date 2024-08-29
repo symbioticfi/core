@@ -33,7 +33,9 @@ interface IFactory is IRegistry {
      * @param type_ position to get the implementation at
      * @return address of the implementation
      */
-    function implementation(uint64 type_) external view returns (address);
+    function implementation(
+        uint64 type_
+    ) external view returns (address);
 
     /**
      * @notice Get if a type is blacklisted (e.g., in case of invalid implementation).
@@ -41,20 +43,26 @@ interface IFactory is IRegistry {
      * @return whether the type is blacklisted
      * @dev The given type is still deployable.
      */
-    function blacklisted(uint64 type_) external view returns (bool);
+    function blacklisted(
+        uint64 type_
+    ) external view returns (bool);
 
     /**
      * @notice Whitelist a new type of entity.
      * @param implementation address of the new implementation
      */
-    function whitelist(address implementation) external;
+    function whitelist(
+        address implementation
+    ) external;
 
     /**
      * @notice Blacklist a type of entity.
      * @param type_ type to blacklist
      * @dev The given type will still be deployable.
      */
-    function blacklist(uint64 type_) external;
+    function blacklist(
+        uint64 type_
+    ) external;
 
     /**
      * @notice Create a new entity at the factory.

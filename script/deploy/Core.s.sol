@@ -21,7 +21,9 @@ import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
 
 contract CoreScript is Script {
-    function run(address owner) public {
+    function run(
+        address owner
+    ) public {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
