@@ -29,7 +29,12 @@ contract EntityProxy is Proxy, Initializable, IEntityProxy {
     function _delegate(
         address implementation
     ) internal override {
-        if (msg.sig != IEntity.initialize.selector && _getInitializedVersion() == 0) {
+        if (
+            (
+                msg.sig != IEntity.FACTORY.selector && msg.sig != IEntity.TYPE.selector
+                    && msg.sig != IEntity.isInitialized.selector && msg.sig != IEntity.initialize.selector
+            ) && _getInitializedVersion() == 0
+        ) {
             revert NotInitialized();
         }
 

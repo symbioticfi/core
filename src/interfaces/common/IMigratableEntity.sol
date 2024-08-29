@@ -20,6 +20,12 @@ interface IMigratableEntity {
     function version() external view returns (uint64);
 
     /**
+     * @notice Get if the entity is initialized.
+     * @return if the entity is initialized
+     */
+    function isInitialized() external view returns (bool);
+
+    /**
      * @notice Initialize this entity contract by using a given data and setting a particular version and owner.
      * @param initialVersion initial version of the entity
      * @param owner initial owner of the entity

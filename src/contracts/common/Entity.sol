@@ -26,6 +26,13 @@ abstract contract Entity is Initializable, IEntity {
     /**
      * @inheritdoc IEntity
      */
+    function isInitialized() external view returns (bool) {
+        return _getInitializedVersion() != 0;
+    }
+
+    /**
+     * @inheritdoc IEntity
+     */
     function initialize(
         bytes calldata data
     ) external initializer {

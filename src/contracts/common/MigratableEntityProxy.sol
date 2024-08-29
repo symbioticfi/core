@@ -53,7 +53,12 @@ contract MigratableEntityProxy is ERC1967Proxy, Initializable, IMigratableEntity
     function _delegate(
         address implementation
     ) internal override {
-        if (msg.sig != IMigratableEntity.initialize.selector && _getInitializedVersion() == 0) {
+        if (
+            (
+                msg.sig != IMigratableEntity.FACTORY.selector && msg.sig != IMigratableEntity.isInitialized.selector
+                    && msg.sig != IMigratableEntity.initialize.selector
+            ) && _getInitializedVersion() == 0
+        ) {
             revert NotInitialized();
         }
 

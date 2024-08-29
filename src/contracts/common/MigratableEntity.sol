@@ -41,6 +41,13 @@ abstract contract MigratableEntity is
     /**
      * @inheritdoc IMigratableEntity
      */
+    function isInitialized() external view returns (bool) {
+        return _getInitializedVersion() != 0;
+    }
+
+    /**
+     * @inheritdoc IMigratableEntity
+     */
     function version() external view returns (uint64) {
         return _getInitializedVersion();
     }
