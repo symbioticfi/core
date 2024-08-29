@@ -7,6 +7,7 @@ import {Factory} from "src/contracts/common/Factory.sol";
 import {IFactory} from "src/interfaces/common/IFactory.sol";
 
 import {IEntity} from "src/interfaces/common/IEntity.sol";
+import {IEntityProxy} from "src/interfaces/common/IEntityProxy.sol";
 
 import {SimpleEntity} from "test/mocks/SimpleEntity.sol";
 
@@ -45,5 +46,21 @@ contract EntityTest is Test {
 
         vm.expectRevert();
         IEntity(entity).initialize("");
+    }
+
+    function test_CreateWithoutInitialize() public {
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
+        assertEq(IEntity(impl).FACTORY(), address(factory));
+        factory.whitelist(impl);
+
+        address entity = factory.create(0, false, "");
+        vm.expectRevert(IEntityProxy.NotInitialized.selector);
+        IEntity(entity).FACTORY();
+        vm.expectRevert(IEntityProxy.NotInitialized.selector);
+        IEntity(entity).TYPE();
+
+        IEntity(entity).initialize("");
+        assertEq(IEntity(entity).FACTORY(), address(factory));
+        assertEq(IEntity(entity).TYPE(), 0);
     }
 }

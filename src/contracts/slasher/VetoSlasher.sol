@@ -261,9 +261,6 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         uint48 epochDuration = IVault(vault_).epochDuration();
-        if (epochDuration == 0) {
-            revert VaultNotInitialized();
-        }
         if (params.vetoDuration >= epochDuration) {
             revert InvalidVetoDuration();
         }

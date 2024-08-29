@@ -26,6 +26,7 @@ import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
 
 import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
@@ -255,7 +256,7 @@ contract VetoSlasherTest is Test {
 
         vault = Vault(vaultFactory.create(1, alice, false, ""));
 
-        vm.expectRevert(IVetoSlasher.VaultNotInitialized.selector);
+        vm.expectRevert(IMigratableEntityProxy.NotInitialized.selector);
         slasherFactory.create(
             1,
             true,
