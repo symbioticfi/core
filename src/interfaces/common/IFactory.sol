@@ -62,6 +62,8 @@ interface IFactory is IRegistry {
      * @param withInitialize whether to call `initialize()` on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
+     * @dev CREATE2 salt is constructed from the given parameters.
+     *      However, the real parameters may differ if initialized later.
      */
     function create(uint64 type_, bool withInitialize, bytes calldata data) external returns (address);
 }
