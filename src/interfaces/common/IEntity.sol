@@ -2,6 +2,8 @@
 pragma solidity 0.8.25;
 
 interface IEntity {
+    error NotInitialized();
+
     /**
      * @notice Get the factory's address.
      * @return address of the factory

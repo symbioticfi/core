@@ -145,7 +145,7 @@ contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external nonReentrant {
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external initialized nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -167,7 +167,7 @@ contract BaseDelegator is
      */
     function setHook(
         address hook_
-    ) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(HOOK_SET_ROLE) {
         hook = hook_;
 
         emit SetHook(hook_);
@@ -182,7 +182,7 @@ contract BaseDelegator is
         uint256 slashedAmount,
         uint48 captureTimestamp,
         bytes memory data
-    ) external nonReentrant {
+    ) external initialized nonReentrant {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }

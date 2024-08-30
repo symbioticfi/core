@@ -1,6 +1,8 @@
 pragma solidity 0.8.25;
 
-interface IBaseDelegator {
+import {IEntity} from "src/interfaces/common/IEntity.sol";
+
+interface IBaseDelegator is IEntity {
     error AlreadySet();
     error InsufficientHookGas();
     error NotNetwork();

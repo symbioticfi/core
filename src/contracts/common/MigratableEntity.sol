@@ -21,8 +21,15 @@ abstract contract MigratableEntity is
 
     address private immutable SELF;
 
-    modifier uninitialized() {
-        if (_getInitializedVersion() > 0) {
+    modifier initialized() {
+        if (!isInitialized()) {
+            revert NotInitialized();
+        }
+        _;
+    }
+
+    modifier notInitialized() {
+        if (isInitialized()) {
             revert AlreadyInitialized();
         }
 
@@ -41,7 +48,7 @@ abstract contract MigratableEntity is
     /**
      * @inheritdoc IMigratableEntity
      */
-    function isInitialized() external view returns (bool) {
+    function isInitialized() public view returns (bool) {
         return _getInitializedVersion() != 0;
     }
 
@@ -59,7 +66,7 @@ abstract contract MigratableEntity is
         uint64 initialVersion,
         address owner_,
         bytes calldata data
-    ) external uninitialized reinitializer(initialVersion) {
+    ) external notInitialized reinitializer(initialVersion) {
         if (SELF != IMigratablesFactory(FACTORY).implementation(initialVersion)) {
             revert InvalidInitialVersion();
         }

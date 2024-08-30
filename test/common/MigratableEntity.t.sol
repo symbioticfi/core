@@ -51,8 +51,7 @@ contract MigratableEntityTest is Test {
 
         address entity = factory.create(1, alice, false, "");
         assertEq(IMigratableEntity(entity).FACTORY(), address(factory));
-        vm.expectRevert(IMigratableEntityProxy.NotInitialized.selector);
-        IMigratableEntity(entity).version();
+        assertEq(IMigratableEntity(entity).version(), 0);
         assertEq(IMigratableEntity(entity).isInitialized(), false);
 
         IMigratableEntity(entity).initialize(1, alice, abi.encode(0));

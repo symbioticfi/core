@@ -5,6 +5,7 @@ interface IMigratableEntity {
     error AlreadyInitialized();
     error InvalidInitialVersion();
     error NotFactory();
+    error NotInitialized();
 
     /**
      * @notice Get the factory's address.

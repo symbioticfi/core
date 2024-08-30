@@ -12,6 +12,7 @@ interface IVetoSlasher {
     error SlashPeriodEnded();
     error SlashRequestCompleted();
     error SlashRequestNotExist();
+    error VaultNotInitialized();
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
 

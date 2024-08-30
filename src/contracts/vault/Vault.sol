@@ -84,7 +84,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) external initialized nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -120,7 +120,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
+    function withdraw(
+        address claimer,
+        uint256 amount
+    ) external initialized returns (uint256 burnedShares, uint256 mintedShares) {
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
@@ -158,7 +161,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function claim(address recipient, uint256 epoch) external nonReentrant returns (uint256 amount) {
+    function claim(address recipient, uint256 epoch) external initialized nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
@@ -173,7 +176,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function claimBatch(address recipient, uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
+    function claimBatch(
+        address recipient,
+        uint256[] calldata epochs
+    ) external initialized nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
@@ -195,7 +201,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external nonReentrant {
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external initialized nonReentrant {
         if (msg.sender != slasher) {
             revert NotSlasher();
         }
@@ -250,7 +256,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function setDepositWhitelist(
         bool status
-    ) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
         }
@@ -266,7 +272,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function setDepositorWhitelistStatus(
         address account,
         bool status
-    ) external nonReentrant onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+    ) external initialized nonReentrant onlyRole(DEPOSITOR_WHITELIST_ROLE) {
         if (account == address(0)) {
             revert InvalidAccount();
         }
@@ -289,7 +295,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function setIsDepositLimit(
         bool status
-    ) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
         }
@@ -304,7 +310,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function setDepositLimit(
         uint256 limit
-    ) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (limit != 0 && !isDepositLimit) {
             revert NoDepositLimit();
         }

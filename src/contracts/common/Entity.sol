@@ -16,6 +16,13 @@ abstract contract Entity is Initializable, IEntity {
      */
     uint64 public immutable TYPE;
 
+    modifier initialized() {
+        if (!isInitialized()) {
+            revert NotInitialized();
+        }
+        _;
+    }
+
     constructor(address factory, uint64 type_) {
         _disableInitializers();
 
@@ -26,7 +33,7 @@ abstract contract Entity is Initializable, IEntity {
     /**
      * @inheritdoc IEntity
      */
-    function isInitialized() external view returns (bool) {
+    function isInitialized() public view returns (bool) {
         return _getInitializedVersion() != 0;
     }
 

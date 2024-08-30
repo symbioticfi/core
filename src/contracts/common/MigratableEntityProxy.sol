@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
 import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 
-contract MigratableEntityProxy is ERC1967Proxy, Initializable, IMigratableEntityProxy {
+contract MigratableEntityProxy is ERC1967Proxy, IMigratableEntityProxy {
     // An immutable address for the admin to avoid unnecessary SLOADs before each call.
     address private immutable _admin;
 
@@ -45,23 +42,5 @@ contract MigratableEntityProxy is ERC1967Proxy, Initializable, IMigratableEntity
      */
     function _proxyAdmin() internal view returns (address) {
         return _admin;
-    }
-
-    /**
-     * @inheritdoc Proxy
-     */
-    function _delegate(
-        address implementation
-    ) internal override {
-        if (
-            (
-                msg.sig != IMigratableEntity.FACTORY.selector && msg.sig != IMigratableEntity.isInitialized.selector
-                    && msg.sig != IMigratableEntity.initialize.selector
-            ) && _getInitializedVersion() == 0
-        ) {
-            revert NotInitialized();
-        }
-
-        super._delegate(implementation);
     }
 }

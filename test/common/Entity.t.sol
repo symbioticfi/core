@@ -7,7 +7,6 @@ import {Factory} from "src/contracts/common/Factory.sol";
 import {IFactory} from "src/interfaces/common/IFactory.sol";
 
 import {IEntity} from "src/interfaces/common/IEntity.sol";
-import {IEntityProxy} from "src/interfaces/common/IEntityProxy.sol";
 
 import {SimpleEntity} from "test/mocks/SimpleEntity.sol";
 

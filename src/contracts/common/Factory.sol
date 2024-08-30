@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {EntityProxy} from "./EntityProxy.sol";
 import {Registry} from "./Registry.sol";
 
 import {IEntity} from "src/interfaces/common/IEntity.sol";
@@ -86,8 +85,7 @@ contract Factory is Registry, Ownable, IFactory {
      * @inheritdoc IFactory
      */
     function create(uint64 type_, bool withInitialize, bytes calldata data) external returns (address entity_) {
-        entity_ =
-            address(new EntityProxy{salt: keccak256(abi.encode(totalEntities(), type_, data))}(implementation(type_)));
+        entity_ = implementation(type_).cloneDeterministic(keccak256(abi.encode(totalEntities(), type_, data)));
 
         _addEntity(entity_);
 

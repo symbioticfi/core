@@ -2,8 +2,6 @@
 pragma solidity 0.8.25;
 
 interface IMigratableEntityProxy {
-    error NotInitialized();
-
     /**
      * @notice Upgrade the proxy to a new implementation and call a function on the new implementation.
      * @param newImplementation address of the new implementation

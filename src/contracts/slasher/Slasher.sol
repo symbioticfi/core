@@ -27,7 +27,7 @@ contract Slasher is BaseSlasher, ISlasher {
         uint256 amount,
         uint48 captureTimestamp,
         bytes calldata hints
-    ) external nonReentrant onlyNetworkMiddleware(subnetwork) returns (uint256 slashedAmount) {
+    ) external initialized nonReentrant onlyNetworkMiddleware(subnetwork) returns (uint256 slashedAmount) {
         SlashHints memory slashHints;
         if (hints.length > 0) {
             slashHints = abi.decode(hints, (SlashHints));
