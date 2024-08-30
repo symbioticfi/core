@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 
 contract NetworkMiddlewareService is INetworkMiddlewareService {
     /**
@@ -15,14 +15,18 @@ contract NetworkMiddlewareService is INetworkMiddlewareService {
      */
     mapping(address network => address value) public middleware;
 
-    constructor(address networkRegistry) {
+    constructor(
+        address networkRegistry
+    ) {
         NETWORK_REGISTRY = networkRegistry;
     }
 
     /**
      * @inheritdoc INetworkMiddlewareService
      */
-    function setMiddleware(address middleware_) external {
+    function setMiddleware(
+        address middleware_
+    ) external {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }

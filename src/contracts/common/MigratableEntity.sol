@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
-import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -23,7 +23,9 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
         _;
     }
 
-    constructor(address factory) {
+    constructor(
+        address factory
+    ) {
         _disableInitializers();
 
         FACTORY = factory;

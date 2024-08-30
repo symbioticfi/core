@@ -3,13 +3,13 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
-import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
-import {IVault} from "src/interfaces/vault/IVault.sol";
-import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
-import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
+import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 
 contract VaultScript is Script {
     function run(

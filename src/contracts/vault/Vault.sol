@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {MigratableEntity} from "src/contracts/common/MigratableEntity.sol";
+import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
-import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -55,7 +55,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function activeBalanceOf(address account) public view returns (uint256) {
+    function activeBalanceOf(
+        address account
+    ) public view returns (uint256) {
         return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
@@ -70,7 +72,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function balanceOf(address account) external view returns (uint256) {
+    function balanceOf(
+        address account
+    ) external view returns (uint256) {
         uint256 epoch = currentEpoch();
         return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
     }
@@ -245,7 +249,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setDepositWhitelist(bool status) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    function setDepositWhitelist(
+        bool status
+    ) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
         }
@@ -279,7 +285,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setIsDepositLimit(bool status) external onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    function setIsDepositLimit(
+        bool status
+    ) external onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
         }
@@ -292,7 +300,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setDepositLimit(uint256 limit) external onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    function setDepositLimit(
+        uint256 limit
+    ) external onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (limit != 0 && !isDepositLimit) {
             revert NoDepositLimit();
         }
@@ -306,7 +316,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         emit SetDepositLimit(limit);
     }
 
-    function _claim(uint256 epoch) private returns (uint256 amount) {
+    function _claim(
+        uint256 epoch
+    ) private returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }

@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
-import {INetworkRegistry} from "src/interfaces/INetworkRegistry.sol";
+import {NetworkRegistry} from "../src/contracts/NetworkRegistry.sol";
+import {INetworkRegistry} from "../src/interfaces/INetworkRegistry.sol";
 
 contract NetworkRegistryTest is Test {
     address owner;

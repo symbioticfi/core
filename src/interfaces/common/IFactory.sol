@@ -24,13 +24,17 @@ interface IFactory is IRegistry {
      * @param type_ position to get the implementation at
      * @return address of the implementation
      */
-    function implementation(uint64 type_) external view returns (address);
+    function implementation(
+        uint64 type_
+    ) external view returns (address);
 
     /**
      * @notice Whitelist a new type of entity.
      * @param implementation address of the new implementation
      */
-    function whitelist(address implementation) external;
+    function whitelist(
+        address implementation
+    ) external;
 
     /**
      * @notice Create a new entity at the factory.

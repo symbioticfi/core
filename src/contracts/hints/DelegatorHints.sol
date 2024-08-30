@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {BaseDelegator} from "src/contracts/delegator/BaseDelegator.sol";
-import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
+import {BaseDelegator} from "../delegator/BaseDelegator.sol";
+import {FullRestakeDelegator} from "../delegator/FullRestakeDelegator.sol";
 import {Hints} from "./Hints.sol";
-import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {NetworkRestakeDelegator} from "../delegator/NetworkRestakeDelegator.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";
 import {VaultHints} from "./VaultHints.sol";
-import {Vault} from "src/contracts/vault/Vault.sol";
+import {Vault} from "../vault/Vault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
-import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 contract BaseDelegatorHints is Hints, BaseDelegator {
     using Checkpoints for Checkpoints.Trace256;

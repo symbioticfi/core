@@ -23,11 +23,15 @@ interface INetworkMiddlewareService {
      * @param network address of the network
      * @return middleware of the network
      */
-    function middleware(address network) external view returns (address);
+    function middleware(
+        address network
+    ) external view returns (address);
 
     /**
      * @notice Set a new middleware for a calling network.
      * @param middleware new middleware of the network
      */
-    function setMiddleware(address middleware) external;
+    function setMiddleware(
+        address middleware
+    ) external;
 }

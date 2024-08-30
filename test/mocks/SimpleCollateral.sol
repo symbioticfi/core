@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ICollateral} from "src/interfaces/collateral/ICollateral.sol";
+import {ICollateral} from "../../src/interfaces/collateral/ICollateral.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -69,7 +69,9 @@ contract SimpleCollateral is ERC20, ICollateral {
         return DECIMALS;
     }
 
-    function mint(uint256 amount) public {
+    function mint(
+        uint256 amount
+    ) public {
         if (amount == 0) {
             revert();
         }

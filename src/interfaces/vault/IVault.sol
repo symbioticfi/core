@@ -166,7 +166,9 @@ interface IVault is IVaultStorage {
      * @param account account to get the active balance for
      * @return active balance for the account
      */
-    function activeBalanceOf(address account) external view returns (uint256);
+    function activeBalanceOf(
+        address account
+    ) external view returns (uint256);
 
     /**
      * @notice Get withdrawals for a particular account at a given epoch (zero if claimed).
@@ -180,7 +182,9 @@ interface IVault is IVaultStorage {
      * @notice Get a total amount of the collateral that can be slashed for a given account.
      * @return total amount of the slashable collateral
      */
-    function balanceOf(address account) external view returns (uint256);
+    function balanceOf(
+        address account
+    ) external view returns (uint256);
 
     /**
      * @notice Deposit collateral into the vault.
@@ -232,7 +236,9 @@ interface IVault is IVaultStorage {
      * @param status if enabling deposit whitelist
      * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
-    function setDepositWhitelist(bool status) external;
+    function setDepositWhitelist(
+        bool status
+    ) external;
 
     /**
      * @notice Set a depositor whitelist status.
@@ -247,12 +253,16 @@ interface IVault is IVaultStorage {
      * @param status if enabling deposit limit
      * @dev Only a IS_DEPOSIT_LIMIT_SET_ROLE holder can call this function.
      */
-    function setIsDepositLimit(bool status) external;
+    function setIsDepositLimit(
+        bool status
+    ) external;
 
     /**
      * @notice Set a deposit limit.
      * @param limit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
      * @dev Only a DEPOSIT_LIMIT_SET_ROLE holder can call this function.
      */
-    function setDepositLimit(uint256 limit) external;
+    function setDepositLimit(
+        uint256 limit
+    ) external;
 }

@@ -2,9 +2,9 @@
 pragma solidity 0.8.25;
 
 import {Hints} from "./Hints.sol";
-import {Vault} from "src/contracts/vault/Vault.sol";
+import {Vault} from "../vault/Vault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 contract VaultHints is Hints, Vault {
     using Checkpoints for Checkpoints.Trace256;

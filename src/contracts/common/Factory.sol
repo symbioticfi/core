@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {Registry} from "./Registry.sol";
 
-import {IEntity} from "src/interfaces/common/IEntity.sol";
-import {IFactory} from "src/interfaces/common/IFactory.sol";
+import {IEntity} from "../../interfaces/common/IEntity.sol";
+import {IFactory} from "../../interfaces/common/IFactory.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -16,7 +16,9 @@ contract Factory is Registry, Ownable, IFactory {
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(
+        address owner_
+    ) Ownable(owner_) {}
 
     /**
      * @inheritdoc IFactory
@@ -28,14 +30,18 @@ contract Factory is Registry, Ownable, IFactory {
     /**
      * @inheritdoc IFactory
      */
-    function implementation(uint64 type_) public view returns (address) {
+    function implementation(
+        uint64 type_
+    ) public view returns (address) {
         return _whitelistedImplementations.at(type_);
     }
 
     /**
      * @inheritdoc IFactory
      */
-    function whitelist(address implementation_) external onlyOwner {
+    function whitelist(
+        address implementation_
+    ) external onlyOwner {
         if (IEntity(implementation_).FACTORY() != address(this) || IEntity(implementation_).TYPE() != totalTypes()) {
             revert InvalidImplementation();
         }

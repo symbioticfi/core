@@ -2,9 +2,9 @@
 pragma solidity 0.8.25;
 
 import {Hints} from "./Hints.sol";
-import {OptInService} from "src/contracts/service/OptInService.sol";
+import {OptInService} from "../service/OptInService.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 contract OptInServiceHints is Hints, OptInService {
     using Checkpoints for Checkpoints.Trace208;

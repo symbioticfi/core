@@ -15,7 +15,9 @@ contract DAILikeToken is ERC20 {
 
     mapping(address => uint256) public nonces;
 
-    constructor(uint256 chainId_) ERC20(name_, symbol_) {
+    constructor(
+        uint256 chainId_
+    ) ERC20(name_, symbol_) {
         _mint(msg.sender, 1_000_000 * 1e18);
 
         DOMAIN_SEPARATOR = keccak256(

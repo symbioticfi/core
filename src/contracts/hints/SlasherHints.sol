@@ -2,13 +2,13 @@
 pragma solidity 0.8.25;
 
 import {BaseDelegatorHints} from "./DelegatorHints.sol";
-import {BaseSlasher} from "src/contracts/slasher/BaseSlasher.sol";
+import {BaseSlasher} from "../slasher/BaseSlasher.sol";
 import {Hints} from "./Hints.sol";
-import {Slasher} from "src/contracts/slasher/Slasher.sol";
-import {Vault} from "src/contracts/vault/Vault.sol";
-import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
+import {Slasher} from "../slasher/Slasher.sol";
+import {Vault} from "../vault/Vault.sol";
+import {VetoSlasher} from "../slasher/VetoSlasher.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -21,7 +21,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     address public immutable SLASHER_HINTS;
     address public immutable VETO_SLASHER_HINTS;
 
-    constructor(address baseDelegatorHints) BaseSlasher(address(0), address(0), address(0), 0) {
+    constructor(
+        address baseDelegatorHints
+    ) BaseSlasher(address(0), address(0), address(0), 0) {
         BASE_DELEGATOR_HINTS = baseDelegatorHints;
         SLASHER_HINTS = address(new SlasherHints(address(this)));
         VETO_SLASHER_HINTS = address(new VetoSlasherHints(address(this)));
@@ -79,7 +81,9 @@ contract BaseSlasherHints is Hints, BaseSlasher {
 contract SlasherHints is Hints, Slasher {
     address public immutable BASE_SLASHER_HINTS;
 
-    constructor(address baseSlasherHints) Slasher(address(0), address(0), address(0), 0) {
+    constructor(
+        address baseSlasherHints
+    ) Slasher(address(0), address(0), address(0), 0) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 
@@ -107,7 +111,9 @@ contract VetoSlasherHints is Hints, VetoSlasher {
 
     address public immutable BASE_SLASHER_HINTS;
 
-    constructor(address baseSlasherHints) VetoSlasher(address(0), address(0), address(0), address(0), 0) {
+    constructor(
+        address baseSlasherHints
+    ) VetoSlasher(address(0), address(0), address(0), address(0), 0) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 
