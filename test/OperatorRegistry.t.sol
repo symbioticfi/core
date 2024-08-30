@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-import {IOperatorRegistry} from "src/interfaces/IOperatorRegistry.sol";
+import {OperatorRegistry} from "../src/contracts/OperatorRegistry.sol";
+import {IOperatorRegistry} from "../src/interfaces/IOperatorRegistry.sol";
 
 contract OperatorRegistryTest is Test {
     address owner;

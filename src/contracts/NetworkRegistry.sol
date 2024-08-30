@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {Registry} from "./common/Registry.sol";
 
-import {INetworkRegistry} from "src/interfaces/INetworkRegistry.sol";
+import {INetworkRegistry} from "../interfaces/INetworkRegistry.sol";
 
 contract NetworkRegistry is Registry, INetworkRegistry {
     /**

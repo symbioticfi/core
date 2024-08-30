@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
+import {IVaultStorage} from "../../interfaces/vault/IVaultStorage.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -128,7 +128,9 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function epochAt(uint48 timestamp) public view returns (uint256) {
+    function epochAt(
+        uint48 timestamp
+    ) public view returns (uint256) {
         if (timestamp < epochDurationInit) {
             revert InvalidTimestamp();
         }
@@ -205,7 +207,9 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function activeSharesOf(address account) public view returns (uint256) {
+    function activeSharesOf(
+        address account
+    ) public view returns (uint256) {
         return _activeSharesOf[account].latest();
     }
 }

@@ -3,40 +3,40 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {VaultFactory} from "src/contracts/VaultFactory.sol";
-import {DelegatorFactory} from "src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "src/contracts/SlasherFactory.sol";
-import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-import {MetadataService} from "src/contracts/service/MetadataService.sol";
-import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
-import {OptInService} from "src/contracts/service/OptInService.sol";
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
+import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
+import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "src/contracts/vault/Vault.sol";
-import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
-import {Slasher} from "src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
+import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
 import {Token} from "test/mocks/Token.sol";
-import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
-import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 
-import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
-import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
-import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
+import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {BaseSlasherHints, SlasherHints} from "src/contracts/hints/SlasherHints.sol";
-import {BaseDelegatorHints} from "src/contracts/hints/DelegatorHints.sol";
-import {OptInServiceHints} from "src/contracts/hints/OptInServiceHints.sol";
-import {VaultHints} from "src/contracts/hints/VaultHints.sol";
-import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+import {BaseSlasherHints, SlasherHints} from "../../src/contracts/hints/SlasherHints.sol";
+import {BaseDelegatorHints} from "../../src/contracts/hints/DelegatorHints.sol";
+import {OptInServiceHints} from "../../src/contracts/hints/OptInServiceHints.sol";
+import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
+import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract SlasherTest is Test {
     using Subnetwork for bytes32;
@@ -145,7 +145,9 @@ contract SlasherTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create(uint48 epochDuration) public {
+    function test_Create(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
@@ -164,7 +166,9 @@ contract SlasherTest is Test {
         assertEq(slasher.slashableStake(alice.subnetwork(0), alice, 0, ""), 0);
     }
 
-    function test_CreateRevertNotVault(uint48 epochDuration) public {
+    function test_CreateRevertNotVault(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault,) = _getVaultAndDelegator(epochDuration);
@@ -1302,7 +1306,9 @@ contract SlasherTest is Test {
     //     assertLt(gasStruct.gasSpent1 - gasStruct.gasSpent2, 60_000);
     // }
 
-    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
+    function _getVaultAndDelegator(
+        uint48 epochDuration
+    ) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -1394,11 +1400,15 @@ contract SlasherTest is Test {
         return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _getSlasher(address vault_) internal returns (Slasher) {
+    function _getSlasher(
+        address vault_
+    ) internal returns (Slasher) {
         return Slasher(slasherFactory.create(0, true, abi.encode(address(vault_), "")));
     }
 
-    function _registerOperator(address user) internal {
+    function _registerOperator(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -1449,13 +1459,17 @@ contract SlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(address user) internal {
+    function _optInOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(address user) internal {
+    function _optOutOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

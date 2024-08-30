@@ -61,11 +61,15 @@ interface IOptInService {
      * @notice Opt-in a calling "who" to a particular "where" entity.
      * @param where address of the "where" registry
      */
-    function optIn(address where) external;
+    function optIn(
+        address where
+    ) external;
 
     /**
      * @notice Opt-out a calling "who" from a particular "where" entity.
      * @param where address of the "where" registry
      */
-    function optOut(address where) external;
+    function optOut(
+        address where
+    ) external;
 }

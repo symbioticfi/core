@@ -23,11 +23,15 @@ interface IMetadataService {
      * @param entity address of the entity
      * @return metadata URL of the entity
      */
-    function metadataURL(address entity) external view returns (string memory);
+    function metadataURL(
+        address entity
+    ) external view returns (string memory);
 
     /**
      * @notice Set a new metadata URL for a calling entity.
      * @param metadataURL new metadata URL of the entity
      */
-    function setMetadataURL(string calldata metadataURL) external;
+    function setMetadataURL(
+        string calldata metadataURL
+    ) external;
 }

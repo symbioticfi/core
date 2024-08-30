@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "./vault/IVault.sol";
 
 interface IVaultConfigurator {
     error DirtyInitParams();
@@ -53,5 +53,7 @@ interface IVaultConfigurator {
      * @return delegator address of the delegator
      * @return slasher address of the slasher
      */
-    function create(InitParams calldata params) external returns (address vault, address delegator, address slasher);
+    function create(
+        InitParams calldata params
+    ) external returns (address vault, address delegator, address slasher);
 }

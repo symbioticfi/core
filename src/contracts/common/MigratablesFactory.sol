@@ -4,9 +4,9 @@ pragma solidity 0.8.25;
 import {MigratableEntityProxy} from "./MigratableEntityProxy.sol";
 import {Registry} from "./Registry.sol";
 
-import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
-import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
-import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
+import {IMigratableEntityProxy} from "../../interfaces/common/IMigratableEntityProxy.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -18,7 +18,9 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(
+        address owner_
+    ) Ownable(owner_) {}
 
     /**
      * @inheritdoc IMigratablesFactory
@@ -30,7 +32,9 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function implementation(uint64 version) public view returns (address) {
+    function implementation(
+        uint64 version
+    ) public view returns (address) {
         if (version == 0 || version > lastVersion()) {
             revert InvalidVersion();
         }
@@ -40,7 +44,9 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     /**
      * @inheritdoc IMigratablesFactory
      */
-    function whitelist(address implementation_) external onlyOwner {
+    function whitelist(
+        address implementation_
+    ) external onlyOwner {
         if (IMigratableEntity(implementation_).FACTORY() != address(this)) {
             revert InvalidImplementation();
         }

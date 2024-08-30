@@ -12,11 +12,15 @@ contract FakeEntity {
         TYPE = type_;
     }
 
-    function setType(uint64 type_) external returns (uint64) {
+    function setType(
+        uint64 type_
+    ) external returns (uint64) {
         TYPE = type_;
     }
 
-    function setA(uint256 _a) public {
+    function setA(
+        uint256 _a
+    ) public {
         a = _a;
     }
 }

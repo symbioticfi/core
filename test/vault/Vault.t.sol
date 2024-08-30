@@ -3,36 +3,36 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {VaultFactory} from "src/contracts/VaultFactory.sol";
-import {DelegatorFactory} from "src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "src/contracts/SlasherFactory.sol";
-import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-import {MetadataService} from "src/contracts/service/MetadataService.sol";
-import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
-import {OptInService} from "src/contracts/service/OptInService.sol";
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
+import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
+import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "src/contracts/vault/Vault.sol";
-import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
-import {Slasher} from "src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
+import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
 import {Token} from "test/mocks/Token.sol";
 import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
-import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
-import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 
-import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
+import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {VaultHints} from "src/contracts/hints/VaultHints.sol";
-import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
+import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract VaultTest is Test {
     using Math for uint256;
@@ -314,7 +314,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertInvalidCollateral(uint48 epochDuration) public {
+    function test_CreateRevertInvalidCollateral(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         address[] memory networkLimitSetRoleHolders = new address[](1);
@@ -361,7 +363,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertNotDelegator(uint48 epochDuration) public {
+    function test_CreateRevertNotDelegator(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -390,7 +394,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertNotSlasher(uint48 epochDuration) public {
+    function test_CreateRevertNotSlasher(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -443,7 +449,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles1(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoles1(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -496,7 +504,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles2(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoles2(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -549,7 +559,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles3(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoles3(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -602,7 +614,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles4(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoles4(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -655,7 +669,9 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles5(uint48 epochDuration) public {
+    function test_CreateRevertMissingRoles5(
+        uint48 epochDuration
+    ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -1132,7 +1148,9 @@ contract VaultTest is Test {
         assertEq(vault.balanceOf(bob), amount2);
     }
 
-    function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
+    function test_DepositRevertInvalidOnBehalfOf(
+        uint256 amount1
+    ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1253,7 +1271,9 @@ contract VaultTest is Test {
         assertEq(vault.totalStake(), amount1 - amount2 - amount3);
     }
 
-    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
+    function test_WithdrawRevertInvalidClaimer(
+        uint256 amount1
+    ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1267,7 +1287,9 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function test_WithdrawRevertInsufficientWithdrawal(uint256 amount1) public {
+    function test_WithdrawRevertInsufficientWithdrawal(
+        uint256 amount1
+    ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1279,7 +1301,9 @@ contract VaultTest is Test {
         _withdraw(alice, 0);
     }
 
-    function test_WithdrawRevertTooMuchWithdraw(uint256 amount1) public {
+    function test_WithdrawRevertTooMuchWithdraw(
+        uint256 amount1
+    ) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1804,7 +1828,9 @@ contract VaultTest is Test {
         _deposit(alice, depositAmount);
     }
 
-    function test_SetDepositLimitToNull(uint256 limit1) public {
+    function test_SetDepositLimitToNull(
+        uint256 limit1
+    ) public {
         uint48 epochDuration = 1;
 
         vault = _getVault(epochDuration);
@@ -1864,7 +1890,9 @@ contract VaultTest is Test {
         _setDepositLimit(alice, limit2);
     }
 
-    function test_SetDepositLimitRevertAlreadySet(uint256 limit) public {
+    function test_SetDepositLimitRevertAlreadySet(
+        uint256 limit
+    ) public {
         uint48 epochDuration = 1;
 
         vault = _getVault(epochDuration);
@@ -2296,7 +2324,9 @@ contract VaultTest is Test {
     //     assertLt(gasStruct.gasSpent1 - gasStruct.gasSpent2, 10_000);
     // }
 
-    function _getVault(uint48 epochDuration) internal returns (Vault) {
+    function _getVault(
+        uint48 epochDuration
+    ) internal returns (Vault) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -2388,7 +2418,9 @@ contract VaultTest is Test {
         return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _registerOperator(address user) internal {
+    function _registerOperator(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -2451,13 +2483,17 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(address user) internal {
+    function _optInOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(address user) internal {
+    function _optOutOperatorVault(
+        address user
+    ) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

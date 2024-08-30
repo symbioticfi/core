@@ -36,13 +36,17 @@ interface IMigratablesFactory is IRegistry {
      * @return address of the implementation
      * @dev Reverts when an invalid version.
      */
-    function implementation(uint64 version) external view returns (address);
+    function implementation(
+        uint64 version
+    ) external view returns (address);
 
     /**
      * @notice Whitelist a new implementation for entities.
      * @param implementation address of the new implementation
      */
-    function whitelist(address implementation) external;
+    function whitelist(
+        address implementation
+    ) external;
 
     /**
      * @notice Create a new entity at the factory.

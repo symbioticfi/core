@@ -9,11 +9,15 @@ library Subnetwork {
         return bytes32(uint256(uint160(network_)) << 96 | identifier_);
     }
 
-    function network(bytes32 subnetwork_) internal pure returns (address) {
+    function network(
+        bytes32 subnetwork_
+    ) internal pure returns (address) {
         return address(uint160(uint256(subnetwork_ >> 96)));
     }
 
-    function identifier(bytes32 subnetwork_) internal pure returns (uint96) {
+    function identifier(
+        bytes32 subnetwork_
+    ) internal pure returns (uint96) {
         return uint96(uint256(subnetwork_));
     }
 }
