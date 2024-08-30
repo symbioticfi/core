@@ -1,11 +1,11 @@
 {
   "name": "symbiotic-core",
-  "version": "0.0.1",
-  "description": "",
-  "homepage": "",
-  "bugs": "",
-  "license": "(Apache-2.0 OR MIT)",
-  "author": "",
+  "version": "1.0.0-devnet.1",
+  "description": "Symbiotic is a shared security protocol enabling decentralized networks to control and customize their own multi-asset restaking implementation.",
+  "homepage": "https://symbiotic.fi/",
+  "bugs": "https://github.com/symbioticfi/core/issues",
+  "license": "BUSL-1.1",
+  "author": "Symbiotic Team",
   "files": [
     "src/**/*"
   ],
