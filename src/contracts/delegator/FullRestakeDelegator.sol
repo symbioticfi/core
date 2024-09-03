@@ -144,8 +144,8 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
-        if (exists) {
-            _networkLimit[subnetwork].push(Time.timestamp(), Math.min(latestValue, amount));
+        if (exists && latestValue > amount) {
+            _networkLimit[subnetwork].push(Time.timestamp(), amount);
         }
     }
 
