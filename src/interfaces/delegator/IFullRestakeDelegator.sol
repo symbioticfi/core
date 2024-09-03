@@ -1,4 +1,4 @@
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {IBaseDelegator} from "./IBaseDelegator.sol";
 
