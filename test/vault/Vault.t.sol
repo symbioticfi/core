@@ -1315,6 +1315,151 @@ contract VaultTest is Test {
         _withdraw(alice, amount1 + 1);
     }
 
+    function test_RedeemTwice(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        // uint48 epochDuration = 1;
+        vault = _getVault(1);
+
+        (, uint256 shares) = _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint256 withdrawnAssets2 = amount2 * (amount1 + 1) / (shares + 10 ** 0);
+        uint256 mintedShares = amount2 * 10 ** 0;
+        (uint256 withdrawnAssets_, uint256 mintedShares_) = _redeem(alice, amount2);
+        assertEq(withdrawnAssets_, withdrawnAssets2);
+        assertEq(mintedShares_, mintedShares);
+
+        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - amount2);
+        assertEq(vault.activeShares(), shares - amount2);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - withdrawnAssets2);
+        assertEq(vault.activeStake(), amount1 - withdrawnAssets2);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares - amount2);
+        assertEq(vault.activeSharesOf(alice), shares - amount2);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - withdrawnAssets2);
+        assertEq(vault.activeBalanceOf(alice), amount1 - withdrawnAssets2);
+        assertEq(vault.withdrawals(vault.currentEpoch()), 0);
+        assertEq(vault.withdrawals(vault.currentEpoch() + 1), withdrawnAssets2);
+        assertEq(vault.withdrawals(vault.currentEpoch() + 2), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch()), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 1), mintedShares);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 2), 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), mintedShares);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
+        assertEq(vault.balanceOf(alice), amount1);
+
+        shares -= amount2;
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint256 withdrawnAssets3 = amount3 * (amount1 - withdrawnAssets2 + 1) / (shares + 10 ** 0);
+        mintedShares = amount3 * 10 ** 0;
+        (withdrawnAssets_, mintedShares_) = _redeem(alice, amount3);
+        assertEq(withdrawnAssets_, withdrawnAssets3);
+        assertEq(mintedShares_, mintedShares);
+
+        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - amount3);
+        assertEq(vault.activeShares(), shares - amount3);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1 - withdrawnAssets2);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - withdrawnAssets2 - withdrawnAssets3);
+        assertEq(vault.activeStake(), amount1 - withdrawnAssets2 - withdrawnAssets3);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares - amount3);
+        assertEq(vault.activeSharesOf(alice), shares - amount3);
+        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - withdrawnAssets2);
+        assertEq(
+            vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - withdrawnAssets2 - withdrawnAssets3
+        );
+        assertEq(vault.activeBalanceOf(alice), amount1 - withdrawnAssets2 - withdrawnAssets3);
+        assertEq(vault.withdrawals(vault.currentEpoch() - 1), 0);
+        assertEq(vault.withdrawals(vault.currentEpoch()), withdrawnAssets2);
+        assertEq(vault.withdrawals(vault.currentEpoch() + 1), withdrawnAssets3);
+        assertEq(vault.withdrawals(vault.currentEpoch() + 2), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() - 1), 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch()), withdrawnAssets2 * 10 ** 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 1), withdrawnAssets3 * 10 ** 0);
+        assertEq(vault.withdrawalShares(vault.currentEpoch() + 2), 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() - 1, alice), 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), withdrawnAssets2 * 10 ** 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), withdrawnAssets3 * 10 ** 0);
+        assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
+        assertEq(vault.balanceOf(alice), amount1);
+
+        shares -= amount3;
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.totalStake(), amount1 - withdrawnAssets2);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(vault.totalStake(), amount1 - withdrawnAssets2 - withdrawnAssets3);
+    }
+
+    function test_RedeemRevertInvalidClaimer(
+        uint256 amount1
+    ) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        vm.expectRevert(IVault.InvalidClaimer.selector);
+        vm.startPrank(alice);
+        vault.redeem(address(0), amount1);
+        vm.stopPrank();
+    }
+
+    function test_RedeemRevertInsufficientRedeemption(
+        uint256 amount1
+    ) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        vm.expectRevert(IVault.InsufficientRedemption.selector);
+        _redeem(alice, 0);
+    }
+
+    function test_RedeemRevertTooMuchRedeem(
+        uint256 amount1
+    ) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        vm.expectRevert(IVault.TooMuchRedeem.selector);
+        _redeem(alice, amount1 + 1);
+    }
+
     function test_Claim(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
@@ -2468,6 +2613,12 @@ contract VaultTest is Test {
     function _withdraw(address user, uint256 amount) internal returns (uint256 burnedShares, uint256 mintedShares) {
         vm.startPrank(user);
         (burnedShares, mintedShares) = vault.withdraw(user, amount);
+        vm.stopPrank();
+    }
+
+    function _redeem(address user, uint256 shares) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
+        vm.startPrank(user);
+        (withdrawnAssets, mintedShares) = vault.redeem(user, shares);
         vm.stopPrank();
     }
 

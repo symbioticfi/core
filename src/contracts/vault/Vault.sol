@@ -132,30 +132,41 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientWithdrawal();
         }
 
-        uint256 activeStake_ = activeStake();
-        uint256 activeShares_ = activeShares();
-        uint256 activeSharesOf_ = activeSharesOf(msg.sender);
+        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
 
-        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeStake_);
-        if (burnedShares > activeSharesOf_) {
+        if (burnedShares > activeSharesOf(msg.sender)) {
             revert TooMuchWithdraw();
         }
 
-        _activeStake.push(Time.timestamp(), activeStake_ - amount);
-        _activeShares.push(Time.timestamp(), activeShares_ - burnedShares);
-        _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf_ - burnedShares);
-
-        uint256 epoch = currentEpoch() + 1;
-        uint256 withdrawals_ = withdrawals[epoch];
-        uint256 withdrawalsShares_ = withdrawalShares[epoch];
-
-        mintedShares = ERC4626Math.previewDeposit(amount, withdrawalsShares_, withdrawals_);
-
-        withdrawals[epoch] = withdrawals_ + amount;
-        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+        mintedShares = _withdraw(claimer, amount, burnedShares);
 
         emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function redeem(
+        address claimer,
+        uint256 shares
+    ) external initialized returns (uint256 withdrawnAssets, uint256 mintedShares) {
+        if (claimer == address(0)) {
+            revert InvalidClaimer();
+        }
+
+        if (shares > activeSharesOf(msg.sender)) {
+            revert TooMuchRedeem();
+        }
+
+        withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
+
+        if (withdrawnAssets == 0) {
+            revert InsufficientRedemption();
+        }
+
+        mintedShares = _withdraw(claimer, withdrawnAssets, shares);
+
+        emit Redeem(msg.sender, claimer, shares, withdrawnAssets, mintedShares);
     }
 
     /**
@@ -322,6 +333,26 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         depositLimit = limit;
 
         emit SetDepositLimit(limit);
+    }
+
+    function _withdraw(
+        address claimer,
+        uint256 withdrawnAssets,
+        uint256 burnedShares
+    ) private returns (uint256 mintedShares) {
+        _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
+        _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
+        _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
+
+        uint256 epoch = currentEpoch() + 1;
+        uint256 withdrawals_ = withdrawals[epoch];
+        uint256 withdrawalsShares_ = withdrawalShares[epoch];
+
+        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, withdrawalsShares_, withdrawals_);
+
+        withdrawals[epoch] = withdrawals_ + withdrawnAssets;
+        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
+        withdrawalSharesOf[epoch][claimer] += mintedShares;
     }
 
     function _claim(

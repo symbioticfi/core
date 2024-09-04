@@ -10,6 +10,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error DepositLimitReached();
     error InsufficientClaim();
     error InsufficientDeposit();
+    error InsufficientRedemption();
     error InsufficientWithdrawal();
     error InvalidAccount();
     error InvalidCaptureEpoch();
@@ -26,6 +27,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error NotDelegator();
     error NotSlasher();
     error NotWhitelistedDepositor();
+    error TooMuchRedeem();
     error TooMuchWithdraw();
 
     /**
@@ -91,6 +93,18 @@ interface IVault is IMigratableEntity, IVaultStorage {
      */
     event Withdraw(
         address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares
+    );
+
+    /**
+     * @notice Emitted when a redemption is made.
+     * @param redeemer account that redeemed
+     * @param claimer account that needs to claim the withdrawal
+     * @param shares amount of the active shares burned
+     * @param withdrawnAssets amount of the collateral withdrawn
+     * @param mintedShares amount of the epoch withdrawal shares minted
+     */
+    event Redeem(
+        address indexed redeemer, address indexed claimer, uint256 shares, uint256 withdrawnAssets, uint256 mintedShares
     );
 
     /**
@@ -207,6 +221,15 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @return mintedShares amount of the epoch withdrawal shares minted
      */
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares);
+
+    /**
+     * @notice Redeem collateral from the vault (it will be claimable after the next epoch).
+     * @param claimer account that needs to claim the withdrawal
+     * @param shares amount of the active shares to redeem
+     * @return withdrawnAssets amount of the collateral withdrawn
+     * @return mintedShares amount of the epoch withdrawal shares minted
+     */
+    function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares);
 
     /**
      * @notice Claim collateral from the vault.
