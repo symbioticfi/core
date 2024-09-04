@@ -6,6 +6,13 @@ interface IBaseDelegator {
     error NotSlasher();
     error NotVault();
 
+    enum DelegatorVersion {
+        Unspecified,
+        Base,
+        NetworkRestake,
+        FullRestake
+    }
+
     /**
      * @notice Base parameters needed for delegators' deployment.
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
@@ -52,9 +59,8 @@ interface IBaseDelegator {
     /**
      * @notice Get a version of the delegator (different versions mean different interfaces).
      * @return version of the delegator
-     * @dev Must return 1 for this one.
      */
-    function VERSION() external view returns (uint64);
+    function VERSION() external pure returns (DelegatorVersion);
 
     /**
      * @notice Get the network registry's address.

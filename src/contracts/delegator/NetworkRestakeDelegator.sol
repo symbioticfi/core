@@ -17,6 +17,13 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     using Math for uint256;
 
     /**
+     * @inheritdoc IBaseDelegator
+     */
+    function VERSION() public pure override(BaseDelegator, IBaseDelegator) returns (DelegatorVersion) {
+        return DelegatorVersion.NetworkRestake;
+    }
+
+    /**
      * @inheritdoc INetworkRestakeDelegator
      */
     bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");

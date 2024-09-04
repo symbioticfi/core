@@ -148,7 +148,7 @@ contract NetworkRestakeDelegatorTest is Test {
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
-        assertEq(delegator.VERSION(), 1);
+        assertEq(uint8(delegator.VERSION()), uint8(IBaseDelegator.DelegatorVersion.NetworkRestake));
         assertEq(delegator.NETWORK_REGISTRY(), address(networkRegistry));
         assertEq(delegator.VAULT_FACTORY(), address(vaultFactory));
         assertEq(delegator.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));

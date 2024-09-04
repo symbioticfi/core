@@ -25,11 +25,6 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    uint64 public constant VERSION = 1;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
     bytes32 public constant HOOK_SET_ROLE = keccak256("HOOK_SET_ROLE");
 
     /**
@@ -221,4 +216,11 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         address vault_,
         bytes memory data
     ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    function VERSION() public pure virtual returns (DelegatorVersion) {
+        return DelegatorVersion.Base;
+    }
 }
