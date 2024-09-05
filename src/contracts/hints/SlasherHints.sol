@@ -2,13 +2,13 @@
 pragma solidity 0.8.25;
 
 import {BaseDelegatorHints} from "./DelegatorHints.sol";
-import {BaseSlasher} from "src/contracts/slasher/BaseSlasher.sol";
+import {BaseSlasher} from "../slasher/BaseSlasher.sol";
 import {Hints} from "./Hints.sol";
-import {Slasher} from "src/contracts/slasher/Slasher.sol";
-import {Vault} from "src/contracts/vault/Vault.sol";
-import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
+import {Slasher} from "../slasher/Slasher.sol";
+import {Vault} from "../vault/Vault.sol";
+import {VetoSlasher} from "../slasher/VetoSlasher.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";

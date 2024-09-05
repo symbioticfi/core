@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {IOptInService} from "../../interfaces/service/IOptInService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 

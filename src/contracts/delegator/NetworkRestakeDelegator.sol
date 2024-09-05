@@ -3,11 +3,11 @@ pragma solidity 0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
 
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
-import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator} from "../../interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";

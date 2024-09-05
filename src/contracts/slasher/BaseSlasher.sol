@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Entity} from "src/contracts/common/Entity.sol";
-import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+import {Entity} from "../common/Entity.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
-import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
+import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
-import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";

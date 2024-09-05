@@ -3,13 +3,13 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
+import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
 
-import {OptInService} from "src/contracts/service/OptInService.sol";
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
+import {OptInService} from "../../src/contracts/service/OptInService.sol";
+import {IOptInService} from "../../src/interfaces/service/IOptInService.sol";
 
-import {OptInServiceHints} from "src/contracts/hints/OptInServiceHints.sol";
+import {OptInServiceHints} from "../../src/contracts/hints/OptInServiceHints.sol";
 
 contract OperatorOptInServiceTest is Test {
     address owner;

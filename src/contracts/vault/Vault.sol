@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {MigratableEntity} from "src/contracts/common/MigratableEntity.sol";
+import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
-import {ERC4626Math} from "src/contracts/libraries/ERC4626Math.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

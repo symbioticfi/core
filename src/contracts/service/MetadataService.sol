@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {IMetadataService} from "src/interfaces/service/IMetadataService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {IMetadataService} from "../../interfaces/service/IMetadataService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 

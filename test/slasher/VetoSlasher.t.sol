@@ -3,20 +3,20 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {VaultFactory} from "src/contracts/VaultFactory.sol";
-import {DelegatorFactory} from "src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "src/contracts/SlasherFactory.sol";
-import {NetworkRegistry} from "src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
-import {MetadataService} from "src/contracts/service/MetadataService.sol";
-import {NetworkMiddlewareService} from "src/contracts/service/NetworkMiddlewareService.sol";
-import {OptInService} from "src/contracts/service/OptInService.sol";
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
+import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
+import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "src/contracts/vault/Vault.sol";
-import {NetworkRestakeDelegator} from "src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "src/contracts/delegator/FullRestakeDelegator.sol";
-import {Slasher} from "src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
+import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "src/interfaces/vault/IVault.sol";
 
@@ -29,16 +29,16 @@ import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
 import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
 
-import {IVaultStorage} from "src/interfaces/vault/IVaultStorage.sol";
-import {IVetoSlasher} from "src/interfaces/slasher/IVetoSlasher.sol";
-import {IBaseSlasher} from "src/interfaces/slasher/IBaseSlasher.sol";
+import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
+import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {BaseSlasherHints, VetoSlasherHints} from "src/contracts/hints/SlasherHints.sol";
-import {BaseDelegatorHints} from "src/contracts/hints/DelegatorHints.sol";
-import {OptInServiceHints} from "src/contracts/hints/OptInServiceHints.sol";
-import {VaultHints} from "src/contracts/hints/VaultHints.sol";
-import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+import {BaseSlasherHints, VetoSlasherHints} from "../../src/contracts/hints/SlasherHints.sol";
+import {BaseDelegatorHints} from "../../src/contracts/hints/DelegatorHints.sol";
+import {OptInServiceHints} from "../../src/contracts/hints/OptInServiceHints.sol";
+import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
+import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract VetoSlasherTest is Test {
     using Math for uint256;

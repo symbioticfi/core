@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {Factory} from "src/contracts/common/Factory.sol";
-import {IFactory} from "src/interfaces/common/IFactory.sol";
+import {Factory} from "../../src/contracts/common/Factory.sol";
+import {IFactory} from "../../src/interfaces/common/IFactory.sol";
 
-import {IEntity} from "src/interfaces/common/IEntity.sol";
+import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
 import {SimpleEntity} from "test/mocks/SimpleEntity.sol";
 

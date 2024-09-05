@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 

@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import "forge-std/Script.sol";
 
-import {MetadataService} from "src/contracts/service/MetadataService.sol";
+import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
 
 contract MetadataServiceScript is Script {
     function run(

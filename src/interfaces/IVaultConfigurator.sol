@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "./vault/IVault.sol";
 
 interface IVaultConfigurator {
     error DirtyInitParams();

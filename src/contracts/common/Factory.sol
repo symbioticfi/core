@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {Registry} from "./Registry.sol";
 
-import {IEntity} from "src/interfaces/common/IEntity.sol";
-import {IFactory} from "src/interfaces/common/IFactory.sol";
+import {IEntity} from "../../interfaces/common/IEntity.sol";
+import {IFactory} from "../../interfaces/common/IFactory.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";

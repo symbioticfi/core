@@ -3,15 +3,15 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {IRegistry} from "../../src/interfaces/common/IRegistry.sol";
 
 import {MigratablesFactory} from "src/contracts/common/MigratablesFactory.sol";
 import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
 import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
 
-import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
+import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
-import {MigratableEntityProxy} from "src/contracts/common/MigratableEntityProxy.sol";
+import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 
 import {SimpleMigratableEntity} from "test/mocks/SimpleMigratableEntity.sol";
 import {SimpleMigratableEntityV2} from "test/mocks/SimpleMigratableEntityV2.sol";

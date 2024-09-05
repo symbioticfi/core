@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Entity} from "src/contracts/common/Entity.sol";
-import {StaticDelegateCallable} from "src/contracts/common/StaticDelegateCallable.sol";
+import {Entity} from "../common/Entity.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
-import {IDelegatorHook} from "src/interfaces/delegator/IDelegatorHook.sol";
-import {IOptInService} from "src/interfaces/service/IOptInService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
+import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
+import {IOptInService} from "../../interfaces/service/IOptInService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Checkpoints} from "src/contracts/libraries/Checkpoints.sol";
-import {Subnetwork} from "src/contracts/libraries/Subnetwork.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";

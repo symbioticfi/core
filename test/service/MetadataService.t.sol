@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {OperatorRegistry} from "src/contracts/OperatorRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
 
-import {MetadataService} from "src/contracts/service/MetadataService.sol";
-import {IMetadataService} from "src/interfaces/service/IMetadataService.sol";
+import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
+import {IMetadataService} from "../../src/interfaces/service/IMetadataService.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 

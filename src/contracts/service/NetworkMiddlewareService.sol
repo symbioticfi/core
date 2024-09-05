@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {INetworkMiddlewareService} from "src/interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "src/interfaces/common/IRegistry.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 
 contract NetworkMiddlewareService is INetworkMiddlewareService {
     /**

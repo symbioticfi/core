@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Entity} from "src/contracts/common/Entity.sol";
+import {Entity} from "../../src/contracts/common/Entity.sol";
 
 contract SimpleEntity is Entity {
     uint256 public a;

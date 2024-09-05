@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {MigratableEntity} from "src/contracts/common/MigratableEntity.sol";
+import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 
 contract SimpleMigratableEntity is MigratableEntity {
     uint256 public a;
