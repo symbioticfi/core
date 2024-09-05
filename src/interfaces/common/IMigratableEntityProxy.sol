@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
