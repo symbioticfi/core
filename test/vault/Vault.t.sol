@@ -19,7 +19,7 @@ import {Slasher} from "src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "src/interfaces/vault/IVault.sol";
-import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
+
 import {Token} from "test/mocks/Token.sol";
 import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
 import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
@@ -56,7 +56,7 @@ contract VaultTest is Test {
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
-    SimpleCollateral collateral;
+    Token collateral;
     FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
 
@@ -129,11 +129,8 @@ contract VaultTest is Test {
         );
         slasherFactory.whitelist(vetoSlasherImpl);
 
-        Token token = new Token("Token");
-        collateral = new SimpleCollateral(address(token));
+        collateral = new Token("Token");
         feeOnTransferCollateral = new FeeOnTransferToken("FeeOnTransferToken");
-
-        collateral.mint(token.totalSupply());
 
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
