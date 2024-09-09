@@ -8,8 +8,8 @@ import {IRegistry} from "../../src/interfaces/common/IRegistry.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
 import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
 
-import {SimpleMigratableEntity} from "test/mocks/SimpleMigratableEntity.sol";
-import {SimpleMigratableEntityV2} from "test/mocks/SimpleMigratableEntityV2.sol";
+import {SimpleMigratableEntity} from "../mocks/SimpleMigratableEntity.sol";
+import {SimpleMigratableEntityV2} from "../mocks/SimpleMigratableEntityV2.sol";
 
 contract MigratablesFactoryTest is Test {
     address owner;

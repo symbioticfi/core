@@ -8,8 +8,8 @@ import {IFactory} from "../../src/interfaces/common/IFactory.sol";
 
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
-import {SimpleEntity} from "test/mocks/SimpleEntity.sol";
-import {FakeEntity} from "test/mocks/FakeEntity.sol";
+import {SimpleEntity} from "../mocks/SimpleEntity.sol";
+import {FakeEntity} from "../mocks/FakeEntity.sol";
 
 contract FactoryTest is Test {
     address owner;

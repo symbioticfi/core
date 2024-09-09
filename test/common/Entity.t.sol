@@ -8,7 +8,7 @@ import {IFactory} from "../../src/interfaces/common/IFactory.sol";
 
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
-import {SimpleEntity} from "test/mocks/SimpleEntity.sol";
+import {SimpleEntity} from "../mocks/SimpleEntity.sol";
 
 contract EntityTest is Test {
     address owner;

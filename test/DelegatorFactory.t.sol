@@ -18,7 +18,7 @@ import {FullRestakeDelegator} from "../src/contracts/delegator/FullRestakeDelega
 import {Slasher} from "../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "../src/interfaces/vault/IVault.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {VaultConfigurator} from "../src/contracts/VaultConfigurator.sol";

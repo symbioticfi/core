@@ -18,19 +18,19 @@ import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDel
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
 
-import {Token} from "test/mocks/Token.sol";
-import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
-import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
-import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
+import {Token} from "../mocks/Token.sol";
+import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SimpleFullRestakeDelegatorHook} from "test/mocks/SimpleFullRestakeDelegatorHook.sol";
+import {SimpleFullRestakeDelegatorHook} from "../mocks/SimpleFullRestakeDelegatorHook.sol";
 
 import {BaseDelegatorHints, FullRestakeDelegatorHints} from "../../src/contracts/hints/DelegatorHints.sol";
 import {OptInServiceHints} from "../../src/contracts/hints/OptInServiceHints.sol";
