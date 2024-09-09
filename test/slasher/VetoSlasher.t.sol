@@ -18,16 +18,16 @@ import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDel
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "src/interfaces/vault/IVault.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
 
 import {Token} from "test/mocks/Token.sol";
-import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
-import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
-import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
-import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
+import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {IMigratableEntityProxy} from "../../src/interfaces/common/IMigratableEntityProxy.sol";
+import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";

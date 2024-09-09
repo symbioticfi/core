@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IEntity} from "src/interfaces/common/IEntity.sol";
+import {IEntity} from "../common/IEntity.sol";
 
 interface IBaseSlasher is IEntity {
     error NotNetworkMiddleware();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
+import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IMigratableEntity, IVaultStorage {

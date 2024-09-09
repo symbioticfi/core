@@ -5,9 +5,9 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {IRegistry} from "../../src/interfaces/common/IRegistry.sol";
 
-import {MigratablesFactory} from "src/contracts/common/MigratablesFactory.sol";
-import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
-import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
+import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
+import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
+import {IMigratableEntityProxy} from "../../src/interfaces/common/IMigratableEntityProxy.sol";
 
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
