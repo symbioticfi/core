@@ -5,8 +5,9 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {IRegistry} from "../../src/interfaces/common/IRegistry.sol";
 
-import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
-import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
+import {MigratablesFactory} from "src/contracts/common/MigratablesFactory.sol";
+import {IMigratablesFactory} from "src/interfaces/common/IMigratablesFactory.sol";
+import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
 
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
@@ -40,6 +41,7 @@ contract MigratableEntityTest is Test {
         address entity = factory.create(1, alice, true, "");
         assertEq(IMigratableEntity(entity).FACTORY(), address(factory));
         assertEq(IMigratableEntity(entity).version(), 1);
+        assertEq(IMigratableEntity(entity).isInitialized(), true);
     }
 
     function test_CreateWithoutInitialize() public {
@@ -50,9 +52,12 @@ contract MigratableEntityTest is Test {
         address entity = factory.create(1, alice, false, "");
         assertEq(IMigratableEntity(entity).FACTORY(), address(factory));
         assertEq(IMigratableEntity(entity).version(), 0);
+        assertEq(IMigratableEntity(entity).isInitialized(), false);
 
         IMigratableEntity(entity).initialize(1, alice, abi.encode(0));
+        assertEq(IMigratableEntity(entity).FACTORY(), address(factory));
         assertEq(IMigratableEntity(entity).version(), 1);
+        assertEq(IMigratableEntity(entity).isInitialized(), true);
     }
 
     function test_ReinitRevertAlreadyInitialized() public {

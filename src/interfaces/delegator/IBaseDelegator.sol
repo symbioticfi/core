@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IBaseDelegator {
+import {IEntity} from "src/interfaces/common/IEntity.sol";
+
+interface IBaseDelegator is IEntity {
     error AlreadySet();
+    error InsufficientHookGas();
     error NotNetwork();
     error NotSlasher();
     error NotVault();
@@ -80,6 +83,18 @@ interface IBaseDelegator {
      * @return address of the operator-network opt-in service
      */
     function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
+
+    /**
+     * @notice Get a gas limit for the hook.
+     * @return value of the hook gas limit
+     */
+    function HOOK_GAS_LIMIT() external view returns (uint256);
+
+    /**
+     * @notice Get a reserve gas between the gas limit check and the hook's execution.
+     * @return value of the reserve gas
+     */
+    function HOOK_RESERVE() external view returns (uint256);
 
     /**
      * @notice Get a hook setter's role.

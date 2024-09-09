@@ -6,8 +6,14 @@ import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.s
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigratableEntity {
+abstract contract MigratableEntity is
+    Initializable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IMigratableEntity
+{
     /**
      * @inheritdoc IMigratableEntity
      */
@@ -15,8 +21,15 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
 
     address private immutable SELF;
 
-    modifier uninitialized() {
-        if (_getInitializedVersion() > 0) {
+    modifier initialized() {
+        if (!isInitialized()) {
+            revert NotInitialized();
+        }
+        _;
+    }
+
+    modifier notInitialized() {
+        if (isInitialized()) {
             revert AlreadyInitialized();
         }
 
@@ -35,6 +48,13 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     /**
      * @inheritdoc IMigratableEntity
      */
+    function isInitialized() public view returns (bool) {
+        return _getInitializedVersion() != 0;
+    }
+
+    /**
+     * @inheritdoc IMigratableEntity
+     */
     function version() external view returns (uint64) {
         return _getInitializedVersion();
     }
@@ -46,10 +66,12 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
         uint64 initialVersion,
         address owner_,
         bytes calldata data
-    ) external uninitialized reinitializer(initialVersion) {
+    ) external notInitialized reinitializer(initialVersion) {
         if (SELF != IMigratablesFactory(FACTORY).implementation(initialVersion)) {
             revert InvalidInitialVersion();
         }
+
+        __ReentrancyGuard_init();
 
         if (owner_ != address(0)) {
             __Ownable_init(owner_);
@@ -61,7 +83,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, IMigrat
     /**
      * @inheritdoc IMigratableEntity
      */
-    function migrate(uint64 newVersion, bytes calldata data) external {
+    function migrate(uint64 newVersion, bytes calldata data) external nonReentrant {
         if (msg.sender != FACTORY) {
             revert NotFactory();
         }

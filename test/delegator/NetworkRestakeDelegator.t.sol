@@ -18,14 +18,15 @@ import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDel
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "../../src/interfaces/vault/IVault.sol";
-import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
+import {IVault} from "src/interfaces/vault/IVault.sol";
+
 import {Token} from "test/mocks/Token.sol";
-import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
-import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
+import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {ISlasher} from "src/interfaces/slasher/ISlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -58,7 +59,7 @@ contract NetworkRestakeDelegatorTest is Test {
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
-    SimpleCollateral collateral;
+    Token collateral;
     VaultConfigurator vaultConfigurator;
 
     Vault vault;
@@ -132,10 +133,7 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         slasherFactory.whitelist(vetoSlasherImpl);
 
-        Token token = new Token("Token");
-        collateral = new SimpleCollateral(address(token));
-
-        collateral.mint(token.totalSupply());
+        collateral = new Token("Token");
 
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
@@ -1219,6 +1217,123 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
         assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), 0);
         assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), 0);
+    }
+
+    function test_SlashWithHookGas(
+        // uint48 epochDuration,
+        uint256 depositAmount,
+        // uint256 networkLimit,
+        uint256 operatorNetworkShares1,
+        uint256 slashAmount1,
+        uint256 totalGas
+    ) public {
+        // epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        // networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        totalGas = bound(totalGas, 1, 20_000_000);
+        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkShares1)));
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address hook = address(new SimpleNetworkRestakeDelegatorHook());
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](2);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        operatorNetworkSharesSetRoleHolders[1] = hook;
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: alice,
+                vaultParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    delegator: address(0),
+                    slasher: address(0),
+                    burner: address(0xdEaD),
+                    epochDuration: 7 days,
+                    depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
+                    defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
+                }),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: hook,
+                            hookSetRoleHolder: address(0)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+
+        vault = Vault(vault_);
+        delegator = NetworkRestakeDelegator(delegator_);
+        slasher = Slasher(slasher_);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, type(uint256).max);
+
+        _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1);
+
+        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), operatorNetworkShares1);
+        assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), operatorNetworkShares1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+
+        vm.startPrank(alice);
+        uint256 HOOK_GAS_LIMIT = delegator.HOOK_GAS_LIMIT();
+        vm.expectRevert(IBaseDelegator.InsufficientHookGas.selector);
+        address(slasher).call{gas: HOOK_GAS_LIMIT}(
+            abi.encodeWithSelector(
+                ISlasher.slash.selector, network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""
+            )
+        );
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        (bool success,) = address(slasher).call{gas: totalGas}(
+            abi.encodeWithSelector(
+                ISlasher.slash.selector, network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""
+            )
+        );
+        vm.stopPrank();
+
+        if (success) {
+            assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
+            assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), 0);
+            assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), 0);
+        }
     }
 
     function test_SetHook(

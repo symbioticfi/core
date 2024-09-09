@@ -109,7 +109,10 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function setNetworkLimit(bytes32 subnetwork, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
+    function setNetworkLimit(
+        bytes32 subnetwork,
+        uint256 amount
+    ) external initialized onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (amount > maxNetworkLimit[subnetwork]) {
             revert ExceedsMaxNetworkLimit();
         }
@@ -126,7 +129,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         bytes32 subnetwork,
         address operator,
         uint256 shares
-    ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
+    ) external initialized onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
         _totalOperatorNetworkShares[subnetwork].push(
             Time.timestamp(),
             totalOperatorNetworkShares(subnetwork) - operatorNetworkShares(subnetwork, operator) + shares
@@ -174,8 +177,8 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
-        if (exists) {
-            _networkLimit[subnetwork].push(Time.timestamp(), Math.min(latestValue, amount));
+        if (exists && latestValue > amount) {
+            _networkLimit[subnetwork].push(Time.timestamp(), amount);
         }
     }
 

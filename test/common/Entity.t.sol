@@ -35,6 +35,7 @@ contract EntityTest is Test {
         address entity = factory.create(0, true, "");
         assertEq(IEntity(entity).FACTORY(), address(factory));
         assertEq(IEntity(entity).TYPE(), 0);
+        assertEq(IEntity(entity).isInitialized(), true);
 
         impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
@@ -42,8 +43,25 @@ contract EntityTest is Test {
         entity = factory.create(1, true, "");
         assertEq(IEntity(entity).FACTORY(), address(factory));
         assertEq(IEntity(entity).TYPE(), 1);
+        assertEq(IEntity(entity).isInitialized(), true);
 
         vm.expectRevert();
         IEntity(entity).initialize("");
+    }
+
+    function test_CreateWithoutInitialize() public {
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
+        assertEq(IEntity(impl).FACTORY(), address(factory));
+        factory.whitelist(impl);
+
+        address entity = factory.create(0, false, "");
+        assertEq(IEntity(entity).FACTORY(), address(factory));
+        assertEq(IEntity(entity).TYPE(), 0);
+        assertEq(IEntity(entity).isInitialized(), false);
+
+        IEntity(entity).initialize("");
+        assertEq(IEntity(entity).FACTORY(), address(factory));
+        assertEq(IEntity(entity).TYPE(), 0);
+        assertEq(IEntity(entity).isInitialized(), true);
     }
 }

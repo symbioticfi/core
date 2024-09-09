@@ -38,12 +38,14 @@ contract MigratablesFactoryTest is Test {
 
         assertEq(factory.lastVersion(), 1);
         assertEq(factory.implementation(1), impl);
+        assertEq(factory.blacklisted(1), false);
 
         impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
         assertEq(factory.lastVersion(), 2);
         assertEq(factory.implementation(2), impl);
+        assertEq(factory.blacklisted(2), false);
 
         assertEq(factory.isEntity(alice), false);
         address entity = factory.create(2, alice, true, "");
@@ -57,6 +59,10 @@ contract MigratablesFactoryTest is Test {
         vm.expectRevert(IRegistry.EntityNotExist.selector);
         factory.migrate(alice, lastVersion, abi.encode(0));
         vm.stopPrank();
+
+        factory.blacklist(2);
+
+        assertEq(factory.blacklisted(2), true);
     }
 
     function test_CreateRevertInvalidVersion() public {
@@ -154,5 +160,20 @@ contract MigratablesFactoryTest is Test {
 
         vm.expectRevert(IMigratablesFactory.AlreadyWhitelisted.selector);
         factory.whitelist(impl);
+    }
+
+    function test_BlacklistRevertAlreadyBlacklisted() public {
+        address impl = address(new SimpleMigratableEntity(address(factory)));
+        factory.whitelist(impl);
+
+        factory.blacklist(1);
+
+        vm.expectRevert(IMigratablesFactory.AlreadyBlacklisted.selector);
+        factory.blacklist(1);
+    }
+
+    function test_BlacklistRevertInvalidVersion() public {
+        vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
+        factory.blacklist(0);
     }
 }

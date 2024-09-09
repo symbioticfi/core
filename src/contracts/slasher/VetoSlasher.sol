@@ -83,7 +83,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         uint256 amount,
         uint48 captureTimestamp,
         bytes calldata hints
-    ) external onlyNetworkMiddleware(subnetwork) returns (uint256 slashIndex) {
+    ) external initialized nonReentrant onlyNetworkMiddleware(subnetwork) returns (uint256 slashIndex) {
         RequestSlashHints memory requestSlashHints;
         if (hints.length > 0) {
             requestSlashHints = abi.decode(hints, (RequestSlashHints));
@@ -125,7 +125,10 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount) {
+    function executeSlash(
+        uint256 slashIndex,
+        bytes calldata hints
+    ) external initialized nonReentrant returns (uint256 slashedAmount) {
         ExecuteSlashHints memory executeSlashHints;
         if (hints.length > 0) {
             executeSlashHints = abi.decode(hints, (ExecuteSlashHints));
@@ -190,7 +193,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function vetoSlash(uint256 slashIndex, bytes calldata hints) external {
+    function vetoSlash(uint256 slashIndex, bytes calldata hints) external initialized nonReentrant {
         VetoSlashHints memory vetoSlashHints;
         if (hints.length > 0) {
             vetoSlashHints = abi.decode(hints, (VetoSlashHints));
@@ -228,7 +231,11 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit VetoSlash(slashIndex, msg.sender);
     }
 
-    function setResolver(uint96 identifier, address resolver_, bytes calldata hints) external {
+    function setResolver(
+        uint96 identifier,
+        address resolver_,
+        bytes calldata hints
+    ) external initialized nonReentrant {
         SetResolverHints memory setResolverHints;
         if (hints.length > 0) {
             setResolverHints = abi.decode(hints, (SetResolverHints));
@@ -258,7 +265,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         uint48 epochDuration = IVault(vault_).epochDuration();
-        if (epochDuration == 0) {
+        if (!IVault(vault_).isInitialized()) {
             revert VaultNotInitialized();
         }
         if (params.vetoDuration >= epochDuration) {

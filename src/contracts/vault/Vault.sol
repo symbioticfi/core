@@ -12,12 +12,11 @@ import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVault {
+contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using SafeCast for uint256;
@@ -85,7 +84,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) external initialized nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -121,7 +120,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
+    function withdraw(
+        address claimer,
+        uint256 amount
+    ) external initialized nonReentrant returns (uint256 burnedShares, uint256 mintedShares) {
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
@@ -130,28 +132,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
             revert InsufficientWithdrawal();
         }
 
-        uint256 activeStake_ = activeStake();
-        uint256 activeShares_ = activeShares();
-        uint256 activeSharesOf_ = activeSharesOf(msg.sender);
+        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
 
-        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeStake_);
-        if (burnedShares > activeSharesOf_) {
+        if (burnedShares > activeSharesOf(msg.sender)) {
             revert TooMuchWithdraw();
         }
 
-        _activeStake.push(Time.timestamp(), activeStake_ - amount);
-        _activeShares.push(Time.timestamp(), activeShares_ - burnedShares);
-        _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf_ - burnedShares);
-
-        uint256 epoch = currentEpoch() + 1;
-        uint256 withdrawals_ = withdrawals[epoch];
-        uint256 withdrawalsShares_ = withdrawalShares[epoch];
-
-        mintedShares = ERC4626Math.previewDeposit(amount, withdrawalsShares_, withdrawals_);
-
-        withdrawals[epoch] = withdrawals_ + amount;
-        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+        mintedShares = _withdraw(claimer, amount, burnedShares);
 
         emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
     }
@@ -159,7 +146,33 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function claim(address recipient, uint256 epoch) external nonReentrant returns (uint256 amount) {
+    function redeem(
+        address claimer,
+        uint256 shares
+    ) external initialized nonReentrant returns (uint256 withdrawnAssets, uint256 mintedShares) {
+        if (claimer == address(0)) {
+            revert InvalidClaimer();
+        }
+
+        if (shares > activeSharesOf(msg.sender)) {
+            revert TooMuchRedeem();
+        }
+
+        withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
+
+        if (withdrawnAssets == 0) {
+            revert InsufficientRedemption();
+        }
+
+        mintedShares = _withdraw(claimer, withdrawnAssets, shares);
+
+        emit Redeem(msg.sender, claimer, shares, withdrawnAssets, mintedShares);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function claim(address recipient, uint256 epoch) external initialized nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
@@ -174,7 +187,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function claimBatch(address recipient, uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
+    function claimBatch(
+        address recipient,
+        uint256[] calldata epochs
+    ) external initialized nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
@@ -196,7 +212,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external {
+    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external initialized nonReentrant {
         if (msg.sender != slasher) {
             revert NotSlasher();
         }
@@ -251,7 +267,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
      */
     function setDepositWhitelist(
         bool status
-    ) external onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
         }
@@ -264,7 +280,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
     /**
      * @inheritdoc IVault
      */
-    function setDepositorWhitelistStatus(address account, bool status) external onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+    function setDepositorWhitelistStatus(
+        address account,
+        bool status
+    ) external initialized nonReentrant onlyRole(DEPOSITOR_WHITELIST_ROLE) {
         if (account == address(0)) {
             revert InvalidAccount();
         }
@@ -287,7 +306,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
      */
     function setIsDepositLimit(
         bool status
-    ) external onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
         }
@@ -302,7 +321,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
      */
     function setDepositLimit(
         uint256 limit
-    ) external onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (limit != 0 && !isDepositLimit) {
             revert NoDepositLimit();
         }
@@ -314,6 +333,26 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
         depositLimit = limit;
 
         emit SetDepositLimit(limit);
+    }
+
+    function _withdraw(
+        address claimer,
+        uint256 withdrawnAssets,
+        uint256 burnedShares
+    ) private returns (uint256 mintedShares) {
+        _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
+        _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
+        _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
+
+        uint256 epoch = currentEpoch() + 1;
+        uint256 withdrawals_ = withdrawals[epoch];
+        uint256 withdrawalsShares_ = withdrawalShares[epoch];
+
+        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, withdrawalsShares_, withdrawals_);
+
+        withdrawals[epoch] = withdrawals_ + withdrawnAssets;
+        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
+        withdrawalSharesOf[epoch][claimer] += mintedShares;
     }
 
     function _claim(
@@ -376,8 +415,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Reen
                 }
             }
         }
-
-        __ReentrancyGuard_init();
 
         collateral = params.collateral;
 

@@ -18,14 +18,16 @@ import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDel
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "../../src/interfaces/vault/IVault.sol";
-import {SimpleCollateral} from "test/mocks/SimpleCollateral.sol";
+import {IVault} from "src/interfaces/vault/IVault.sol";
+
 import {Token} from "test/mocks/Token.sol";
-import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
-import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {VaultConfigurator} from "src/contracts/VaultConfigurator.sol";
+import {IVaultConfigurator} from "src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IBaseDelegator} from "src/interfaces/delegator/IBaseDelegator.sol";
+import {IMigratableEntityProxy} from "src/interfaces/common/IMigratableEntityProxy.sol";
+import {IMigratableEntity} from "src/interfaces/common/IMigratableEntity.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
@@ -60,7 +62,7 @@ contract VetoSlasherTest is Test {
     OptInService operatorVaultOptInService;
     OptInService operatorNetworkOptInService;
 
-    SimpleCollateral collateral;
+    Token collateral;
     VaultConfigurator vaultConfigurator;
 
     Vault vault;
@@ -137,10 +139,7 @@ contract VetoSlasherTest is Test {
         );
         slasherFactory.whitelist(vetoSlasherImpl);
 
-        Token token = new Token("Token");
-        collateral = new SimpleCollateral(address(token));
-
-        collateral.mint(token.totalSupply());
+        collateral = new Token("Token");
 
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));

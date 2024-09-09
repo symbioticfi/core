@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
-
-interface IMigratableEntityProxy is IERC1967 {
+interface IMigratableEntityProxy {
     /**
      * @notice Upgrade the proxy to a new implementation and call a function on the new implementation.
      * @param newImplementation address of the new implementation

@@ -38,16 +38,22 @@ contract FactoryTest is Test {
 
         assertEq(factory.totalTypes(), 1);
         assertEq(factory.implementation(0), impl);
+        assertEq(factory.blacklisted(0), false);
 
         impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
         factory.whitelist(impl);
 
         assertEq(factory.totalTypes(), 2);
         assertEq(factory.implementation(1), impl);
+        assertEq(factory.blacklisted(1), false);
 
         assertEq(factory.isEntity(alice), false);
         address entity = factory.create(1, true, "");
         assertEq(factory.isEntity(entity), true);
+
+        factory.blacklist(1);
+
+        assertEq(factory.blacklisted(1), true);
     }
 
     function test_CreateRevertInvalidIndex() public {
@@ -86,5 +92,19 @@ contract FactoryTest is Test {
         FakeEntity(impl).setType(factory.totalTypes());
         vm.expectRevert(IFactory.AlreadyWhitelisted.selector);
         factory.whitelist(impl);
+    }
+
+    function test_BlacklistRevertAlreadyBlacklisted() public {
+        address impl = address(new SimpleEntity(address(factory), factory.totalTypes()));
+        factory.whitelist(impl);
+
+        factory.blacklist(0);
+        vm.expectRevert(IFactory.AlreadyBlacklisted.selector);
+        factory.blacklist(0);
+    }
+
+    function test_BlacklistRevertIinvalidType() public {
+        vm.expectRevert(IFactory.InvalidType.selector);
+        factory.blacklist(0);
     }
 }

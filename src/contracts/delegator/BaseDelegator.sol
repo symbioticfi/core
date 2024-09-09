@@ -15,8 +15,15 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeable, IBaseDelegator {
+contract BaseDelegator is
+    Entity,
+    StaticDelegateCallable,
+    AccessControlUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IBaseDelegator
+{
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using Subnetwork for bytes32;
@@ -26,6 +33,16 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
      * @inheritdoc IBaseDelegator
      */
     uint64 public constant VERSION = 1;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    uint256 public constant HOOK_GAS_LIMIT = 250_000;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    uint256 public constant HOOK_RESERVE = 20_000;
 
     /**
      * @inheritdoc IBaseDelegator
@@ -128,7 +145,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external {
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external initialized nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -150,7 +167,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
      */
     function setHook(
         address hook_
-    ) external onlyRole(HOOK_SET_ROLE) {
+    ) external initialized nonReentrant onlyRole(HOOK_SET_ROLE) {
         hook = hook_;
 
         emit SetHook(hook_);
@@ -165,7 +182,7 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         uint256 slashedAmount,
         uint48 captureTimestamp,
         bytes memory data
-    ) external {
+    ) external initialized nonReentrant {
         if (IVault(vault).slasher() != msg.sender) {
             revert NotSlasher();
         }
@@ -175,8 +192,13 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
             bytes memory calldata_ = abi.encodeWithSelector(
                 IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
             );
+
+            if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
+                revert InsufficientHookGas();
+            }
+
             assembly ("memory-safe") {
-                pop(call(250000, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+                pop(call(HOOK_GAS_LIMIT, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
             }
         }
 
@@ -191,6 +213,8 @@ contract BaseDelegator is Entity, StaticDelegateCallable, AccessControlUpgradeab
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
+
+        __ReentrancyGuard_init();
 
         vault = vault_;
 

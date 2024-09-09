@@ -5,6 +5,7 @@ interface IMigratableEntity {
     error AlreadyInitialized();
     error InvalidInitialVersion();
     error NotFactory();
+    error NotInitialized();
 
     /**
      * @notice Get the factory's address.
@@ -18,6 +19,12 @@ interface IMigratableEntity {
      * @dev Starts from 1.
      */
     function version() external view returns (uint64);
+
+    /**
+     * @notice Get if the entity is initialized.
+     * @return if the entity is initialized
+     */
+    function isInitialized() external view returns (bool);
 
     /**
      * @notice Initialize this entity contract by using a given data and setting a particular version and owner.
