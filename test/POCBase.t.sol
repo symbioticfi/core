@@ -20,8 +20,8 @@ import {VetoSlasher} from "../src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "../src/interfaces/vault/IVault.sol";
 
-import {Token} from "test/mocks/Token.sol";
-import {FeeOnTransferToken} from "test/mocks/FeeOnTransferToken.sol";
+import {Token} from "./mocks/Token.sol";
+import {FeeOnTransferToken} from "./mocks/FeeOnTransferToken.sol";
 import {VaultConfigurator} from "../src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";

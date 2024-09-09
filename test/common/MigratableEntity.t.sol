@@ -13,8 +13,8 @@ import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.s
 
 import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 
-import {SimpleMigratableEntity} from "test/mocks/SimpleMigratableEntity.sol";
-import {SimpleMigratableEntityV2} from "test/mocks/SimpleMigratableEntityV2.sol";
+import {SimpleMigratableEntity} from "../mocks/SimpleMigratableEntity.sol";
+import {SimpleMigratableEntityV2} from "../mocks/SimpleMigratableEntityV2.sol";
 
 contract MigratableEntityTest is Test {
     address owner;
