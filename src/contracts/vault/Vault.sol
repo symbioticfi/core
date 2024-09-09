@@ -123,7 +123,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function withdraw(
         address claimer,
         uint256 amount
-    ) external initialized returns (uint256 burnedShares, uint256 mintedShares) {
+    ) external initialized nonReentrant returns (uint256 burnedShares, uint256 mintedShares) {
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
@@ -149,7 +149,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function redeem(
         address claimer,
         uint256 shares
-    ) external initialized returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    ) external initialized nonReentrant returns (uint256 withdrawnAssets, uint256 mintedShares) {
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
