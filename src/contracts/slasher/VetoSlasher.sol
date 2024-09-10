@@ -96,8 +96,6 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        _checkLatestSlashedCaptureTimestamp(subnetwork, captureTimestamp);
-
         amount = Math.min(
             amount, slashableStake(subnetwork, operator, captureTimestamp, requestSlashHints.slashableStakeHints)
         );
@@ -164,9 +162,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         request.completed = true;
 
-        if (latestSlashedCaptureTimestamp[request.subnetwork] < request.captureTimestamp) {
-            latestSlashedCaptureTimestamp[request.subnetwork] = request.captureTimestamp;
-        }
+        _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.captureTimestamp);
 
         slashedAmount = Math.min(
             request.amount,
