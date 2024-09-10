@@ -924,9 +924,7 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.cumulativeSlash(alice.subnetwork(0), alice), slashAmountReal1);
 
         uint256 slashAmountReal2 = Math.min(
-            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1))
-                - slashAmountReal1,
-            slashAmountReal1
+            Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)) - slashAmountReal1, slashAmountReal1
         );
 
         depositAmount -= slashAmountReal1;
