@@ -194,7 +194,7 @@ interface IVetoSlasher {
      * @param captureTimestamp time point when the stake was captured
      * @param hints hints for checkpoints' indexes
      * @return slashIndex index of the slash request
-     * @dev Only network middleware can call this function.
+     * @dev Only a network middleware can call this function.
      */
     function requestSlash(
         bytes32 subnetwork,
@@ -209,7 +209,7 @@ interface IVetoSlasher {
      * @param slashIndex index of the slash request
      * @param hints hints for checkpoints' indexes
      * @return slashedAmount amount of the collateral slashed
-     * @dev Anyone can call this function.
+     * @dev Only a network middleware can call this function.
      */
     function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);
 
