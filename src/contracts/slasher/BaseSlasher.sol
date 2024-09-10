@@ -94,10 +94,13 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
         }
 
-        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
-        {
+        if (
+            captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
+                || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork]
+        ) {
             return 0;
         }
+
         uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints
         );
@@ -120,6 +123,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     function _checkLatestSlashedCaptureTimestamp(bytes32 subnetwork, uint48 captureTimestamp) internal view {
         if (captureTimestamp < latestSlashedCaptureTimestamp[subnetwork]) {
             revert OutdatedCaptureTimestamp();
+        }
+    }
+
+    function _updateLatestSlashedCaptureTimestamp(bytes32 subnetwork, uint48 captureTimestamp) internal {
+        if (latestSlashedCaptureTimestamp[subnetwork] < captureTimestamp) {
+            latestSlashedCaptureTimestamp[subnetwork] = captureTimestamp;
         }
     }
 

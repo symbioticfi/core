@@ -230,12 +230,14 @@ contract SlasherTest is Test {
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
         );
+        assertEq(slasher.latestSlashedCaptureTimestamp(network.subnetwork(0)), 0);
 
         assertEq(
             Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")),
             _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "")
         );
 
+        assertEq(slasher.latestSlashedCaptureTimestamp(network.subnetwork(0)), uint48(blockTimestamp - 1));
         assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(
             slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), ""),
@@ -245,6 +247,7 @@ contract SlasherTest is Test {
             slasher.cumulativeSlash(alice.subnetwork(0), alice),
             Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
         );
+        assertEq(slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""), 0);
         assertEq(
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
@@ -263,6 +266,7 @@ contract SlasherTest is Test {
             _slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1), "")
         );
 
+        assertEq(slasher.latestSlashedCaptureTimestamp(network.subnetwork(0)), uint48(blockTimestamp - 1));
         assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(
             slasher.cumulativeSlashAt(alice.subnetwork(0), bob, uint48(blockTimestamp), ""),
@@ -289,6 +293,7 @@ contract SlasherTest is Test {
         vm.assume(slashAmountReal3 > 0);
         assertEq(slashAmountReal3, _slash(alice, network, alice, slashAmount3, uint48(blockTimestamp - 2), ""));
 
+        assertEq(slasher.latestSlashedCaptureTimestamp(network.subnetwork(0)), uint48(blockTimestamp - 2));
         assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 2), ""), 0);
         assertEq(
             slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
@@ -600,7 +605,7 @@ contract SlasherTest is Test {
         );
     }
 
-    function test_SlashRevertOutdatedCaptureTimestamp(
+    function test_SlashRevertInsufficientSlash1(
         uint48 epochDuration,
         uint256 depositAmount,
         uint256 networkLimit,
@@ -650,7 +655,7 @@ contract SlasherTest is Test {
 
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        vm.expectRevert(IBaseSlasher.OutdatedCaptureTimestamp.selector);
+        vm.expectRevert(ISlasher.InsufficientSlash.selector);
         _slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 2), "");
     }
 
@@ -701,7 +706,7 @@ contract SlasherTest is Test {
         _slash(bob, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
     }
 
-    function test_SlashRevertInsufficientSlash(
+    function test_SlashRevertInsufficientSlash2(
         uint48 epochDuration,
         uint256 depositAmount,
         uint256 networkLimit,

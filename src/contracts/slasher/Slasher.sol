@@ -40,17 +40,13 @@ contract Slasher is BaseSlasher, ISlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        _checkLatestSlashedCaptureTimestamp(subnetwork, captureTimestamp);
-
         slashedAmount =
             Math.min(amount, slashableStake(subnetwork, operator, captureTimestamp, slashHints.slashableStakeHints));
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
 
-        if (latestSlashedCaptureTimestamp[subnetwork] < captureTimestamp) {
-            latestSlashedCaptureTimestamp[subnetwork] = captureTimestamp;
-        }
+        _updateLatestSlashedCaptureTimestamp(subnetwork, captureTimestamp);
 
         _updateCumulativeSlash(subnetwork, operator, slashedAmount);
 
