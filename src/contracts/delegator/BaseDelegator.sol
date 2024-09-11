@@ -10,11 +10,9 @@ import {IOptInService} from "../../interfaces/service/IOptInService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 contract BaseDelegator is
@@ -24,8 +22,6 @@ contract BaseDelegator is
     ReentrancyGuardUpgradeable,
     IBaseDelegator
 {
-    using Checkpoints for Checkpoints.Trace256;
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
 
