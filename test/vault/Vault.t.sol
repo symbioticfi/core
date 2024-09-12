@@ -230,7 +230,7 @@ contract VaultTest is Test {
         assertEq(vault.isWithdrawalsClaimed(0, alice), false);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
-        assertEq(vault.balanceOf(alice), 0);
+        assertEq(vault.slashableBalanceOf(alice), 0);
 
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -754,7 +754,7 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
-        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -815,7 +815,7 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 + amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
-        assertEq(vault.balanceOf(alice), amount1 + amount2);
+        assertEq(vault.slashableBalanceOf(alice), amount1 + amount2);
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
@@ -962,7 +962,7 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1);
         assertEq(vault.activeBalanceOf(alice), amount1 - 1);
-        assertEq(vault.balanceOf(alice), amount1 - 1);
+        assertEq(vault.slashableBalanceOf(alice), amount1 - 1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1027,7 +1027,7 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - 1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1 + amount2 - 1);
         assertEq(vault.activeBalanceOf(alice), amount1 - 1 + amount2 - 1);
-        assertEq(vault.balanceOf(alice), amount1 - 1 + amount2 - 1);
+        assertEq(vault.slashableBalanceOf(alice), amount1 - 1 + amount2 - 1);
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
@@ -1135,14 +1135,14 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
-        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.slashableBalanceOf(alice), amount1);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp), ""), shares2);
         assertEq(vault.activeSharesOf(bob), shares2);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp), ""), amount2);
         assertEq(vault.activeBalanceOf(bob), amount2);
-        assertEq(vault.balanceOf(bob), amount2);
+        assertEq(vault.slashableBalanceOf(bob), amount2);
     }
 
     function test_DepositRevertInvalidOnBehalfOf(
@@ -1215,7 +1215,7 @@ contract VaultTest is Test {
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), mintedShares);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
-        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         shares -= burnedShares;
 
@@ -1253,7 +1253,7 @@ contract VaultTest is Test {
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), amount2 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), amount3 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
-        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         shares -= burnedShares;
 
@@ -1358,7 +1358,7 @@ contract VaultTest is Test {
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), mintedShares);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
-        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         shares -= amount2;
 
@@ -1398,7 +1398,7 @@ contract VaultTest is Test {
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch(), alice), withdrawnAssets2 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 1, alice), withdrawnAssets3 * 10 ** 0);
         assertEq(vault.withdrawalSharesOf(vault.currentEpoch() + 2, alice), 0);
-        assertEq(vault.balanceOf(alice), amount1);
+        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         shares -= amount3;
 
