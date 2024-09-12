@@ -71,7 +71,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function balanceOf(
+    function slashableBalanceOf(
         address account
     ) external view returns (uint256) {
         uint256 epoch = currentEpoch();
