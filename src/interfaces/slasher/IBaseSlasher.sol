@@ -39,11 +39,10 @@ interface IBaseSlasher is IEntity {
     /**
      * @notice Get the latest capture timestamp that was slashed on a subnetwork.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param operator address of the operator
      * @return latest capture timestamp that was slashed
      */
-    function latestSlashedCaptureTimestamp(
-        bytes32 subnetwork
-    ) external view returns (uint48);
+    function latestSlashedCaptureTimestamp(bytes32 subnetwork, address operator) external view returns (uint48);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a subnetwork until a given timestamp (inclusively) using a hint.

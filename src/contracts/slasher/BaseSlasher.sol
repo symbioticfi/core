@@ -39,7 +39,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     /**
      * @inheritdoc IBaseSlasher
      */
-    mapping(bytes32 subnetwork => uint48 value) public latestSlashedCaptureTimestamp;
+    mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
 
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
@@ -96,7 +96,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
 
         if (
             captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
-                || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork]
+                || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
         ) {
             return 0;
         }
@@ -120,15 +120,23 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         }
     }
 
-    function _checkLatestSlashedCaptureTimestamp(bytes32 subnetwork, uint48 captureTimestamp) internal view {
-        if (captureTimestamp < latestSlashedCaptureTimestamp[subnetwork]) {
+    function _checkLatestSlashedCaptureTimestamp(
+        bytes32 subnetwork,
+        address operator,
+        uint48 captureTimestamp
+    ) internal view {
+        if (captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]) {
             revert OutdatedCaptureTimestamp();
         }
     }
 
-    function _updateLatestSlashedCaptureTimestamp(bytes32 subnetwork, uint48 captureTimestamp) internal {
-        if (latestSlashedCaptureTimestamp[subnetwork] < captureTimestamp) {
-            latestSlashedCaptureTimestamp[subnetwork] = captureTimestamp;
+    function _updateLatestSlashedCaptureTimestamp(
+        bytes32 subnetwork,
+        address operator,
+        uint48 captureTimestamp
+    ) internal {
+        if (latestSlashedCaptureTimestamp[subnetwork][operator] < captureTimestamp) {
+            latestSlashedCaptureTimestamp[subnetwork][operator] = captureTimestamp;
         }
     }
 

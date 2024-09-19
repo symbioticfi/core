@@ -624,7 +624,7 @@ contract VetoSlasherTest is Test {
 
         assertTrue(blockTimestamp - uint48(blockTimestamp - 1) <= epochDuration);
 
-        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0)), 0);
+        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), 0);
 
         assertEq(_executeSlash(alice, 0, ""), slashAmountReal1);
 
@@ -640,7 +640,7 @@ contract VetoSlasherTest is Test {
             completed_
         ) = slasher.slashRequests(0);
 
-        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0)), captureTimestamp_);
+        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -700,7 +700,7 @@ contract VetoSlasherTest is Test {
             completed_
         ) = slasher.slashRequests(1);
 
-        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0)), captureTimestamp_);
+        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -810,7 +810,7 @@ contract VetoSlasherTest is Test {
 
         assertTrue(blockTimestamp - uint48(blockTimestamp - 1) <= epochDuration);
 
-        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0)), 0);
+        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), 0);
 
         assertEq(_executeSlash(alice, 0, ""), slashAmountReal1);
 
@@ -826,7 +826,7 @@ contract VetoSlasherTest is Test {
             completed_
         ) = slasher.slashRequests(0);
 
-        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0)), captureTimestamp_);
+        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -859,7 +859,7 @@ contract VetoSlasherTest is Test {
             completed_
         ) = slasher.slashRequests(1);
 
-        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0)), captureTimestamp_);
+        assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);

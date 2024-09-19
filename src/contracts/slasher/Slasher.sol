@@ -46,7 +46,7 @@ contract Slasher is BaseSlasher, ISlasher {
             revert InsufficientSlash();
         }
 
-        _updateLatestSlashedCaptureTimestamp(subnetwork, captureTimestamp);
+        _updateLatestSlashedCaptureTimestamp(subnetwork, operator, captureTimestamp);
 
         _updateCumulativeSlash(subnetwork, operator, slashedAmount);
 
