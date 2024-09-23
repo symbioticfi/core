@@ -48,7 +48,7 @@ contract MigratablesFactoryTest is Test {
         assertEq(factory.blacklisted(2), false);
 
         assertEq(factory.isEntity(alice), false);
-        address entity = factory.create(2, alice, true, "");
+        address entity = factory.create(2, alice, "");
         assertEq(factory.isEntity(entity), true);
 
         impl = address(new SimpleMigratableEntity(address(factory)));
@@ -70,13 +70,13 @@ contract MigratablesFactoryTest is Test {
         factory.whitelist(impl);
 
         vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
-        factory.create(0, alice, true, "");
+        factory.create(0, alice, "");
 
         vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
-        factory.create(2, alice, true, "");
+        factory.create(2, alice, "");
 
         vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
-        factory.create(3, alice, true, "");
+        factory.create(3, alice, "");
     }
 
     function test_Migrate(
@@ -88,7 +88,7 @@ contract MigratablesFactoryTest is Test {
         impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(2, alice, true, "");
+        address entity = factory.create(2, alice, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);
@@ -105,7 +105,7 @@ contract MigratablesFactoryTest is Test {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, true, "");
+        address entity = factory.create(1, alice, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);
@@ -121,7 +121,7 @@ contract MigratablesFactoryTest is Test {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, true, "");
+        address entity = factory.create(1, alice, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);
@@ -137,7 +137,7 @@ contract MigratablesFactoryTest is Test {
         address impl = address(new SimpleMigratableEntity(address(factory)));
         factory.whitelist(impl);
 
-        address entity = factory.create(1, alice, true, "");
+        address entity = factory.create(1, alice, "");
 
         address implV2 = address(new SimpleMigratableEntityV2(address(factory)));
         factory.whitelist(implV2);

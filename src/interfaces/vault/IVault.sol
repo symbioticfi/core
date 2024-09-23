@@ -7,6 +7,7 @@ import {IVaultStorage} from "./IVaultStorage.sol";
 interface IVault is IMigratableEntity, IVaultStorage {
     error AlreadyClaimed();
     error AlreadySet();
+    error DelegatorAlreadyInitialized();
     error DepositLimitReached();
     error InsufficientClaim();
     error InsufficientDeposit();
@@ -16,25 +17,26 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error InvalidCaptureEpoch();
     error InvalidClaimer();
     error InvalidCollateral();
+    error InvalidDelegator();
     error InvalidEpoch();
     error InvalidEpochDuration();
     error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
+    error InvalidSlasher();
     error MissingRoles();
     error NoDepositLimit();
     error NoDepositWhitelist();
     error NotDelegator();
     error NotSlasher();
     error NotWhitelistedDepositor();
+    error SlasherAlreadyInitialized();
     error TooMuchRedeem();
     error TooMuchWithdraw();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
      * @param collateral vault's underlying collateral
-     * @param delegator vault's delegator to delegate the stake to networks and operators
-     * @param slasher vault's slasher to provide a slashing mechanism to networks
      * @param burner vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract)
      * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
      * @param depositWhitelist if enabling deposit whitelist
@@ -48,8 +50,6 @@ interface IVault is IMigratableEntity, IVaultStorage {
      */
     struct InitParams {
         address collateral;
-        address delegator;
-        address slasher;
         address burner;
         uint48 epochDuration;
         bool depositWhitelist;
@@ -156,6 +156,26 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @param limit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
      */
     event SetDepositLimit(uint256 limit);
+
+    /**
+     * @notice Emitted when a delegator is set.
+     * @param delegator vault's delegator to delegate the stake to networks and operators
+     * @dev Can be set only once.
+     */
+    event SetDelegator(address indexed delegator);
+
+    /**
+     * @notice Emitted when a slasher is set.
+     * @param slasher vault's slasher to provide a slashing mechanism to networks
+     * @dev Can be set only once.
+     */
+    event SetSlasher(address indexed slasher);
+
+    /**
+     * @notice Check if the vault is fully initialized (a delegator and a slasher are set).
+     * @return if the vault is fully initialized
+     */
+    function isInitialized() external view returns (bool);
 
     /**
      * @notice Get a total amount of the collateral that can be slashed.
@@ -288,5 +308,23 @@ interface IVault is IMigratableEntity, IVaultStorage {
      */
     function setDepositLimit(
         uint256 limit
+    ) external;
+
+    /**
+     * @notice Set a delegator.
+     * @param delegator vault's delegator to delegate the stake to networks and operators
+     * @dev Can be set only once.
+     */
+    function setDelegator(
+        address delegator
+    ) external;
+
+    /**
+     * @notice Set a slasher.
+     * @param slasher vault's slasher to provide a slashing mechanism to networks
+     * @dev Can be set only once.
+     */
+    function setSlasher(
+        address slasher
     ) external;
 }

@@ -157,21 +157,21 @@ contract VaultTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: address(0),
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: burner,
-                    epochDuration: epochDuration,
-                    depositWhitelist: depositWhitelist,
-                    isDepositLimit: isDepositLimit,
-                    depositLimit: depositLimit,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: burner,
+                        epochDuration: epochDuration,
+                        depositWhitelist: depositWhitelist,
+                        isDepositLimit: isDepositLimit,
+                        depositLimit: depositLimit,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -231,6 +231,9 @@ contract VaultTest is Test {
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
         assertEq(vault.slashableBalanceOf(alice), 0);
+        assertEq(vault.isDelegatorInitialized(), true);
+        assertEq(vault.isSlasherInitialized(), true);
+        assertEq(vault.isInitialized(), true);
 
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -277,21 +280,21 @@ contract VaultTest is Test {
             IVaultConfigurator.InitParams({
                 version: lastVersion,
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -326,21 +329,21 @@ contract VaultTest is Test {
             IVaultConfigurator.InitParams({
                 version: lastVersion,
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(0),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(0),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -360,143 +363,33 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertNotDelegator(
-        uint48 epochDuration
-    ) public {
-        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
-
-        uint64 lastVersion = vaultFactory.lastVersion();
-        vm.expectRevert(IVault.NotDelegator.selector);
-        vaultFactory.create(
-            lastVersion,
-            alice,
-            true,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                })
-            )
-        );
-    }
-
-    function test_CreateRevertNotSlasher(
-        uint48 epochDuration
-    ) public {
-        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
-
-        uint64 lastVersion = vaultFactory.lastVersion();
-        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        address delegator_ = delegatorFactory.create(
-            0,
-            true,
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                )
-            )
-        );
-
-        vm.expectRevert(IVault.NotSlasher.selector);
-        vault.initialize(
-            lastVersion,
-            alice,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: address(1),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                })
-            )
-        );
-    }
-
     function test_CreateRevertMissingRoles1(
         uint48 epochDuration
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
-        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        address delegator_ = delegatorFactory.create(
-            0,
-            true,
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                )
-            )
-        );
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault.initialize(
-            lastVersion,
-            alice,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: true,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: address(0),
-                    depositWhitelistSetRoleHolder: address(0),
-                    depositorWhitelistRoleHolder: address(0),
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: address(0)
-                })
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: true,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: address(0),
+                        depositWhitelistSetRoleHolder: address(0),
+                        depositorWhitelistRoleHolder: address(0),
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: address(0)
+                    })
+                )
             )
         );
     }
@@ -507,51 +400,27 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
-        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        address delegator_ = delegatorFactory.create(
-            0,
-            true,
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                )
-            )
-        );
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault.initialize(
-            lastVersion,
-            alice,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: true,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: address(0),
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: address(0),
-                    isDepositLimitSetRoleHolder: address(0),
-                    depositLimitSetRoleHolder: address(0)
-                })
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: true,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: address(0),
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: address(0),
+                        isDepositLimitSetRoleHolder: address(0),
+                        depositLimitSetRoleHolder: address(0)
+                    })
+                )
             )
         );
     }
@@ -562,51 +431,27 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
-        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        address delegator_ = delegatorFactory.create(
-            0,
-            true,
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                )
-            )
-        );
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault.initialize(
-            lastVersion,
-            alice,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: address(0),
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: address(0),
-                    isDepositLimitSetRoleHolder: address(0),
-                    depositLimitSetRoleHolder: alice
-                })
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: address(0),
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: address(0),
+                        isDepositLimitSetRoleHolder: address(0),
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
             )
         );
     }
@@ -617,51 +462,27 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
-        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        address delegator_ = delegatorFactory.create(
-            0,
-            true,
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                )
-            )
-        );
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault.initialize(
-            lastVersion,
-            alice,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 1,
-                    defaultAdminRoleHolder: address(0),
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: address(0),
-                    isDepositLimitSetRoleHolder: address(0),
-                    depositLimitSetRoleHolder: address(0)
-                })
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 1,
+                        defaultAdminRoleHolder: address(0),
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: address(0),
+                        isDepositLimitSetRoleHolder: address(0),
+                        depositLimitSetRoleHolder: address(0)
+                    })
+                )
             )
         );
     }
@@ -672,53 +493,427 @@ contract VaultTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
-        vault = Vault(vaultFactory.create(lastVersion, alice, false, ""));
 
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        address delegator_ = delegatorFactory.create(
-            0,
-            true,
-            abi.encode(
-                address(vault),
+        vm.expectRevert(IVault.MissingRoles.selector);
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
                 abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: address(0),
+                        depositWhitelistSetRoleHolder: address(0),
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: address(0)
+                    })
+                )
+            )
+        );
+    }
+
+    function test_SetDelegator() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
                     })
                 )
             )
         );
 
-        vm.expectRevert(IVault.MissingRoles.selector);
-        vault.initialize(
-            lastVersion,
-            alice,
-            abi.encode(
-                IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: address(0),
-                    depositWhitelistSetRoleHolder: address(0),
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: address(0)
-                })
+        assertEq(vault.isDelegatorInitialized(), false);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
+        delegator = FullRestakeDelegator(
+            delegatorFactory.create(
+                1,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IFullRestakeDelegator.InitParams({
+                            baseParams: IBaseDelegator.BaseParams({
+                                defaultAdminRoleHolder: alice,
+                                hook: address(0),
+                                hookSetRoleHolder: alice
+                            }),
+                            networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                            operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                        })
+                    )
+                )
             )
         );
+
+        vault.setDelegator(address(delegator));
+
+        assertEq(vault.delegator(), address(delegator));
+        assertEq(vault.isDelegatorInitialized(), true);
+        assertEq(vault.isInitialized(), false);
+    }
+
+    function test_SetDelegatorRevertDelegatorAlreadyInitialized() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
+        delegator = FullRestakeDelegator(
+            delegatorFactory.create(
+                1,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IFullRestakeDelegator.InitParams({
+                            baseParams: IBaseDelegator.BaseParams({
+                                defaultAdminRoleHolder: alice,
+                                hook: address(0),
+                                hookSetRoleHolder: alice
+                            }),
+                            networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                            operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                        })
+                    )
+                )
+            )
+        );
+
+        vault.setDelegator(address(delegator));
+
+        vm.expectRevert(IVault.DelegatorAlreadyInitialized.selector);
+        vault.setDelegator(address(delegator));
+    }
+
+    function test_SetDelegatorRevertNotDelegator() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.NotDelegator.selector);
+        vault.setDelegator(address(1));
+    }
+
+    function test_SetDelegatorRevertInvalidDelegator() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        Vault vault2 = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
+        delegator = FullRestakeDelegator(
+            delegatorFactory.create(
+                1,
+                abi.encode(
+                    address(vault2),
+                    abi.encode(
+                        IFullRestakeDelegator.InitParams({
+                            baseParams: IBaseDelegator.BaseParams({
+                                defaultAdminRoleHolder: alice,
+                                hook: address(0),
+                                hookSetRoleHolder: alice
+                            }),
+                            networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                            operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                        })
+                    )
+                )
+            )
+        );
+
+        vm.expectRevert(IVault.InvalidDelegator.selector);
+        vault.setDelegator(address(delegator));
+    }
+
+    function test_SetSlasher() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        assertEq(vault.isSlasherInitialized(), false);
+
+        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+
+        vault.setSlasher(address(slasher));
+
+        assertEq(vault.slasher(), address(slasher));
+        assertEq(vault.isSlasherInitialized(), true);
+        assertEq(vault.isInitialized(), false);
+    }
+
+    function test_SetSlasherRevertSlasherAlreadyInitialized() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+
+        vault.setSlasher(address(slasher));
+
+        vm.expectRevert(IVault.SlasherAlreadyInitialized.selector);
+        vault.setSlasher(address(slasher));
+    }
+
+    function test_SetSlasherRevertNotSlasher() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+
+        vm.expectRevert(IVault.NotSlasher.selector);
+        vault.setSlasher(address(1));
+    }
+
+    function test_SetSlasherRevertInvalidSlasher() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        Vault vault2 = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault2), "")));
+
+        vm.expectRevert(IVault.InvalidSlasher.selector);
+        vault.setSlasher(address(slasher));
+    }
+
+    function test_SetSlasherZeroAddress() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = Vault(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        vault.setSlasher(address(0));
     }
 
     function test_DepositTwice(uint256 amount1, uint256 amount2) public {
@@ -900,21 +1095,21 @@ contract VaultTest is Test {
                 IVaultConfigurator.InitParams({
                     version: vaultFactory.lastVersion(),
                     owner: alice,
-                    vaultParams: IVault.InitParams({
-                        collateral: address(feeOnTransferCollateral),
-                        delegator: address(0),
-                        slasher: address(0),
-                        burner: address(0xdEaD),
-                        epochDuration: epochDuration,
-                        depositWhitelist: false,
-                        isDepositLimit: false,
-                        depositLimit: 0,
-                        defaultAdminRoleHolder: alice,
-                        depositWhitelistSetRoleHolder: alice,
-                        depositorWhitelistRoleHolder: alice,
-                        isDepositLimitSetRoleHolder: alice,
-                        depositLimitSetRoleHolder: alice
-                    }),
+                    vaultParams: abi.encode(
+                        IVault.InitParams({
+                            collateral: address(feeOnTransferCollateral),
+                            burner: address(0xdEaD),
+                            epochDuration: epochDuration,
+                            depositWhitelist: false,
+                            isDepositLimit: false,
+                            depositLimit: 0,
+                            defaultAdminRoleHolder: alice,
+                            depositWhitelistSetRoleHolder: alice,
+                            depositorWhitelistRoleHolder: alice,
+                            isDepositLimitSetRoleHolder: alice,
+                            depositLimitSetRoleHolder: alice
+                        })
+                    ),
                     delegatorIndex: 0,
                     delegatorParams: abi.encode(
                         INetworkRestakeDelegator.InitParams({
@@ -2477,21 +2672,21 @@ contract VaultTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -2524,21 +2719,21 @@ contract VaultTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({

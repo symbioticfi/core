@@ -79,19 +79,11 @@ interface IMigratablesFactory is IRegistry {
      * @notice Create a new entity at the factory.
      * @param version entity's version to use
      * @param owner initial owner of the entity
-     * @param withInitialize whether to call `initialize()` on the entity
      * @param data initial data for the entity creation
      * @return address of the entity
      * @dev CREATE2 salt is constructed from the given parameters.
-     *      However, the real parameters may differ if initialized later
-     *      (not necessarily by the creator if there is no initialization during the creation's transaction).
      */
-    function create(
-        uint64 version,
-        address owner,
-        bool withInitialize,
-        bytes calldata data
-    ) external returns (address);
+    function create(uint64 version, address owner, bytes calldata data) external returns (address);
 
     /**
      * @notice Migrate a given entity to a given newer version.

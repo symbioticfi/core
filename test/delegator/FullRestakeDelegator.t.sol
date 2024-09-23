@@ -177,7 +177,6 @@ contract FullRestakeDelegatorTest is Test {
         vm.expectRevert(IBaseDelegator.NotVault.selector);
         delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 address(1),
                 abi.encode(
@@ -209,7 +208,6 @@ contract FullRestakeDelegatorTest is Test {
         vm.expectRevert(IFullRestakeDelegator.MissingRoleHolders.selector);
         delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -242,7 +240,6 @@ contract FullRestakeDelegatorTest is Test {
         vm.expectRevert(IFullRestakeDelegator.ZeroAddressRoleHolder.selector);
         delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -275,7 +272,6 @@ contract FullRestakeDelegatorTest is Test {
         vm.expectRevert(IFullRestakeDelegator.ZeroAddressRoleHolder.selector);
         delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -309,7 +305,6 @@ contract FullRestakeDelegatorTest is Test {
         vm.expectRevert(IFullRestakeDelegator.DuplicateRoleHolder.selector);
         delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -343,7 +338,6 @@ contract FullRestakeDelegatorTest is Test {
         vm.expectRevert(IFullRestakeDelegator.DuplicateRoleHolder.selector);
         delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -938,21 +932,21 @@ contract FullRestakeDelegatorTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: 7 days,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
@@ -1038,21 +1032,21 @@ contract FullRestakeDelegatorTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: 7 days,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
@@ -1757,21 +1751,21 @@ contract FullRestakeDelegatorTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
@@ -1804,21 +1798,21 @@ contract FullRestakeDelegatorTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
@@ -1843,7 +1837,7 @@ contract FullRestakeDelegatorTest is Test {
     function _getSlasher(
         address vault_
     ) internal returns (Slasher) {
-        return Slasher(slasherFactory.create(0, true, abi.encode(address(vault_), "")));
+        return Slasher(slasherFactory.create(0, abi.encode(address(vault_), "")));
     }
 
     function _registerOperator(
