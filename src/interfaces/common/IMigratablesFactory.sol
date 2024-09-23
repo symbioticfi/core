@@ -83,7 +83,8 @@ interface IMigratablesFactory is IRegistry {
      * @param data initial data for the entity creation
      * @return address of the entity
      * @dev CREATE2 salt is constructed from the given parameters.
-     *      However, the real parameters may differ if initialized later.
+     *      However, the real parameters may differ if initialized later
+     *      (not necessarily by the creator if there is no initialization during the creation's transaction).
      */
     function create(
         uint64 version,
