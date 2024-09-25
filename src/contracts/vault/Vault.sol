@@ -427,7 +427,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
-    function _initialize(uint64, address, bytes calldata data) internal override {
+    function _initialize(uint64, address, bytes calldata data) internal virtual override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
         if (params.collateral == address(0)) {
