@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IVault} from "./vault/IVault.sol";
-
 interface IVaultConfigurator {
     error DirtyInitParams();
 
@@ -20,7 +18,7 @@ interface IVaultConfigurator {
     struct InitParams {
         uint64 version;
         address owner;
-        IVault.InitParams vaultParams;
+        bytes vaultParams;
         uint64 delegatorIndex;
         bytes delegatorParams;
         bool withSlasher;

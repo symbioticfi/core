@@ -128,21 +128,21 @@ contract DelegatorFactoryTest is Test {
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: 1,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 1,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -165,7 +165,6 @@ contract DelegatorFactoryTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = bob;
         address networkRestakeDelegator = delegatorFactory.create(
             0,
-            true,
             abi.encode(
                 vault_,
                 abi.encode(
@@ -189,7 +188,6 @@ contract DelegatorFactoryTest is Test {
         operatorNetworkLimitSetRoleHolders[0] = bob;
         address fullRestakeDelegator = delegatorFactory.create(
             1,
-            true,
             abi.encode(
                 vault_,
                 abi.encode(

@@ -60,10 +60,22 @@ interface IVaultStorage {
     function delegator() external view returns (address);
 
     /**
+     * @notice Get if the delegator is initialized.
+     * @return if the delegator is initialized
+     */
+    function isDelegatorInitialized() external view returns (bool);
+
+    /**
      * @notice Get a slasher (it provides networks a slashing mechanism).
      * @return address of the slasher
      */
     function slasher() external view returns (address);
+
+    /**
+     * @notice Get if the slasher is initialized.
+     * @return if the slasher is initialized
+     */
+    function isSlasherInitialized() external view returns (bool);
 
     /**
      * @notice Get a time point of the epoch duration set.

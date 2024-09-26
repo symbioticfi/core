@@ -36,30 +36,18 @@ contract VaultConfigurator is IVaultConfigurator {
      */
     function create(
         InitParams memory params
-    ) public returns (address, address, address) {
-        if (params.vaultParams.delegator != address(0) || params.vaultParams.slasher != address(0)) {
-            revert DirtyInitParams();
-        }
+    ) public returns (address vault, address delegator, address slasher) {
+        vault = VaultFactory(VAULT_FACTORY).create(params.version, params.owner, params.vaultParams);
 
-        address vault =
-            VaultFactory(VAULT_FACTORY).create(params.version, params.owner, false, abi.encode(params.vaultParams));
-
-        params.vaultParams.delegator = DelegatorFactory(DELEGATOR_FACTORY).create(
-            params.delegatorIndex, true, abi.encode(vault, params.delegatorParams)
-        );
-
-        bytes memory slasherData;
-        if (params.withSlasher) {
-            slasherData = abi.encode(vault, params.slasherParams);
-            params.vaultParams.slasher = SlasherFactory(SLASHER_FACTORY).create(params.slasherIndex, false, slasherData);
-        }
-
-        Vault(vault).initialize(params.version, params.owner, abi.encode(params.vaultParams));
+        delegator =
+            DelegatorFactory(DELEGATOR_FACTORY).create(params.delegatorIndex, abi.encode(vault, params.delegatorParams));
 
         if (params.withSlasher) {
-            BaseSlasher(params.vaultParams.slasher).initialize(slasherData);
+            slasher =
+                SlasherFactory(SLASHER_FACTORY).create(params.slasherIndex, abi.encode(vault, params.slasherParams));
         }
 
-        return (vault, params.vaultParams.delegator, params.vaultParams.slasher);
+        Vault(vault).setDelegator(delegator);
+        Vault(vault).setSlasher(slasher);
     }
 }

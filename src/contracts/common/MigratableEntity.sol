@@ -19,17 +19,8 @@ abstract contract MigratableEntity is
      */
     address public immutable FACTORY;
 
-    address private immutable SELF;
-
-    modifier initialized() {
-        if (!isInitialized()) {
-            revert NotInitialized();
-        }
-        _;
-    }
-
     modifier notInitialized() {
-        if (isInitialized()) {
+        if (_getInitializedVersion() != 0) {
             revert AlreadyInitialized();
         }
 
@@ -42,14 +33,6 @@ abstract contract MigratableEntity is
         _disableInitializers();
 
         FACTORY = factory;
-        SELF = address(this);
-    }
-
-    /**
-     * @inheritdoc IMigratableEntity
-     */
-    function isInitialized() public view returns (bool) {
-        return _getInitializedVersion() != 0;
     }
 
     /**
@@ -67,10 +50,6 @@ abstract contract MigratableEntity is
         address owner_,
         bytes calldata data
     ) external notInitialized reinitializer(initialVersion) {
-        if (SELF != IMigratablesFactory(FACTORY).implementation(initialVersion)) {
-            revert InvalidInitialVersion();
-        }
-
         __ReentrancyGuard_init();
 
         if (owner_ != address(0)) {

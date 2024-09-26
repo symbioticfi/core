@@ -67,7 +67,22 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
+    uint48 public epochDurationInit;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint48 public epochDuration;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
     address public delegator;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    bool public isDelegatorInitialized;
 
     /**
      * @inheritdoc IVaultStorage
@@ -77,12 +92,7 @@ contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDurationInit;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint48 public epochDuration;
+    bool public isSlasherInitialized;
 
     /**
      * @inheritdoc IVaultStorage

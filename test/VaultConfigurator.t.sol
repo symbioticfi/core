@@ -144,21 +144,21 @@ contract VaultConfiguratorTest is Test {
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: owner_,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: burner,
-                    epochDuration: epochDuration,
-                    depositWhitelist: depositWhitelist,
-                    isDepositLimit: isDepositLimit,
-                    depositLimit: depositLimit,
-                    defaultAdminRoleHolder: address(100),
-                    depositWhitelistSetRoleHolder: address(99),
-                    depositorWhitelistRoleHolder: address(101),
-                    isDepositLimitSetRoleHolder: address(102),
-                    depositLimitSetRoleHolder: address(103)
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: burner,
+                        epochDuration: epochDuration,
+                        depositWhitelist: depositWhitelist,
+                        isDepositLimit: isDepositLimit,
+                        depositLimit: depositLimit,
+                        defaultAdminRoleHolder: address(100),
+                        depositWhitelistSetRoleHolder: address(99),
+                        depositorWhitelistRoleHolder: address(101),
+                        isDepositLimitSetRoleHolder: address(102),
+                        depositLimitSetRoleHolder: address(103)
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -209,64 +209,7 @@ contract VaultConfiguratorTest is Test {
         if (withSlasher) {
             assertEq(slasher.vault(), vault_);
         }
-    }
 
-    function test_CreateRevertDirtyInitParams(
-        address owner_,
-        address burner,
-        uint48 epochDuration,
-        bool depositWhitelist,
-        bool withSlasher,
-        address hook,
-        address delegator_,
-        address slasher_
-    ) public {
-        vm.assume(delegator_ != address(0) || slasher_ != address(0));
-
-        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
-        vm.assume(owner_ != address(0));
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = address(106);
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = address(107);
-
-        vm.expectRevert(IVaultConfigurator.DirtyInitParams.selector);
-        vaultConfigurator.create(
-            IVaultConfigurator.InitParams({
-                version: 1,
-                owner: owner_,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: delegator_,
-                    slasher: slasher_,
-                    burner: burner,
-                    epochDuration: epochDuration,
-                    depositWhitelist: depositWhitelist,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: address(100),
-                    depositWhitelistSetRoleHolder: address(99),
-                    depositorWhitelistRoleHolder: address(101),
-                    isDepositLimitSetRoleHolder: address(102),
-                    depositLimitSetRoleHolder: address(103)
-                }),
-                delegatorIndex: 0,
-                delegatorParams: abi.encode(
-                    INetworkRestakeDelegator.InitParams({
-                        baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(104),
-                            hook: hook,
-                            hookSetRoleHolder: address(105)
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                ),
-                withSlasher: withSlasher,
-                slasherIndex: 0,
-                slasherParams: ""
-            })
-        );
+        assertEq(vault.isInitialized(), true);
     }
 }

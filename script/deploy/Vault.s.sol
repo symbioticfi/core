@@ -36,21 +36,21 @@ contract VaultScript is Script {
             IVaultConfigurator.InitParams({
                 version: IMigratablesFactory(IVaultConfigurator(vaultConfigurator).VAULT_FACTORY()).lastVersion(),
                 owner: owner,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: depositWhitelist,
-                    isDepositLimit: depositLimit != 0,
-                    depositLimit: depositLimit,
-                    defaultAdminRoleHolder: owner,
-                    depositWhitelistSetRoleHolder: owner,
-                    depositorWhitelistRoleHolder: owner,
-                    isDepositLimitSetRoleHolder: owner,
-                    depositLimitSetRoleHolder: owner
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: depositWhitelist,
+                        isDepositLimit: depositLimit != 0,
+                        depositLimit: depositLimit,
+                        defaultAdminRoleHolder: owner,
+                        depositWhitelistSetRoleHolder: owner,
+                        depositorWhitelistRoleHolder: owner,
+                        isDepositLimitSetRoleHolder: owner,
+                        depositLimitSetRoleHolder: owner
+                    })
+                ),
                 delegatorIndex: delegatorIndex,
                 delegatorParams: delegatorIndex == 0
                     ? abi.encode(

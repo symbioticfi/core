@@ -129,21 +129,21 @@ contract SlasherFactoryTest is Test {
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: 1,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 1,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -162,14 +162,12 @@ contract SlasherFactoryTest is Test {
             })
         );
 
-        address slasher = slasherFactory.create(0, true, abi.encode(vault_, ""));
+        address slasher = slasherFactory.create(0, abi.encode(vault_, ""));
         assertEq(Slasher(slasher).FACTORY(), address(slasherFactory));
         assertEq(slasherFactory.isEntity(slasher), true);
 
         address vetoSlasher = slasherFactory.create(
-            1,
-            true,
-            abi.encode(vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, resolverSetEpochsDelay: 3})))
+            1, abi.encode(vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, resolverSetEpochsDelay: 3})))
         );
 
         assertEq(VetoSlasher(vetoSlasher).FACTORY(), address(slasherFactory));

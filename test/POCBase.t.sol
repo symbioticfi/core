@@ -168,21 +168,21 @@ contract POCBaseTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -215,21 +215,21 @@ contract POCBaseTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -262,21 +262,21 @@ contract POCBaseTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
@@ -310,21 +310,21 @@ contract POCBaseTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 0,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -358,21 +358,21 @@ contract POCBaseTest is Test {
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
-                vaultParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    delegator: address(0),
-                    slasher: address(0),
-                    burner: address(0xdEaD),
-                    epochDuration: epochDuration,
-                    depositWhitelist: false,
-                    isDepositLimit: false,
-                    depositLimit: 0,
-                    defaultAdminRoleHolder: alice,
-                    depositWhitelistSetRoleHolder: alice,
-                    depositorWhitelistRoleHolder: alice,
-                    isDepositLimitSetRoleHolder: alice,
-                    depositLimitSetRoleHolder: alice
-                }),
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: epochDuration,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
