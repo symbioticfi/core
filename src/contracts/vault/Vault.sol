@@ -428,7 +428,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     }
 
     function _initialize(uint64, address, bytes calldata data) internal virtual override {
-        (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
+        (InitParams memory params) = abi.decode(data, (InitParams));
 
         if (params.collateral == address(0)) {
             revert InvalidCollateral();

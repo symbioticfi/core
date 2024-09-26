@@ -35,7 +35,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
-contract VaultTest is Test {
+contract VaultTokenizedTest is Test {
     using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
@@ -2347,7 +2347,6 @@ contract VaultTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max / 2);
         captureAgo = bound(captureAgo, 1, 10 days);
         vm.assume(depositAmount > withdrawAmount1 + withdrawAmount2);
-        vm.assume(depositAmount > slashAmount1);
         vm.assume(captureAgo <= 7 days);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
@@ -2393,6 +2392,8 @@ contract VaultTest is Test {
         Test_SlashStruct memory test_SlashStruct;
 
         if (vault.epochAt(uint48(blockTimestamp - captureAgo)) != vault.currentEpoch()) {
+            vm.assume(depositAmount - withdrawAmount1 > slashAmount1);
+
             test_SlashStruct.slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
@@ -2417,14 +2418,12 @@ contract VaultTest is Test {
             assertTrue(test_SlashStruct.nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
             assertEq(vault.activeStake(), test_SlashStruct.activeStake1);
 
-            test_SlashStruct.slashAmountSlashed2 = Math.min(
-                depositAmount - test_SlashStruct.slashAmountReal1,
-                Math.min(slashAmount2, depositAmount - withdrawAmount1)
-            );
+            test_SlashStruct.slashAmountSlashed2 =
+                Math.min(slashAmount2, depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
                 _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
-                Math.min(slashAmount2, depositAmount - withdrawAmount1)
+                test_SlashStruct.slashAmountSlashed2
             );
             assertEq(
                 collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
@@ -2459,6 +2458,12 @@ contract VaultTest is Test {
                     )
             );
         } else {
+            if (captureAgo == 1) {
+                vm.assume(depositAmount - withdrawAmount1 - withdrawAmount2 > slashAmount1);
+            } else {
+                vm.assume(depositAmount - withdrawAmount1 > slashAmount1);
+            }
+
             test_SlashStruct.slashAmountReal1 =
                 Math.min(slashAmount1, depositAmount - withdrawAmount1 - withdrawAmount2);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
@@ -2484,13 +2489,12 @@ contract VaultTest is Test {
             assertEq(vault.activeStake(), test_SlashStruct.activeStake1);
 
             test_SlashStruct.slashAmountSlashed2 = Math.min(
-                depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1,
-                Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
+                slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2 - test_SlashStruct.slashAmountReal1
             );
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
                 _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
-                Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
+                test_SlashStruct.slashAmountSlashed2
             );
             assertEq(
                 collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
