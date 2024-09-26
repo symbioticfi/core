@@ -154,7 +154,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert SlashPeriodEnded();
         }
 
-        _checkLatestSlashedCaptureTimestamp(request.subnetwork, request.captureTimestamp);
+        _checkLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
         if (request.completed) {
             revert SlashRequestCompleted();
@@ -162,7 +162,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         request.completed = true;
 
-        _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.captureTimestamp);
+        _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
         slashedAmount = Math.min(
             request.amount,
