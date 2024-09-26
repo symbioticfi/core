@@ -41,6 +41,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
      */
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
 
+    Checkpoints.Trace256 internal _globalCumulativeSlash;
+
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
     modifier onlyNetworkMiddleware(
@@ -59,6 +61,20 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     ) Entity(slasherFactory, entityType) {
         VAULT_FACTORY = vaultFactory;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
+    }
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    function globalCumulativeSlashAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
+        return _globalCumulativeSlash.upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    function globalCumulativeSlash() public view returns (uint256) {
+        return _globalCumulativeSlash.latest();
     }
 
     /**
@@ -101,15 +117,24 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             return 0;
         }
 
+        uint256 activeStake = IVault(vault).activeStakeAt(captureTimestamp, slashableStakeHints.activeStakeHint);
         uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints
         );
-        return stakeAmount
-            - Math.min(
-                cumulativeSlash(subnetwork, operator)
-                    - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
-                stakeAmount
-            );
+        return Math.min(
+            activeStake
+                - Math.min(
+                    globalCumulativeSlash()
+                        - globalCumulativeSlashAt(captureTimestamp, slashableStakeHints.globalCumulativeSlashFromHint),
+                    activeStake
+                ),
+            stakeAmount
+                - Math.min(
+                    cumulativeSlash(subnetwork, operator)
+                        - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
+                    stakeAmount
+                )
+        );
     }
 
     function _checkNetworkMiddleware(
@@ -141,6 +166,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     }
 
     function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
+        _globalCumulativeSlash.push(Time.timestamp(), globalCumulativeSlash() + amount);
         _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
     }
 
