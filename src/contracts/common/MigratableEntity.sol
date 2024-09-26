@@ -19,8 +19,6 @@ abstract contract MigratableEntity is
      */
     address public immutable FACTORY;
 
-    address private immutable SELF;
-
     modifier notInitialized() {
         if (_getInitializedVersion() != 0) {
             revert AlreadyInitialized();
@@ -35,7 +33,6 @@ abstract contract MigratableEntity is
         _disableInitializers();
 
         FACTORY = factory;
-        SELF = address(this);
     }
 
     /**
