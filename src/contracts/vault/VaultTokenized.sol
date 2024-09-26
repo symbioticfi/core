@@ -4,15 +4,19 @@ pragma solidity 0.8.25;
 import {Vault} from "./Vault.sol";
 
 import {IVaultTokenized} from "../../interfaces/vault/IVaultTokenized.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     using Checkpoints for Checkpoints.Trace256;
+    using SafeERC20 for IERC20;
 
     constructor(
         address delegatorFactory,
@@ -20,6 +24,9 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         address vaultFactory
     ) Vault(delegatorFactory, slasherFactory, vaultFactory) {}
 
+    /**
+     * @inheritdoc ERC20Upgradeable
+     */
     function decimals() public view override returns (uint8) {
         return IERC20Metadata(collateral).decimals();
     }
@@ -38,6 +45,63 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         address account
     ) public view override returns (uint256) {
         return activeSharesOf(account);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function deposit(
+        address onBehalfOf,
+        uint256 amount
+    ) external override(Vault, IVault) nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+        if (onBehalfOf == address(0)) {
+            revert InvalidOnBehalfOf();
+        }
+
+        if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
+            revert NotWhitelistedDepositor();
+        }
+
+        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
+        depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+
+        if (depositedAmount == 0) {
+            revert InsufficientDeposit();
+        }
+
+        if (isDepositLimit && totalStake() + depositedAmount > depositLimit) {
+            revert DepositLimitReached();
+        }
+
+        uint256 activeStake_ = activeStake();
+        uint256 activeShares_ = activeShares();
+
+        mintedShares = ERC4626Math.previewDeposit(depositedAmount, activeShares_, activeStake_);
+
+        _activeStake.push(Time.timestamp(), activeStake_ + depositedAmount);
+        _mint(onBehalfOf, mintedShares);
+
+        emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
+    }
+
+    function _withdraw(
+        address claimer,
+        uint256 withdrawnAssets,
+        uint256 burnedShares
+    ) internal override returns (uint256 mintedShares) {
+        _burn(msg.sender, burnedShares);
+        _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
+
+        uint256 epoch = currentEpoch() + 1;
+        uint256 withdrawals_ = withdrawals[epoch];
+        uint256 withdrawalsShares_ = withdrawalShares[epoch];
+
+        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, withdrawalsShares_, withdrawals_);
+
+        withdrawals[epoch] = withdrawals_ + withdrawnAssets;
+        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
+        withdrawalSharesOf[epoch][claimer] += mintedShares;
     }
 
     /**
