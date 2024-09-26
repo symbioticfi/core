@@ -273,8 +273,8 @@ contract VaultTest is Test {
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.allowance(alice, alice), 0);
         assertEq(vault.decimals(), collateral.decimals());
-        assertEq(vault.symbol(), "SYMB_TEST");
-        assertEq(vault.name(), "Symbiotic_Test");
+        assertEq(vault.symbol(), "TEST");
+        assertEq(vault.name(), "Test");
     }
 
     function test_CreateRevertInvalidEpochDuration() public {

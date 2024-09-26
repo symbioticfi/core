@@ -140,7 +140,7 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     function _initialize(uint64 initialVersion, address owner_, bytes calldata data) internal override {
         (InitParamsTokenized memory params) = abi.decode(data, (InitParamsTokenized));
 
-        __ERC20_init(string.concat("Symbiotic_", params.name), string.concat("SYMB_", params.symbol));
+        __ERC20_init(params.name, params.symbol);
 
         if (params.collateral == address(0)) {
             revert InvalidCollateral();
