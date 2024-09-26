@@ -10,11 +10,15 @@ interface IBaseSlasher is IEntity {
 
     /**
      * @notice Hints for a slashable stake.
+     * @param activeStakeHint hint for the active stake checkpoint
      * @param stakeHints hints for the stake checkpoints
+     * @param globalCumulativeSlashFromHint hint for the global cumulative slash amount at a capture timestamp
      * @param cumulativeSlashFromHint hint for the cumulative slash amount at a capture timestamp
      */
     struct SlashableStakeHints {
+        bytes activeStakeHint;
         bytes stakeHints;
+        bytes globalCumulativeSlashFromHint;
         bytes cumulativeSlashFromHint;
     }
 
@@ -44,6 +48,20 @@ interface IBaseSlasher is IEntity {
     function latestSlashedCaptureTimestamp(
         bytes32 subnetwork
     ) external view returns (uint48);
+
+    /**
+     * @notice Get a global cumulative slash amount until a given timestamp (inclusively) using a hint.
+     * @param timestamp time point to get the cumulative slash amount until (inclusively)
+     * @param hint hint for the checkpoint index
+     * @return cumulative slash amount until the given timestamp (inclusively)
+     */
+    function globalCumulativeSlashAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
+
+    /**
+     * @notice Get a global cumulative slash amount.
+     * @return cumulative slash amount
+     */
+    function globalCumulativeSlash() external view returns (uint256);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a subnetwork until a given timestamp (inclusively) using a hint.
