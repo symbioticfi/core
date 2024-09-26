@@ -93,7 +93,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) external virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -391,7 +391,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         address claimer,
         uint256 withdrawnAssets,
         uint256 burnedShares
-    ) private returns (uint256 mintedShares) {
+    ) internal virtual returns (uint256 mintedShares) {
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
         _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
         _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
@@ -409,7 +409,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
     function _claim(
         uint256 epoch
-    ) private returns (uint256 amount) {
+    ) internal returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }
@@ -427,7 +427,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
-    function _initialize(uint64, address, bytes calldata data) internal override {
+    function _initialize(uint64, address, bytes calldata data) internal virtual override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
         if (params.collateral == address(0)) {
