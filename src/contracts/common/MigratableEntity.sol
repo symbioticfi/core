@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -78,7 +77,7 @@ abstract contract MigratableEntity is
         _migrate(oldVersion, newVersion, data);
     }
 
-    function _initialize(uint64, address, bytes calldata) internal virtual {}
+    function _initialize(uint64, address, bytes memory) internal virtual {}
 
     function _migrate(uint64, uint64, bytes calldata) internal virtual {}
 }

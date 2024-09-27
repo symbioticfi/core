@@ -53,36 +53,10 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external override(Vault, IVault) nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
-        if (onBehalfOf == address(0)) {
-            revert InvalidOnBehalfOf();
-        }
+    ) public override(Vault, IVault) returns (uint256 depositedAmount, uint256 mintedShares) {
+        (depositedAmount, mintedShares) = super.deposit(onBehalfOf, amount);
 
-        if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
-            revert NotWhitelistedDepositor();
-        }
-
-        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
-        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
-        depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
-
-        if (depositedAmount == 0) {
-            revert InsufficientDeposit();
-        }
-
-        if (isDepositLimit && totalStake() + depositedAmount > depositLimit) {
-            revert DepositLimitReached();
-        }
-
-        uint256 activeStake_ = activeStake();
-        uint256 activeShares_ = activeShares();
-
-        mintedShares = ERC4626Math.previewDeposit(depositedAmount, activeShares_, activeStake_);
-
-        _activeStake.push(Time.timestamp(), activeStake_ + depositedAmount);
-        _mint(onBehalfOf, mintedShares);
-
-        emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
+        emit Transfer(address(0), onBehalfOf, mintedShares);
     }
 
     function _withdraw(
@@ -90,18 +64,9 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         uint256 withdrawnAssets,
         uint256 burnedShares
     ) internal override returns (uint256 mintedShares) {
-        _burn(msg.sender, burnedShares);
-        _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
+        mintedShares = super._withdraw(claimer, withdrawnAssets, burnedShares);
 
-        uint256 epoch = currentEpoch() + 1;
-        uint256 withdrawals_ = withdrawals[epoch];
-        uint256 withdrawalsShares_ = withdrawalShares[epoch];
-
-        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, withdrawalsShares_, withdrawals_);
-
-        withdrawals[epoch] = withdrawals_ + withdrawnAssets;
-        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+        emit Transfer(msg.sender, address(0), burnedShares);
     }
 
     /**
@@ -137,67 +102,11 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(from, to, value);
     }
 
-    function _initialize(uint64 initialVersion, address owner_, bytes calldata data) internal override {
+    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         (InitParamsTokenized memory params) = abi.decode(data, (InitParamsTokenized));
 
+        super._initialize(initialVersion, owner_, abi.encode(params.baseParams));
+
         __ERC20_init(params.name, params.symbol);
-
-        if (params.collateral == address(0)) {
-            revert InvalidCollateral();
-        }
-
-        if (params.epochDuration == 0) {
-            revert InvalidEpochDuration();
-        }
-
-        if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.depositWhitelistSetRoleHolder == address(0)) {
-                if (params.depositWhitelist) {
-                    if (params.depositorWhitelistRoleHolder == address(0)) {
-                        revert MissingRoles();
-                    }
-                } else if (params.depositorWhitelistRoleHolder != address(0)) {
-                    revert MissingRoles();
-                }
-            }
-
-            if (params.isDepositLimitSetRoleHolder == address(0)) {
-                if (params.isDepositLimit) {
-                    if (params.depositLimit == 0 && params.depositLimitSetRoleHolder == address(0)) {
-                        revert MissingRoles();
-                    }
-                } else if (params.depositLimit != 0 || params.depositLimitSetRoleHolder != address(0)) {
-                    revert MissingRoles();
-                }
-            }
-        }
-
-        collateral = params.collateral;
-
-        burner = params.burner;
-
-        epochDurationInit = Time.timestamp();
-        epochDuration = params.epochDuration;
-
-        depositWhitelist = params.depositWhitelist;
-
-        isDepositLimit = params.isDepositLimit;
-        depositLimit = params.depositLimit;
-
-        if (params.defaultAdminRoleHolder != address(0)) {
-            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-        if (params.depositWhitelistSetRoleHolder != address(0)) {
-            _grantRole(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
-        }
-        if (params.depositorWhitelistRoleHolder != address(0)) {
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
-        }
-        if (params.isDepositLimitSetRoleHolder != address(0)) {
-            _grantRole(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
-        }
-        if (params.depositLimitSetRoleHolder != address(0)) {
-            _grantRole(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-        }
     }
 }
