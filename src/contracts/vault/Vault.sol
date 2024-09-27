@@ -93,7 +93,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) public virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -427,7 +427,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
-    function _initialize(uint64, address, bytes calldata data) internal virtual override {
+    function _initialize(uint64, address, bytes memory data) internal virtual override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         if (params.collateral == address(0)) {
