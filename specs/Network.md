@@ -37,10 +37,10 @@ For each operator, the network can obtain its stake which will be valid during $
 
 Note that **the actual slashed amount may be less than the requested one**. This is influenced by the cross-slashing or veto process of the Slasher module.
 
-The network can slash the operator within the vault only if
+The network can slash the operator within the vault only if:
 
-1. The operator is opted into the vault
-2. The operator is opted into the network
+1. The operator is opted into the vault.
+2. The operator is opted into the network.
 
 To initiate a slashing process, a network should call:
 
