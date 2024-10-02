@@ -110,7 +110,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientDeposit();
         }
 
-        if (isDepositLimit && totalStake() + depositedAmount > depositLimit) {
+        if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
             revert DepositLimitReached();
         }
 
