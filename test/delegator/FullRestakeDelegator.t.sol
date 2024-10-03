@@ -902,7 +902,7 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), bob), operatorNetworkLimit2);
     }
 
-    function test_SlashWithHook(
+    function test_SlashWithHookBase(
         // uint48 epochDuration,
         uint256 depositAmount,
         // uint256 networkLimit,

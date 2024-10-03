@@ -26,6 +26,7 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
@@ -1110,7 +1111,7 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkShares(alice.subnetwork(0), bob), operatorNetworkShares2);
     }
 
-    function test_SlashWithHook(
+    function test_SlashWithHookBase(
         // uint48 epochDuration,
         uint256 depositAmount,
         // uint256 networkLimit,
@@ -1206,7 +1207,32 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), operatorNetworkShares1);
         assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), operatorNetworkShares1);
 
-        _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1), "");
+        bytes memory hints = abi.encode(
+            ISlasher.SlashHints({
+                slashableStakeHints: abi.encode(
+                    IBaseSlasher.SlashableStakeHints({
+                        stakeHints: abi.encode(
+                            INetworkRestakeDelegator.StakeHints({
+                                baseHints: abi.encode(
+                                    IBaseDelegator.StakeBaseHints({
+                                        operatorVaultOptInHint: abi.encode(0),
+                                        operatorNetworkOptInHint: abi.encode(0)
+                                    })
+                                ),
+                                activeStakeHint: abi.encode(0),
+                                networkLimitHint: abi.encode(0),
+                                operatorNetworkSharesHint: abi.encode(0),
+                                totalOperatorNetworkSharesHint: abi.encode(0)
+                            })
+                        ),
+                        cumulativeSlashFromHint: abi.encode(0)
+                    })
+                )
+            })
+        );
+
+        console2.log(hints.length);
+        _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1), hints);
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
         assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), 0);

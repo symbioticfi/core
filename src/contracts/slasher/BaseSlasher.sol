@@ -88,7 +88,16 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         address operator,
         uint48 captureTimestamp,
         bytes memory hints
-    ) public view returns (uint256) {
+    ) public view returns (uint256 amount) {
+        (amount,) = _slashableStake(subnetwork, operator, captureTimestamp, hints);
+    }
+
+    function _slashableStake(
+        bytes32 subnetwork,
+        address operator,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) internal view returns (uint256 slashableStake_, uint256 stakeAmount) {
         SlashableStakeHints memory slashableStakeHints;
         if (hints.length > 0) {
             slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
@@ -98,13 +107,13 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
                 || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
         ) {
-            return 0;
+            return (0, 0);
         }
 
-        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+        stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints
         );
-        return stakeAmount
+        slashableStake_ = stakeAmount
             - Math.min(
                 cumulativeSlash(subnetwork, operator)
                     - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),

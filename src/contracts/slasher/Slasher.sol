@@ -40,8 +40,9 @@ contract Slasher is BaseSlasher, ISlasher {
             revert InvalidCaptureTimestamp();
         }
 
-        slashedAmount =
-            Math.min(amount, slashableStake(subnetwork, operator, captureTimestamp, slashHints.slashableStakeHints));
+        (uint256 slashableStake_, uint256 stakeAt) =
+            _slashableStake(subnetwork, operator, captureTimestamp, slashHints.slashableStakeHints);
+        slashedAmount = Math.min(amount, slashableStake_);
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
@@ -51,7 +52,7 @@ contract Slasher is BaseSlasher, ISlasher {
         _updateCumulativeSlash(subnetwork, operator, slashedAmount);
 
         IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            subnetwork, operator, slashedAmount, captureTimestamp, new bytes(0)
+            subnetwork, operator, slashedAmount, captureTimestamp, abi.encode(hints, slashableStake_, stakeAt)
         );
 
         IVault(vault_).onSlash(slashedAmount, captureTimestamp);
