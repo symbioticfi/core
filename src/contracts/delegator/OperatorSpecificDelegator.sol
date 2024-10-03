@@ -130,7 +130,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
             revert MissingRoleHolders();
         }
 
-        if (IRegistry(OPERATOR_REGISTRY).isEntity(params.operator)) {
+        if (!IRegistry(OPERATOR_REGISTRY).isEntity(params.operator)) {
             revert NotOperator();
         }
 

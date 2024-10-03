@@ -13,8 +13,9 @@ import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddl
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
-import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
@@ -88,9 +89,8 @@ contract OperatorSpecificDelegatorTest is Test {
             address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImpl);
 
-        address OperatorSpecificDelegatorImpl = address(
-            new OperatorSpecificDelegator(
-                address(operatorRegistry),
+        address networkRestakeDelegatorImpl = address(
+            new NetworkRestakeDelegator(
                 address(networkRegistry),
                 address(vaultFactory),
                 address(operatorVaultOptInService),
@@ -99,7 +99,7 @@ contract OperatorSpecificDelegatorTest is Test {
                 delegatorFactory.totalTypes()
             )
         );
-        delegatorFactory.whitelist(OperatorSpecificDelegatorImpl);
+        delegatorFactory.whitelist(networkRestakeDelegatorImpl);
 
         address fullRestakeDelegatorImpl = address(
             new FullRestakeDelegator(
@@ -112,6 +112,19 @@ contract OperatorSpecificDelegatorTest is Test {
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+
+        address operatorSpecificDelegatorImpl = address(
+            new OperatorSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
         address slasherImpl = address(
             new Slasher(
@@ -173,7 +186,7 @@ contract OperatorSpecificDelegatorTest is Test {
 
         vm.expectRevert(IBaseDelegator.NotVault.selector);
         delegatorFactory.create(
-            0,
+            2,
             abi.encode(
                 address(1),
                 abi.encode(
@@ -202,7 +215,7 @@ contract OperatorSpecificDelegatorTest is Test {
 
         vm.expectRevert(IOperatorSpecificDelegator.MissingRoleHolders.selector);
         delegatorFactory.create(
-            0,
+            2,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -232,7 +245,7 @@ contract OperatorSpecificDelegatorTest is Test {
 
         vm.expectRevert(IOperatorSpecificDelegator.ZeroAddressRoleHolder.selector);
         delegatorFactory.create(
-            0,
+            2,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -263,7 +276,7 @@ contract OperatorSpecificDelegatorTest is Test {
 
         vm.expectRevert(IOperatorSpecificDelegator.DuplicateRoleHolder.selector);
         delegatorFactory.create(
-            0,
+            2,
             abi.encode(
                 address(vault),
                 abi.encode(
@@ -275,6 +288,36 @@ contract OperatorSpecificDelegatorTest is Test {
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operator: alice
+                    })
+                )
+            )
+        );
+    }
+
+    function test_CreateRevertNotOperator(
+        uint48 epochDuration
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = bob;
+
+        vm.expectRevert(IOperatorSpecificDelegator.NotOperator.selector);
+        delegatorFactory.create(
+            2,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IOperatorSpecificDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: address(0),
+                            hook: address(0),
+                            hookSetRoleHolder: address(1)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operator: bob
                     })
                 )
             )
@@ -474,7 +517,6 @@ contract OperatorSpecificDelegatorTest is Test {
         _registerNetwork(network, alice);
         _setMaxNetworkLimit(network, 0, type(uint256).max);
 
-        _registerOperator(alice);
         _registerOperator(bob);
 
         assertEq(delegator.stake(network.subnetwork(0), alice), 0);
@@ -567,7 +609,6 @@ contract OperatorSpecificDelegatorTest is Test {
         _registerNetwork(alice, alice);
         _setMaxNetworkLimit(alice, 0, type(uint256).max);
 
-        _registerOperator(alice);
         _registerOperator(bob);
 
         _optInOperatorVault(alice);
@@ -637,6 +678,8 @@ contract OperatorSpecificDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
+        _registerOperator(alice);
+
         address hook = address(new SimpleOperatorSpecificDelegatorHook());
         address[] memory networkLimitSetRoleHolders = new address[](2);
         networkLimitSetRoleHolders[0] = alice;
@@ -661,7 +704,7 @@ contract OperatorSpecificDelegatorTest is Test {
                         depositLimitSetRoleHolder: alice
                     })
                 ),
-                delegatorIndex: 0,
+                delegatorIndex: 2,
                 delegatorParams: abi.encode(
                     IOperatorSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
@@ -686,8 +729,6 @@ contract OperatorSpecificDelegatorTest is Test {
         address network = alice;
         _registerNetwork(network, alice);
         _setMaxNetworkLimit(network, 0, type(uint256).max);
-
-        _registerOperator(alice);
 
         _optInOperatorVault(alice);
 
@@ -729,6 +770,8 @@ contract OperatorSpecificDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
+        _registerOperator(alice);
+
         address hook = address(new SimpleOperatorSpecificDelegatorHook());
         address[] memory networkLimitSetRoleHolders = new address[](2);
         networkLimitSetRoleHolders[0] = alice;
@@ -752,7 +795,7 @@ contract OperatorSpecificDelegatorTest is Test {
                         depositLimitSetRoleHolder: alice
                     })
                 ),
-                delegatorIndex: 0,
+                delegatorIndex: 2,
                 delegatorParams: abi.encode(
                     IOperatorSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
@@ -777,8 +820,6 @@ contract OperatorSpecificDelegatorTest is Test {
         address network = alice;
         _registerNetwork(network, alice);
         _setMaxNetworkLimit(network, 0, type(uint256).max);
-
-        _registerOperator(alice);
 
         _optInOperatorVault(alice);
 
@@ -1370,6 +1411,8 @@ contract OperatorSpecificDelegatorTest is Test {
     function _getVaultAndDelegator(
         uint48 epochDuration
     ) internal returns (Vault, OperatorSpecificDelegator) {
+        _registerOperator(alice);
+
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_,) = vaultConfigurator.create(
@@ -1391,7 +1434,7 @@ contract OperatorSpecificDelegatorTest is Test {
                         depositLimitSetRoleHolder: alice
                     })
                 ),
-                delegatorIndex: 0,
+                delegatorIndex: 2,
                 delegatorParams: abi.encode(
                     IOperatorSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
@@ -1415,6 +1458,8 @@ contract OperatorSpecificDelegatorTest is Test {
     function _getVaultAndDelegatorAndSlasher(
         uint48 epochDuration
     ) internal returns (Vault, OperatorSpecificDelegator, Slasher) {
+        _registerOperator(alice);
+
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
@@ -1436,7 +1481,7 @@ contract OperatorSpecificDelegatorTest is Test {
                         depositLimitSetRoleHolder: alice
                     })
                 ),
-                delegatorIndex: 0,
+                delegatorIndex: 2,
                 delegatorParams: abi.encode(
                     IOperatorSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
