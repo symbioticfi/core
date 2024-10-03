@@ -887,16 +887,14 @@ contract FullRestakeDelegatorTest is Test {
 
         uint256 slashAmount1Real =
             Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
-        vm.assume(slashAmount1Real < depositAmount);
         assertEq(_slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), ""), slashAmount1Real);
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), networkLimit);
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), alice), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), bob), operatorNetworkLimit2);
 
-        uint256 slashAmount2Real = Math.min(
-            slashAmount2, Math.min(depositAmount - slashAmount1Real, Math.min(networkLimit, operatorNetworkLimit2))
-        );
+        uint256 slashAmount2Real =
+            Math.min(slashAmount2, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2)));
         assertEq(_slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1), ""), slashAmount2Real);
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), networkLimit);
