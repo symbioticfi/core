@@ -86,7 +86,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
 
     function _stakeAt(
         bytes32 subnetwork,
-        address, operator_
+        address operator_,
         uint48 timestamp,
         bytes memory hints
     ) internal view override returns (uint256, bytes memory) {
@@ -96,7 +96,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         }
 
         if (operator != operator_) {
-            return 0;
+            return (0, stakesHints.baseHints);
         }
 
         return (
@@ -108,11 +108,11 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         );
     }
 
-    function _stake(bytes32 subnetwork, address operator_ ) internal view override returns (uint256) {
+    function _stake(bytes32 subnetwork, address operator_) internal view override returns (uint256) {
         if (operator != operator_) {
             return 0;
         }
-        
+
         return Math.min(IVault(vault).activeStake(), networkLimit(subnetwork));
     }
 

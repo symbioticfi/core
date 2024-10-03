@@ -500,8 +500,48 @@ contract OperatorSpecificDelegatorTest is Test {
 
         _setNetworkLimit(alice, network, networkLimit);
 
-        assertEq(delegator.stake(network.subnetwork(0), alice), 0);
+        assertEq(delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""), 0);
+        assertEq(delegator.stake(network.subnetwork(0), alice), Math.min(depositAmount - withdrawAmount, networkLimit));
         assertEq(delegator.stake(network.subnetwork(0), bob), 0);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            Math.min(depositAmount - withdrawAmount, networkLimit)
+        );
+        assertEq(delegator.stake(network.subnetwork(0), alice), Math.min(depositAmount - withdrawAmount, networkLimit));
+        assertEq(delegator.stake(network.subnetwork(0), bob), 0);
+
+        _setNetworkLimit(alice, network, networkLimit);
+
+        bytes memory hints = abi.encode(
+            IOperatorSpecificDelegator.StakeHints({
+                baseHints: "",
+                activeStakeHint: abi.encode(0),
+                networkLimitHint: abi.encode(0)
+            })
+        );
+        uint256 gasLeft = gasleft();
+        assertEq(
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp), hints),
+            Math.min(depositAmount - withdrawAmount, networkLimit)
+        );
+        uint256 gasSpent = gasLeft - gasleft();
+        hints = abi.encode(
+            IOperatorSpecificDelegator.StakeHints({
+                baseHints: "",
+                activeStakeHint: abi.encode(0),
+                networkLimitHint: abi.encode(1)
+            })
+        );
+        gasLeft = gasleft();
+        assertEq(
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp), hints),
+            Math.min(depositAmount - withdrawAmount, networkLimit)
+        );
+        assertGt(gasSpent, gasLeft - gasleft());
     }
 
     function test_SlashBase(
@@ -551,6 +591,32 @@ contract OperatorSpecificDelegatorTest is Test {
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
+
+        uint256 operatorNetworkStake1 = Math.min(networkLimit, depositAmount);
+        vm.assume(operatorNetworkStake1 > 0);
+        uint256 slashAmount1Real = Math.min(slashAmount1, operatorNetworkStake1);
+        assertEq(_slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), ""), slashAmount1Real);
+
+        assertEq(
+            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            networkLimit
+        );
+        assertEq(delegator.networkLimit(alice.subnetwork(0)), networkLimit);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint256 operatorNetworkStake2 =
+            Math.min(networkLimit, depositAmount - Math.min(slashAmount1Real, depositAmount));
+        vm.assume(operatorNetworkStake2 > 0);
+        uint256 slashAmount2Real = Math.min(slashAmount2, operatorNetworkStake2);
+        assertEq(_slash(alice, alice, alice, slashAmount2, uint48(blockTimestamp - 1), ""), slashAmount2Real);
+
+        assertEq(
+            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            networkLimit
+        );
+        assertEq(delegator.networkLimit(alice.subnetwork(0)), networkLimit);
     }
 
     function test_SlashWithHook(
@@ -572,7 +638,7 @@ contract OperatorSpecificDelegatorTest is Test {
         vm.warp(blockTimestamp);
 
         address hook = address(new SimpleOperatorSpecificDelegatorHook());
-        address[] memory networkLimitSetRoleHolders = new address[](1);
+        address[] memory networkLimitSetRoleHolders = new address[](2);
         networkLimitSetRoleHolders[0] = alice;
         networkLimitSetRoleHolders[1] = hook;
 
@@ -664,7 +730,7 @@ contract OperatorSpecificDelegatorTest is Test {
         vm.warp(blockTimestamp);
 
         address hook = address(new SimpleOperatorSpecificDelegatorHook());
-        address[] memory networkLimitSetRoleHolders = new address[](1);
+        address[] memory networkLimitSetRoleHolders = new address[](2);
         networkLimitSetRoleHolders[0] = alice;
         networkLimitSetRoleHolders[1] = hook;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
