@@ -191,11 +191,18 @@ library Checkpoints {
             self._values.push(0);
         }
 
-        uint256 len = self._values.length;
-        self._trace.push(key, uint208(len));
-        self._values.push(value);
+        (bool exists, uint48 lastKey,) = self._trace.latestCheckpoint();
 
-        return (self._values[len - 1], value);
+        uint256 len = self._values.length;
+        uint256 lastValue = latest(self);
+        if (exists && key == lastKey) {
+            self._values[len - 1] = value;
+        } else {
+            self._trace.push(key, uint208(len));
+            self._values.push(value);
+        }
+
+        return (lastValue, value);
     }
 
     /**
@@ -344,6 +351,7 @@ library Checkpoints {
         }
         value = self._values[idx];
         self._trace._checkpoints.pop();
+        self._values.pop();
     }
 
     /**
