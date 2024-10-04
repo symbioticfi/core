@@ -355,7 +355,7 @@ library Checkpoints {
      */
     function _upperBinaryLookup(
         OZCheckpoints.Checkpoint208[] storage self,
-        uint96 key,
+        uint48 key,
         uint256 low,
         uint256 high
     ) private view returns (uint256) {
