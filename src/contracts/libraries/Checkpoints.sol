@@ -290,11 +290,11 @@ library Checkpoints {
         uint32 hint = abi.decode(hint_, (uint32));
         Checkpoint256 memory checkpoint = at(self, hint);
         if (checkpoint._key == key) {
-            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+            return (true, checkpoint._key, checkpoint._value, hint);
         }
 
         if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
-            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+            return (true, checkpoint._key, checkpoint._value, hint);
         }
 
         return upperLookupRecentCheckpoint(self, key);
