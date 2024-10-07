@@ -9,7 +9,7 @@ import {Checkpoints} from "../libraries/Checkpoints.sol";
 contract OptInServiceHints is Hints, OptInService {
     using Checkpoints for Checkpoints.Trace208;
 
-    constructor() OptInService(address(0), address(0)) {}
+    constructor() OptInService(address(0), address(0), "") {}
 
     function optInHintInternal(
         address who,

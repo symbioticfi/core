@@ -84,8 +84,10 @@ contract SlasherTest is Test {
         operatorMetadataService = new MetadataService(address(operatorRegistry));
         networkMetadataService = new MetadataService(address(networkRegistry));
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
-        operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
+        operatorVaultOptInService =
+            new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
+        operatorNetworkOptInService =
+            new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
         address vaultImpl =
             address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));

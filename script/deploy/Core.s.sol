@@ -35,8 +35,10 @@ contract CoreScript is Script {
         MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));
         MetadataService networkMetadataService = new MetadataService(address(networkRegistry));
         NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        OptInService operatorVaultOptInService = new OptInService(address(operatorRegistry), address(vaultFactory));
-        OptInService operatorNetworkOptInService = new OptInService(address(operatorRegistry), address(networkRegistry));
+        OptInService operatorVaultOptInService =
+            new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
+        OptInService operatorNetworkOptInService =
+            new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
         address vaultImpl =
             address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
