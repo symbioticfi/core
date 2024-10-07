@@ -145,16 +145,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         }
     }
 
-    function _checkLatestSlashedCaptureTimestamp(
-        bytes32 subnetwork,
-        address operator,
-        uint48 captureTimestamp
-    ) internal view {
-        if (captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]) {
-            revert OutdatedCaptureTimestamp();
-        }
-    }
-
     function _updateLatestSlashedCaptureTimestamp(
         bytes32 subnetwork,
         address operator,

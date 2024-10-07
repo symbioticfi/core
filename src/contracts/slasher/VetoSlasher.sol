@@ -154,7 +154,15 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert SlashPeriodEnded();
         }
 
-        _checkLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
+        slashedAmount = Math.min(
+            request.amount,
+            slashableStake(
+                request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+            )
+        );
+        if (slashedAmount == 0) {
+            revert InsufficientSlash();
+        }
 
         if (request.completed) {
             revert SlashRequestCompleted();
@@ -164,24 +172,13 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
-        slashedAmount = Math.min(
-            request.amount,
-            slashableStake(
-                request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
-            )
-        );
-
-        if (slashedAmount > 0) {
-            _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
-        }
+        _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
 
         IBaseDelegator(IVault(vault_).delegator()).onSlash(
             request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, abi.encode(slashIndex)
         );
 
-        if (slashedAmount > 0) {
-            IVault(vault_).onSlash(slashedAmount, request.captureTimestamp);
-        }
+        IVault(vault_).onSlash(slashedAmount, request.captureTimestamp);
 
         emit ExecuteSlash(slashIndex, slashedAmount);
     }

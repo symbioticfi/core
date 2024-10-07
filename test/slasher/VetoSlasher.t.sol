@@ -1178,7 +1178,7 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - vetoDuration - 2), "");
     }
 
-    function test_ExecuteSlashRevertOutdatedCaptureTimestamp(
+    function test_ExecuteSlashRevertInsufficientSlash2(
         uint48 epochDuration,
         uint48 vetoDuration,
         uint256 depositAmount,
@@ -1228,7 +1228,7 @@ contract VetoSlasherTest is Test {
 
         _executeSlash(alice, 0, "");
 
-        vm.expectRevert(IBaseSlasher.OutdatedCaptureTimestamp.selector);
+        vm.expectRevert(IVetoSlasher.InsufficientSlash.selector);
         _executeSlash(alice, 1, "");
     }
 
@@ -1398,10 +1398,11 @@ contract VetoSlasherTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
-        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
-        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        depositAmount = bound(depositAmount, 2, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 2, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 2, type(uint256).max / 2);
+        slashAmount1 =
+            bound(slashAmount1, 1, Math.min(Math.min(depositAmount, networkLimit), operatorNetworkLimit1) - 1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;

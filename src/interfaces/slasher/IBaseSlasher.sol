@@ -6,7 +6,6 @@ import {IEntity} from "../common/IEntity.sol";
 interface IBaseSlasher is IEntity {
     error NotNetworkMiddleware();
     error NotVault();
-    error OutdatedCaptureTimestamp();
 
     /**
      * @notice Hints for a slashable stake.
