@@ -25,6 +25,13 @@ interface IOptInService {
     event OptOut(address indexed who, address indexed where);
 
     /**
+     * @notice Emitted when the nonce of a "who" to a "where" entity is increased.
+     * @param who address of the "who"
+     * @param where address of the "where" entity
+     */
+    event IncreaseNonce(address indexed who, address indexed where);
+
+    /**
      * @notice Get the "who" registry's address.
      * @return address of the "who" registry
      */
@@ -60,20 +67,12 @@ interface IOptInService {
     function isOptedIn(address who, address where) external view returns (bool);
 
     /**
-     * @notice Get the opt-in nonce of a given "who" to a particular "where" entity.
+     * @notice Get the nonce of a given "who" to a particular "where" entity.
      * @param who address of the "who"
      * @param where address of the "where" entity
-     * @return opt-in nonce
+     * @return nonce
      */
-    function optInNonces(address who, address where) external view returns (uint256);
-
-    /**
-     * @notice Get the opt-out nonce of a given "who" to a particular "where" entity.
-     * @param who address of the "who"
-     * @param where address of the "where" entity
-     * @return opt-out nonce
-     */
-    function optOutNonces(address who, address where) external view returns (uint256);
+    function nonces(address who, address where) external view returns (uint256);
 
     /**
      * @notice Opt-in a calling "who" to a particular "where" entity.
@@ -108,4 +107,13 @@ interface IOptInService {
      * @param signature signature of the "who"
      */
     function optOut(address who, address where, uint48 deadline, bytes calldata signature) external;
+
+    /**
+     * @notice Increase the nonce of a given "who" to a particular "where" entity.
+     * @param where address of the "where" entity
+     * @dev It can be used to invalidate a given signature.
+     */
+    function increaseNonce(
+        address where
+    ) external;
 }

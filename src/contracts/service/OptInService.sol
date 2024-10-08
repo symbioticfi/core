@@ -34,12 +34,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    mapping(address who => mapping(address where => uint256 nonce)) public optInNonces;
-
-    /**
-     * @inheritdoc IOptInService
-     */
-    mapping(address who => mapping(address where => uint256 nonce)) public optOutNonces;
+    mapping(address who => mapping(address where => uint256 nonce)) public nonces;
 
     mapping(address who => mapping(address where => Checkpoints.Trace208 value)) internal _isOptedIn;
 
@@ -94,11 +89,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         uint48 deadline,
         bytes calldata signature
     ) external checkDeadline(deadline) {
-        if (
-            !SignatureChecker.isValidSignatureNow(
-                who, _hash(true, who, where, optInNonces[who][where], deadline), signature
-            )
-        ) {
+        if (!SignatureChecker.isValidSignatureNow(who, _hash(true, who, where, deadline), signature)) {
             revert InvalidSignature();
         }
 
@@ -123,15 +114,20 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         uint48 deadline,
         bytes calldata signature
     ) external checkDeadline(deadline) {
-        if (
-            !SignatureChecker.isValidSignatureNow(
-                who, _hash(false, who, where, optOutNonces[who][where], deadline), signature
-            )
-        ) {
+        if (!SignatureChecker.isValidSignatureNow(who, _hash(false, who, where, deadline), signature)) {
             revert InvalidSignature();
         }
 
         _optOut(who, where);
+    }
+
+    /**
+     * @inheritdoc IOptInService
+     */
+    function increaseNonce(
+        address where
+    ) external {
+        _increaseNonce(msg.sender, where);
     }
 
     function _optIn(address who, address where) internal {
@@ -149,7 +145,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
 
         _isOptedIn[who][where].push(Time.timestamp(), 1);
 
-        ++optInNonces[who][where];
+        _increaseNonce(who, where);
 
         emit OptIn(who, where);
     }
@@ -167,20 +163,24 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
 
         _isOptedIn[who][where].push(Time.timestamp(), 0);
 
-        ++optOutNonces[who][where];
+        _increaseNonce(who, where);
 
         emit OptOut(who, where);
     }
 
-    function _hash(
-        bool ifOptIn,
-        address who,
-        address where,
-        uint256 nonce,
-        uint48 deadline
-    ) internal view returns (bytes32) {
+    function _hash(bool ifOptIn, address who, address where, uint48 deadline) internal view returns (bytes32) {
         return _hashTypedDataV4(
-            keccak256(abi.encode(ifOptIn ? OPT_IN_TYPEHASH : OPT_OUT_TYPEHASH, who, where, nonce, deadline))
+            keccak256(
+                abi.encode(ifOptIn ? OPT_IN_TYPEHASH : OPT_OUT_TYPEHASH, who, where, nonces[who][where], deadline)
+            )
         );
+    }
+
+    function _increaseNonce(address who, address where) internal {
+        unchecked {
+            ++nonces[who][where];
+        }
+
+        emit IncreaseNonce(who, where);
     }
 }

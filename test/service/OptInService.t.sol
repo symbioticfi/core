@@ -48,6 +48,7 @@ contract OperatorOptInServiceTest is Test {
         assertEq(service.WHERE_REGISTRY(), address(networkRegistry));
         assertEq(service.isOptedInAt(alice, alice, 0, ""), false);
         assertEq(service.isOptedIn(alice, alice), false);
+        assertEq(service.nonces(alice, alice), 0);
 
         address operator = alice;
         address where = bob;
@@ -294,10 +295,9 @@ contract OperatorOptInServiceTest is Test {
         networkRegistry.registerNetwork();
         vm.stopPrank();
 
-        uint256 nonce = service.optInNonces(operator, where);
         uint48 deadline = uint48(blockTimestamp);
 
-        bytes32 digest = computeOptInDigest(service, operator, where, nonce, deadline);
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -306,7 +306,7 @@ contract OperatorOptInServiceTest is Test {
 
         assertEq(service.isOptedIn(operator, where), true);
 
-        assertEq(service.optInNonces(operator, where), nonce + 1);
+        assertEq(service.nonces(operator, where), 1);
     }
 
     function test_OptInWithInvalidSignature() public {
@@ -327,10 +327,9 @@ contract OperatorOptInServiceTest is Test {
         networkRegistry.registerNetwork();
         vm.stopPrank();
 
-        uint256 nonce = service.optInNonces(operator, where);
         uint48 deadline = uint48(blockTimestamp);
 
-        bytes32 digest = computeOptInDigest(service, operator, where, nonce, deadline);
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -357,15 +356,49 @@ contract OperatorOptInServiceTest is Test {
         networkRegistry.registerNetwork();
         vm.stopPrank();
 
-        uint256 nonce = service.optInNonces(operator, where);
         uint48 deadline = uint48(blockTimestamp - 1);
 
-        bytes32 digest = computeOptInDigest(service, operator, where, nonce, deadline);
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(IOptInService.ExpiredSignature.selector);
+        service.optIn(operator, where, deadline, signature);
+    }
+
+    function test_IncreaseNonce() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        uint48 deadline = uint48(blockTimestamp);
+
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.startPrank(operator);
+        service.increaseNonce(where);
+        vm.stopPrank();
+
+        assertEq(service.nonces(operator, where), 1);
+
+        vm.expectRevert();
         service.optIn(operator, where, deadline, signature);
     }
 
@@ -394,10 +427,9 @@ contract OperatorOptInServiceTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 nonce = service.optOutNonces(operator, where);
         uint48 deadline = uint48(blockTimestamp);
 
-        bytes32 digest = computeOptOutDigest(service, operator, where, nonce, deadline);
+        bytes32 digest = computeOptOutDigest(service, operator, where, 1, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -406,7 +438,7 @@ contract OperatorOptInServiceTest is Test {
 
         assertEq(service.isOptedIn(operator, where), false);
 
-        assertEq(service.optOutNonces(operator, where), nonce + 1);
+        assertEq(service.nonces(operator, where), 2);
     }
 
     function test_OptOutWithInvalidSignature() public {
@@ -434,10 +466,9 @@ contract OperatorOptInServiceTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 nonce = service.optOutNonces(operator, where);
         uint48 deadline = uint48(blockTimestamp);
 
-        bytes32 digest = computeOptOutDigest(service, operator, where, nonce, deadline);
+        bytes32 digest = computeOptOutDigest(service, operator, where, 1, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -471,10 +502,9 @@ contract OperatorOptInServiceTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 nonce = service.optOutNonces(operator, where);
         uint48 deadline = uint48(blockTimestamp - 1);
 
-        bytes32 digest = computeOptOutDigest(service, operator, where, nonce, deadline);
+        bytes32 digest = computeOptOutDigest(service, operator, where, 1, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
