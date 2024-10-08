@@ -11,6 +11,8 @@ import {IOptInService} from "../../src/interfaces/service/IOptInService.sol";
 
 import {OptInServiceHints} from "../../src/contracts/hints/OptInServiceHints.sol";
 
+import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
+
 contract OperatorOptInServiceTest is Test {
     address owner;
     address alice;
@@ -37,11 +39,16 @@ contract OperatorOptInServiceTest is Test {
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
-        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+        service = IOptInService(
+            address(
+                new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
+            )
+        );
 
         assertEq(service.WHERE_REGISTRY(), address(networkRegistry));
         assertEq(service.isOptedInAt(alice, alice, 0, ""), false);
         assertEq(service.isOptedIn(alice, alice), false);
+        assertEq(service.nonces(alice, alice), 0);
 
         address operator = alice;
         address where = bob;
@@ -103,7 +110,11 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptInRevertNotEntity() public {
-        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+        service = IOptInService(
+            address(
+                new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
+            )
+        );
 
         address operator = alice;
         address where = bob;
@@ -119,7 +130,11 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptInRevertNotWhereEntity() public {
-        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+        service = IOptInService(
+            address(
+                new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
+            )
+        );
 
         address operator = alice;
         address where = bob;
@@ -135,7 +150,11 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptInRevertAlreadyOptedIn() public {
-        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+        service = IOptInService(
+            address(
+                new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
+            )
+        );
 
         address operator = alice;
         address where = bob;
@@ -159,7 +178,11 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptOutRevertNotOptedIn() public {
-        service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+        service = IOptInService(
+            address(
+                new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
+            )
+        );
 
         address operator = alice;
         address where = bob;
@@ -198,7 +221,7 @@ contract OperatorOptInServiceTest is Test {
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
-    //     service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry))));
+    //     service = IOptInService(address(new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")));
 
     //     address operator = alice;
     //     address where = bob;
@@ -253,4 +276,284 @@ contract OperatorOptInServiceTest is Test {
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
     //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     // }
+
+    function test_OptInWithSignature() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        uint48 deadline = uint48(blockTimestamp);
+
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        service.optIn(operator, where, deadline, signature);
+
+        assertEq(service.isOptedIn(operator, where), true);
+
+        assertEq(service.nonces(operator, where), 1);
+    }
+
+    function test_OptInWithInvalidSignature() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        uint48 deadline = uint48(blockTimestamp);
+
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(IOptInService.InvalidSignature.selector);
+        service.optIn(operator, where, deadline, signature);
+    }
+
+    function test_OptInWithExpiredDeadline() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        uint48 deadline = uint48(blockTimestamp - 1);
+
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(IOptInService.ExpiredSignature.selector);
+        service.optIn(operator, where, deadline, signature);
+    }
+
+    function test_IncreaseNonce() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        uint48 deadline = uint48(blockTimestamp);
+
+        bytes32 digest = computeOptInDigest(service, operator, where, 0, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.startPrank(operator);
+        service.increaseNonce(where);
+        vm.stopPrank();
+
+        assertEq(service.nonces(operator, where), 1);
+
+        vm.expectRevert();
+        service.optIn(operator, where, deadline, signature);
+    }
+
+    function test_OptOutWithSignature() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        vm.startPrank(operator);
+        service.optIn(where);
+        vm.stopPrank();
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint48 deadline = uint48(blockTimestamp);
+
+        bytes32 digest = computeOptOutDigest(service, operator, where, 1, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        service.optOut(operator, where, deadline, signature);
+
+        assertEq(service.isOptedIn(operator, where), false);
+
+        assertEq(service.nonces(operator, where), 2);
+    }
+
+    function test_OptOutWithInvalidSignature() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        vm.startPrank(operator);
+        service.optIn(where);
+        vm.stopPrank();
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint48 deadline = uint48(blockTimestamp);
+
+        bytes32 digest = computeOptOutDigest(service, operator, where, 1, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(IOptInService.InvalidSignature.selector);
+        service.optOut(operator, where, deadline, signature);
+    }
+
+    function test_OptOutWithExpiredDeadline() public {
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        service = new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address operator = alice;
+        address where = bob;
+
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+
+        vm.startPrank(where);
+        networkRegistry.registerNetwork();
+        vm.stopPrank();
+
+        vm.startPrank(operator);
+        service.optIn(where);
+        vm.stopPrank();
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        uint48 deadline = uint48(blockTimestamp - 1);
+
+        bytes32 digest = computeOptOutDigest(service, operator, where, 1, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(IOptInService.ExpiredSignature.selector);
+        service.optOut(operator, where, deadline, signature);
+    }
+
+    function computeOptInDigest(
+        IOptInService _service,
+        address who,
+        address where,
+        uint256 nonce,
+        uint48 deadline
+    ) internal view returns (bytes32) {
+        bytes32 OPT_IN_TYPEHASH = keccak256("OptIn(address who,address where,uint256 nonce,uint48 deadline)");
+        bytes32 structHash = keccak256(abi.encode(OPT_IN_TYPEHASH, who, where, nonce, deadline));
+
+        bytes32 domainSeparator = _computeDomainSeparator(address(_service));
+
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    }
+
+    function computeOptOutDigest(
+        IOptInService _service,
+        address who,
+        address where,
+        uint256 nonce,
+        uint48 deadline
+    ) internal view returns (bytes32) {
+        bytes32 OPT_OUT_TYPEHASH = keccak256("OptOut(address who,address where,uint256 nonce,uint48 deadline)");
+        bytes32 structHash = keccak256(abi.encode(OPT_OUT_TYPEHASH, who, where, nonce, deadline));
+
+        bytes32 domainSeparator = _computeDomainSeparator(address(_service));
+
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    }
+
+    function _computeDomainSeparator(
+        address _service
+    ) internal view returns (bytes32) {
+        bytes32 DOMAIN_TYPEHASH =
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
+        (, string memory name, string memory version,,,,) = IERC5267(_service).eip712Domain();
+        bytes32 NAME_HASH = keccak256(bytes(name));
+        bytes32 VERSION_HASH = keccak256(bytes(version));
+        uint256 chainId = block.chainid;
+
+        return keccak256(abi.encode(DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, chainId, _service));
+    }
 }
