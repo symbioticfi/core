@@ -33,6 +33,6 @@ abstract contract Entity is Initializable, IEntity {
     }
 
     function _initialize(
-        bytes calldata
+        bytes calldata /* data */
     ) internal virtual {}
 }

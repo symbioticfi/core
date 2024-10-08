@@ -489,7 +489,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
     }
 
-    function _migrate(uint64, uint64, bytes calldata) internal override {
+    function _migrate(uint64, /* oldVersion */ uint64, /* newVersion */ bytes calldata /* data */ ) internal override {
         revert();
     }
 }

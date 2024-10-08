@@ -15,6 +15,7 @@ import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Vault} from "../../src/contracts/vault/Vault.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
@@ -114,6 +115,19 @@ contract SlasherTest is Test {
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+
+        address operatorSpecificDelegatorImpl = address(
+            new OperatorSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
         address slasherImpl = address(
             new Slasher(
