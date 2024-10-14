@@ -194,11 +194,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+            if (!_grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
 
         for (uint256 i; i < params.operatorNetworkSharesSetRoleHolders.length; ++i) {
@@ -206,11 +204,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i])) {
+            if (!_grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i]);
         }
 
         return params.baseParams;

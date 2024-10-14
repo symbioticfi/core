@@ -161,11 +161,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+            if (!_grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
 
         for (uint256 i; i < params.operatorNetworkLimitSetRoleHolders.length; ++i) {
@@ -173,11 +171,9 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i])) {
+            if (!_grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(OPERATOR_NETWORK_LIMIT_SET_ROLE, params.operatorNetworkLimitSetRoleHolders[i]);
         }
 
         return params.baseParams;
