@@ -139,11 +139,9 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+            if (!_grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
 
         operator = params.operator;
