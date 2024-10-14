@@ -1368,6 +1368,21 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.hook(), hook);
     }
 
+    function test_SetHookRevertAlreadySet(
+        uint48 epochDuration
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address hook = address(new SimpleNetworkRestakeDelegatorHook());
+
+        _setHook(alice, hook);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setHook(alice, hook);
+    }
+
     // struct GasStruct {
     //     uint256 gasSpent1;
     //     uint256 gasSpent2;

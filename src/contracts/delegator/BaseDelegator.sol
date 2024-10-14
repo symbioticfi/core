@@ -164,6 +164,10 @@ contract BaseDelegator is
     function setHook(
         address hook_
     ) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+        if (hook == hook_) {
+            revert AlreadySet();
+        }
+
         hook = hook_;
 
         emit SetHook(hook_);
