@@ -15,7 +15,7 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract BaseDelegator is
+abstract contract BaseDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
