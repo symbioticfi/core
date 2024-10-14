@@ -108,9 +108,7 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    NetworkRestakeDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
-                )
+                abi.encodeCall(NetworkRestakeDelegatorHints.networkLimitHintInternal, (subnetwork, timestamp))
             ),
             (bool, uint32)
         );
@@ -137,11 +135,8 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    NetworkRestakeDelegatorHints.operatorNetworkSharesHintInternal.selector,
-                    subnetwork,
-                    operator,
-                    timestamp
+                abi.encodeCall(
+                    NetworkRestakeDelegatorHints.operatorNetworkSharesHintInternal, (subnetwork, operator, timestamp)
                 )
             ),
             (bool, uint32)
@@ -167,8 +162,8 @@ contract NetworkRestakeDelegatorHints is Hints, NetworkRestakeDelegator {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    NetworkRestakeDelegatorHints.totalOperatorNetworkSharesHintInternal.selector, subnetwork, timestamp
+                abi.encodeCall(
+                    NetworkRestakeDelegatorHints.totalOperatorNetworkSharesHintInternal, (subnetwork, timestamp)
                 )
             ),
             (bool, uint32)
@@ -243,10 +238,7 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
     ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                delegator,
-                abi.encodeWithSelector(
-                    FullRestakeDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
-                )
+                delegator, abi.encodeCall(FullRestakeDelegatorHints.networkLimitHintInternal, (subnetwork, timestamp))
             ),
             (bool, uint32)
         );
@@ -273,8 +265,8 @@ contract FullRestakeDelegatorHints is Hints, FullRestakeDelegator {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    FullRestakeDelegatorHints.operatorNetworkLimitHintInternal.selector, subnetwork, operator, timestamp
+                abi.encodeCall(
+                    FullRestakeDelegatorHints.operatorNetworkLimitHintInternal, (subnetwork, operator, timestamp)
                 )
             ),
             (bool, uint32)

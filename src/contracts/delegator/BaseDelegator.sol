@@ -191,9 +191,8 @@ abstract contract BaseDelegator is
 
         address hook_ = hook;
         if (hook_ != address(0)) {
-            bytes memory calldata_ = abi.encodeWithSelector(
-                IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
-            );
+            bytes memory calldata_ =
+                abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, slashedAmount, captureTimestamp, data));
 
             if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
                 revert InsufficientHookGas();

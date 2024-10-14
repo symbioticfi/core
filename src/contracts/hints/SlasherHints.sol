@@ -39,7 +39,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     function globalCumulativeSlashHint(address slasher, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                slasher, abi.encodeWithSelector(BaseSlasherHints.globalCumulativeSlashHintInternal.selector, timestamp)
+                slasher, abi.encodeCall(BaseSlasherHints.globalCumulativeSlashHintInternal, (timestamp))
             ),
             (bool, uint32)
         );
@@ -65,10 +65,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                slasher,
-                abi.encodeWithSelector(
-                    BaseSlasherHints.cumulativeSlashHintInternal.selector, subnetwork, operator, timestamp
-                )
+                slasher, abi.encodeCall(BaseSlasherHints.cumulativeSlashHintInternal, (subnetwork, operator, timestamp))
             ),
             (bool, uint32)
         );
@@ -160,7 +157,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
     function resolverHint(address slasher, bytes32 subnetwork, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                slasher, abi.encodeWithSelector(VetoSlasherHints.resolverHintInternal.selector, subnetwork, timestamp)
+                slasher, abi.encodeCall(VetoSlasherHints.resolverHintInternal, (subnetwork, timestamp))
             ),
             (bool, uint32)
         );
