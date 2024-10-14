@@ -193,7 +193,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
         bytes memory captureResolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
-        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp());
+        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp() - 1);
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
@@ -214,7 +214,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
         bytes memory captureResolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
-        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp());
+        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp() - 1);
 
         if (captureResolverHint.length > 0 || currentResolverHint.length > 0) {
             return abi.encode(
