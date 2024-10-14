@@ -165,7 +165,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             operator,
             slashedAmount,
             captureTimestamp,
-            abi.encode(GeneralDelegatorData({type_: TYPE, data: data}))
+            abi.encode(GeneralDelegatorData({slasherType: TYPE, data: data}))
         );
     }
 

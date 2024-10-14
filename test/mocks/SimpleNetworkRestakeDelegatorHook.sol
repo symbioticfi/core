@@ -12,20 +12,20 @@ contract SimpleNetworkRestakeDelegatorHook is IDelegatorHook {
     uint256 counter2;
     uint256 counter3;
 
-    uint256 type_;
+    uint256 slasherType;
     bytes hints;
     uint256 slashableStake;
     uint256 stakeAt;
     uint256 slashIndex;
 
     function setData(
-        uint64 type__,
+        uint64 slasherType_,
         bytes memory hints_,
         uint256 slashableStake_,
         uint256 stakeAt_,
         uint256 slashIndex_
     ) external {
-        type_ = type__;
+        slasherType = slasherType_;
         hints = hints_;
         slashableStake = slashableStake_;
         stakeAt = stakeAt_;
@@ -36,15 +36,15 @@ contract SimpleNetworkRestakeDelegatorHook is IDelegatorHook {
         IBaseSlasher.GeneralDelegatorData memory generalDelegatorData =
             abi.decode(data, (IBaseSlasher.GeneralDelegatorData));
 
-        assert(generalDelegatorData.type_ == type_);
-        if (generalDelegatorData.type_ == 0) {
+        assert(generalDelegatorData.slasherType == slasherType);
+        if (generalDelegatorData.slasherType == 0) {
             ISlasher.DelegatorData memory delegatorData =
                 abi.decode(generalDelegatorData.data, (ISlasher.DelegatorData));
 
             assert(keccak256(delegatorData.hints) == keccak256(hints));
             assert(delegatorData.slashableStake == slashableStake);
             assert(delegatorData.stakeAt == stakeAt);
-        } else if (generalDelegatorData.type_ == 1) {
+        } else if (generalDelegatorData.slasherType == 1) {
             IVetoSlasher.DelegatorData memory delegatorData =
                 abi.decode(generalDelegatorData.data, (IVetoSlasher.DelegatorData));
 

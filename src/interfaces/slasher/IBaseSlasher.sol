@@ -20,11 +20,11 @@ interface IBaseSlasher is IEntity {
 
     /**
      * @notice General data for the delegator.
-     * @param type_ type of the slasher
+     * @param slasherType type of the slasher
      * @param data slasher-dependent data for the delegator
      */
     struct GeneralDelegatorData {
-        uint64 type_;
+        uint64 slasherType;
         bytes data;
     }
 
