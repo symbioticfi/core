@@ -396,6 +396,11 @@ contract NetworkRestakeDelegatorTest is Test {
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
+        vm.assume(0 != amount1);
+        vm.assume(amount1 != amount2);
+        vm.assume(amount2 != amount3);
+        vm.assume(amount3 != amount4);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -468,9 +473,12 @@ contract NetworkRestakeDelegatorTest is Test {
         uint256 amount3
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        amount1 = bound(amount3, 0, type(uint256).max / 2);
-        amount2 = bound(amount3, 0, type(uint256).max / 2);
+        amount1 = bound(amount1, 1, type(uint256).max / 2);
+        amount2 = bound(amount2, 1, type(uint256).max / 2);
         amount3 = bound(amount3, 1, type(uint256).max / 2);
+
+        vm.assume(amount1 != amount3);
+        vm.assume(amount2 != amount3);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -698,6 +706,8 @@ contract NetworkRestakeDelegatorTest is Test {
         vm.assume(maxNetworkLimit1 > maxNetworkLimit2);
         vm.assume(maxNetworkLimit1 >= networkLimit1 && networkLimit1 >= maxNetworkLimit2);
 
+        vm.assume(0 != networkLimit1);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -720,8 +730,6 @@ contract NetworkRestakeDelegatorTest is Test {
 
         blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
         vm.warp(blockTimestamp);
-
-        _setNetworkLimit(alice, network, networkLimit1);
 
         assertEq(
             delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.epochDuration()), ""),
@@ -788,6 +796,8 @@ contract NetworkRestakeDelegatorTest is Test {
         operatorNetworkShares2 = bound(operatorNetworkShares2, 1, type(uint256).max / 2);
         operatorNetworkShares3 = bound(operatorNetworkShares2, 0, type(uint256).max / 2);
         vm.assume(withdrawAmount <= depositAmount);
+
+        vm.assume(operatorNetworkShares2 - 1 != operatorNetworkShares3);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;

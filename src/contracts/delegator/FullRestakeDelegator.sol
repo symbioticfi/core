@@ -92,6 +92,10 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
+        if (networkLimit(subnetwork) == amount) {
+            revert AlreadySet();
+        }
+
         _networkLimit[subnetwork].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(subnetwork, amount);
@@ -105,6 +109,10 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         address operator,
         uint256 amount
     ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
+        if (operatorNetworkLimit(subnetwork, operator) == amount) {
+            revert AlreadySet();
+        }
+
         _operatorNetworkLimit[subnetwork][operator].push(Time.timestamp(), amount);
 
         emit SetOperatorNetworkLimit(subnetwork, operator, amount);

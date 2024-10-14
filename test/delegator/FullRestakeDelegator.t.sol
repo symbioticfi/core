@@ -393,6 +393,11 @@ contract FullRestakeDelegatorTest is Test {
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
+        vm.assume(0 != amount1);
+        vm.assume(amount1 != amount2);
+        vm.assume(amount2 != amount3);
+        vm.assume(amount3 != amount4);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -469,6 +474,11 @@ contract FullRestakeDelegatorTest is Test {
         amount1 = bound(amount1, 1, type(uint256).max);
         vm.assume(amount3 < amount2);
         vm.assume(amount4 > amount2 && amount4 > amount1);
+
+        vm.assume(0 != amount1);
+        vm.assume(amount1 != amount2);
+        vm.assume(amount2 != amount3);
+        vm.assume(amount3 != amount4);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -584,6 +594,8 @@ contract FullRestakeDelegatorTest is Test {
         vm.assume(maxNetworkLimit1 > maxNetworkLimit2);
         vm.assume(maxNetworkLimit1 >= networkLimit1 && networkLimit1 >= maxNetworkLimit2);
 
+        vm.assume(0 != networkLimit1);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -606,8 +618,6 @@ contract FullRestakeDelegatorTest is Test {
 
         blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
         vm.warp(blockTimestamp);
-
-        _setNetworkLimit(alice, network, networkLimit1);
 
         assertEq(
             delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.epochDuration()), ""),
@@ -668,9 +678,11 @@ contract FullRestakeDelegatorTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
         networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 0, type(uint256).max / 2);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         operatorNetworkLimit2 = bound(operatorNetworkLimit2, 1, type(uint256).max / 2);
         operatorNetworkLimit3 = bound(operatorNetworkLimit3, 0, type(uint256).max / 2);
+
+        vm.assume(operatorNetworkLimit2 - 1 != operatorNetworkLimit3);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
