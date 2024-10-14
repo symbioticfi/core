@@ -218,7 +218,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external nonReentrant {
+    function onSlash(uint256 amount, uint48 captureTimestamp) external nonReentrant returns (uint256 slashedAmount) {
         if (msg.sender != slasher) {
             revert NotSlasher();
         }
@@ -233,7 +233,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
         if (captureEpoch == currentEpoch_) {
             uint256 slashableStake = activeStake_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableStake);
+            slashedAmount = Math.min(amount, slashableStake);
             if (slashedAmount > 0) {
                 uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
@@ -244,7 +244,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         } else {
             uint256 withdrawals_ = withdrawals[currentEpoch_];
             uint256 slashableStake = activeStake_ + withdrawals_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableStake);
+            slashedAmount = Math.min(amount, slashableStake);
             if (slashedAmount > 0) {
                 uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableStake);
@@ -265,7 +265,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             IERC20(collateral).safeTransfer(burner, slashedAmount);
         }
 
-        emit OnSlash(msg.sender, slashedAmount);
+        emit OnSlash(amount, captureTimestamp, slashedAmount);
     }
 
     /**

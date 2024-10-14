@@ -102,7 +102,7 @@ interface IVetoSlasher {
     /**
      * @notice Emitted when a slash request is executed.
      * @param slashIndex index of the slash request
-     * @param slashedAmount amount of the collateral slashed
+     * @param slashedAmount virtual amount of the collateral slashed
      */
     event ExecuteSlash(uint256 indexed slashIndex, uint256 slashedAmount);
 
@@ -207,7 +207,7 @@ interface IVetoSlasher {
      * @notice Execute a slash with a given slash index using hints.
      * @param slashIndex index of the slash request
      * @param hints hints for checkpoints' indexes
-     * @return slashedAmount amount of the collateral slashed
+     * @return slashedAmount virtual amount of the collateral slashed
      * @dev Only a network middleware can call this function.
      */
     function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);

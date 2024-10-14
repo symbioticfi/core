@@ -175,18 +175,18 @@ contract BaseDelegator is
     function onSlash(
         bytes32 subnetwork,
         address operator,
-        uint256 slashedAmount,
+        uint256 amount,
         uint48 captureTimestamp,
         bytes memory data
     ) external nonReentrant {
-        if (IVault(vault).slasher() != msg.sender) {
+        if (msg.sender != IVault(vault).slasher()) {
             revert NotSlasher();
         }
 
         address hook_ = hook;
         if (hook_ != address(0)) {
             bytes memory calldata_ = abi.encodeWithSelector(
-                IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
+                IDelegatorHook.onSlash.selector, subnetwork, operator, amount, captureTimestamp, data
             );
 
             if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
@@ -198,7 +198,7 @@ contract BaseDelegator is
             }
         }
 
-        emit OnSlash(subnetwork, operator, slashedAmount);
+        emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
     function _initialize(
