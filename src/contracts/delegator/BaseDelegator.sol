@@ -28,11 +28,6 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    uint64 public constant VERSION = 1;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
     uint256 public constant HOOK_GAS_LIMIT = 250_000;
 
     /**
@@ -92,6 +87,13 @@ abstract contract BaseDelegator is
         VAULT_FACTORY = vaultFactory;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
+    }
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    function VERSION() external pure returns (uint64) {
+        return 1;
     }
 
     /**
