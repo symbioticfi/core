@@ -298,10 +298,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert AlreadySet();
         }
 
-        if (status && !depositWhitelist) {
-            revert NoDepositWhitelist();
-        }
-
         isDepositorWhitelisted[account] = status;
 
         emit SetDepositorWhitelistStatus(account, status);
@@ -328,10 +324,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function setDepositLimit(
         uint256 limit
     ) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
-        if (limit != 0 && !isDepositLimit) {
-            revert NoDepositLimit();
-        }
-
         if (depositLimit == limit) {
             revert AlreadySet();
         }

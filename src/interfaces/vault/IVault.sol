@@ -25,8 +25,6 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error InvalidRecipient();
     error InvalidSlasher();
     error MissingRoles();
-    error NoDepositLimit();
-    error NoDepositWhitelist();
     error NotDelegator();
     error NotSlasher();
     error NotWhitelistedDepositor();
