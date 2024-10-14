@@ -33,10 +33,8 @@ contract Slasher is BaseSlasher, ISlasher {
             slashHints = abi.decode(hints, (SlashHints));
         }
 
-        address vault_ = vault;
-        if (
-            captureTimestamp < Time.timestamp() - IVault(vault_).epochDuration() || captureTimestamp >= Time.timestamp()
-        ) {
+        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
+        {
             revert InvalidCaptureTimestamp();
         }
 
@@ -51,11 +49,15 @@ contract Slasher is BaseSlasher, ISlasher {
 
         _updateCumulativeSlash(subnetwork, operator, slashedAmount);
 
-        IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            subnetwork, operator, slashedAmount, captureTimestamp, abi.encode(hints, slashableStake_, stakeAt)
+        _delegatorOnSlash(
+            subnetwork,
+            operator,
+            slashedAmount,
+            captureTimestamp,
+            abi.encode(ISlasher.DelegatorData({hints: hints, slashableStake: slashableStake_, stakeAt: stakeAt}))
         );
 
-        IVault(vault_).onSlash(slashedAmount, captureTimestamp);
+        _vaultOnSlash(slashedAmount, captureTimestamp);
 
         emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
     }

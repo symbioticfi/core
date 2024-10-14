@@ -19,6 +19,16 @@ interface IBaseSlasher is IEntity {
     }
 
     /**
+     * @notice General data for the delegator.
+     * @param type_ type of the slasher
+     * @param data slasher-dependent data for the delegator
+     */
+    struct GeneralDelegatorData {
+        uint64 type_;
+        bytes data;
+    }
+
+    /**
      * @notice Get the vault factory's address.
      * @return address of the vault factory
      */

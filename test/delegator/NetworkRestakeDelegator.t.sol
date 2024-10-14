@@ -1201,6 +1201,13 @@ contract NetworkRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        SimpleNetworkRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
@@ -1231,7 +1238,13 @@ contract NetworkRestakeDelegatorTest is Test {
             })
         );
 
-        console2.log(hints.length);
+        SimpleNetworkRestakeDelegatorHook(hook).setData(
+            0,
+            hints,
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1), hints);
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
@@ -1329,6 +1342,13 @@ contract NetworkRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        SimpleNetworkRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.startPrank(alice);
@@ -1341,6 +1361,13 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         vm.stopPrank();
 
+        SimpleNetworkRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         vm.startPrank(alice);
         (bool success,) = address(slasher).call{gas: totalGas}(
             abi.encodeWithSelector(
