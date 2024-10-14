@@ -79,6 +79,10 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
             revert ExceedsMaxNetworkLimit();
         }
 
+        if (networkLimit(subnetwork) == amount) {
+            revert AlreadySet();
+        }
+
         _networkLimit[subnetwork].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(subnetwork, amount);

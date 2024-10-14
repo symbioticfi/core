@@ -348,6 +348,11 @@ contract OperatorSpecificDelegatorTest is Test {
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
+        vm.assume(0 != amount1);
+        vm.assume(amount1 != amount2);
+        vm.assume(amount2 != amount3);
+        vm.assume(amount3 != amount4);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -413,6 +418,28 @@ contract OperatorSpecificDelegatorTest is Test {
         _setNetworkLimit(alice, network, amount1);
     }
 
+    function test_SetNetworkLimitRevertAlreadySet(
+        uint48 epochDuration,
+        uint256 amount1,
+        uint256 maxNetworkLimit
+    ) public {
+        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
+        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
+        amount1 = bound(amount1, 1, maxNetworkLimit);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        _setMaxNetworkLimit(network, 0, maxNetworkLimit);
+
+        _setNetworkLimit(alice, network, amount1);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setNetworkLimit(alice, network, amount1);
+    }
+
     function test_SetMaxNetworkLimit(
         uint48 epochDuration,
         uint256 maxNetworkLimit1,
@@ -423,6 +450,8 @@ contract OperatorSpecificDelegatorTest is Test {
         maxNetworkLimit1 = bound(maxNetworkLimit1, 1, type(uint256).max);
         vm.assume(maxNetworkLimit1 > maxNetworkLimit2);
         vm.assume(maxNetworkLimit1 >= networkLimit1 && networkLimit1 >= maxNetworkLimit2);
+
+        vm.assume(0 != networkLimit1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -446,8 +475,6 @@ contract OperatorSpecificDelegatorTest is Test {
 
         blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
         vm.warp(blockTimestamp);
-
-        _setNetworkLimit(alice, network, networkLimit1);
 
         assertEq(
             delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.epochDuration()), ""),
@@ -501,13 +528,17 @@ contract OperatorSpecificDelegatorTest is Test {
         uint48 epochDuration,
         uint256 depositAmount,
         uint256 withdrawAmount,
-        uint256 networkLimit
+        uint256 networkLimit1,
+        uint256 networkLimit2
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
         withdrawAmount = bound(withdrawAmount, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
+        networkLimit1 = bound(networkLimit1, 1, type(uint256).max);
+        networkLimit2 = bound(networkLimit2, 0, type(uint256).max);
         vm.assume(withdrawAmount <= depositAmount);
+
+        vm.assume(networkLimit1 != networkLimit2);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -542,10 +573,10 @@ contract OperatorSpecificDelegatorTest is Test {
         assertEq(delegator.stake(network.subnetwork(0), alice), 0);
         assertEq(delegator.stake(network.subnetwork(0), bob), 0);
 
-        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, networkLimit1);
 
         assertEq(delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""), 0);
-        assertEq(delegator.stake(network.subnetwork(0), alice), Math.min(depositAmount - withdrawAmount, networkLimit));
+        assertEq(delegator.stake(network.subnetwork(0), alice), Math.min(depositAmount - withdrawAmount, networkLimit1));
         assertEq(delegator.stake(network.subnetwork(0), bob), 0);
 
         blockTimestamp = blockTimestamp + 1;
@@ -553,12 +584,12 @@ contract OperatorSpecificDelegatorTest is Test {
 
         assertEq(
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
-            Math.min(depositAmount - withdrawAmount, networkLimit)
+            Math.min(depositAmount - withdrawAmount, networkLimit1)
         );
-        assertEq(delegator.stake(network.subnetwork(0), alice), Math.min(depositAmount - withdrawAmount, networkLimit));
+        assertEq(delegator.stake(network.subnetwork(0), alice), Math.min(depositAmount - withdrawAmount, networkLimit1));
         assertEq(delegator.stake(network.subnetwork(0), bob), 0);
 
-        _setNetworkLimit(alice, network, networkLimit);
+        _setNetworkLimit(alice, network, networkLimit2);
 
         bytes memory hints = abi.encode(
             IOperatorSpecificDelegator.StakeHints({
@@ -570,7 +601,7 @@ contract OperatorSpecificDelegatorTest is Test {
         uint256 gasLeft = gasleft();
         assertEq(
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp), hints),
-            Math.min(depositAmount - withdrawAmount, networkLimit)
+            Math.min(depositAmount - withdrawAmount, networkLimit2)
         );
         uint256 gasSpent = gasLeft - gasleft();
         hints = abi.encode(
@@ -583,7 +614,7 @@ contract OperatorSpecificDelegatorTest is Test {
         gasLeft = gasleft();
         assertEq(
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp), hints),
-            Math.min(depositAmount - withdrawAmount, networkLimit)
+            Math.min(depositAmount - withdrawAmount, networkLimit2)
         );
         assertGt(gasSpent, gasLeft - gasleft());
     }
@@ -881,6 +912,21 @@ contract OperatorSpecificDelegatorTest is Test {
         _setHook(alice, hook);
 
         assertEq(delegator.hook(), hook);
+    }
+
+    function test_SetHookRevertAlreadySet(
+        uint48 epochDuration
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address hook = address(new SimpleOperatorSpecificDelegatorHook());
+
+        _setHook(alice, hook);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setHook(alice, hook);
     }
 
     // struct GasStruct {

@@ -466,6 +466,28 @@ contract NetworkRestakeDelegatorTest is Test {
         _setNetworkLimit(alice, network, amount1);
     }
 
+    function test_SetNetworkLimitRevertAlreadySet(
+        uint48 epochDuration,
+        uint256 amount1,
+        uint256 maxNetworkLimit
+    ) public {
+        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
+        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
+        amount1 = bound(amount1, 1, maxNetworkLimit);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        _setMaxNetworkLimit(network, 0, maxNetworkLimit);
+
+        _setNetworkLimit(alice, network, amount1);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setNetworkLimit(alice, network, amount1);
+    }
+
     function test_SetOperatorNetworkSharesBoth(
         uint48 epochDuration,
         uint256 amount1,
@@ -693,6 +715,26 @@ contract NetworkRestakeDelegatorTest is Test {
             amount3 + amount3 - 2
         );
         assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), amount3 + amount3 - 2);
+    }
+
+    function test_SetOperatorNetworkSharesRevertAlreadySet(uint48 epochDuration, uint256 amount1) public {
+        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
+        amount1 = bound(amount1, 1, type(uint256).max / 2);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+        _registerOperator(alice);
+
+        _setOperatorNetworkShares(alice, network, alice, amount1);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setOperatorNetworkShares(alice, network, alice, amount1);
     }
 
     function test_SetMaxNetworkLimit(
