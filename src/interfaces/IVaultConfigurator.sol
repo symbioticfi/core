@@ -2,8 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface IVaultConfigurator {
-    error DirtyInitParams();
-
     /**
      * @notice Initial parameters needed for a vault with a delegator and a slasher deployment.
      * @param version entity's version to use
