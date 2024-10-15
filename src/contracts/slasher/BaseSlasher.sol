@@ -41,8 +41,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
      */
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
 
-    Checkpoints.Trace256 internal _globalCumulativeSlash;
-
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
     modifier onlyNetworkMiddleware(
@@ -61,20 +59,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     ) Entity(slasherFactory, entityType) {
         VAULT_FACTORY = vaultFactory;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
-    }
-
-    /**
-     * @inheritdoc IBaseSlasher
-     */
-    function globalCumulativeSlashAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
-        return _globalCumulativeSlash.upperLookupRecent(timestamp, hint);
-    }
-
-    /**
-     * @inheritdoc IBaseSlasher
-     */
-    function globalCumulativeSlash() public view returns (uint256) {
-        return _globalCumulativeSlash.latest();
     }
 
     /**
@@ -104,7 +88,16 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         address operator,
         uint48 captureTimestamp,
         bytes memory hints
-    ) public view returns (uint256) {
+    ) public view returns (uint256 amount) {
+        (amount,) = _slashableStake(subnetwork, operator, captureTimestamp, hints);
+    }
+
+    function _slashableStake(
+        bytes32 subnetwork,
+        address operator,
+        uint48 captureTimestamp,
+        bytes memory hints
+    ) internal view returns (uint256 slashableStake_, uint256 stakeAmount) {
         SlashableStakeHints memory slashableStakeHints;
         if (hints.length > 0) {
             slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
@@ -114,27 +107,18 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
                 || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
         ) {
-            return 0;
+            return (0, 0);
         }
 
-        uint256 activeStake = IVault(vault).activeStakeAt(captureTimestamp, slashableStakeHints.activeStakeHint);
-        uint256 stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+        stakeAmount = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints
         );
-        return Math.min(
-            activeStake
-                - Math.min(
-                    globalCumulativeSlash()
-                        - globalCumulativeSlashAt(captureTimestamp, slashableStakeHints.globalCumulativeSlashFromHint),
-                    activeStake
-                ),
-            stakeAmount
-                - Math.min(
-                    cumulativeSlash(subnetwork, operator)
-                        - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
-                    stakeAmount
-                )
-        );
+        slashableStake_ = stakeAmount
+            - Math.min(
+                cumulativeSlash(subnetwork, operator)
+                    - cumulativeSlashAt(subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint),
+                stakeAmount
+            );
     }
 
     function _checkNetworkMiddleware(
@@ -166,8 +150,27 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     }
 
     function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
-        _globalCumulativeSlash.push(Time.timestamp(), globalCumulativeSlash() + amount);
         _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
+    }
+
+    function _delegatorOnSlash(
+        bytes32 subnetwork,
+        address operator,
+        uint256 amount,
+        uint48 captureTimestamp,
+        bytes memory data
+    ) internal {
+        IBaseDelegator(IVault(vault).delegator()).onSlash(
+            subnetwork,
+            operator,
+            amount,
+            captureTimestamp,
+            abi.encode(GeneralDelegatorData({slasherType: TYPE, data: data}))
+        );
+    }
+
+    function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal {
+        IVault(vault).onSlash(amount, captureTimestamp);
     }
 
     function _initialize(

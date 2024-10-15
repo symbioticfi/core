@@ -149,8 +149,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert VetoPeriodNotEnded();
         }
 
-        address vault_ = vault;
-        if (Time.timestamp() - request.captureTimestamp > IVault(vault_).epochDuration()) {
+        if (Time.timestamp() - request.captureTimestamp > IVault(vault).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
@@ -164,23 +163,32 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
-        slashedAmount = Math.min(
-            request.amount,
-            slashableStake(
-                request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
-            )
+        (uint256 slashableStake_, uint256 stakeAt) = _slashableStake(
+            request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
         );
+        slashedAmount = Math.min(request.amount, slashableStake_);
 
         if (slashedAmount > 0) {
             _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
         }
 
-        IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, abi.encode(slashIndex)
+        _delegatorOnSlash(
+            request.subnetwork,
+            request.operator,
+            slashedAmount,
+            request.captureTimestamp,
+            abi.encode(
+                IVetoSlasher.DelegatorData({
+                    hints: hints,
+                    slashableStake: slashableStake_,
+                    stakeAt: stakeAt,
+                    slashIndex: slashIndex
+                })
+            )
         );
 
         if (slashedAmount > 0) {
-            IVault(vault_).onSlash(slashedAmount, request.captureTimestamp);
+            _vaultOnSlash(slashedAmount, request.captureTimestamp);
         }
 
         emit ExecuteSlash(slashIndex, slashedAmount);
