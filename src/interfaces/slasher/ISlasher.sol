@@ -14,6 +14,18 @@ interface ISlasher {
     }
 
     /**
+     * @notice Extra data for the delegator.
+     * @param hints hints for the slash
+     * @param slashableStake amount of the slashable stake before the slash (cache)
+     * @param stakeAt amount of the stake at the capture time (cache)
+     */
+    struct DelegatorData {
+        bytes hints;
+        uint256 slashableStake;
+        uint256 stakeAt;
+    }
+
+    /**
      * @notice Emitted when a slash is performed.
      * @param subnetwork subnetwork that requested the slash
      * @param operator operator that is slashed

@@ -203,7 +203,8 @@ interface IVault is IMigratableEntity, IVaultStorage {
 
     /**
      * @notice Get a total amount of the collateral that can be slashed for a given account.
-     * @return total amount of the slashable collateral
+     * @param account account to get the slashable collateral for
+     * @return total amount of the account's slashable collateral
      */
     function slashableBalanceOf(
         address account

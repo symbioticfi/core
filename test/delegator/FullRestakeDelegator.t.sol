@@ -957,16 +957,14 @@ contract FullRestakeDelegatorTest is Test {
 
         uint256 slashAmount1Real =
             Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
-        vm.assume(slashAmount1Real < depositAmount);
         assertEq(_slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), ""), slashAmount1Real);
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), networkLimit);
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), alice), operatorNetworkLimit1);
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), bob), operatorNetworkLimit2);
 
-        uint256 slashAmount2Real = Math.min(
-            slashAmount2, Math.min(depositAmount - slashAmount1Real, Math.min(networkLimit, operatorNetworkLimit2))
-        );
+        uint256 slashAmount2Real =
+            Math.min(slashAmount2, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit2)));
         assertEq(_slash(alice, network, bob, slashAmount2, uint48(blockTimestamp - 1), ""), slashAmount2Real);
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), networkLimit);
@@ -974,7 +972,7 @@ contract FullRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), bob), operatorNetworkLimit2);
     }
 
-    function test_SlashWithHook(
+    function test_SlashWithHookBase(
         // uint48 epochDuration,
         uint256 depositAmount,
         // uint256 networkLimit,
@@ -1063,11 +1061,25 @@ contract FullRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        SimpleFullRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
         assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), alice), operatorNetworkLimit1);
 
+        SimpleFullRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1), "");
 
         assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
@@ -1163,6 +1175,13 @@ contract FullRestakeDelegatorTest is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
+        SimpleFullRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
         vm.startPrank(alice);
@@ -1173,6 +1192,13 @@ contract FullRestakeDelegatorTest is Test {
         );
         vm.stopPrank();
 
+        SimpleFullRestakeDelegatorHook(hook).setData(
+            0,
+            "",
+            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            0
+        );
         vm.startPrank(alice);
         (bool success,) = address(slasher).call{gas: totalGas}(
             abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
