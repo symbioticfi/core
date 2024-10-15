@@ -1157,7 +1157,7 @@ contract SlasherTest is Test {
         uint256 HOOK_GAS_LIMIT = delegator.HOOK_GAS_LIMIT();
         uint256 BURNER_GAS_LIMIT = slasher.BURNER_GAS_LIMIT();
         vm.expectRevert(IBaseSlasher.InsufficientBurnerGas.selector);
-        slasher.slash{gas: HOOK_GAS_LIMIT}(network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), "");
+        slasher.slash{gas: BURNER_GAS_LIMIT}(network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), "");
         vm.stopPrank();
 
         vm.startPrank(alice);
