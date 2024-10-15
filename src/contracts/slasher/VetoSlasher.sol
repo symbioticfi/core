@@ -143,7 +143,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         if (
             resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.captureResolverHint)
                 != address(0)
-                && resolverAt(request.subnetwork, Time.timestamp(), executeSlashHints.currentResolverHint) != address(0)
+                && resolverAt(request.subnetwork, Time.timestamp() - 1, executeSlashHints.currentResolverHint) != address(0)
                 && request.vetoDeadline > Time.timestamp()
         ) {
             revert VetoPeriodNotEnded();
@@ -213,7 +213,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             resolverAt(request.subnetwork, request.captureTimestamp, vetoSlashHints.captureResolverHint);
         if (
             captureResolver == address(0)
-                || resolverAt(request.subnetwork, Time.timestamp(), vetoSlashHints.currentResolverHint) == address(0)
+                || resolverAt(request.subnetwork, Time.timestamp() - 1, vetoSlashHints.currentResolverHint) == address(0)
         ) {
             revert NoResolver();
         }
@@ -247,13 +247,17 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         address vault_ = vault;
         bytes32 subnetwork = (msg.sender).subnetwork(identifier);
-        uint48 timestamp = resolver(subnetwork, setResolverHints.resolverHint) == address(0)
-            ? Time.timestamp()
-            : (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration()).toUint48();
+        (bool exists, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
+        uint48 timestamp;
+        if (exists) {
+            if (latestTimestamp > Time.timestamp()) {
+                _resolver[subnetwork].pop();
+            }
 
-        (, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
-        if (latestTimestamp > Time.timestamp()) {
-            _resolver[subnetwork].pop();
+            timestamp = (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
+                .toUint48();
+        } else {
+            timestamp = Time.timestamp();
         }
 
         _resolver[subnetwork].push(timestamp, uint160(resolver_));
