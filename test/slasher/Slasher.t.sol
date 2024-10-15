@@ -39,6 +39,8 @@ import {OptInServiceHints} from "../../src/contracts/hints/OptInServiceHints.sol
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
+import {SimpleBurner} from "../mocks/SimpleBurner.sol";
+
 contract SlasherTest is Test {
     using Subnetwork for bytes32;
     using Subnetwork for address;
@@ -1045,6 +1047,207 @@ contract SlasherTest is Test {
 
         vm.expectRevert(ISlasher.InvalidCaptureTimestamp.selector);
         _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
+    }
+
+    function test_SlashWithBurner(
+        // uint48 epochDuration,
+        uint256 depositAmount,
+        // uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 slashAmount2
+    ) public {
+        // epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        // networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address burner = address(new SimpleBurner(address(collateral)));
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: burner,
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 1,
+                delegatorParams: abi.encode(
+                    IFullRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: address(0)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+
+        vault = Vault(vault_);
+        delegator = FullRestakeDelegator(delegator_);
+        slasher = Slasher(slasher_);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, type(uint256).max);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), alice), operatorNetworkLimit1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+
+        assertEq(SimpleBurner(burner).counter1(), 1);
+    }
+
+    function test_SlashWithBurnerGas(
+        // uint48 epochDuration,
+        uint256 depositAmount,
+        // uint256 networkLimit,
+        uint256 operatorNetworkLimit1,
+        uint256 slashAmount1,
+        uint256 totalGas
+    ) public {
+        // epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        // networkLimit = bound(networkLimit, 1, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
+        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        totalGas = bound(totalGas, 1, 20_000_000);
+        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address burner = address(new SimpleBurner(address(collateral)));
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        operatorNetworkLimitSetRoleHolders[0] = alice;
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(collateral),
+                        burner: burner,
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 1,
+                delegatorParams: abi.encode(
+                    IFullRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: address(0)
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+
+        vault = Vault(vault_);
+        delegator = FullRestakeDelegator(delegator_);
+        slasher = Slasher(slasher_);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+        _setMaxNetworkLimit(network, 0, type(uint256).max);
+
+        _registerOperator(alice);
+
+        _optInOperatorVault(alice);
+
+        _optInOperatorNetwork(alice, address(network));
+
+        _deposit(alice, depositAmount);
+
+        _setNetworkLimit(alice, network, type(uint256).max);
+
+        _setOperatorNetworkLimit(alice, network, alice, operatorNetworkLimit1);
+
+        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.operatorNetworkLimit(network.subnetwork(0), alice), operatorNetworkLimit1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+
+        vm.startPrank(alice);
+        uint256 HOOK_GAS_LIMIT = delegator.HOOK_GAS_LIMIT();
+        uint256 BURNER_GAS_LIMIT = slasher.BURNER_GAS_LIMIT();
+        vm.expectRevert(IBaseSlasher.InsufficientBurnerGas.selector);
+        slasher.slash{gas: HOOK_GAS_LIMIT}(network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), "");
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        (bool success,) = address(slasher).call{gas: totalGas}(
+            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
+        );
+        vm.stopPrank();
+
+        if (success) {
+            assertEq(SimpleBurner(burner).counter1(), 2);
+        }
     }
 
     // struct GasStruct {

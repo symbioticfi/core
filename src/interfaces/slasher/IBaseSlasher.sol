@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IEntity} from "../common/IEntity.sol";
 
 interface IBaseSlasher is IEntity {
+    error InsufficientBurnerGas();
     error NotNetworkMiddleware();
     error NotVault();
     error OutdatedCaptureTimestamp();
@@ -21,6 +22,18 @@ interface IBaseSlasher is IEntity {
         bytes globalCumulativeSlashFromHint;
         bytes cumulativeSlashFromHint;
     }
+
+    /**
+     * @notice Get a gas limit for the burner.
+     * @return value of the burner gas limit
+     */
+    function BURNER_GAS_LIMIT() external view returns (uint256);
+
+    /**
+     * @notice Get a reserve gas between the gas limit check and the burner's execution.
+     * @return value of the reserve gas
+     */
+    function BURNER_RESERVE() external view returns (uint256);
 
     /**
      * @notice Get the vault factory's address.

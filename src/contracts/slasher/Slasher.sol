@@ -56,6 +56,8 @@ contract Slasher is BaseSlasher, ISlasher {
 
         IVault(vault_).onSlash(slashedAmount, captureTimestamp);
 
+        _burnerOnSlash(subnetwork, operator, slashedAmount, captureTimestamp);
+
         emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
     }
 }

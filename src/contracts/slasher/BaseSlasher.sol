@@ -6,6 +6,7 @@ import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
+import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
@@ -20,6 +21,16 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    uint256 public constant BURNER_GAS_LIMIT = 150_000;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    uint256 public constant BURNER_RESERVE = 20_000;
 
     /**
      * @inheritdoc IBaseSlasher
@@ -168,6 +179,21 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
         _globalCumulativeSlash.push(Time.timestamp(), globalCumulativeSlash() + amount);
         _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
+    }
+
+    function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) internal {
+        address burner = IVault(vault).burner();
+        if (burner != address(0)) {
+            bytes memory calldata_ = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, captureTimestamp));
+
+            if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+                revert InsufficientBurnerGas();
+            }
+
+            assembly ("memory-safe") {
+                pop(call(BURNER_GAS_LIMIT, burner, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+            }
+        }
     }
 
     function _initialize(

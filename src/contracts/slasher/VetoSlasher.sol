@@ -183,6 +183,8 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             IVault(vault_).onSlash(slashedAmount, request.captureTimestamp);
         }
 
+        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount, request.captureTimestamp);
+
         emit ExecuteSlash(slashIndex, slashedAmount);
     }
 
