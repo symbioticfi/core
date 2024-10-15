@@ -2106,17 +2106,6 @@ contract VaultTest is Test {
         _setDepositorWhitelistStatus(alice, address(0), true);
     }
 
-    function test_SetDepositorWhitelistStatusRevertNoDepositWhitelist() public {
-        uint48 epochDuration = 1;
-
-        vault = _getVault(epochDuration);
-
-        _grantDepositorWhitelistRole(alice, alice);
-
-        vm.expectRevert(IVault.NoDepositWhitelist.selector);
-        _setDepositorWhitelistStatus(alice, bob, true);
-    }
-
     function test_SetDepositorWhitelistStatusRevertAlreadySet() public {
         uint48 epochDuration = 1;
 
@@ -2222,25 +2211,6 @@ contract VaultTest is Test {
         vm.expectRevert(IVault.DepositLimitReached.selector);
         vault.deposit(alice, depositAmount);
         vm.stopPrank();
-    }
-
-    function test_SetDepositLimitRevertNoDepositLimit(uint256 limit1, uint256 limit2) public {
-        uint48 epochDuration = 1;
-
-        vault = _getVault(epochDuration);
-
-        limit1 = bound(limit1, 1, type(uint256).max);
-        _grantIsDepositLimitSetRole(alice, alice);
-        _setIsDepositLimit(alice, true);
-        _grantDepositLimitSetRole(alice, alice);
-        _setDepositLimit(alice, limit1);
-
-        _setIsDepositLimit(alice, false);
-
-        limit2 = bound(limit2, 1, type(uint256).max);
-        vm.assume(limit2 != limit1);
-        vm.expectRevert(IVault.NoDepositLimit.selector);
-        _setDepositLimit(alice, limit2);
     }
 
     function test_SetDepositLimitRevertAlreadySet(

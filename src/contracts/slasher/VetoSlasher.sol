@@ -153,7 +153,13 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert SlashPeriodEnded();
         }
 
-        _checkLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
+        (uint256 slashableStake_, uint256 stakeAt) = _slashableStake(
+            request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+        );
+        slashedAmount = Math.min(request.amount, slashableStake_);
+        if (slashedAmount == 0) {
+            revert InsufficientSlash();
+        }
 
         if (request.completed) {
             revert SlashRequestCompleted();
@@ -163,14 +169,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
-        (uint256 slashableStake_, uint256 stakeAt) = _slashableStake(
-            request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
-        );
-        slashedAmount = Math.min(request.amount, slashableStake_);
-
-        if (slashedAmount > 0) {
-            _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
-        }
+        _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
 
         _delegatorOnSlash(
             request.subnetwork,
@@ -187,9 +186,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             )
         );
 
-        if (slashedAmount > 0) {
-            _vaultOnSlash(slashedAmount, request.captureTimestamp);
-        }
+        _vaultOnSlash(slashedAmount, request.captureTimestamp);
 
         emit ExecuteSlash(slashIndex, slashedAmount);
     }
