@@ -48,7 +48,7 @@ interface IVaultStorage {
     function collateral() external view returns (address);
 
     /**
-     * @dev Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
+     * @notice Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
      * @return address of the burner
      */
     function burner() external view returns (address);
