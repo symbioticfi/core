@@ -10,7 +10,7 @@ import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract VaultStorage is StaticDelegateCallable, IVaultStorage {
+abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
     using SafeCast for uint256;
 

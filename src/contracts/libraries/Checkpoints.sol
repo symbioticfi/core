@@ -191,11 +191,18 @@ library Checkpoints {
             self._values.push(0);
         }
 
-        uint256 len = self._values.length;
-        self._trace.push(key, uint208(len));
-        self._values.push(value);
+        (bool exists, uint48 lastKey,) = self._trace.latestCheckpoint();
 
-        return (self._values[len - 1], value);
+        uint256 len = self._values.length;
+        uint256 lastValue = latest(self);
+        if (exists && key == lastKey) {
+            self._values[len - 1] = value;
+        } else {
+            self._trace.push(key, uint208(len));
+            self._values.push(value);
+        }
+
+        return (lastValue, value);
     }
 
     /**
@@ -283,11 +290,11 @@ library Checkpoints {
         uint32 hint = abi.decode(hint_, (uint32));
         Checkpoint256 memory checkpoint = at(self, hint);
         if (checkpoint._key == key) {
-            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+            return (true, checkpoint._key, checkpoint._value, hint);
         }
 
         if (checkpoint._key < key && (hint == length(self) - 1 || at(self, hint + 1)._key > key)) {
-            return (true, checkpoint._key, self._values[checkpoint._value], hint);
+            return (true, checkpoint._key, checkpoint._value, hint);
         }
 
         return upperLookupRecentCheckpoint(self, key);
@@ -344,6 +351,7 @@ library Checkpoints {
         }
         value = self._values[idx];
         self._trace._checkpoints.pop();
+        self._values.pop();
     }
 
     /**
@@ -355,7 +363,7 @@ library Checkpoints {
      */
     function _upperBinaryLookup(
         OZCheckpoints.Checkpoint208[] storage self,
-        uint96 key,
+        uint48 key,
         uint256 low,
         uint256 high
     ) private view returns (uint256) {

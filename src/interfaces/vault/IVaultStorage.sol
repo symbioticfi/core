@@ -146,7 +146,7 @@ interface IVaultStorage {
     function isDepositLimit() external view returns (bool);
 
     /**
-     * @notice Get a deposit limit (maximum amount of the collateral that can be in the vault simultaneously).
+     * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
      * @return deposit limit
      */
     function depositLimit() external view returns (uint256);

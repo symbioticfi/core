@@ -397,6 +397,11 @@ contract NetworkRestakeDelegatorTest is Test {
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
 
+        vm.assume(0 != amount1);
+        vm.assume(amount1 != amount2);
+        vm.assume(amount2 != amount3);
+        vm.assume(amount3 != amount4);
+
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -462,6 +467,28 @@ contract NetworkRestakeDelegatorTest is Test {
         _setNetworkLimit(alice, network, amount1);
     }
 
+    function test_SetNetworkLimitRevertAlreadySet(
+        uint48 epochDuration,
+        uint256 amount1,
+        uint256 maxNetworkLimit
+    ) public {
+        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
+        maxNetworkLimit = bound(maxNetworkLimit, 1, type(uint256).max);
+        amount1 = bound(amount1, 1, maxNetworkLimit);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+
+        _setMaxNetworkLimit(network, 0, maxNetworkLimit);
+
+        _setNetworkLimit(alice, network, amount1);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setNetworkLimit(alice, network, amount1);
+    }
+
     function test_SetOperatorNetworkSharesBoth(
         uint48 epochDuration,
         uint256 amount1,
@@ -469,9 +496,12 @@ contract NetworkRestakeDelegatorTest is Test {
         uint256 amount3
     ) public {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
-        amount1 = bound(amount3, 0, type(uint256).max / 2);
-        amount2 = bound(amount3, 0, type(uint256).max / 2);
+        amount1 = bound(amount1, 1, type(uint256).max / 2);
+        amount2 = bound(amount2, 1, type(uint256).max / 2);
         amount3 = bound(amount3, 1, type(uint256).max / 2);
+
+        vm.assume(amount1 != amount3);
+        vm.assume(amount2 != amount3);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -688,6 +718,26 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), amount3 + amount3 - 2);
     }
 
+    function test_SetOperatorNetworkSharesRevertAlreadySet(uint48 epochDuration, uint256 amount1) public {
+        epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
+        amount1 = bound(amount1, 1, type(uint256).max / 2);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address network = bob;
+        _registerNetwork(network, bob);
+        _registerOperator(alice);
+
+        _setOperatorNetworkShares(alice, network, alice, amount1);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setOperatorNetworkShares(alice, network, alice, amount1);
+    }
+
     function test_SetMaxNetworkLimit(
         uint48 epochDuration,
         uint256 maxNetworkLimit1,
@@ -698,6 +748,8 @@ contract NetworkRestakeDelegatorTest is Test {
         maxNetworkLimit1 = bound(maxNetworkLimit1, 1, type(uint256).max);
         vm.assume(maxNetworkLimit1 > maxNetworkLimit2);
         vm.assume(maxNetworkLimit1 >= networkLimit1 && networkLimit1 >= maxNetworkLimit2);
+
+        vm.assume(0 != networkLimit1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -721,8 +773,6 @@ contract NetworkRestakeDelegatorTest is Test {
 
         blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
         vm.warp(blockTimestamp);
-
-        _setNetworkLimit(alice, network, networkLimit1);
 
         assertEq(
             delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.epochDuration()), ""),
@@ -789,6 +839,8 @@ contract NetworkRestakeDelegatorTest is Test {
         operatorNetworkShares2 = bound(operatorNetworkShares2, 1, type(uint256).max / 2);
         operatorNetworkShares3 = bound(operatorNetworkShares2, 0, type(uint256).max / 2);
         vm.assume(withdrawAmount <= depositAmount);
+
+        vm.assume(operatorNetworkShares2 - 1 != operatorNetworkShares3);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -1371,9 +1423,7 @@ contract NetworkRestakeDelegatorTest is Test {
         uint256 HOOK_GAS_LIMIT = delegator.HOOK_GAS_LIMIT();
         vm.expectRevert(IBaseDelegator.InsufficientHookGas.selector);
         address(slasher).call{gas: HOOK_GAS_LIMIT}(
-            abi.encodeWithSelector(
-                ISlasher.slash.selector, network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""
-            )
+            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
         );
         vm.stopPrank();
 
@@ -1386,9 +1436,7 @@ contract NetworkRestakeDelegatorTest is Test {
         );
         vm.startPrank(alice);
         (bool success,) = address(slasher).call{gas: totalGas}(
-            abi.encodeWithSelector(
-                ISlasher.slash.selector, network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""
-            )
+            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
         );
         vm.stopPrank();
 
@@ -1419,6 +1467,21 @@ contract NetworkRestakeDelegatorTest is Test {
         _setHook(alice, hook);
 
         assertEq(delegator.hook(), hook);
+    }
+
+    function test_SetHookRevertAlreadySet(
+        uint48 epochDuration
+    ) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+
+        (vault, delegator) = _getVaultAndDelegator(epochDuration);
+
+        address hook = address(new SimpleNetworkRestakeDelegatorHook());
+
+        _setHook(alice, hook);
+
+        vm.expectRevert(IBaseDelegator.AlreadySet.selector);
+        _setHook(alice, hook);
     }
 
     // struct GasStruct {
