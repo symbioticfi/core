@@ -5,7 +5,6 @@ import {BaseDelegatorHints} from "./DelegatorHints.sol";
 import {BaseSlasher} from "../slasher/BaseSlasher.sol";
 import {Hints} from "./Hints.sol";
 import {Slasher} from "../slasher/Slasher.sol";
-import {VaultHints} from "./VaultHints.sol";
 import {Vault} from "../vault/Vault.sol";
 import {VetoSlasher} from "../slasher/VetoSlasher.sol";
 
@@ -19,34 +18,15 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
 
     address public immutable BASE_DELEGATOR_HINTS;
-    address public immutable VAULT_HINTS;
     address public immutable SLASHER_HINTS;
     address public immutable VETO_SLASHER_HINTS;
 
-    constructor(address baseDelegatorHints, address vaultHints) BaseSlasher(address(0), address(0), address(0), 0) {
+    constructor(
+        address baseDelegatorHints
+    ) BaseSlasher(address(0), address(0), address(0), 0) {
         BASE_DELEGATOR_HINTS = baseDelegatorHints;
-        VAULT_HINTS = vaultHints;
         SLASHER_HINTS = address(new SlasherHints(address(this)));
         VETO_SLASHER_HINTS = address(new VetoSlasherHints(address(this)));
-    }
-
-    function globalCumulativeSlashHintInternal(
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
-        (exists,,, hint) = _globalCumulativeSlash.upperLookupRecentCheckpoint(timestamp);
-    }
-
-    function globalCumulativeSlashHint(address slasher, uint48 timestamp) public view returns (bytes memory) {
-        (bool exists, uint32 hint_) = abi.decode(
-            _selfStaticDelegateCall(
-                slasher, abi.encodeWithSelector(BaseSlasherHints.globalCumulativeSlashHintInternal.selector, timestamp)
-            ),
-            (bool, uint32)
-        );
-
-        if (exists) {
-            return abi.encode(hint_);
-        }
     }
 
     function cumulativeSlashHintInternal(
@@ -65,10 +45,7 @@ contract BaseSlasherHints is Hints, BaseSlasher {
     ) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                slasher,
-                abi.encodeWithSelector(
-                    BaseSlasherHints.cumulativeSlashHintInternal.selector, subnetwork, operator, timestamp
-                )
+                slasher, abi.encodeCall(BaseSlasherHints.cumulativeSlashHintInternal, (subnetwork, operator, timestamp))
             ),
             (bool, uint32)
         );
@@ -84,28 +61,15 @@ contract BaseSlasherHints is Hints, BaseSlasher {
         address operator,
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
-        bytes memory activeStakeHint =
-            VaultHints(VAULT_HINTS).activeStakeHint(BaseSlasher(slasher).vault(), captureTimestamp);
-
         bytes memory stakeHints = BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeHints(
             Vault(BaseSlasher(slasher).vault()).delegator(), subnetwork, operator, captureTimestamp
         );
 
-        bytes memory globalCumulativeSlashFromHint = globalCumulativeSlashHint(slasher, captureTimestamp);
-
         bytes memory cumulativeSlashFromHint = cumulativeSlashHint(slasher, subnetwork, operator, captureTimestamp);
 
-        if (
-            activeStakeHint.length > 0 || stakeHints.length > 0 || globalCumulativeSlashFromHint.length > 0
-                || cumulativeSlashFromHint.length > 0
-        ) {
+        if (stakeHints.length > 0 || cumulativeSlashFromHint.length > 0) {
             return abi.encode(
-                SlashableStakeHints({
-                    activeStakeHint: activeStakeHint,
-                    stakeHints: stakeHints,
-                    globalCumulativeSlashFromHint: globalCumulativeSlashFromHint,
-                    cumulativeSlashFromHint: cumulativeSlashFromHint
-                })
+                SlashableStakeHints({stakeHints: stakeHints, cumulativeSlashFromHint: cumulativeSlashFromHint})
             );
         }
     }
@@ -160,7 +124,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
     function resolverHint(address slasher, bytes32 subnetwork, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                slasher, abi.encodeWithSelector(VetoSlasherHints.resolverHintInternal.selector, subnetwork, timestamp)
+                slasher, abi.encodeCall(VetoSlasherHints.resolverHintInternal, (subnetwork, timestamp))
             ),
             (bool, uint32)
         );
@@ -193,7 +157,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
         bytes memory captureResolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
-        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp());
+        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp() - 1);
         bytes memory slashableStakeHints =
             BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
@@ -214,7 +178,7 @@ contract VetoSlasherHints is Hints, VetoSlasher {
         uint48 captureTimestamp
     ) external view returns (bytes memory) {
         bytes memory captureResolverHint = resolverHint(slasher, subnetwork, captureTimestamp);
-        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp());
+        bytes memory currentResolverHint = resolverHint(slasher, subnetwork, Time.timestamp() - 1);
 
         if (captureResolverHint.length > 0 || currentResolverHint.length > 0) {
             return abi.encode(

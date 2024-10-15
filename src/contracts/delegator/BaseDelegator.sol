@@ -15,7 +15,7 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract BaseDelegator is
+abstract contract BaseDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
@@ -24,11 +24,6 @@ contract BaseDelegator is
 {
     using Subnetwork for bytes32;
     using Subnetwork for address;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    uint64 public constant VERSION = 1;
 
     /**
      * @inheritdoc IBaseDelegator
@@ -92,6 +87,13 @@ contract BaseDelegator is
         VAULT_FACTORY = vaultFactory;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
+    }
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    function VERSION() external pure returns (uint64) {
+        return 1;
     }
 
     /**
@@ -164,6 +166,10 @@ contract BaseDelegator is
     function setHook(
         address hook_
     ) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+        if (hook == hook_) {
+            revert AlreadySet();
+        }
+
         hook = hook_;
 
         emit SetHook(hook_);
@@ -185,9 +191,8 @@ contract BaseDelegator is
 
         address hook_ = hook;
         if (hook_ != address(0)) {
-            bytes memory calldata_ = abi.encodeWithSelector(
-                IDelegatorHook.onSlash.selector, subnetwork, operator, amount, captureTimestamp, data
-            );
+            bytes memory calldata_ =
+                abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, captureTimestamp, data));
 
             if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
                 revert InsufficientHookGas();

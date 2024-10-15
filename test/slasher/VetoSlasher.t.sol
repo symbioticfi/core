@@ -548,12 +548,36 @@ contract VetoSlasherTest is Test {
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
 
-        _setResolver(network, 0, resolver1, "");
+        _setResolver(network, 0, address(0), "");
 
         assertEq(
             slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""), resolver1
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            address(0)
+        );
+
+        blockTimestamp = blockTimestamp + 3 * vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            address(0)
+        );
+        assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
+
+        _setResolver(network, 0, resolver1, "");
+
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            address(0)
+        );
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""), resolver1
+        );
+        assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
     }
 
     function test_setResolverRevertNotNetwork(uint48 epochDuration, uint48 vetoDuration) public {
@@ -1023,7 +1047,7 @@ contract VetoSlasherTest is Test {
 
         _setResolver(alice, 0, address(0), "");
 
-        blockTimestamp = blockTimestamp + 3 * epochDuration;
+        blockTimestamp = blockTimestamp + 3 * epochDuration + 1;
         vm.warp(blockTimestamp);
 
         uint256 slashAmountReal1 =
@@ -1694,7 +1718,7 @@ contract VetoSlasherTest is Test {
 
         _setResolver(alice, 0, address(0), "");
 
-        blockTimestamp = blockTimestamp + 3 * epochDuration;
+        blockTimestamp = blockTimestamp + 3 * epochDuration + 1;
         vm.warp(blockTimestamp);
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));

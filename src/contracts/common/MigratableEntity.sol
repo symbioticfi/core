@@ -80,4 +80,6 @@ abstract contract MigratableEntity is
     function _initialize(uint64, /* initialVersion */ address, /* owner */ bytes memory /* data */ ) internal virtual {}
 
     function _migrate(uint64, /* oldVersion */ uint64, /* newVersion */ bytes calldata /* data */ ) internal virtual {}
+
+    uint256[10] private __gap;
 }

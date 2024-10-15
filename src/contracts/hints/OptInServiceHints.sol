@@ -27,8 +27,7 @@ contract OptInServiceHints is Hints, OptInService {
     ) external view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
-                optInService,
-                abi.encodeWithSelector(OptInServiceHints.optInHintInternal.selector, who, where, timestamp)
+                optInService, abi.encodeCall(OptInServiceHints.optInHintInternal, (who, where, timestamp))
             ),
             (bool, uint32)
         );

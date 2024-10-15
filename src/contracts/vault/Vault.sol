@@ -110,7 +110,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientDeposit();
         }
 
-        if (isDepositLimit && totalStake() + depositedAmount > depositLimit) {
+        if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
             revert DepositLimitReached();
         }
 
@@ -148,8 +148,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         mintedShares = _withdraw(claimer, amount, burnedShares);
-
-        emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
     }
 
     /**
@@ -174,8 +172,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         mintedShares = _withdraw(claimer, withdrawnAssets, shares);
-
-        emit Redeem(msg.sender, claimer, shares, withdrawnAssets, mintedShares);
     }
 
     /**
@@ -397,6 +393,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         withdrawals[epoch] = withdrawals_ + withdrawnAssets;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
         withdrawalSharesOf[epoch][claimer] += mintedShares;
+
+        emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
     function _claim(

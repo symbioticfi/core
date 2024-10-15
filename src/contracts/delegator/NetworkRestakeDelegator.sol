@@ -114,6 +114,10 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
+        if (networkLimit(subnetwork) == amount) {
+            revert AlreadySet();
+        }
+
         _networkLimit[subnetwork].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(subnetwork, amount);
@@ -127,9 +131,13 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint256 shares
     ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
+        uint256 operatorNetworkShares_ = operatorNetworkShares(subnetwork, operator);
+        if (operatorNetworkShares_ == shares) {
+            revert AlreadySet();
+        }
+
         _totalOperatorNetworkShares[subnetwork].push(
-            Time.timestamp(),
-            totalOperatorNetworkShares(subnetwork) - operatorNetworkShares(subnetwork, operator) + shares
+            Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares
         );
         _operatorNetworkShares[subnetwork][operator].push(Time.timestamp(), shares);
 

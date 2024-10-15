@@ -94,18 +94,6 @@ interface IVault is IMigratableEntity, IVaultStorage {
     );
 
     /**
-     * @notice Emitted when a redemption is made.
-     * @param redeemer account that redeemed
-     * @param claimer account that needs to claim the withdrawal
-     * @param shares amount of the active shares burned
-     * @param withdrawnAssets amount of the collateral withdrawn
-     * @param mintedShares amount of the epoch withdrawal shares minted
-     */
-    event Redeem(
-        address indexed redeemer, address indexed claimer, uint256 shares, uint256 withdrawnAssets, uint256 mintedShares
-    );
-
-    /**
      * @notice Emitted when a claim is made.
      * @param claimer account that claimed
      * @param recipient account that received the collateral
@@ -214,7 +202,8 @@ interface IVault is IMigratableEntity, IVaultStorage {
 
     /**
      * @notice Get a total amount of the collateral that can be slashed for a given account.
-     * @return total amount of the slashable collateral
+     * @param account account to get the slashable collateral for
+     * @return total amount of the account's slashable collateral
      */
     function slashableBalanceOf(
         address account
