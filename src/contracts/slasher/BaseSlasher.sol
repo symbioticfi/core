@@ -156,21 +156,21 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     function _delegatorOnSlash(
         bytes32 subnetwork,
         address operator,
-        uint256 slashedAmount,
+        uint256 amount,
         uint48 captureTimestamp,
         bytes memory data
     ) internal {
         IBaseDelegator(IVault(vault).delegator()).onSlash(
             subnetwork,
             operator,
-            slashedAmount,
+            amount,
             captureTimestamp,
             abi.encode(GeneralDelegatorData({slasherType: TYPE, data: data}))
         );
     }
 
-    function _vaultOnSlash(uint256 slashedAmount, uint48 captureTimestamp) internal {
-        IVault(vault).onSlash(slashedAmount, captureTimestamp);
+    function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal {
+        IVault(vault).onSlash(amount, captureTimestamp);
     }
 
     function _initialize(
