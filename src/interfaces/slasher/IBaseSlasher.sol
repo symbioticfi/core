@@ -4,23 +4,50 @@ pragma solidity ^0.8.0;
 import {IEntity} from "../common/IEntity.sol";
 
 interface IBaseSlasher is IEntity {
+    error NoBurner();
+    error InsufficientBurnerGas();
     error NotNetworkMiddleware();
     error NotVault();
-    error OutdatedCaptureTimestamp();
+
+    /**
+     * @notice Base parameters needed for slashers' deployment.
+     * @param isBurnerHook if the burner is needed to be called on a slashing
+     */
+    struct BaseParams {
+        bool isBurnerHook;
+    }
 
     /**
      * @notice Hints for a slashable stake.
-     * @param activeStakeHint hint for the active stake checkpoint
      * @param stakeHints hints for the stake checkpoints
-     * @param globalCumulativeSlashFromHint hint for the global cumulative slash amount at a capture timestamp
      * @param cumulativeSlashFromHint hint for the cumulative slash amount at a capture timestamp
      */
     struct SlashableStakeHints {
-        bytes activeStakeHint;
         bytes stakeHints;
-        bytes globalCumulativeSlashFromHint;
         bytes cumulativeSlashFromHint;
     }
+
+    /**
+     * @notice General data for the delegator.
+     * @param slasherType type of the slasher
+     * @param data slasher-dependent data for the delegator
+     */
+    struct GeneralDelegatorData {
+        uint64 slasherType;
+        bytes data;
+    }
+
+    /**
+     * @notice Get a gas limit for the burner.
+     * @return value of the burner gas limit
+     */
+    function BURNER_GAS_LIMIT() external view returns (uint256);
+
+    /**
+     * @notice Get a reserve gas between the gas limit check and the burner's execution.
+     * @return value of the reserve gas
+     */
+    function BURNER_RESERVE() external view returns (uint256);
 
     /**
      * @notice Get the vault factory's address.
@@ -41,26 +68,18 @@ interface IBaseSlasher is IEntity {
     function vault() external view returns (address);
 
     /**
+     * @notice Get if the burner is needed to be called on a slashing.
+     * @return if the burner is a hook
+     */
+    function isBurnerHook() external view returns (bool);
+
+    /**
      * @notice Get the latest capture timestamp that was slashed on a subnetwork.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @return latest capture timestamp that was slashed
      */
     function latestSlashedCaptureTimestamp(bytes32 subnetwork, address operator) external view returns (uint48);
-
-    /**
-     * @notice Get a global cumulative slash amount until a given timestamp (inclusively) using a hint.
-     * @param timestamp time point to get the cumulative slash amount until (inclusively)
-     * @param hint hint for the checkpoint index
-     * @return cumulative slash amount until the given timestamp (inclusively)
-     */
-    function globalCumulativeSlashAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
-
-    /**
-     * @notice Get a global cumulative slash amount.
-     * @return cumulative slash amount
-     */
-    function globalCumulativeSlash() external view returns (uint256);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a subnetwork until a given timestamp (inclusively) using a hint.

@@ -29,6 +29,7 @@ import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestake
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IMigratableEntityProxy} from "../../src/interfaces/common/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
@@ -201,7 +202,11 @@ contract VetoSlasherTest is Test {
             abi.encode(
                 address(1),
                 abi.encode(
-                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
                 )
             )
         );
@@ -225,7 +230,11 @@ contract VetoSlasherTest is Test {
             abi.encode(
                 address(vault),
                 abi.encode(
-                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
                 )
             )
         );
@@ -249,7 +258,11 @@ contract VetoSlasherTest is Test {
             abi.encode(
                 address(vault),
                 abi.encode(
-                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
                 )
             )
         );
@@ -548,12 +561,36 @@ contract VetoSlasherTest is Test {
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
 
-        _setResolver(network, 0, resolver1, "");
+        _setResolver(network, 0, address(0), "");
 
         assertEq(
             slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""), resolver1
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            address(0)
+        );
+
+        blockTimestamp = blockTimestamp + 3 * vault.epochDuration();
+        vm.warp(blockTimestamp);
+
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            address(0)
+        );
+        assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
+
+        _setResolver(network, 0, resolver1, "");
+
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            address(0)
+        );
+        assertEq(
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""), resolver1
+        );
+        assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
     }
 
     function test_setResolverRevertNotNetwork(uint48 epochDuration, uint48 vetoDuration) public {
@@ -1023,7 +1060,7 @@ contract VetoSlasherTest is Test {
 
         _setResolver(alice, 0, address(0), "");
 
-        blockTimestamp = blockTimestamp + 3 * epochDuration;
+        blockTimestamp = blockTimestamp + 3 * epochDuration + 1;
         vm.warp(blockTimestamp);
 
         uint256 slashAmountReal1 =
@@ -1178,7 +1215,7 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - vetoDuration - 2), "");
     }
 
-    function test_ExecuteSlashRevertOutdatedCaptureTimestamp(
+    function test_ExecuteSlashRevertInsufficientSlash2(
         uint48 epochDuration,
         uint48 vetoDuration,
         uint256 depositAmount,
@@ -1228,7 +1265,7 @@ contract VetoSlasherTest is Test {
 
         _executeSlash(alice, 0, "");
 
-        vm.expectRevert(IBaseSlasher.OutdatedCaptureTimestamp.selector);
+        vm.expectRevert(IVetoSlasher.InsufficientSlash.selector);
         _executeSlash(alice, 1, "");
     }
 
@@ -1398,10 +1435,11 @@ contract VetoSlasherTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
-        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
-        networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
-        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        depositAmount = bound(depositAmount, 2, 100 * 10 ** 18);
+        networkLimit = bound(networkLimit, 2, type(uint256).max);
+        operatorNetworkLimit1 = bound(operatorNetworkLimit1, 2, type(uint256).max / 2);
+        slashAmount1 =
+            bound(slashAmount1, 1, Math.min(Math.min(depositAmount, networkLimit), operatorNetworkLimit1) - 1);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -1693,7 +1731,7 @@ contract VetoSlasherTest is Test {
 
         _setResolver(alice, 0, address(0), "");
 
-        blockTimestamp = blockTimestamp + 3 * epochDuration;
+        blockTimestamp = blockTimestamp + 3 * epochDuration + 1;
         vm.warp(blockTimestamp);
 
         slashAmount1 = Math.min(slashAmount1, Math.min(depositAmount, Math.min(networkLimit, operatorNetworkLimit1)));
@@ -2325,7 +2363,7 @@ contract VetoSlasherTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -2373,7 +2411,13 @@ contract VetoSlasherTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 1,
-                slasherParams: abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}))
+                slasherParams: abi.encode(
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: 3
+                    })
+                )
             })
         );
 
@@ -2385,7 +2429,14 @@ contract VetoSlasherTest is Test {
             slasherFactory.create(
                 1,
                 abi.encode(
-                    vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}))
+                    vault_,
+                    abi.encode(
+                        IVetoSlasher.InitParams({
+                            baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                            vetoDuration: vetoDuration,
+                            resolverSetEpochsDelay: 3
+                        })
+                    )
                 )
             )
         );

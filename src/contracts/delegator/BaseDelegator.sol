@@ -15,7 +15,7 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract BaseDelegator is
+abstract contract BaseDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
@@ -24,11 +24,6 @@ contract BaseDelegator is
 {
     using Subnetwork for bytes32;
     using Subnetwork for address;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    uint64 public constant VERSION = 1;
 
     /**
      * @inheritdoc IBaseDelegator
@@ -92,6 +87,13 @@ contract BaseDelegator is
         VAULT_FACTORY = vaultFactory;
         OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
+    }
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    function VERSION() external pure returns (uint64) {
+        return 1;
     }
 
     /**
@@ -164,6 +166,10 @@ contract BaseDelegator is
     function setHook(
         address hook_
     ) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+        if (hook == hook_) {
+            revert AlreadySet();
+        }
+
         hook = hook_;
 
         emit SetHook(hook_);
@@ -175,19 +181,18 @@ contract BaseDelegator is
     function onSlash(
         bytes32 subnetwork,
         address operator,
-        uint256 slashedAmount,
+        uint256 amount,
         uint48 captureTimestamp,
         bytes memory data
     ) external nonReentrant {
-        if (IVault(vault).slasher() != msg.sender) {
+        if (msg.sender != IVault(vault).slasher()) {
             revert NotSlasher();
         }
 
         address hook_ = hook;
         if (hook_ != address(0)) {
-            bytes memory calldata_ = abi.encodeWithSelector(
-                IDelegatorHook.onSlash.selector, subnetwork, operator, slashedAmount, captureTimestamp, data
-            );
+            bytes memory calldata_ =
+                abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, captureTimestamp, data));
 
             if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
                 revert InsufficientHookGas();
@@ -198,7 +203,7 @@ contract BaseDelegator is
             }
         }
 
-        emit OnSlash(subnetwork, operator, slashedAmount);
+        emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
     function _initialize(
@@ -214,7 +219,7 @@ contract BaseDelegator is
 
         vault = vault_;
 
-        IBaseDelegator.BaseParams memory baseParams = __initialize(vault_, data_);
+        BaseParams memory baseParams = __initialize(vault_, data_);
 
         hook = baseParams.hook;
 
@@ -237,8 +242,5 @@ contract BaseDelegator is
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
 
-    function __initialize(
-        address vault_,
-        bytes memory data
-    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
+    function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

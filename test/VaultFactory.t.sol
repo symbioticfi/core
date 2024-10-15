@@ -27,6 +27,8 @@ import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../src/interfaces/delegator/IBaseDelegator.sol";
+import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
+import {IBaseSlasher} from "../src/interfaces/slasher/IBaseSlasher.sol";
 
 contract VaultFactoryTest is Test {
     address owner;
@@ -173,7 +175,7 @@ contract VaultFactoryTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 

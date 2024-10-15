@@ -114,6 +114,10 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert ExceedsMaxNetworkLimit();
         }
 
+        if (networkLimit(subnetwork) == amount) {
+            revert AlreadySet();
+        }
+
         _networkLimit[subnetwork].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(subnetwork, amount);
@@ -127,9 +131,13 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         address operator,
         uint256 shares
     ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
+        uint256 operatorNetworkShares_ = operatorNetworkShares(subnetwork, operator);
+        if (operatorNetworkShares_ == shares) {
+            revert AlreadySet();
+        }
+
         _totalOperatorNetworkShares[subnetwork].push(
-            Time.timestamp(),
-            totalOperatorNetworkShares(subnetwork) - operatorNetworkShares(subnetwork, operator) + shares
+            Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares
         );
         _operatorNetworkShares[subnetwork][operator].push(Time.timestamp(), shares);
 
@@ -194,11 +202,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+            if (!_grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
 
         for (uint256 i; i < params.operatorNetworkSharesSetRoleHolders.length; ++i) {
@@ -206,11 +212,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i])) {
+            if (!_grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(OPERATOR_NETWORK_SHARES_SET_ROLE, params.operatorNetworkSharesSetRoleHolders[i]);
         }
 
         return params.baseParams;

@@ -110,7 +110,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InsufficientDeposit();
         }
 
-        if (isDepositLimit && totalStake() + depositedAmount > depositLimit) {
+        if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
             revert DepositLimitReached();
         }
 
@@ -148,8 +148,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         mintedShares = _withdraw(claimer, amount, burnedShares);
-
-        emit Withdraw(msg.sender, claimer, amount, burnedShares, mintedShares);
     }
 
     /**
@@ -174,8 +172,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         mintedShares = _withdraw(claimer, withdrawnAssets, shares);
-
-        emit Redeem(msg.sender, claimer, shares, withdrawnAssets, mintedShares);
     }
 
     /**
@@ -218,7 +214,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external nonReentrant {
+    function onSlash(uint256 amount, uint48 captureTimestamp) external nonReentrant returns (uint256 slashedAmount) {
         if (msg.sender != slasher) {
             revert NotSlasher();
         }
@@ -233,7 +229,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
         if (captureEpoch == currentEpoch_) {
             uint256 slashableStake = activeStake_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableStake);
+            slashedAmount = Math.min(amount, slashableStake);
             if (slashedAmount > 0) {
                 uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
@@ -244,7 +240,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         } else {
             uint256 withdrawals_ = withdrawals[currentEpoch_];
             uint256 slashableStake = activeStake_ + withdrawals_ + nextWithdrawals;
-            slashedAmount = Math.min(slashedAmount, slashableStake);
+            slashedAmount = Math.min(amount, slashableStake);
             if (slashedAmount > 0) {
                 uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableStake);
@@ -265,7 +261,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             IERC20(collateral).safeTransfer(burner, slashedAmount);
         }
 
-        emit OnSlash(msg.sender, slashedAmount);
+        emit OnSlash(amount, captureTimestamp, slashedAmount);
     }
 
     /**
@@ -298,10 +294,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert AlreadySet();
         }
 
-        if (status && !depositWhitelist) {
-            revert NoDepositWhitelist();
-        }
-
         isDepositorWhitelisted[account] = status;
 
         emit SetDepositorWhitelistStatus(account, status);
@@ -328,10 +320,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function setDepositLimit(
         uint256 limit
     ) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
-        if (limit != 0 && !isDepositLimit) {
-            revert NoDepositLimit();
-        }
-
         if (depositLimit == limit) {
             revert AlreadySet();
         }
@@ -405,6 +393,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         withdrawals[epoch] = withdrawals_ + withdrawnAssets;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
         withdrawalSharesOf[epoch][claimer] += mintedShares;
+
+        emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
     function _claim(

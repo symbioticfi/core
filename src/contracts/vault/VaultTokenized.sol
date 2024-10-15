@@ -7,7 +7,6 @@ import {IVaultTokenized} from "../../interfaces/vault/IVaultTokenized.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
-import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";

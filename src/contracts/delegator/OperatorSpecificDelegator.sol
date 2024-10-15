@@ -79,6 +79,10 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
             revert ExceedsMaxNetworkLimit();
         }
 
+        if (networkLimit(subnetwork) == amount) {
+            revert AlreadySet();
+        }
+
         _networkLimit[subnetwork].push(Time.timestamp(), amount);
 
         emit SetNetworkLimit(subnetwork, amount);
@@ -139,11 +143,9 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
                 revert ZeroAddressRoleHolder();
             }
 
-            if (hasRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
+            if (!_grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i])) {
                 revert DuplicateRoleHolder();
             }
-
-            _grantRole(NETWORK_LIMIT_SET_ROLE, params.networkLimitSetRoleHolders[i]);
         }
 
         operator = params.operator;

@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface ISlasher {
+import {IBaseSlasher} from "./IBaseSlasher.sol";
+
+interface ISlasher is IBaseSlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
+
+    /**
+     * @notice Initial parameters needed for a slasher deployment.
+     * @param baseParams base parameters for slashers' deployment
+     */
+    struct InitParams {
+        IBaseSlasher.BaseParams baseParams;
+    }
 
     /**
      * @notice Hints for a slash.
@@ -14,10 +24,22 @@ interface ISlasher {
     }
 
     /**
+     * @notice Extra data for the delegator.
+     * @param hints hints for the slash
+     * @param slashableStake amount of the slashable stake before the slash (cache)
+     * @param stakeAt amount of the stake at the capture time (cache)
+     */
+    struct DelegatorData {
+        bytes hints;
+        uint256 slashableStake;
+        uint256 stakeAt;
+    }
+
+    /**
      * @notice Emitted when a slash is performed.
      * @param subnetwork subnetwork that requested the slash
      * @param operator operator that is slashed
-     * @param slashedAmount amount of the collateral slashed
+     * @param slashedAmount virtual amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
      */
     event Slash(bytes32 indexed subnetwork, address indexed operator, uint256 slashedAmount, uint48 captureTimestamp);
@@ -29,7 +51,7 @@ interface ISlasher {
      * @param amount maximum amount of the collateral to be slashed
      * @param captureTimestamp time point when the stake was captured
      * @param hints hints for checkpoints' indexes
-     * @return slashedAmount amount of the collateral slashed
+     * @return slashedAmount virtual amount of the collateral slashed
      * @dev Only a network middleware can call this function.
      */
     function slash(

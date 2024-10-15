@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IVetoSlasher {
+import {IBaseSlasher} from "./IBaseSlasher.sol";
+
+interface IVetoSlasher is IBaseSlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
     error InvalidResolverSetEpochsDelay();
@@ -12,16 +14,17 @@ interface IVetoSlasher {
     error SlashPeriodEnded();
     error SlashRequestCompleted();
     error SlashRequestNotExist();
-    error VaultNotInitialized();
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
+     * @param baseParams base parameters for slashers' deployment
      * @param vetoDuration duration of the veto period for a slash request
      * @param resolverSetEpochsDelay delay in epochs for a network to update a resolver
      */
     struct InitParams {
+        IBaseSlasher.BaseParams baseParams;
         uint48 vetoDuration;
         uint256 resolverSetEpochsDelay;
     }
@@ -83,6 +86,20 @@ interface IVetoSlasher {
     }
 
     /**
+     * @notice Extra data for the delegator.
+     * @param hints hints for the slash execution
+     * @param slashableStake amount of the slashable stake before the slash (cache)
+     * @param stakeAt amount of the stake at the capture time (cache)
+     * @param slashIndex index of the slash request
+     */
+    struct DelegatorData {
+        bytes hints;
+        uint256 slashableStake;
+        uint256 stakeAt;
+        uint256 slashIndex;
+    }
+
+    /**
      * @notice Emitted when a slash request is created.
      * @param slashIndex index of the slash request
      * @param subnetwork subnetwork that requested the slash
@@ -103,7 +120,7 @@ interface IVetoSlasher {
     /**
      * @notice Emitted when a slash request is executed.
      * @param slashIndex index of the slash request
-     * @param slashedAmount amount of the collateral slashed
+     * @param slashedAmount virtual amount of the collateral slashed
      */
     event ExecuteSlash(uint256 indexed slashIndex, uint256 slashedAmount);
 
@@ -208,7 +225,7 @@ interface IVetoSlasher {
      * @notice Execute a slash with a given slash index using hints.
      * @param slashIndex index of the slash request
      * @param hints hints for checkpoints' indexes
-     * @return slashedAmount amount of the collateral slashed
+     * @return slashedAmount virtual amount of the collateral slashed
      * @dev Only a network middleware can call this function.
      */
     function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);

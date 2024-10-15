@@ -28,6 +28,8 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -202,7 +204,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -325,7 +327,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
     }
@@ -374,7 +376,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
     }
@@ -778,7 +780,15 @@ contract VaultTest is Test {
 
         assertEq(vault.isSlasherInitialized(), false);
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vault.setSlasher(address(slasher));
 
@@ -812,7 +822,15 @@ contract VaultTest is Test {
             )
         );
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vault.setSlasher(address(slasher));
 
@@ -845,7 +863,15 @@ contract VaultTest is Test {
             )
         );
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vm.expectRevert(IVault.NotSlasher.selector);
         vault.setSlasher(address(1));
@@ -898,7 +924,15 @@ contract VaultTest is Test {
             )
         );
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault2), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault2),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vm.expectRevert(IVault.InvalidSlasher.selector);
         vault.setSlasher(address(slasher));
@@ -2106,17 +2140,6 @@ contract VaultTest is Test {
         _setDepositorWhitelistStatus(alice, address(0), true);
     }
 
-    function test_SetDepositorWhitelistStatusRevertNoDepositWhitelist() public {
-        uint48 epochDuration = 1;
-
-        vault = _getVault(epochDuration);
-
-        _grantDepositorWhitelistRole(alice, alice);
-
-        vm.expectRevert(IVault.NoDepositWhitelist.selector);
-        _setDepositorWhitelistStatus(alice, bob, true);
-    }
-
     function test_SetDepositorWhitelistStatusRevertAlreadySet() public {
         uint48 epochDuration = 1;
 
@@ -2224,25 +2247,6 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetDepositLimitRevertNoDepositLimit(uint256 limit1, uint256 limit2) public {
-        uint48 epochDuration = 1;
-
-        vault = _getVault(epochDuration);
-
-        limit1 = bound(limit1, 1, type(uint256).max);
-        _grantIsDepositLimitSetRole(alice, alice);
-        _setIsDepositLimit(alice, true);
-        _grantDepositLimitSetRole(alice, alice);
-        _setDepositLimit(alice, limit1);
-
-        _setIsDepositLimit(alice, false);
-
-        limit2 = bound(limit2, 1, type(uint256).max);
-        vm.assume(limit2 != limit1);
-        vm.expectRevert(IVault.NoDepositLimit.selector);
-        _setDepositLimit(alice, limit2);
-    }
-
     function test_SetDepositLimitRevertAlreadySet(
         uint256 limit
     ) public {
@@ -2297,6 +2301,7 @@ contract VaultTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max / 2);
         captureAgo = bound(captureAgo, 1, 10 days);
         vm.assume(depositAmount > withdrawAmount1 + withdrawAmount2);
+        vm.assume(depositAmount > slashAmount1);
         vm.assume(captureAgo <= 7 days);
 
         uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
@@ -2342,8 +2347,6 @@ contract VaultTest is Test {
         Test_SlashStruct memory test_SlashStruct;
 
         if (vault.epochAt(uint48(blockTimestamp - captureAgo)) != vault.currentEpoch()) {
-            vm.assume(depositAmount - withdrawAmount1 > slashAmount1);
-
             test_SlashStruct.slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
@@ -2368,12 +2371,14 @@ contract VaultTest is Test {
             assertTrue(test_SlashStruct.nextWithdrawals1 - vault.withdrawals(vault.currentEpoch() + 1) <= 1);
             assertEq(vault.activeStake(), test_SlashStruct.activeStake1);
 
-            test_SlashStruct.slashAmountSlashed2 =
-                Math.min(slashAmount2, depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1);
+            test_SlashStruct.slashAmountSlashed2 = Math.min(
+                depositAmount - test_SlashStruct.slashAmountReal1,
+                Math.min(slashAmount2, depositAmount - withdrawAmount1)
+            );
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
                 _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
-                test_SlashStruct.slashAmountSlashed2
+                Math.min(slashAmount2, depositAmount - withdrawAmount1)
             );
             assertEq(
                 collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
@@ -2408,12 +2413,6 @@ contract VaultTest is Test {
                     )
             );
         } else {
-            if (captureAgo == 1) {
-                vm.assume(depositAmount - withdrawAmount1 - withdrawAmount2 > slashAmount1);
-            } else {
-                vm.assume(depositAmount - withdrawAmount1 > slashAmount1);
-            }
-
             test_SlashStruct.slashAmountReal1 =
                 Math.min(slashAmount1, depositAmount - withdrawAmount1 - withdrawAmount2);
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
@@ -2439,12 +2438,13 @@ contract VaultTest is Test {
             assertEq(vault.activeStake(), test_SlashStruct.activeStake1);
 
             test_SlashStruct.slashAmountSlashed2 = Math.min(
-                slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2 - test_SlashStruct.slashAmountReal1
+                depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1,
+                Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
             );
             test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
             assertEq(
                 _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
-                test_SlashStruct.slashAmountSlashed2
+                Math.min(slashAmount2, depositAmount - withdrawAmount1 - withdrawAmount2)
             );
             assertEq(
                 collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
@@ -2721,7 +2721,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -2768,7 +2768,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 

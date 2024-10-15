@@ -89,8 +89,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     function create(uint64 version, address owner_, bytes calldata data) external returns (address entity_) {
         entity_ = address(
             new MigratableEntityProxy{salt: keccak256(abi.encode(totalEntities(), version, owner_, data))}(
-                implementation(version),
-                abi.encodeWithSelector(IMigratableEntity.initialize.selector, version, owner_, data)
+                implementation(version), abi.encodeCall(IMigratableEntity.initialize, (version, owner_, data))
             )
         );
 
@@ -110,7 +109,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
         }
 
         IMigratableEntityProxy(entity_).upgradeToAndCall(
-            implementation(newVersion), abi.encodeWithSelector(IMigratableEntity.migrate.selector, newVersion, data)
+            implementation(newVersion), abi.encodeCall(IMigratableEntity.migrate, (newVersion, data))
         );
 
         emit Migrate(entity_, newVersion);

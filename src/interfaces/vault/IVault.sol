@@ -25,8 +25,6 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error InvalidRecipient();
     error InvalidSlasher();
     error MissingRoles();
-    error NoDepositLimit();
-    error NoDepositWhitelist();
     error NotDelegator();
     error NotSlasher();
     error NotWhitelistedDepositor();
@@ -96,18 +94,6 @@ interface IVault is IMigratableEntity, IVaultStorage {
     );
 
     /**
-     * @notice Emitted when a redemption is made.
-     * @param redeemer account that redeemed
-     * @param claimer account that needs to claim the withdrawal
-     * @param shares amount of the active shares burned
-     * @param withdrawnAssets amount of the collateral withdrawn
-     * @param mintedShares amount of the epoch withdrawal shares minted
-     */
-    event Redeem(
-        address indexed redeemer, address indexed claimer, uint256 shares, uint256 withdrawnAssets, uint256 mintedShares
-    );
-
-    /**
      * @notice Emitted when a claim is made.
      * @param claimer account that claimed
      * @param recipient account that received the collateral
@@ -126,11 +112,12 @@ interface IVault is IMigratableEntity, IVaultStorage {
     event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] epochs, uint256 amount);
 
     /**
-     * @notice Emitted when a slash happened.
-     * @param slasher address of the slasher
-     * @param slashedAmount amount of the collateral slashed
+     * @notice Emitted when a slash happens.
+     * @param amount amount of the collateral to slash
+     * @param captureTimestamp time point when the stake was captured
+     * @param slashedAmount real amount of the collateral slashed
      */
-    event OnSlash(address indexed slasher, uint256 slashedAmount);
+    event OnSlash(uint256 amount, uint48 captureTimestamp, uint256 slashedAmount);
 
     /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.
@@ -215,7 +202,8 @@ interface IVault is IMigratableEntity, IVaultStorage {
 
     /**
      * @notice Get a total amount of the collateral that can be slashed for a given account.
-     * @return total amount of the slashable collateral
+     * @param account account to get the slashable collateral for
+     * @return total amount of the account's slashable collateral
      */
     function slashableBalanceOf(
         address account
@@ -225,7 +213,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit
-     * @return depositedAmount amount of the collateral deposited
+     * @return depositedAmount real amount of the collateral deposited
      * @return mintedShares amount of the active shares minted
      */
     function deposit(
@@ -269,11 +257,12 @@ interface IVault is IMigratableEntity, IVaultStorage {
 
     /**
      * @notice Slash callback for burning collateral.
-     * @param slashedAmount amount to slash
+     * @param amount amount to slash
      * @param captureTimestamp time point when the stake was captured
+     * @return slashedAmount real amount of the collateral slashed
      * @dev Only the slasher can call this function.
      */
-    function onSlash(uint256 slashedAmount, uint48 captureTimestamp) external;
+    function onSlash(uint256 amount, uint48 captureTimestamp) external returns (uint256 slashedAmount);
 
     /**
      * @notice Enable/disable deposit whitelist.

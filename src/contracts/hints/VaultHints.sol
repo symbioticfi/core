@@ -19,9 +19,7 @@ contract VaultHints is Hints, Vault {
 
     function activeStakeHint(address vault, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
-            _selfStaticDelegateCall(
-                vault, abi.encodeWithSelector(VaultHints.activeStakeHintInternal.selector, timestamp)
-            ),
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultHints.activeStakeHintInternal, (timestamp))),
             (bool, uint32)
         );
 
@@ -38,9 +36,7 @@ contract VaultHints is Hints, Vault {
 
     function activeSharesHint(address vault, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
-            _selfStaticDelegateCall(
-                vault, abi.encodeWithSelector(VaultHints.activeSharesHintInternal.selector, timestamp)
-            ),
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultHints.activeSharesHintInternal, (timestamp))),
             (bool, uint32)
         );
 
@@ -58,9 +54,7 @@ contract VaultHints is Hints, Vault {
 
     function activeSharesOfHint(address vault, address account, uint48 timestamp) public view returns (bytes memory) {
         (bool exists, uint32 hint_) = abi.decode(
-            _selfStaticDelegateCall(
-                vault, abi.encodeWithSelector(VaultHints.activeSharesOfHintInternal.selector, account, timestamp)
-            ),
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultHints.activeSharesOfHintInternal, (account, timestamp))),
             (bool, uint32)
         );
 
