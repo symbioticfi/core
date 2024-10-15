@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IBaseSlasher} from "./IBaseSlasher.sol";
 
 interface IVetoSlasher is IBaseSlasher {
+    error AlreadySet();
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
     error InvalidResolverSetEpochsDelay();

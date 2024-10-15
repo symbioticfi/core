@@ -519,7 +519,7 @@ contract VetoSlasherTest is Test {
         _requestSlash(alice, network, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
     }
 
-    function test_setResolver(uint48 epochDuration, uint48 vetoDuration, address resolver1, address resolver2) public {
+    function test_SetResolver(uint48 epochDuration, uint48 vetoDuration, address resolver1, address resolver2) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
@@ -593,7 +593,45 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
     }
 
-    function test_setResolverRevertNotNetwork(uint48 epochDuration, uint48 vetoDuration) public {
+    function test_SetResolverRevertAlreadySet1(uint48 epochDuration, uint48 vetoDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        vm.assume(vetoDuration < epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        vm.expectRevert(IVetoSlasher.AlreadySet.selector);
+        _setResolver(network, 0, address(0), "");
+    }
+
+    function test_SetResolverRevertAlreadySet2(uint48 epochDuration, uint48 vetoDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 10 days));
+        vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
+        vm.assume(vetoDuration < epochDuration);
+
+        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration, vetoDuration);
+
+        address network = alice;
+        _registerNetwork(network, alice);
+
+        _setResolver(network, 0, address(1), "");
+
+        vm.expectRevert(IVetoSlasher.AlreadySet.selector);
+        _setResolver(network, 0, address(1), "");
+    }
+
+    function test_SetResolverRevertNotNetwork(uint48 epochDuration, uint48 vetoDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);

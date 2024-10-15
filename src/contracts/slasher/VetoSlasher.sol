@@ -247,19 +247,27 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         address vault_ = vault;
         bytes32 subnetwork = (msg.sender).subnetwork(identifier);
         (bool exists, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
-        uint48 timestamp;
         if (exists) {
             if (latestTimestamp > Time.timestamp()) {
                 _resolver[subnetwork].pop();
+            } else if (resolver_ == address(uint160(_resolver[subnetwork].latest()))) {
+                revert AlreadySet();
             }
 
-            timestamp = (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
-                .toUint48();
+            if (resolver_ != address(uint160(_resolver[subnetwork].latest()))) {
+                _resolver[subnetwork].push(
+                    (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
+                        .toUint48(),
+                    uint160(resolver_)
+                );
+            }
         } else {
-            timestamp = Time.timestamp();
-        }
+            if (resolver_ == address(0)) {
+                revert AlreadySet();
+            }
 
-        _resolver[subnetwork].push(timestamp, uint160(resolver_));
+            _resolver[subnetwork].push(Time.timestamp(), uint160(resolver_));
+        }
 
         emit SetResolver(subnetwork, resolver_);
     }
