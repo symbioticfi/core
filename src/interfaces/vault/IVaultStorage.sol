@@ -48,7 +48,7 @@ interface IVaultStorage {
     function collateral() external view returns (address);
 
     /**
-     * @dev Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
+     * @notice Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
      * @return address of the burner
      */
     function burner() external view returns (address);
@@ -146,7 +146,7 @@ interface IVaultStorage {
     function isDepositLimit() external view returns (bool);
 
     /**
-     * @notice Get a deposit limit (maximum amount of the collateral that can be in the vault simultaneously).
+     * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
      * @return deposit limit
      */
     function depositLimit() external view returns (uint256);

@@ -24,10 +24,22 @@ interface ISlasher is IBaseSlasher {
     }
 
     /**
+     * @notice Extra data for the delegator.
+     * @param hints hints for the slash
+     * @param slashableStake amount of the slashable stake before the slash (cache)
+     * @param stakeAt amount of the stake at the capture time (cache)
+     */
+    struct DelegatorData {
+        bytes hints;
+        uint256 slashableStake;
+        uint256 stakeAt;
+    }
+
+    /**
      * @notice Emitted when a slash is performed.
      * @param subnetwork subnetwork that requested the slash
      * @param operator operator that is slashed
-     * @param slashedAmount amount of the collateral slashed
+     * @param slashedAmount virtual amount of the collateral slashed
      * @param captureTimestamp time point when the stake was captured
      */
     event Slash(bytes32 indexed subnetwork, address indexed operator, uint256 slashedAmount, uint48 captureTimestamp);
@@ -39,7 +51,7 @@ interface ISlasher is IBaseSlasher {
      * @param amount maximum amount of the collateral to be slashed
      * @param captureTimestamp time point when the stake was captured
      * @param hints hints for checkpoints' indexes
-     * @return slashedAmount amount of the collateral slashed
+     * @return slashedAmount virtual amount of the collateral slashed
      * @dev Only a network middleware can call this function.
      */
     function slash(

@@ -143,18 +143,23 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         if (
             resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.captureResolverHint)
                 != address(0)
-                && resolverAt(request.subnetwork, Time.timestamp(), executeSlashHints.currentResolverHint) != address(0)
+                && resolverAt(request.subnetwork, Time.timestamp() - 1, executeSlashHints.currentResolverHint) != address(0)
                 && request.vetoDeadline > Time.timestamp()
         ) {
             revert VetoPeriodNotEnded();
         }
 
-        address vault_ = vault;
-        if (Time.timestamp() - request.captureTimestamp > IVault(vault_).epochDuration()) {
+        if (Time.timestamp() - request.captureTimestamp > IVault(vault).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
-        _checkLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
+        (uint256 slashableStake_, uint256 stakeAt) = _slashableStake(
+            request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+        );
+        slashedAmount = Math.min(request.amount, slashableStake_);
+        if (slashedAmount == 0) {
+            revert InsufficientSlash();
+        }
 
         if (request.completed) {
             revert SlashRequestCompleted();
@@ -164,24 +169,24 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
-        slashedAmount = Math.min(
-            request.amount,
-            slashableStake(
-                request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+        _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
+
+        _delegatorOnSlash(
+            request.subnetwork,
+            request.operator,
+            slashedAmount,
+            request.captureTimestamp,
+            abi.encode(
+                IVetoSlasher.DelegatorData({
+                    hints: hints,
+                    slashableStake: slashableStake_,
+                    stakeAt: stakeAt,
+                    slashIndex: slashIndex
+                })
             )
         );
 
-        if (slashedAmount > 0) {
-            _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
-        }
-
-        IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, abi.encode(slashIndex)
-        );
-
-        if (slashedAmount > 0) {
-            IVault(vault_).onSlash(slashedAmount, request.captureTimestamp);
-        }
+        _vaultOnSlash(slashedAmount, request.captureTimestamp);
 
         _burnerOnSlash(request.subnetwork, request.operator, slashedAmount, request.captureTimestamp);
 
@@ -207,7 +212,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             resolverAt(request.subnetwork, request.captureTimestamp, vetoSlashHints.captureResolverHint);
         if (
             captureResolver == address(0)
-                || resolverAt(request.subnetwork, Time.timestamp(), vetoSlashHints.currentResolverHint) == address(0)
+                || resolverAt(request.subnetwork, Time.timestamp() - 1, vetoSlashHints.currentResolverHint) == address(0)
         ) {
             revert NoResolver();
         }
@@ -241,13 +246,17 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         address vault_ = vault;
         bytes32 subnetwork = (msg.sender).subnetwork(identifier);
-        uint48 timestamp = resolver(subnetwork, setResolverHints.resolverHint) == address(0)
-            ? Time.timestamp()
-            : (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration()).toUint48();
+        (bool exists, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
+        uint48 timestamp;
+        if (exists) {
+            if (latestTimestamp > Time.timestamp()) {
+                _resolver[subnetwork].pop();
+            }
 
-        (, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
-        if (latestTimestamp > Time.timestamp()) {
-            _resolver[subnetwork].pop();
+            timestamp = (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
+                .toUint48();
+        } else {
+            timestamp = Time.timestamp();
         }
 
         _resolver[subnetwork].push(timestamp, uint160(resolver_));

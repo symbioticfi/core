@@ -33,15 +33,14 @@ contract Slasher is BaseSlasher, ISlasher {
             slashHints = abi.decode(hints, (SlashHints));
         }
 
-        address vault_ = vault;
-        if (
-            captureTimestamp < Time.timestamp() - IVault(vault_).epochDuration() || captureTimestamp >= Time.timestamp()
-        ) {
+        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
+        {
             revert InvalidCaptureTimestamp();
         }
 
-        slashedAmount =
-            Math.min(amount, slashableStake(subnetwork, operator, captureTimestamp, slashHints.slashableStakeHints));
+        (uint256 slashableStake_, uint256 stakeAt) =
+            _slashableStake(subnetwork, operator, captureTimestamp, slashHints.slashableStakeHints);
+        slashedAmount = Math.min(amount, slashableStake_);
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
@@ -50,11 +49,15 @@ contract Slasher is BaseSlasher, ISlasher {
 
         _updateCumulativeSlash(subnetwork, operator, slashedAmount);
 
-        IBaseDelegator(IVault(vault_).delegator()).onSlash(
-            subnetwork, operator, slashedAmount, captureTimestamp, new bytes(0)
+        _delegatorOnSlash(
+            subnetwork,
+            operator,
+            slashedAmount,
+            captureTimestamp,
+            abi.encode(ISlasher.DelegatorData({hints: hints, slashableStake: slashableStake_, stakeAt: stakeAt}))
         );
 
-        IVault(vault_).onSlash(slashedAmount, captureTimestamp);
+        _vaultOnSlash(slashedAmount, captureTimestamp);
 
         _burnerOnSlash(subnetwork, operator, slashedAmount, captureTimestamp);
 
