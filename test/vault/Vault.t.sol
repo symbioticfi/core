@@ -28,6 +28,8 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -202,7 +204,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -325,7 +327,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
     }
@@ -374,7 +376,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
     }
@@ -778,7 +780,15 @@ contract VaultTest is Test {
 
         assertEq(vault.isSlasherInitialized(), false);
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vault.setSlasher(address(slasher));
 
@@ -812,7 +822,15 @@ contract VaultTest is Test {
             )
         );
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vault.setSlasher(address(slasher));
 
@@ -845,7 +863,15 @@ contract VaultTest is Test {
             )
         );
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vm.expectRevert(IVault.NotSlasher.selector);
         vault.setSlasher(address(1));
@@ -898,7 +924,15 @@ contract VaultTest is Test {
             )
         );
 
-        slasher = Slasher(slasherFactory.create(0, abi.encode(address(vault2), "")));
+        slasher = Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault2),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
 
         vm.expectRevert(IVault.InvalidSlasher.selector);
         vault.setSlasher(address(slasher));
@@ -2687,7 +2721,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -2734,7 +2768,7 @@ contract VaultTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IVetoSlasher {
+import {IBaseSlasher} from "./IBaseSlasher.sol";
+
+interface IVetoSlasher is IBaseSlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
     error InvalidResolverSetEpochsDelay();
@@ -17,10 +19,12 @@ interface IVetoSlasher {
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
+     * @param baseParams base parameters for slashers' deployment
      * @param vetoDuration duration of the veto period for a slash request
      * @param resolverSetEpochsDelay delay in epochs for a network to update a resolver
      */
     struct InitParams {
+        IBaseSlasher.BaseParams baseParams;
         uint48 vetoDuration;
         uint256 resolverSetEpochsDelay;
     }

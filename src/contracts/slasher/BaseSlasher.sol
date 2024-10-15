@@ -6,6 +6,7 @@ import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
+import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
@@ -24,6 +25,16 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     /**
      * @inheritdoc IBaseSlasher
      */
+    uint256 public constant BURNER_GAS_LIMIT = 150_000;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    uint256 public constant BURNER_RESERVE = 20_000;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
     address public immutable VAULT_FACTORY;
 
     /**
@@ -35,6 +46,11 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
      * @inheritdoc IBaseSlasher
      */
     address public vault;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    bool public isBurnerHook;
 
     /**
      * @inheritdoc IBaseSlasher
@@ -163,6 +179,21 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         IVault(vault).onSlash(amount, captureTimestamp);
     }
 
+    function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) internal {
+        if (isBurnerHook) {
+            address burner = IVault(vault).burner();
+            bytes memory calldata_ = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, captureTimestamp));
+
+            if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+                revert InsufficientBurnerGas();
+            }
+
+            assembly ("memory-safe") {
+                pop(call(BURNER_GAS_LIMIT, burner, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+            }
+        }
+    }
+
     function _initialize(
         bytes calldata data
     ) internal override {
@@ -176,8 +207,14 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
 
         vault = vault_;
 
-        __initialize(vault_, data_);
+        BaseParams memory baseParams = __initialize(vault_, data_);
+
+        if (IVault(vault_).burner() == address(0) && baseParams.isBurnerHook) {
+            revert NoBurner();
+        }
+
+        isBurnerHook = baseParams.isBurnerHook;
     }
 
-    function __initialize(address vault_, bytes memory data) internal virtual {}
+    function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

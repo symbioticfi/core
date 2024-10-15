@@ -219,7 +219,7 @@ abstract contract BaseDelegator is
 
         vault = vault_;
 
-        IBaseDelegator.BaseParams memory baseParams = __initialize(vault_, data_);
+        BaseParams memory baseParams = __initialize(vault_, data_);
 
         hook = baseParams.hook;
 
@@ -242,8 +242,5 @@ abstract contract BaseDelegator is
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
 
-    function __initialize(
-        address vault_,
-        bytes memory data
-    ) internal virtual returns (IBaseDelegator.BaseParams memory) {}
+    function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

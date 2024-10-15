@@ -59,6 +59,14 @@ contract Slasher is BaseSlasher, ISlasher {
 
         _vaultOnSlash(slashedAmount, captureTimestamp);
 
+        _burnerOnSlash(subnetwork, operator, slashedAmount, captureTimestamp);
+
         emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
+    }
+
+    function __initialize(address, /* vault_ */ bytes memory data) internal override returns (BaseParams memory) {
+        InitParams memory params = abi.decode(data, (InitParams));
+
+        return params.baseParams;
     }
 }

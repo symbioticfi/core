@@ -28,6 +28,7 @@ import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkR
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -1031,7 +1032,7 @@ contract FullRestakeDelegatorTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -1145,7 +1146,7 @@ contract FullRestakeDelegatorTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -1889,7 +1890,7 @@ contract FullRestakeDelegatorTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -1936,7 +1937,7 @@ contract FullRestakeDelegatorTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -1946,7 +1947,15 @@ contract FullRestakeDelegatorTest is Test {
     function _getSlasher(
         address vault_
     ) internal returns (Slasher) {
-        return Slasher(slasherFactory.create(0, abi.encode(address(vault_), "")));
+        return Slasher(
+            slasherFactory.create(
+                0,
+                abi.encode(
+                    address(vault_),
+                    abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                )
+            )
+        );
     }
 
     function _registerOperator(

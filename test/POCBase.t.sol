@@ -213,7 +213,7 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -260,7 +260,7 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -307,7 +307,7 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -355,7 +355,13 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 1,
-                slasherParams: abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}))
+                slasherParams: abi.encode(
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: 3
+                    })
+                )
             })
         );
 
@@ -403,7 +409,13 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 1,
-                slasherParams: abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}))
+                slasherParams: abi.encode(
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: 3
+                    })
+                )
             })
         );
 

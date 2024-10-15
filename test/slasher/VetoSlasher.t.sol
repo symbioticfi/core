@@ -29,6 +29,7 @@ import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestake
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IMigratableEntityProxy} from "../../src/interfaces/common/IMigratableEntityProxy.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
@@ -201,7 +202,11 @@ contract VetoSlasherTest is Test {
             abi.encode(
                 address(1),
                 abi.encode(
-                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
                 )
             )
         );
@@ -225,7 +230,11 @@ contract VetoSlasherTest is Test {
             abi.encode(
                 address(vault),
                 abi.encode(
-                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
                 )
             )
         );
@@ -249,7 +258,11 @@ contract VetoSlasherTest is Test {
             abi.encode(
                 address(vault),
                 abi.encode(
-                    IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: resolverSetEpochsDelay})
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: resolverSetEpochsDelay
+                    })
                 )
             )
         );
@@ -2350,7 +2363,7 @@ contract VetoSlasherTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
@@ -2398,7 +2411,13 @@ contract VetoSlasherTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 1,
-                slasherParams: abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}))
+                slasherParams: abi.encode(
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: vetoDuration,
+                        resolverSetEpochsDelay: 3
+                    })
+                )
             })
         );
 
@@ -2410,7 +2429,14 @@ contract VetoSlasherTest is Test {
             slasherFactory.create(
                 1,
                 abi.encode(
-                    vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}))
+                    vault_,
+                    abi.encode(
+                        IVetoSlasher.InitParams({
+                            baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                            vetoDuration: vetoDuration,
+                            resolverSetEpochsDelay: 3
+                        })
+                    )
                 )
             )
         );

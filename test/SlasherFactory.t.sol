@@ -28,6 +28,8 @@ import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRest
 import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../src/interfaces/delegator/IBaseDelegator.sol";
 import {IVetoSlasher} from "../src/interfaces/slasher/IVetoSlasher.sol";
+import {IBaseSlasher} from "../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
 
 contract SlasherFactoryTest is Test {
     address owner;
@@ -174,16 +176,31 @@ contract SlasherFactoryTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
             })
         );
 
-        address slasher = slasherFactory.create(0, abi.encode(vault_, ""));
+        address slasher = slasherFactory.create(
+            0,
+            abi.encode(
+                vault_, abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            )
+        );
         assertEq(Slasher(slasher).FACTORY(), address(slasherFactory));
         assertEq(slasherFactory.isEntity(slasher), true);
 
         address vetoSlasher = slasherFactory.create(
-            1, abi.encode(vault_, abi.encode(IVetoSlasher.InitParams({vetoDuration: 0, resolverSetEpochsDelay: 3})))
+            1,
+            abi.encode(
+                vault_,
+                abi.encode(
+                    IVetoSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: 0,
+                        resolverSetEpochsDelay: 3
+                    })
+                )
+            )
         );
 
         assertEq(VetoSlasher(vetoSlasher).FACTORY(), address(slasherFactory));

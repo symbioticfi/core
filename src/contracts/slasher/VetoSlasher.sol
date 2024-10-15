@@ -188,6 +188,8 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         _vaultOnSlash(slashedAmount, request.captureTimestamp);
 
+        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount, request.captureTimestamp);
+
         emit ExecuteSlash(slashIndex, slashedAmount);
     }
 
@@ -262,7 +264,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit SetResolver(subnetwork, resolver_);
     }
 
-    function __initialize(address vault_, bytes memory data) internal override {
+    function __initialize(address vault_, bytes memory data) internal override returns (BaseParams memory) {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
         uint48 epochDuration = IVault(vault_).epochDuration();
@@ -277,5 +279,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         vetoDuration = params.vetoDuration;
 
         resolverSetEpochsDelay = params.resolverSetEpochsDelay;
+
+        return params.baseParams;
     }
 }
