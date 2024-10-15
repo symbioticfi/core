@@ -50,6 +50,11 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     /**
      * @inheritdoc IBaseSlasher
      */
+    bool public isBurnerHook;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
 
     Checkpoints.Trace256 internal _globalCumulativeSlash;
@@ -182,8 +187,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     }
 
     function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) internal {
-        address burner = IVault(vault).burner();
-        if (burner != address(0)) {
+        if (isBurnerHook) {
+            address burner = IVault(vault).burner();
             bytes memory calldata_ = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, captureTimestamp));
 
             if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
@@ -209,8 +214,14 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
 
         vault = vault_;
 
-        __initialize(vault_, data_);
+        BaseParams memory baseParams = __initialize(vault_, data_);
+
+        if (IVault(vault_).burner() == address(0) && baseParams.isBurnerHook) {
+            revert NoBurner();
+        }
+
+        isBurnerHook = baseParams.isBurnerHook;
     }
 
-    function __initialize(address vault_, bytes memory data) internal virtual {}
+    function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

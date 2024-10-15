@@ -10,6 +10,8 @@ import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol"
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 
 contract VaultScript is Script {
@@ -74,8 +76,18 @@ contract VaultScript is Script {
         }
 
         bytes memory slasherParams;
-        if (slasherIndex == 1) {
-            slasherParams = abi.encode(IVetoSlasher.InitParams({vetoDuration: vetoDuration, resolverSetEpochsDelay: 3}));
+        if (slasherIndex == 0) {
+            slasherParams = abi.encode(
+                abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            );
+        } else if (slasherIndex == 1) {
+            slasherParams = abi.encode(
+                IVetoSlasher.InitParams({
+                    baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                    vetoDuration: vetoDuration,
+                    resolverSetEpochsDelay: 3
+                })
+            );
         }
 
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(vaultConfigurator).create(

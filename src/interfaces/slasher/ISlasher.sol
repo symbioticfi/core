@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface ISlasher {
+import {IBaseSlasher} from "./IBaseSlasher.sol";
+
+interface ISlasher is IBaseSlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
+
+    /**
+     * @notice Initial parameters needed for a slasher deployment.
+     * @param baseParams base parameters for slashers' deployment
+     */
+    struct InitParams {
+        IBaseSlasher.BaseParams baseParams;
+    }
 
     /**
      * @notice Hints for a slash.

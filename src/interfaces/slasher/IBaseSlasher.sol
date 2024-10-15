@@ -4,10 +4,19 @@ pragma solidity ^0.8.0;
 import {IEntity} from "../common/IEntity.sol";
 
 interface IBaseSlasher is IEntity {
+    error NoBurner();
     error InsufficientBurnerGas();
     error NotNetworkMiddleware();
     error NotVault();
     error OutdatedCaptureTimestamp();
+
+    /**
+     * @notice Base parameters needed for slashers' deployment.
+     * @param isBurnerHook if the burner is needed to be called on a slashing
+     */
+    struct BaseParams {
+        bool isBurnerHook;
+    }
 
     /**
      * @notice Hints for a slashable stake.
@@ -52,6 +61,12 @@ interface IBaseSlasher is IEntity {
      * @return address of the vault to perform slashings on
      */
     function vault() external view returns (address);
+
+    /**
+     * @notice Get if the burner is needed to be called on a slashing.
+     * @return if the burner is a hook
+     */
+    function isBurnerHook() external view returns (bool);
 
     /**
      * @notice Get the latest capture timestamp that was slashed on a subnetwork.
