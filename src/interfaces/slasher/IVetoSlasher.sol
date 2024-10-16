@@ -191,10 +191,10 @@ interface IVetoSlasher is IBaseSlasher {
      * @notice Get a resolver for a given subnetwork at a particular timestamp using a hint.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param timestamp timestamp to get the resolver at
-     * @param hints hints for the checkpoint index
+     * @param hint hint for the checkpoint index
      * @return address of the resolver
      */
-    function resolverAt(bytes32 subnetwork, uint48 timestamp, bytes memory hints) external view returns (address);
+    function resolverAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) external view returns (address);
 
     /**
      * @notice Get a resolver for a given subnetwork using a hint.
