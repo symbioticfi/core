@@ -23,7 +23,7 @@ interface IOperatorSpecificDelegator is IBaseDelegator {
     }
 
     /**
-     * @notice Initial parameters needed for a full restaking delegator deployment.
+     * @notice Initial parameters needed for an operator-specific delegator deployment.
      * @param baseParams base parameters for delegators' deployment
      * @param networkLimitSetRoleHolders array of addresses of the initial NETWORK_LIMIT_SET_ROLE holders
      * @param operator address of the single operator
