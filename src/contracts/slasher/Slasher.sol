@@ -54,7 +54,7 @@ contract Slasher is BaseSlasher, ISlasher {
             operator,
             slashedAmount,
             captureTimestamp,
-            abi.encode(ISlasher.DelegatorData({hints: hints, slashableStake: slashableStake_, stakeAt: stakeAt}))
+            abi.encode(ISlasher.DelegatorData({slashableStake: slashableStake_, stakeAt: stakeAt}))
         );
 
         _vaultOnSlash(slashedAmount, captureTimestamp);

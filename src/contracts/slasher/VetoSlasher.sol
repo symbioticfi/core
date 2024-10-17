@@ -177,12 +177,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             slashedAmount,
             request.captureTimestamp,
             abi.encode(
-                IVetoSlasher.DelegatorData({
-                    hints: hints,
-                    slashableStake: slashableStake_,
-                    stakeAt: stakeAt,
-                    slashIndex: slashIndex
-                })
+                IVetoSlasher.DelegatorData({slashableStake: slashableStake_, stakeAt: stakeAt, slashIndex: slashIndex})
             )
         );
 

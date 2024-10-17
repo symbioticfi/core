@@ -1272,7 +1272,6 @@ contract NetworkRestakeDelegatorTest is Test {
 
         SimpleNetworkRestakeDelegatorHook(hook).setData(
             0,
-            "",
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             0
@@ -1309,7 +1308,6 @@ contract NetworkRestakeDelegatorTest is Test {
 
         SimpleNetworkRestakeDelegatorHook(hook).setData(
             0,
-            hints,
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             0
@@ -1413,7 +1411,6 @@ contract NetworkRestakeDelegatorTest is Test {
 
         SimpleNetworkRestakeDelegatorHook(hook).setData(
             0,
-            "",
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             0
@@ -1430,7 +1427,6 @@ contract NetworkRestakeDelegatorTest is Test {
 
         SimpleNetworkRestakeDelegatorHook(hook).setData(
             0,
-            "",
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             0
