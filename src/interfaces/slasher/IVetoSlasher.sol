@@ -88,13 +88,11 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Extra data for the delegator.
-     * @param hints hints for the slash execution
      * @param slashableStake amount of the slashable stake before the slash (cache)
      * @param stakeAt amount of the stake at the capture time (cache)
      * @param slashIndex index of the slash request
      */
     struct DelegatorData {
-        bytes hints;
         uint256 slashableStake;
         uint256 stakeAt;
         uint256 slashIndex;
