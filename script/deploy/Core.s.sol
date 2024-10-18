@@ -13,6 +13,7 @@ import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddl
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
@@ -44,6 +45,11 @@ contract CoreScript is Script {
         address vaultImpl =
             address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImpl);
+        assert(vaultFactory.implementation(1) == address(vaultImpl));
+        address vaultTokenizedImpl =
+            address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultTokenizedImpl);
+        assert(vaultFactory.implementation(2) == address(vaultTokenizedImpl));
 
         address networkRestakeDelegatorImpl = address(
             new NetworkRestakeDelegator(
@@ -56,6 +62,7 @@ contract CoreScript is Script {
             )
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
+        assert(NetworkRestakeDelegator(networkRestakeDelegatorImpl).TYPE() == 0);
 
         address fullRestakeDelegatorImpl = address(
             new FullRestakeDelegator(
@@ -68,6 +75,7 @@ contract CoreScript is Script {
             )
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+        assert(FullRestakeDelegator(fullRestakeDelegatorImpl).TYPE() == 1);
 
         address operatorSpecificDelegatorImpl = address(
             new OperatorSpecificDelegator(
@@ -81,6 +89,7 @@ contract CoreScript is Script {
             )
         );
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+        assert(OperatorSpecificDelegator(operatorSpecificDelegatorImpl).TYPE() == 2);
 
         address slasherImpl = address(
             new Slasher(
@@ -91,6 +100,7 @@ contract CoreScript is Script {
             )
         );
         slasherFactory.whitelist(slasherImpl);
+        assert(Slasher(slasherImpl).TYPE() == 0);
 
         address vetoSlasherImpl = address(
             new VetoSlasher(
@@ -102,6 +112,7 @@ contract CoreScript is Script {
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);
+        assert(VetoSlasher(vetoSlasherImpl).TYPE() == 1);
 
         VaultConfigurator vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
@@ -109,6 +120,9 @@ contract CoreScript is Script {
         vaultFactory.transferOwnership(owner);
         delegatorFactory.transferOwnership(owner);
         slasherFactory.transferOwnership(owner);
+        assert(vaultFactory.owner() == owner);
+        assert(delegatorFactory.owner() == owner);
+        assert(slasherFactory.owner() == owner);
 
         console2.log("VaultFactory: ", address(vaultFactory));
         console2.log("DelegatorFactory: ", address(delegatorFactory));
