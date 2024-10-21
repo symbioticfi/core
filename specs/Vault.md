@@ -180,8 +180,18 @@ forge script script/deploy/VaultFactory.s.sol:VaultFactoryScript 0x0000000000000
 
 #### Deploy entity
 
+_Common Vault_
+
 Deployment script: [click](../script/deploy/Vault.s.sol)
 
 ```shell
 forge script script/deploy/Vault.s.sol:VaultScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 false 0 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
+```
+
+_Tokenized Vault_
+
+Deployment script: [click](../script/deploy/VaultTokenized.s.sol)
+
+```shell
+forge script script/deploy/VaultTokenized.s.sol:VaultTokenizedScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 false 0 Test TEST 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,string,string,uint64,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
 ```
