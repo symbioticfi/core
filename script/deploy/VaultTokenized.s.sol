@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 
 import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
+import {IVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
@@ -14,7 +15,7 @@ import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 
-contract VaultScript is Script {
+contract VaultTokenizedScript is Script {
     function run(
         address vaultConfigurator,
         address owner,
@@ -22,6 +23,8 @@ contract VaultScript is Script {
         uint48 epochDuration,
         bool depositWhitelist,
         uint256 depositLimit,
+        string calldata name,
+        string calldata symbol,
         uint64 delegatorIndex,
         bool withSlasher,
         uint64 slasherIndex,
@@ -30,18 +33,22 @@ contract VaultScript is Script {
         vm.startBroadcast();
 
         bytes memory vaultParams = abi.encode(
-            IVault.InitParams({
-                collateral: address(collateral),
-                burner: address(0xdEaD),
-                epochDuration: epochDuration,
-                depositWhitelist: depositWhitelist,
-                isDepositLimit: depositLimit != 0,
-                depositLimit: depositLimit,
-                defaultAdminRoleHolder: owner,
-                depositWhitelistSetRoleHolder: owner,
-                depositorWhitelistRoleHolder: owner,
-                isDepositLimitSetRoleHolder: owner,
-                depositLimitSetRoleHolder: owner
+            IVaultTokenized.InitParamsTokenized({
+                baseParams: IVault.InitParams({
+                    collateral: address(collateral),
+                    burner: address(0xdEaD),
+                    epochDuration: epochDuration,
+                    depositWhitelist: depositWhitelist,
+                    isDepositLimit: depositLimit != 0,
+                    depositLimit: depositLimit,
+                    defaultAdminRoleHolder: owner,
+                    depositWhitelistSetRoleHolder: owner,
+                    depositorWhitelistRoleHolder: owner,
+                    isDepositLimitSetRoleHolder: owner,
+                    depositLimitSetRoleHolder: owner
+                }),
+                name: name,
+                symbol: symbol
             })
         );
 
@@ -107,7 +114,7 @@ contract VaultScript is Script {
 
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(vaultConfigurator).create(
             IVaultConfigurator.InitParams({
-                version: 1,
+                version: 2,
                 owner: owner,
                 vaultParams: vaultParams,
                 delegatorIndex: delegatorIndex,
