@@ -101,8 +101,9 @@ contract VaultTokenizedScript is Script {
 
         bytes memory slasherParams;
         if (slasherIndex == 0) {
-            slasherParams =
-                abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: burner != address(0)})}));
+            slasherParams = abi.encode(
+                ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: burner != address(0)})})
+            );
         } else if (slasherIndex == 1) {
             slasherParams = abi.encode(
                 IVetoSlasher.InitParams({
