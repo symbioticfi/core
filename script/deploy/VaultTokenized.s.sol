@@ -20,6 +20,7 @@ contract VaultTokenizedScript is Script {
         address vaultConfigurator,
         address owner,
         address collateral,
+        address burner,
         uint48 epochDuration,
         bool depositWhitelist,
         uint256 depositLimit,
@@ -35,8 +36,8 @@ contract VaultTokenizedScript is Script {
         bytes memory vaultParams = abi.encode(
             IVaultTokenized.InitParamsTokenized({
                 baseParams: IVault.InitParams({
-                    collateral: address(collateral),
-                    burner: address(0xdEaD),
+                    collateral: collateral,
+                    burner: burner,
                     epochDuration: epochDuration,
                     depositWhitelist: depositWhitelist,
                     isDepositLimit: depositLimit != 0,
@@ -100,12 +101,13 @@ contract VaultTokenizedScript is Script {
 
         bytes memory slasherParams;
         if (slasherIndex == 0) {
-            slasherParams =
-                abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}));
+            slasherParams = abi.encode(
+                ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: burner != address(0)})})
+            );
         } else if (slasherIndex == 1) {
             slasherParams = abi.encode(
                 IVetoSlasher.InitParams({
-                    baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                    baseParams: IBaseSlasher.BaseParams({isBurnerHook: burner != address(0)}),
                     vetoDuration: vetoDuration,
                     resolverSetEpochsDelay: 3
                 })
