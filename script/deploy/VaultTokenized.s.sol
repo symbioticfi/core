@@ -27,6 +27,7 @@ contract VaultTokenizedScript is Script {
         string calldata name,
         string calldata symbol,
         uint64 delegatorIndex,
+        address hook,
         bool withSlasher,
         uint64 slasherIndex,
         uint48 vetoDuration
@@ -53,12 +54,21 @@ contract VaultTokenizedScript is Script {
             })
         );
 
-        address[] memory networkLimitSetRoleHolders = new address[](1);
+        uint256 roleHolders = 1;
+        if (hook != address(0) && hook != owner) {
+            roleHolders = 2;
+        }
+        address[] memory networkLimitSetRoleHolders = new address[](roleHolders);
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](roleHolders);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](roleHolders);
         networkLimitSetRoleHolders[0] = owner;
-        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
         operatorNetworkLimitSetRoleHolders[0] = owner;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = owner;
+        if (roleHolders > 1) {
+            networkLimitSetRoleHolders[1] = hook;
+            operatorNetworkLimitSetRoleHolders[1] = hook;
+            operatorNetworkSharesSetRoleHolders[1] = hook;
+        }
 
         bytes memory delegatorParams;
         if (delegatorIndex == 0) {
@@ -66,7 +76,7 @@ contract VaultTokenizedScript is Script {
                 INetworkRestakeDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
                         defaultAdminRoleHolder: owner,
-                        hook: address(0),
+                        hook: hook,
                         hookSetRoleHolder: owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
@@ -78,7 +88,7 @@ contract VaultTokenizedScript is Script {
                 IFullRestakeDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
                         defaultAdminRoleHolder: owner,
-                        hook: address(0),
+                        hook: hook,
                         hookSetRoleHolder: owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
@@ -90,7 +100,7 @@ contract VaultTokenizedScript is Script {
                 IOperatorSpecificDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
                         defaultAdminRoleHolder: owner,
-                        hook: address(0),
+                        hook: hook,
                         hookSetRoleHolder: owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
