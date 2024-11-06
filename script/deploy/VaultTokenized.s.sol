@@ -36,7 +36,7 @@ contract VaultTokenizedScript is Script {
     ) public {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
-        
+
         bool depositWhitelist = whitelistedDepositors.length != 0;
 
         bytes memory vaultParams = abi.encode(
@@ -153,7 +153,6 @@ contract VaultTokenizedScript is Script {
             Vault(vault_).renounceRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);
             Vault(vault_).renounceRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), deployer);
         }
-
 
         console2.log("Vault: ", vault_);
         console2.log("Delegator: ", delegator_);

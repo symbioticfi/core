@@ -33,7 +33,7 @@ contract VaultScript is Script {
     ) public {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
-        
+
         bool depositWhitelist = whitelistedDepositors.length != 0;
 
         bytes memory vaultParams = abi.encode(
