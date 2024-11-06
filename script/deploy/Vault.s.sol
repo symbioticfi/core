@@ -3,6 +3,8 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
+import {Vault} from "../../src/contracts/vault/Vault.sol";
+
 import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
@@ -21,7 +23,7 @@ contract VaultScript is Script {
         address collateral,
         address burner,
         uint48 epochDuration,
-        bool depositWhitelist,
+        address[] calldata whitelistedDepositors,
         uint256 depositLimit,
         uint64 delegatorIndex,
         address hook,
@@ -30,6 +32,9 @@ contract VaultScript is Script {
         uint48 vetoDuration
     ) public {
         vm.startBroadcast();
+        (,, address deployer) = vm.readCallers();
+        
+        bool depositWhitelist = whitelistedDepositors.length != 0;
 
         bytes memory vaultParams = abi.encode(
             IVault.InitParams({
@@ -39,7 +44,7 @@ contract VaultScript is Script {
                 depositWhitelist: depositWhitelist,
                 isDepositLimit: depositLimit != 0,
                 depositLimit: depositLimit,
-                defaultAdminRoleHolder: owner,
+                defaultAdminRoleHolder: depositWhitelist ? deployer : owner,
                 depositWhitelistSetRoleHolder: owner,
                 depositorWhitelistRoleHolder: owner,
                 isDepositLimitSetRoleHolder: owner,
@@ -129,6 +134,18 @@ contract VaultScript is Script {
                 slasherParams: slasherParams
             })
         );
+
+        if (depositWhitelist) {
+            Vault(vault_).grantRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), owner);
+            Vault(vault_).grantRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);
+
+            for (uint256 i; i < whitelistedDepositors.length; ++i) {
+                Vault(vault_).setDepositorWhitelistStatus(whitelistedDepositors[i], true);
+            }
+
+            Vault(vault_).renounceRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);
+            Vault(vault_).renounceRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), deployer);
+        }
 
         console2.log("Vault: ", vault_);
         console2.log("Delegator: ", delegator_);
