@@ -11,36 +11,26 @@ import {IOperatorRegistry} from "../src/interfaces/IOperatorRegistry.sol";
 import {IMetadataService} from "../src/interfaces/service/IMetadataService.sol";
 import {INetworkMiddlewareService} from "../src/interfaces/service/INetworkMiddlewareService.sol";
 import {IOptInService} from "../src/interfaces/service/IOptInService.sol";
-import {VaultFactory} from "../src/contracts/VaultFactory.sol";
-import {DelegatorFactory} from "../src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "../src/contracts/SlasherFactory.sol";
-import {NetworkRegistry} from "../src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "../src/contracts/OperatorRegistry.sol";
-import {MetadataService} from "../src/contracts/service/MetadataService.sol";
-import {NetworkMiddlewareService} from "../src/contracts/service/NetworkMiddlewareService.sol";
-import {OptInService} from "../src/contracts/service/OptInService.sol";
+
+import {IVault} from "../src/interfaces/vault/IVault.sol";
+import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher} from "../src/interfaces/slasher/IVetoSlasher.sol";
+
+import {IVault} from "../src/interfaces/vault/IVault.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {FeeOnTransferToken} from "./mocks/FeeOnTransferToken.sol";
-
+import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
+import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
+import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../src/interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../src/interfaces/slasher/IBaseSlasher.sol";
-import {IVault} from "../src/interfaces/vault/IVault.sol";
-import {IVaultTokenized} from "../src/interfaces/vault/IVaultTokenized.sol";
-import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../src/interfaces/slasher/IVetoSlasher.sol";
-import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
-import {Vault} from "../src/contracts/vault/Vault.sol";
-import {VaultTokenized} from "../src/contracts/vault/VaultTokenized.sol";
-import {NetworkRestakeDelegator} from "../src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "../src/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "../src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {Slasher} from "../src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "../src/contracts/slasher/VetoSlasher.sol";
-import {VaultConfigurator} from "../src/contracts/VaultConfigurator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
@@ -89,75 +79,77 @@ contract POCBaseTest is Test {
     IFullRestakeDelegator public delegator4;
     IVetoSlasher public slasher4;
 
+    string public projectRoot;
+
+    constructor(
+        string memory projectRoot_
+    ) Test() {
+        projectRoot = projectRoot_;
+    }
+
     function setUp() public virtual {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
         vaultFactory = IVaultFactory(
-            deployCode("VaultFactory.sol:VaultFactory:0.8.25", abi.encode(owner))
+            deployCode(string.concat(projectRoot, "out/VaultFactory.sol/VaultFactory.json"), abi.encode(owner))
         );
         delegatorFactory = IDelegatorFactory(
-            deployCode(
-                "DelegatorFactory.sol:DelegatorFactory:0.8.25", abi.encode(owner)
-            )
+            deployCode(string.concat(projectRoot, "out/DelegatorFactory.sol/DelegatorFactory.json"), abi.encode(owner))
         );
         slasherFactory = ISlasherFactory(
-            deployCode(
-                "SlasherFactory.sol:SlasherFactory:0.8.25", abi.encode(owner)
-            )
+            deployCode(string.concat(projectRoot, "out/SlasherFactory.sol/SlasherFactory.json"), abi.encode(owner))
         );
-        networkRegistry = INetworkRegistry(
-            deployCode("NetworkRegistry.sol:NetworkRegistry:0.8.25")
-        );
-        operatorRegistry = IOperatorRegistry(
-            deployCode("OperatorRegistry.sol:OperatorRegistry:0.8.25")
-        );
+        networkRegistry =
+            INetworkRegistry(deployCode(string.concat(projectRoot, "out/NetworkRegistry.sol/NetworkRegistry.json")));
+        operatorRegistry =
+            IOperatorRegistry(deployCode(string.concat(projectRoot, "out/OperatorRegistry.sol/OperatorRegistry.json")));
         operatorMetadataService = IMetadataService(
             deployCode(
-                "MetadataService.sol:MetadataService:0.8.25",
+                string.concat(projectRoot, "out/MetadataService.sol/MetadataService.json"),
                 abi.encode(address(operatorRegistry))
             )
         );
         networkMetadataService = IMetadataService(
             deployCode(
-                "MetadataService.sol:MetadataService:0.8.25",
+                string.concat(projectRoot, "out/MetadataService.sol/MetadataService.json"),
                 abi.encode(address(networkRegistry))
             )
         );
         networkMiddlewareService = INetworkMiddlewareService(
             deployCode(
-                "NetworkMiddlewareService.sol:NetworkMiddlewareService:0.8.25",
+                string.concat(projectRoot, "out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json"),
                 abi.encode(address(networkRegistry))
             )
         );
         operatorVaultOptInService = IOptInService(
             deployCode(
-                "OptInService.sol:OptInService:0.8.25",
+                string.concat(projectRoot, "out/OptInService.sol/OptInService.json"),
                 abi.encode(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService")
             )
         );
         operatorNetworkOptInService = IOptInService(
             deployCode(
-                "OptInService.sol:OptInService:0.8.25",
+                string.concat(projectRoot, "out/OptInService.sol/OptInService.json"),
                 abi.encode(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
             )
         );
 
         address vaultImpl = deployCode(
-            "Vault.sol:Vault:0.8.25",
+            string.concat(projectRoot, "out/Vault.sol/Vault.json"),
             abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultImpl);
 
         address vaultTokenizedImpl = deployCode(
-            "VaultTokenized.sol:VaultTokenized:0.8.25",
+            string.concat(projectRoot, "out/VaultTokenized.sol/VaultTokenized.json"),
             abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultTokenizedImpl);
 
         address networkRestakeDelegatorImpl = deployCode(
-            "NetworkRestakeDelegator.sol:NetworkRestakeDelegator:0.8.25",
+            string.concat(projectRoot, "out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json"),
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -170,7 +162,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
 
         address fullRestakeDelegatorImpl = deployCode(
-            "FullRestakeDelegator.sol:FullRestakeDelegator:0.8.25",
+            string.concat(projectRoot, "out/FullRestakeDelegator.sol/FullRestakeDelegator.json"),
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -183,7 +175,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
 
         address operatorSpecificDelegatorImpl = deployCode(
-            "OperatorSpecificDelegator.sol:OperatorSpecificDelegator:0.8.25",
+            string.concat(projectRoot, "out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json"),
             abi.encode(
                 address(operatorRegistry),
                 address(networkRegistry),
@@ -197,7 +189,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
         address slasherImpl = deployCode(
-            "Slasher.sol:Slasher:0.8.25",
+            string.concat(projectRoot, "out/Slasher.sol/Slasher.json"),
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -208,7 +200,7 @@ contract POCBaseTest is Test {
         slasherFactory.whitelist(slasherImpl);
 
         address vetoSlasherImpl = deployCode(
-            "VetoSlasher.sol:VetoSlasher:0.8.25",
+            string.concat(projectRoot, "out/VetoSlasher.sol/VetoSlasher.json"),
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -224,7 +216,7 @@ contract POCBaseTest is Test {
 
         vaultConfigurator = IVaultConfigurator(
             deployCode(
-                "VaultConfigurator.sol:VaultConfigurator:0.8.25",
+                string.concat(projectRoot, "out/VaultConfigurator.sol/VaultConfigurator.json"),
                 abi.encode(address(vaultFactory), address(delegatorFactory), address(slasherFactory))
             )
         );

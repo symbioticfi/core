@@ -12,6 +12,8 @@ contract POCTest is POCBaseTest {
     using Subnetwork for bytes32;
     using Subnetwork for address;
 
+    constructor() POCBaseTest("") {}
+
     function setUp() public override {
         // There are 4 initially deployed Vaults:
         // 1. With NetworkRestakeDelegator, with Slasher - 7 days vault epoch (can be used with vault1, delegator1, slasher1 variables)
