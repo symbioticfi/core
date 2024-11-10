@@ -11,26 +11,36 @@ import {IOperatorRegistry} from "../src/interfaces/IOperatorRegistry.sol";
 import {IMetadataService} from "../src/interfaces/service/IMetadataService.sol";
 import {INetworkMiddlewareService} from "../src/interfaces/service/INetworkMiddlewareService.sol";
 import {IOptInService} from "../src/interfaces/service/IOptInService.sol";
-
-import {IVault} from "../src/interfaces/vault/IVault.sol";
-import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "../src/interfaces/slasher/IVetoSlasher.sol";
-
-import {IVault} from "../src/interfaces/vault/IVault.sol";
+import {VaultFactory} from "../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../src/contracts/OperatorRegistry.sol";
+import {MetadataService} from "../src/contracts/service/MetadataService.sol";
+import {NetworkMiddlewareService} from "../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../src/contracts/service/OptInService.sol";
 
 import {Token} from "./mocks/Token.sol";
 import {FeeOnTransferToken} from "./mocks/FeeOnTransferToken.sol";
-import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
-import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
-import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
+
 import {IBaseDelegator} from "../src/interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../src/interfaces/slasher/IBaseSlasher.sol";
+import {IVault} from "../src/interfaces/vault/IVault.sol";
+import {IVaultTokenized} from "../src/interfaces/vault/IVaultTokenized.sol";
+import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../src/interfaces/slasher/IVetoSlasher.sol";
+import {IVaultConfigurator} from "../src/interfaces/IVaultConfigurator.sol";
+import {Vault} from "../src/contracts/vault/Vault.sol";
+import {VaultTokenized} from "../src/contracts/vault/VaultTokenized.sol";
+import {NetworkRestakeDelegator} from "../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../src/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {Slasher} from "../src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "../src/contracts/slasher/VetoSlasher.sol";
+import {VaultConfigurator} from "../src/contracts/VaultConfigurator.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
