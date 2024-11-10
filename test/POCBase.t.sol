@@ -84,37 +84,42 @@ contract POCBaseTest is Test {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
-        vaultFactory = IVaultFactory(deployCode("VaultFactory.sol", abi.encode(owner)));
-        delegatorFactory = IDelegatorFactory(deployCode("DelegatorFactory.sol", abi.encode(owner)));
-        slasherFactory = ISlasherFactory(deployCode("SlasherFactory.sol", abi.encode(owner)));
-        networkRegistry = INetworkRegistry(deployCode("NetworkRegistry.sol"));
-        operatorRegistry = IOperatorRegistry(deployCode("OperatorRegistry.sol"));
+        vaultFactory = IVaultFactory(deployCode("./out/VaultFactory.sol/VaultFactory.json", abi.encode(owner)));
+        delegatorFactory = IDelegatorFactory(deployCode("./out/DelegatorFactory.sol/DelegatorFactory.json", abi.encode(owner)));
+        slasherFactory = ISlasherFactory(deployCode("./out/SlasherFactory.sol/SlasherFactory.json", abi.encode(owner)));
+        networkRegistry = INetworkRegistry(deployCode("./out/NetworkRegistry.sol/NetworkRegistry.json"));
+        operatorRegistry = IOperatorRegistry(deployCode("./out/OperatorRegistry.sol/OperatorRegistry.json"));
         operatorMetadataService =
-            IMetadataService(deployCode("MetadataService.sol", abi.encode(address(operatorRegistry))));
+            IMetadataService(deployCode("./out/MetadataService.sol/MetadataService.json", abi.encode(address(operatorRegistry))));
         networkMetadataService =
-            IMetadataService(deployCode("MetadataService.sol", abi.encode(address(networkRegistry))));
+            IMetadataService(deployCode("./out/MetadataService.sol/MetadataService.json", abi.encode(address(networkRegistry))));
         networkMiddlewareService =
-            INetworkMiddlewareService(deployCode("NetworkMiddlewareService.sol", abi.encode(address(networkRegistry))));
+            INetworkMiddlewareService(deployCode("./out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json", abi.encode(address(networkRegistry))));
         operatorVaultOptInService = IOptInService(
             deployCode(
-                "OptInService.sol",
+                "./out/OptInService.sol/OptInService.json",
                 abi.encode(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService")
             )
         );
         operatorNetworkOptInService = IOptInService(
             deployCode(
-                "OptInService.sol",
+                "./out/OptInService.sol/OptInService.json",
                 abi.encode(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
             )
         );
 
         address vaultImpl = deployCode(
-            "Vault.sol", abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
+            "./out/Vault.sol/Vault.json", abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultImpl);
 
+        address vaultTokenizedImpl = deployCode(
+            "./out/VaultTokenized.sol/VaultTokenized.json", abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
+        );
+        vaultFactory.whitelist(vaultTokenizedImpl);
+
         address networkRestakeDelegatorImpl = deployCode(
-            "NetworkRestakeDelegator.sol",
+            "./out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json",
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -127,7 +132,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
 
         address fullRestakeDelegatorImpl = deployCode(
-            "FullRestakeDelegator.sol",
+            "./out/FullRestakeDelegator.sol/FullRestakeDelegator.json",
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -140,7 +145,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
 
         address operatorSpecificDelegatorImpl = deployCode(
-            "OperatorSpecificDelegator.sol",
+            "./out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json",
             abi.encode(
                 address(operatorRegistry),
                 address(networkRegistry),
@@ -154,7 +159,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
         address slasherImpl = deployCode(
-            "Slasher.sol",
+            "./out/Slasher.sol/Slasher.json",
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -165,7 +170,7 @@ contract POCBaseTest is Test {
         slasherFactory.whitelist(slasherImpl);
 
         address vetoSlasherImpl = deployCode(
-            "VetoSlasher.sol",
+            "./out/VetoSlasher.sol/VetoSlasher.json",
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -181,7 +186,7 @@ contract POCBaseTest is Test {
 
         vaultConfigurator = IVaultConfigurator(
             deployCode(
-                "VaultConfigurator.sol",
+                "./out/VaultConfigurator.sol/VaultConfigurator.json",
                 abi.encode(address(vaultFactory), address(delegatorFactory), address(slasherFactory))
             )
         );
@@ -204,7 +209,7 @@ contract POCBaseTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 1,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({
@@ -251,7 +256,7 @@ contract POCBaseTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 1,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({
@@ -298,7 +303,7 @@ contract POCBaseTest is Test {
         operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 1,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({
@@ -346,7 +351,7 @@ contract POCBaseTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 1,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({
@@ -400,7 +405,7 @@ contract POCBaseTest is Test {
         operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 1,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({
