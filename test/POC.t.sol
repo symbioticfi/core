@@ -12,8 +12,6 @@ contract POCTest is POCBaseTest {
     using Subnetwork for bytes32;
     using Subnetwork for address;
 
-    constructor() POCBaseTest("") {}
-
     function setUp() public override {
         // There are 4 initially deployed Vaults:
         // 1. With NetworkRestakeDelegator, with Slasher - 7 days vault epoch (can be used with vault1, delegator1, slasher1 variables)
@@ -21,6 +19,8 @@ contract POCTest is POCBaseTest {
         // 3. With NetworkRestakeDelegator, with VetoSlasher - 7 days vault epoch, 1 day veto period (can be used with vault3, delegator3, slasher3 variables)
         // 4. With FullRestakeDelegator, with VetoSlasher - 7 days vault epoch, 1 day veto period (can be used with vault4, delegator4, slasher4 variables)
         // For other deployments or interacting with these ones, you may use predefined functions in the POCBaseTest contract.
+
+        symbioticCoreProjectRoot = "";
 
         super.setUp();
     }

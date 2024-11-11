@@ -74,13 +74,7 @@ contract POCBaseTest is Test {
     IFullRestakeDelegator public delegator4;
     IVetoSlasher public slasher4;
 
-    string public projectRoot;
-
-    constructor(
-        string memory projectRoot_
-    ) {
-        projectRoot = projectRoot_;
-    }
+    string public symbioticCoreProjectRoot;
 
     function setUp() public virtual {
         owner = address(this);
@@ -88,63 +82,74 @@ contract POCBaseTest is Test {
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
         vaultFactory = IVaultFactory(
-            deployCode(string.concat(projectRoot, "out/VaultFactory.sol/VaultFactory.json"), abi.encode(owner))
+            deployCode(
+                string.concat(symbioticCoreProjectRoot, "out/VaultFactory.sol/VaultFactory.json"), abi.encode(owner)
+            )
         );
         delegatorFactory = IDelegatorFactory(
-            deployCode(string.concat(projectRoot, "out/DelegatorFactory.sol/DelegatorFactory.json"), abi.encode(owner))
+            deployCode(
+                string.concat(symbioticCoreProjectRoot, "out/DelegatorFactory.sol/DelegatorFactory.json"),
+                abi.encode(owner)
+            )
         );
         slasherFactory = ISlasherFactory(
-            deployCode(string.concat(projectRoot, "out/SlasherFactory.sol/SlasherFactory.json"), abi.encode(owner))
+            deployCode(
+                string.concat(symbioticCoreProjectRoot, "out/SlasherFactory.sol/SlasherFactory.json"), abi.encode(owner)
+            )
         );
-        networkRegistry =
-            INetworkRegistry(deployCode(string.concat(projectRoot, "out/NetworkRegistry.sol/NetworkRegistry.json")));
-        operatorRegistry =
-            IOperatorRegistry(deployCode(string.concat(projectRoot, "out/OperatorRegistry.sol/OperatorRegistry.json")));
+        networkRegistry = INetworkRegistry(
+            deployCode(string.concat(symbioticCoreProjectRoot, "out/NetworkRegistry.sol/NetworkRegistry.json"))
+        );
+        operatorRegistry = IOperatorRegistry(
+            deployCode(string.concat(symbioticCoreProjectRoot, "out/OperatorRegistry.sol/OperatorRegistry.json"))
+        );
         operatorMetadataService = IMetadataService(
             deployCode(
-                string.concat(projectRoot, "out/MetadataService.sol/MetadataService.json"),
+                string.concat(symbioticCoreProjectRoot, "out/MetadataService.sol/MetadataService.json"),
                 abi.encode(address(operatorRegistry))
             )
         );
         networkMetadataService = IMetadataService(
             deployCode(
-                string.concat(projectRoot, "out/MetadataService.sol/MetadataService.json"),
+                string.concat(symbioticCoreProjectRoot, "out/MetadataService.sol/MetadataService.json"),
                 abi.encode(address(networkRegistry))
             )
         );
         networkMiddlewareService = INetworkMiddlewareService(
             deployCode(
-                string.concat(projectRoot, "out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json"),
+                string.concat(
+                    symbioticCoreProjectRoot, "out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json"
+                ),
                 abi.encode(address(networkRegistry))
             )
         );
         operatorVaultOptInService = IOptInService(
             deployCode(
-                string.concat(projectRoot, "out/OptInService.sol/OptInService.json"),
+                string.concat(symbioticCoreProjectRoot, "out/OptInService.sol/OptInService.json"),
                 abi.encode(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService")
             )
         );
         operatorNetworkOptInService = IOptInService(
             deployCode(
-                string.concat(projectRoot, "out/OptInService.sol/OptInService.json"),
+                string.concat(symbioticCoreProjectRoot, "out/OptInService.sol/OptInService.json"),
                 abi.encode(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
             )
         );
 
         address vaultImpl = deployCode(
-            string.concat(projectRoot, "out/Vault.sol/Vault.json"),
+            string.concat(symbioticCoreProjectRoot, "out/Vault.sol/Vault.json"),
             abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultImpl);
 
         address vaultTokenizedImpl = deployCode(
-            string.concat(projectRoot, "out/VaultTokenized.sol/VaultTokenized.json"),
+            string.concat(symbioticCoreProjectRoot, "out/VaultTokenized.sol/VaultTokenized.json"),
             abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultTokenizedImpl);
 
         address networkRestakeDelegatorImpl = deployCode(
-            string.concat(projectRoot, "out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json"),
+            string.concat(symbioticCoreProjectRoot, "out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json"),
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -157,7 +162,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
 
         address fullRestakeDelegatorImpl = deployCode(
-            string.concat(projectRoot, "out/FullRestakeDelegator.sol/FullRestakeDelegator.json"),
+            string.concat(symbioticCoreProjectRoot, "out/FullRestakeDelegator.sol/FullRestakeDelegator.json"),
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -170,7 +175,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
 
         address operatorSpecificDelegatorImpl = deployCode(
-            string.concat(projectRoot, "out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json"),
+            string.concat(symbioticCoreProjectRoot, "out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json"),
             abi.encode(
                 address(operatorRegistry),
                 address(networkRegistry),
@@ -184,7 +189,7 @@ contract POCBaseTest is Test {
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
         address slasherImpl = deployCode(
-            string.concat(projectRoot, "out/Slasher.sol/Slasher.json"),
+            string.concat(symbioticCoreProjectRoot, "out/Slasher.sol/Slasher.json"),
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -195,7 +200,7 @@ contract POCBaseTest is Test {
         slasherFactory.whitelist(slasherImpl);
 
         address vetoSlasherImpl = deployCode(
-            string.concat(projectRoot, "out/VetoSlasher.sol/VetoSlasher.json"),
+            string.concat(symbioticCoreProjectRoot, "out/VetoSlasher.sol/VetoSlasher.json"),
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -211,7 +216,7 @@ contract POCBaseTest is Test {
 
         vaultConfigurator = IVaultConfigurator(
             deployCode(
-                string.concat(projectRoot, "out/VaultConfigurator.sol/VaultConfigurator.json"),
+                string.concat(symbioticCoreProjectRoot, "out/VaultConfigurator.sol/VaultConfigurator.json"),
                 abi.encode(address(vaultFactory), address(delegatorFactory), address(slasherFactory))
             )
         );

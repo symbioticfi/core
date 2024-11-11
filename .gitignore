@@ -1,5 +1,6 @@
 # Compiler files
 cache/
+out/build-info/
 
 # Ignores development broadcast logs
 !/broadcast
