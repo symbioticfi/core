@@ -1,76 +1,40 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.0;
 
-import {Vault as SymbioticVault, IVault as ISymbioticVault} from "../../src/contracts/vault/Vault.sol";
-import {
-    VaultTokenized as SymbioticVaultTokenized,
-    IVaultTokenized as ISymbioticVaultTokenized
-} from "../../src/contracts/vault/VaultTokenized.sol";
-import {
-    VaultFactory as SymbioticVaultFactory,
-    IVaultFactory as ISymbioticVaultFactory
-} from "../../src/contracts/VaultFactory.sol";
-import {
-    BaseDelegator as SymbioticBaseDelegator,
-    IBaseDelegator as ISymbioticBaseDelegator
-} from "../../src/contracts/delegator/BaseDelegator.sol";
-import {
-    NetworkRestakeDelegator as SymbioticNetworkRestakeDelegator,
-    INetworkRestakeDelegator as ISymbioticNetworkRestakeDelegator
-} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {
-    FullRestakeDelegator as SymbioticFullRestakeDelegator,
-    IFullRestakeDelegator as ISymbioticFullRestakeDelegator
-} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
-import {
-    OperatorSpecificDelegator as SymbioticOperatorSpecificDelegator,
-    IOperatorSpecificDelegator as ISymbioticOperatorSpecificDelegator
-} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {
-    DelegatorFactory as SymbioticDelegatorFactory,
-    IDelegatorFactory as ISymbioticDelegatorFactory
-} from "../../src/contracts/DelegatorFactory.sol";
-import {
-    BaseSlasher as SymbioticBaseSlasher,
-    IBaseSlasher as ISymbioticBaseSlasher
-} from "../../src/contracts/slasher/BaseSlasher.sol";
-import {Slasher as SymbioticSlasher, ISlasher as ISymbioticSlasher} from "../../src/contracts/slasher/Slasher.sol";
-import {
-    VetoSlasher as SymbioticVetoSlasher,
-    IVetoSlasher as ISymbioticVetoSlasher
-} from "../../src/contracts/slasher/VetoSlasher.sol";
-import {
-    SlasherFactory as SymbioticSlasherFactory,
-    ISlasherFactory as ISymbioticSlasherFactory
-} from "../../src/contracts/SlasherFactory.sol";
-import {
-    NetworkRegistry as SymbioticNetworkRegistry,
-    INetworkRegistry as ISymbioticNetworkRegistry
-} from "../../src/contracts/NetworkRegistry.sol";
-import {
-    OperatorRegistry as SymbioticOperatorRegistry,
-    IOperatorRegistry as ISymbioticOperatorRegistry
-} from "../../src/contracts/OperatorRegistry.sol";
-import {
-    MetadataService as SymbioticMetadataService,
-    IMetadataService as ISymbioticMetadataService
-} from "../../src/contracts/service/MetadataService.sol";
-import {
-    NetworkMiddlewareService as SymbioticNetworkMiddlewareService,
-    INetworkMiddlewareService as ISymbioticNetworkMiddlewareService
-} from "../../src/contracts/service/NetworkMiddlewareService.sol";
-import {
-    OptInService as SymbioticOptInService,
-    IOptInService as ISymbioticOptInService
-} from "../../src/contracts/service/OptInService.sol";
-import {
-    VaultConfigurator as SymbioticVaultConfigurator,
-    IVaultConfigurator as ISymbioticVaultConfigurator
-} from "../../src/contracts/VaultConfigurator.sol";
+import {IRegistry as ISymbioticRegistry} from "../../src/interfaces/common/IRegistry.sol";
+import {IEntity as ISymbioticEntity} from "../../src/interfaces/common/IEntity.sol";
+import {IFactory as ISymbioticFactory} from "../../src/interfaces/common/IFactory.sol";
+import {IMigratableEntity as ISymbioticMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory as ISymbioticMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
+import {IStaticDelegateCallable as ISymbioticStaticDelegateCallable} from
+    "../../src/interfaces/common/IStaticDelegateCallable.sol";
+import {IVault as ISymbioticVault} from "../../src/interfaces/vault/IVault.sol";
+import {IVaultTokenized as ISymbioticVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
+import {IVaultFactory as ISymbioticVaultFactory} from "../../src/interfaces/IVaultFactory.sol";
+import {IBaseDelegator as ISymbioticBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator as ISymbioticNetworkRestakeDelegator} from
+    "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator as ISymbioticFullRestakeDelegator} from
+    "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator as ISymbioticOperatorSpecificDelegator} from
+    "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IDelegatorFactory as ISymbioticDelegatorFactory} from "../../src/interfaces/IDelegatorFactory.sol";
+import {IBaseSlasher as ISymbioticBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher as ISymbioticSlasher} from "../../src/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher as ISymbioticVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
+import {ISlasherFactory as ISymbioticSlasherFactory} from "../../src/interfaces/ISlasherFactory.sol";
+import {INetworkRegistry as ISymbioticNetworkRegistry} from "../../src/interfaces/INetworkRegistry.sol";
+import {IOperatorRegistry as ISymbioticOperatorRegistry} from "../../src/interfaces/IOperatorRegistry.sol";
+import {IMetadataService as ISymbioticMetadataService} from "../../src/interfaces/service/IMetadataService.sol";
+import {INetworkMiddlewareService as ISymbioticNetworkMiddlewareService} from
+    "../../src/interfaces/service/INetworkMiddlewareService.sol";
+import {IOptInService as ISymbioticOptInService} from "../../src/interfaces/service/IOptInService.sol";
+import {IVaultConfigurator as ISymbioticVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {Checkpoints as SymbioticCheckpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 import {ERC4626Math as SymbioticERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 import {Subnetwork as SymbioticSubnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 import {Test, console2, Vm} from "forge-std/Test.sol";
+import {Vm, VmSafe} from "forge-std/Vm.sol";
 
 interface Imports {}

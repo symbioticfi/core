@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.0;
 
 import "./Imports.sol";
 
@@ -9,17 +9,17 @@ library Constants {
     using Strings for string;
 
     struct Core {
-        SymbioticVaultFactory vaultFactory;
-        SymbioticDelegatorFactory delegatorFactory;
-        SymbioticSlasherFactory slasherFactory;
-        SymbioticNetworkRegistry networkRegistry;
-        SymbioticMetadataService networkMetadataService;
-        SymbioticNetworkMiddlewareService networkMiddlewareService;
-        SymbioticOperatorRegistry operatorRegistry;
-        SymbioticMetadataService operatorMetadataService;
-        SymbioticOptInService operatorVaultOptInService;
-        SymbioticOptInService operatorNetworkOptInService;
-        SymbioticVaultConfigurator vaultConfigurator;
+        ISymbioticVaultFactory vaultFactory;
+        ISymbioticDelegatorFactory delegatorFactory;
+        ISymbioticSlasherFactory slasherFactory;
+        ISymbioticNetworkRegistry networkRegistry;
+        ISymbioticMetadataService networkMetadataService;
+        ISymbioticNetworkMiddlewareService networkMiddlewareService;
+        ISymbioticOperatorRegistry operatorRegistry;
+        ISymbioticMetadataService operatorMetadataService;
+        ISymbioticOptInService operatorVaultOptInService;
+        ISymbioticOptInService operatorNetworkOptInService;
+        ISymbioticVaultConfigurator vaultConfigurator;
     }
 
     function core() internal view returns (Core memory) {
@@ -29,32 +29,32 @@ library Constants {
         } else if (block.chainid == 17_000) {
             // holesky
             return Core({
-                vaultFactory: SymbioticVaultFactory(0x407A039D94948484D356eFB765b3c74382A050B4),
-                delegatorFactory: SymbioticDelegatorFactory(0x890CA3f95E0f40a79885B7400926544B2214B03f),
-                slasherFactory: SymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
-                networkRegistry: SymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
-                networkMetadataService: SymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
-                networkMiddlewareService: SymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
-                operatorRegistry: SymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
-                operatorMetadataService: SymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
-                operatorVaultOptInService: SymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
-                operatorNetworkOptInService: SymbioticOptInService(0x58973d16FFA900D11fC22e5e2B6840d9f7e13401),
-                vaultConfigurator: SymbioticVaultConfigurator(0xD2191FE92987171691d552C219b8caEf186eb9cA)
+                vaultFactory: ISymbioticVaultFactory(0x407A039D94948484D356eFB765b3c74382A050B4),
+                delegatorFactory: ISymbioticDelegatorFactory(0x890CA3f95E0f40a79885B7400926544B2214B03f),
+                slasherFactory: ISymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
+                networkRegistry: ISymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
+                networkMetadataService: ISymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
+                operatorRegistry: ISymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
+                operatorMetadataService: ISymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
+                operatorVaultOptInService: ISymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
+                operatorNetworkOptInService: ISymbioticOptInService(0x58973d16FFA900D11fC22e5e2B6840d9f7e13401),
+                vaultConfigurator: ISymbioticVaultConfigurator(0xD2191FE92987171691d552C219b8caEf186eb9cA)
             });
         } else if (block.chainid == 11_155_111) {
             // sepolia
             return Core({
-                vaultFactory: SymbioticVaultFactory(0x407A039D94948484D356eFB765b3c74382A050B4),
-                delegatorFactory: SymbioticDelegatorFactory(0x890CA3f95E0f40a79885B7400926544B2214B03f),
-                slasherFactory: SymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
-                networkRegistry: SymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
-                networkMetadataService: SymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
-                networkMiddlewareService: SymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
-                operatorRegistry: SymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
-                operatorMetadataService: SymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
-                operatorVaultOptInService: SymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
-                operatorNetworkOptInService: SymbioticOptInService(0x58973d16FFA900D11fC22e5e2B6840d9f7e13401),
-                vaultConfigurator: SymbioticVaultConfigurator(0xD2191FE92987171691d552C219b8caEf186eb9cA)
+                vaultFactory: ISymbioticVaultFactory(0x407A039D94948484D356eFB765b3c74382A050B4),
+                delegatorFactory: ISymbioticDelegatorFactory(0x890CA3f95E0f40a79885B7400926544B2214B03f),
+                slasherFactory: ISymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
+                networkRegistry: ISymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
+                networkMetadataService: ISymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
+                operatorRegistry: ISymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
+                operatorMetadataService: ISymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
+                operatorVaultOptInService: ISymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
+                operatorNetworkOptInService: ISymbioticOptInService(0x58973d16FFA900D11fC22e5e2B6840d9f7e13401),
+                vaultConfigurator: ISymbioticVaultConfigurator(0xD2191FE92987171691d552C219b8caEf186eb9cA)
             });
         } else {
             revert("Constants.core(): chainid not supported");
