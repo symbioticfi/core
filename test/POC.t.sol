@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.25;
+pragma solidity ^0.8.0;
 
 import {POCBaseTest} from "./POCBase.t.sol";
 
@@ -11,6 +11,8 @@ contract POCTest is POCBaseTest {
     using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+
+    constructor() POCBaseTest("") {}
 
     function setUp() public override {
         // There are 4 initially deployed Vaults:
