@@ -20,7 +20,7 @@ contract POCTest is POCBaseTest {
         // 4. With FullRestakeDelegator, with VetoSlasher - 7 days vault epoch, 1 day veto period (can be used with vault4, delegator4, slasher4 variables)
         // For other deployments or interacting with these ones, you may use predefined functions in the POCBaseTest contract.
 
-        symbioticCoreProjectRoot = "";
+        SYMBIOTIC_CORE_PROJECT_ROOT = "";
 
         super.setUp();
     }
