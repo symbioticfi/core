@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Imports.sol";
+import "./SymbioticCoreImports.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-library Constants {
+library SymbioticCoreConstants {
     using Strings for string;
 
     struct Core {
@@ -25,7 +25,7 @@ library Constants {
     function core() internal view returns (Core memory) {
         if (block.chainid == 1) {
             // mainnet
-            revert("Constants.core(): mainnet not supported yet");
+            revert("SymbioticCoreConstants.core(): mainnet not supported yet");
         } else if (block.chainid == 17_000) {
             // holesky
             return Core({
@@ -57,7 +57,7 @@ library Constants {
                 vaultConfigurator: ISymbioticVaultConfigurator(0xD2191FE92987171691d552C219b8caEf186eb9cA)
             });
         } else {
-            revert("Constants.core(): chainid not supported");
+            revert("SymbioticCoreConstants.core(): chainid not supported");
         }
     }
 
@@ -99,7 +99,7 @@ library Constants {
         } else if (symbol.equal("LBTC")) {
             return LBTC();
         } else {
-            revert("Constants.token(): symbol not supported");
+            revert("SymbioticCoreConstants.token(): symbol not supported");
         }
     }
 
@@ -141,7 +141,7 @@ library Constants {
         } else if (symbol.equal("LBTC")) {
             return LBTCSupported();
         } else {
-            revert("Constants.tokenSupported(): symbol not supported");
+            revert("SymbioticCoreConstants.tokenSupported(): symbol not supported");
         }
     }
 
@@ -156,7 +156,7 @@ library Constants {
             // sepolia
             return 0xB82381A3fBD3FaFA77B3a7bE693342618240067b;
         } else {
-            revert("Constants.wstETH(): chainid not supported");
+            revert("SymbioticCoreConstants.wstETH(): chainid not supported");
         }
     }
 
@@ -165,7 +165,7 @@ library Constants {
             // mainnet
             return 0xBe9895146f7AF43049ca1c1AE358B0541Ea49704;
         } else {
-            revert("Constants.cbETH(): chainid not supported");
+            revert("SymbioticCoreConstants.cbETH(): chainid not supported");
         }
     }
 
@@ -174,7 +174,7 @@ library Constants {
             // mainnet
             return 0xa2E3356610840701BDf5611a53974510Ae27E2e1;
         } else {
-            revert("Constants.wBETH(): chainid not supported");
+            revert("SymbioticCoreConstants.wBETH(): chainid not supported");
         }
     }
 
@@ -186,7 +186,7 @@ library Constants {
             // holesky
             return 0x7322c24752f79c05FFD1E2a6FCB97020C1C264F1;
         } else {
-            revert("Constants.rETH(): chainid not supported");
+            revert("SymbioticCoreConstants.rETH(): chainid not supported");
         }
     }
 
@@ -201,7 +201,7 @@ library Constants {
             // sepolia
             return 0x072d71b257ECa6B60b5333626F6a55ea1B0c451c;
         } else {
-            revert("Constants.mETH(): chainid not supported");
+            revert("SymbioticCoreConstants.mETH(): chainid not supported");
         }
     }
 
@@ -210,7 +210,7 @@ library Constants {
             // mainnet
             return 0xf951E335afb289353dc249e82926178EaC7DEd78;
         } else {
-            revert("Constants.swETH(): chainid not supported");
+            revert("SymbioticCoreConstants.swETH(): chainid not supported");
         }
     }
 
@@ -219,7 +219,7 @@ library Constants {
             // mainnet
             return 0xac3E018457B222d93114458476f3E3416Abbe38F;
         } else {
-            revert("Constants.sfrxETH(): chainid not supported");
+            revert("SymbioticCoreConstants.sfrxETH(): chainid not supported");
         }
     }
 
@@ -231,7 +231,7 @@ library Constants {
             // holesky
             return 0xB4F5fc289a778B80392b86fa70A7111E5bE0F859;
         } else {
-            revert("Constants.ETHx(): chainid not supported");
+            revert("SymbioticCoreConstants.ETHx(): chainid not supported");
         }
     }
 
@@ -240,7 +240,7 @@ library Constants {
             // mainnet
             return 0x57e114B691Db790C35207b2e685D4A43181e6061;
         } else {
-            revert("Constants.ENA(): chainid not supported");
+            revert("SymbioticCoreConstants.ENA(): chainid not supported");
         }
     }
 
@@ -249,7 +249,7 @@ library Constants {
             // mainnet
             return 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
         } else {
-            revert("Constants.sUSDe(): chainid not supported");
+            revert("SymbioticCoreConstants.sUSDe(): chainid not supported");
         }
     }
 
@@ -258,7 +258,7 @@ library Constants {
             // mainnet
             return 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
         } else {
-            revert("Constants.WBTC(): chainid not supported");
+            revert("SymbioticCoreConstants.WBTC(): chainid not supported");
         }
     }
 
@@ -271,7 +271,7 @@ library Constants {
             // sepolia
             return 0x517f2982701695D4E52f1ECFBEf3ba31Df470161;
         } else {
-            revert("Constants.tBTC(): chainid not supported");
+            revert("SymbioticCoreConstants.tBTC(): chainid not supported");
         }
     }
 
@@ -284,7 +284,7 @@ library Constants {
             // holesky
             return 0x1d8b30cC38Dba8aBce1ac29Ea27d9cFd05379A09;
         } else {
-            revert("Constants.LsETH(): chainid not supported");
+            revert("SymbioticCoreConstants.LsETH(): chainid not supported");
         }
     }
 
@@ -297,7 +297,7 @@ library Constants {
             // holesky
             return 0xF603c5A3F774F05d4D848A9bB139809790890864;
         } else {
-            revert("Constants.osETH(): chainid not supported");
+            revert("SymbioticCoreConstants.osETH(): chainid not supported");
         }
     }
 
@@ -306,7 +306,7 @@ library Constants {
             // mainnet
             return 0xFe0c30065B384F05761f15d0CC899D4F9F9Cc0eB;
         } else {
-            revert("Constants.ETHFI(): chainid not supported");
+            revert("SymbioticCoreConstants.ETHFI(): chainid not supported");
         }
     }
 
@@ -315,7 +315,7 @@ library Constants {
             // mainnet
             return 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
         } else {
-            revert("Constants.FXS(): chainid not supported");
+            revert("SymbioticCoreConstants.FXS(): chainid not supported");
         }
     }
 
@@ -324,7 +324,7 @@ library Constants {
             // mainnet
             return 0x8236a87084f8B84306f72007F36F2618A5634494;
         } else {
-            revert("Constants.LBTC(): chainid not supported");
+            revert("SymbioticCoreConstants.LBTC(): chainid not supported");
         }
     }
 

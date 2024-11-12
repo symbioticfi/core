@@ -34,4 +34,4 @@ import {NetworkMiddlewareService as SymbioticNetworkMiddlewareService} from
 import {OptInService as SymbioticOptInService} from "../../src/contracts/service/OptInService.sol";
 import {VaultConfigurator as SymbioticVaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 
-interface ImportsContracts {}
+interface SymbioticCoreImportsContracts {}

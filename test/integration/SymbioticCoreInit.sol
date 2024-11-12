@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Imports.sol";
+import "./SymbioticCoreImports.sol";
 
-import {Constants as SymbioticCoreConstants} from "./Constants.sol";
-import {Counter as SymbioticCoreCounter} from "./Counter.sol";
-import {Bindings as SymbioticBindings} from "./Bindings.sol";
+import {SymbioticCoreConstants} from "./SymbioticCoreConstants.sol";
+import {SymbioticCoreCounter} from "./SymbioticCoreCounter.sol";
+import {SymbioticCoreBindings} from "./SymbioticCoreBindings.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {FeeOnTransferToken} from "../mocks/FeeOnTransferToken.sol";
@@ -14,24 +14,37 @@ import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
+contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
     using SafeERC20 for IERC20;
     using Math for uint256;
+    using SymbioticSubnetwork for bytes32;
+    using SymbioticSubnetwork for address;
 
     // General config
+
+    uint256 public SYMBIOTIC_CORE_SEED = 0;
 
     string public SYMBIOTIC_CORE_PROJECT_ROOT = "";
     uint256 public SYMBIOTIC_CORE_INIT_TIMESTAMP = 1_731_324_431;
     uint256 public SYMBIOTIC_CORE_INIT_BLOCK = 21_164_139;
     uint256 public SYMBIOTIC_CORE_BLOCK_TIME = 12;
-    bool public USE_EXISTING_DEPLOYMENT = false;
+    bool public SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = false;
 
     // Staker-related config
 
     uint256 public TOKENS_TO_SET_TIMES_1e18 = 100_000_000 * 1e18;
     uint256 public MIN_TOKENS_TO_DEPOSIT_TIMES_1e18 = 0.001 * 1e18;
     uint256 public MAX_TOKENS_TO_DEPOSIT_TIMES_1e18 = 10_000 * 1e18;
+    uint256 public MIN_MAX_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public MAX_MAX_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
+    uint256 public MIN_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public MAX_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
+    uint256 public MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
+    uint256 public MIN_OPERATOR_NETWORK_SHARES = 1000;
+    uint256 public MAX_OPERATOR_NETWORK_SHARES = 1e18;
 
     SymbioticCoreConstants.Core symbioticCore;
 
@@ -43,7 +56,7 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
             vm.roll(SYMBIOTIC_CORE_INIT_BLOCK);
         }
 
-        _initCore_SymbioticCore(USE_EXISTING_DEPLOYMENT);
+        _initCore_SymbioticCore(SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT);
     }
 
     // ------------------------------------------------------------ GENERAL HELPERS ------------------------------------------------------------ //
@@ -218,13 +231,21 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
     }
 
     function random_SymbioticCore() internal returns (uint256) {
-        return uint256(keccak256(abi.encode(vm.getBlockTimestamp(), vm.getBlockNumber(), count())));
+        return uint256(keccak256(abi.encode(SYMBIOTIC_CORE_SEED, vm.getBlockTimestamp(), vm.getBlockNumber(), count())));
     }
 
-    function random_SymbioticCore(
-        uint256 seed
-    ) internal returns (uint256) {
-        return uint256(keccak256(abi.encode(vm.getBlockTimestamp(), vm.getBlockNumber(), count(), seed)));
+    function randomChoice_SymbioticCore(
+        uint256 coef
+    ) internal returns (bool) {
+        return _bound(random_SymbioticCore(), 0, coef) == 0;
+    }
+
+    function randomWithBounds_SymbioticCore(uint256 lower, uint256 upper) internal returns (uint256) {
+        return _bound(random_SymbioticCore(), lower, upper);
+    }
+
+    function _limit2tokens_SymbioticCore(uint256 amount, uint256 decimals) internal returns (uint256) {
+        return amount.mulDiv(10 ** decimals, 1e18);
     }
 
     function _getAccount_SymbioticCore() internal returns (Vm.Wallet memory) {
@@ -260,6 +281,23 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         return false;
     }
 
+    function _getWalletByAddress_SymbioticCore(
+        Vm.Wallet[] memory array,
+        address element
+    ) internal returns (Vm.Wallet memory) {
+        for (uint256 i; i < array.length; ++i) {
+            if (array[i].addr == element) {
+                return array[i];
+            }
+        }
+    }
+
+    function _chooseAddress_SymbioticCore(
+        address[] memory array
+    ) internal returns (address) {
+        return array[_bound(random_SymbioticCore(), 0, array.length - 1)];
+    }
+
     modifier equalLengthsAddressAddress_SymbioticCore(address[] memory a, address[] memory b) {
         require(a.length == b.length, "Arrays must have equal lengths");
         _;
@@ -291,12 +329,6 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         for (uint256 i; i < supportedTokensStr.length; i++) {
             supportedTokens[i] = SymbioticCoreConstants.token(supportedTokensStr[i]);
         }
-    }
-
-    function _chooseToken_SymbioticCore(
-        address[] memory tokens
-    ) internal returns (address) {
-        return tokens[bound(random_SymbioticCore(), 0, tokens.length - 1)];
     }
 
     // ------------------------------------------------------------ VAULT-RELATED HELPERS ------------------------------------------------------------ //
@@ -483,6 +515,22 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         return vault;
     }
 
+    function _vaultValidating_SymbioticCore(address vault, bytes32 subnetwork) internal returns (bool) {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        bool delegatorSpecificCondition;
+        if (type_ == 0) {
+            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+        } else if (type_ == 1) {
+            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+        } else if (type_ == 2) {
+            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+        }
+
+        return delegatorSpecificCondition;
+    }
+
     // ------------------------------------------------------------ OPERATOR-RELATED HELPERS ------------------------------------------------------------ //
 
     function _getOperator_SymbioticCore() internal returns (Vm.Wallet memory) {
@@ -501,15 +549,6 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         return operator;
     }
 
-    function _getOperatorWithOptIns_SymbioticCore(address vault, address network) internal returns (Vm.Wallet memory) {
-        Vm.Wallet memory operator = _getOperator_SymbioticCore();
-
-        _optIn_SymbioticCore(symbioticCore, operator.addr, vault);
-        _optIn_SymbioticCore(symbioticCore, operator.addr, network);
-
-        return operator;
-    }
-
     function _getOperatorWithOptIns_SymbioticCore(
         address[] memory vaults
     ) internal returns (Vm.Wallet memory) {
@@ -518,6 +557,15 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         for (uint256 i; i < vaults.length; ++i) {
             _optIn_SymbioticCore(symbioticCore, operator.addr, vaults[i]);
         }
+
+        return operator;
+    }
+
+    function _getOperatorWithOptIns_SymbioticCore(address vault, address network) internal returns (Vm.Wallet memory) {
+        Vm.Wallet memory operator = _getOperator_SymbioticCore();
+
+        _optIn_SymbioticCore(symbioticCore, operator.addr, vault);
+        _optIn_SymbioticCore(symbioticCore, operator.addr, network);
 
         return operator;
     }
@@ -541,6 +589,21 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
 
     function _operatorOptIn_SymbioticCore(address operator, address where) internal {
         _optIn_SymbioticCore(symbioticCore, operator, where);
+    }
+
+    function _operatorOptInWeak_SymbioticCore(address operator, address where) internal {
+        bool alreadyOptedIn;
+        if (symbioticCore.vaultFactory.isEntity(where)) {
+            alreadyOptedIn = symbioticCore.operatorVaultOptInService.isOptedIn(operator, where);
+        } else if (symbioticCore.networkRegistry.isEntity(where)) {
+            alreadyOptedIn = symbioticCore.operatorNetworkOptInService.isOptedIn(operator, where);
+        }
+
+        if (alreadyOptedIn) {
+            return;
+        }
+
+        _operatorOptIn_SymbioticCore(operator, where);
     }
 
     function _operatorOptOut_SymbioticCore(address operator, address where) internal {
@@ -633,6 +696,38 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         return keccak256(abi.encode(DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, chainId, service));
     }
 
+    function _operatorPossibleValidating_SymbioticCore(
+        address operator,
+        address vault,
+        bytes32 subnetwork
+    ) internal returns (bool) {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        bool delegatorSpecificCondition;
+        if (type_ == 0) {
+            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0
+                && ISymbioticNetworkRestakeDelegator(delegator).operatorNetworkShares(subnetwork, operator) > 0;
+        } else if (type_ == 1) {
+            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0
+                && ISymbioticFullRestakeDelegator(delegator).operatorNetworkLimit(subnetwork, operator) > 0;
+        } else if (type_ == 2) {
+            delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).operator() == operator
+                && ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+        }
+
+        return symbioticCore.operatorVaultOptInService.isOptedIn(operator, vault) && delegatorSpecificCondition;
+    }
+
+    function _operatorConfirmedValidating_SymbioticCore(
+        address operator,
+        address vault,
+        bytes32 subnetwork
+    ) internal returns (bool) {
+        return _operatorPossibleValidating_SymbioticCore(operator, vault, subnetwork)
+            && symbioticCore.operatorNetworkOptInService.isOptedIn(operator, subnetwork.network());
+    }
+
     // ------------------------------------------------------------ NETWORK-RELATED HELPERS ------------------------------------------------------------ //
 
     function _getNetwork_SymbioticCore() internal returns (Vm.Wallet memory) {
@@ -650,6 +745,17 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         Vm.Wallet memory network = _getNetwork_SymbioticCore();
 
         _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
+
+        return network;
+    }
+
+    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
+        uint96 identifier,
+        address vault
+    ) internal returns (Vm.Wallet memory) {
+        Vm.Wallet memory network = _getNetwork_SymbioticCore();
+
+        _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
 
         return network;
     }
@@ -673,6 +779,19 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         return network;
     }
 
+    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
+        uint96[] memory identifiers,
+        address[] memory vaults
+    ) internal equalLengthsUint96Address_SymbioticCore(identifiers, vaults) returns (Vm.Wallet memory) {
+        Vm.Wallet memory network = _getNetwork_SymbioticCore();
+
+        for (uint256 i; i < vaults.length; ++i) {
+            _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vaults[i], identifiers[i]);
+        }
+
+        return network;
+    }
+
     function _getNetworkWithMaxNetworkLimitsAndResolvers_SymbioticCore(
         uint96 identifier,
         address vault,
@@ -682,6 +801,19 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         Vm.Wallet memory network = _getNetwork_SymbioticCore();
 
         _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
+        _setResolver_SymbioticCore(network.addr, vault, identifier, resolver);
+
+        return network;
+    }
+
+    function _getNetworkWithMaxNetworkLimitsAndResolversRandom_SymbioticCore(
+        uint96 identifier,
+        address vault,
+        address resolver
+    ) internal returns (Vm.Wallet memory) {
+        Vm.Wallet memory network = _getNetwork_SymbioticCore();
+
+        _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
         _setResolver_SymbioticCore(network.addr, vault, identifier, resolver);
 
         return network;
@@ -709,7 +841,27 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         return network;
     }
 
-    function _networkSetMaxNetworkLimit(
+    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
+        uint96[] memory identifiers,
+        address[] memory vaults,
+        address[] memory resolvers
+    )
+        internal
+        equalLengthsUint96Address_SymbioticCore(identifiers, vaults)
+        equalLengthsUint96Address_SymbioticCore(identifiers, resolvers)
+        returns (Vm.Wallet memory)
+    {
+        Vm.Wallet memory network = _getNetwork_SymbioticCore();
+
+        for (uint256 i; i < vaults.length; ++i) {
+            _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vaults[i], identifiers[i]);
+            _setResolver_SymbioticCore(network.addr, vaults[i], identifiers[i], resolvers[i]);
+        }
+
+        return network;
+    }
+
+    function _networkSetMaxNetworkLimit_SymbioticCore(
         address network,
         address vault,
         uint96 identifier,
@@ -718,7 +870,46 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         _setMaxNetworkLimit_SymbioticCore(network, vault, identifier, maxNetworkLimit);
     }
 
-    function _networkSetResolver(address network, address vault, uint96 identifier, address resolver) internal {
+    function _networkSetMaxNetworkLimitRandom_SymbioticCore(
+        address network,
+        address vault,
+        uint96 identifier
+    ) internal {
+        address collateral = ISymbioticVault(vault).collateral();
+        uint256 decimals = ERC20(collateral).decimals();
+        uint256 amount = randomWithBounds_SymbioticCore(
+            _limit2tokens_SymbioticCore(MIN_MAX_NETWORK_LIMIT_TIMES_1e18, decimals),
+            _limit2tokens_SymbioticCore(MAX_MAX_NETWORK_LIMIT_TIMES_1e18, decimals)
+        );
+        if (
+            ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).maxNetworkLimit(network.subnetwork(identifier))
+                == amount
+        ) {
+            return;
+        }
+        _networkSetMaxNetworkLimit_SymbioticCore(network, vault, identifier, amount);
+    }
+
+    function _networkSetMaxNetworkLimitReset_SymbioticCore(
+        address network,
+        address vault,
+        uint96 identifier
+    ) internal {
+        if (
+            ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).maxNetworkLimit(network.subnetwork(identifier))
+                == 0
+        ) {
+            return;
+        }
+        _networkSetMaxNetworkLimit_SymbioticCore(network, vault, identifier, 0);
+    }
+
+    function _networkSetResolver_SymbioticCore(
+        address network,
+        address vault,
+        uint96 identifier,
+        address resolver
+    ) internal {
         _setResolver_SymbioticCore(network, vault, identifier, resolver);
     }
 
@@ -731,13 +922,34 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
 
         for (uint256 i; i < possibleTokens.length; ++i) {
             uint256 decimals = ERC20(possibleTokens[i]).decimals();
-            deal(possibleTokens[i], staker.addr, TOKENS_TO_SET_TIMES_1e18.mulDiv(10 ** decimals, 1e18), true); // should cover most cases
+            deal(possibleTokens[i], staker.addr, _limit2tokens_SymbioticCore(TOKENS_TO_SET_TIMES_1e18, decimals), true); // should cover most cases
         }
 
         return staker;
     }
 
-    function _getStakerWithStakes_SymbioticCore(
+    function _getStakerWithStake_SymbioticCore(
+        address[] memory possibleTokens,
+        address vault
+    ) internal returns (Vm.Wallet memory) {
+        Vm.Wallet memory staker = _getStaker_SymbioticCore(possibleTokens);
+
+        address collateral = ISymbioticVault(vault).collateral();
+        uint256 decimals = ERC20(collateral).decimals();
+
+        _deposit_SymbioticCore(
+            staker.addr,
+            vault,
+            randomWithBounds_SymbioticCore(
+                _limit2tokens_SymbioticCore(MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
+                _limit2tokens_SymbioticCore(MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
+            )
+        );
+
+        return staker;
+    }
+
+    function _getStakerWithStake_SymbioticCore(
         address[] memory possibleTokens,
         address[] memory vaults
     ) internal returns (Vm.Wallet memory) {
@@ -747,13 +959,14 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
             address collateral = ISymbioticVault(vaults[i]).collateral();
             uint256 decimals = ERC20(collateral).decimals();
 
-            uint256 amount = bound(
-                random_SymbioticCore(),
-                MIN_TOKENS_TO_DEPOSIT_TIMES_1e18.mulDiv(10 ** decimals, 1e18),
-                MAX_TOKENS_TO_DEPOSIT_TIMES_1e18.mulDiv(10 ** decimals, 1e18)
+            _deposit_SymbioticCore(
+                staker.addr,
+                vaults[i],
+                randomWithBounds_SymbioticCore(
+                    _limit2tokens_SymbioticCore(MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
+                    _limit2tokens_SymbioticCore(MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
+                )
             );
-
-            _deposit_SymbioticCore(staker.addr, vaults[i], amount);
         }
 
         return staker;
@@ -767,13 +980,24 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         address collateral = ISymbioticVault(vault).collateral();
         uint256 decimals = ERC20(collateral).decimals();
 
-        uint256 amount = bound(
-            random_SymbioticCore(),
-            MIN_TOKENS_TO_DEPOSIT_TIMES_1e18.mulDiv(10 ** decimals, 1e18),
-            MAX_TOKENS_TO_DEPOSIT_TIMES_1e18.mulDiv(10 ** decimals, 1e18)
+        if (ISymbioticVault(vault).depositWhitelist()) {
+            return;
+        }
+
+        uint256 minAmount = _limit2tokens_SymbioticCore(MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals);
+        uint256 amount = randomWithBounds_SymbioticCore(
+            minAmount, _limit2tokens_SymbioticCore(MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
         );
 
-        _stakerDeposit_SymbioticCore(staker, vault, amount);
+        if (ISymbioticVault(vault).isDepositLimit()) {
+            uint256 depositLimit = ISymbioticVault(vault).depositLimit();
+            uint256 activeStake = ISymbioticVault(vault).activeStake();
+            amount = Math.min(depositLimit - Math.min(activeStake, depositLimit), amount);
+        }
+
+        if (amount >= minAmount) {
+            _stakerDeposit_SymbioticCore(staker, vault, amount);
+        }
     }
 
     function _stakerWithdraw_SymbioticCore(address staker, address vault, uint256 amount) internal {
@@ -783,7 +1007,11 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
     function _stakerWithdrawRandom_SymbioticCore(address staker, address vault) internal {
         uint256 balance = ISymbioticVault(vault).activeBalanceOf(staker);
 
-        uint256 amount = bound(random_SymbioticCore(), 1, balance);
+        if (balance == 0) {
+            return;
+        }
+
+        uint256 amount = _bound(random_SymbioticCore(), 1, balance);
 
         _stakerWithdraw_SymbioticCore(staker, vault, amount);
     }
@@ -827,10 +1055,6 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         _setHook_SymbioticCore(curator, vault, hook);
     }
 
-    function _curatorSetHook_SymbioticCore(address vault, address hook) internal {
-        _curatorSetHook_SymbioticCore(address(this), vault, hook);
-    }
-
     function _curatorSetNetworkLimit_SymbioticCore(
         address curator,
         address vault,
@@ -840,8 +1064,36 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         _setNetworkLimit_SymbioticCore(curator, vault, subnetwork, amount);
     }
 
-    function _curatorSetNetworkLimit_SymbioticCore(address vault, bytes32 subnetwork, uint256 amount) internal {
-        _curatorSetNetworkLimit_SymbioticCore(address(this), vault, subnetwork, amount);
+    function _curatorSetNetworkLimitRandom_SymbioticCore(address curator, address vault, bytes32 subnetwork) internal {
+        address collateral = ISymbioticVault(vault).collateral();
+        uint256 decimals = ERC20(collateral).decimals();
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        uint256 minAmount = _limit2tokens_SymbioticCore(MIN_NETWORK_LIMIT_TIMES_1e18, decimals);
+        uint256 maxAmount = _limit2tokens_SymbioticCore(MAX_NETWORK_LIMIT_TIMES_1e18, decimals);
+
+        uint256 amount;
+        if (type_ == 0 || type_ == 1 || type_ == 2) {
+            uint256 maxNetworkLimit = ISymbioticBaseDelegator(delegator).maxNetworkLimit(subnetwork);
+            if (maxNetworkLimit < minAmount) {
+                _curatorSetNetworkLimitReset_SymbioticCore(curator, vault, subnetwork);
+                return;
+            }
+            amount = randomWithBounds_SymbioticCore(minAmount, Math.min(maxNetworkLimit, maxAmount));
+        }
+
+        if (ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) == amount) {
+            return;
+        }
+        _curatorSetNetworkLimit_SymbioticCore(curator, vault, subnetwork, amount);
+    }
+
+    function _curatorSetNetworkLimitReset_SymbioticCore(address curator, address vault, bytes32 subnetwork) internal {
+        if (ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).networkLimit(subnetwork) == 0) {
+            return;
+        }
+        _curatorSetNetworkLimit_SymbioticCore(curator, vault, subnetwork, 0);
     }
 
     function _curatorSetOperatorNetworkShares_SymbioticCore(
@@ -854,13 +1106,37 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         _setOperatorNetworkShares_SymbioticCore(curator, vault, subnetwork, operator, shares);
     }
 
-    function _curatorSetOperatorNetworkShares_SymbioticCore(
+    function _curatorSetOperatorNetworkSharesRandom_SymbioticCore(
+        address curator,
         address vault,
         bytes32 subnetwork,
-        address operator,
-        uint256 shares
+        address operator
     ) internal {
-        _curatorSetOperatorNetworkShares_SymbioticCore(address(this), vault, subnetwork, operator, shares);
+        uint256 shares = randomWithBounds_SymbioticCore(MIN_OPERATOR_NETWORK_SHARES, MAX_OPERATOR_NETWORK_SHARES);
+        if (
+            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkShares(
+                subnetwork, operator
+            ) == shares
+        ) {
+            return;
+        }
+        _setOperatorNetworkShares_SymbioticCore(curator, vault, subnetwork, operator, shares);
+    }
+
+    function _curatorSetOperatorNetworkSharesReset_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork,
+        address operator
+    ) internal {
+        if (
+            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkShares(
+                subnetwork, operator
+            ) == 0
+        ) {
+            return;
+        }
+        _setOperatorNetworkShares_SymbioticCore(curator, vault, subnetwork, operator, 0);
     }
 
     function _curatorSetOperatorNetworkLimit_SymbioticCore(
@@ -873,12 +1149,141 @@ contract SymbioticInit is SymbioticCoreCounter, SymbioticBindings {
         _setOperatorNetworkLimit_SymbioticCore(curator, vault, subnetwork, operator, amount);
     }
 
-    function _curatorSetOperatorNetworkLimit_SymbioticCore(
+    function _curatorSetOperatorNetworkLimitRandom_SymbioticCore(
+        address curator,
         address vault,
         bytes32 subnetwork,
-        address operator,
-        uint256 amount
+        address operator
     ) internal {
-        _curatorSetOperatorNetworkLimit_SymbioticCore(address(this), vault, subnetwork, operator, amount);
+        address collateral = ISymbioticVault(vault).collateral();
+        uint256 decimals = ERC20(collateral).decimals();
+        uint256 amount = randomWithBounds_SymbioticCore(
+            _limit2tokens_SymbioticCore(MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals),
+            _limit2tokens_SymbioticCore(MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals)
+        );
+        if (
+            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkLimit(
+                subnetwork, operator
+            ) == amount
+        ) {
+            return;
+        }
+        _setOperatorNetworkLimit_SymbioticCore(curator, vault, subnetwork, operator, amount);
+    }
+
+    function _curatorSetOperatorNetworkLimitReset_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork,
+        address operator
+    ) internal {
+        if (
+            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkLimit(
+                subnetwork, operator
+            ) == 0
+        ) {
+            return;
+        }
+        _setOperatorNetworkLimit_SymbioticCore(curator, vault, subnetwork, operator, 0);
+    }
+
+    function _curatorDelegateNetworkRandom_SymbioticCore(address curator, address vault, bytes32 subnetwork) internal {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        if (type_ == 0) {
+            _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
+        } else if (type_ == 1) {
+            _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
+        } else if (type_ == 2) {}
+    }
+
+    function _curatorDelegateNetworkHasRoles_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 /* subnetwork */
+    ) internal returns (bool) {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        if (type_ == 0) {
+            return IAccessControl(delegator).hasRole(
+                ISymbioticNetworkRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
+            );
+        } else if (type_ == 1) {
+            return IAccessControl(delegator).hasRole(
+                ISymbioticFullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
+            );
+        } else if (type_ == 2) {}
+
+        return true;
+    }
+
+    function _curatorDelegateOperatorRandom_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork,
+        address operator
+    ) internal {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        if (type_ == 0) {
+            _curatorSetOperatorNetworkSharesRandom_SymbioticCore(curator, vault, subnetwork, operator);
+        } else if (type_ == 1) {
+            _curatorSetOperatorNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork, operator);
+        } else if (type_ == 2) {
+            if (ISymbioticOperatorSpecificDelegator(delegator).operator() == operator) {
+                _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
+            }
+        }
+    }
+
+    function _curatorDelegateOperatorHasRoles_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32, /* subnetwork */
+        address operator
+    ) internal returns (bool) {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+
+        if (type_ == 0) {
+            return IAccessControl(delegator).hasRole(
+                ISymbioticNetworkRestakeDelegator(delegator).OPERATOR_NETWORK_SHARES_SET_ROLE(), curator
+            );
+        } else if (type_ == 1) {
+            return IAccessControl(delegator).hasRole(
+                ISymbioticFullRestakeDelegator(delegator).OPERATOR_NETWORK_LIMIT_SET_ROLE(), curator
+            );
+        } else if (type_ == 2) {
+            if (ISymbioticOperatorSpecificDelegator(delegator).operator() == operator) {
+                return IAccessControl(delegator).hasRole(
+                    ISymbioticOperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
+                );
+            }
+        }
+
+        return true;
+    }
+
+    function _curatorDelegateRandom_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork,
+        address operator
+    ) internal {
+        _curatorDelegateNetworkRandom_SymbioticCore(curator, vault, subnetwork);
+        _curatorDelegateOperatorRandom_SymbioticCore(curator, vault, subnetwork, operator);
+    }
+
+    function _curatorDelegateHasRoles_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork,
+        address operator
+    ) internal returns (bool) {
+        return _curatorDelegateNetworkHasRoles_SymbioticCore(curator, vault, subnetwork)
+            && _curatorDelegateOperatorHasRoles_SymbioticCore(curator, vault, subnetwork, operator);
     }
 }

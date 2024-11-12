@@ -37,4 +37,4 @@ import {Subnetwork as SymbioticSubnetwork} from "../../src/contracts/libraries/S
 import {Test, console2, Vm} from "forge-std/Test.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 
-interface Imports {}
+interface SymbioticCoreImports {}
