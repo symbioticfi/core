@@ -354,44 +354,44 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
         }
     }
 
-    function test_Abc() public {
-        address network = networks[0].addr;
-        uint96 identifier = SYMBIOTIC_CORE_SUBNETWORKS[0];
-        address collateral = tokens[0];
-        bytes32 subnetwork = network.subnetwork(identifier);
+    // function test_Test() public {
+    //     address network = networks[0].addr;
+    //     uint96 identifier = SYMBIOTIC_CORE_SUBNETWORKS[0];
+    //     address collateral = tokens[0];
+    //     bytes32 subnetwork = network.subnetwork(identifier);
 
-        for (uint256 i; i < vaultsForSubnetwork[subnetwork].length; ++i) {
-            address vault = vaultsForSubnetwork[subnetwork][i];
-            console2.log("Vault:", vault);
-        }
+    //     for (uint256 i; i < vaultsForSubnetwork[subnetwork].length; ++i) {
+    //         address vault = vaultsForSubnetwork[subnetwork][i];
+    //         console2.log("Vault:", vault);
+    //     }
 
-        for (uint256 i; i < vaultsForSubnetwork[subnetwork].length; ++i) {
-            address vault = vaultsForSubnetwork[subnetwork][i];
-            if (ISymbioticVault(vault).collateral() == collateral) {
-                for (uint256 j; j < confirmedOperatorsForSubnetwork[subnetwork][vault].length; ++j) {
-                    address operator = confirmedOperatorsForSubnetwork[subnetwork][vault][j];
-                    console2.log("Vault/Operator:", vault, operator);
-                }
-            }
-        }
+    //     for (uint256 i; i < vaultsForSubnetwork[subnetwork].length; ++i) {
+    //         address vault = vaultsForSubnetwork[subnetwork][i];
+    //         if (ISymbioticVault(vault).collateral() == collateral) {
+    //             for (uint256 j; j < confirmedOperatorsForSubnetwork[subnetwork][vault].length; ++j) {
+    //                 address operator = confirmedOperatorsForSubnetwork[subnetwork][vault][j];
+    //                 console2.log("Vault/Operator:", vault, operator);
+    //             }
+    //         }
+    //     }
 
-        address vault = vaultsForSubnetwork[subnetwork][0];
-        Vm.Wallet memory newOperator = _getOperatorWithOptIns_SymbioticCore(vault, network);
-        _curatorDelegateRandom_SymbioticCore(address(this), vault, subnetwork, newOperator.addr);
+    //     address vault = vaultsForSubnetwork[subnetwork][0];
+    //     Vm.Wallet memory newOperator = _getOperatorWithOptIns_SymbioticCore(vault, network);
+    //     _curatorDelegateRandom_SymbioticCore(address(this), vault, subnetwork, newOperator.addr);
 
-        console2.log(
-            "Stake before new staker:",
-            ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).stake(subnetwork, newOperator.addr)
-        );
-        console2.log("Total stake before new staker:", ISymbioticVault(vault).totalStake());
+    //     console2.log(
+    //         "Stake before new staker:",
+    //         ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).stake(subnetwork, newOperator.addr)
+    //     );
+    //     console2.log("Total stake before new staker:", ISymbioticVault(vault).totalStake());
 
-        Vm.Wallet memory newStaker = _getStakerWithStake_SymbioticCore(tokens, vault);
+    //     Vm.Wallet memory newStaker = _getStakerWithStake_SymbioticCore(tokens, vault);
 
-        console2.log(
-            "Stake after new staker:",
-            ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).stake(subnetwork, newOperator.addr)
-        );
-        console2.log("Total stake after new staker:", ISymbioticVault(vault).totalStake());
-        console2.log("User stake:", ISymbioticVault(vault).slashableBalanceOf(newStaker.addr));
-    }
+    //     console2.log(
+    //         "Stake after new staker:",
+    //         ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).stake(subnetwork, newOperator.addr)
+    //     );
+    //     console2.log("Total stake after new staker:", ISymbioticVault(vault).totalStake());
+    //     console2.log("User stake:", ISymbioticVault(vault).slashableBalanceOf(newStaker.addr));
+    // }
 }
