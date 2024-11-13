@@ -28,10 +28,11 @@ Create `.env` file using a template:
 
 ```
 ETH_RPC_URL=
+ETH_RPC_URL_HOLESKY=
 ETHERSCAN_API_KEY=
 ```
 
-\* ETHERSCAN_API_KEY is optional.
+\* ETH_RPC_URL is optional.<br/>\* ETH_RPC_URL_HOLESKY is optional.<br/>\* ETHERSCAN_API_KEY is optional.
 
 ### Build
 

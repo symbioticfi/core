@@ -54,6 +54,36 @@ contract SymbioticCoreBindings is Test {
         vm.stopPrank();
     }
 
+    function _setOperatorMetadata_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        string memory metadataURL
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorMetadataService.setMetadataURL(metadataURL);
+        vm.stopPrank();
+    }
+
+    function _setNetworkMetadata_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        string memory metadataURL
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.networkMetadataService.setMetadataURL(metadataURL);
+        vm.stopPrank();
+    }
+
+    function _setMiddleware_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address middleware
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.networkMiddlewareService.setMiddleware(middleware);
+        vm.stopPrank();
+    }
+
     function _deposit_SymbioticCore(
         address who,
         address vault,

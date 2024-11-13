@@ -1,4 +1,5 @@
 [profile.default]
+evm_version = "cancun"
 solc = "0.8.25"
 via_ir = true
 src = "src"
@@ -10,6 +11,7 @@ gas_limit = "18446744073709551615"
 
 [rpc_endpoints]
 mainnet = "${ETH_RPC_URL}"
+holesky = "${ETH_RPC_URL_HOLESKY}"
 
 [fmt]
 bracket_spacing = false

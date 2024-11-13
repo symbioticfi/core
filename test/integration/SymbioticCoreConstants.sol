@@ -424,7 +424,7 @@ library SymbioticCoreConstants {
         uint256 count;
         for (uint256 i; i < tokens.length; ++i) {
             if (tokenSupported(tokens[i])) {
-                result[i] = tokens[i];
+                result[count] = tokens[i];
                 ++count;
             }
         }
