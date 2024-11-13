@@ -17,9 +17,9 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
 
     function setUp() public override {
         // SYMBIOTIC_CORE_PROJECT_ROOT = "";
-        vm.selectFork(vm.createFork(vm.rpcUrl("holesky")));
-        SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
-        SYMBIOTIC_CORE_INIT_BLOCK = 2_727_202;
+        // vm.selectFork(vm.createFork(vm.rpcUrl("holesky")));
+        // SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
+        // SYMBIOTIC_CORE_INIT_BLOCK = 2_727_202;
 
         SYMBIOTIC_CORE_NUMBER_OF_STAKERS = 10;
 

@@ -337,11 +337,7 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
         return (false, false);
     }
 
-    function _delegateTry(
-        address vault,
-        bytes32 subnetwork,
-        address operator
-    ) internal virtual returns (bool) {
+    function _delegateTry(address vault, bytes32 subnetwork, address operator) internal virtual returns (bool) {
         return _delegateToNetworkTry(vault, subnetwork) && _delegateToOperatorTry(vault, subnetwork, operator);
     }
 
