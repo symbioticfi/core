@@ -266,8 +266,7 @@ library SymbioticCoreConstants {
         if (block.chainid == 1) {
             // mainnet
             return 0x18084fbA666a33d37592fA2633fD49a74DD93a88;
-        }
-        if (block.chainid == 11_155_111) {
+        } else if (block.chainid == 11_155_111) {
             // sepolia
             return 0x517f2982701695D4E52f1ECFBEf3ba31Df470161;
         } else {
@@ -279,8 +278,7 @@ library SymbioticCoreConstants {
         if (block.chainid == 1) {
             // mainnet
             return 0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549;
-        }
-        if (block.chainid == 17_000) {
+        } else if (block.chainid == 17_000) {
             // holesky
             return 0x1d8b30cC38Dba8aBce1ac29Ea27d9cFd05379A09;
         } else {
@@ -292,8 +290,7 @@ library SymbioticCoreConstants {
         if (block.chainid == 1) {
             // mainnet
             return 0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38;
-        }
-        if (block.chainid == 17_000) {
+        } else if (block.chainid == 17_000) {
             // holesky
             return 0xF603c5A3F774F05d4D848A9bB139809790890864;
         } else {
