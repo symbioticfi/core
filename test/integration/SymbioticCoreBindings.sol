@@ -11,6 +11,34 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 contract SymbioticCoreBindings is Test {
     using SafeERC20 for IERC20;
 
+    function _createVault_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        uint64 version,
+        address owner,
+        bytes memory vaultParams,
+        uint64 delegatorIndex,
+        bytes memory delegatorParams,
+        bool withSlasher,
+        uint64 slasherIndex,
+        bytes memory slasherParams
+    ) internal returns (address vault, address delegator, address slasher) {
+        vm.startPrank(who);
+        (vault, delegator, slasher) = symbioticCore.vaultConfigurator.create(
+            ISymbioticVaultConfigurator.InitParams({
+                version: version,
+                owner: owner,
+                vaultParams: vaultParams,
+                delegatorIndex: delegatorIndex,
+                delegatorParams: delegatorParams,
+                withSlasher: withSlasher,
+                slasherIndex: slasherIndex,
+                slasherParams: slasherParams
+            })
+        );
+        vm.stopPrank();
+    }
+
     function _registerOperator_SymbioticCore(SymbioticCoreConstants.Core memory symbioticCore, address who) internal {
         vm.startPrank(who);
         symbioticCore.operatorRegistry.registerOperator();

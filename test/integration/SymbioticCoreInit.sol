@@ -401,48 +401,48 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         networkLimitSetRoleHolders[0] = owner;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = owner;
-        (address vault,,) = symbioticCore.vaultConfigurator.create(
-            ISymbioticVaultConfigurator.InitParams({
-                version: 1,
-                owner: owner,
-                vaultParams: abi.encode(
-                    ISymbioticVault.InitParams({
-                        collateral: collateral,
-                        burner: 0x000000000000000000000000000000000000dEaD,
-                        epochDuration: epochDuration,
-                        depositWhitelist: false,
-                        isDepositLimit: false,
-                        depositLimit: 0,
+        (address vault,,) = _createVault_SymbioticCore({
+            symbioticCore: symbioticCore,
+            who: address(this),
+            version: 1,
+            owner: owner,
+            vaultParams: abi.encode(
+                ISymbioticVault.InitParams({
+                    collateral: collateral,
+                    burner: 0x000000000000000000000000000000000000dEaD,
+                    epochDuration: epochDuration,
+                    depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
+                    defaultAdminRoleHolder: owner,
+                    depositWhitelistSetRoleHolder: owner,
+                    depositorWhitelistRoleHolder: owner,
+                    isDepositLimitSetRoleHolder: owner,
+                    depositLimitSetRoleHolder: owner
+                })
+            ),
+            delegatorIndex: 0,
+            delegatorParams: abi.encode(
+                ISymbioticNetworkRestakeDelegator.InitParams({
+                    baseParams: ISymbioticBaseDelegator.BaseParams({
                         defaultAdminRoleHolder: owner,
-                        depositWhitelistSetRoleHolder: owner,
-                        depositorWhitelistRoleHolder: owner,
-                        isDepositLimitSetRoleHolder: owner,
-                        depositLimitSetRoleHolder: owner
-                    })
-                ),
-                delegatorIndex: 0,
-                delegatorParams: abi.encode(
-                    ISymbioticNetworkRestakeDelegator.InitParams({
-                        baseParams: ISymbioticBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: owner,
-                            hook: 0x0000000000000000000000000000000000000000,
-                            hookSetRoleHolder: owner
-                        }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
-                    })
-                ),
-                withSlasher: true,
-                slasherIndex: 1,
-                slasherParams: abi.encode(
-                    ISymbioticVetoSlasher.InitParams({
-                        baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: true}),
-                        vetoDuration: vetoDuration,
-                        resolverSetEpochsDelay: 3
-                    })
-                )
-            })
-        );
+                        hook: 0x0000000000000000000000000000000000000000,
+                        hookSetRoleHolder: owner
+                    }),
+                    networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                    operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                })
+            ),
+            withSlasher: true,
+            slasherIndex: 1,
+            slasherParams: abi.encode(
+                ISymbioticVetoSlasher.InitParams({
+                    baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: true}),
+                    vetoDuration: vetoDuration,
+                    resolverSetEpochsDelay: 3
+                })
+            )
+        });
 
         return vault;
     }
@@ -550,18 +550,18 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             );
         }
 
-        (address vault,,) = symbioticCore.vaultConfigurator.create(
-            ISymbioticVaultConfigurator.InitParams({
-                version: 1,
-                owner: owner,
-                vaultParams: vaultParams,
-                delegatorIndex: delegatorIndex,
-                delegatorParams: delegatorParams,
-                withSlasher: withSlasher,
-                slasherIndex: slasherIndex,
-                slasherParams: slasherParams
-            })
-        );
+        (address vault,,) = _createVault_SymbioticCore({
+            symbioticCore: symbioticCore,
+            who: address(this),
+            version: 1,
+            owner: owner,
+            vaultParams: vaultParams,
+            delegatorIndex: delegatorIndex,
+            delegatorParams: delegatorParams,
+            withSlasher: withSlasher,
+            slasherIndex: slasherIndex,
+            slasherParams: slasherParams
+        });
 
         if (depositWhitelist) {
             for (uint256 i; i < whitelistedDepositors.length; ++i) {
