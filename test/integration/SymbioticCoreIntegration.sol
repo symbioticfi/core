@@ -28,7 +28,7 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
     mapping(bytes32 subnetwork => mapping(address vault => mapping(address operator => bool))) public
         isConfirmedOperatorForSubnetwork;
     mapping(bytes32 subnetwork => mapping(address vault => address[] operators)) public confirmedOperatorsForSubnetwork;
-    // only needs to opt into network (map be used to test opt-in with signature)
+    // only needs to opt into network (may be used to test opt-in with signature)
     mapping(bytes32 subnetwork => mapping(address vault => mapping(address operator => bool))) public
         isPossibleOperatorForSubnetwork;
     mapping(bytes32 subnetwork => mapping(address vault => address[] operators)) public possibleOperatorsForSubnetwork;
@@ -46,7 +46,7 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
     uint256 public SYMBIOTIC_CORE_OPT_IN_TO_VAULT_CHANCE = 1;
     uint256 public SYMBIOTIC_CORE_OPT_IN_TO_NETWORK_CHANCE = 1;
 
-    uint96[] public SYMBIOTIC_CORE_SUBNETWORKS = [0, 1, 2];
+    uint96[] public SYMBIOTIC_CORE_SUBNETWORKS = [0, 1];
 
     function setUp() public virtual override {
         super.setUp();
@@ -358,7 +358,7 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
 
     function _optInOperatorsNetworks() internal virtual {
         for (uint256 i; i < networks.length; ++i) {
-            for (uint256 j; j < networks.length; ++j) {
+            for (uint256 j; j < operators.length; ++j) {
                 if (_randomChoice_SymbioticCore(SYMBIOTIC_CORE_OPT_IN_TO_NETWORK_CHANCE)) {
                     _operatorOptInWeak_SymbioticCore(operators[j].addr, networks[i].addr);
                 }

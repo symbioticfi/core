@@ -6,6 +6,7 @@ import "./SymbioticCoreImports.sol";
 import {SymbioticCoreConstants} from "./SymbioticCoreConstants.sol";
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract SymbioticCoreBindings is Test {
     using SafeERC20 for IERC20;
@@ -22,36 +23,136 @@ contract SymbioticCoreBindings is Test {
         vm.stopPrank();
     }
 
-    function _optIn_SymbioticCore(
+    function _optInVault_SymbioticCore(
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
-        address where
+        address vault
     ) internal {
         vm.startPrank(who);
-        if (symbioticCore.vaultFactory.isEntity(where)) {
-            symbioticCore.operatorVaultOptInService.optIn(where);
-        } else if (symbioticCore.networkRegistry.isEntity(where)) {
-            symbioticCore.operatorNetworkOptInService.optIn(where);
-        } else {
-            revert("Invalid address for opt-in");
-        }
+        symbioticCore.operatorVaultOptInService.optIn(vault);
         vm.stopPrank();
     }
 
-    function _optOut_SymbioticCore(
+    function _optInVault_SymbioticCore(
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
-        address where
+        address account,
+        address vault,
+        uint48 deadline,
+        bytes memory signature
     ) internal {
         vm.startPrank(who);
-        if (symbioticCore.vaultFactory.isEntity(where)) {
-            symbioticCore.operatorVaultOptInService.optOut(where);
-        } else if (symbioticCore.networkRegistry.isEntity(where)) {
-            symbioticCore.operatorNetworkOptInService.optOut(where);
-        } else {
-            revert("Invalid address for opt-out");
-        }
+        symbioticCore.operatorVaultOptInService.optIn(account, vault, deadline, signature);
         vm.stopPrank();
+    }
+
+    function _optInVault_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address vault,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        _optInVault_SymbioticCore(symbioticCore, who, who, vault, deadline, signature);
+    }
+
+    function _optInNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address network
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorNetworkOptInService.optIn(network);
+        vm.stopPrank();
+    }
+
+    function _optInNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address account,
+        address network,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorNetworkOptInService.optIn(account, network, deadline, signature);
+        vm.stopPrank();
+    }
+
+    function _optInNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address network,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        _optInNetwork_SymbioticCore(symbioticCore, who, who, network, deadline, signature);
+    }
+
+    function _optOutVault_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address vault
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorVaultOptInService.optOut(vault);
+        vm.stopPrank();
+    }
+
+    function _optOutVault_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address account,
+        address vault,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorVaultOptInService.optOut(account, vault, deadline, signature);
+        vm.stopPrank();
+    }
+
+    function _optOutVault_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address vault,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        _optOutVault_SymbioticCore(symbioticCore, who, who, vault, deadline, signature);
+    }
+
+    function _optOutNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address network
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorNetworkOptInService.optOut(network);
+        vm.stopPrank();
+    }
+
+    function _optOutNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address account,
+        address network,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        vm.startPrank(who);
+        symbioticCore.operatorNetworkOptInService.optOut(account, network, deadline, signature);
+        vm.stopPrank();
+    }
+
+    function _optOutNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address network,
+        uint48 deadline,
+        bytes memory signature
+    ) internal {
+        _optOutNetwork_SymbioticCore(symbioticCore, who, who, network, deadline, signature);
     }
 
     function _setOperatorMetadata_SymbioticCore(
@@ -86,12 +187,32 @@ contract SymbioticCoreBindings is Test {
 
     function _deposit_SymbioticCore(
         address who,
+        address onBehalfOf,
         address vault,
         uint256 amount
     ) internal returns (uint256 depositedAmount, uint256 mintedShares) {
         vm.startPrank(who);
         IERC20(ISymbioticVault(vault).collateral()).forceApprove(vault, amount);
-        (depositedAmount, mintedShares) = ISymbioticVault(vault).deposit(who, amount);
+        (depositedAmount, mintedShares) = ISymbioticVault(vault).deposit(onBehalfOf, amount);
+        vm.stopPrank();
+    }
+
+    function _deposit_SymbioticCore(
+        address who,
+        address vault,
+        uint256 amount
+    ) internal returns (uint256 depositedAmount, uint256 mintedShares) {
+        _deposit_SymbioticCore(who, who, vault, amount);
+    }
+
+    function _withdraw_SymbioticCore(
+        address who,
+        address claimer,
+        address vault,
+        uint256 amount
+    ) internal returns (uint256 burnedShares, uint256 mintedShares) {
+        vm.startPrank(who);
+        (burnedShares, mintedShares) = ISymbioticVault(vault).withdraw(claimer, amount);
         vm.stopPrank();
     }
 
@@ -100,8 +221,17 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256 amount
     ) internal returns (uint256 burnedShares, uint256 mintedShares) {
+        _withdraw_SymbioticCore(who, who, vault, amount);
+    }
+
+    function _redeem_SymbioticCore(
+        address who,
+        address claimer,
+        address vault,
+        uint256 shares
+    ) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
         vm.startPrank(who);
-        (burnedShares, mintedShares) = ISymbioticVault(vault).withdraw(who, amount);
+        (withdrawnAssets, mintedShares) = ISymbioticVault(vault).redeem(claimer, shares);
         vm.stopPrank();
     }
 
@@ -110,14 +240,32 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256 shares
     ) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
+        _redeem_SymbioticCore(who, who, vault, shares);
+    }
+
+    function _claim_SymbioticCore(
+        address who,
+        address recipient,
+        address vault,
+        uint256 epoch
+    ) internal returns (uint256 amount) {
         vm.startPrank(who);
-        (withdrawnAssets, mintedShares) = ISymbioticVault(vault).redeem(who, shares);
+        amount = ISymbioticVault(vault).claim(recipient, epoch);
         vm.stopPrank();
     }
 
     function _claim_SymbioticCore(address who, address vault, uint256 epoch) internal returns (uint256 amount) {
+        _claim_SymbioticCore(who, who, vault, epoch);
+    }
+
+    function _claimBatch_SymbioticCore(
+        address who,
+        address recipient,
+        address vault,
+        uint256[] memory epochs
+    ) internal returns (uint256 amount) {
         vm.startPrank(who);
-        amount = ISymbioticVault(vault).claim(who, epoch);
+        amount = ISymbioticVault(vault).claimBatch(recipient, epochs);
         vm.stopPrank();
     }
 
@@ -126,9 +274,7 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256[] memory epochs
     ) internal returns (uint256 amount) {
-        vm.startPrank(who);
-        amount = ISymbioticVault(vault).claimBatch(who, epochs);
-        vm.stopPrank();
+        _claimBatch_SymbioticCore(who, who, vault, epochs);
     }
 
     function _setDepositWhitelist_SymbioticCore(address who, address vault, bool status) internal {
@@ -259,5 +405,66 @@ contract SymbioticCoreBindings is Test {
         vm.startPrank(who);
         ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).setResolver(identifier, resolver, new bytes(0));
         vm.stopPrank();
+    }
+
+    function _grantRole_SymbioticCore(address who, address where, bytes32 role, address account) internal {
+        vm.startPrank(who);
+        AccessControl(where).grantRole(role, account);
+        vm.stopPrank();
+    }
+
+    function _grantRoleDefaultAdmin_SymbioticCore(address who, address where, address account) internal {
+        _grantRole_SymbioticCore(who, where, AccessControl(where).DEFAULT_ADMIN_ROLE(), account);
+    }
+
+    function _grantRoleDepositWhitelistSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).DEPOSIT_WHITELIST_SET_ROLE(), account);
+    }
+
+    function _grantRoleDepositorWhitelist_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).DEPOSITOR_WHITELIST_ROLE(), account);
+    }
+
+    function _grantRoleIsDepositLimitSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).IS_DEPOSIT_LIMIT_SET_ROLE(), account);
+    }
+
+    function _grantRoleDepositLimitSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).DEPOSIT_LIMIT_SET_ROLE(), account);
+    }
+
+    function _grantRoleHookSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(
+            who, vault, ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).HOOK_SET_ROLE(), account
+        );
+    }
+
+    function _grantRole_NetworkLimitSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(
+            who,
+            vault,
+            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).NETWORK_LIMIT_SET_ROLE(),
+            account
+        );
+        // _grantRole_SymbioticCore(who, vault, ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).NETWORK_LIMIT_SET_ROLE(), account);
+        // _grantRole_SymbioticCore(who, vault, ISymbioticOperatorSpecificDelegator(ISymbioticVault(vault).delegator()).NETWORK_LIMIT_SET_ROLE(), account);
+    }
+
+    function _grantRole_OperatorNetworkSharesSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(
+            who,
+            vault,
+            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).OPERATOR_NETWORK_SHARES_SET_ROLE(),
+            account
+        );
+    }
+
+    function _grantRole_OperatorNetworkLimitSet_SymbioticCore(address who, address vault, address account) internal {
+        _grantRole_SymbioticCore(
+            who,
+            vault,
+            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).OPERATOR_NETWORK_LIMIT_SET_ROLE(),
+            account
+        );
     }
 }

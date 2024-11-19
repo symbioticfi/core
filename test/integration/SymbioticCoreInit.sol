@@ -317,6 +317,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
                 return array[i];
             }
         }
+        revert("Wallet not found");
     }
 
     function _dealHelper_SymbioticCore(address token, address to, uint256 give, bool adjust) public {
@@ -627,9 +628,9 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         if (type_ == 0) {
             delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
         } else if (type_ == 1) {
-            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+            delegatorSpecificCondition = ISymbioticFullRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
         } else if (type_ == 2) {
-            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+            delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
         }
 
         return delegatorSpecificCondition;
@@ -639,7 +640,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
 
     function _getOperator_SymbioticCore() internal returns (Vm.Wallet memory) {
         Vm.Wallet memory operator = _getAccount_SymbioticCore();
-        _registerOperator_SymbioticCore(symbioticCore, operator.addr);
+        _operatorRegister_SymbioticCore(operator.addr);
         return operator;
     }
 
@@ -648,7 +649,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
     ) internal returns (Vm.Wallet memory) {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
-        _optIn_SymbioticCore(symbioticCore, operator.addr, vault);
+        _operatorOptIn_SymbioticCore(operator.addr, vault);
 
         return operator;
     }
@@ -659,7 +660,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
         for (uint256 i; i < vaults.length; ++i) {
-            _optIn_SymbioticCore(symbioticCore, operator.addr, vaults[i]);
+            _operatorOptIn_SymbioticCore(operator.addr, vaults[i]);
         }
 
         return operator;
@@ -668,8 +669,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
     function _getOperatorWithOptIns_SymbioticCore(address vault, address network) internal returns (Vm.Wallet memory) {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
-        _optIn_SymbioticCore(symbioticCore, operator.addr, vault);
-        _optIn_SymbioticCore(symbioticCore, operator.addr, network);
+        _operatorOptIn_SymbioticCore(operator.addr, vault);
+        _operatorOptIn_SymbioticCore(operator.addr, network);
 
         return operator;
     }
@@ -681,18 +682,30 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
         for (uint256 i; i < vaults.length; ++i) {
-            _optIn_SymbioticCore(symbioticCore, operator.addr, vaults[i]);
+            _operatorOptIn_SymbioticCore(operator.addr, vaults[i]);
         }
 
         for (uint256 i; i < networks.length; ++i) {
-            _optIn_SymbioticCore(symbioticCore, operator.addr, networks[i]);
+            _operatorOptIn_SymbioticCore(operator.addr, networks[i]);
         }
 
         return operator;
     }
 
+    function _operatorRegister_SymbioticCore(
+        address operator
+    ) internal {
+        _registerOperator_SymbioticCore(symbioticCore, operator);
+    }
+
     function _operatorOptIn_SymbioticCore(address operator, address where) internal {
-        _optIn_SymbioticCore(symbioticCore, operator, where);
+        if (symbioticCore.vaultFactory.isEntity(where)) {
+            _optInVault_SymbioticCore(symbioticCore, operator, where);
+        } else if (symbioticCore.networkRegistry.isEntity(where)) {
+            _optInNetwork_SymbioticCore(symbioticCore, operator, where);
+        } else {
+            revert("Invalid address for opt-in");
+        }
     }
 
     function _operatorOptInWeak_SymbioticCore(address operator, address where) internal {
@@ -711,10 +724,19 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
     }
 
     function _operatorOptOut_SymbioticCore(address operator, address where) internal {
-        _optOut_SymbioticCore(symbioticCore, operator, where);
+        if (symbioticCore.vaultFactory.isEntity(where)) {
+            _optOutVault_SymbioticCore(symbioticCore, operator, where);
+        } else if (symbioticCore.networkRegistry.isEntity(where)) {
+            _optOutNetwork_SymbioticCore(symbioticCore, operator, where);
+        } else {
+            revert("Invalid address for opt-in");
+        }
     }
 
-    function _operatorOptInSignature_SymbioticCore(Vm.Wallet memory operator, address where) internal {
+    function _operatorOptInSignature_SymbioticCore(
+        Vm.Wallet memory operator,
+        address where
+    ) internal returns (bytes memory) {
         uint48 deadline = uint48(vm.getBlockTimestamp() + 7 days);
 
         address service;
@@ -732,10 +754,13 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         bytes32 digest = computeOptInDigest_SymbioticCore(service, operator.addr, where, nonce, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(operator, digest);
-        bytes memory signature = abi.encodePacked(r, s, v);
+        return abi.encodePacked(r, s, v);
     }
 
-    function _operatorOptOutSignature_SymbioticCore(Vm.Wallet memory operator, address where) internal {
+    function _operatorOptOutSignature_SymbioticCore(
+        Vm.Wallet memory operator,
+        address where
+    ) internal returns (bytes memory) {
         uint48 deadline = uint48(vm.getBlockTimestamp() + 7 days);
 
         address service;
@@ -745,7 +770,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             nonce = symbioticCore.operatorVaultOptInService.nonces(operator.addr, where);
         } else if (symbioticCore.networkRegistry.isEntity(where)) {
             service = address(symbioticCore.operatorNetworkOptInService);
-            nonce = symbioticCore.operatorVaultOptInService.nonces(operator.addr, where);
+            nonce = symbioticCore.operatorNetworkOptInService.nonces(operator.addr, where);
         } else {
             revert("Invalid address for opt-out");
         }
@@ -753,7 +778,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         bytes32 digest = computeOptOutDigest_SymbioticCore(service, operator.addr, where, nonce, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(operator, digest);
-        bytes memory signature = abi.encodePacked(r, s, v);
+        return abi.encodePacked(r, s, v);
     }
 
     function computeOptInDigest_SymbioticCore(
@@ -813,11 +838,11 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0
                 && ISymbioticNetworkRestakeDelegator(delegator).operatorNetworkShares(subnetwork, operator) > 0;
         } else if (type_ == 1) {
-            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0
+            delegatorSpecificCondition = ISymbioticFullRestakeDelegator(delegator).networkLimit(subnetwork) > 0
                 && ISymbioticFullRestakeDelegator(delegator).operatorNetworkLimit(subnetwork, operator) > 0;
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).operator() == operator
-                && ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
+                && ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
         }
 
         return symbioticCore.operatorVaultOptInService.isOptedIn(operator, vault) && delegatorSpecificCondition;
@@ -836,7 +861,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
 
     function _getNetwork_SymbioticCore() internal returns (Vm.Wallet memory) {
         Vm.Wallet memory network = _getAccount_SymbioticCore();
-        _registerNetwork_SymbioticCore(symbioticCore, network.addr);
+        _networkRegister_SymbioticCore(network.addr);
 
         return network;
     }
@@ -845,7 +870,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         address middleware
     ) internal returns (Vm.Wallet memory) {
         Vm.Wallet memory network = _getAccount_SymbioticCore();
-        _registerNetwork_SymbioticCore(symbioticCore, network.addr);
+        _networkRegister_SymbioticCore(network.addr);
         _networkSetMiddleware_SymbioticCore(network.addr, middleware);
 
         return network;
@@ -1107,6 +1132,12 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         return network;
     }
 
+    function _networkRegister_SymbioticCore(
+        address network
+    ) internal {
+        _registerNetwork_SymbioticCore(symbioticCore, network);
+    }
+
     function _networkSetMiddleware_SymbioticCore(address network, address middleware) internal {
         _setMiddleware_SymbioticCore(symbioticCore, network, middleware);
     }
@@ -1161,6 +1192,32 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         address resolver
     ) internal {
         _setResolver_SymbioticCore(network, vault, identifier, resolver);
+    }
+
+    function _networkPossibleUtilizing_SymbioticCore(
+        address network,
+        uint96 identifier,
+        address vault,
+        address operator
+    ) internal returns (bool) {
+        address delegator = ISymbioticVault(vault).delegator();
+        uint64 type_ = ISymbioticEntity(delegator).TYPE();
+        bytes32 subnetwork = network.subnetwork(identifier);
+
+        bool delegatorSpecificCondition;
+        if (type_ == 0) {
+            delegatorSpecificCondition = ISymbioticNetworkRestakeDelegator(delegator).networkLimit(subnetwork) > 0
+                && ISymbioticNetworkRestakeDelegator(delegator).operatorNetworkShares(subnetwork, operator) > 0;
+        } else if (type_ == 1) {
+            delegatorSpecificCondition = ISymbioticFullRestakeDelegator(delegator).networkLimit(subnetwork) > 0
+                && ISymbioticFullRestakeDelegator(delegator).operatorNetworkLimit(subnetwork, operator) > 0;
+        } else if (type_ == 2) {
+            delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).operator() == operator
+                && ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
+        }
+
+        return symbioticCore.operatorVaultOptInService.isOptedIn(operator, vault)
+            && symbioticCore.operatorNetworkOptInService.isOptedIn(operator, network) && delegatorSpecificCondition;
     }
 
     // ------------------------------------------------------------ STAKER-RELATED HELPERS ------------------------------------------------------------ //
@@ -1456,7 +1513,10 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             return _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
         } else if (type_ == 1) {
             return _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
-        } else if (type_ == 2) {}
+        } else if (type_ == 2) {
+            return false;
+        }
+        return false;
     }
 
     function _curatorDelegateNetworkHasRoles_SymbioticCore(
@@ -1475,9 +1535,11 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             return IAccessControl(delegator).hasRole(
                 ISymbioticFullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
             );
-        } else if (type_ == 2) {}
+        } else if (type_ == 2) {
+            return false;
+        }
 
-        return true;
+        return false;
     }
 
     function _curatorDelegateOperatorRandom_SymbioticCore(
@@ -1499,6 +1561,7 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             }
             return false;
         }
+        return false;
     }
 
     function _curatorDelegateOperatorHasRoles_SymbioticCore(
@@ -1524,9 +1587,10 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
                     ISymbioticOperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
                 );
             }
+            return false;
         }
 
-        return true;
+        return false;
     }
 
     function _curatorDelegateRandom_SymbioticCore(
