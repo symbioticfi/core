@@ -118,6 +118,10 @@ contract SymbioticInit is Test, SymbioticCounter {
     function _supportsDeal_Symbiotic(
         address token
     ) internal virtual returns (bool) {
+        if (token == 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0) {
+            return true;
+        }
+
         address to = address(this);
         (, bytes memory balData) = token.staticcall(abi.encodeWithSelector(0x70a08231, to));
         uint256 initialBalance = abi.decode(balData, (uint256));
