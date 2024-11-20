@@ -3,10 +3,15 @@ pragma solidity ^0.8.0;
 
 import {SymbioticCounter} from "./SymbioticCounter.sol";
 
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 import {Test} from "forge-std/Test.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 
 contract SymbioticInit is Test, SymbioticCounter {
+    using Math for uint256;
+
     // General config
 
     uint256 public SYMBIOTIC_SEED = 0;
@@ -148,6 +153,10 @@ contract SymbioticInit is Test, SymbioticCounter {
         for (uint256 i; i < wallets.length; ++i) {
             result[i] = wallets[i].addr;
         }
+    }
+
+    function _normalizeForToken_Symbiotic(uint256 amount, address token) internal virtual returns (uint256) {
+        return amount.mulDiv(10 ** ERC20(token).decimals(), 1e18);
     }
 
     modifier equalLengthsAddressAddress_Symbiotic(address[] memory a, address[] memory b) {

@@ -12,8 +12,6 @@ import {FeeOnTransferToken} from "../mocks/FeeOnTransferToken.sol";
 
 import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
@@ -230,10 +228,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 vaultConfigurator: vaultConfigurator
             });
         }
-    }
-
-    function _limitToTokens_SymbioticCore(uint256 amount, uint256 decimals) internal virtual returns (uint256) {
-        return amount.mulDiv(10 ** decimals, 1e18);
     }
 
     // ------------------------------------------------------------ TOKEN-RELATED HELPERS ------------------------------------------------------------ //
@@ -1039,10 +1033,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         uint96 identifier
     ) internal virtual {
         address collateral = ISymbioticVault(vault).collateral();
-        uint256 decimals = ERC20(collateral).decimals();
         uint256 amount = _randomWithBounds_Symbiotic(
-            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_MAX_NETWORK_LIMIT_TIMES_1e18, decimals),
-            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_MAX_NETWORK_LIMIT_TIMES_1e18, decimals)
+            _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MIN_MAX_NETWORK_LIMIT_TIMES_1e18, collateral),
+            _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MAX_MAX_NETWORK_LIMIT_TIMES_1e18, collateral)
         );
         if (
             ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).maxNetworkLimit(network.subnetwork(identifier))
@@ -1110,11 +1103,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         Vm.Wallet memory staker = _getAccount_Symbiotic();
 
         for (uint256 i; i < possibleTokens.length; ++i) {
-            uint256 decimals = ERC20(possibleTokens[i]).decimals();
             deal(
                 possibleTokens[i],
                 staker.addr,
-                _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18, decimals),
+                _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18, possibleTokens[i]),
                 true
             ); // should cover most cases
         }
@@ -1152,15 +1144,14 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
 
     function _stakerDepositRandom_SymbioticCore(address staker, address vault) internal virtual {
         address collateral = ISymbioticVault(vault).collateral();
-        uint256 decimals = ERC20(collateral).decimals();
 
         if (ISymbioticVault(vault).depositWhitelist()) {
             return;
         }
 
-        uint256 minAmount = _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals);
+        uint256 minAmount = _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, collateral);
         uint256 amount = _randomWithBounds_Symbiotic(
-            minAmount, _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
+            minAmount, _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, collateral)
         );
 
         if (ISymbioticVault(vault).isDepositLimit()) {
@@ -1223,12 +1214,11 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         bytes32 subnetwork
     ) internal virtual returns (bool) {
         address collateral = ISymbioticVault(vault).collateral();
-        uint256 decimals = ERC20(collateral).decimals();
         address delegator = ISymbioticVault(vault).delegator();
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
 
-        uint256 minAmount = _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_NETWORK_LIMIT_TIMES_1e18, decimals);
-        uint256 maxAmount = _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_NETWORK_LIMIT_TIMES_1e18, decimals);
+        uint256 minAmount = _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MIN_NETWORK_LIMIT_TIMES_1e18, collateral);
+        uint256 maxAmount = _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MAX_NETWORK_LIMIT_TIMES_1e18, collateral);
 
         uint256 amount;
         if (type_ == 0 || type_ == 1 || type_ == 2) {
@@ -1321,10 +1311,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         address operator
     ) internal virtual returns (bool) {
         address collateral = ISymbioticVault(vault).collateral();
-        uint256 decimals = ERC20(collateral).decimals();
         uint256 amount = _randomWithBounds_Symbiotic(
-            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals),
-            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals)
+            _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18, collateral),
+            _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18, collateral)
         );
         if (
             ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkLimit(
