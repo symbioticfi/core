@@ -32,32 +32,32 @@ contract SymbioticInit is Test, SymbioticCounter {
         );
     }
 
+    function _randomWithBounds_Symbiotic(uint256 lower, uint256 upper) internal virtual returns (uint256) {
+        return _bound(_random_Symbiotic(), lower, upper);
+    }
+
     function _randomChoice_Symbiotic(
         uint256 coef
     ) internal virtual returns (bool) {
-        return _bound(_random_Symbiotic(), 0, coef) == 0;
-    }
-
-    function _randomWithBounds_Symbiotic(uint256 lower, uint256 upper) internal virtual returns (uint256) {
-        return _bound(_random_Symbiotic(), lower, upper);
+        return _randomWithBounds_Symbiotic(0, coef) == 0;
     }
 
     function _randomPick_Symbiotic(
         address[] memory array
     ) internal virtual returns (address) {
-        return array[_bound(_random_Symbiotic(), 0, array.length - 1)];
+        return array[_randomWithBounds_Symbiotic(0, array.length - 1)];
     }
 
     function _randomPick_Symbiotic(
         uint256[] memory array
     ) internal virtual returns (uint256) {
-        return array[_bound(_random_Symbiotic(), 0, array.length - 1)];
+        return array[_randomWithBounds_Symbiotic(0, array.length - 1)];
     }
 
     function _randomPick_Symbiotic(
         uint64[] memory array
     ) internal virtual returns (uint64) {
-        return array[_bound(_random_Symbiotic(), 0, array.length - 1)];
+        return array[_randomWithBounds_Symbiotic(0, array.length - 1)];
     }
 
     function _getAccount_Symbiotic() internal virtual returns (Vm.Wallet memory) {

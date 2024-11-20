@@ -1131,14 +1131,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         address collateral = ISymbioticVault(vault).collateral();
         uint256 decimals = ERC20(collateral).decimals();
 
-        _deposit_SymbioticCore(
-            staker.addr,
-            vault,
-            _randomWithBounds_Symbiotic(
-                _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
-                _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
-            )
-        );
+        _stakerDepositRandom_SymbioticCore(staker.addr, vault);
 
         return staker;
     }
@@ -1153,14 +1146,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             address collateral = ISymbioticVault(vaults[i]).collateral();
             uint256 decimals = ERC20(collateral).decimals();
 
-            _deposit_SymbioticCore(
-                staker.addr,
-                vaults[i],
-                _randomWithBounds_Symbiotic(
-                    _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
-                    _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
-                )
-            );
+            _stakerDepositRandom_SymbioticCore(staker.addr, vaults[i]);
         }
 
         return staker;
@@ -1205,7 +1191,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             return;
         }
 
-        uint256 amount = _bound(_random_Symbiotic(), 1, balance);
+        uint256 amount = _randomWithBounds_Symbiotic(1, balance);
 
         _stakerWithdraw_SymbioticCore(staker, vault, amount);
     }
