@@ -223,8 +223,8 @@ contract SymbioticCoreBindings is Test {
 
     function _deposit_SymbioticCore(
         address who,
-        address onBehalfOf,
         address vault,
+        address onBehalfOf,
         uint256 amount
     ) internal virtual returns (uint256 depositedAmount, uint256 mintedShares) {
         vm.startPrank(who);
@@ -238,13 +238,13 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256 amount
     ) internal virtual returns (uint256 depositedAmount, uint256 mintedShares) {
-        _deposit_SymbioticCore(who, who, vault, amount);
+        _deposit_SymbioticCore(who, vault, who, amount);
     }
 
     function _withdraw_SymbioticCore(
         address who,
-        address claimer,
         address vault,
+        address claimer,
         uint256 amount
     ) internal virtual returns (uint256 burnedShares, uint256 mintedShares) {
         vm.startPrank(who);
@@ -257,13 +257,13 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256 amount
     ) internal virtual returns (uint256 burnedShares, uint256 mintedShares) {
-        _withdraw_SymbioticCore(who, who, vault, amount);
+        _withdraw_SymbioticCore(who, vault, who, amount);
     }
 
     function _redeem_SymbioticCore(
         address who,
-        address claimer,
         address vault,
+        address claimer,
         uint256 shares
     ) internal virtual returns (uint256 withdrawnAssets, uint256 mintedShares) {
         vm.startPrank(who);
@@ -276,13 +276,13 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256 shares
     ) internal virtual returns (uint256 withdrawnAssets, uint256 mintedShares) {
-        _redeem_SymbioticCore(who, who, vault, shares);
+        _redeem_SymbioticCore(who, vault, who, shares);
     }
 
     function _claim_SymbioticCore(
         address who,
-        address recipient,
         address vault,
+        address recipient,
         uint256 epoch
     ) internal virtual returns (uint256 amount) {
         vm.startPrank(who);
@@ -295,13 +295,13 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256 epoch
     ) internal virtual returns (uint256 amount) {
-        _claim_SymbioticCore(who, who, vault, epoch);
+        _claim_SymbioticCore(who, vault, who, epoch);
     }
 
     function _claimBatch_SymbioticCore(
         address who,
-        address recipient,
         address vault,
+        address recipient,
         uint256[] memory epochs
     ) internal virtual returns (uint256 amount) {
         vm.startPrank(who);
@@ -314,7 +314,7 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint256[] memory epochs
     ) internal virtual returns (uint256 amount) {
-        _claimBatch_SymbioticCore(who, who, vault, epochs);
+        _claimBatch_SymbioticCore(who, vault, who, epochs);
     }
 
     function _setDepositWhitelist_SymbioticCore(address who, address vault, bool status) internal virtual {
