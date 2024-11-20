@@ -8,6 +8,8 @@ import {SymbioticCoreConstants} from "./SymbioticCoreConstants.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
+import {Test} from "forge-std/Test.sol";
+
 contract SymbioticCoreBindings is Test {
     using SafeERC20 for IERC20;
 
@@ -22,7 +24,7 @@ contract SymbioticCoreBindings is Test {
         bool withSlasher,
         uint64 slasherIndex,
         bytes memory slasherParams
-    ) internal returns (address vault, address delegator, address slasher) {
+    ) internal virtual returns (address vault, address delegator, address slasher) {
         vm.startPrank(who);
         (vault, delegator, slasher) = symbioticCore.vaultConfigurator.create(
             ISymbioticVaultConfigurator.InitParams({
@@ -39,13 +41,19 @@ contract SymbioticCoreBindings is Test {
         vm.stopPrank();
     }
 
-    function _registerOperator_SymbioticCore(SymbioticCoreConstants.Core memory symbioticCore, address who) internal {
+    function _registerOperator_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorRegistry.registerOperator();
         vm.stopPrank();
     }
 
-    function _registerNetwork_SymbioticCore(SymbioticCoreConstants.Core memory symbioticCore, address who) internal {
+    function _registerNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.networkRegistry.registerNetwork();
         vm.stopPrank();
@@ -55,7 +63,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         address vault
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorVaultOptInService.optIn(vault);
         vm.stopPrank();
@@ -68,7 +76,7 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorVaultOptInService.optIn(account, vault, deadline, signature);
         vm.stopPrank();
@@ -80,7 +88,7 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         _optInVault_SymbioticCore(symbioticCore, who, who, vault, deadline, signature);
     }
 
@@ -88,7 +96,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         address network
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorNetworkOptInService.optIn(network);
         vm.stopPrank();
@@ -101,7 +109,7 @@ contract SymbioticCoreBindings is Test {
         address network,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorNetworkOptInService.optIn(account, network, deadline, signature);
         vm.stopPrank();
@@ -113,7 +121,7 @@ contract SymbioticCoreBindings is Test {
         address network,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         _optInNetwork_SymbioticCore(symbioticCore, who, who, network, deadline, signature);
     }
 
@@ -121,7 +129,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         address vault
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorVaultOptInService.optOut(vault);
         vm.stopPrank();
@@ -134,7 +142,7 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorVaultOptInService.optOut(account, vault, deadline, signature);
         vm.stopPrank();
@@ -146,7 +154,7 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         _optOutVault_SymbioticCore(symbioticCore, who, who, vault, deadline, signature);
     }
 
@@ -154,7 +162,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         address network
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorNetworkOptInService.optOut(network);
         vm.stopPrank();
@@ -167,7 +175,7 @@ contract SymbioticCoreBindings is Test {
         address network,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorNetworkOptInService.optOut(account, network, deadline, signature);
         vm.stopPrank();
@@ -179,7 +187,7 @@ contract SymbioticCoreBindings is Test {
         address network,
         uint48 deadline,
         bytes memory signature
-    ) internal {
+    ) internal virtual {
         _optOutNetwork_SymbioticCore(symbioticCore, who, who, network, deadline, signature);
     }
 
@@ -187,7 +195,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         string memory metadataURL
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.operatorMetadataService.setMetadataURL(metadataURL);
         vm.stopPrank();
@@ -197,7 +205,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         string memory metadataURL
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.networkMetadataService.setMetadataURL(metadataURL);
         vm.stopPrank();
@@ -207,7 +215,7 @@ contract SymbioticCoreBindings is Test {
         SymbioticCoreConstants.Core memory symbioticCore,
         address who,
         address middleware
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         symbioticCore.networkMiddlewareService.setMiddleware(middleware);
         vm.stopPrank();
@@ -218,7 +226,7 @@ contract SymbioticCoreBindings is Test {
         address onBehalfOf,
         address vault,
         uint256 amount
-    ) internal returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) internal virtual returns (uint256 depositedAmount, uint256 mintedShares) {
         vm.startPrank(who);
         IERC20(ISymbioticVault(vault).collateral()).forceApprove(vault, amount);
         (depositedAmount, mintedShares) = ISymbioticVault(vault).deposit(onBehalfOf, amount);
@@ -229,7 +237,7 @@ contract SymbioticCoreBindings is Test {
         address who,
         address vault,
         uint256 amount
-    ) internal returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) internal virtual returns (uint256 depositedAmount, uint256 mintedShares) {
         _deposit_SymbioticCore(who, who, vault, amount);
     }
 
@@ -238,7 +246,7 @@ contract SymbioticCoreBindings is Test {
         address claimer,
         address vault,
         uint256 amount
-    ) internal returns (uint256 burnedShares, uint256 mintedShares) {
+    ) internal virtual returns (uint256 burnedShares, uint256 mintedShares) {
         vm.startPrank(who);
         (burnedShares, mintedShares) = ISymbioticVault(vault).withdraw(claimer, amount);
         vm.stopPrank();
@@ -248,7 +256,7 @@ contract SymbioticCoreBindings is Test {
         address who,
         address vault,
         uint256 amount
-    ) internal returns (uint256 burnedShares, uint256 mintedShares) {
+    ) internal virtual returns (uint256 burnedShares, uint256 mintedShares) {
         _withdraw_SymbioticCore(who, who, vault, amount);
     }
 
@@ -257,7 +265,7 @@ contract SymbioticCoreBindings is Test {
         address claimer,
         address vault,
         uint256 shares
-    ) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    ) internal virtual returns (uint256 withdrawnAssets, uint256 mintedShares) {
         vm.startPrank(who);
         (withdrawnAssets, mintedShares) = ISymbioticVault(vault).redeem(claimer, shares);
         vm.stopPrank();
@@ -267,7 +275,7 @@ contract SymbioticCoreBindings is Test {
         address who,
         address vault,
         uint256 shares
-    ) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    ) internal virtual returns (uint256 withdrawnAssets, uint256 mintedShares) {
         _redeem_SymbioticCore(who, who, vault, shares);
     }
 
@@ -276,13 +284,17 @@ contract SymbioticCoreBindings is Test {
         address recipient,
         address vault,
         uint256 epoch
-    ) internal returns (uint256 amount) {
+    ) internal virtual returns (uint256 amount) {
         vm.startPrank(who);
         amount = ISymbioticVault(vault).claim(recipient, epoch);
         vm.stopPrank();
     }
 
-    function _claim_SymbioticCore(address who, address vault, uint256 epoch) internal returns (uint256 amount) {
+    function _claim_SymbioticCore(
+        address who,
+        address vault,
+        uint256 epoch
+    ) internal virtual returns (uint256 amount) {
         _claim_SymbioticCore(who, who, vault, epoch);
     }
 
@@ -291,7 +303,7 @@ contract SymbioticCoreBindings is Test {
         address recipient,
         address vault,
         uint256[] memory epochs
-    ) internal returns (uint256 amount) {
+    ) internal virtual returns (uint256 amount) {
         vm.startPrank(who);
         amount = ISymbioticVault(vault).claimBatch(recipient, epochs);
         vm.stopPrank();
@@ -301,11 +313,11 @@ contract SymbioticCoreBindings is Test {
         address who,
         address vault,
         uint256[] memory epochs
-    ) internal returns (uint256 amount) {
+    ) internal virtual returns (uint256 amount) {
         _claimBatch_SymbioticCore(who, who, vault, epochs);
     }
 
-    function _setDepositWhitelist_SymbioticCore(address who, address vault, bool status) internal {
+    function _setDepositWhitelist_SymbioticCore(address who, address vault, bool status) internal virtual {
         vm.startPrank(who);
         ISymbioticVault(vault).setDepositWhitelist(status);
         vm.stopPrank();
@@ -316,19 +328,19 @@ contract SymbioticCoreBindings is Test {
         address vault,
         address account,
         bool status
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticVault(vault).setDepositorWhitelistStatus(account, status);
         vm.stopPrank();
     }
 
-    function _setIsDepositLimit_SymbioticCore(address who, address vault, bool status) internal {
+    function _setIsDepositLimit_SymbioticCore(address who, address vault, bool status) internal virtual {
         vm.startPrank(who);
         ISymbioticVault(vault).setIsDepositLimit(status);
         vm.stopPrank();
     }
 
-    function _setDepositLimit_SymbioticCore(address who, address vault, uint256 limit) internal {
+    function _setDepositLimit_SymbioticCore(address who, address vault, uint256 limit) internal virtual {
         vm.startPrank(who);
         ISymbioticVault(vault).setDepositLimit(limit);
         vm.stopPrank();
@@ -339,19 +351,24 @@ contract SymbioticCoreBindings is Test {
         address vault,
         uint96 identifier,
         uint256 amount
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).setMaxNetworkLimit(identifier, amount);
         vm.stopPrank();
     }
 
-    function _setHook_SymbioticCore(address who, address vault, address hook) internal {
+    function _setHook_SymbioticCore(address who, address vault, address hook) internal virtual {
         vm.startPrank(who);
         ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).setHook(hook);
         vm.stopPrank();
     }
 
-    function _setNetworkLimit_SymbioticCore(address who, address vault, bytes32 subnetwork, uint256 amount) internal {
+    function _setNetworkLimit_SymbioticCore(
+        address who,
+        address vault,
+        bytes32 subnetwork,
+        uint256 amount
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).setNetworkLimit(subnetwork, amount);
         // ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).setNetworkLimit(subnetwork, amount);
@@ -365,7 +382,7 @@ contract SymbioticCoreBindings is Test {
         bytes32 subnetwork,
         address operator,
         uint256 shares
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).setOperatorNetworkShares(
             subnetwork, operator, shares
@@ -379,7 +396,7 @@ contract SymbioticCoreBindings is Test {
         bytes32 subnetwork,
         address operator,
         uint256 amount
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).setOperatorNetworkLimit(
             subnetwork, operator, amount
@@ -394,7 +411,7 @@ contract SymbioticCoreBindings is Test {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticSlasher(ISymbioticVault(vault).slasher()).slash(
             subnetwork, operator, amount, captureTimestamp, new bytes(0)
@@ -409,7 +426,7 @@ contract SymbioticCoreBindings is Test {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) internal {
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).requestSlash(
             subnetwork, operator, amount, captureTimestamp, new bytes(0)
@@ -417,57 +434,66 @@ contract SymbioticCoreBindings is Test {
         vm.stopPrank();
     }
 
-    function _executeSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal {
+    function _executeSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal virtual {
         vm.startPrank(who);
         ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, new bytes(0));
         vm.stopPrank();
     }
 
-    function _vetoSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal {
+    function _vetoSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal virtual {
         vm.startPrank(who);
         ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).vetoSlash(slashIndex, new bytes(0));
         vm.stopPrank();
     }
 
-    function _setResolver_SymbioticCore(address who, address vault, uint96 identifier, address resolver) internal {
+    function _setResolver_SymbioticCore(
+        address who,
+        address vault,
+        uint96 identifier,
+        address resolver
+    ) internal virtual {
         vm.startPrank(who);
         ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).setResolver(identifier, resolver, new bytes(0));
         vm.stopPrank();
     }
 
-    function _grantRole_SymbioticCore(address who, address where, bytes32 role, address account) internal {
+    function _grantRole_SymbioticCore(address who, address where, bytes32 role, address account) internal virtual {
         vm.startPrank(who);
         AccessControl(where).grantRole(role, account);
         vm.stopPrank();
     }
 
-    function _grantRoleDefaultAdmin_SymbioticCore(address who, address where, address account) internal {
+    function _grantRoleDefaultAdmin_SymbioticCore(address who, address where, address account) internal virtual {
         _grantRole_SymbioticCore(who, where, AccessControl(where).DEFAULT_ADMIN_ROLE(), account);
     }
 
-    function _grantRoleDepositWhitelistSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRoleDepositWhitelistSet_SymbioticCore(
+        address who,
+        address vault,
+        address account
+    ) internal virtual {
         _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).DEPOSIT_WHITELIST_SET_ROLE(), account);
     }
 
-    function _grantRoleDepositorWhitelist_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRoleDepositorWhitelist_SymbioticCore(address who, address vault, address account) internal virtual {
         _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).DEPOSITOR_WHITELIST_ROLE(), account);
     }
 
-    function _grantRoleIsDepositLimitSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRoleIsDepositLimitSet_SymbioticCore(address who, address vault, address account) internal virtual {
         _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).IS_DEPOSIT_LIMIT_SET_ROLE(), account);
     }
 
-    function _grantRoleDepositLimitSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRoleDepositLimitSet_SymbioticCore(address who, address vault, address account) internal virtual {
         _grantRole_SymbioticCore(who, vault, ISymbioticVault(vault).DEPOSIT_LIMIT_SET_ROLE(), account);
     }
 
-    function _grantRoleHookSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRoleHookSet_SymbioticCore(address who, address vault, address account) internal virtual {
         _grantRole_SymbioticCore(
             who, vault, ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).HOOK_SET_ROLE(), account
         );
     }
 
-    function _grantRole_NetworkLimitSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRole_NetworkLimitSet_SymbioticCore(address who, address vault, address account) internal virtual {
         _grantRole_SymbioticCore(
             who,
             vault,
@@ -478,7 +504,11 @@ contract SymbioticCoreBindings is Test {
         // _grantRole_SymbioticCore(who, vault, ISymbioticOperatorSpecificDelegator(ISymbioticVault(vault).delegator()).NETWORK_LIMIT_SET_ROLE(), account);
     }
 
-    function _grantRole_OperatorNetworkSharesSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRole_OperatorNetworkSharesSet_SymbioticCore(
+        address who,
+        address vault,
+        address account
+    ) internal virtual {
         _grantRole_SymbioticCore(
             who,
             vault,
@@ -487,7 +517,11 @@ contract SymbioticCoreBindings is Test {
         );
     }
 
-    function _grantRole_OperatorNetworkLimitSet_SymbioticCore(address who, address vault, address account) internal {
+    function _grantRole_OperatorNetworkLimitSet_SymbioticCore(
+        address who,
+        address vault,
+        address account
+    ) internal virtual {
         _grantRole_SymbioticCore(
             who,
             vault,

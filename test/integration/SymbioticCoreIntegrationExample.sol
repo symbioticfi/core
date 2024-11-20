@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import "./SymbioticCoreIntegration.sol";
 
+import {console2} from "forge-std/Test.sol";
+
 contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
     using SymbioticSubnetwork for bytes32;
     using SymbioticSubnetwork for address;
@@ -60,7 +62,7 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
                 if (
                     ISymbioticOptInService(symbioticCore.operatorVaultOptInService).isOptedIn(
                         operators[j].addr, confirmedNetworkVaults[i]
-                    ) && _randomChoice_SymbioticCore(SELECT_OPERATOR_CHANCE)
+                    ) && _randomChoice_Symbiotic(SELECT_OPERATOR_CHANCE)
                 ) {
                     _operatorOptInWeak_SymbioticCore(operators[j].addr, network.addr);
                     if (_delegateToOperatorTry(confirmedNetworkVaults[i], subnetwork, operators[j].addr)) {
@@ -107,7 +109,7 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
         uint256 N_VAULTS = 5;
         if (networkVaults.length < N_VAULTS) {
             for (uint256 i; i < N_VAULTS; ++i) {
-                address vault = _getVaultRandom_SymbioticCore(vmWalletsToAddresses(operators), collateral);
+                address vault = _getVaultRandom_SymbioticCore(_vmWalletsToAddresses_Symbiotic(operators), collateral);
                 vaults.push(vault);
                 networkVaults.push(vault);
             }
@@ -120,9 +122,9 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
             if (_delegateToNetworkTry(networkVaults[i], subnetwork)) {
                 if (ISymbioticVault(networkVaults[i]).activeStake() == 0) {
                     for (uint256 j; j < stakers.length; ++j) {
-                        if (_randomChoice_SymbioticCore(SYMBIOTIC_CORE_DEPOSIT_INTO_VAULT_CHANCE)) {
+                        if (_randomChoice_Symbiotic(SYMBIOTIC_CORE_DEPOSIT_INTO_VAULT_CHANCE)) {
                             _stakerDepositRandom_SymbioticCore(stakers[j].addr, networkVaults[i]);
-                            if (_randomChoice_SymbioticCore(SYMBIOTIC_CORE_WITHDRAW_FROM_VAULT_CHANCE)) {
+                            if (_randomChoice_Symbiotic(SYMBIOTIC_CORE_WITHDRAW_FROM_VAULT_CHANCE)) {
                                 _stakerWithdrawRandom_SymbioticCore(stakers[j].addr, networkVaults[i]);
                             }
                         }
@@ -137,7 +139,7 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
 
         for (uint256 i; i < confirmedNetworkVaults.length; ++i) {
             for (uint256 j; j < operators.length; ++j) {
-                if (_randomChoice_SymbioticCore(SELECT_OPERATOR_CHANCE)) {
+                if (_randomChoice_Symbiotic(SELECT_OPERATOR_CHANCE)) {
                     _operatorOptInWeak_SymbioticCore(operators[j].addr, confirmedNetworkVaults[i]);
                     _operatorOptInWeak_SymbioticCore(operators[j].addr, network.addr);
                     if (_delegateToOperatorTry(confirmedNetworkVaults[i], subnetwork, operators[j].addr)) {
