@@ -75,9 +75,9 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
 
     function _loadExistingVaultsAndTokens_SymbioticCore() internal virtual {
         if (SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT) {
-            uint256 numberOfVaults = ISymbioticRegistry(symbioticCore.vaultFactory).totalEntities();
+            uint256 numberOfVaults = symbioticCore.vaultFactory.totalEntities();
             for (uint256 i; i < numberOfVaults; ++i) {
-                address vault = ISymbioticRegistry(symbioticCore.vaultFactory).entity(i);
+                address vault = symbioticCore.vaultFactory.entity(i);
                 existingVaults_SymbioticCore.push(vault);
                 address collateral = ISymbioticVault(vault).collateral();
                 if (!_contains_Symbiotic(existingTokens_SymbioticCore, collateral)) {
@@ -89,10 +89,10 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
 
     function _loadExistingNetworks_SymbioticCore() internal virtual {
         if (SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT) {
-            uint256 numberOfNetworks = ISymbioticRegistry(symbioticCore.networkRegistry).totalEntities();
+            uint256 numberOfNetworks = symbioticCore.networkRegistry.totalEntities();
             for (uint256 i; i < numberOfNetworks; ++i) {
                 existingNetworks_SymbioticCore.push(
-                    _createWalletByAddress_Symbiotic(ISymbioticRegistry(symbioticCore.networkRegistry).entity(i))
+                    _createWalletByAddress_Symbiotic(symbioticCore.networkRegistry.entity(i))
                 );
             }
         }
@@ -100,10 +100,10 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
 
     function _loadExistingOperators_SymbioticCore() internal virtual {
         if (SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT) {
-            uint256 numberOfOperators = ISymbioticRegistry(symbioticCore.operatorRegistry).totalEntities();
+            uint256 numberOfOperators = symbioticCore.operatorRegistry.totalEntities();
             for (uint256 i; i < numberOfOperators; ++i) {
                 existingOperators_SymbioticCore.push(
-                    _createWalletByAddress_Symbiotic(ISymbioticRegistry(symbioticCore.operatorRegistry).entity(i))
+                    _createWalletByAddress_Symbiotic(symbioticCore.operatorRegistry.entity(i))
                 );
             }
         }
