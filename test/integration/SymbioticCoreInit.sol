@@ -1222,27 +1222,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         _claimBatch_SymbioticCore(staker, vault, epochs);
     }
 
-    function _stakerSetDepositWhitelist_SymbioticCore(address staker, address vault, bool status) internal virtual {
-        _setDepositWhitelist_SymbioticCore(staker, vault, status);
-    }
-
-    function _stakerSetDepositorWhitelistStatus_SymbioticCore(
-        address staker,
-        address vault,
-        address account,
-        bool status
-    ) internal virtual {
-        _setDepositorWhitelistStatus_SymbioticCore(staker, vault, account, status);
-    }
-
-    function _stakerSetIsDepositLimit_SymbioticCore(address staker, address vault, bool status) internal virtual {
-        _setIsDepositLimit_SymbioticCore(staker, vault, status);
-    }
-
-    function _stakerSetDepositLimit_SymbioticCore(address staker, address vault, uint256 limit) internal virtual {
-        _setDepositLimit_SymbioticCore(staker, vault, limit);
-    }
-
     // ------------------------------------------------------------ CURATOR-RELATED HELPERS ------------------------------------------------------------ //
 
     function _curatorSetHook_SymbioticCore(address curator, address vault, address hook) internal virtual {
@@ -1504,5 +1483,26 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     ) internal virtual returns (bool) {
         return _curatorDelegateNetworkHasRoles_SymbioticCore(curator, vault, subnetwork)
             && _curatorDelegateOperatorHasRoles_SymbioticCore(curator, vault, subnetwork, operator);
+    }
+
+    function _curatorSetDepositWhitelist_SymbioticCore(address curator, address vault, bool status) internal virtual {
+        _setDepositWhitelist_SymbioticCore(curator, vault, status);
+    }
+
+    function _curatorSetDepositorWhitelistStatus_SymbioticCore(
+        address curator,
+        address vault,
+        address account,
+        bool status
+    ) internal virtual {
+        _setDepositorWhitelistStatus_SymbioticCore(curator, vault, account, status);
+    }
+
+    function _curatorSetIsDepositLimit_SymbioticCore(address curator, address vault, bool status) internal virtual {
+        _setIsDepositLimit_SymbioticCore(curator, vault, status);
+    }
+
+    function _curatorSetDepositLimit_SymbioticCore(address curator, address vault, uint256 limit) internal virtual {
+        _setDepositLimit_SymbioticCore(curator, vault, limit);
     }
 }
