@@ -1128,9 +1128,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     ) internal virtual returns (Vm.Wallet memory) {
         Vm.Wallet memory staker = _getStaker_SymbioticCore(possibleTokens);
 
-        address collateral = ISymbioticVault(vault).collateral();
-        uint256 decimals = ERC20(collateral).decimals();
-
         _stakerDepositRandom_SymbioticCore(staker.addr, vault);
 
         return staker;
@@ -1143,9 +1140,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         Vm.Wallet memory staker = _getStaker_SymbioticCore(possibleTokens);
 
         for (uint256 i; i < vaults.length; ++i) {
-            address collateral = ISymbioticVault(vaults[i]).collateral();
-            uint256 decimals = ERC20(collateral).decimals();
-
             _stakerDepositRandom_SymbioticCore(staker.addr, vaults[i]);
         }
 
