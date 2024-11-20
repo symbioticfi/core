@@ -1471,6 +1471,31 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             && _curatorDelegateOperatorHasRoles_SymbioticCore(curator, vault, subnetwork, operator);
     }
 
+    function _curatorDelegateToNetworkInternal_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork
+    ) internal virtual returns (bool curatorFound, bool success) {
+        if (_curatorDelegateNetworkHasRoles_SymbioticCore(curator, vault, subnetwork)) {
+            success = _curatorDelegateNetworkRandom_SymbioticCore(curator, vault, subnetwork);
+            return (true, success);
+        }
+        return (false, false);
+    }
+
+    function _curatorDelegateToOperatorInternal_SymbioticCore(
+        address curator,
+        address vault,
+        bytes32 subnetwork,
+        address operator
+    ) internal virtual returns (bool curatorFound, bool success) {
+        if (_curatorDelegateOperatorHasRoles_SymbioticCore(curator, vault, subnetwork, operator)) {
+            success = _curatorDelegateOperatorRandom_SymbioticCore(curator, vault, subnetwork, operator);
+            return (true, success);
+        }
+        return (false, false);
+    }
+
     function _curatorSetDepositWhitelist_SymbioticCore(address curator, address vault, bool status) internal virtual {
         _setDepositWhitelist_SymbioticCore(curator, vault, status);
     }
