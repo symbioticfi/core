@@ -34,26 +34,26 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
 
     // Vaults-related config
 
-    uint256 public MIN_EPOCH_DURATION = 60 minutes;
-    uint256 public MAX_EPOCH_DURATION = 60 days;
-    uint256 public MIN_VETO_DURATION = 5 minutes;
-    uint256 public MAX_VETO_DURATION = 14 days;
-    uint256 public DELEGATOR_TYPES = 3;
-    uint256 public SLASHER_TYPES = 2;
+    uint256 public SYMBIOTIC_CORE_MIN_EPOCH_DURATION = 60 minutes;
+    uint256 public SYMBIOTIC_CORE_MAX_EPOCH_DURATION = 60 days;
+    uint256 public SYMBIOTIC_CORE_MIN_VETO_DURATION = 5 minutes;
+    uint256 public SYMBIOTIC_CORE_MAX_VETO_DURATION = 14 days;
+    uint256 public SYMBIOTIC_CORE_DELEGATOR_TYPES = 3;
+    uint256 public SYMBIOTIC_CORE_SLASHER_TYPES = 2;
 
     // Staker-related config
 
-    uint256 public TOKENS_TO_SET_TIMES_1e18 = 100_000_000 * 1e18;
-    uint256 public MIN_TOKENS_TO_DEPOSIT_TIMES_1e18 = 0.001 * 1e18;
-    uint256 public MAX_TOKENS_TO_DEPOSIT_TIMES_1e18 = 10_000 * 1e18;
-    uint256 public MIN_MAX_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
-    uint256 public MAX_MAX_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
-    uint256 public MIN_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
-    uint256 public MAX_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
-    uint256 public MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
-    uint256 public MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
-    uint256 public MIN_OPERATOR_NETWORK_SHARES = 1000;
-    uint256 public MAX_OPERATOR_NETWORK_SHARES = 1e18;
+    uint256 public SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18 = 100_000_000 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18 = 10_000 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MIN_MAX_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MAX_MAX_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MIN_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MAX_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18 = 0.001 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18 = 2_000_000_000 * 1e18;
+    uint256 public SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_SHARES = 1000;
+    uint256 public SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_SHARES = 1e18;
 
     SymbioticCoreConstants.Core symbioticCore;
 
@@ -573,13 +573,18 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
     }
 
     function _getVaultRandom_SymbioticCore(address[] memory operators, address collateral) internal returns (address) {
-        uint48 epochDuration = uint48(_randomWithBounds_SymbioticCore(MIN_EPOCH_DURATION, MAX_EPOCH_DURATION));
-        uint48 vetoDuration =
-            uint48(_randomWithBounds_SymbioticCore(MIN_VETO_DURATION, Math.min(MAX_VETO_DURATION, epochDuration / 2)));
+        uint48 epochDuration = uint48(
+            _randomWithBounds_SymbioticCore(SYMBIOTIC_CORE_MIN_EPOCH_DURATION, SYMBIOTIC_CORE_MAX_EPOCH_DURATION)
+        );
+        uint48 vetoDuration = uint48(
+            _randomWithBounds_SymbioticCore(
+                SYMBIOTIC_CORE_MIN_VETO_DURATION, Math.min(SYMBIOTIC_CORE_MAX_VETO_DURATION, epochDuration / 2)
+            )
+        );
 
         uint256 count_ = 0;
-        uint64[] memory delegatorTypes = new uint64[](DELEGATOR_TYPES);
-        for (uint64 i; i < DELEGATOR_TYPES; ++i) {
+        uint64[] memory delegatorTypes = new uint64[](SYMBIOTIC_CORE_DELEGATOR_TYPES);
+        for (uint64 i; i < SYMBIOTIC_CORE_DELEGATOR_TYPES; ++i) {
             if (operators.length == 0 && i == 2) {
                 continue;
             }
@@ -592,8 +597,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         uint64 delegatorIndex = _randomPick_SymbioticCore(delegatorTypes);
 
         count_ = 0;
-        uint64[] memory slasherTypes = new uint64[](SLASHER_TYPES);
-        for (uint64 i; i < SLASHER_TYPES; ++i) {
+        uint64[] memory slasherTypes = new uint64[](SYMBIOTIC_CORE_SLASHER_TYPES);
+        for (uint64 i; i < SYMBIOTIC_CORE_SLASHER_TYPES; ++i) {
             if (false) {
                 continue;
             }
@@ -1159,8 +1164,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         address collateral = ISymbioticVault(vault).collateral();
         uint256 decimals = ERC20(collateral).decimals();
         uint256 amount = _randomWithBounds_SymbioticCore(
-            _limitToTokens_SymbioticCore(MIN_MAX_NETWORK_LIMIT_TIMES_1e18, decimals),
-            _limitToTokens_SymbioticCore(MAX_MAX_NETWORK_LIMIT_TIMES_1e18, decimals)
+            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_MAX_NETWORK_LIMIT_TIMES_1e18, decimals),
+            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_MAX_NETWORK_LIMIT_TIMES_1e18, decimals)
         );
         if (
             ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).maxNetworkLimit(network.subnetwork(identifier))
@@ -1229,7 +1234,12 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
 
         for (uint256 i; i < possibleTokens.length; ++i) {
             uint256 decimals = ERC20(possibleTokens[i]).decimals();
-            deal(possibleTokens[i], staker.addr, _limitToTokens_SymbioticCore(TOKENS_TO_SET_TIMES_1e18, decimals), true); // should cover most cases
+            deal(
+                possibleTokens[i],
+                staker.addr,
+                _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18, decimals),
+                true
+            ); // should cover most cases
         }
 
         return staker;
@@ -1248,8 +1258,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             staker.addr,
             vault,
             _randomWithBounds_SymbioticCore(
-                _limitToTokens_SymbioticCore(MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
-                _limitToTokens_SymbioticCore(MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
+                _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
+                _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
             )
         );
 
@@ -1270,8 +1280,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
                 staker.addr,
                 vaults[i],
                 _randomWithBounds_SymbioticCore(
-                    _limitToTokens_SymbioticCore(MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
-                    _limitToTokens_SymbioticCore(MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
+                    _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals),
+                    _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
                 )
             );
         }
@@ -1291,9 +1301,9 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
             return;
         }
 
-        uint256 minAmount = _limitToTokens_SymbioticCore(MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals);
+        uint256 minAmount = _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals);
         uint256 amount = _randomWithBounds_SymbioticCore(
-            minAmount, _limitToTokens_SymbioticCore(MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
+            minAmount, _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18, decimals)
         );
 
         if (ISymbioticVault(vault).isDepositLimit()) {
@@ -1381,8 +1391,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         address delegator = ISymbioticVault(vault).delegator();
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
 
-        uint256 minAmount = _limitToTokens_SymbioticCore(MIN_NETWORK_LIMIT_TIMES_1e18, decimals);
-        uint256 maxAmount = _limitToTokens_SymbioticCore(MAX_NETWORK_LIMIT_TIMES_1e18, decimals);
+        uint256 minAmount = _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_NETWORK_LIMIT_TIMES_1e18, decimals);
+        uint256 maxAmount = _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_NETWORK_LIMIT_TIMES_1e18, decimals);
 
         uint256 amount;
         if (type_ == 0 || type_ == 1 || type_ == 2) {
@@ -1424,7 +1434,9 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         bytes32 subnetwork,
         address operator
     ) internal returns (bool) {
-        uint256 shares = _randomWithBounds_SymbioticCore(MIN_OPERATOR_NETWORK_SHARES, MAX_OPERATOR_NETWORK_SHARES);
+        uint256 shares = _randomWithBounds_SymbioticCore(
+            SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_SHARES, SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_SHARES
+        );
         if (
             ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkShares(
                 subnetwork, operator
@@ -1471,8 +1483,8 @@ contract SymbioticCoreInit is SymbioticCoreCounter, SymbioticCoreBindings {
         address collateral = ISymbioticVault(vault).collateral();
         uint256 decimals = ERC20(collateral).decimals();
         uint256 amount = _randomWithBounds_SymbioticCore(
-            _limitToTokens_SymbioticCore(MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals),
-            _limitToTokens_SymbioticCore(MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals)
+            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals),
+            _limitToTokens_SymbioticCore(SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18, decimals)
         );
         if (
             ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkLimit(
