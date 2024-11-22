@@ -15,7 +15,7 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
     mapping(address vault => address[]) public confirmedNetworkOperators;
     mapping(address vault => bytes32[]) public neighborNetworks;
 
-    uint256 public SELECT_OPERATOR_CHANCE = 1;
+    uint256 public SELECT_OPERATOR_CHANCE = 1; // lower -> higher probability
 
     function setUp() public override {
         SYMBIOTIC_CORE_PROJECT_ROOT = "";
