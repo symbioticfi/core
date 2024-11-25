@@ -98,6 +98,8 @@ library SymbioticCoreConstants {
             return FXS();
         } else if (symbol.equal("LBTC")) {
             return LBTC();
+        } else if (symbol.equal("SWELL")) {
+            return SWELL();
         } else {
             revert("SymbioticCoreConstants.token(): symbol not supported");
         }
@@ -139,6 +141,8 @@ library SymbioticCoreConstants {
         } else if (symbol.equal("FXS")) {
             return FXSSupported();
         } else if (symbol.equal("LBTC")) {
+            return LBTCSupported();
+        } else if (symbol.equal("SWELL")) {
             return LBTCSupported();
         } else {
             revert("SymbioticCoreConstants.tokenSupported(): symbol not supported");
@@ -325,6 +329,15 @@ library SymbioticCoreConstants {
         }
     }
 
+    function SWELL() internal view returns (address) {
+        if (block.chainid == 1) {
+            // mainnet
+            return 0x0a6E7Ba5042B38349e437ec6Db6214AEC7B35676;
+        } else {
+            revert("SymbioticCoreConstants.SWELL(): chainid not supported");
+        }
+    }
+
     function wstETHSupported() internal view returns (bool) {
         return (block.chainid == 1 || block.chainid == 17_000 || block.chainid == 11_155_111);
     }
@@ -393,8 +406,12 @@ library SymbioticCoreConstants {
         return block.chainid == 1;
     }
 
+    function SWELLSupported() internal view returns (bool) {
+        return block.chainid == 1;
+    }
+
     function allTokens() internal view returns (string[] memory result) {
-        result = new string[](17);
+        result = new string[](18);
         result[0] = "wstETH";
         result[1] = "cbETH";
         result[2] = "wBETH";
@@ -412,6 +429,7 @@ library SymbioticCoreConstants {
         result[14] = "ETHFI";
         result[15] = "FXS";
         result[16] = "LBTC";
+        result[17] = "SWELL";
     }
 
     function supportedTokens() internal view returns (string[] memory result) {
