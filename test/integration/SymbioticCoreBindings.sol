@@ -411,9 +411,9 @@ contract SymbioticCoreBindings is Test {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) internal virtual {
+    ) internal virtual returns (uint256 slashedAmount) {
         vm.startPrank(who);
-        ISymbioticSlasher(ISymbioticVault(vault).slasher()).slash(
+        slashedAmount = ISymbioticSlasher(ISymbioticVault(vault).slasher()).slash(
             subnetwork, operator, amount, captureTimestamp, new bytes(0)
         );
         vm.stopPrank();
@@ -426,17 +426,21 @@ contract SymbioticCoreBindings is Test {
         address operator,
         uint256 amount,
         uint48 captureTimestamp
-    ) internal virtual {
+    ) internal virtual returns (uint256 slashIndex) {
         vm.startPrank(who);
-        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).requestSlash(
+        slashIndex = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).requestSlash(
             subnetwork, operator, amount, captureTimestamp, new bytes(0)
         );
         vm.stopPrank();
     }
 
-    function _executeSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal virtual {
+    function _executeSlash_SymbioticCore(
+        address who,
+        address vault,
+        uint256 slashIndex
+    ) internal virtual returns (uint256 slashedAmount) {
         vm.startPrank(who);
-        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, new bytes(0));
+        slashedAmount = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, new bytes(0));
         vm.stopPrank();
     }
 
