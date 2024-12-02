@@ -21,11 +21,11 @@ contract SymbioticInit is Test, SymbioticCounter {
     uint256 public SYMBIOTIC_BLOCK_TIME = 12;
 
     function setUp() public virtual {
-        try vm.activeFork() {
-            vm.rollFork(SYMBIOTIC_INIT_BLOCK);
+        try vm.activeFork() returns (uint256 forkId) {
+            vm.rollFork(forkId, SYMBIOTIC_INIT_BLOCK);
         } catch {
-            vm.warp(SYMBIOTIC_INIT_TIMESTAMP);
             vm.roll(SYMBIOTIC_INIT_BLOCK);
+            vm.warp(SYMBIOTIC_INIT_TIMESTAMP);
         }
     }
 
@@ -72,12 +72,8 @@ contract SymbioticInit is Test, SymbioticCounter {
     function _skipBlocks_Symbiotic(
         uint256 number
     ) internal virtual {
-        try vm.activeFork() returns (uint256 forkId) {
-            vm.rollFork(forkId, vm.getBlockNumber() + number);
-        } catch {
-            vm.warp(vm.getBlockTimestamp() + number * SYMBIOTIC_BLOCK_TIME);
-            vm.roll(vm.getBlockNumber() + number);
-        }
+        vm.roll(vm.getBlockNumber() + number);
+        vm.warp(vm.getBlockTimestamp() + number * SYMBIOTIC_BLOCK_TIME);
     }
 
     function _contains_Symbiotic(address[] memory array, address element) internal virtual returns (bool) {
