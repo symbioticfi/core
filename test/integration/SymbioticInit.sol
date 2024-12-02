@@ -72,8 +72,8 @@ contract SymbioticInit is Test, SymbioticCounter {
     function _skipBlocks_Symbiotic(
         uint256 number
     ) internal virtual {
-        try vm.activeFork() {
-            vm.rollFork(vm.getBlockNumber() + number);
+        try vm.activeFork() returns (uint256 forkId) {
+            vm.rollFork(forkId, vm.getBlockNumber() + number);
         } catch {
             vm.warp(vm.getBlockTimestamp() + number * SYMBIOTIC_BLOCK_TIME);
             vm.roll(vm.getBlockNumber() + number);
