@@ -127,8 +127,15 @@ contract SymbioticInit is Test, SymbioticCounter {
             return false;
         }
 
+        if (token.code.length == 0) {
+            return false;
+        }
+
         address to = address(this);
-        (, bytes memory balData) = token.staticcall(abi.encodeWithSelector(0x70a08231, to));
+        (bool success, bytes memory balData) = token.staticcall(abi.encodeWithSelector(0x70a08231, to));
+        if (!success) {
+            return false;
+        }
         uint256 initialBalance = abi.decode(balData, (uint256));
         uint256 give = initialBalance + 111;
 
