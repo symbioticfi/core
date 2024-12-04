@@ -49,7 +49,7 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
     uint96[] public SYMBIOTIC_CORE_SUBNETWORKS = [0, 1];
 
     function setUp() public virtual override {
-        super.setUp();
+        SymbioticCoreInit.setUp();
 
         _addPossibleTokens_SymbioticCore();
 

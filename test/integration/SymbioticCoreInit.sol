@@ -54,7 +54,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     SymbioticCoreConstants.Core public symbioticCore;
 
     function setUp() public virtual override {
-        super.setUp();
+        SymbioticInit.setUp();
 
         _initCore_SymbioticCore(SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT);
     }
