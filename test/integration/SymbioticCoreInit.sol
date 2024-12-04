@@ -243,7 +243,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     function _getSupportedTokens_SymbioticCore() internal virtual returns (address[] memory supportedTokens) {
         string[] memory supportedTokensStr = SymbioticCoreConstants.supportedTokens();
         supportedTokens = new address[](supportedTokensStr.length);
-        for (uint256 i; i < supportedTokensStr.length; i++) {
+        for (uint256 i; i < supportedTokensStr.length; ++i) {
             supportedTokens[i] = SymbioticCoreConstants.token(supportedTokensStr[i]);
         }
     }
