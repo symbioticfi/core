@@ -222,4 +222,6 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     ) public view returns (uint256) {
         return _activeSharesOf[account].latest();
     }
+    
+    uint256[50] private __gap;
 }
