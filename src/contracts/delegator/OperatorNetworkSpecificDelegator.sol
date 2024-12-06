@@ -97,7 +97,7 @@ contract OperatorNetworkSpecificDelegator is BaseDelegator, IOperatorNetworkSpec
     }
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
-        if (msg.sender != network) {
+        if (network != subnetwork.network()) {
             revert InvalidNetwork();
         }
         _maxNetworkLimit[subnetwork].push(Time.timestamp(), amount);
