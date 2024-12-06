@@ -2,10 +2,11 @@
 pragma solidity 0.8.25;
 
 import {BaseDelegator} from "../delegator/BaseDelegator.sol";
-import {FullRestakeDelegator} from "../delegator/FullRestakeDelegator.sol";
 import {Hints} from "./Hints.sol";
 import {NetworkRestakeDelegator} from "../delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../delegator/OperatorNetworkSpecificDelegator.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";
 import {VaultHints} from "./VaultHints.sol";
 import {Vault} from "../vault/Vault.sol";
@@ -341,7 +342,7 @@ contract OperatorSpecificDelegatorHints is Hints, OperatorSpecificDelegator {
             _selfStaticDelegateCall(
                 delegator,
                 abi.encodeWithSelector(
-                    NetworkRestakeDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
+                    OperatorSpecificDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
                 )
             ),
             (bool, uint32)
@@ -369,6 +370,76 @@ contract OperatorSpecificDelegatorHints is Hints, OperatorSpecificDelegator {
         if (baseHints.length != 0 || activeStakeHint.length != 0 || networkLimitHint_.length != 0) {
             return abi.encode(
                 StakeHints({baseHints: baseHints, activeStakeHint: activeStakeHint, networkLimitHint: networkLimitHint_})
+            );
+        }
+    }
+}
+
+contract OperatorNetworkSpecificDelegatorHints is Hints, OperatorNetworkSpecificDelegator {
+    using Checkpoints for Checkpoints.Trace256;
+
+    address public immutable BASE_DELEGATOR_HINTS;
+    address public immutable VAULT_HINTS;
+    address public immutable OPT_IN_SERVICE_HINTS;
+
+    constructor(
+        address baseDelegatorHints,
+        address vaultHints,
+        address optInServiceHints
+    ) OperatorNetworkSpecificDelegator(address(0), address(0), address(0), address(0), address(0), address(0), 0) {
+        BASE_DELEGATOR_HINTS = baseDelegatorHints;
+        VAULT_HINTS = vaultHints;
+        OPT_IN_SERVICE_HINTS = optInServiceHints;
+    }
+
+    function maxNetworkLimitHintInternal(
+        bytes32 subnetwork,
+        uint48 timestamp
+    ) external view internalFunction returns (bool exists, uint32 hint) {
+        (exists,,, hint) = _maxNetworkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
+    }
+
+    function maxNetworkLimitHint(
+        address delegator,
+        bytes32 subnetwork,
+        uint48 timestamp
+    ) public view returns (bytes memory) {
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                delegator,
+                abi.encodeWithSelector(
+                    OperatorNetworkSpecificDelegatorHints.maxNetworkLimitHintInternal.selector, subnetwork, timestamp
+                )
+            ),
+            (bool, uint32)
+        );
+
+        if (exists) {
+            return abi.encode(hint_);
+        }
+    }
+
+    function stakeHints(
+        address delegator,
+        bytes32 subnetwork,
+        address operator,
+        uint48 timestamp
+    ) external view returns (bytes memory) {
+        bytes memory baseHints =
+            BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator, timestamp);
+
+        bytes memory activeStakeHint =
+            VaultHints(VAULT_HINTS).activeStakeHint(BaseDelegator(delegator).vault(), timestamp);
+
+        bytes memory maxNetworkLimitHint_ = maxNetworkLimitHint(delegator, subnetwork, timestamp);
+
+        if (baseHints.length != 0 || activeStakeHint.length != 0 || maxNetworkLimitHint_.length != 0) {
+            return abi.encode(
+                StakeHints({
+                    baseHints: baseHints,
+                    activeStakeHint: activeStakeHint,
+                    maxNetworkLimitHint: maxNetworkLimitHint_
+                })
             );
         }
     }

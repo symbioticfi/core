@@ -169,6 +169,7 @@ contract OperatorSpecificDelegatorTest is Test {
         assertEq(delegator.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
         assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
+        assertEq(delegator.operator(), alice);
         assertEq(delegator.maxNetworkLimit(alice.subnetwork(0)), 0);
         assertEq(delegator.stakeAt(alice.subnetwork(0), alice, 0, ""), 0);
         assertEq(delegator.stake(alice.subnetwork(0), alice), 0);
