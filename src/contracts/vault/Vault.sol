@@ -94,10 +94,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         address onBehalfOf,
         uint256 amount
     ) public virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
-        if (onBehalfOf == address(0)) {
-            revert InvalidOnBehalfOf();
-        }
-
         if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
@@ -121,7 +117,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         _activeStake.push(Time.timestamp(), activeStake_ + depositedAmount);
         _activeShares.push(Time.timestamp(), activeShares_ + mintedShares);
-        _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + mintedShares);
+
+        if (onBehalfOf != address(0)) {
+            _activeSharesOf[onBehalfOf].push(Time.timestamp(), activeSharesOf(onBehalfOf) + mintedShares);
+        }
 
         emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
     }
