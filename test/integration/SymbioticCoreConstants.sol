@@ -143,7 +143,7 @@ library SymbioticCoreConstants {
         } else if (symbol.equal("LBTC")) {
             return LBTCSupported();
         } else if (symbol.equal("SWELL")) {
-            return LBTCSupported();
+            return SWELLSupported();
         } else {
             revert("SymbioticCoreConstants.tokenSupported(): symbol not supported");
         }

@@ -616,7 +616,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             nonce = symbioticCore.operatorVaultOptInService.nonces(operator.addr, where);
         } else if (symbioticCore.networkRegistry.isEntity(where)) {
             service = address(symbioticCore.operatorNetworkOptInService);
-            nonce = symbioticCore.operatorVaultOptInService.nonces(operator.addr, where);
+            nonce = symbioticCore.operatorNetworkOptInService.nonces(operator.addr, where);
         } else {
             revert("Invalid address for opt-in");
         }
