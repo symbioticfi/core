@@ -19,6 +19,7 @@ import {IVaultTokenized} from "../src/interfaces/vault/IVaultTokenized.sol";
 import {INetworkRestakeDelegator} from "../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator} from "../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from "../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../src/interfaces/slasher/IVetoSlasher.sol";
 
@@ -190,6 +191,23 @@ contract POCBaseTest is Test {
             )
         );
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+
+        address operatorNetworkSpecificDelegatorImpl = deployCode(
+            string.concat(
+                SYMBIOTIC_CORE_PROJECT_ROOT,
+                "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
+            ),
+            abi.encode(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
 
         address slasherImpl = deployCode(
             string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
