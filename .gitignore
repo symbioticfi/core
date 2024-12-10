@@ -4,6 +4,7 @@ out/build-info/
 
 # Ignores development broadcast logs
 !/broadcast
+/broadcast/*/17000/
 /broadcast/*/31337/
 /broadcast/*/11155111/
 /broadcast/**/dry-run/
