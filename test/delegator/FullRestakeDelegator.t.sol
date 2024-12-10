@@ -399,7 +399,7 @@ contract FullRestakeDelegatorTest is Test {
         vm.assume(amount2 != amount3);
         vm.assume(amount3 != amount4);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -503,7 +503,7 @@ contract FullRestakeDelegatorTest is Test {
         vm.assume(amount2 != amount3);
         vm.assume(amount3 != amount4);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -573,7 +573,7 @@ contract FullRestakeDelegatorTest is Test {
         amount2 = bound(amount2, 1, type(uint256).max / 2);
         vm.assume(amount3 < amount2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -610,7 +610,7 @@ contract FullRestakeDelegatorTest is Test {
         epochDuration = uint48(bound(uint256(epochDuration), 1, 100 days));
         amount1 = bound(amount1, 1, type(uint256).max / 2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -639,7 +639,7 @@ contract FullRestakeDelegatorTest is Test {
 
         vm.assume(0 != networkLimit1);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -727,7 +727,7 @@ contract FullRestakeDelegatorTest is Test {
 
         vm.assume(operatorNetworkLimit2 - 1 != operatorNetworkLimit3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -923,7 +923,7 @@ contract FullRestakeDelegatorTest is Test {
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -989,7 +989,7 @@ contract FullRestakeDelegatorTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1101,7 +1101,7 @@ contract FullRestakeDelegatorTest is Test {
         totalGas = bound(totalGas, 1, 20_000_000);
         vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1262,7 +1262,7 @@ contract FullRestakeDelegatorTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1307,7 +1307,7 @@ contract FullRestakeDelegatorTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1367,7 +1367,7 @@ contract FullRestakeDelegatorTest is Test {
     //             uint32(bound(stakeBaseHintsUint32.operatorNetworkOptInHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1482,7 +1482,7 @@ contract FullRestakeDelegatorTest is Test {
     //             uint32(bound(stakeHintsUint32.operatorNetworkLimitHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1607,7 +1607,7 @@ contract FullRestakeDelegatorTest is Test {
     //             uint32(bound(stakeHintsUint32.operatorNetworkLimitHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1737,7 +1737,7 @@ contract FullRestakeDelegatorTest is Test {
     //             uint32(bound(onSlashHintsUint32.hints.operatorNetworkLimitHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 

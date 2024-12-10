@@ -35,7 +35,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_Create() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -217,7 +217,7 @@ contract OperatorOptInServiceTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -278,7 +278,7 @@ contract OperatorOptInServiceTest is Test {
     // }
 
     function test_OptInWithSignature() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -310,7 +310,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptInWithInvalidSignature() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -339,7 +339,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptInWithExpiredDeadline() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -368,7 +368,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_IncreaseNonce() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -403,7 +403,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptOutWithSignature() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -442,7 +442,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptOutWithInvalidSignature() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -478,7 +478,7 @@ contract OperatorOptInServiceTest is Test {
     }
 
     function test_OptOutWithExpiredDeadline() public {
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
