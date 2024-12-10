@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./SymbioticCoreImports.sol";
+import "../../test/integration/SymbioticCoreImports.sol";
 
 import "./SymbioticInit.sol";
-import {SymbioticCoreConstants} from "./SymbioticCoreConstants.sol";
+import {SymbioticCoreConstants} from "../../test/integration/SymbioticCoreConstants.sol";
 import {SymbioticCoreBindings} from "./SymbioticCoreBindings.sol";
 
-import {Token} from "../mocks/Token.sol";
-import {FeeOnTransferToken} from "../mocks/FeeOnTransferToken.sol";
+import {Token} from "../../test/mocks/Token.sol";
+import {FeeOnTransferToken} from "../../test/mocks/FeeOnTransferToken.sol";
 
 import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -23,14 +23,14 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     // General config
 
     string public SYMBIOTIC_CORE_PROJECT_ROOT = "";
-    bool public SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = false;
+    bool public SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
     // Vaults-related config
 
     uint256 public SYMBIOTIC_CORE_MIN_EPOCH_DURATION = 60 minutes;
-    uint256 public SYMBIOTIC_CORE_MAX_EPOCH_DURATION = 60 days;
+    uint256 public SYMBIOTIC_CORE_MAX_EPOCH_DURATION = 21 days;
     uint256 public SYMBIOTIC_CORE_MIN_VETO_DURATION = 5 minutes;
-    uint256 public SYMBIOTIC_CORE_MAX_VETO_DURATION = 14 days;
+    uint256 public SYMBIOTIC_CORE_MAX_VETO_DURATION = 7 days;
     uint64[] public SYMBIOTIC_CORE_DELEGATOR_TYPES = [0, 1, 2];
     uint64[] public SYMBIOTIC_CORE_SLASHER_TYPES = [0, 1];
 
@@ -53,8 +53,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
 
     SymbioticCoreConstants.Core public symbioticCore;
 
-    function setUp() public virtual override {
-        SymbioticInit.setUp();
+    function run(
+        uint256 seed
+    ) public virtual override {
+        SymbioticInit.run(seed);
 
         _initCore_SymbioticCore(SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT);
     }
@@ -74,19 +76,19 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(tx.origin)
                 )
             );
             ISymbioticDelegatorFactory delegatorFactory = ISymbioticDelegatorFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(tx.origin)
                 )
             );
             ISymbioticSlasherFactory slasherFactory = ISymbioticSlasherFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(tx.origin)
                 )
             );
             ISymbioticNetworkRegistry networkRegistry = ISymbioticNetworkRegistry(
@@ -253,7 +255,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     function _getVault_SymbioticCore(
         address collateral
     ) internal virtual returns (address) {
-        address owner = address(this);
+        address owner = tx.origin;
         uint48 epochDuration = 7 days;
         uint48 vetoDuration = 1 days;
 
@@ -263,7 +265,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         operatorNetworkSharesSetRoleHolders[0] = owner;
         (address vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: address(this),
+            who: tx.origin,
             version: 1,
             owner: owner,
             vaultParams: abi.encode(
@@ -412,7 +414,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
 
         (address vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: address(this),
+            who: tx.origin,
             version: 1,
             owner: owner,
             vaultParams: vaultParams,
@@ -473,7 +475,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         uint64 slasherIndex = _randomPick_Symbiotic(slasherTypes);
 
         return _getVault_SymbioticCore(
-            operators.length == 0 ? address(this) : _randomPick_Symbiotic(operators),
+            operators.length == 0 ? tx.origin : _randomPick_Symbiotic(operators),
             collateral,
             0x000000000000000000000000000000000000dEaD,
             epochDuration,
@@ -504,63 +506,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     }
 
     // ------------------------------------------------------------ OPERATOR-RELATED HELPERS ------------------------------------------------------------ //
-
-    function _getOperator_SymbioticCore() internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory operator = _getAccount_Symbiotic();
-        _operatorRegister_SymbioticCore(operator.addr);
-        return operator;
-    }
-
-    function _getOperatorWithOptIns_SymbioticCore(
-        address vault
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory operator = _getOperator_SymbioticCore();
-
-        _operatorOptIn_SymbioticCore(operator.addr, vault);
-
-        return operator;
-    }
-
-    function _getOperatorWithOptIns_SymbioticCore(
-        address[] memory vaults
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory operator = _getOperator_SymbioticCore();
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _operatorOptIn_SymbioticCore(operator.addr, vaults[i]);
-        }
-
-        return operator;
-    }
-
-    function _getOperatorWithOptIns_SymbioticCore(
-        address vault,
-        address network
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory operator = _getOperator_SymbioticCore();
-
-        _operatorOptIn_SymbioticCore(operator.addr, vault);
-        _operatorOptIn_SymbioticCore(operator.addr, network);
-
-        return operator;
-    }
-
-    function _getOperatorWithOptIns_SymbioticCore(
-        address[] memory vaults,
-        address[] memory networks
-    ) internal virtual equalLengthsAddressAddress_Symbiotic(vaults, networks) returns (Vm.Wallet memory) {
-        Vm.Wallet memory operator = _getOperator_SymbioticCore();
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _operatorOptIn_SymbioticCore(operator.addr, vaults[i]);
-        }
-
-        for (uint256 i; i < networks.length; ++i) {
-            _operatorOptIn_SymbioticCore(operator.addr, networks[i]);
-        }
-
-        return operator;
-    }
 
     function _operatorRegister_SymbioticCore(
         address operator
@@ -729,285 +674,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
 
     // ------------------------------------------------------------ NETWORK-RELATED HELPERS ------------------------------------------------------------ //
 
-    function _getNetwork_SymbioticCore() internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getAccount_Symbiotic();
-        _networkRegister_SymbioticCore(network.addr);
-
-        return network;
-    }
-
-    function _getNetworkWithMiddleware_SymbioticCore(
-        address middleware
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getAccount_Symbiotic();
-        _networkRegister_SymbioticCore(network.addr);
-        _networkSetMiddleware_SymbioticCore(network.addr, middleware);
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimits_SymbioticCore(
-        uint96 identifier,
-        address vault,
-        uint256 maxNetworkLimit
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimits_SymbioticCore(
-        address middleware,
-        uint96 identifier,
-        address vault,
-        uint256 maxNetworkLimit
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
-        uint96 identifier,
-        address vault
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimitsRandom_SymbioticCore(
-        address middleware,
-        uint96 identifier,
-        address vault
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimits_SymbioticCore(
-        uint96[] memory identifiers,
-        address[] memory vaults,
-        uint256[] memory maxNetworkLimits
-    )
-        internal
-        virtual
-        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
-        equalLengthsUint96Uint256_SymbioticCore(identifiers, maxNetworkLimits)
-        returns (Vm.Wallet memory)
-    {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _setMaxNetworkLimit_SymbioticCore(network.addr, vaults[i], identifiers[i], maxNetworkLimits[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimits_SymbioticCore(
-        address middleware,
-        uint96[] memory identifiers,
-        address[] memory vaults,
-        uint256[] memory maxNetworkLimits
-    )
-        internal
-        virtual
-        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
-        equalLengthsUint96Uint256_SymbioticCore(identifiers, maxNetworkLimits)
-        returns (Vm.Wallet memory)
-    {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _setMaxNetworkLimit_SymbioticCore(network.addr, vaults[i], identifiers[i], maxNetworkLimits[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
-        uint96[] memory identifiers,
-        address[] memory vaults
-    ) internal virtual equalLengthsUint96Address_Symbiotic(identifiers, vaults) returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vaults[i], identifiers[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimitsRandom_SymbioticCore(
-        address middleware,
-        uint96[] memory identifiers,
-        address[] memory vaults
-    ) internal virtual equalLengthsUint96Address_Symbiotic(identifiers, vaults) returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vaults[i], identifiers[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimitsWithResolvers_SymbioticCore(
-        uint96 identifier,
-        address vault,
-        uint256 maxNetworkLimit,
-        address resolver
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
-        _setResolver_SymbioticCore(network.addr, vault, identifier, resolver);
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimitsWithResolvers_SymbioticCore(
-        address middleware,
-        uint96 identifier,
-        address vault,
-        uint256 maxNetworkLimit,
-        address resolver
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
-        _setResolver_SymbioticCore(network.addr, vault, identifier, resolver);
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimitsWithResolversRandom_SymbioticCore(
-        uint96 identifier,
-        address vault,
-        address resolver
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
-        _setResolver_SymbioticCore(network.addr, vault, identifier, resolver);
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimitsWithResolversRandom_SymbioticCore(
-        address middleware,
-        uint96 identifier,
-        address vault,
-        address resolver
-    ) internal virtual returns (Vm.Wallet memory) {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
-        _setResolver_SymbioticCore(network.addr, vault, identifier, resolver);
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimitsWithResolvers_SymbioticCore(
-        uint96[] memory identifiers,
-        address[] memory vaults,
-        uint256[] memory maxNetworkLimits,
-        address[] memory resolvers
-    )
-        internal
-        virtual
-        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
-        equalLengthsUint96Uint256_SymbioticCore(identifiers, maxNetworkLimits)
-        equalLengthsUint96Address_Symbiotic(identifiers, resolvers)
-        returns (Vm.Wallet memory)
-    {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _setMaxNetworkLimit_SymbioticCore(network.addr, vaults[i], identifiers[i], maxNetworkLimits[i]);
-            _setResolver_SymbioticCore(network.addr, vaults[i], identifiers[i], resolvers[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimitsWithResolvers_SymbioticCore(
-        address middleware,
-        uint96[] memory identifiers,
-        address[] memory vaults,
-        uint256[] memory maxNetworkLimits,
-        address[] memory resolvers
-    )
-        internal
-        virtual
-        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
-        equalLengthsUint96Uint256_SymbioticCore(identifiers, maxNetworkLimits)
-        equalLengthsUint96Address_Symbiotic(identifiers, resolvers)
-        returns (Vm.Wallet memory)
-    {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _setMaxNetworkLimit_SymbioticCore(network.addr, vaults[i], identifiers[i], maxNetworkLimits[i]);
-            _setResolver_SymbioticCore(network.addr, vaults[i], identifiers[i], resolvers[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMaxNetworkLimitsWithResolversRandom_SymbioticCore(
-        uint96[] memory identifiers,
-        address[] memory vaults,
-        address[] memory resolvers
-    )
-        internal
-        virtual
-        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
-        equalLengthsUint96Address_Symbiotic(identifiers, resolvers)
-        returns (Vm.Wallet memory)
-    {
-        Vm.Wallet memory network = _getNetwork_SymbioticCore();
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vaults[i], identifiers[i]);
-            _setResolver_SymbioticCore(network.addr, vaults[i], identifiers[i], resolvers[i]);
-        }
-
-        return network;
-    }
-
-    function _getNetworkWithMiddlewareWithMaxNetworkLimitsWithResolversRandom_SymbioticCore(
-        address middleware,
-        uint96[] memory identifiers,
-        address[] memory vaults,
-        address[] memory resolvers
-    )
-        internal
-        virtual
-        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
-        equalLengthsUint96Address_Symbiotic(identifiers, resolvers)
-        returns (Vm.Wallet memory)
-    {
-        Vm.Wallet memory network = _getNetworkWithMiddleware_SymbioticCore(middleware);
-
-        for (uint256 i; i < vaults.length; ++i) {
-            _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vaults[i], identifiers[i]);
-            _setResolver_SymbioticCore(network.addr, vaults[i], identifiers[i], resolvers[i]);
-        }
-
-        return network;
-    }
-
     function _networkRegister_SymbioticCore(
         address network
     ) internal virtual {
@@ -1106,9 +772,8 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             _deal_Symbiotic(
                 possibleTokens[i],
                 staker.addr,
-                _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18, possibleTokens[i]),
-                true
-            ); // should cover most cases
+                _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18, possibleTokens[i])
+            );
         }
 
         return staker;

@@ -1,32 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {SymbioticCounter} from "./SymbioticCounter.sol";
+import {SymbioticCounter} from "../../test/integration/SymbioticCounter.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {Test} from "forge-std/Test.sol";
+import {Script} from "forge-std/Script.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 
-contract SymbioticInit is Test, SymbioticCounter {
+contract SymbioticInit is Script, SymbioticCounter {
     using Math for uint256;
+    using SafeERC20 for IERC20;
 
     // General config
 
-    uint256 public SYMBIOTIC_SEED = 0;
+    uint256 public SYMBIOTIC_SEED;
 
-    uint256 public SYMBIOTIC_INIT_TIMESTAMP = 1_731_324_431;
-    uint256 public SYMBIOTIC_INIT_BLOCK = 21_164_139;
-    uint256 public SYMBIOTIC_BLOCK_TIME = 12;
-
-    function setUp() public virtual {
-        try vm.activeFork() returns (uint256 forkId) {
-            vm.rollFork(forkId, SYMBIOTIC_INIT_BLOCK);
-        } catch {
-            vm.roll(SYMBIOTIC_INIT_BLOCK);
-            vm.warp(SYMBIOTIC_INIT_TIMESTAMP);
-        }
+    function run(
+        uint256 seed
+    ) public virtual {
+        SYMBIOTIC_SEED = seed;
     }
 
     // ------------------------------------------------------------ GENERAL HELPERS ------------------------------------------------------------ //
@@ -69,13 +64,6 @@ contract SymbioticInit is Test, SymbioticCounter {
         return vm.createWallet(_random_Symbiotic());
     }
 
-    function _skipBlocks_Symbiotic(
-        uint256 number
-    ) internal virtual {
-        vm.roll(vm.getBlockNumber() + number);
-        vm.warp(vm.getBlockTimestamp() + number * SYMBIOTIC_BLOCK_TIME);
-    }
-
     function _contains_Symbiotic(address[] memory array, address element) internal virtual returns (bool) {
         for (uint256 i; i < array.length; ++i) {
             if (array[i] == element) {
@@ -112,35 +100,16 @@ contract SymbioticInit is Test, SymbioticCounter {
         revert("Wallet not found");
     }
 
-    function _deal_Symbiotic(address token, address to, uint256 give, bool adjust) public virtual {
-        deal(token, to, give, adjust);
+    function _deal_Symbiotic(address token, address to, uint256 give) public virtual {
+        vm.startBroadcast(tx.origin);
+        IERC20(token).safeTransfer(to, give);
+        vm.stopBroadcast();
     }
 
-    function _supportsDeal_Symbiotic(
-        address token
-    ) internal virtual returns (bool) {
-        if (token == 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0) {
-            return false;
-        }
-
-        if (token.code.length == 0) {
-            return false;
-        }
-
-        address to = address(this);
-        (bool success, bytes memory balData) = token.staticcall(abi.encodeWithSelector(0x70a08231, to));
-        if (!success) {
-            return false;
-        }
-        uint256 initialBalance = abi.decode(balData, (uint256));
-        uint256 give = initialBalance + 111;
-
-        try this._deal_Symbiotic(token, to, give, true) {
-            _deal_Symbiotic(token, to, initialBalance, true);
-            return true;
-        } catch {
-            return false;
-        }
+    function _deal_Symbiotic(address to, uint256 give) public virtual {
+        vm.startBroadcast(tx.origin);
+        to.call{value: give}("");
+        vm.stopBroadcast();
     }
 
     function _vmWalletToAddress_Symbiotic(
