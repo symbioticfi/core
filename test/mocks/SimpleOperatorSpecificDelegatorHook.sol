@@ -5,9 +5,9 @@ import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperat
 import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHook.sol";
 
 contract SimpleOperatorSpecificDelegatorHook is IDelegatorHook {
-    uint256 counter1;
-    uint256 counter2;
-    uint256 counter3;
+    uint256 public counter1;
+    uint256 public counter2;
+    uint256 public counter3;
 
     function onSlash(bytes32 subnetwork, address, uint256, uint48, bytes calldata) external {
         ++counter1;
