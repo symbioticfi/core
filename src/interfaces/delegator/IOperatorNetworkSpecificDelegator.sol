@@ -20,8 +20,9 @@ interface IOperatorNetworkSpecificDelegator is IBaseDelegator {
     }
 
     /**
-     * @notice Initial parameters needed for an operator-specific delegator deployment.
+     * @notice Initial parameters needed for an operator-network-specific delegator deployment.
      * @param baseParams base parameters for delegators' deployment
+     * @param network address of the single network
      * @param operator address of the single operator
      */
     struct InitParams {
