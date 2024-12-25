@@ -8,9 +8,9 @@ import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 
 contract SimpleNetworkRestakeDelegatorHook is IDelegatorHook {
-    uint256 counter1;
-    uint256 counter2;
-    uint256 counter3;
+    uint256 public counter1;
+    uint256 public counter2;
+    uint256 public counter3;
 
     uint256 slasherType;
     uint256 slashableStake;

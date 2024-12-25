@@ -16,6 +16,7 @@ import {Vault} from "../../src/contracts/vault/Vault.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
@@ -129,6 +130,19 @@ contract OperatorSpecificDelegatorTest is Test {
         );
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
+        address operatorNetworkSpecificDelegatorImpl = address(
+            new OperatorNetworkSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
         address slasherImpl = address(
             new Slasher(
                 address(vaultFactory),
@@ -169,6 +183,7 @@ contract OperatorSpecificDelegatorTest is Test {
         assertEq(delegator.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
         assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
+        assertEq(delegator.operator(), alice);
         assertEq(delegator.maxNetworkLimit(alice.subnetwork(0)), 0);
         assertEq(delegator.stakeAt(alice.subnetwork(0), alice, 0, ""), 0);
         assertEq(delegator.stake(alice.subnetwork(0), alice), 0);

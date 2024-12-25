@@ -17,6 +17,7 @@ import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
@@ -90,6 +91,20 @@ contract CoreScript is Script {
         );
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
         assert(OperatorSpecificDelegator(operatorSpecificDelegatorImpl).TYPE() == 2);
+
+        address operatorNetworkSpecificDelegatorImpl = address(
+            new OperatorNetworkSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+        assert(OperatorNetworkSpecificDelegator(operatorNetworkSpecificDelegatorImpl).TYPE() == 3);
 
         address slasherImpl = address(
             new Slasher(
