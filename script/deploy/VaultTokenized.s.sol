@@ -13,6 +13,7 @@ import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol"
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
@@ -30,6 +31,7 @@ contract VaultTokenizedScript is Script {
         string calldata symbol,
         uint64 delegatorIndex,
         address hook,
+        address network,
         bool withSlasher,
         uint64 slasherIndex,
         uint48 vetoDuration
@@ -109,6 +111,18 @@ contract VaultTokenizedScript is Script {
                         hookSetRoleHolder: owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                    operator: owner
+                })
+            );
+        } else if (delegatorIndex == 3) {
+            delegatorParams = abi.encode(
+                IOperatorNetworkSpecificDelegator.InitParams({
+                    baseParams: IBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: owner,
+                        hook: hook,
+                        hookSetRoleHolder: owner
+                    }),
+                    network: network,
                     operator: owner
                 })
             );
