@@ -18,6 +18,8 @@ import {IFullRestakeDelegator as ISymbioticFullRestakeDelegator} from
     "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator as ISymbioticOperatorSpecificDelegator} from
     "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator as ISymbioticOperatorNetworkSpecificDelegator} from
+    "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IDelegatorFactory as ISymbioticDelegatorFactory} from "../../src/interfaces/IDelegatorFactory.sol";
 import {IBaseSlasher as ISymbioticBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher as ISymbioticSlasher} from "../../src/interfaces/slasher/ISlasher.sol";

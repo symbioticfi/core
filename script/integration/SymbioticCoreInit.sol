@@ -31,7 +31,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     uint256 public SYMBIOTIC_CORE_MAX_EPOCH_DURATION = 21 days;
     uint256 public SYMBIOTIC_CORE_MIN_VETO_DURATION = 5 minutes;
     uint256 public SYMBIOTIC_CORE_MAX_VETO_DURATION = 7 days;
-    uint64[] public SYMBIOTIC_CORE_DELEGATOR_TYPES = [0, 1, 2];
+    uint64[] public SYMBIOTIC_CORE_DELEGATOR_TYPES = [0, 1, 2, 3];
     uint64[] public SYMBIOTIC_CORE_SLASHER_TYPES = [0, 1];
 
     // Staker-related config
@@ -318,6 +318,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         uint256 depositLimit,
         uint64 delegatorIndex,
         address hook,
+        address network,
         bool withSlasher,
         uint64 slasherIndex,
         uint48 vetoDuration
@@ -393,6 +394,18 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                     operator: owner
                 })
             );
+        } else if (delegatorIndex == 3) {
+            delegatorParams = abi.encode(
+                ISymbioticOperatorNetworkSpecificDelegator.InitParams({
+                    baseParams: ISymbioticBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: owner,
+                        hook: hook,
+                        hookSetRoleHolder: owner
+                    }),
+                    network: network,
+                    operator: owner
+                })
+            );
         }
 
         bytes memory slasherParams;
@@ -449,6 +462,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         uint256 count_ = 0;
         uint64[] memory delegatorTypes = new uint64[](SYMBIOTIC_CORE_DELEGATOR_TYPES.length);
         for (uint64 i; i < SYMBIOTIC_CORE_DELEGATOR_TYPES.length; ++i) {
+            if (SYMBIOTIC_CORE_DELEGATOR_TYPES[i] == 3) {
+                continue;
+            }
             if (operators.length == 0 && SYMBIOTIC_CORE_DELEGATOR_TYPES[i] == 2) {
                 continue;
             }
@@ -483,6 +499,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             0,
             delegatorIndex,
             address(0),
+            address(0),
             true,
             slasherIndex,
             vetoDuration
@@ -500,6 +517,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             delegatorSpecificCondition = ISymbioticFullRestakeDelegator(delegator).networkLimit(subnetwork) > 0;
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
+        } else if (type_ == 3) {
+            delegatorSpecificCondition = ISymbioticOperatorNetworkSpecificDelegator(delegator).network()
+                == subnetwork.network()
+                && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
         }
 
         return delegatorSpecificCondition;
@@ -658,6 +679,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).operator() == operator
                 && ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
+        } else if (type_ == 3) {
+            delegatorSpecificCondition = ISymbioticOperatorNetworkSpecificDelegator(delegator).operator() == operator
+                && ISymbioticOperatorNetworkSpecificDelegator(delegator).network() == subnetwork.network()
+                && ISymbioticOperatorSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
         }
 
         return symbioticCore.operatorVaultOptInService.isOptedIn(operator, vault) && delegatorSpecificCondition;
@@ -755,6 +780,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).operator() == operator
                 && ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
+        } else if (type_ == 3) {
+            delegatorSpecificCondition = ISymbioticOperatorNetworkSpecificDelegator(delegator).operator() == operator
+                && ISymbioticOperatorNetworkSpecificDelegator(delegator).network() == subnetwork.network()
+                && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
         }
 
         return symbioticCore.operatorVaultOptInService.isOptedIn(operator, vault)
@@ -1021,6 +1050,8 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             return _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
         } else if (type_ == 2) {
             return false;
+        } else if (type_ == 3) {
+            return false;
         }
         return false;
     }
@@ -1042,6 +1073,8 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 ISymbioticFullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
             );
         } else if (type_ == 2) {
+            return false;
+        } else if (type_ == 3) {
             return false;
         }
 
@@ -1065,6 +1098,8 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             if (ISymbioticOperatorSpecificDelegator(delegator).operator() == operator) {
                 return _curatorSetNetworkLimitRandom_SymbioticCore(curator, vault, subnetwork);
             }
+            return false;
+        } else if (type_ == 3) {
             return false;
         }
         return false;
@@ -1093,6 +1128,8 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                     ISymbioticOperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
                 );
             }
+            return false;
+        } else if (type_ == 3) {
             return false;
         }
 

@@ -18,6 +18,8 @@ import {FullRestakeDelegator as SymbioticFullRestakeDelegator} from
     "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator as SymbioticOperatorSpecificDelegator} from
     "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator as SymbioticOperatorNetworkSpecificDelegator} from
+    "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
 import {DelegatorFactory as SymbioticDelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
 import {BaseSlasher as SymbioticBaseSlasher} from "../../src/contracts/slasher/BaseSlasher.sol";
 import {Slasher as SymbioticSlasher, ISlasher as ISymbioticSlasher} from "../../src/contracts/slasher/Slasher.sol";
