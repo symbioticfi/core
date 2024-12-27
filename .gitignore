@@ -1,9 +1,31 @@
 # Compiler files
 cache/
-out/build-info/
+out/**/
+!out/Vault.sol/
+!out/VaultTokenized.sol/
+!out/NetworkRestakeDelegator.sol/
+!out/FullRestakeDelegator.sol/
+!out/OperatorSpecificDelegator.sol/
+!out/OperatorNetworkSpecificDelegator.sol/
+!out/Slasher.sol/
+!out/VetoSlasher.sol/
+!out/VaultFactory.sol/
+!out/DelegatorFactory.sol/
+!out/SlasherFactory.sol/
+!out/OperatorRegistry.sol/
+!out/NetworkRegistry.sol/
+!out/OptInService.sol/
+!out/MetadataService.sol/
+!out/NetworkMiddlewareService.sol/
+!out/VaultConfigurator.sol/
+!out/VaultHints.sol/
+!out/DelegatorHints.sol/
+!out/SlasherHints.sol/
+!out/OptInServiceHints.sol/
 
 # Ignores development broadcast logs
 !/broadcast
+/broadcast/*/17000/
 /broadcast/*/31337/
 /broadcast/*/11155111/
 /broadcast/**/dry-run/

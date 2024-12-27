@@ -178,7 +178,7 @@ contract VaultTokenizedTest is Test {
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1068,7 +1068,7 @@ contract VaultTokenizedTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1235,7 +1235,7 @@ contract VaultTokenizedTest is Test {
         amount1 = bound(amount1, 2, 100 * 10 ** 18);
         amount2 = bound(amount2, 2, 100 * 10 ** 18);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1451,7 +1451,7 @@ contract VaultTokenizedTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1534,7 +1534,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1683,7 +1683,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1827,7 +1827,7 @@ contract VaultTokenizedTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1858,7 +1858,7 @@ contract VaultTokenizedTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1887,7 +1887,7 @@ contract VaultTokenizedTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1914,7 +1914,7 @@ contract VaultTokenizedTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1943,7 +1943,7 @@ contract VaultTokenizedTest is Test {
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1971,7 +1971,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2012,7 +2012,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2050,7 +2050,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2083,7 +2083,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2119,7 +2119,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2155,7 +2155,7 @@ contract VaultTokenizedTest is Test {
         amount3 = bound(amount3, 1, 100 * 10 ** 18);
         vm.assume(amount1 >= amount2 + amount3);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2424,7 +2424,7 @@ contract VaultTokenizedTest is Test {
         vm.assume(depositAmount > slashAmount1);
         vm.assume(captureAgo <= 7 days);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -2613,7 +2613,7 @@ contract VaultTokenizedTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2646,7 +2646,7 @@ contract VaultTokenizedTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2679,7 +2679,7 @@ contract VaultTokenizedTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2723,7 +2723,7 @@ contract VaultTokenizedTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2772,7 +2772,7 @@ contract VaultTokenizedTest is Test {
     //     hintStruct.num = 500;
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2805,7 +2805,7 @@ contract VaultTokenizedTest is Test {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 

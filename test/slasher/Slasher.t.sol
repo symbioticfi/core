@@ -179,7 +179,7 @@ contract SlasherTest is Test {
     ) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -290,7 +290,7 @@ contract SlasherTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         slashAmount3 = bound(slashAmount3, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -439,7 +439,7 @@ contract SlasherTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         slashAmount3 = bound(slashAmount3, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -720,7 +720,7 @@ contract SlasherTest is Test {
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -768,7 +768,7 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -816,7 +816,7 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -860,7 +860,7 @@ contract SlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -907,7 +907,7 @@ contract SlasherTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1000,7 +1000,7 @@ contract SlasherTest is Test {
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1093,7 +1093,7 @@ contract SlasherTest is Test {
         totalGas = bound(totalGas, 1, 20_000_000);
         vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkLimit1)));
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1208,7 +1208,7 @@ contract SlasherTest is Test {
     //     slashAmount1 = bound(slashAmount1, 1, 10 * 10 ** 18);
     //     depositAmount = bound(depositAmount, Math.max(1, hintStruct.num * slashAmount1), 1000 * 10 ** 18);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1259,7 +1259,7 @@ contract SlasherTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1332,7 +1332,7 @@ contract SlasherTest is Test {
     //     slashAmount1 = bound(slashAmount1, 1, 10 * 10 ** 18);
     //     depositAmount = bound(depositAmount, Math.max(1, hintStruct.num * slashAmount1), 1000 * 10 ** 18);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1392,7 +1392,7 @@ contract SlasherTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1488,7 +1488,7 @@ contract SlasherTest is Test {
     //     inputParams.operatorNetworkLimit =
     //         bound(inputParams.operatorNetworkLimit, inputParams.slashAmount, type(uint256).max);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1601,7 +1601,7 @@ contract SlasherTest is Test {
     //     inputParams.operatorNetworkLimit =
     //         bound(inputParams.operatorNetworkLimit, inputParams.slashAmount, type(uint256).max);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 

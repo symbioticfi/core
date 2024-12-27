@@ -302,7 +302,7 @@ contract VetoSlasherTest is Test {
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < 7 days);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -396,7 +396,7 @@ contract VetoSlasherTest is Test {
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < 7 days);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -449,7 +449,7 @@ contract VetoSlasherTest is Test {
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -503,7 +503,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -538,7 +538,7 @@ contract VetoSlasherTest is Test {
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -612,7 +612,7 @@ contract VetoSlasherTest is Test {
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -630,7 +630,7 @@ contract VetoSlasherTest is Test {
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         vm.assume(vetoDuration < epochDuration);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -675,7 +675,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -840,7 +840,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -997,7 +997,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1086,7 +1086,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1179,7 +1179,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1231,7 +1231,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1283,7 +1283,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1337,7 +1337,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1389,7 +1389,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1440,7 +1440,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1493,7 +1493,7 @@ contract VetoSlasherTest is Test {
         slashAmount1 =
             bound(slashAmount1, 1, Math.min(Math.min(depositAmount, networkLimit), operatorNetworkLimit1) - 1);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1547,7 +1547,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1603,7 +1603,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1654,7 +1654,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1708,7 +1708,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1757,7 +1757,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1810,7 +1810,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1861,7 +1861,7 @@ contract VetoSlasherTest is Test {
         operatorNetworkLimit1 = bound(operatorNetworkLimit1, 1, type(uint256).max / 2);
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -1914,7 +1914,7 @@ contract VetoSlasherTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1957,7 +1957,7 @@ contract VetoSlasherTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2018,7 +2018,7 @@ contract VetoSlasherTest is Test {
     //     inputParams.operatorNetworkLimit =
     //         bound(inputParams.operatorNetworkLimit, inputParams.slashAmount, type(uint256).max);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2147,7 +2147,7 @@ contract VetoSlasherTest is Test {
     //         type(uint256).max
     //     );
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2245,7 +2245,7 @@ contract VetoSlasherTest is Test {
     //     );
     //     inputParams.shares = bound(inputParams.shares, hintStruct.num * 10, 10 ** 18);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -2331,7 +2331,7 @@ contract VetoSlasherTest is Test {
     //         bound(inputParams.operatorNetworkLimit, inputParams.slashAmount, type(uint256).max);
     //     inputParams.shares = bound(inputParams.shares, hintStruct.num * 10, 10 ** 18);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
