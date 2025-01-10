@@ -22,6 +22,10 @@ Can be found [here](./specs).
 
 Security audits can be found [here](./audits).
 
+Not included files:
+
+- [`src/contracts/hints`](src/contracts/hints)
+
 ## Usage
 
 ### Env
