@@ -2,64 +2,67 @@
 
 **Symbiotic is a shared security protocol enabling decentralized networks to control and customize their own multi-asset restaking implementation.**
 
-Symbiotic core consists of:
+### 🌟 Core Components
 
-- **Collateral**: a new type of asset that allows stakeholders to hold onto their funds and earn yield from them without needing to lock these funds in a direct manner or convert them to another type of asset.
+The Symbiotic core consists of:
 
-- **Vaults**: the delegation and restaking management layer of Symbiotic that handles three crucial parts of the Symbiotic economy: accounting, delegation strategies, and reward distribution.
+#### 1. Collateral
+A new type of asset that allows stakeholders to:
+- Maintain control over their funds
+- Earn yield without direct locking
+- Avoid conversion to other asset types
 
-- **Operators**: entities running infrastructure for decentralized networks within and outside of the Symbiotic ecosystem.
+#### 2. Vaults
+The delegation and restaking management layer handling:
+- Accounting
+- Delegation strategies
+- Reward distribution
 
-- **Resolvers**: contracts or entities that are able to veto slashing incidents forwarded from networks and can be shared across networks.
+#### 3. Operators
+Entities running infrastructure for decentralized networks within and outside of the Symbiotic ecosystem.
 
-- **Networks**: any protocols that require a decentralized infrastructure network to deliver a service in the crypto economy, e.g., enabling developers to launch decentralized applications by taking care of validating and ordering transactions, providing off-chain data to applications in the crypto economy, or providing users with guarantees about cross-network interactions, etc.
+#### 4. Resolvers
+Contracts or entities that:
+- Can veto slashing incidents
+- Are shareable across networks
 
-## Technical Documentation
+#### 5. Networks
+Protocols requiring decentralized infrastructure for:
+- Transaction validation and ordering
+- Off-chain data provision
+- Cross-network interaction guarantees
 
-Can be found [here](./specs).
+### 📚 Documentation
 
-## Security
+- [Technical Documentation](./specs)
+- [Security Audits](./audits)
 
-Security audits can be found [here](./audits).
+### 🔒 Security
 
-Not included files:
-
+Excluded files:
 - [`src/contracts/hints`](src/contracts/hints)
 
-## Usage
+### 🛠 Usage
 
-### Env
+#### Environment Setup
 
-Create `.env` file using a template:
+Create `.env` file using this template:
 
+```env
+ETH_RPC_URL=                  # Optional: Ethereum RPC URL
+ETH_RPC_URL_HOLESKY=         # Optional: Holesky testnet URL
+ETHERSCAN_API_KEY=           # Optional: Etherscan API key
 ```
-ETH_RPC_URL=
-ETH_RPC_URL_HOLESKY=
-ETHERSCAN_API_KEY=
-```
 
-\* ETH_RPC_URL is optional.<br/>\* ETH_RPC_URL_HOLESKY is optional.<br/>\* ETHERSCAN_API_KEY is optional.
-
-### Build
+#### Developer Commands
 
 ```shell
-forge build
+forge build    # Build the project
+forge test     # Run tests
+forge fmt      # Format code
+forge snapshot # Create gas snapshot
 ```
 
-### Test
+### 🤝 Contributing
 
-```shell
-forge test
-```
-
-### Format
-
-```shell
-forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-forge snapshot
-```
+We welcome community contributions! Please review our contribution guidelines before submitting PRs.
