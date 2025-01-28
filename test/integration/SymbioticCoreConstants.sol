@@ -25,7 +25,19 @@ library SymbioticCoreConstants {
     function core() internal view returns (Core memory) {
         if (block.chainid == 1) {
             // mainnet
-            revert("SymbioticCoreConstants.core(): mainnet not supported yet");
+            return Core({
+                vaultFactory: ISymbioticVaultFactory(0xAEb6bdd95c502390db8f52c8909F703E9Af6a346),
+                delegatorFactory: ISymbioticDelegatorFactory(0x985Ed57AF9D475f1d83c1c1c8826A0E5A34E8C7B),
+                slasherFactory: ISymbioticSlasherFactory(0x685c2eD7D59814d2a597409058Ee7a92F21e48Fd),
+                networkRegistry: ISymbioticNetworkRegistry(0xC773b1011461e7314CF05f97d95aa8e92C1Fd8aA),
+                networkMetadataService: ISymbioticMetadataService(address(0)),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0xD7dC9B366c027743D90761F71858BCa83C6899Ad),
+                operatorRegistry: ISymbioticOperatorRegistry(0xAd817a6Bc954F678451A71363f04150FDD81Af9F),
+                operatorMetadataService: ISymbioticMetadataService(address(0)),
+                operatorVaultOptInService: ISymbioticOptInService(0xb361894bC06cbBA7Ea8098BF0e32EB1906A5F891),
+                operatorNetworkOptInService: ISymbioticOptInService(0x7133415b33B438843D581013f98A08704316633c),
+                vaultConfigurator: ISymbioticVaultConfigurator(0x29300b1d3150B4E2b12fE80BE72f365E200441EC)
+            });
         } else if (block.chainid == 17_000) {
             // holesky
             return Core({
@@ -100,6 +112,8 @@ library SymbioticCoreConstants {
             return LBTC();
         } else if (symbol.equal("SWELL")) {
             return SWELL();
+        } else if (symbol.equal("MANTA")) {
+            return MANTA();
         } else {
             revert("SymbioticCoreConstants.token(): symbol not supported");
         }
@@ -144,6 +158,8 @@ library SymbioticCoreConstants {
             return LBTCSupported();
         } else if (symbol.equal("SWELL")) {
             return SWELLSupported();
+        } else if (symbol.equal("MANTA")) {
+            return MANTASupported();
         } else {
             revert("SymbioticCoreConstants.tokenSupported(): symbol not supported");
         }
@@ -338,6 +354,15 @@ library SymbioticCoreConstants {
         }
     }
 
+    function MANTA() internal view returns (address) {
+        if (block.chainid == 1) {
+            // mainnet
+            return 0x95CeF13441Be50d20cA4558CC0a27B601aC544E5;
+        } else {
+            revert("SymbioticCoreConstants.MANTA(): chainid not supported");
+        }
+    }
+
     function wstETHSupported() internal view returns (bool) {
         return (block.chainid == 1 || block.chainid == 17_000 || block.chainid == 11_155_111);
     }
@@ -410,8 +435,12 @@ library SymbioticCoreConstants {
         return block.chainid == 1;
     }
 
+    function MANTASupported() internal view returns (bool) {
+        return block.chainid == 1;
+    }
+
     function allTokens() internal view returns (string[] memory result) {
-        result = new string[](18);
+        result = new string[](19);
         result[0] = "wstETH";
         result[1] = "cbETH";
         result[2] = "wBETH";
@@ -430,6 +459,7 @@ library SymbioticCoreConstants {
         result[15] = "FXS";
         result[16] = "LBTC";
         result[17] = "SWELL";
+        result[18] = "MANTA";
     }
 
     function supportedTokens() internal view returns (string[] memory result) {
