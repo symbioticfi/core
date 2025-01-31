@@ -1,15 +1,15 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
 import {Hints} from "./Hints.sol";
-import {OptInService} from "../service/OptInService.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 
-contract OptInServiceHints is Hints, OptInService {
+contract OptInServiceHints is Hints {
     using Checkpoints for Checkpoints.Trace208;
 
-    constructor() OptInService(address(0), address(0), "") {}
+    mapping(address who => mapping(address where => uint256 nonce)) public nonces;
+    mapping(address who => mapping(address where => Checkpoints.Trace208 value)) internal _isOptedIn;
 
     function optInHintInternal(
         address who,
@@ -24,7 +24,7 @@ contract OptInServiceHints is Hints, OptInService {
         address who,
         address where,
         uint48 timestamp
-    ) external view returns (bytes memory) {
+    ) external view returns (bytes memory hint) {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 optInService, abi.encodeCall(OptInServiceHints.optInHintInternal, (who, where, timestamp))
@@ -33,7 +33,7 @@ contract OptInServiceHints is Hints, OptInService {
         );
 
         if (exists) {
-            return abi.encode(hint_);
+            hint = abi.encode(hint_);
         }
     }
 }
