@@ -5,7 +5,7 @@ import {VotesUpgradeable} from "lib/openzeppelin-contracts-upgradeable/contracts
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {VaultTokenized} from "./VaultTokenized.sol";
 
-contract VaultVotes is VaultTokenized, VotesUpgradeable {
+contract VaultTokenizedVotes is VaultTokenized, VotesUpgradeable {
     constructor(
         address delegatorFactory,
         address slasherFactory,
