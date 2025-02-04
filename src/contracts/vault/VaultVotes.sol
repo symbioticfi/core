@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {VotesUpgradeable} from "lib/openzeppelin-contracts-upgradeable/contracts/governance/utils/VotesUpgradeable.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {VaultTokenized} from "./VaultTokenized.sol";
 
 contract VaultVotes is VaultTokenized, VotesUpgradeable {
@@ -10,6 +11,14 @@ contract VaultVotes is VaultTokenized, VotesUpgradeable {
         address slasherFactory,
         address vaultFactory
     ) VaultTokenized(delegatorFactory, slasherFactory, vaultFactory) {}
+
+    function clock() public view override returns (uint48) {
+        return Time.timestamp();
+    }
+
+    function CLOCK_MODE() public view override returns (string memory) {
+        return "mode=timestamp";
+    }
 
     function _getVotingUnits(
         address account
