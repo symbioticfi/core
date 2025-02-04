@@ -32,11 +32,7 @@ contract VaultVotes is VaultTokenized, VotesUpgradeable {
         return type(uint208).max;
     }
 
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal virtual override(VaultTokenized) {
+    function _update(address from, address to, uint256 value) internal virtual override {
         VaultTokenized._update(from, to, value);
 
         // copied from ERC20Votes._update
