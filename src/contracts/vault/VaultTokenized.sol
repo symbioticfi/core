@@ -71,7 +71,7 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     /**
      * @inheritdoc ERC20Upgradeable
      */
-    function _update(address from, address to, uint256 value) internal override {
+    function _update(address from, address to, uint256 value) internal virtual override {
         if (from == address(0)) {
             // Overflow check required: The rest of the code assumes that totalSupply never overflows
             _activeShares.push(Time.timestamp(), totalSupply() + value);
