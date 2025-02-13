@@ -71,12 +71,17 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             }
         }
 
+        if (params.epochDurationSetEpochsDelay < 3) {
+            revert IVault.InvalidEpochDurationSetEpochsDelay();
+        }
+
         collateral = params.collateral;
 
         burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
+        epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
 
         depositWhitelist = params.depositWhitelist;
 
@@ -97,6 +102,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         }
         if (params.depositLimitSetRoleHolder != address(0)) {
             _grantRole(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
+        }
+        if (params.epochDurationSetRoleHolder != address(0)) {
+            _grantRole(EPOCH_DURATION_SET_ROLE, params.epochDurationSetRoleHolder);
         }
     }
 

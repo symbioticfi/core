@@ -21,6 +21,7 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 contract VaultImplementation is VaultStorage, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+    using Math for uint48;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
@@ -37,23 +38,26 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         uint48 timestamp
     ) public view returns (uint256) {
         if (timestamp < epochDurationInit) {
-            revert InvalidTimestamp();
+            if (timestamp < previousEpochDurationInit) {
+                revert();
+            }
+            return epochInit - (epochDurationInit - timestamp).ceilDiv(previousEpochDuration);
         }
-        return (timestamp - epochDurationInit) / epochDuration;
+        return epochInit + (timestamp - epochDurationInit) / epochDuration;
     }
 
     /**
      * @inheritdoc IVault
      */
     function currentEpoch() public view returns (uint256) {
-        return (Time.timestamp() - epochDurationInit) / epochDuration;
+        return epochInit + (Time.timestamp() - epochDurationInit) / epochDuration;
     }
 
     /**
      * @inheritdoc IVault
      */
     function currentEpochStart() public view returns (uint48) {
-        return (epochDurationInit + currentEpoch() * epochDuration).toUint48();
+        return (epochDurationInit + (currentEpoch() - epochInit) * epochDuration).toUint48();
     }
 
     /**
@@ -64,14 +68,17 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         if (epoch == 0) {
             revert NoPreviousEpoch();
         }
-        return (epochDurationInit + (epoch - 1) * epochDuration).toUint48();
+        if (epoch == epochInit) {
+            return epochDurationInit - previousEpochDuration;
+        }
+        return (epochDurationInit + (epoch - epochInit - 1) * epochDuration).toUint48();
     }
 
     /**
      * @inheritdoc IVault
      */
     function nextEpochStart() public view returns (uint48) {
-        return (epochDurationInit + (currentEpoch() + 1) * epochDuration).toUint48();
+        return currentEpochStart() + epochDuration;
     }
 
     /**
@@ -461,6 +468,49 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         isSlasherInitialized = true;
 
         emit SetSlasher(slasher_);
+    }
+
+    function setEpochDuration(
+        uint48 epochDuration_
+    ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
+        if (nextEpochDurationInit != 0 && nextEpochDurationInit <= Time.timestamp()) {
+            _acceptEpochDuration();
+        }
+
+        if (epochDuration_ < epochDuration) {
+            revert InvalidNewEpochDuration();
+        }
+
+        if (epochDuration == epochDuration_) {
+            if (nextEpochDurationInit == 0) {
+                revert AlreadySet();
+            }
+            nextEpochDuration = 0;
+            nextEpochDurationInit = 0;
+        } else {
+            nextEpochDuration = epochDuration_;
+            nextEpochDurationInit = (currentEpochStart() + epochDurationSetEpochsDelay * epochDuration).toUint48();
+        }
+    }
+
+    function acceptEpochDuration() external nonReentrant {
+        if (nextEpochDurationInit > Time.timestamp() || nextEpochDurationInit == 0) {
+            revert NewEpochDurationNotReady();
+        }
+        _acceptEpochDuration();
+    }
+
+    function _acceptEpochDuration() internal {
+        uint256 currentEpoch_ = currentEpoch();
+        uint48 currentEpochStart_ = currentEpochStart();
+
+        previousEpochDuration = epochDuration;
+        previousEpochDurationInit = epochDurationInit;
+        epochInit = currentEpoch_;
+        epochDuration = nextEpochDuration;
+        epochDurationInit = currentEpochStart_;
+        nextEpochDuration = 0;
+        nextEpochDurationInit = 0;
     }
 
     function _withdraw(

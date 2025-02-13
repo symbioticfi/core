@@ -28,6 +28,8 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     bytes32 public constant DEPOSIT_LIMIT_SET_ROLE = keccak256("DEPOSIT_LIMIT_SET_ROLE");
 
+    bytes32 public constant EPOCH_DURATION_SET_ROLE = keccak256("EPOCH_DURATION_SET_ROLE");
+
     /**
      * @inheritdoc IVaultStorage
      */
@@ -124,10 +126,22 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
+    uint256 public epochDurationSetEpochsDelay;
+
+    uint256 public epochInit;
+
+    uint48 public previousEpochDurationInit;
+
+    uint48 public previousEpochDuration;
+
+    uint48 public nextEpochDurationInit;
+
+    uint48 public nextEpochDuration;
+
     constructor(address delegatorFactory, address slasherFactory) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
     }
 
-    uint256[50] private __gap;
+    uint256[47] private __gap;
 }

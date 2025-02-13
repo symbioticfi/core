@@ -31,6 +31,9 @@ interface IVault is IAccessControl, IERC165 {
     error SlasherAlreadyInitialized();
     error TooMuchRedeem();
     error TooMuchWithdraw();
+    error InvalidEpochDurationSetEpochsDelay();
+    error InvalidNewEpochDuration();
+    error NewEpochDurationNotReady();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -53,11 +56,13 @@ interface IVault is IAccessControl, IERC165 {
         bool depositWhitelist;
         bool isDepositLimit;
         uint256 depositLimit;
+        uint256 epochDurationSetEpochsDelay;
         address defaultAdminRoleHolder;
         address depositWhitelistSetRoleHolder;
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
+        address epochDurationSetRoleHolder;
     }
 
     /**
