@@ -34,6 +34,7 @@ interface IVault is IAccessControl, IERC165 {
     error InvalidEpochDurationSetEpochsDelay();
     error InvalidNewEpochDuration();
     error NewEpochDurationNotReady();
+    error NoDepositWhitelist();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -59,6 +60,7 @@ interface IVault is IAccessControl, IERC165 {
         uint256 epochDurationSetEpochsDelay;
         address defaultAdminRoleHolder;
         address depositWhitelistSetRoleHolder;
+        address[] depositorsWhitelisted;
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;

@@ -71,6 +71,22 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             }
         }
 
+        if (!params.depositWhitelist && params.depositorsWhitelisted.length > 0) {
+            revert IVault.NoDepositWhitelist();
+        }
+
+        for (uint256 i; i < params.depositorsWhitelisted.length; ++i) {
+            if (params.depositorsWhitelisted[i] == address(0)) {
+                revert IVault.InvalidAccount();
+            }
+
+            if (isDepositorWhitelisted[params.depositorsWhitelisted[i]]) {
+                revert IVault.AlreadySet();
+            }
+
+            isDepositorWhitelisted[params.depositorsWhitelisted[i]] = true;
+        }
+
         if (params.epochDurationSetEpochsDelay < 3) {
             revert IVault.InvalidEpochDurationSetEpochsDelay();
         }
