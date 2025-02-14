@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
-interface IVault is IAccessControl, IERC165 {
+interface IVault is IAccessControl, IERC165, IERC3156FlashLender {
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();
@@ -35,6 +36,10 @@ interface IVault is IAccessControl, IERC165 {
     error InvalidNewEpochDuration();
     error NewEpochDurationNotReady();
     error NoDepositWhitelist();
+    error UnsupportedToken();
+    error MaxLoanExceeded();
+    error InvalidReceiver();
+    error InvalidReturnAmount();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -58,6 +63,8 @@ interface IVault is IAccessControl, IERC165 {
         bool isDepositLimit;
         uint256 depositLimit;
         uint256 epochDurationSetEpochsDelay;
+        uint256 flashFeeRate;
+        address flashFeeReceiver;
         address defaultAdminRoleHolder;
         address depositWhitelistSetRoleHolder;
         address[] depositorsWhitelisted;
@@ -65,6 +72,8 @@ interface IVault is IAccessControl, IERC165 {
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
         address epochDurationSetRoleHolder;
+        address flashFeeRateSetRoleHolder;
+        address flashFeeReceiverSetRoleHolder;
     }
 
     /**

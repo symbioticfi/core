@@ -91,6 +91,28 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             revert IVault.InvalidEpochDurationSetEpochsDelay();
         }
 
+        if (params.defaultAdminRoleHolder == address(0)) {
+            if (params.flashFeeReceiver == address(0)) {
+                if (params.flashFeeRateSetRoleHolder == address(0)) {
+                    if (params.flashFeeReceiverSetRoleHolder == address(0)) {
+                        if (params.flashFeeRate != 0) {
+                            revert();
+                        }
+                    } else if (params.flashFeeRate == 0) {
+                        revert();
+                    }
+                } else {
+                    if (params.flashFeeReceiverSetRoleHolder == address(0)) {
+                        revert();
+                    } else if (params.flashFeeRate != 0) {
+                        revert();
+                    }
+                }
+            } else if (params.flashFeeRateSetRoleHolder == address(0) && params.flashFeeRate == 0) {
+                revert();
+            }
+        }
+
         collateral = params.collateral;
 
         burner = params.burner;
@@ -103,6 +125,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
+
+        flashFeeRate = params.flashFeeRate;
+        flashFeeReceiver = params.flashFeeReceiver;
 
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
@@ -121,6 +146,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         }
         if (params.epochDurationSetRoleHolder != address(0)) {
             _grantRole(EPOCH_DURATION_SET_ROLE, params.epochDurationSetRoleHolder);
+        }
+        if (params.flashFeeRateSetRoleHolder != address(0)) {
+            _grantRole(FLASH_FEE_RATE_SET_ROLE, params.flashFeeRateSetRoleHolder);
+        }
+        if (params.flashFeeReceiverSetRoleHolder != address(0)) {
+            _grantRole(FLASH_FEE_RECEIVER_SET_ROLE, params.flashFeeReceiverSetRoleHolder);
         }
     }
 

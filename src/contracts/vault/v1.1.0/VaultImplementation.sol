@@ -17,6 +17,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
+import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
 contract VaultImplementation is VaultStorage, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
@@ -183,6 +185,25 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     }
 
     /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function maxFlashLoan(
+        address token
+    ) public view returns (uint256) {
+        return token == collateral ? IERC20(collateral).balanceOf(address(this)) : 0;
+    }
+
+    /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function flashFee(address token, uint256 value) public view returns (uint256) {
+        if (token != collateral) {
+            revert UnsupportedToken();
+        }
+        return value.mulDiv(flashFeeRate, FLASH_FEE_BASE);
+    }
+
+    /**
      * @inheritdoc IVault
      */
     function deposit(
@@ -196,6 +217,8 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
+
+        _tryAcceptEpochDuration();
 
         uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
         IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
@@ -304,6 +327,36 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         IERC20(collateral).safeTransfer(recipient, amount);
 
         emit ClaimBatch(msg.sender, recipient, epochs, amount);
+    }
+
+    /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function flashLoan(
+        IERC3156FlashBorrower receiver,
+        address token,
+        uint256 value,
+        bytes calldata data
+    ) public nonReentrant returns (bool) {
+        if (value > maxFlashLoan(token)) {
+            revert MaxLoanExceeded();
+        }
+        uint256 fee = flashFee(token, value);
+
+        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+        IERC20(collateral).safeTransfer(address(receiver), value);
+
+        if (receiver.onFlashLoan(_msgSender(), token, value, fee, data) != RETURN_VALUE) {
+            revert InvalidReceiver();
+        }
+
+        if (IERC20(collateral).balanceOf(address(this)) - balanceBefore != value + fee) {
+            revert InvalidReturnAmount();
+        }
+
+        IERC20(collateral).safeTransfer(flashFeeReceiver, fee);
+
+        return true;
     }
 
     /**
@@ -424,6 +477,53 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         emit SetDepositLimit(limit);
     }
 
+    function setEpochDuration(
+        uint48 epochDuration_
+    ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
+        _tryAcceptEpochDuration();
+
+        if (epochDuration > epochDuration_) {
+            revert InvalidNewEpochDuration();
+        }
+
+        if (nextEpochDurationInit != 0) {
+            nextEpochDuration = 0;
+            nextEpochDurationInit = 0;
+        } else if (epochDuration == epochDuration_) {
+            revert AlreadySet();
+        }
+
+        if (epochDuration != epochDuration_) {
+            nextEpochDuration = epochDuration_;
+            nextEpochDurationInit = (currentEpochStart() + epochDurationSetEpochsDelay * epochDuration).toUint48();
+        }
+    }
+
+    function acceptEpochDuration() external nonReentrant {
+        if (nextEpochDurationInit > Time.timestamp() || nextEpochDurationInit == 0) {
+            revert NewEpochDurationNotReady();
+        }
+        _acceptEpochDuration();
+    }
+
+    function setFlashFeeRate(
+        uint256 flashFeeRate_
+    ) external nonReentrant onlyRole(FLASH_FEE_RATE_SET_ROLE) {
+        if (flashFeeRate == flashFeeRate_) {
+            revert AlreadySet();
+        }
+        flashFeeRate = flashFeeRate_;
+    }
+
+    function setFlashFeeReceiver(
+        address flashFeeReceiver_
+    ) external nonReentrant onlyRole(FLASH_FEE_RECEIVER_SET_ROLE) {
+        if (flashFeeReceiver == flashFeeReceiver_) {
+            revert AlreadySet();
+        }
+        flashFeeReceiver = flashFeeReceiver_;
+    }
+
     function setDelegator(
         address delegator_
     ) external nonReentrant {
@@ -470,54 +570,13 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         emit SetSlasher(slasher_);
     }
 
-    function setEpochDuration(
-        uint48 epochDuration_
-    ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
-        if (nextEpochDurationInit != 0 && nextEpochDurationInit <= Time.timestamp()) {
-            _acceptEpochDuration();
-        }
-
-        if (epochDuration_ < epochDuration) {
-            revert InvalidNewEpochDuration();
-        }
-
-        if (epochDuration == epochDuration_) {
-            if (nextEpochDurationInit == 0) {
-                revert AlreadySet();
-            }
-            nextEpochDuration = 0;
-            nextEpochDurationInit = 0;
-        } else {
-            nextEpochDuration = epochDuration_;
-            nextEpochDurationInit = (currentEpochStart() + epochDurationSetEpochsDelay * epochDuration).toUint48();
-        }
-    }
-
-    function acceptEpochDuration() external nonReentrant {
-        if (nextEpochDurationInit > Time.timestamp() || nextEpochDurationInit == 0) {
-            revert NewEpochDurationNotReady();
-        }
-        _acceptEpochDuration();
-    }
-
-    function _acceptEpochDuration() internal {
-        uint256 currentEpoch_ = currentEpoch();
-        uint48 currentEpochStart_ = currentEpochStart();
-
-        previousEpochDuration = epochDuration;
-        previousEpochDurationInit = epochDurationInit;
-        epochInit = currentEpoch_;
-        epochDuration = nextEpochDuration;
-        epochDurationInit = currentEpochStart_;
-        nextEpochDuration = 0;
-        nextEpochDurationInit = 0;
-    }
-
     function _withdraw(
         address claimer,
         uint256 withdrawnAssets,
         uint256 burnedShares
     ) internal virtual returns (uint256 mintedShares) {
+        _tryAcceptEpochDuration();
+
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
         _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
         _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
@@ -553,5 +612,24 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         }
 
         isWithdrawalsClaimed[epoch][msg.sender] = true;
+    }
+
+    function _tryAcceptEpochDuration() internal {
+        if (nextEpochDurationInit != 0 && nextEpochDurationInit <= Time.timestamp()) {
+            _acceptEpochDuration();
+        }
+    }
+
+    function _acceptEpochDuration() internal {
+        uint256 currentEpoch_ = currentEpoch();
+        uint48 currentEpochStart_ = currentEpochStart();
+
+        previousEpochDuration = epochDuration;
+        previousEpochDurationInit = epochDurationInit;
+        epochInit = currentEpoch_;
+        epochDuration = nextEpochDuration;
+        epochDurationInit = currentEpochStart_;
+        nextEpochDuration = 0;
+        nextEpochDurationInit = 0;
     }
 }
