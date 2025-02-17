@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {StaticDelegateCallable} from "../../common/StaticDelegateCallable.sol";
 
-import {IVaultStorage} from "../../../interfaces/vault/v1.1.0/IVaultStorage.sol";
+import {IVaultStorage} from "../../../interfaces/vault/v1.1/IVaultStorage.sol";
 
 import {Checkpoints} from "../../libraries/Checkpoints.sol";
 

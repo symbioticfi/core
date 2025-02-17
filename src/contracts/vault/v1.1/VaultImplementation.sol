@@ -6,7 +6,7 @@ import {VaultStorage} from "./VaultStorage.sol";
 import {IBaseDelegator} from "../../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../../interfaces/slasher/IBaseSlasher.sol";
 import {IRegistry} from "../../../interfaces/common/IRegistry.sol";
-import {IVault} from "../../../interfaces/vault/v1.1.0/IVault.sol";
+import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 
 import {Checkpoints} from "../../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../../libraries/ERC4626Math.sol";
@@ -27,11 +27,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory
-    ) VaultStorage(delegatorFactory, slasherFactory) {}
+    constructor(address delegatorFactory, address slasherFactory) VaultStorage(delegatorFactory, slasherFactory) {}
 
     /**
      * @inheritdoc IVault
@@ -662,4 +658,6 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
 
         emit AcceptEpochDuration();
     }
+
+    function _Vault_init() external {}
 }

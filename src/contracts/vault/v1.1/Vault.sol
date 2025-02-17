@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {MigratableEntity} from "../../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
-import {IVault} from "../../../interfaces/vault/v1.1.0/IVault.sol";
+import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 
 import {Checkpoints} from "../../libraries/Checkpoints.sol";
 

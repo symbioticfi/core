@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import {VaultStorage} from "../VaultStorage.sol";
 
-import {IVault} from "../../../interfaces/vault/v1.1.0/IVault.sol";
-import {IVaultVotes} from "../../../interfaces/vault/v1.1.0/IVaultVotes.sol";
+import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
+import {IVaultVotes} from "../../../interfaces/vault/v1.1/IVaultVotes.sol";
 
 import {Checkpoints} from "../../libraries/Checkpoints.sol";
 
@@ -65,9 +65,7 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
         uint256 amount
     ) external returns (uint256 depositedAmount, uint256 mintedShares) {
         (depositedAmount, mintedShares) = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(
-                abi.encodeWithSelector(IVault.deposit.selector, onBehalfOf, amount)
-            ),
+            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.deposit, (onBehalfOf, amount))),
             (uint256, uint256)
         );
 
@@ -80,7 +78,7 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
 
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
         (burnedShares, mintedShares) = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeWithSelector(IVault.withdraw.selector, claimer, amount)),
+            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.withdraw, (claimer, amount))),
             (uint256, uint256)
         );
 
@@ -89,7 +87,7 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
 
     function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares) {
         (withdrawnAssets, mintedShares) = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeWithSelector(IVault.redeem.selector, claimer, shares)),
+            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.redeem, (claimer, shares))),
             (uint256, uint256)
         );
 
@@ -117,9 +115,7 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
         return BASE_IMPLEMENTATION;
     }
 
-    function _initialize(
-        bytes calldata /* data */
-    ) external {
+    function _VaultVotes_init() external {
         __EIP712_init("VaultVotes", "1");
     }
 }

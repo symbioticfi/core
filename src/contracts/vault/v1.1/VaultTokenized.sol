@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import {Vault} from "./Vault.sol";
 import {VaultTokenizedImplementation} from "./VaultTokenizedImplementation.sol";
 
-import {IVaultTokenized} from "../../../interfaces/vault/v1.1.0/IVaultTokenized.sol";
+import {IVaultTokenized} from "../../../interfaces/vault/v1.1/IVaultTokenized.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
@@ -24,17 +24,21 @@ contract VaultTokenized is Vault {
         super._initialize(initialVersion, owner_, abi.encode(params.baseParams));
 
         _implementation().functionDelegateCall(
-            abi.encodeWithSelector(VaultTokenizedImplementation._initialize.selector, params.name, params.symbol)
+            abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (params.name, params.symbol))
         );
     }
 
     function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes calldata data) internal virtual override {
         if (oldVersion == 1) {
+            (IVaultTokenized.MigrateParamsTokenized memory params) =
+                abi.decode(data, (IVaultTokenized.MigrateParamsTokenized));
             _implementation().functionDelegateCall(
-                abi.encodeWithSelector(VaultTokenizedImplementation._initialize.selector, data)
+                abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (params.name, params.symbol))
             );
-        } else if (oldVersion == 2) {} else {
-            revert IVaultTokenized.Unreachable();
+        } else { // oldVersion == 2
+            if (data.length > 0) {
+                revert IVaultTokenized.InvalidData();
+            }
         }
     }
 }

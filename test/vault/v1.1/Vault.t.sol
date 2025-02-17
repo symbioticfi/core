@@ -12,8 +12,10 @@ import {MetadataService} from "../../../src/contracts/service/MetadataService.so
 import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "../../../src/contracts/vault/v1.1.0/Vault.sol";
-import {VaultImplementation} from "../../../src/contracts/vault/v1.1.0/VaultImplementation.sol";
+import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
+import {VaultTokenized as VaultTokenizedV1} from "../../../src/contracts/vault/VaultTokenized.sol";
+import {Vault} from "../../../src/contracts/vault/v1.1/Vault.sol";
+import {VaultImplementation} from "../../../src/contracts/vault/v1.1/VaultImplementation.sol";
 import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
@@ -21,7 +23,7 @@ import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator
 import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 
-import {IVault} from "../../../src/interfaces/vault/v1.1.0/IVault.sol";
+import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
 
 import {Token} from "../../mocks/Token.sol";
 import {FeeOnTransferToken} from "../../mocks/FeeOnTransferToken.sol";
@@ -33,7 +35,7 @@ import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.s
 import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
 
-import {IVaultStorage} from "../../../src/interfaces/vault/v1.1.0/IVaultStorage.sol";
+import {IVaultStorage} from "../../../src/interfaces/vault/v1.1/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {VaultHints} from "../../../src/contracts/hints/VaultHints.sol";
@@ -89,8 +91,16 @@ contract VaultTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
+        address vaultV1Impl =
+            address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultV1Impl);
+
+        address vaultTokenizedV1Impl =
+            address(new VaultTokenizedV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultTokenizedV1Impl);
+
         address vaultImplementation =
-            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(
             new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory), vaultImplementation)
         );
@@ -196,7 +206,7 @@ contract VaultTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 3,
                 owner: address(0),
                 vaultParams: abi.encode(
                     IVault.InitParams({
@@ -1639,7 +1649,7 @@ contract VaultTest is Test {
             operatorNetworkSharesSetRoleHolders[0] = alice;
             (address vault_,,) = vaultConfigurator.create(
                 IVaultConfigurator.InitParams({
-                    version: vaultFactory.lastVersion(),
+                    version: 3,
                     owner: alice,
                     vaultParams: abi.encode(
                         IVault.InitParams({
@@ -3691,7 +3701,7 @@ contract VaultTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 3,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({
@@ -3745,7 +3755,7 @@ contract VaultTest is Test {
         operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: vaultFactory.lastVersion(),
+                version: 3,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVault.InitParams({

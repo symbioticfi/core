@@ -8,7 +8,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 interface IVaultTokenized is IERC20, IERC20Metadata, IERC20Errors {
-    error Unreachable();
+    error InvalidData();
 
     /**
      * @notice Initial parameters needed for a tokenized vault deployment.
@@ -18,6 +18,16 @@ interface IVaultTokenized is IERC20, IERC20Metadata, IERC20Errors {
      */
     struct InitParamsTokenized {
         IVault.InitParams baseParams;
+        string name;
+        string symbol;
+    }
+
+    /**
+     * @notice Parameters needed for a tokenized vault migration.
+     * @param name name for the ERC20 tokenized vault
+     * @param symbol symbol for the ERC20 tokenized vault
+     */
+    struct MigrateParamsTokenized {
         string name;
         string symbol;
     }

@@ -4,8 +4,8 @@ pragma solidity 0.8.25;
 import {VaultTokenized} from "./VaultTokenized.sol";
 import {VaultVotesImplementation} from "./VaultVotesImplementation.sol";
 
-import {IVaultVotes} from "../../../interfaces/vault/v1.1.0/IVaultVotes.sol";
-
+import {IVaultVotes} from "../../../interfaces/vault/v1.1/IVaultVotes.sol";
+import {IVaultTokenized} from "../../../interfaces/vault/v1.1/IVaultTokenized.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 contract VaultVotes is VaultTokenized {
@@ -21,7 +21,7 @@ contract VaultVotes is VaultTokenized {
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal virtual override {
         super._initialize(initialVersion, owner_, data);
 
-        _implementation().functionDelegateCall(abi.encodeWithSelector(VaultVotesImplementation._initialize.selector));
+        _implementation().functionDelegateCall(abi.encodeCall(VaultVotesImplementation._VaultVotes_init, ()));
     }
 
     function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes calldata data) internal virtual override {
@@ -29,8 +29,10 @@ contract VaultVotes is VaultTokenized {
             revert IVaultVotes.ImproperMigration();
         }
 
-        _implementation().functionDelegateCall(
-            abi.encodeWithSelector(VaultVotesImplementation._initialize.selector, data)
-        );
+        if (data.length > 0) {
+            revert IVaultTokenized.InvalidData();
+        }
+
+        _implementation().functionDelegateCall(abi.encodeCall(VaultVotesImplementation._VaultVotes_init, ()));
     }
 }
