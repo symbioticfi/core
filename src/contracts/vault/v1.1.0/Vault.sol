@@ -91,25 +91,20 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             revert IVault.InvalidEpochDurationSetEpochsDelay();
         }
 
+        if (params.flashFeeReceiver == address(0) && params.flashFeeRate != 0) {
+            revert IVault.InvalidFlashParams();
+        }
         if (params.defaultAdminRoleHolder == address(0)) {
             if (params.flashFeeReceiver == address(0)) {
                 if (params.flashFeeRateSetRoleHolder == address(0)) {
-                    if (params.flashFeeReceiverSetRoleHolder == address(0)) {
-                        if (params.flashFeeRate != 0) {
-                            revert();
-                        }
-                    } else if (params.flashFeeRate == 0) {
-                        revert();
+                    if (params.flashFeeReceiverSetRoleHolder != address(0) && params.flashFeeRate == 0) {
+                        revert IVault.InvalidFlashParams();
                     }
-                } else {
-                    if (params.flashFeeReceiverSetRoleHolder == address(0)) {
-                        revert();
-                    } else if (params.flashFeeRate != 0) {
-                        revert();
-                    }
+                } else if (params.flashFeeReceiverSetRoleHolder == address(0)) {
+                    revert IVault.InvalidFlashParams();
                 }
             } else if (params.flashFeeRateSetRoleHolder == address(0) && params.flashFeeRate == 0) {
-                revert();
+                revert IVault.InvalidFlashParams();
             }
         }
 

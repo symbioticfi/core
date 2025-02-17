@@ -4,6 +4,8 @@ pragma solidity 0.8.25;
 import {VaultTokenized} from "./VaultTokenized.sol";
 import {VaultVotesImplementation} from "./VaultVotesImplementation.sol";
 
+import {IVaultVotes} from "../../../interfaces/vault/v1.1.0/IVaultVotes.sol";
+
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 contract VaultVotes is VaultTokenized {
@@ -16,7 +18,7 @@ contract VaultVotes is VaultTokenized {
         address implementation
     ) VaultTokenized(delegatorFactory, slasherFactory, vaultFactory, implementation) {}
 
-    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
+    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal virtual override {
         super._initialize(initialVersion, owner_, data);
 
         _implementation().functionDelegateCall(abi.encodeWithSelector(VaultVotesImplementation._initialize.selector));
@@ -24,7 +26,7 @@ contract VaultVotes is VaultTokenized {
 
     function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes calldata data) internal virtual override {
         if (oldVersion != 3) {
-            revert();
+            revert IVaultVotes.ImproperMigration();
         }
 
         _implementation().functionDelegateCall(

@@ -34,7 +34,7 @@ contract VaultTokenized is Vault {
                 abi.encodeWithSelector(VaultTokenizedImplementation._initialize.selector, data)
             );
         } else if (oldVersion == 2) {} else {
-            revert();
+            revert IVaultTokenized.Unreachable();
         }
     }
 }

@@ -8,6 +8,8 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 interface IVaultTokenized is IERC20, IERC20Metadata, IERC20Errors {
+    error Unreachable();
+
     /**
      * @notice Initial parameters needed for a tokenized vault deployment.
      * @param baseParams initial parameters needed for a vault deployment (InitParams)

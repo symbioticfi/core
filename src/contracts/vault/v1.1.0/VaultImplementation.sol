@@ -40,8 +40,8 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         uint48 timestamp
     ) public view returns (uint256) {
         if (timestamp < epochDurationInit) {
-            if (timestamp < previousEpochDurationInit) {
-                revert();
+            if (previousEpochDurationInit == 0 || timestamp < previousEpochDurationInit) {
+                revert InvalidTimestamp();
             }
             return epochInit - (epochDurationInit - timestamp).ceilDiv(previousEpochDuration);
         }
@@ -190,7 +190,8 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function maxFlashLoan(
         address token
     ) public view returns (uint256) {
-        return token == collateral ? IERC20(collateral).balanceOf(address(this)) : 0;
+        address collateral_ = collateral;
+        return token == collateral_ ? IERC20(collateral_).balanceOf(address(this)) : 0;
     }
 
     /**
@@ -209,7 +210,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) external nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -342,19 +343,22 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             revert MaxLoanExceeded();
         }
         uint256 fee = flashFee(token, value);
+        address collateral_ = collateral;
+        uint256 balanceBefore = IERC20(collateral_).balanceOf(address(this));
 
-        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
-        IERC20(collateral).safeTransfer(address(receiver), value);
+        IERC20(collateral_).safeTransfer(address(receiver), value);
 
-        if (receiver.onFlashLoan(_msgSender(), token, value, fee, data) != RETURN_VALUE) {
+        if (receiver.onFlashLoan(msg.sender, token, value, fee, data) != RETURN_VALUE) {
             revert InvalidReceiver();
         }
 
-        if (IERC20(collateral).balanceOf(address(this)) - balanceBefore != value + fee) {
+        if (IERC20(collateral_).balanceOf(address(this)) - balanceBefore != fee) {
             revert InvalidReturnAmount();
         }
 
-        IERC20(collateral).safeTransfer(flashFeeReceiver, fee);
+        if (flashFeeReceiver != address(0)) {
+            IERC20(collateral_).safeTransfer(flashFeeReceiver, fee);
+        }
 
         return true;
     }
@@ -477,6 +481,9 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         emit SetDepositLimit(limit);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function setEpochDuration(
         uint48 epochDuration_
     ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
@@ -497,15 +504,23 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             nextEpochDuration = epochDuration_;
             nextEpochDurationInit = (currentEpochStart() + epochDurationSetEpochsDelay * epochDuration).toUint48();
         }
+
+        emit SetEpochDuration(epochDuration_);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function acceptEpochDuration() external nonReentrant {
-        if (nextEpochDurationInit > Time.timestamp() || nextEpochDurationInit == 0) {
+        if (nextEpochDurationInit == 0 || nextEpochDurationInit > Time.timestamp()) {
             revert NewEpochDurationNotReady();
         }
         _acceptEpochDuration();
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function setFlashFeeRate(
         uint256 flashFeeRate_
     ) external nonReentrant onlyRole(FLASH_FEE_RATE_SET_ROLE) {
@@ -513,8 +528,13 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             revert AlreadySet();
         }
         flashFeeRate = flashFeeRate_;
+
+        emit SetFlashFeeRate(flashFeeRate_);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function setFlashFeeReceiver(
         address flashFeeReceiver_
     ) external nonReentrant onlyRole(FLASH_FEE_RECEIVER_SET_ROLE) {
@@ -522,8 +542,13 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             revert AlreadySet();
         }
         flashFeeReceiver = flashFeeReceiver_;
+
+        emit SetFlashFeeReceiver(flashFeeReceiver_);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function setDelegator(
         address delegator_
     ) external nonReentrant {
@@ -546,6 +571,9 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         emit SetDelegator(delegator_);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function setSlasher(
         address slasher_
     ) external nonReentrant {
@@ -574,7 +602,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         address claimer,
         uint256 withdrawnAssets,
         uint256 burnedShares
-    ) internal virtual returns (uint256 mintedShares) {
+    ) internal returns (uint256 mintedShares) {
         _tryAcceptEpochDuration();
 
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
@@ -631,5 +659,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         epochDurationInit = currentEpochStart_;
         nextEpochDuration = 0;
         nextEpochDurationInit = 0;
+
+        emit AcceptEpochDuration();
     }
 }

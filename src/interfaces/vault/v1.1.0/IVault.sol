@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IVaultStorage} from "./IVaultStorage.sol";
+
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
-interface IVault is IAccessControl, IERC165, IERC3156FlashLender {
+interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender {
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();
@@ -40,6 +42,9 @@ interface IVault is IAccessControl, IERC165, IERC3156FlashLender {
     error MaxLoanExceeded();
     error InvalidReceiver();
     error InvalidReturnAmount();
+    error InvalidFlashParams();
+    error InvalidTimestamp();
+    error NoPreviousEpoch();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -67,8 +72,8 @@ interface IVault is IAccessControl, IERC165, IERC3156FlashLender {
         address flashFeeReceiver;
         address defaultAdminRoleHolder;
         address depositWhitelistSetRoleHolder;
-        address[] depositorsWhitelisted;
         address depositorWhitelistRoleHolder;
+        address[] depositorsWhitelisted;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
         address epochDurationSetRoleHolder;
@@ -159,6 +164,29 @@ interface IVault is IAccessControl, IERC165, IERC3156FlashLender {
      * @param limit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
      */
     event SetDepositLimit(uint256 limit);
+
+    /**
+     * @notice Emitted when a epoch duration is set (can be accepted after `epochDurationSetEpochsDelay` epochs).
+     * @param epochDuration epoch duration
+     */
+    event SetEpochDuration(uint48 epochDuration);
+
+    /**
+     * @notice Emitted when a pending epoch duration is accepted.
+     */
+    event AcceptEpochDuration();
+
+    /**
+     * @notice Emitted when a flash fee rate is set.
+     * @param flashFeeRate flash fee rate
+     */
+    event SetFlashFeeRate(uint256 flashFeeRate);
+
+    /**
+     * @notice Emitted when a flash fee receiver is set.
+     * @param flashFeeReceiver flash fee receiver
+     */
+    event SetFlashFeeReceiver(address flashFeeReceiver);
 
     /**
      * @notice Emitted when a delegator is set.
@@ -394,6 +422,40 @@ interface IVault is IAccessControl, IERC165, IERC3156FlashLender {
      */
     function setDepositLimit(
         uint256 limit
+    ) external;
+
+    /**
+     * @notice Set an epoch duration (can be only greater than the current one).
+     * @param epochDuration_ epoch duration
+     * @dev Only a EPOCH_DURATION_SET_ROLE holder can call this function.
+     *      Can be accepted after `epochDurationSetEpochsDelay` epochs.
+     */
+    function setEpochDuration(
+        uint48 epochDuration_
+    ) external;
+
+    /**
+     * @notice Accept an epoch duration.
+     * @dev Only a EPOCH_DURATION_SET_ROLE holder can call this function.
+     */
+    function acceptEpochDuration() external;
+
+    /**
+     * @notice Set a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).
+     * @param flashFeeRate_ flash fee rate
+     * @dev Only a FLASH_FEE_RATE_SET_ROLE holder can call this function.
+     */
+    function setFlashFeeRate(
+        uint256 flashFeeRate_
+    ) external;
+
+    /**
+     * @notice Set a flash fee receiver.
+     * @param flashFeeReceiver_ flash fee receiver
+     * @dev Only a FLASH_FEE_RECEIVER_SET_ROLE holder can call this function.
+     */
+    function setFlashFeeReceiver(
+        address flashFeeReceiver_
     ) external;
 
     /**

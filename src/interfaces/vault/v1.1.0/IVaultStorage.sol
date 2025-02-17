@@ -2,9 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface IVaultStorage {
-    error InvalidTimestamp();
-    error NoPreviousEpoch();
-
     /**
      * @notice Get a deposit whitelist enabler/disabler's role.
      * @return identifier of the whitelist enabler/disabler role
@@ -28,6 +25,36 @@ interface IVaultStorage {
      * @return identifier of the deposit limit setter role
      */
     function DEPOSIT_LIMIT_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get a epoch duration setter's role.
+     * @return identifier of the epoch duration setter role
+     */
+    function EPOCH_DURATION_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get a flash fee rate setter's role.
+     * @return identifier of the flash fee rate setter role
+     */
+    function FLASH_FEE_RATE_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get a flash fee receiver setter's role.
+     * @return identifier of the flash fee receiver setter role
+     */
+    function FLASH_FEE_RECEIVER_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get a flash fee base.
+     * @return flash fee base
+     */
+    function FLASH_FEE_BASE() external view returns (uint256);
+
+    /**
+     * @notice Get a value that must be returned by the flash loan borrower.
+     * @return value that must be returned by the flash loan borrower
+     */
+    function RETURN_VALUE() external view returns (bytes32);
 
     /**
      * @notice Get the delegator factory's address.
@@ -149,4 +176,52 @@ interface IVaultStorage {
      * @return if the withdrawals are claimed for the account at the epoch
      */
     function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
+
+    /**
+     * @notice Get a delay for the epoch duration set (in epochs).
+     * @return delay for the epoch duration set
+     */
+    function epochDurationSetEpochsDelay() external view returns (uint256);
+
+    /**
+     * @notice Get the current epoch duration's first epoch.
+     * @return the current epoch duration's first epoch
+     */
+    function epochInit() external view returns (uint256);
+
+    /**
+     * @notice Get a time point of the previous epoch duration set.
+     * @return time point of the previous epoch duration set
+     */
+    function previousEpochDurationInit() external view returns (uint48);
+
+    /**
+     * @notice Get a duration of the previous epoch.
+     * @return duration of the previous epoch
+     */
+    function previousEpochDuration() external view returns (uint48);
+
+    /**
+     * @notice Get a time point of the next epoch duration set.
+     * @return time point of the next epoch duration set
+     */
+    function nextEpochDurationInit() external view returns (uint48);
+
+    /**
+     * @notice Get a duration of the next epoch.
+     * @return duration of the next epoch
+     */
+    function nextEpochDuration() external view returns (uint48);
+
+    /**
+     * @notice Get a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).
+     * @return flash fee rate
+     */
+    function flashFeeRate() external view returns (uint256);
+
+    /**
+     * @notice Get a flash fee receiver.
+     * @return flash fee receiver
+     */
+    function flashFeeReceiver() external view returns (address);
 }

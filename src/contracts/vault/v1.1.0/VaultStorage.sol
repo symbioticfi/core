@@ -28,14 +28,29 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     bytes32 public constant DEPOSIT_LIMIT_SET_ROLE = keccak256("DEPOSIT_LIMIT_SET_ROLE");
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     bytes32 public constant EPOCH_DURATION_SET_ROLE = keccak256("EPOCH_DURATION_SET_ROLE");
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     bytes32 public constant FLASH_FEE_RATE_SET_ROLE = keccak256("FLASH_FEE_RATE_SET_ROLE");
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     bytes32 public constant FLASH_FEE_RECEIVER_SET_ROLE = keccak256("FLASH_FEE_RECEIVER_SET_ROLE");
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint256 public constant FLASH_FEE_BASE = 1e9;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     bytes32 public constant RETURN_VALUE = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     /**
@@ -134,20 +149,44 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint256 public epochDurationSetEpochsDelay;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint256 public epochInit;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint48 public previousEpochDurationInit;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint48 public previousEpochDuration;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint48 public nextEpochDurationInit;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint48 public nextEpochDuration;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     uint256 public flashFeeRate;
 
+    /**
+     * @inheritdoc IVaultStorage
+     */
     address public flashFeeReceiver;
 
     constructor(address delegatorFactory, address slasherFactory) {
@@ -155,5 +194,5 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
         SLASHER_FACTORY = slasherFactory;
     }
 
-    uint256[46] private __gap;
+    uint256[45] private __gap;
 }
