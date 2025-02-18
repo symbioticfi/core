@@ -34,6 +34,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         IMPLEMENTATION = implementation;
     }
 
+    /**
+     * @inheritdoc Proxy
+     */
     function _implementation() internal view override returns (address) {
         return IMPLEMENTATION;
     }

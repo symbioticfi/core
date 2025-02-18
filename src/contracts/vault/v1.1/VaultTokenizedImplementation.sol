@@ -123,6 +123,9 @@ contract VaultTokenizedImplementation is
         emit Transfer(from, to, value);
     }
 
+    /**
+     * @inheritdoc Proxy
+     */
     function _implementation() internal view override returns (address) {
         return BASE_IMPLEMENTATION;
     }

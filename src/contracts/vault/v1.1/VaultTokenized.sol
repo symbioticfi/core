@@ -35,7 +35,8 @@ contract VaultTokenized is Vault {
             _implementation().functionDelegateCall(
                 abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (params.name, params.symbol))
             );
-        } else { // oldVersion == 2
+        } else {
+            // oldVersion == 2
             if (data.length > 0) {
                 revert IVaultTokenized.InvalidData();
             }

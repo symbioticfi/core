@@ -17,6 +17,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/VotesUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVaultVotes {
     using Checkpoints for Checkpoints.Trace208;
@@ -94,16 +95,32 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
         _transferVotingUnits(msg.sender, address(0), shares);
     }
 
+    function transfer(address to, uint256 value) external returns (bool result) {
+        result = abi.decode(
+            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transfer, (to, value))), (bool)
+        );
+
+        _transferVotingUnits(msg.sender, to, value);
+    }
+
+    function transferFrom(address from, address to, uint256 value) external returns (bool result) {
+        result = abi.decode(
+            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transferFrom, (from, to, value))),
+            (bool)
+        );
+
+        _transferVotingUnits(from, to, value);
+    }
+
     /**
-     * @dev Transfers, mints, or burns voting units. To register a mint, `from` should be zero. To register a burn, `to`
-     * should be zero. Total supply of voting units will be adjusted with mints and burns.
+     * @inheritdoc VotesUpgradeable
      */
     function _transferVotingUnits(address from, address to, uint256 amount) internal override {
         _moveDelegateVotes(delegates(from), delegates(to), amount);
     }
 
     /**
-     * @dev Must return the voting units held by an account.
+     * @inheritdoc VotesUpgradeable
      */
     function _getVotingUnits(
         address account
@@ -111,6 +128,9 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
         return _activeSharesOf[account].latest();
     }
 
+    /**
+     * @inheritdoc Proxy
+     */
     function _implementation() internal view override returns (address) {
         return BASE_IMPLEMENTATION;
     }
