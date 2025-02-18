@@ -270,7 +270,7 @@ contract VaultTokenizedTest is Test {
         assertEq(vault.delegator(), delegator_);
         assertEq(vault.slasher(), address(0));
         assertEq(vault.burner(), burner);
-        assertEq(vault.epochDuration(), epochDuration);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(
             VaultImplementation(payable(address(vault))).hasRole(
@@ -284,8 +284,8 @@ contract VaultTokenizedTest is Test {
             ),
             true
         );
-        assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDuration(), epochDuration);
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), epochDuration);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(0), 0);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
@@ -313,7 +313,7 @@ contract VaultTokenizedTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).isSlasherInitialized(), true);
         assertEq(VaultImplementation(payable(address(vault))).isInitialized(), true);
 
-        blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
+        blockTimestamp = blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration() - 1;
         vm.warp(blockTimestamp);
 
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
@@ -321,7 +321,7 @@ contract VaultTokenizedTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 0);
         assertEq(
             VaultImplementation(payable(address(vault))).currentEpochStart(),
-            blockTimestamp - (vault.epochDuration() - 1)
+            blockTimestamp - (VaultImplementation(payable(address(vault))).epochDuration() - 1)
         );
         vm.expectRevert(IVault.NoPreviousEpoch.selector);
         VaultImplementation(payable(address(vault))).previousEpochStart();
@@ -332,16 +332,23 @@ contract VaultTokenizedTest is Test {
 
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 1);
         assertEq(
-            VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp + 2 * vault.epochDuration())), 3
+            VaultImplementation(payable(address(vault))).epochAt(
+                uint48(blockTimestamp + 2 * VaultImplementation(payable(address(vault))).epochDuration())
+            ),
+            3
         );
         assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 1);
         assertEq(VaultImplementation(payable(address(vault))).currentEpochStart(), blockTimestamp);
         assertEq(
-            VaultImplementation(payable(address(vault))).previousEpochStart(), blockTimestamp - vault.epochDuration()
+            VaultImplementation(payable(address(vault))).previousEpochStart(),
+            blockTimestamp - VaultImplementation(payable(address(vault))).epochDuration()
         );
-        assertEq(VaultImplementation(payable(address(vault))).nextEpochStart(), blockTimestamp + vault.epochDuration());
+        assertEq(
+            VaultImplementation(payable(address(vault))).nextEpochStart(),
+            blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration()
+        );
 
-        blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
+        blockTimestamp = blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration() - 1;
         vm.warp(blockTimestamp);
 
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 1);
@@ -349,11 +356,12 @@ contract VaultTokenizedTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 1);
         assertEq(
             VaultImplementation(payable(address(vault))).currentEpochStart(),
-            blockTimestamp - (vault.epochDuration() - 1)
+            blockTimestamp - (VaultImplementation(payable(address(vault))).epochDuration() - 1)
         );
         assertEq(
             VaultImplementation(payable(address(vault))).previousEpochStart(),
-            blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration()
+            blockTimestamp - (VaultImplementation(payable(address(vault))).epochDuration() - 1)
+                - VaultImplementation(payable(address(vault))).epochDuration()
         );
         assertEq(VaultImplementation(payable(address(vault))).nextEpochStart(), blockTimestamp + 1);
 
@@ -3140,7 +3148,7 @@ contract VaultTokenizedTest is Test {
         _deposit(alice, depositAmount);
         _withdraw(alice, withdrawAmount1);
 
-        blockTimestamp = blockTimestamp + vault.epochDuration();
+        blockTimestamp = blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration();
         vm.warp(blockTimestamp);
 
         _withdraw(alice, withdrawAmount2);
@@ -3402,8 +3410,8 @@ contract VaultTokenizedTest is Test {
             ),
             true
         );
-        assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDuration(), 7 days);
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), 7 days);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(0), 0);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
@@ -3557,8 +3565,8 @@ contract VaultTokenizedTest is Test {
             ),
             true
         );
-        assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDuration(), 7 days);
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), 7 days);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(0), 0);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);

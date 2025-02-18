@@ -146,8 +146,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         burner = params.burner;
 
-        epochDurationInit = Time.timestamp();
-        epochDuration = params.epochDuration;
+        epochDurationInitInternal = Time.timestamp();
+        epochDurationInternal = params.epochDuration;
 
         depositWhitelist = params.depositWhitelist;
 

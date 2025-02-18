@@ -86,12 +86,12 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDurationInit;
+    uint48 public epochDurationInitInternal;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDuration;
+    uint48 public epochDurationInternal;
 
     /**
      * @inheritdoc IVaultStorage
@@ -157,27 +157,37 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public epochInit;
+    uint256 public epochInitInternal;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public previousEpochDurationInit;
+    uint256 public prevEpochInitInternal;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public previousEpochDuration;
+    uint48 public prevEpochDurationInitInternal;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public nextEpochDurationInit;
+    uint48 public prevEpochDurationInternal;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public nextEpochDuration;
+    uint48 public nextEpochDurationInitInternal;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint48 public nextEpochDurationInternal;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint256 public nextEpochInitInternal;
 
     /**
      * @inheritdoc IVaultStorage
@@ -194,5 +204,5 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
         SLASHER_FACTORY = slasherFactory;
     }
 
-    uint256[45] private __gap;
+    uint256[43] private __gap;
 }
