@@ -32,30 +32,71 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     /**
      * @inheritdoc IVault
      */
+    function epochDuration() public view returns (uint48) {
+        if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
+            return epochDurationInternal;
+        }
+        return nextEpochDurationInternal;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function epochDurationInit() public view returns (uint48) {
+        if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
+            return epochDurationInitInternal;
+        }
+        return nextEpochDurationInitInternal;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function epochAt(
         uint48 timestamp
     ) public view returns (uint256) {
-        if (timestamp < epochDurationInit) {
-            if (previousEpochDurationInit == 0 || timestamp < previousEpochDurationInit) {
+        if (timestamp < epochDurationInitInternal) {
+            if (prevEpochDurationInitInternal == 0 || timestamp < prevEpochDurationInitInternal) {
                 revert InvalidTimestamp();
             }
-            return epochInit - (epochDurationInit - timestamp).ceilDiv(previousEpochDuration);
+            return prevEpochInitInternal + (timestamp - prevEpochDurationInitInternal) / prevEpochDurationInternal;
+        } else if (nextEpochDurationInitInternal == 0 || timestamp < nextEpochDurationInitInternal) {
+            return epochInitInternal + (timestamp - epochDurationInitInternal) / epochDurationInternal;
+        } else {
+            return nextEpochInitInternal + (timestamp - nextEpochDurationInitInternal) / nextEpochDurationInternal;
         }
-        return epochInit + (timestamp - epochDurationInit) / epochDuration;
+    }
+
+    function epochStart(
+        uint256 epoch
+    ) public view returns (uint48) {
+        if (epoch < prevEpochInitInternal) {
+            revert();
+        }
+
+        if (epoch < epochInitInternal) {
+            return
+                (prevEpochDurationInitInternal + (epoch - prevEpochInitInternal) * prevEpochDurationInternal).toUint48();
+        } else if (nextEpochInitInternal == 0 || epoch < nextEpochInitInternal) {
+            return (epochDurationInitInternal + (epoch - epochInitInternal) * epochDurationInternal).toUint48();
+        } else {
+            return
+                (nextEpochDurationInitInternal + (epoch - nextEpochInitInternal) * nextEpochDurationInternal).toUint48();
+        }
     }
 
     /**
      * @inheritdoc IVault
      */
     function currentEpoch() public view returns (uint256) {
-        return epochInit + (Time.timestamp() - epochDurationInit) / epochDuration;
+        return epochAt(Time.timestamp());
     }
 
     /**
      * @inheritdoc IVault
      */
     function currentEpochStart() public view returns (uint48) {
-        return (epochDurationInit + (currentEpoch() - epochInit) * epochDuration).toUint48();
+        return epochStart(currentEpoch());
     }
 
     /**
@@ -66,17 +107,14 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         if (epoch == 0) {
             revert NoPreviousEpoch();
         }
-        if (epoch == epochInit) {
-            return epochDurationInit - previousEpochDuration;
-        }
-        return (epochDurationInit + (epoch - epochInit - 1) * epochDuration).toUint48();
+        return epochStart(epoch - 1);
     }
 
     /**
      * @inheritdoc IVault
      */
     function nextEpochStart() public view returns (uint48) {
-        return currentEpochStart() + epochDuration;
+        return epochStart(currentEpoch() + 1);
     }
 
     /**
@@ -214,8 +252,6 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
-
-        _tryAcceptEpochDuration();
 
         uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
         IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
@@ -483,35 +519,41 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function setEpochDuration(
         uint48 epochDuration_
     ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
-        _tryAcceptEpochDuration();
+        if (nextEpochDurationInitInternal != 0 && nextEpochDurationInitInternal <= Time.timestamp()) {
+            uint256 currentEpoch_ = currentEpoch();
+            uint48 currentEpochStart_ = currentEpochStart();
 
-        if (epochDuration > epochDuration_) {
+            prevEpochInitInternal = epochInitInternal;
+            prevEpochDurationInternal = epochDurationInternal;
+            prevEpochDurationInitInternal = epochDurationInitInternal;
+            epochInitInternal = currentEpoch_;
+            epochDurationInternal = nextEpochDurationInternal;
+            epochDurationInitInternal = currentEpochStart_;
+            nextEpochInitInternal = 0;
+            nextEpochDurationInternal = 0;
+            nextEpochDurationInitInternal = 0;
+        }
+
+        if (epochDurationInternal > epochDuration_) {
             revert InvalidNewEpochDuration();
         }
 
-        if (nextEpochDurationInit != 0) {
-            nextEpochDuration = 0;
-            nextEpochDurationInit = 0;
-        } else if (epochDuration == epochDuration_) {
+        if (nextEpochDurationInitInternal != 0) {
+            nextEpochInitInternal = 0;
+            nextEpochDurationInternal = 0;
+            nextEpochDurationInitInternal = 0;
+        } else if (epochDurationInternal == epochDuration_) {
             revert AlreadySet();
         }
 
-        if (epochDuration != epochDuration_) {
-            nextEpochDuration = epochDuration_;
-            nextEpochDurationInit = (currentEpochStart() + epochDurationSetEpochsDelay * epochDuration).toUint48();
+        if (epochDurationInternal != epochDuration_) {
+            nextEpochInitInternal = currentEpoch() + epochDurationSetEpochsDelay;
+            nextEpochDurationInternal = epochDuration_;
+            nextEpochDurationInitInternal =
+                (currentEpochStart() + epochDurationSetEpochsDelay * epochDurationInternal).toUint48();
         }
 
         emit SetEpochDuration(epochDuration_);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function acceptEpochDuration() external nonReentrant {
-        if (nextEpochDurationInit == 0 || nextEpochDurationInit > Time.timestamp()) {
-            revert NewEpochDurationNotReady();
-        }
-        _acceptEpochDuration();
     }
 
     /**
@@ -599,8 +641,6 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         uint256 withdrawnAssets,
         uint256 burnedShares
     ) internal returns (uint256 mintedShares) {
-        _tryAcceptEpochDuration();
-
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
         _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
         _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
@@ -636,27 +676,6 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         }
 
         isWithdrawalsClaimed[epoch][msg.sender] = true;
-    }
-
-    function _tryAcceptEpochDuration() internal {
-        if (nextEpochDurationInit != 0 && nextEpochDurationInit <= Time.timestamp()) {
-            _acceptEpochDuration();
-        }
-    }
-
-    function _acceptEpochDuration() internal {
-        uint256 currentEpoch_ = currentEpoch();
-        uint48 currentEpochStart_ = currentEpochStart();
-
-        previousEpochDuration = epochDuration;
-        previousEpochDurationInit = epochDurationInit;
-        epochInit = currentEpoch_;
-        epochDuration = nextEpochDuration;
-        epochDurationInit = currentEpochStart_;
-        nextEpochDuration = 0;
-        nextEpochDurationInit = 0;
-
-        emit AcceptEpochDuration();
     }
 
     function _Vault_init() external {}

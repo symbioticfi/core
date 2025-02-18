@@ -229,6 +229,18 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     event SetSlasher(address indexed slasher);
 
     /**
+     * @notice Get a time point of the epoch duration set.
+     * @return time point of the epoch duration set
+     */
+    function epochDurationInit() external view returns (uint48);
+
+    /**
+     * @notice Get a duration of the vault epoch.
+     * @return duration of the epoch
+     */
+    function epochDuration() external view returns (uint48);
+
+    /**
      * @notice Get an epoch at a given timestamp.
      * @param timestamp time point to get the epoch at
      * @return epoch at the timestamp
@@ -459,12 +471,6 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     function setEpochDuration(
         uint48 epochDuration_
     ) external;
-
-    /**
-     * @notice Accept an epoch duration.
-     * @dev Only a EPOCH_DURATION_SET_ROLE holder can call this function.
-     */
-    function acceptEpochDuration() external;
 
     /**
      * @notice Set a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).

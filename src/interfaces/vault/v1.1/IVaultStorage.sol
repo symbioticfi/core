@@ -105,18 +105,6 @@ interface IVaultStorage {
     function isSlasherInitialized() external view returns (bool);
 
     /**
-     * @notice Get a time point of the epoch duration set.
-     * @return time point of the epoch duration set
-     */
-    function epochDurationInit() external view returns (uint48);
-
-    /**
-     * @notice Get a duration of the vault epoch.
-     * @return duration of the epoch
-     */
-    function epochDuration() external view returns (uint48);
-
-    /**
      * @notice Get if the deposit whitelist is enabled.
      * @return if the deposit whitelist is enabled
      */
@@ -184,34 +172,58 @@ interface IVaultStorage {
     function epochDurationSetEpochsDelay() external view returns (uint256);
 
     /**
-     * @notice Get the current epoch duration's first epoch.
+     * @notice Get the current epoch duration's first epoch (internal).
      * @return the current epoch duration's first epoch
      */
-    function epochInit() external view returns (uint256);
+    function epochInitInternal() external view returns (uint256);
 
     /**
-     * @notice Get a time point of the previous epoch duration set.
+     * @notice Get a time point of the epoch duration set (internal).
+     * @return time point of the epoch duration set
+     */
+    function epochDurationInitInternal() external view returns (uint48);
+
+    /**
+     * @notice Get a duration of the epoch (internal).
+     * @return duration of the epoch
+     */
+    function epochDurationInternal() external view returns (uint48);
+
+    /**
+     * @notice Get a the previous epoch duration's first epoch (internal).
+     * @return the previous epoch duration's first epoch
+     */
+    function prevEpochInitInternal() external view returns (uint256);
+
+    /**
+     * @notice Get a time point of the previous epoch duration set (internal).
      * @return time point of the previous epoch duration set
      */
-    function previousEpochDurationInit() external view returns (uint48);
+    function prevEpochDurationInitInternal() external view returns (uint48);
 
     /**
-     * @notice Get a duration of the previous epoch.
+     * @notice Get a duration of the previous epoch (internal).
      * @return duration of the previous epoch
      */
-    function previousEpochDuration() external view returns (uint48);
+    function prevEpochDurationInternal() external view returns (uint48);
 
     /**
-     * @notice Get a time point of the next epoch duration set.
+     * @notice Get a the next epoch duration's first epoch (internal).
+     * @return the next epoch duration's first epoch
+     */
+    function nextEpochInitInternal() external view returns (uint256);
+
+    /**
+     * @notice Get a time point of the next epoch duration set (internal).
      * @return time point of the next epoch duration set
      */
-    function nextEpochDurationInit() external view returns (uint48);
+    function nextEpochDurationInitInternal() external view returns (uint48);
 
     /**
-     * @notice Get a duration of the next epoch.
+     * @notice Get a duration of the next epoch (internal).
      * @return duration of the next epoch
      */
-    function nextEpochDuration() external view returns (uint48);
+    function nextEpochDurationInternal() external view returns (uint48);
 
     /**
      * @notice Get a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).
