@@ -23,28 +23,28 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     error InvalidDelegator();
     error InvalidEpoch();
     error InvalidEpochDuration();
+    error InvalidEpochDurationSetEpochsDelay();
+    error InvalidFlashParams();
     error InvalidLengthEpochs();
+    error InvalidNewEpochDuration();
     error InvalidOnBehalfOf();
+    error InvalidReceiver();
     error InvalidRecipient();
+    error InvalidReturnAmount();
     error InvalidSlasher();
+    error InvalidTimestamp();
+    error MaxLoanExceeded();
     error MissingRoles();
+    error NewEpochDurationNotReady();
+    error NoDepositWhitelist();
+    error NoPreviousEpoch();
     error NotDelegator();
     error NotSlasher();
     error NotWhitelistedDepositor();
     error SlasherAlreadyInitialized();
     error TooMuchRedeem();
     error TooMuchWithdraw();
-    error InvalidEpochDurationSetEpochsDelay();
-    error InvalidNewEpochDuration();
-    error NewEpochDurationNotReady();
-    error NoDepositWhitelist();
     error UnsupportedToken();
-    error MaxLoanExceeded();
-    error InvalidReceiver();
-    error InvalidReturnAmount();
-    error InvalidFlashParams();
-    error InvalidTimestamp();
-    error NoPreviousEpoch();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -54,11 +54,18 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
      * @param depositWhitelist if enabling deposit whitelist
      * @param isDepositLimit if enabling deposit limit
      * @param depositLimit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
+     * @param epochDurationSetEpochsDelay number of epochs to wait before accepting a new epoch duration
+     * @param flashFeeRate flash fee rate (100% = 1_000_000_000; 0.03% = 300_000)
+     * @param flashFeeReceiver address of the flash fee receiver
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param depositWhitelistSetRoleHolder address of the initial DEPOSIT_WHITELIST_SET_ROLE holder
      * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
+     * @param depositorsWhitelisted addresses of the whitelisted depositors
      * @param isDepositLimitSetRoleHolder address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder
      * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
+     * @param epochDurationSetRoleHolder address of the initial EPOCH_DURATION_SET_ROLE holder
+     * @param flashFeeRateSetRoleHolder address of the initial FLASH_FEE_RATE_SET_ROLE holder
+     * @param flashFeeReceiverSetRoleHolder address of the initial FLASH_FEE_RECEIVER_SET_ROLE holder
      */
     struct InitParams {
         address collateral;
@@ -81,6 +88,16 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
         address flashFeeReceiverSetRoleHolder;
     }
 
+    /**
+     * @notice Parameters needed for a vault migration.
+     * @param epochDurationSetEpochsDelay number of epochs to wait before accepting a new epoch duration
+     * @param flashFeeRate flash fee rate (100% = 1_000_000_000; 0.03% = 300_000)
+     * @param flashFeeReceiver address of the flash fee receiver
+     * @param epochDurationSetRoleHolder address of the initial EPOCH_DURATION_SET_ROLE holder
+     * @param flashFeeRateSetRoleHolder address of the initial FLASH_FEE_RATE_SET_ROLE holder
+     * @param flashFeeReceiverSetRoleHolder address of the initial FLASH_FEE_RECEIVER_SET_ROLE holder
+     * @dev Version 1 and 2 -> version 3 vaults migration.
+     */
     struct MigrateParams {
         uint256 epochDurationSetEpochsDelay;
         uint256 flashFeeRate;

@@ -33,7 +33,9 @@ contract VaultTokenized is Vault {
         if (oldVersion == 1) {
             (IVaultTokenized.MigrateParamsTokenized memory params) =
                 abi.decode(data, (IVaultTokenized.MigrateParamsTokenized));
+
             super._migrate(oldVersion, newVersion, params.baseParams);
+
             _implementation().functionDelegateCall(
                 abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (params.name, params.symbol))
             );
