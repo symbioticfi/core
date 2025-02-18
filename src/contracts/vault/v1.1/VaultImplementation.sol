@@ -1,34 +1,127 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "../../../interfaces/delegator/IBaseDelegator.sol";
+import {IBaseSlasher} from "../../../interfaces/slasher/IBaseSlasher.sol";
+import {IRegistry} from "../../../interfaces/common/IRegistry.sol";
+import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
-import {ERC4626Math} from "../libraries/ERC4626Math.sol";
+import {Checkpoints} from "../../libraries/Checkpoints.sol";
+import {ERC4626Math} from "../../libraries/ERC4626Math.sol";
 
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
+import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
-contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
+contract VaultImplementation is VaultStorage, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
+    using Math for uint48;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
+    constructor(address delegatorFactory, address slasherFactory) VaultStorage(delegatorFactory, slasherFactory) {}
+
+    /**
+     * @inheritdoc IVault
+     */
+    function epochAt(
+        uint48 timestamp
+    ) public view returns (uint256) {
+        if (timestamp < epochDurationInit) {
+            if (previousEpochDurationInit == 0 || timestamp < previousEpochDurationInit) {
+                revert InvalidTimestamp();
+            }
+            return epochInit - (epochDurationInit - timestamp).ceilDiv(previousEpochDuration);
+        }
+        return epochInit + (timestamp - epochDurationInit) / epochDuration;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function currentEpoch() public view returns (uint256) {
+        return epochInit + (Time.timestamp() - epochDurationInit) / epochDuration;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function currentEpochStart() public view returns (uint48) {
+        return (epochDurationInit + (currentEpoch() - epochInit) * epochDuration).toUint48();
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function previousEpochStart() public view returns (uint48) {
+        uint256 epoch = currentEpoch();
+        if (epoch == 0) {
+            revert NoPreviousEpoch();
+        }
+        if (epoch == epochInit) {
+            return epochDurationInit - previousEpochDuration;
+        }
+        return (epochDurationInit + (epoch - epochInit - 1) * epochDuration).toUint48();
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function nextEpochStart() public view returns (uint48) {
+        return currentEpochStart() + epochDuration;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeSharesAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
+        return _activeShares.upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeShares() public view returns (uint256) {
+        return _activeShares.latest();
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeStakeAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
+        return _activeStake.upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeStake() public view returns (uint256) {
+        return _activeStake.latest();
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) public view returns (uint256) {
+        return _activeSharesOf[account].upperLookupRecent(timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function activeSharesOf(
+        address account
+    ) public view returns (uint256) {
+        return _activeSharesOf[account].latest();
+    }
 
     /**
      * @inheritdoc IVault
@@ -88,12 +181,32 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     }
 
     /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function maxFlashLoan(
+        address token
+    ) public view returns (uint256) {
+        address collateral_ = collateral;
+        return token == collateral_ ? IERC20(collateral_).balanceOf(address(this)) : 0;
+    }
+
+    /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function flashFee(address token, uint256 value) public view returns (uint256) {
+        if (token != collateral) {
+            revert UnsupportedToken();
+        }
+        return value.mulDiv(flashFeeRate, FLASH_FEE_BASE);
+    }
+
+    /**
      * @inheritdoc IVault
      */
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) public virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) external nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -101,6 +214,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
+
+        _tryAcceptEpochDuration();
 
         uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
         IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
@@ -209,6 +324,39 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         IERC20(collateral).safeTransfer(recipient, amount);
 
         emit ClaimBatch(msg.sender, recipient, epochs, amount);
+    }
+
+    /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function flashLoan(
+        IERC3156FlashBorrower receiver,
+        address token,
+        uint256 value,
+        bytes calldata data
+    ) public nonReentrant returns (bool) {
+        if (value > maxFlashLoan(token)) {
+            revert MaxLoanExceeded();
+        }
+        uint256 fee = flashFee(token, value);
+        address collateral_ = collateral;
+        uint256 balanceBefore = IERC20(collateral_).balanceOf(address(this));
+
+        IERC20(collateral_).safeTransfer(address(receiver), value);
+
+        if (receiver.onFlashLoan(msg.sender, token, value, fee, data) != RETURN_VALUE) {
+            revert InvalidReceiver();
+        }
+
+        if (IERC20(collateral_).balanceOf(address(this)) - balanceBefore != fee) {
+            revert InvalidReturnAmount();
+        }
+
+        if (flashFeeReceiver != address(0)) {
+            IERC20(collateral_).safeTransfer(flashFeeReceiver, fee);
+        }
+
+        return true;
     }
 
     /**
@@ -329,6 +477,74 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositLimit(limit);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
+    function setEpochDuration(
+        uint48 epochDuration_
+    ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
+        _tryAcceptEpochDuration();
+
+        if (epochDuration > epochDuration_) {
+            revert InvalidNewEpochDuration();
+        }
+
+        if (nextEpochDurationInit != 0) {
+            nextEpochDuration = 0;
+            nextEpochDurationInit = 0;
+        } else if (epochDuration == epochDuration_) {
+            revert AlreadySet();
+        }
+
+        if (epochDuration != epochDuration_) {
+            nextEpochDuration = epochDuration_;
+            nextEpochDurationInit = (currentEpochStart() + epochDurationSetEpochsDelay * epochDuration).toUint48();
+        }
+
+        emit SetEpochDuration(epochDuration_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function acceptEpochDuration() external nonReentrant {
+        if (nextEpochDurationInit == 0 || nextEpochDurationInit > Time.timestamp()) {
+            revert NewEpochDurationNotReady();
+        }
+        _acceptEpochDuration();
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setFlashFeeRate(
+        uint256 flashFeeRate_
+    ) external nonReentrant onlyRole(FLASH_FEE_RATE_SET_ROLE) {
+        if (flashFeeRate == flashFeeRate_) {
+            revert AlreadySet();
+        }
+        flashFeeRate = flashFeeRate_;
+
+        emit SetFlashFeeRate(flashFeeRate_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setFlashFeeReceiver(
+        address flashFeeReceiver_
+    ) external nonReentrant onlyRole(FLASH_FEE_RECEIVER_SET_ROLE) {
+        if (flashFeeReceiver == flashFeeReceiver_) {
+            revert AlreadySet();
+        }
+        flashFeeReceiver = flashFeeReceiver_;
+
+        emit SetFlashFeeReceiver(flashFeeReceiver_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function setDelegator(
         address delegator_
     ) external nonReentrant {
@@ -351,6 +567,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDelegator(delegator_);
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function setSlasher(
         address slasher_
     ) external nonReentrant {
@@ -379,7 +598,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         address claimer,
         uint256 withdrawnAssets,
         uint256 burnedShares
-    ) internal virtual returns (uint256 mintedShares) {
+    ) internal returns (uint256 mintedShares) {
+        _tryAcceptEpochDuration();
+
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
         _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
         _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
@@ -417,69 +638,26 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
-    function _initialize(uint64, address, bytes memory data) internal virtual override {
-        (InitParams memory params) = abi.decode(data, (InitParams));
-
-        if (params.collateral == address(0)) {
-            revert InvalidCollateral();
-        }
-
-        if (params.epochDuration == 0) {
-            revert InvalidEpochDuration();
-        }
-
-        if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.depositWhitelistSetRoleHolder == address(0)) {
-                if (params.depositWhitelist) {
-                    if (params.depositorWhitelistRoleHolder == address(0)) {
-                        revert MissingRoles();
-                    }
-                } else if (params.depositorWhitelistRoleHolder != address(0)) {
-                    revert MissingRoles();
-                }
-            }
-
-            if (params.isDepositLimitSetRoleHolder == address(0)) {
-                if (params.isDepositLimit) {
-                    if (params.depositLimit == 0 && params.depositLimitSetRoleHolder == address(0)) {
-                        revert MissingRoles();
-                    }
-                } else if (params.depositLimit != 0 || params.depositLimitSetRoleHolder != address(0)) {
-                    revert MissingRoles();
-                }
-            }
-        }
-
-        collateral = params.collateral;
-
-        burner = params.burner;
-
-        epochDurationInit = Time.timestamp();
-        epochDuration = params.epochDuration;
-
-        depositWhitelist = params.depositWhitelist;
-
-        isDepositLimit = params.isDepositLimit;
-        depositLimit = params.depositLimit;
-
-        if (params.defaultAdminRoleHolder != address(0)) {
-            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-        if (params.depositWhitelistSetRoleHolder != address(0)) {
-            _grantRole(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
-        }
-        if (params.depositorWhitelistRoleHolder != address(0)) {
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
-        }
-        if (params.isDepositLimitSetRoleHolder != address(0)) {
-            _grantRole(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
-        }
-        if (params.depositLimitSetRoleHolder != address(0)) {
-            _grantRole(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
+    function _tryAcceptEpochDuration() internal {
+        if (nextEpochDurationInit != 0 && nextEpochDurationInit <= Time.timestamp()) {
+            _acceptEpochDuration();
         }
     }
 
-    function _migrate(uint64, /* oldVersion */ uint64, /* newVersion */ bytes memory /* data */ ) internal override {
-        revert();
+    function _acceptEpochDuration() internal {
+        uint256 currentEpoch_ = currentEpoch();
+        uint48 currentEpochStart_ = currentEpochStart();
+
+        previousEpochDuration = epochDuration;
+        previousEpochDurationInit = epochDurationInit;
+        epochInit = currentEpoch_;
+        epochDuration = nextEpochDuration;
+        epochDurationInit = currentEpochStart_;
+        nextEpochDuration = 0;
+        nextEpochDurationInit = 0;
+
+        emit AcceptEpochDuration();
     }
+
+    function _Vault_init() external {}
 }

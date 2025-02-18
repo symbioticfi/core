@@ -718,17 +718,13 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         uint256 HOOK_GAS_LIMIT = delegator.HOOK_GAS_LIMIT();
         vm.expectRevert(IBaseDelegator.InsufficientHookGas.selector);
         address(slasher).call{gas: HOOK_GAS_LIMIT}(
-            abi.encodeWithSelector(
-                ISlasher.slash.selector, network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""
-            )
+            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
         );
         vm.stopPrank();
 
         vm.startPrank(alice);
         (bool success,) = address(slasher).call{gas: totalGas}(
-            abi.encodeWithSelector(
-                ISlasher.slash.selector, network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""
-            )
+            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
         );
         vm.stopPrank();
 
