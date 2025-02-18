@@ -24,13 +24,13 @@ contract VaultVotes is VaultTokenized {
         _implementation().functionDelegateCall(abi.encodeCall(VaultVotesImplementation._VaultVotes_init, ()));
     }
 
-    function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes calldata data) internal virtual override {
+    function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes memory data) internal virtual override {
         if (oldVersion != 3) {
             revert IVaultVotes.ImproperMigration();
         }
 
         if (data.length > 0) {
-            revert IVaultTokenized.InvalidData();
+            revert IVaultVotes.InvalidData();
         }
 
         _implementation().functionDelegateCall(abi.encodeCall(VaultVotesImplementation._VaultVotes_init, ()));

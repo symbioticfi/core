@@ -39,7 +39,7 @@ import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.s
 import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
 
-import {IVaultStorage} from "../../../src/interfaces/vault/v1.1/IVaultStorage.sol";
+import {IVaultVotes} from "../../../src/interfaces/vault/v1.1/IVaultVotes.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {VaultHints} from "../../../src/contracts/hints/VaultHints.sol";
@@ -226,26 +226,28 @@ contract VaultVotesTest is Test {
                 owner: address(0),
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(collateral),
-                            burner: burner,
-                            epochDuration: epochDuration,
-                            depositWhitelist: depositWhitelist,
-                            isDepositLimit: isDepositLimit,
-                            depositLimit: depositLimit,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(collateral),
+                                burner: burner,
+                                epochDuration: epochDuration,
+                                depositWhitelist: depositWhitelist,
+                                isDepositLimit: isDepositLimit,
+                                depositLimit: depositLimit,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "Test",
                         symbol: "TEST"
                     })
@@ -393,26 +395,28 @@ contract VaultVotesTest is Test {
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(collateral),
-                            burner: address(0xdEaD),
-                            epochDuration: epochDuration,
-                            depositWhitelist: true,
-                            isDepositLimit: false,
-                            depositLimit: 0,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(collateral),
+                                burner: address(0xdEaD),
+                                epochDuration: epochDuration,
+                                depositWhitelist: true,
+                                isDepositLimit: false,
+                                depositLimit: 0,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "Test",
                         symbol: "TEST"
                     })
@@ -453,26 +457,28 @@ contract VaultVotesTest is Test {
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(0),
-                            burner: address(0xdEaD),
-                            epochDuration: epochDuration,
-                            depositWhitelist: true,
-                            isDepositLimit: false,
-                            depositLimit: 0,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(0),
+                                burner: address(0xdEaD),
+                                epochDuration: epochDuration,
+                                depositWhitelist: true,
+                                isDepositLimit: false,
+                                depositLimit: 0,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "Test",
                         symbol: "TEST"
                     })
@@ -511,26 +517,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: epochDuration,
-                                depositWhitelist: true,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: address(0),
-                                depositWhitelistSetRoleHolder: address(0),
-                                depositorWhitelistRoleHolder: address(0),
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: address(0),
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: epochDuration,
+                                    depositWhitelist: true,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: address(0),
+                                    depositWhitelistSetRoleHolder: address(0),
+                                    depositorWhitelistRoleHolder: address(0),
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: address(0),
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -555,26 +563,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: epochDuration,
-                                depositWhitelist: false,
-                                isDepositLimit: true,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 0,
-                                flashFeeReceiver: address(0),
-                                defaultAdminRoleHolder: address(0),
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: address(0),
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: address(0),
-                                depositLimitSetRoleHolder: address(0),
-                                epochDurationSetRoleHolder: address(0),
-                                flashFeeRateSetRoleHolder: address(0),
-                                flashFeeReceiverSetRoleHolder: address(0)
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: epochDuration,
+                                    depositWhitelist: false,
+                                    isDepositLimit: true,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 0,
+                                    flashFeeReceiver: address(0),
+                                    defaultAdminRoleHolder: address(0),
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: address(0),
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: address(0),
+                                    depositLimitSetRoleHolder: address(0),
+                                    epochDurationSetRoleHolder: address(0),
+                                    flashFeeRateSetRoleHolder: address(0),
+                                    flashFeeReceiverSetRoleHolder: address(0)
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -599,26 +609,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: epochDuration,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: address(0),
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: address(0),
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: address(0),
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: epochDuration,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: address(0),
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: address(0),
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: address(0),
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -643,26 +655,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: epochDuration,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 1,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 0,
-                                flashFeeReceiver: address(0),
-                                defaultAdminRoleHolder: address(0),
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: address(0),
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: address(0),
-                                depositLimitSetRoleHolder: address(0),
-                                epochDurationSetRoleHolder: address(0),
-                                flashFeeRateSetRoleHolder: address(0),
-                                flashFeeReceiverSetRoleHolder: address(0)
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: epochDuration,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 1,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 0,
+                                    flashFeeReceiver: address(0),
+                                    defaultAdminRoleHolder: address(0),
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: address(0),
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: address(0),
+                                    depositLimitSetRoleHolder: address(0),
+                                    epochDurationSetRoleHolder: address(0),
+                                    flashFeeRateSetRoleHolder: address(0),
+                                    flashFeeReceiverSetRoleHolder: address(0)
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -687,26 +701,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: epochDuration,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: address(0),
-                                depositWhitelistSetRoleHolder: address(0),
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: address(0),
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: epochDuration,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: address(0),
+                                    depositWhitelistSetRoleHolder: address(0),
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: address(0),
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -726,26 +742,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -797,26 +815,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -865,26 +885,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -907,26 +929,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -942,26 +966,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1008,26 +1034,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1065,26 +1093,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1119,26 +1149,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1171,26 +1203,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1206,26 +1240,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1258,26 +1294,28 @@ contract VaultVotesTest is Test {
                     alice,
                     abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(collateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(collateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -1536,26 +1574,28 @@ contract VaultVotesTest is Test {
                     owner: alice,
                     vaultParams: abi.encode(
                         IVaultTokenized.InitParamsTokenized({
-                            baseParams: IVault.InitParams({
-                                collateral: address(feeOnTransferCollateral),
-                                burner: address(0xdEaD),
-                                epochDuration: 7 days,
-                                depositWhitelist: false,
-                                isDepositLimit: false,
-                                depositLimit: 0,
-                                epochDurationSetEpochsDelay: 3,
-                                flashFeeRate: 1,
-                                flashFeeReceiver: alice,
-                                defaultAdminRoleHolder: alice,
-                                depositWhitelistSetRoleHolder: alice,
-                                depositorWhitelistRoleHolder: alice,
-                                depositorsWhitelisted: new address[](0),
-                                isDepositLimitSetRoleHolder: alice,
-                                depositLimitSetRoleHolder: alice,
-                                epochDurationSetRoleHolder: alice,
-                                flashFeeRateSetRoleHolder: alice,
-                                flashFeeReceiverSetRoleHolder: alice
-                            }),
+                            baseParams: abi.encode(
+                                IVault.InitParams({
+                                    collateral: address(feeOnTransferCollateral),
+                                    burner: address(0xdEaD),
+                                    epochDuration: 7 days,
+                                    depositWhitelist: false,
+                                    isDepositLimit: false,
+                                    depositLimit: 0,
+                                    epochDurationSetEpochsDelay: 3,
+                                    flashFeeRate: 1,
+                                    flashFeeReceiver: alice,
+                                    defaultAdminRoleHolder: alice,
+                                    depositWhitelistSetRoleHolder: alice,
+                                    depositorWhitelistRoleHolder: alice,
+                                    depositorsWhitelisted: new address[](0),
+                                    isDepositLimitSetRoleHolder: alice,
+                                    depositLimitSetRoleHolder: alice,
+                                    epochDurationSetRoleHolder: alice,
+                                    flashFeeRateSetRoleHolder: alice,
+                                    flashFeeReceiverSetRoleHolder: alice
+                                })
+                            ),
                             name: "Test",
                             symbol: "TEST"
                         })
@@ -3647,26 +3687,28 @@ contract VaultVotesTest is Test {
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(collateral),
-                            burner: address(0xdEaD),
-                            epochDuration: 7 days,
-                            depositWhitelist: false,
-                            isDepositLimit: false,
-                            depositLimit: 0,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(collateral),
+                                burner: address(0xdEaD),
+                                epochDuration: 7 days,
+                                depositWhitelist: false,
+                                isDepositLimit: false,
+                                depositLimit: 0,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "test",
                         symbol: "TEST"
                     })
@@ -3774,26 +3816,28 @@ contract VaultVotesTest is Test {
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(collateral),
-                            burner: address(0xdEaD),
-                            epochDuration: 7 days,
-                            depositWhitelist: false,
-                            isDepositLimit: false,
-                            depositLimit: 0,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(collateral),
+                                burner: address(0xdEaD),
+                                epochDuration: 7 days,
+                                depositWhitelist: false,
+                                isDepositLimit: false,
+                                depositLimit: 0,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "test",
                         symbol: "TEST"
                     })
@@ -3819,7 +3863,7 @@ contract VaultVotesTest is Test {
         vault = VaultVotesImplementation(payable(vault_));
 
         vm.startPrank(alice);
-        vm.expectRevert(IVaultTokenized.InvalidData.selector);
+        vm.expectRevert(IVaultVotes.InvalidData.selector);
         vaultFactory.migrate(address(vault), 4, new bytes(1));
         vm.stopPrank();
     }
@@ -3837,26 +3881,28 @@ contract VaultVotesTest is Test {
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(collateral),
-                            burner: address(0xdEaD),
-                            epochDuration: epochDuration,
-                            depositWhitelist: false,
-                            isDepositLimit: false,
-                            depositLimit: 0,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(collateral),
+                                burner: address(0xdEaD),
+                                epochDuration: epochDuration,
+                                depositWhitelist: false,
+                                isDepositLimit: false,
+                                depositLimit: 0,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "Test",
                         symbol: "TEST"
                     })
@@ -3895,26 +3941,28 @@ contract VaultVotesTest is Test {
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
-                        baseParams: IVault.InitParams({
-                            collateral: address(collateral),
-                            burner: address(0xdEaD),
-                            epochDuration: epochDuration,
-                            depositWhitelist: false,
-                            isDepositLimit: false,
-                            depositLimit: 0,
-                            epochDurationSetEpochsDelay: 3,
-                            flashFeeRate: 1,
-                            flashFeeReceiver: alice,
-                            defaultAdminRoleHolder: alice,
-                            depositWhitelistSetRoleHolder: alice,
-                            depositorWhitelistRoleHolder: alice,
-                            depositorsWhitelisted: new address[](0),
-                            isDepositLimitSetRoleHolder: alice,
-                            depositLimitSetRoleHolder: alice,
-                            epochDurationSetRoleHolder: alice,
-                            flashFeeRateSetRoleHolder: alice,
-                            flashFeeReceiverSetRoleHolder: alice
-                        }),
+                        baseParams: abi.encode(
+                            IVault.InitParams({
+                                collateral: address(collateral),
+                                burner: address(0xdEaD),
+                                epochDuration: epochDuration,
+                                depositWhitelist: false,
+                                isDepositLimit: false,
+                                depositLimit: 0,
+                                epochDurationSetEpochsDelay: 3,
+                                flashFeeRate: 1,
+                                flashFeeReceiver: alice,
+                                defaultAdminRoleHolder: alice,
+                                depositWhitelistSetRoleHolder: alice,
+                                depositorWhitelistRoleHolder: alice,
+                                depositorsWhitelisted: new address[](0),
+                                isDepositLimitSetRoleHolder: alice,
+                                depositLimitSetRoleHolder: alice,
+                                epochDurationSetRoleHolder: alice,
+                                flashFeeRateSetRoleHolder: alice,
+                                flashFeeReceiverSetRoleHolder: alice
+                            })
+                        ),
                         name: "Test",
                         symbol: "TEST"
                     })

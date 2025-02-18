@@ -96,17 +96,15 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
     }
 
     function transfer(address to, uint256 value) external returns (bool result) {
-        result = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transfer, (to, value))), (bool)
-        );
+        result =
+            abi.decode(BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transfer, (to, value))), (bool));
 
         _transferVotingUnits(msg.sender, to, value);
     }
 
     function transferFrom(address from, address to, uint256 value) external returns (bool result) {
         result = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transferFrom, (from, to, value))),
-            (bool)
+            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transferFrom, (from, to, value))), (bool)
         );
 
         _transferVotingUnits(from, to, value);

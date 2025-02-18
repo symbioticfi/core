@@ -41,6 +41,33 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         return IMPLEMENTATION;
     }
 
+    function _processMigrateParams(
+        IVault.MigrateParams memory params
+    ) internal {
+        if (params.epochDurationSetEpochsDelay < 3) {
+            revert IVault.InvalidEpochDurationSetEpochsDelay();
+        }
+
+        if (params.flashFeeReceiver == address(0) && params.flashFeeRate != 0) {
+            revert IVault.InvalidFlashParams();
+        }
+
+        epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
+
+        flashFeeRate = params.flashFeeRate;
+        flashFeeReceiver = params.flashFeeReceiver;
+
+        if (params.epochDurationSetRoleHolder != address(0)) {
+            _grantRole(EPOCH_DURATION_SET_ROLE, params.epochDurationSetRoleHolder);
+        }
+        if (params.flashFeeRateSetRoleHolder != address(0)) {
+            _grantRole(FLASH_FEE_RATE_SET_ROLE, params.flashFeeRateSetRoleHolder);
+        }
+        if (params.flashFeeReceiverSetRoleHolder != address(0)) {
+            _grantRole(FLASH_FEE_RECEIVER_SET_ROLE, params.flashFeeReceiverSetRoleHolder);
+        }
+    }
+
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
@@ -90,13 +117,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             isDepositorWhitelisted[params.depositorsWhitelisted[i]] = true;
         }
 
-        if (params.epochDurationSetEpochsDelay < 3) {
-            revert IVault.InvalidEpochDurationSetEpochsDelay();
-        }
-
-        if (params.flashFeeReceiver == address(0) && params.flashFeeRate != 0) {
-            revert IVault.InvalidFlashParams();
-        }
         if (params.defaultAdminRoleHolder == address(0)) {
             if (params.flashFeeReceiver == address(0)) {
                 if (params.flashFeeRateSetRoleHolder == address(0)) {
@@ -111,21 +131,28 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             }
         }
 
+        _processMigrateParams(
+            IVault.MigrateParams({
+                epochDurationSetEpochsDelay: params.epochDurationSetEpochsDelay,
+                flashFeeRate: params.flashFeeRate,
+                flashFeeReceiver: params.flashFeeReceiver,
+                epochDurationSetRoleHolder: params.epochDurationSetRoleHolder,
+                flashFeeRateSetRoleHolder: params.flashFeeRateSetRoleHolder,
+                flashFeeReceiverSetRoleHolder: params.flashFeeReceiverSetRoleHolder
+            })
+        );
+
         collateral = params.collateral;
 
         burner = params.burner;
 
         epochDurationInit = Time.timestamp();
         epochDuration = params.epochDuration;
-        epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
 
         depositWhitelist = params.depositWhitelist;
 
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
-
-        flashFeeRate = params.flashFeeRate;
-        flashFeeReceiver = params.flashFeeReceiver;
 
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
@@ -142,22 +169,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         if (params.depositLimitSetRoleHolder != address(0)) {
             _grantRole(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
         }
-        if (params.epochDurationSetRoleHolder != address(0)) {
-            _grantRole(EPOCH_DURATION_SET_ROLE, params.epochDurationSetRoleHolder);
-        }
-        if (params.flashFeeRateSetRoleHolder != address(0)) {
-            _grantRole(FLASH_FEE_RATE_SET_ROLE, params.flashFeeRateSetRoleHolder);
-        }
-        if (params.flashFeeReceiverSetRoleHolder != address(0)) {
-            _grantRole(FLASH_FEE_RECEIVER_SET_ROLE, params.flashFeeReceiverSetRoleHolder);
-        }
     }
 
-    function _migrate(
-        uint64, /* oldVersion */
-        uint64, /* newVersion */
-        bytes calldata /* data */
-    ) internal virtual override {
-        revert();
+    function _migrate(uint64, /* oldVersion */ uint64, /* newVersion */ bytes memory data) internal virtual override {
+        (IVault.MigrateParams memory params) = abi.decode(data, (IVault.MigrateParams));
+
+        _processMigrateParams(params);
     }
 }

@@ -81,6 +81,15 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
         address flashFeeReceiverSetRoleHolder;
     }
 
+    struct MigrateParams {
+        uint256 epochDurationSetEpochsDelay;
+        uint256 flashFeeRate;
+        address flashFeeReceiver;
+        address epochDurationSetRoleHolder;
+        address flashFeeRateSetRoleHolder;
+        address flashFeeReceiverSetRoleHolder;
+    }
+
     /**
      * @notice Hints for an active balance.
      * @param activeSharesOfHint hint for the active shares of checkpoint
