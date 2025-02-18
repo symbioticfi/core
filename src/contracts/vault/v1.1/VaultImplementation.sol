@@ -67,6 +67,9 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         }
     }
 
+    /**
+     * @inheritdoc IVault
+     */
     function epochStart(
         uint256 epoch
     ) public view returns (uint48) {

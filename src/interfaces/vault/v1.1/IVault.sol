@@ -251,6 +251,15 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     ) external view returns (uint256);
 
     /**
+     * @notice Get a start of the epoch.
+     * @param epoch epoch to get the start of
+     * @return start of the epoch
+     */
+    function epochStart(
+        uint256 epoch
+    ) external view returns (uint48);
+
+    /**
      * @notice Get a current vault epoch.
      * @return current epoch
      */
