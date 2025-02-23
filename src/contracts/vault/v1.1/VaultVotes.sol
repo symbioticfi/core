@@ -26,7 +26,7 @@ contract VaultVotes is VaultTokenized {
 
     function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes memory data) internal virtual override {
         if (oldVersion != 3) {
-            revert IVaultVotes.ImproperMigration();
+            revert IVaultVotes.InvalidOrigin();
         }
 
         if (data.length > 0) {

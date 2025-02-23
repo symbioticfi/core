@@ -12,6 +12,7 @@ import {MetadataService} from "../../../src/contracts/service/MetadataService.so
 import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
+import {IVault as IVaultV1} from "../../../src/interfaces/vault/IVault.sol";
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
 import {VaultTokenized as VaultTokenizedV1} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {VaultVotesImplementation} from "../../../src/contracts/vault/v1.1/VaultVotesImplementation.sol";
@@ -25,6 +26,7 @@ import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/Operat
 import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
 import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
+import {VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/VotesUpgradeable.sol";
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../src/interfaces/vault/v1.1/IVaultTokenized.sol";
@@ -1560,6 +1562,26 @@ contract VaultVotesTest is Test {
             amount1 + amount2
         );
         assertGt(gasSpent, gasLeft - gasleft());
+    }
+
+    function test_DepositRevertSafeSupplyExceeded(
+        uint256 amount1
+    ) public {
+        amount1 = bound(amount1, uint256(type(uint208).max) + 1, type(uint224).max);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        collateral.mint(alice, amount1);
+        vm.startPrank(alice);
+        collateral.approve(address(vault), amount1);
+        vm.expectRevert(IVaultVotes.SafeSupplyExceeded.selector);
+        vault.deposit(alice, amount1);
+        vm.stopPrank();
     }
 
     function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
@@ -3584,6 +3606,8 @@ contract VaultVotesTest is Test {
         assertEq(vault.getVotes(alice), 0);
         assertEq(vault.getPastVotes(alice, blockTimestamp - 1), 0);
         assertEq(vault.getPastTotalSupply(blockTimestamp - 1), 0);
+        vm.expectRevert();
+        vault.getPastTotalSupply(blockTimestamp + 1);
         assertEq(vault.delegates(alice), address(0));
 
         vm.startPrank(alice);
@@ -3873,6 +3897,58 @@ contract VaultVotesTest is Test {
         vm.startPrank(alice);
         vm.expectRevert(IVaultVotes.InvalidData.selector);
         vaultFactory.migrate(address(vault), 4, new bytes(1));
+        vm.stopPrank();
+    }
+
+    function test_MigrateInvalidOrigin() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultV1.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultVotes.InvalidOrigin.selector);
+        vaultFactory.migrate(vault_, 4, new bytes(0));
         vm.stopPrank();
     }
 

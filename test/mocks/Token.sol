@@ -9,4 +9,8 @@ contract Token is ERC20 {
     ) ERC20(name_, "") {
         _mint(msg.sender, 1_000_000 * 10 ** decimals());
     }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 }
