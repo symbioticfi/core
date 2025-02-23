@@ -142,7 +142,12 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public epochDurationSetEpochsDelay;
+    uint256 public epochDurationSetEpochsDelayInternal;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint256 public nextEpochDurationSetEpochsDelayInternal;
 
     /**
      * @inheritdoc IVaultStorage
@@ -189,5 +194,5 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     address public flashFeeReceiver;
 
-    uint256[43] private __gap;
+    uint256[42] private __gap;
 }

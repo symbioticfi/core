@@ -241,6 +241,12 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     function SLASHER_FACTORY() external view returns (address);
 
     /**
+     * @notice Get a delay for the epoch duration set in epochs.
+     * @return delay for the epoch duration set
+     */
+    function epochDurationSetEpochsDelay() external view returns (uint256);
+
+    /**
      * @notice Get a time point of the epoch duration set.
      * @return time point of the epoch duration set
      */
@@ -486,12 +492,11 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     /**
      * @notice Set an epoch duration (can be only greater than the current one).
      * @param epochDuration_ epoch duration
+     * @param epochDurationSetEpochsDelay_ delay for the epoch duration set in epochs
      * @dev Only a EPOCH_DURATION_SET_ROLE holder can call this function.
      *      Can be accepted after `epochDurationSetEpochsDelay` epochs.
      */
-    function setEpochDuration(
-        uint48 epochDuration_
-    ) external;
+    function setEpochDuration(uint48 epochDuration_, uint256 epochDurationSetEpochsDelay_) external;
 
     /**
      * @notice Set a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).

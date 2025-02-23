@@ -47,7 +47,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             revert IVault.InvalidFlashParams();
         }
 
-        epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
+        epochDurationSetEpochsDelayInternal = params.epochDurationSetEpochsDelay;
 
         flashFeeRate = params.flashFeeRate;
         flashFeeReceiver = params.flashFeeReceiver;

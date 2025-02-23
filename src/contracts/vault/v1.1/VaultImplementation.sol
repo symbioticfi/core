@@ -45,6 +45,16 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     /**
      * @inheritdoc IVault
      */
+    function epochDurationSetEpochsDelay() external view returns (uint256) {
+        if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
+            return epochDurationSetEpochsDelayInternal;
+        }
+        return nextEpochDurationSetEpochsDelayInternal;
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
     function epochDuration() public view returns (uint48) {
         if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
             return epochDurationInternal;
@@ -533,8 +543,13 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
      * @inheritdoc IVault
      */
     function setEpochDuration(
-        uint48 epochDuration_
+        uint48 epochDuration_,
+        uint256 epochDurationSetEpochsDelay_
     ) external nonReentrant onlyRole(EPOCH_DURATION_SET_ROLE) {
+        if (epochDurationSetEpochsDelay_ < 3) {
+            revert InvalidEpochDurationSetEpochsDelay();
+        }
+
         if (nextEpochDurationInitInternal != 0 && nextEpochDurationInitInternal <= Time.timestamp()) {
             uint256 currentEpoch_ = currentEpoch();
             uint48 currentEpochStart_ = currentEpochStart();
@@ -545,9 +560,11 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             epochInitInternal = currentEpoch_;
             epochDurationInternal = nextEpochDurationInternal;
             epochDurationInitInternal = currentEpochStart_;
+            epochDurationSetEpochsDelayInternal = nextEpochDurationSetEpochsDelayInternal;
             nextEpochInitInternal = 0;
             nextEpochDurationInternal = 0;
             nextEpochDurationInitInternal = 0;
+            nextEpochDurationSetEpochsDelayInternal = 0;
         }
 
         if (epochDurationInternal > epochDuration_) {
@@ -558,15 +575,17 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             nextEpochInitInternal = 0;
             nextEpochDurationInternal = 0;
             nextEpochDurationInitInternal = 0;
+            nextEpochDurationSetEpochsDelayInternal = 0;
         } else if (epochDurationInternal == epochDuration_) {
             revert AlreadySet();
         }
 
         if (epochDurationInternal != epochDuration_) {
-            nextEpochInitInternal = currentEpoch() + epochDurationSetEpochsDelay;
+            nextEpochInitInternal = currentEpoch() + epochDurationSetEpochsDelayInternal;
             nextEpochDurationInternal = epochDuration_;
             nextEpochDurationInitInternal =
-                (currentEpochStart() + epochDurationSetEpochsDelay * epochDurationInternal).toUint48();
+                (currentEpochStart() + epochDurationSetEpochsDelayInternal * epochDurationInternal).toUint48();
+            nextEpochDurationSetEpochsDelayInternal = epochDurationSetEpochsDelay_;
         }
 
         emit SetEpochDuration(epochDuration_);

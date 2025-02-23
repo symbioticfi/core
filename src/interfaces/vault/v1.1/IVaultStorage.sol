@@ -154,10 +154,16 @@ interface IVaultStorage {
     function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
 
     /**
-     * @notice Get a delay for the epoch duration set (in epochs).
+     * @notice Get a delay for the epoch duration set in epochs (internal).
      * @return delay for the epoch duration set
      */
-    function epochDurationSetEpochsDelay() external view returns (uint256);
+    function epochDurationSetEpochsDelayInternal() external view returns (uint256);
+
+    /**
+     * @notice Get the next delay for the epoch duration set in epochs (internal).
+     * @return next delay for the epoch duration set
+     */
+    function nextEpochDurationSetEpochsDelayInternal() external view returns (uint256);
 
     /**
      * @notice Get the current epoch duration's first epoch (internal).
