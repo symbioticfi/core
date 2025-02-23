@@ -1,6 +1,13 @@
 # Compiler files
 cache/
 out/**/
+!out/VaultImplementation.sol/
+!out/VaultTokenizedImplementation.sol/
+!out/VaultVotesImplementation.sol/
+!out/v1.1/
+!out/v1.1/Vault.sol/
+!out/v1.1/VaultTokenized.sol/
+!out/VaultVotes.sol/
 !out/Vault.sol/
 !out/VaultTokenized.sol/
 !out/NetworkRestakeDelegator.sol/
