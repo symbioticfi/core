@@ -57,18 +57,6 @@ interface IVaultStorage {
     function RETURN_VALUE() external view returns (bytes32);
 
     /**
-     * @notice Get the delegator factory's address.
-     * @return address of the delegator factory
-     */
-    function DELEGATOR_FACTORY() external view returns (address);
-
-    /**
-     * @notice Get the slasher factory's address.
-     * @return address of the slasher factory
-     */
-    function SLASHER_FACTORY() external view returns (address);
-
-    /**
      * @notice Get a vault collateral.
      * @return address of the underlying collateral
      */

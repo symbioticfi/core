@@ -56,16 +56,6 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable DELEGATOR_FACTORY;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable SLASHER_FACTORY;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     bool public depositWhitelist;
 
     /**
@@ -198,11 +188,6 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      * @inheritdoc IVaultStorage
      */
     address public flashFeeReceiver;
-
-    constructor(address delegatorFactory, address slasherFactory) {
-        DELEGATOR_FACTORY = delegatorFactory;
-        SLASHER_FACTORY = slasherFactory;
-    }
 
     uint256[43] private __gap;
 }

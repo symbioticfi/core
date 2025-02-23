@@ -25,12 +25,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
     address private immutable IMPLEMENTATION;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory,
-        address implementation
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
+    constructor(address vaultFactory, address implementation) MigratableEntity(vaultFactory) {
         IMPLEMENTATION = implementation;
     }
 

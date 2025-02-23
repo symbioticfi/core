@@ -101,9 +101,7 @@ contract VaultTest is Test {
 
         address vaultImplementation =
             address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
-        address vaultImpl = address(
-            new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory), vaultImplementation)
-        );
+        address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
         address networkRestakeDelegatorImpl = address(

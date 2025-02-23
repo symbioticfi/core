@@ -30,10 +30,8 @@ contract VaultTokenizedImplementation is
     address private immutable BASE_IMPLEMENTATION;
 
     constructor(
-        address delegatorFactory,
-        address slasherFactory,
         address baseImplementation
-    ) VaultStorage(delegatorFactory, slasherFactory) {
+    ) {
         BASE_IMPLEMENTATION = baseImplementation;
     }
 

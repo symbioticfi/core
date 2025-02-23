@@ -4,7 +4,6 @@ pragma solidity 0.8.25;
 import {Vault} from "./Vault.sol";
 import {VaultTokenizedImplementation} from "./VaultTokenizedImplementation.sol";
 
-import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../interfaces/vault/v1.1/IVaultTokenized.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
@@ -12,12 +11,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 contract VaultTokenized is Vault {
     using Address for address;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory,
-        address implementation
-    ) Vault(delegatorFactory, slasherFactory, vaultFactory, implementation) {}
+    constructor(address vaultFactory, address implementation) Vault(vaultFactory, implementation) {}
 
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal virtual override {
         (IVaultTokenized.InitParamsTokenized memory params) = abi.decode(data, (IVaultTokenized.InitParamsTokenized));

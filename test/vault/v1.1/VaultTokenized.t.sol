@@ -103,14 +103,8 @@ contract VaultTokenizedTest is Test {
 
         address vaultImplementation =
             address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
-        address vaultTokenizedImplementation = address(
-            new VaultTokenizedImplementation(address(delegatorFactory), address(slasherFactory), vaultImplementation)
-        );
-        address vaultImpl = address(
-            new VaultTokenized(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), vaultTokenizedImplementation
-            )
-        );
+        address vaultTokenizedImplementation = address(new VaultTokenizedImplementation(vaultImplementation));
+        address vaultImpl = address(new VaultTokenized(address(vaultFactory), vaultTokenizedImplementation));
         vaultFactory.whitelist(vaultImpl);
 
         address networkRestakeDelegatorImpl = address(
@@ -262,8 +256,8 @@ contract VaultTokenizedTest is Test {
 
         assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
-        assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
-        assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
+        assertEq(VaultImplementation(payable(address(vault))).DELEGATOR_FACTORY(), address(delegatorFactory));
+        assertEq(VaultImplementation(payable(address(vault))).SLASHER_FACTORY(), address(slasherFactory));
 
         assertEq(VaultTokenized(payable(address(vault))).owner(), address(0));
         assertEq(vault.collateral(), address(collateral));
@@ -3393,8 +3387,8 @@ contract VaultTokenizedTest is Test {
 
         assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
-        assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
-        assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
+        assertEq(VaultImplementation(payable(address(vault))).DELEGATOR_FACTORY(), address(delegatorFactory));
+        assertEq(VaultImplementation(payable(address(vault))).SLASHER_FACTORY(), address(slasherFactory));
 
         assertEq(VaultTokenized(payable(address(vault))).owner(), alice);
         assertEq(vault.collateral(), address(collateral));
@@ -3548,8 +3542,8 @@ contract VaultTokenizedTest is Test {
 
         assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
-        assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
-        assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
+        assertEq(VaultImplementation(payable(address(vault))).DELEGATOR_FACTORY(), address(delegatorFactory));
+        assertEq(VaultImplementation(payable(address(vault))).SLASHER_FACTORY(), address(slasherFactory));
 
         assertEq(VaultTokenized(payable(address(vault))).owner(), alice);
         assertEq(vault.collateral(), address(collateral));

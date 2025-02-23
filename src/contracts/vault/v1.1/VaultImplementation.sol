@@ -27,7 +27,20 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
-    constructor(address delegatorFactory, address slasherFactory) VaultStorage(delegatorFactory, slasherFactory) {}
+    /**
+     * @inheritdoc IVault
+     */
+    address public immutable DELEGATOR_FACTORY;
+
+    /**
+     * @inheritdoc IVault
+     */
+    address public immutable SLASHER_FACTORY;
+
+    constructor(address delegatorFactory, address slasherFactory) {
+        DELEGATOR_FACTORY = delegatorFactory;
+        SLASHER_FACTORY = slasherFactory;
+    }
 
     /**
      * @inheritdoc IVault

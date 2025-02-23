@@ -229,6 +229,18 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     event SetSlasher(address indexed slasher);
 
     /**
+     * @notice Get the delegator factory's address.
+     * @return address of the delegator factory
+     */
+    function DELEGATOR_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get the slasher factory's address.
+     * @return address of the slasher factory
+     */
+    function SLASHER_FACTORY() external view returns (address);
+
+    /**
      * @notice Get a time point of the epoch duration set.
      * @return time point of the epoch duration set
      */
