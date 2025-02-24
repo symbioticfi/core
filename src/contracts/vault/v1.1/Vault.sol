@@ -23,14 +23,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
     using SafeERC20 for IERC20;
     using Address for address;
 
+    /**
+     * @notice The minimum period of time that must be available to exit in case of epoch increase after migration.
+     */
+    uint256 public constant MIN_EXIT_WINDOW = 7 days;
+
     address private immutable IMPLEMENTATION;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory,
-        address implementation
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
+    constructor(address vaultFactory, address implementation) MigratableEntity(vaultFactory) {
         IMPLEMENTATION = implementation;
     }
 
@@ -52,7 +52,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             revert IVault.InvalidFlashParams();
         }
 
-        epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
+        _epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
 
         flashFeeRate = params.flashFeeRate;
         flashFeeReceiver = params.flashFeeReceiver;
@@ -146,8 +146,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         burner = params.burner;
 
-        epochDurationInit = Time.timestamp();
-        epochDuration = params.epochDuration;
+        _epochDurationInit = Time.timestamp();
+        _epochDuration = params.epochDuration;
 
         depositWhitelist = params.depositWhitelist;
 
@@ -175,5 +175,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         (IVault.MigrateParams memory params) = abi.decode(data, (IVault.MigrateParams));
 
         _processMigrateParams(params);
+
+        if ((params.epochDurationSetEpochsDelay - 2) * _epochDuration < MIN_EXIT_WINDOW) {
+            revert IVault.InsufficientExitWindow();
+        }
     }
 }

@@ -56,16 +56,6 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    address public immutable DELEGATOR_FACTORY;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    address public immutable SLASHER_FACTORY;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     bool public depositWhitelist;
 
     /**
@@ -86,12 +76,12 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDurationInit;
+    uint48 public _epochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDuration;
+    uint48 public _epochDuration;
 
     /**
      * @inheritdoc IVaultStorage
@@ -152,32 +142,47 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public epochDurationSetEpochsDelay;
+    uint256 public _epochDurationSetEpochsDelay;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public epochInit;
+    uint256 public _nextEpochDurationSetEpochsDelay;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public previousEpochDurationInit;
+    uint256 public _epochDurationInitIndex;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public previousEpochDuration;
+    uint256 public _prevEpochDurationInitIndex;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public nextEpochDurationInit;
+    uint48 public _prevEpochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public nextEpochDuration;
+    uint48 public _prevEpochDuration;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint48 public _nextEpochDurationInit;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint48 public _nextEpochDuration;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    uint256 public _nextEpochInitIndex;
 
     /**
      * @inheritdoc IVaultStorage
@@ -189,10 +194,5 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     address public flashFeeReceiver;
 
-    constructor(address delegatorFactory, address slasherFactory) {
-        DELEGATOR_FACTORY = delegatorFactory;
-        SLASHER_FACTORY = slasherFactory;
-    }
-
-    uint256[45] private __gap;
+    uint256[42] private __gap;
 }

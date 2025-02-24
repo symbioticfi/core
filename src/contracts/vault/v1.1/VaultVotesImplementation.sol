@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {VaultStorage} from "../VaultStorage.sol";
+import {VaultStorage} from "./VaultStorage.sol";
 
 import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 import {IVaultVotes} from "../../../interfaces/vault/v1.1/IVaultVotes.sol";
@@ -27,10 +27,8 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
     address private immutable BASE_IMPLEMENTATION;
 
     constructor(
-        address delegatorFactory,
-        address slasherFactory,
         address baseImplementation
-    ) VaultStorage(delegatorFactory, slasherFactory) {
+    ) {
         BASE_IMPLEMENTATION = baseImplementation;
     }
 

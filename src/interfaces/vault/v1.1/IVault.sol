@@ -14,6 +14,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     error DepositLimitReached();
     error InsufficientClaim();
     error InsufficientDeposit();
+    error InsufficientExitWindow();
     error InsufficientRedemption();
     error InsufficientWithdrawal();
     error InvalidAccount();
@@ -194,8 +195,9 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     /**
      * @notice Emitted when a epoch duration is set (can be accepted after `epochDurationSetEpochsDelay` epochs).
      * @param epochDuration epoch duration
+     * @param epochDurationSetEpochsDelay delay for the epoch duration set in epochs
      */
-    event SetEpochDuration(uint48 epochDuration);
+    event SetEpochDuration(uint48 epochDuration, uint256 epochDurationSetEpochsDelay);
 
     /**
      * @notice Emitted when a pending epoch duration is accepted.
@@ -229,6 +231,36 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     event SetSlasher(address indexed slasher);
 
     /**
+     * @notice Get the delegator factory's address.
+     * @return address of the delegator factory
+     */
+    function DELEGATOR_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get the slasher factory's address.
+     * @return address of the slasher factory
+     */
+    function SLASHER_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get a delay for the epoch duration set in epochs.
+     * @return delay for the epoch duration set
+     */
+    function epochDurationSetEpochsDelay() external view returns (uint256);
+
+    /**
+     * @notice Get a time point of the epoch duration set.
+     * @return time point of the epoch duration set
+     */
+    function epochDurationInit() external view returns (uint48);
+
+    /**
+     * @notice Get a duration of the vault epoch.
+     * @return duration of the epoch
+     */
+    function epochDuration() external view returns (uint48);
+
+    /**
      * @notice Get an epoch at a given timestamp.
      * @param timestamp time point to get the epoch at
      * @return epoch at the timestamp
@@ -237,6 +269,15 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     function epochAt(
         uint48 timestamp
     ) external view returns (uint256);
+
+    /**
+     * @notice Get a start of the epoch.
+     * @param epoch epoch to get the start of
+     * @return start of the epoch
+     */
+    function epochStart(
+        uint256 epoch
+    ) external view returns (uint48);
 
     /**
      * @notice Get a current vault epoch.
@@ -453,18 +494,11 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     /**
      * @notice Set an epoch duration (can be only greater than the current one).
      * @param epochDuration_ epoch duration
+     * @param epochDurationSetEpochsDelay_ delay for the epoch duration set in epochs
      * @dev Only a EPOCH_DURATION_SET_ROLE holder can call this function.
      *      Can be accepted after `epochDurationSetEpochsDelay` epochs.
      */
-    function setEpochDuration(
-        uint48 epochDuration_
-    ) external;
-
-    /**
-     * @notice Accept an epoch duration.
-     * @dev Only a EPOCH_DURATION_SET_ROLE holder can call this function.
-     */
-    function acceptEpochDuration() external;
+    function setEpochDuration(uint48 epochDuration_, uint256 epochDurationSetEpochsDelay_) external;
 
     /**
      * @notice Set a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).

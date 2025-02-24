@@ -12,6 +12,7 @@ import {MetadataService} from "../../../src/contracts/service/MetadataService.so
 import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
+import {IVault as IVaultV1} from "../../../src/interfaces/vault/IVault.sol";
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
 import {VaultTokenized as VaultTokenizedV1} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {VaultVotesImplementation} from "../../../src/contracts/vault/v1.1/VaultVotesImplementation.sol";
@@ -25,6 +26,7 @@ import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/Operat
 import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
 import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
+import {VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/VotesUpgradeable.sol";
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../src/interfaces/vault/v1.1/IVaultTokenized.sol";
@@ -103,26 +105,12 @@ contract VaultVotesTest is Test {
 
         address vaultImplementation =
             address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
-        address vaultTokenizedImplementation = address(
-            new VaultTokenizedImplementation(address(delegatorFactory), address(slasherFactory), vaultImplementation)
-        );
-        address vaultTokenizedImpl = address(
-            new VaultTokenized(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), vaultTokenizedImplementation
-            )
-        );
+        address vaultTokenizedImplementation = address(new VaultTokenizedImplementation(vaultImplementation));
+        address vaultTokenizedImpl = address(new VaultTokenized(address(vaultFactory), vaultTokenizedImplementation));
         vaultFactory.whitelist(vaultTokenizedImpl);
 
-        address vaultVotesImplementation = address(
-            new VaultVotesImplementation(
-                address(delegatorFactory), address(slasherFactory), vaultTokenizedImplementation
-            )
-        );
-        address vaultImpl = address(
-            new VaultVotes(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), vaultVotesImplementation
-            )
-        );
+        address vaultVotesImplementation = address(new VaultVotesImplementation(vaultTokenizedImplementation));
+        address vaultImpl = address(new VaultVotes(address(vaultFactory), vaultVotesImplementation));
         vaultFactory.whitelist(vaultImpl);
 
         address networkRestakeDelegatorImpl = address(
@@ -274,15 +262,15 @@ contract VaultVotesTest is Test {
 
         assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
-        assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
-        assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
+        assertEq(VaultImplementation(payable(address(vault))).DELEGATOR_FACTORY(), address(delegatorFactory));
+        assertEq(VaultImplementation(payable(address(vault))).SLASHER_FACTORY(), address(slasherFactory));
 
         assertEq(VaultVotes(payable(address(vault))).owner(), address(0));
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.delegator(), delegator_);
         assertEq(vault.slasher(), address(0));
         assertEq(vault.burner(), burner);
-        assertEq(vault.epochDuration(), epochDuration);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(
             VaultImplementation(payable(address(vault))).hasRole(
@@ -296,8 +284,8 @@ contract VaultVotesTest is Test {
             ),
             true
         );
-        assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDuration(), epochDuration);
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), epochDuration);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(0), 0);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
@@ -325,7 +313,7 @@ contract VaultVotesTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).isSlasherInitialized(), true);
         assertEq(VaultImplementation(payable(address(vault))).isInitialized(), true);
 
-        blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
+        blockTimestamp = blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration() - 1;
         vm.warp(blockTimestamp);
 
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
@@ -333,7 +321,7 @@ contract VaultVotesTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 0);
         assertEq(
             VaultImplementation(payable(address(vault))).currentEpochStart(),
-            blockTimestamp - (vault.epochDuration() - 1)
+            blockTimestamp - (VaultImplementation(payable(address(vault))).epochDuration() - 1)
         );
         vm.expectRevert(IVault.NoPreviousEpoch.selector);
         VaultImplementation(payable(address(vault))).previousEpochStart();
@@ -344,16 +332,23 @@ contract VaultVotesTest is Test {
 
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 1);
         assertEq(
-            VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp + 2 * vault.epochDuration())), 3
+            VaultImplementation(payable(address(vault))).epochAt(
+                uint48(blockTimestamp + 2 * VaultImplementation(payable(address(vault))).epochDuration())
+            ),
+            3
         );
         assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 1);
         assertEq(VaultImplementation(payable(address(vault))).currentEpochStart(), blockTimestamp);
         assertEq(
-            VaultImplementation(payable(address(vault))).previousEpochStart(), blockTimestamp - vault.epochDuration()
+            VaultImplementation(payable(address(vault))).previousEpochStart(),
+            blockTimestamp - VaultImplementation(payable(address(vault))).epochDuration()
         );
-        assertEq(VaultImplementation(payable(address(vault))).nextEpochStart(), blockTimestamp + vault.epochDuration());
+        assertEq(
+            VaultImplementation(payable(address(vault))).nextEpochStart(),
+            blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration()
+        );
 
-        blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
+        blockTimestamp = blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration() - 1;
         vm.warp(blockTimestamp);
 
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 1);
@@ -361,11 +356,12 @@ contract VaultVotesTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 1);
         assertEq(
             VaultImplementation(payable(address(vault))).currentEpochStart(),
-            blockTimestamp - (vault.epochDuration() - 1)
+            blockTimestamp - (VaultImplementation(payable(address(vault))).epochDuration() - 1)
         );
         assertEq(
             VaultImplementation(payable(address(vault))).previousEpochStart(),
-            blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration()
+            blockTimestamp - (VaultImplementation(payable(address(vault))).epochDuration() - 1)
+                - VaultImplementation(payable(address(vault))).epochDuration()
         );
         assertEq(VaultImplementation(payable(address(vault))).nextEpochStart(), blockTimestamp + 1);
 
@@ -1552,6 +1548,26 @@ contract VaultVotesTest is Test {
             amount1 + amount2
         );
         assertGt(gasSpent, gasLeft - gasleft());
+    }
+
+    function test_DepositRevertSafeSupplyExceeded(
+        uint256 amount1
+    ) public {
+        amount1 = bound(amount1, uint256(type(uint208).max) + 1, type(uint224).max);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        collateral.mint(alice, amount1);
+        vm.startPrank(alice);
+        collateral.approve(address(vault), amount1);
+        vm.expectRevert(IVaultVotes.SafeSupplyExceeded.selector);
+        vault.deposit(alice, amount1);
+        vm.stopPrank();
     }
 
     function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
@@ -3155,7 +3171,7 @@ contract VaultVotesTest is Test {
         _deposit(alice, depositAmount);
         _withdraw(alice, withdrawAmount1);
 
-        blockTimestamp = blockTimestamp + vault.epochDuration();
+        blockTimestamp = blockTimestamp + VaultImplementation(payable(address(vault))).epochDuration();
         vm.warp(blockTimestamp);
 
         _withdraw(alice, withdrawAmount2);
@@ -3576,6 +3592,8 @@ contract VaultVotesTest is Test {
         assertEq(vault.getVotes(alice), 0);
         assertEq(vault.getPastVotes(alice, blockTimestamp - 1), 0);
         assertEq(vault.getPastTotalSupply(blockTimestamp - 1), 0);
+        vm.expectRevert();
+        vault.getPastTotalSupply(blockTimestamp + 1);
         assertEq(vault.delegates(alice), address(0));
 
         vm.startPrank(alice);
@@ -3735,8 +3753,8 @@ contract VaultVotesTest is Test {
 
         assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
-        assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
-        assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
+        assertEq(VaultImplementation(payable(address(vault))).DELEGATOR_FACTORY(), address(delegatorFactory));
+        assertEq(VaultImplementation(payable(address(vault))).SLASHER_FACTORY(), address(slasherFactory));
 
         assertEq(VaultTokenized(payable(address(vault))).owner(), alice);
         assertEq(vault.collateral(), address(collateral));
@@ -3752,8 +3770,8 @@ contract VaultVotesTest is Test {
             ),
             true
         );
-        assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDuration(), 7 days);
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), 7 days);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(0), 0);
         assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
@@ -3865,6 +3883,58 @@ contract VaultVotesTest is Test {
         vm.startPrank(alice);
         vm.expectRevert(IVaultVotes.InvalidData.selector);
         vaultFactory.migrate(address(vault), 4, new bytes(1));
+        vm.stopPrank();
+    }
+
+    function test_MigrateInvalidOrigin() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultV1.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultVotes.InvalidOrigin.selector);
+        vaultFactory.migrate(vault_, 4, new bytes(0));
         vm.stopPrank();
     }
 
