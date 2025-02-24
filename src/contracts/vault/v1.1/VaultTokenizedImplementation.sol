@@ -61,7 +61,7 @@ contract VaultTokenizedImplementation is
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external returns (uint256 depositedAmount, uint256 mintedShares) {
+    ) public virtual returns (uint256 depositedAmount, uint256 mintedShares) {
         (depositedAmount, mintedShares) = abi.decode(
             BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.deposit, (onBehalfOf, amount))),
             (uint256, uint256)
@@ -70,7 +70,10 @@ contract VaultTokenizedImplementation is
         emit Transfer(address(0), onBehalfOf, mintedShares);
     }
 
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
+    function withdraw(
+        address claimer,
+        uint256 amount
+    ) public virtual returns (uint256 burnedShares, uint256 mintedShares) {
         (burnedShares, mintedShares) = abi.decode(
             BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.withdraw, (claimer, amount))),
             (uint256, uint256)
@@ -79,7 +82,10 @@ contract VaultTokenizedImplementation is
         emit Transfer(msg.sender, address(0), burnedShares);
     }
 
-    function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    function redeem(
+        address claimer,
+        uint256 shares
+    ) public virtual returns (uint256 withdrawnAssets, uint256 mintedShares) {
         (withdrawnAssets, mintedShares) = abi.decode(
             BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.redeem, (claimer, shares))),
             (uint256, uint256)
@@ -91,7 +97,7 @@ contract VaultTokenizedImplementation is
     /**
      * @inheritdoc ERC20Upgradeable
      */
-    function _update(address from, address to, uint256 value) internal override {
+    function _update(address from, address to, uint256 value) internal virtual override {
         if (from == address(0)) {
             // Overflow check required: The rest of the code assumes that totalSupply never overflows
             _activeShares.push(Time.timestamp(), totalSupply() + value);
