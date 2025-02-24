@@ -3624,6 +3624,102 @@ contract VaultTokenizedTest is Test {
         assertEq(VaultImplementation(payable(address(vault))).epochDurationSetEpochsDelay(), 3);
     }
 
+    function test_MigrateRevertInsufficientExitWindow() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultV1.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 1,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vault = VaultTokenizedImplementation(payable(vault_));
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.InsufficientExitWindow.selector);
+        vaultFactory.migrate(
+            address(vault),
+            3,
+            abi.encode(
+                IVaultTokenized.MigrateParamsTokenized({
+                    baseParams: abi.encode(
+                        IVault.MigrateParams({
+                            epochDurationSetEpochsDelay: 7 days + 1,
+                            flashFeeRate: 1,
+                            flashFeeReceiver: alice,
+                            epochDurationSetRoleHolder: alice,
+                            flashFeeRateSetRoleHolder: alice,
+                            flashFeeReceiverSetRoleHolder: alice
+                        })
+                    ),
+                    name: "test1",
+                    symbol: "TEST1"
+                })
+            )
+        );
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vaultFactory.migrate(
+            address(vault),
+            3,
+            abi.encode(
+                IVaultTokenized.MigrateParamsTokenized({
+                    baseParams: abi.encode(
+                        IVault.MigrateParams({
+                            epochDurationSetEpochsDelay: 7 days + 2,
+                            flashFeeRate: 1,
+                            flashFeeReceiver: alice,
+                            epochDurationSetRoleHolder: alice,
+                            flashFeeRateSetRoleHolder: alice,
+                            flashFeeReceiverSetRoleHolder: alice
+                        })
+                    ),
+                    name: "test1",
+                    symbol: "TEST1"
+                })
+            )
+        );
+        vm.stopPrank();
+    }
+
     // struct GasStruct {
     //     uint256 gasSpent1;
     //     uint256 gasSpent2;

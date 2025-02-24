@@ -14,6 +14,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     error DepositLimitReached();
     error InsufficientClaim();
     error InsufficientDeposit();
+    error InsufficientExitWindow();
     error InsufficientRedemption();
     error InsufficientWithdrawal();
     error InvalidAccount();

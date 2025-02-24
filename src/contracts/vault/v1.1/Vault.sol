@@ -23,6 +23,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
     using SafeERC20 for IERC20;
     using Address for address;
 
+    /**
+     * @notice The minimum period of time that must be available to exit in case of epoch increase after migration.
+     */
+    uint256 public constant MIN_EXIT_WINDOW = 7 days;
+
     address private immutable IMPLEMENTATION;
 
     constructor(address vaultFactory, address implementation) MigratableEntity(vaultFactory) {
@@ -170,5 +175,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         (IVault.MigrateParams memory params) = abi.decode(data, (IVault.MigrateParams));
 
         _processMigrateParams(params);
+
+        if ((params.epochDurationSetEpochsDelay - 2) * epochDurationInternal < MIN_EXIT_WINDOW) {
+            revert IVault.InsufficientExitWindow();
+        }
     }
 }
