@@ -3034,7 +3034,7 @@ contract VaultTest is Test {
         assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 3);
         assertEq(vault.nextEpochDurationInternal(), newEpochDuration4);
         assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 3 * newEpochDuration3);
-        vm.expectRevert();
+        vm.expectRevert(IVault.InvalidEpoch.selector);
         vault.epochStart(0);
     }
 

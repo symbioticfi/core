@@ -97,7 +97,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         uint256 epoch
     ) public view returns (uint48) {
         if (epoch < prevEpochInitInternal) {
-            revert();
+            revert InvalidEpoch();
         }
 
         if (epoch < epochInitInternal) {
