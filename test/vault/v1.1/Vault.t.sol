@@ -302,13 +302,13 @@ contract VaultTest is Test {
         assertEq(vault.flashFeeRate(), flashFeeRate);
         assertEq(vault.flashFeeReceiver(), alice);
         assertEq(vault.epochDurationSetEpochsDelay(), epochDurationSetEpochsDelay);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), epochDurationSetEpochsDelay);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 0);
-        assertEq(vault.epochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), 0);
-        assertEq(vault.nextEpochDurationInitInternal(), 0);
-        assertEq(vault.nextEpochDurationInternal(), 0);
+        assertEq(vault._epochDurationSetEpochsDelay(), epochDurationSetEpochsDelay);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 0);
+        assertEq(vault._epochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDurationInit(), 0);
+        assertEq(vault._prevEpochDuration(), 0);
+        assertEq(vault._nextEpochDurationInit(), 0);
+        assertEq(vault._nextEpochDuration(), 0);
 
         blockTimestamp = blockTimestamp + vault.epochDuration() - 1;
         vm.warp(blockTimestamp);
@@ -2803,8 +2803,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3), blockTimestamp + 3 * epochDuration);
         assertEq(vault.epochStart(3 + 1), blockTimestamp + (3 + 1) * epochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 3);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 0);
+        assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 0);
 
         _grantEpochDurationSetRole(alice, alice);
         vm.startPrank(alice);
@@ -2812,15 +2812,15 @@ contract VaultTest is Test {
         vm.stopPrank();
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), epochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.epochInitInternal(), 0);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), 0);
-        assertEq(vault.prevEpochDurationInitInternal(), 0);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 3);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 3 * epochDuration);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration);
+        assertEq(vault._epochDuration(), epochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp);
+        assertEq(vault._epochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), 0);
+        assertEq(vault._prevEpochDurationInit(), 0);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 3);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 3 * epochDuration);
+        assertEq(vault._nextEpochDuration(), newEpochDuration);
         vm.expectRevert();
         vault.epochAt(uint48(blockTimestamp - 1));
         assertEq(vault.epochAt(uint48(blockTimestamp)), 0);
@@ -2831,23 +2831,23 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3), blockTimestamp + 3 * epochDuration);
         assertEq(vault.epochStart(3 + 1), blockTimestamp + 3 * epochDuration + newEpochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 3);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 5);
+        assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp - 1);
-        assertEq(vault.epochDurationInternal(), epochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp - 1);
-        assertEq(vault.epochInitInternal(), 0);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), 0);
-        assertEq(vault.prevEpochDurationInitInternal(), 0);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 3);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 3 * epochDuration - 1);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration);
+        assertEq(vault._epochDuration(), epochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp - 1);
+        assertEq(vault._epochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), 0);
+        assertEq(vault._prevEpochDurationInit(), 0);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 3);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 3 * epochDuration - 1);
+        assertEq(vault._nextEpochDuration(), newEpochDuration);
         vm.expectRevert();
         vault.epochAt(uint48(blockTimestamp - 2));
         assertEq(vault.epochAt(uint48(blockTimestamp - 1)), 0);
@@ -2856,23 +2856,23 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(0), blockTimestamp - 1);
         assertEq(vault.epochStart(1), blockTimestamp + epochDuration - 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 3);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 5);
+        assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         blockTimestamp = blockTimestamp + 3 * epochDuration - 2;
         vm.warp(blockTimestamp);
 
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp - 3 * epochDuration + 1);
-        assertEq(vault.epochDurationInternal(), epochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp - 3 * epochDuration + 1);
-        assertEq(vault.epochInitInternal(), 0);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), 0);
-        assertEq(vault.prevEpochDurationInitInternal(), 0);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 1);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 1);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration);
+        assertEq(vault._epochDuration(), epochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp - 3 * epochDuration + 1);
+        assertEq(vault._epochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), 0);
+        assertEq(vault._prevEpochDurationInit(), 0);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 1);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 1);
+        assertEq(vault._nextEpochDuration(), newEpochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp - 3 * epochDuration + 2)), 0);
         assertEq(vault.epochAt(uint48(blockTimestamp - 1)), 3 - 1);
         assertEq(vault.epochAt(uint48(blockTimestamp)), 3 - 1);
@@ -2880,23 +2880,23 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration + 1);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration + 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 3);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 5);
+        assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
         assertEq(vault.epochDuration(), newEpochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), epochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp - 3 * epochDuration);
-        assertEq(vault.epochInitInternal(), 0);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), 0);
-        assertEq(vault.prevEpochDurationInitInternal(), 0);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch());
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration);
+        assertEq(vault._epochDuration(), epochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp - 3 * epochDuration);
+        assertEq(vault._epochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), 0);
+        assertEq(vault._prevEpochDurationInit(), 0);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch());
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp);
+        assertEq(vault._nextEpochDuration(), newEpochDuration);
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
@@ -2904,8 +2904,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3), blockTimestamp);
         assertEq(vault.epochStart(3 + 1), blockTimestamp + newEpochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 3);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 5);
+        assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         vault.epochAt(0);
@@ -2921,22 +2921,22 @@ contract VaultTest is Test {
         assertEq(vault.epochAt(uint48(blockTimestamp + newEpochDuration)), 4);
         assertEq(vault.previousEpochStart(), blockTimestamp - epochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 3);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 5);
+        assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         _setEpochDuration(alice, newEpochDuration2);
 
         assertEq(vault.epochDuration(), newEpochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), newEpochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.epochInitInternal(), 3);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), epochDuration);
-        assertEq(vault.prevEpochDurationInitInternal(), blockTimestamp - 3 * epochDuration);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 5);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration2);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 5 * newEpochDuration);
+        assertEq(vault._epochDuration(), newEpochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp);
+        assertEq(vault._epochDurationInitIndex(), 3);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), epochDuration);
+        assertEq(vault._prevEpochDurationInit(), blockTimestamp - 3 * epochDuration);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 5);
+        assertEq(vault._nextEpochDuration(), newEpochDuration2);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
@@ -2948,43 +2948,43 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3 + 5), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(3 + 5 + 1), blockTimestamp + 5 * newEpochDuration + newEpochDuration2);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 5);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 3);
+        assertEq(vault._epochDurationSetEpochsDelay(), 5);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 3);
 
         _setEpochDuration(alice, newEpochDuration);
 
         assertEq(vault.epochDuration(), newEpochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), newEpochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.epochInitInternal(), 3);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), epochDuration);
-        assertEq(vault.prevEpochDurationInitInternal(), blockTimestamp - 3 * epochDuration);
-        assertEq(vault.nextEpochInitInternal(), 3 + 5);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 5 * newEpochDuration);
+        assertEq(vault._epochDuration(), newEpochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp);
+        assertEq(vault._epochDurationInitIndex(), 3);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), epochDuration);
+        assertEq(vault._prevEpochDurationInit(), blockTimestamp - 3 * epochDuration);
+        assertEq(vault._nextEpochInitIndex(), 3 + 5);
+        assertEq(vault._nextEpochDuration(), newEpochDuration);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
         assertEq(vault.epochAt(uint48(blockTimestamp + newEpochDuration)), 3 + 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault.epochDurationSetEpochsDelayInternal(), 5);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 3);
+        assertEq(vault._epochDurationSetEpochsDelay(), 5);
+        assertEq(vault._nextEpochDurationSetEpochsDelay(), 3);
 
         _setEpochDuration(alice, newEpochDuration2);
 
         assertEq(vault.epochDuration(), newEpochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), newEpochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.epochInitInternal(), 3);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), epochDuration);
-        assertEq(vault.prevEpochDurationInitInternal(), blockTimestamp - 3 * epochDuration);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 5);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration2);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 5 * newEpochDuration);
+        assertEq(vault._epochDuration(), newEpochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp);
+        assertEq(vault._epochDurationInitIndex(), 3);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), epochDuration);
+        assertEq(vault._prevEpochDurationInit(), blockTimestamp - 3 * epochDuration);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 5);
+        assertEq(vault._nextEpochDuration(), newEpochDuration2);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
@@ -2994,15 +2994,15 @@ contract VaultTest is Test {
 
         assertEq(vault.epochDuration(), newEpochDuration);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), newEpochDuration);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.epochInitInternal(), 3);
-        assertEq(vault.prevEpochInitInternal(), 0);
-        assertEq(vault.prevEpochDurationInternal(), epochDuration);
-        assertEq(vault.prevEpochDurationInitInternal(), blockTimestamp - 3 * epochDuration);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 5);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration3);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 5 * newEpochDuration);
+        assertEq(vault._epochDuration(), newEpochDuration);
+        assertEq(vault._epochDurationInit(), blockTimestamp);
+        assertEq(vault._epochDurationInitIndex(), 3);
+        assertEq(vault._prevEpochDurationInitIndex(), 0);
+        assertEq(vault._prevEpochDuration(), epochDuration);
+        assertEq(vault._prevEpochDurationInit(), blockTimestamp - 3 * epochDuration);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 5);
+        assertEq(vault._nextEpochDuration(), newEpochDuration3);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
@@ -3025,15 +3025,15 @@ contract VaultTest is Test {
 
         assertEq(vault.epochDuration(), newEpochDuration3);
         assertEq(vault.epochDurationInit(), blockTimestamp);
-        assertEq(vault.epochDurationInternal(), newEpochDuration3);
-        assertEq(vault.epochDurationInitInternal(), blockTimestamp);
-        assertEq(vault.epochInitInternal(), 3 + 5);
-        assertEq(vault.prevEpochInitInternal(), 3);
-        assertEq(vault.prevEpochDurationInternal(), newEpochDuration);
-        assertEq(vault.prevEpochDurationInitInternal(), blockTimestamp - 5 * newEpochDuration);
-        assertEq(vault.nextEpochInitInternal(), vault.currentEpoch() + 3);
-        assertEq(vault.nextEpochDurationInternal(), newEpochDuration4);
-        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 3 * newEpochDuration3);
+        assertEq(vault._epochDuration(), newEpochDuration3);
+        assertEq(vault._epochDurationInit(), blockTimestamp);
+        assertEq(vault._epochDurationInitIndex(), 3 + 5);
+        assertEq(vault._prevEpochDurationInitIndex(), 3);
+        assertEq(vault._prevEpochDuration(), newEpochDuration);
+        assertEq(vault._prevEpochDurationInit(), blockTimestamp - 5 * newEpochDuration);
+        assertEq(vault._nextEpochInitIndex(), vault.currentEpoch() + 3);
+        assertEq(vault._nextEpochDuration(), newEpochDuration4);
+        assertEq(vault._nextEpochDurationInit(), blockTimestamp + 3 * newEpochDuration3);
         vm.expectRevert(IVault.InvalidEpoch.selector);
         vault.epochStart(0);
     }
@@ -3442,11 +3442,11 @@ contract VaultTest is Test {
         assertEq(vault.epochAt(uint48(blockTimestamp)), 3);
         assertEq(vault.currentEpochStart(), blockTimestamp - 1);
         assertEq(vault.previousEpochStart(), blockTimestamp - 1 - 7 days);
-        assertEq(vault.epochAt(uint48(blockTimestamp - newEpochDuration)), vault.nextEpochInitInternal() - 2);
+        assertEq(vault.epochAt(uint48(blockTimestamp - newEpochDuration)), vault._nextEpochInitIndex() - 2);
         vm.expectRevert(IVault.InvalidCaptureEpoch.selector);
         _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - newEpochDuration), "");
 
-        assertEq(vault.epochAt(uint48(blockTimestamp - 7 days - 1)), vault.nextEpochInitInternal() - 1);
+        assertEq(vault.epochAt(uint48(blockTimestamp - 7 days - 1)), vault._nextEpochInitIndex() - 1);
         _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 7 days - 1), "");
     }
 

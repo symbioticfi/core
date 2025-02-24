@@ -52,7 +52,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
             revert IVault.InvalidFlashParams();
         }
 
-        epochDurationSetEpochsDelayInternal = params.epochDurationSetEpochsDelay;
+        _epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
 
         flashFeeRate = params.flashFeeRate;
         flashFeeReceiver = params.flashFeeReceiver;
@@ -146,8 +146,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         burner = params.burner;
 
-        epochDurationInitInternal = Time.timestamp();
-        epochDurationInternal = params.epochDuration;
+        _epochDurationInit = Time.timestamp();
+        _epochDuration = params.epochDuration;
 
         depositWhitelist = params.depositWhitelist;
 
@@ -176,7 +176,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         _processMigrateParams(params);
 
-        if ((params.epochDurationSetEpochsDelay - 2) * epochDurationInternal < MIN_EXIT_WINDOW) {
+        if ((params.epochDurationSetEpochsDelay - 2) * _epochDuration < MIN_EXIT_WINDOW) {
             revert IVault.InsufficientExitWindow();
         }
     }

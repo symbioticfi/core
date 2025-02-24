@@ -157,67 +157,67 @@ interface IVaultStorage {
      * @notice Get a delay for the epoch duration set in epochs (internal).
      * @return delay for the epoch duration set
      */
-    function epochDurationSetEpochsDelayInternal() external view returns (uint256);
+    function _epochDurationSetEpochsDelay() external view returns (uint256);
 
     /**
      * @notice Get the next delay for the epoch duration set in epochs (internal).
      * @return next delay for the epoch duration set
      */
-    function nextEpochDurationSetEpochsDelayInternal() external view returns (uint256);
+    function _nextEpochDurationSetEpochsDelay() external view returns (uint256);
 
     /**
      * @notice Get the current epoch duration's first epoch (internal).
      * @return the current epoch duration's first epoch
      */
-    function epochInitInternal() external view returns (uint256);
+    function _epochDurationInitIndex() external view returns (uint256);
 
     /**
      * @notice Get a time point of the epoch duration set (internal).
      * @return time point of the epoch duration set
      */
-    function epochDurationInitInternal() external view returns (uint48);
+    function _epochDurationInit() external view returns (uint48);
 
     /**
      * @notice Get a duration of the epoch (internal).
      * @return duration of the epoch
      */
-    function epochDurationInternal() external view returns (uint48);
+    function _epochDuration() external view returns (uint48);
 
     /**
      * @notice Get a the previous epoch duration's first epoch (internal).
      * @return the previous epoch duration's first epoch
      */
-    function prevEpochInitInternal() external view returns (uint256);
+    function _prevEpochDurationInitIndex() external view returns (uint256);
 
     /**
      * @notice Get a time point of the previous epoch duration set (internal).
      * @return time point of the previous epoch duration set
      */
-    function prevEpochDurationInitInternal() external view returns (uint48);
+    function _prevEpochDurationInit() external view returns (uint48);
 
     /**
      * @notice Get a duration of the previous epoch (internal).
      * @return duration of the previous epoch
      */
-    function prevEpochDurationInternal() external view returns (uint48);
+    function _prevEpochDuration() external view returns (uint48);
 
     /**
      * @notice Get a the next epoch duration's first epoch (internal).
      * @return the next epoch duration's first epoch
      */
-    function nextEpochInitInternal() external view returns (uint256);
+    function _nextEpochInitIndex() external view returns (uint256);
 
     /**
      * @notice Get a time point of the next epoch duration set (internal).
      * @return time point of the next epoch duration set
      */
-    function nextEpochDurationInitInternal() external view returns (uint48);
+    function _nextEpochDurationInit() external view returns (uint48);
 
     /**
      * @notice Get a duration of the next epoch (internal).
      * @return duration of the next epoch
      */
-    function nextEpochDurationInternal() external view returns (uint48);
+    function _nextEpochDuration() external view returns (uint48);
 
     /**
      * @notice Get a flash fee rate (100% = 1_000_000_000; 0.03% = 300_000).

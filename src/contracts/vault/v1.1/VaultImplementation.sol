@@ -46,30 +46,30 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
      * @inheritdoc IVault
      */
     function epochDurationSetEpochsDelay() external view returns (uint256) {
-        if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
-            return epochDurationSetEpochsDelayInternal;
+        if (_nextEpochDurationInit == 0 || Time.timestamp() < _nextEpochDurationInit) {
+            return _epochDurationSetEpochsDelay;
         }
-        return nextEpochDurationSetEpochsDelayInternal;
+        return _nextEpochDurationSetEpochsDelay;
     }
 
     /**
      * @inheritdoc IVault
      */
     function epochDuration() public view returns (uint48) {
-        if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
-            return epochDurationInternal;
+        if (_nextEpochDurationInit == 0 || Time.timestamp() < _nextEpochDurationInit) {
+            return _epochDuration;
         }
-        return nextEpochDurationInternal;
+        return _nextEpochDuration;
     }
 
     /**
      * @inheritdoc IVault
      */
     function epochDurationInit() public view returns (uint48) {
-        if (nextEpochDurationInitInternal == 0 || Time.timestamp() < nextEpochDurationInitInternal) {
-            return epochDurationInitInternal;
+        if (_nextEpochDurationInit == 0 || Time.timestamp() < _nextEpochDurationInit) {
+            return _epochDurationInit;
         }
-        return nextEpochDurationInitInternal;
+        return _nextEpochDurationInit;
     }
 
     /**
@@ -78,15 +78,15 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function epochAt(
         uint48 timestamp
     ) public view returns (uint256) {
-        if (timestamp < epochDurationInitInternal) {
-            if (prevEpochDurationInitInternal == 0 || timestamp < prevEpochDurationInitInternal) {
+        if (timestamp < _epochDurationInit) {
+            if (_prevEpochDurationInit == 0 || timestamp < _prevEpochDurationInit) {
                 revert InvalidTimestamp();
             }
-            return prevEpochInitInternal + (timestamp - prevEpochDurationInitInternal) / prevEpochDurationInternal;
-        } else if (nextEpochDurationInitInternal == 0 || timestamp < nextEpochDurationInitInternal) {
-            return epochInitInternal + (timestamp - epochDurationInitInternal) / epochDurationInternal;
+            return _prevEpochDurationInitIndex + (timestamp - _prevEpochDurationInit) / _prevEpochDuration;
+        } else if (_nextEpochDurationInit == 0 || timestamp < _nextEpochDurationInit) {
+            return _epochDurationInitIndex + (timestamp - _epochDurationInit) / _epochDuration;
         } else {
-            return nextEpochInitInternal + (timestamp - nextEpochDurationInitInternal) / nextEpochDurationInternal;
+            return _nextEpochInitIndex + (timestamp - _nextEpochDurationInit) / _nextEpochDuration;
         }
     }
 
@@ -96,18 +96,16 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function epochStart(
         uint256 epoch
     ) public view returns (uint48) {
-        if (epoch < prevEpochInitInternal) {
+        if (epoch < _prevEpochDurationInitIndex) {
             revert InvalidEpoch();
         }
 
-        if (epoch < epochInitInternal) {
-            return
-                (prevEpochDurationInitInternal + (epoch - prevEpochInitInternal) * prevEpochDurationInternal).toUint48();
-        } else if (nextEpochInitInternal == 0 || epoch < nextEpochInitInternal) {
-            return (epochDurationInitInternal + (epoch - epochInitInternal) * epochDurationInternal).toUint48();
+        if (epoch < _epochDurationInitIndex) {
+            return (_prevEpochDurationInit + (epoch - _prevEpochDurationInitIndex) * _prevEpochDuration).toUint48();
+        } else if (_nextEpochInitIndex == 0 || epoch < _nextEpochInitIndex) {
+            return (_epochDurationInit + (epoch - _epochDurationInitIndex) * _epochDuration).toUint48();
         } else {
-            return
-                (nextEpochDurationInitInternal + (epoch - nextEpochInitInternal) * nextEpochDurationInternal).toUint48();
+            return (_nextEpochDurationInit + (epoch - _nextEpochInitIndex) * _nextEpochDuration).toUint48();
         }
     }
 
@@ -550,32 +548,28 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             revert InvalidEpochDurationSetEpochsDelay();
         }
 
-        if (nextEpochDurationInitInternal != 0 && nextEpochDurationInitInternal <= Time.timestamp()) {
-            prevEpochInitInternal = epochInitInternal;
-            prevEpochDurationInternal = epochDurationInternal;
-            prevEpochDurationInitInternal = epochDurationInitInternal;
-            epochInitInternal = nextEpochInitInternal;
-            epochDurationInternal = nextEpochDurationInternal;
-            epochDurationInitInternal = nextEpochDurationInitInternal;
-            epochDurationSetEpochsDelayInternal = nextEpochDurationSetEpochsDelayInternal;
+        if (_nextEpochDurationInit != 0 && _nextEpochDurationInit <= Time.timestamp()) {
+            _prevEpochDurationInitIndex = _epochDurationInitIndex;
+            _prevEpochDuration = _epochDuration;
+            _prevEpochDurationInit = _epochDurationInit;
+            _epochDurationInitIndex = _nextEpochInitIndex;
+            _epochDuration = _nextEpochDuration;
+            _epochDurationInit = _nextEpochDurationInit;
+            _epochDurationSetEpochsDelay = _nextEpochDurationSetEpochsDelay;
         }
 
-        if (epochDurationInternal > epochDuration_) {
+        if (_epochDuration > epochDuration_) {
             revert InvalidNewEpochDuration();
         }
 
-        if (
-            epochDurationInternal == epochDuration_
-                && epochDurationSetEpochsDelayInternal == epochDurationSetEpochsDelay_
-        ) {
+        if (_epochDuration == epochDuration_ && _epochDurationSetEpochsDelay == epochDurationSetEpochsDelay_) {
             revert AlreadySet();
         }
 
-        nextEpochInitInternal = currentEpoch() + epochDurationSetEpochsDelayInternal;
-        nextEpochDurationInternal = epochDuration_;
-        nextEpochDurationInitInternal =
-            (currentEpochStart() + epochDurationSetEpochsDelayInternal * epochDurationInternal).toUint48();
-        nextEpochDurationSetEpochsDelayInternal = epochDurationSetEpochsDelay_;
+        _nextEpochInitIndex = currentEpoch() + _epochDurationSetEpochsDelay;
+        _nextEpochDuration = epochDuration_;
+        _nextEpochDurationInit = (currentEpochStart() + _epochDurationSetEpochsDelay * _epochDuration).toUint48();
+        _nextEpochDurationSetEpochsDelay = epochDurationSetEpochsDelay_;
 
         emit SetEpochDuration(epochDuration_, epochDurationSetEpochsDelay_);
     }

@@ -76,12 +76,12 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDurationInitInternal;
+    uint48 public _epochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public epochDurationInternal;
+    uint48 public _epochDuration;
 
     /**
      * @inheritdoc IVaultStorage
@@ -142,47 +142,47 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public epochDurationSetEpochsDelayInternal;
+    uint256 public _epochDurationSetEpochsDelay;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public nextEpochDurationSetEpochsDelayInternal;
+    uint256 public _nextEpochDurationSetEpochsDelay;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public epochInitInternal;
+    uint256 public _epochDurationInitIndex;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public prevEpochInitInternal;
+    uint256 public _prevEpochDurationInitIndex;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public prevEpochDurationInitInternal;
+    uint48 public _prevEpochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public prevEpochDurationInternal;
+    uint48 public _prevEpochDuration;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public nextEpochDurationInitInternal;
+    uint48 public _nextEpochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint48 public nextEpochDurationInternal;
+    uint48 public _nextEpochDuration;
 
     /**
      * @inheritdoc IVaultStorage
      */
-    uint256 public nextEpochInitInternal;
+    uint256 public _nextEpochInitIndex;
 
     /**
      * @inheritdoc IVaultStorage
