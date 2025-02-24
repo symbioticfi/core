@@ -551,44 +551,33 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         }
 
         if (nextEpochDurationInitInternal != 0 && nextEpochDurationInitInternal <= Time.timestamp()) {
-            uint256 currentEpoch_ = currentEpoch();
-            uint48 currentEpochStart_ = currentEpochStart();
-
             prevEpochInitInternal = epochInitInternal;
             prevEpochDurationInternal = epochDurationInternal;
             prevEpochDurationInitInternal = epochDurationInitInternal;
-            epochInitInternal = currentEpoch_;
+            epochInitInternal = nextEpochInitInternal;
             epochDurationInternal = nextEpochDurationInternal;
-            epochDurationInitInternal = currentEpochStart_;
+            epochDurationInitInternal = nextEpochDurationInitInternal;
             epochDurationSetEpochsDelayInternal = nextEpochDurationSetEpochsDelayInternal;
-            nextEpochInitInternal = 0;
-            nextEpochDurationInternal = 0;
-            nextEpochDurationInitInternal = 0;
-            nextEpochDurationSetEpochsDelayInternal = 0;
         }
 
         if (epochDurationInternal > epochDuration_) {
             revert InvalidNewEpochDuration();
         }
 
-        if (nextEpochDurationInitInternal != 0) {
-            nextEpochInitInternal = 0;
-            nextEpochDurationInternal = 0;
-            nextEpochDurationInitInternal = 0;
-            nextEpochDurationSetEpochsDelayInternal = 0;
-        } else if (epochDurationInternal == epochDuration_) {
+        if (
+            epochDurationInternal == epochDuration_
+                && epochDurationSetEpochsDelayInternal == epochDurationSetEpochsDelay_
+        ) {
             revert AlreadySet();
         }
 
-        if (epochDurationInternal != epochDuration_) {
-            nextEpochInitInternal = currentEpoch() + epochDurationSetEpochsDelayInternal;
-            nextEpochDurationInternal = epochDuration_;
-            nextEpochDurationInitInternal =
-                (currentEpochStart() + epochDurationSetEpochsDelayInternal * epochDurationInternal).toUint48();
-            nextEpochDurationSetEpochsDelayInternal = epochDurationSetEpochsDelay_;
-        }
+        nextEpochInitInternal = currentEpoch() + epochDurationSetEpochsDelayInternal;
+        nextEpochDurationInternal = epochDuration_;
+        nextEpochDurationInitInternal =
+            (currentEpochStart() + epochDurationSetEpochsDelayInternal * epochDurationInternal).toUint48();
+        nextEpochDurationSetEpochsDelayInternal = epochDurationSetEpochsDelay_;
 
-        emit SetEpochDuration(epochDuration_);
+        emit SetEpochDuration(epochDuration_, epochDurationSetEpochsDelay_);
     }
 
     /**

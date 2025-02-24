@@ -2961,16 +2961,16 @@ contract VaultTest is Test {
         assertEq(vault.prevEpochInitInternal(), 0);
         assertEq(vault.prevEpochDurationInternal(), epochDuration);
         assertEq(vault.prevEpochDurationInitInternal(), blockTimestamp - 3 * epochDuration);
-        assertEq(vault.nextEpochInitInternal(), 0);
-        assertEq(vault.nextEpochDurationInternal(), 0);
-        assertEq(vault.nextEpochDurationInitInternal(), 0);
+        assertEq(vault.nextEpochInitInternal(), 3 + 5);
+        assertEq(vault.nextEpochDurationInternal(), newEpochDuration);
+        assertEq(vault.nextEpochDurationInitInternal(), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration);
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
         assertEq(vault.epochAt(uint48(blockTimestamp + newEpochDuration)), 3 + 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
         assertEq(vault.epochDurationSetEpochsDelayInternal(), 5);
-        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 0);
+        assertEq(vault.nextEpochDurationSetEpochsDelayInternal(), 3);
 
         _setEpochDuration(alice, newEpochDuration2);
 
@@ -3079,15 +3079,20 @@ contract VaultTest is Test {
     function test_SetEpochDurationRevertAlreadySet(
         uint48 epochDuration
     ) public {
-        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        epochDuration = uint48(bound(epochDuration, 2, 50 weeks));
 
         uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
-        vault = _getVault(epochDuration);
+        vault = _getVault(epochDuration - 1);
 
         _grantEpochDurationSetRole(alice, alice);
+        _setEpochDuration(alice, epochDuration);
+
+        blockTimestamp = blockTimestamp + vault.epochDurationSetEpochsDelay() * (epochDuration - 1);
+        vm.warp(blockTimestamp);
+
         vm.expectRevert(IVault.AlreadySet.selector);
         _setEpochDuration(alice, epochDuration);
     }

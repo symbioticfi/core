@@ -195,8 +195,9 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     /**
      * @notice Emitted when a epoch duration is set (can be accepted after `epochDurationSetEpochsDelay` epochs).
      * @param epochDuration epoch duration
+     * @param epochDurationSetEpochsDelay delay for the epoch duration set in epochs
      */
-    event SetEpochDuration(uint48 epochDuration);
+    event SetEpochDuration(uint48 epochDuration, uint256 epochDurationSetEpochsDelay);
 
     /**
      * @notice Emitted when a pending epoch duration is accepted.
