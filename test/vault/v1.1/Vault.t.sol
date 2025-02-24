@@ -3148,6 +3148,12 @@ contract VaultTest is Test {
         _grantFlashFeeReceiverSetRole(alice, alice);
         _setFlashFeeReceiver(alice, flashFeeReceiver);
         assertEq(vault.flashFeeReceiver(), flashFeeReceiver);
+
+        if (flashFeeReceiver != address(0)) {
+            assertEq(vault.flashFee(address(collateral), 100 ether), vault.flashFeeRate().mulDiv(100 ether, 10 ** 9));
+        } else {
+            assertEq(vault.flashFee(address(collateral), 100 ether), 0);
+        }
     }
 
     function test_SetFlashFeeReceiverRevertAlreadySet(
@@ -3822,7 +3828,7 @@ contract VaultTest is Test {
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
                         flashFeeRate: 0,
-                        flashFeeReceiver: address(0),
+                        flashFeeReceiver: alice,
                         defaultAdminRoleHolder: alice,
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,

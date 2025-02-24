@@ -259,7 +259,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         if (token != collateral) {
             revert UnsupportedToken();
         }
-        return value.mulDiv(flashFeeRate, FLASH_FEE_BASE);
+        return flashFeeReceiver == address(0) ? 0 : value.mulDiv(flashFeeRate, FLASH_FEE_BASE);
     }
 
     /**
@@ -412,7 +412,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             revert InvalidReturnAmount();
         }
 
-        if (flashFeeReceiver != address(0)) {
+        if (fee > 0) {
             IERC20(collateral_).safeTransfer(flashFeeReceiver, fee);
         }
 
