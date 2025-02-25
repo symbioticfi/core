@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {VaultStorage} from "./VaultStorage.sol";
+import {VaultTokenizedImplementation} from "src/contracts/vault/v1.1/VaultTokenizedImplementation.sol";
 
-import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 import {IVaultVotes} from "../../../interfaces/vault/v1.1/IVaultVotes.sol";
 
 import {Checkpoints} from "../../libraries/Checkpoints.sol";
@@ -17,20 +16,15 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/VotesUpgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVaultVotes {
+contract VaultVotesImplementation is VaultTokenizedImplementation, VotesUpgradeable, IVaultVotes {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Address for address;
 
-    address private immutable BASE_IMPLEMENTATION;
-
     constructor(
         address baseImplementation
-    ) {
-        BASE_IMPLEMENTATION = baseImplementation;
-    }
+    ) VaultTokenizedImplementation(baseImplementation) {}
 
     /**
      * @inheritdoc IERC6372
@@ -62,11 +56,8 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
     function deposit(
         address onBehalfOf,
         uint256 amount
-    ) external returns (uint256 depositedAmount, uint256 mintedShares) {
-        (depositedAmount, mintedShares) = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.deposit, (onBehalfOf, amount))),
-            (uint256, uint256)
-        );
+    ) public override returns (uint256 depositedAmount, uint256 mintedShares) {
+        (depositedAmount, mintedShares) = super.deposit(onBehalfOf, amount);
 
         if (_activeShares.latest() > type(uint208).max) {
             revert SafeSupplyExceeded();
@@ -75,35 +66,26 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
         _transferVotingUnits(address(0), onBehalfOf, mintedShares);
     }
 
-    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {
-        (burnedShares, mintedShares) = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.withdraw, (claimer, amount))),
-            (uint256, uint256)
-        );
+    function withdraw(
+        address claimer,
+        uint256 amount
+    ) public override returns (uint256 burnedShares, uint256 mintedShares) {
+        (burnedShares, mintedShares) = super.withdraw(claimer, amount);
 
         _transferVotingUnits(msg.sender, address(0), burnedShares);
     }
 
-    function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares) {
-        (withdrawnAssets, mintedShares) = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IVault.redeem, (claimer, shares))),
-            (uint256, uint256)
-        );
+    function redeem(
+        address claimer,
+        uint256 shares
+    ) public override returns (uint256 withdrawnAssets, uint256 mintedShares) {
+        (withdrawnAssets, mintedShares) = super.redeem(claimer, shares);
 
         _transferVotingUnits(msg.sender, address(0), shares);
     }
 
-    function transfer(address to, uint256 value) external returns (bool result) {
-        result =
-            abi.decode(BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transfer, (to, value))), (bool));
-
-        _transferVotingUnits(msg.sender, to, value);
-    }
-
-    function transferFrom(address from, address to, uint256 value) external returns (bool result) {
-        result = abi.decode(
-            BASE_IMPLEMENTATION.functionDelegateCall(abi.encodeCall(IERC20.transferFrom, (from, to, value))), (bool)
-        );
+    function _update(address from, address to, uint256 value) internal override {
+        super._update(from, to, value);
 
         _transferVotingUnits(from, to, value);
     }
@@ -122,13 +104,6 @@ contract VaultVotesImplementation is VaultStorage, VotesUpgradeable, Proxy, IVau
         address account
     ) internal view override returns (uint256) {
         return _activeSharesOf[account].latest();
-    }
-
-    /**
-     * @inheritdoc Proxy
-     */
-    function _implementation() internal view override returns (address) {
-        return BASE_IMPLEMENTATION;
     }
 
     function _VaultVotes_init() external {
