@@ -217,6 +217,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimit: isDepositLimit,
                                 depositLimit: depositLimit,
                                 epochDurationSetEpochsDelay: 3,
+                                flashLoanEnabled: false,
                                 flashFeeRate: 1,
                                 flashFeeReceiver: alice,
                                 defaultAdminRoleHolder: alice,
@@ -226,6 +227,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimitSetRoleHolder: alice,
                                 depositLimitSetRoleHolder: alice,
                                 epochDurationSetRoleHolder: alice,
+                                flashLoanEnabledSetRoleHolder: alice,
                                 flashFeeRateSetRoleHolder: alice,
                                 flashFeeReceiverSetRoleHolder: alice
                             })
@@ -391,6 +393,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimit: false,
                                 depositLimit: 0,
                                 epochDurationSetEpochsDelay: 3,
+                                flashLoanEnabled: false,
                                 flashFeeRate: 1,
                                 flashFeeReceiver: alice,
                                 defaultAdminRoleHolder: alice,
@@ -400,6 +403,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimitSetRoleHolder: alice,
                                 depositLimitSetRoleHolder: alice,
                                 epochDurationSetRoleHolder: alice,
+                                flashLoanEnabledSetRoleHolder: alice,
                                 flashFeeRateSetRoleHolder: alice,
                                 flashFeeReceiverSetRoleHolder: alice
                             })
@@ -453,6 +457,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimit: false,
                                 depositLimit: 0,
                                 epochDurationSetEpochsDelay: 3,
+                                flashLoanEnabled: false,
                                 flashFeeRate: 1,
                                 flashFeeReceiver: alice,
                                 defaultAdminRoleHolder: alice,
@@ -462,6 +467,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimitSetRoleHolder: alice,
                                 depositLimitSetRoleHolder: alice,
                                 epochDurationSetRoleHolder: alice,
+                                flashLoanEnabledSetRoleHolder: alice,
                                 flashFeeRateSetRoleHolder: alice,
                                 flashFeeReceiverSetRoleHolder: alice
                             })
@@ -513,6 +519,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: address(0),
@@ -522,6 +529,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: address(0),
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -559,6 +567,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: true,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 0,
                                     flashFeeReceiver: address(0),
                                     defaultAdminRoleHolder: address(0),
@@ -568,6 +577,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: address(0),
                                     depositLimitSetRoleHolder: address(0),
                                     epochDurationSetRoleHolder: address(0),
+                                    flashLoanEnabledSetRoleHolder: address(0),
                                     flashFeeRateSetRoleHolder: address(0),
                                     flashFeeReceiverSetRoleHolder: address(0)
                                 })
@@ -605,6 +615,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: address(0),
@@ -614,6 +625,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: address(0),
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -651,6 +663,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 1,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 0,
                                     flashFeeReceiver: address(0),
                                     defaultAdminRoleHolder: address(0),
@@ -660,6 +673,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: address(0),
                                     depositLimitSetRoleHolder: address(0),
                                     epochDurationSetRoleHolder: address(0),
+                                    flashLoanEnabledSetRoleHolder: address(0),
                                     flashFeeRateSetRoleHolder: address(0),
                                     flashFeeReceiverSetRoleHolder: address(0)
                                 })
@@ -697,6 +711,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: address(0),
@@ -706,6 +721,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: address(0),
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -738,6 +754,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -747,6 +764,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -811,6 +829,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -820,6 +839,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -881,6 +901,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -890,6 +911,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -925,6 +947,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -934,6 +957,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -962,6 +986,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -971,6 +996,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1030,6 +1056,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1039,6 +1066,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1089,6 +1117,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1098,6 +1127,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1145,6 +1175,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1154,6 +1185,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1199,6 +1231,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1208,6 +1241,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1236,6 +1270,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1245,6 +1280,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1290,6 +1326,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1299,6 +1336,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -1570,6 +1608,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimit: false,
                                     depositLimit: 0,
                                     epochDurationSetEpochsDelay: 3,
+                                    flashLoanEnabled: false,
                                     flashFeeRate: 1,
                                     flashFeeReceiver: alice,
                                     defaultAdminRoleHolder: alice,
@@ -1579,6 +1618,7 @@ contract VaultTokenizedTest is Test {
                                     isDepositLimitSetRoleHolder: alice,
                                     depositLimitSetRoleHolder: alice,
                                     epochDurationSetRoleHolder: alice,
+                                    flashLoanEnabledSetRoleHolder: alice,
                                     flashFeeRateSetRoleHolder: alice,
                                     flashFeeReceiverSetRoleHolder: alice
                                 })
@@ -3464,7 +3504,9 @@ contract VaultTokenizedTest is Test {
                             epochDurationSetEpochsDelay: 3,
                             flashFeeRate: 1,
                             flashFeeReceiver: alice,
+                            flashLoanEnabled: false,
                             epochDurationSetRoleHolder: alice,
+                            flashLoanEnabledSetRoleHolder: alice,
                             flashFeeRateSetRoleHolder: alice,
                             flashFeeReceiverSetRoleHolder: alice
                         })
@@ -3611,7 +3653,9 @@ contract VaultTokenizedTest is Test {
                     epochDurationSetEpochsDelay: 3,
                     flashFeeRate: 1,
                     flashFeeReceiver: alice,
+                    flashLoanEnabled: false,
                     epochDurationSetRoleHolder: alice,
+                    flashLoanEnabledSetRoleHolder: alice,
                     flashFeeRateSetRoleHolder: alice,
                     flashFeeReceiverSetRoleHolder: alice
                 })
@@ -3684,7 +3728,9 @@ contract VaultTokenizedTest is Test {
                             epochDurationSetEpochsDelay: 7 days + 1,
                             flashFeeRate: 1,
                             flashFeeReceiver: alice,
+                            flashLoanEnabled: false,
                             epochDurationSetRoleHolder: alice,
+                            flashLoanEnabledSetRoleHolder: alice,
                             flashFeeRateSetRoleHolder: alice,
                             flashFeeReceiverSetRoleHolder: alice
                         })
@@ -3707,7 +3753,9 @@ contract VaultTokenizedTest is Test {
                             epochDurationSetEpochsDelay: 7 days + 2,
                             flashFeeRate: 1,
                             flashFeeReceiver: alice,
+                            flashLoanEnabled: false,
                             epochDurationSetRoleHolder: alice,
+                            flashLoanEnabledSetRoleHolder: alice,
                             flashFeeRateSetRoleHolder: alice,
                             flashFeeReceiverSetRoleHolder: alice
                         })
@@ -4004,6 +4052,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimit: false,
                                 depositLimit: 0,
                                 epochDurationSetEpochsDelay: 3,
+                                flashLoanEnabled: false,
                                 flashFeeRate: 1,
                                 flashFeeReceiver: alice,
                                 defaultAdminRoleHolder: alice,
@@ -4013,6 +4062,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimitSetRoleHolder: alice,
                                 depositLimitSetRoleHolder: alice,
                                 epochDurationSetRoleHolder: alice,
+                                flashLoanEnabledSetRoleHolder: alice,
                                 flashFeeRateSetRoleHolder: alice,
                                 flashFeeReceiverSetRoleHolder: alice
                             })
@@ -4064,6 +4114,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimit: false,
                                 depositLimit: 0,
                                 epochDurationSetEpochsDelay: 3,
+                                flashLoanEnabled: false,
                                 flashFeeRate: 1,
                                 flashFeeReceiver: alice,
                                 defaultAdminRoleHolder: alice,
@@ -4073,6 +4124,7 @@ contract VaultTokenizedTest is Test {
                                 isDepositLimitSetRoleHolder: alice,
                                 depositLimitSetRoleHolder: alice,
                                 epochDurationSetRoleHolder: alice,
+                                flashLoanEnabledSetRoleHolder: alice,
                                 flashFeeRateSetRoleHolder: alice,
                                 flashFeeReceiverSetRoleHolder: alice
                             })

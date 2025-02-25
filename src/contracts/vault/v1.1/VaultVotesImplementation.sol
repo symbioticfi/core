@@ -3,7 +3,6 @@ pragma solidity 0.8.25;
 
 import {VaultTokenizedImplementation} from "src/contracts/vault/v1.1/VaultTokenizedImplementation.sol";
 
-import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 import {IVaultVotes} from "../../../interfaces/vault/v1.1/IVaultVotes.sol";
 
 import {Checkpoints} from "../../libraries/Checkpoints.sol";
