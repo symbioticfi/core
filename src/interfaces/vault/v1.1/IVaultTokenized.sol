@@ -23,10 +23,9 @@ interface IVaultTokenized is IERC20, IERC20Metadata, IERC20Errors {
      * @param baseParams parameters needed for a vault migration (abi.encode(IVault.MigrateParams))
      * @param name name for the ERC20 tokenized vault
      * @param symbol symbol for the ERC20 tokenized vault
-     * @dev Version 1 -> version 3 vaults migration.
+     * @dev Migrations: 3 -> 4
      */
     struct MigrateParamsTokenized {
-        bytes baseParams;
         string name;
         string symbol;
     }

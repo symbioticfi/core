@@ -13,6 +13,7 @@ import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMi
 import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
+import {IVault as IVaultV1} from "../../../src/interfaces/vault/IVault.sol";
 import {VaultTokenized as VaultTokenizedV1} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {Vault} from "../../../src/contracts/vault/v1.1/Vault.sol";
 import {VaultImplementation} from "../../../src/contracts/vault/v1.1/VaultImplementation.sol";
@@ -4255,6 +4256,220 @@ contract VaultTest is Test {
         bytes32 RETURN_VALUE = vault.RETURN_VALUE();
         vm.expectRevert();
         borrower.run(amount, RETURN_VALUE, abi.encode(false));
+    }
+
+    function test_Migrate2() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultV1.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vault = VaultImplementation(payable(vault_));
+
+        assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
+        assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
+        assertEq(VaultImplementation(payable(address(vault))).DELEGATOR_FACTORY(), address(delegatorFactory));
+        assertEq(VaultImplementation(payable(address(vault))).SLASHER_FACTORY(), address(slasherFactory));
+
+        assertEq(Vault(payable(address(vault))).owner(), alice);
+        assertEq(vault.collateral(), address(collateral));
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEFAULT_ADMIN_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSITOR_WHITELIST_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
+        assertEq(VaultImplementation(payable(address(vault))).epochDuration(), 7 days);
+        vm.expectRevert(IVault.InvalidTimestamp.selector);
+        assertEq(VaultImplementation(payable(address(vault))).epochAt(0), 0);
+        assertEq(VaultImplementation(payable(address(vault))).epochAt(uint48(blockTimestamp)), 0);
+        assertEq(VaultImplementation(payable(address(vault))).currentEpoch(), 0);
+        assertEq(VaultImplementation(payable(address(vault))).currentEpochStart(), blockTimestamp);
+        vm.expectRevert(IVault.NoPreviousEpoch.selector);
+        VaultImplementation(payable(address(vault))).previousEpochStart();
+        assertEq(VaultImplementation(payable(address(vault))).nextEpochStart(), blockTimestamp + 7 days);
+        assertEq(VaultImplementation(payable(address(vault))).totalStake(), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeSharesAt(uint48(blockTimestamp), ""), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeShares(), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeStakeAt(uint48(blockTimestamp), ""), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeStake(), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeSharesOfAt(alice, uint48(blockTimestamp), ""), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeSharesOf(alice), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeBalanceOfAt(alice, uint48(blockTimestamp), ""), 0);
+        assertEq(VaultImplementation(payable(address(vault))).activeBalanceOf(alice), 0);
+        assertEq(VaultImplementation(payable(address(vault))).withdrawals(0), 0);
+        assertEq(VaultImplementation(payable(address(vault))).withdrawalShares(0), 0);
+        assertEq(VaultImplementation(payable(address(vault))).isWithdrawalsClaimed(0, alice), false);
+        assertEq(VaultImplementation(payable(address(vault))).depositWhitelist(), false);
+        assertEq(VaultImplementation(payable(address(vault))).isDepositorWhitelisted(alice), false);
+        assertEq(VaultImplementation(payable(address(vault))).slashableBalanceOf(alice), 0);
+        assertEq(VaultImplementation(payable(address(vault))).isDelegatorInitialized(), true);
+        assertEq(VaultImplementation(payable(address(vault))).isSlasherInitialized(), true);
+        assertEq(VaultImplementation(payable(address(vault))).isInitialized(), true);
+        assertEq(Vault(payable(address(vault))).version(), 1);
+
+        vm.expectRevert();
+        VaultImplementation(payable(address(vault))).flashFeeRate();
+        vm.expectRevert();
+        VaultImplementation(payable(address(vault))).epochDurationSetEpochsDelay();
+
+        vm.startPrank(alice);
+        vaultFactory.migrate(
+            address(vault),
+            3,
+            abi.encode(
+                IVault.MigrateParams({
+                    epochDurationSetEpochsDelay: 3,
+                    flashFeeRate: 1,
+                    flashFeeReceiver: alice,
+                    flashLoanEnabled: false,
+                    epochDurationSetRoleHolder: alice,
+                    flashLoanEnabledSetRoleHolder: alice,
+                    flashFeeRateSetRoleHolder: alice,
+                    flashFeeReceiverSetRoleHolder: alice
+                })
+            )
+        );
+        vm.stopPrank();
+
+        assertEq(Vault(payable(address(vault))).version(), 4);
+        assertEq(VaultImplementation(payable(address(vault))).flashFeeRate(), 1);
+        assertEq(VaultImplementation(payable(address(vault))).epochDurationSetEpochsDelay(), 3);
+    }
+
+    function test_MigrateRevertInsufficientExitWindow() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultV1.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vault = VaultImplementation(payable(vault_));
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.InsufficientExitWindow.selector);
+        vaultFactory.migrate(
+            address(vault),
+            3,
+            abi.encode(
+                IVault.MigrateParams({
+                    epochDurationSetEpochsDelay: 7 days + 1,
+                    flashFeeRate: 1,
+                    flashFeeReceiver: alice,
+                    flashLoanEnabled: false,
+                    epochDurationSetRoleHolder: alice,
+                    flashLoanEnabledSetRoleHolder: alice,
+                    flashFeeRateSetRoleHolder: alice,
+                    flashFeeReceiverSetRoleHolder: alice
+                })
+            )
+        );
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vaultFactory.migrate(
+            address(vault),
+            3,
+            abi.encode(
+                IVault.MigrateParams({
+                    epochDurationSetEpochsDelay: 7 days + 2,
+                    flashFeeRate: 1,
+                    flashFeeReceiver: alice,
+                    flashLoanEnabled: false,
+                    epochDurationSetRoleHolder: alice,
+                    flashLoanEnabledSetRoleHolder: alice,
+                    flashFeeRateSetRoleHolder: alice,
+                    flashFeeReceiverSetRoleHolder: alice
+                })
+            )
+        );
+        vm.stopPrank();
     }
 
     // struct GasStruct {

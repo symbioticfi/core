@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import {Vault} from "./Vault.sol";
 import {VaultTokenizedImplementation} from "./VaultTokenizedImplementation.sol";
 
+import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../interfaces/vault/v1.1/IVaultTokenized.sol";
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
@@ -19,23 +20,26 @@ contract VaultTokenized is Vault {
         super._initialize(initialVersion, owner_, params.baseParams);
 
         _implementation().functionDelegateCall(
-            abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (params.name, params.symbol))
+            abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (abi.encode(params.name, params.symbol)))
         );
     }
 
     function _migrate(uint64 oldVersion, uint64 newVersion, bytes memory data) internal virtual override {
-        if (oldVersion == 1) {
+        if (oldVersion == 2) {
+            (IVault.MigrateParams memory params) = abi.decode(data, (IVault.MigrateParams));
+
+            _processMigration(params);
+        } else if (oldVersion == 3) {
             (IVaultTokenized.MigrateParamsTokenized memory params) =
                 abi.decode(data, (IVaultTokenized.MigrateParamsTokenized));
 
-            super._migrate(oldVersion, newVersion, params.baseParams);
-
             _implementation().functionDelegateCall(
-                abi.encodeCall(VaultTokenizedImplementation._VaultTokenized_init, (params.name, params.symbol))
+                abi.encodeCall(
+                    VaultTokenizedImplementation._VaultTokenized_init, (abi.encode(params.name, params.symbol))
+                )
             );
         } else {
-            // oldVersion == 2
-            super._migrate(oldVersion, newVersion, data);
+            revert IVault.InvalidOrigin();
         }
     }
 }

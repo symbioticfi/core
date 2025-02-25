@@ -717,5 +717,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
-    function _Vault_init() external {}
+    function _Vault_init(
+        bytes calldata /* data */
+    ) external {}
 }

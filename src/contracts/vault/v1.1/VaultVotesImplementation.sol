@@ -106,7 +106,9 @@ contract VaultVotesImplementation is VaultTokenizedImplementation, VotesUpgradea
         return _activeSharesOf[account].latest();
     }
 
-    function _VaultVotes_init() external {
+    function _VaultVotes_init(
+        bytes calldata /* data */
+    ) external {
         __EIP712_init("VaultVotes", "1");
     }
 }

@@ -134,7 +134,11 @@ contract VaultTokenizedImplementation is
         return BASE_IMPLEMENTATION;
     }
 
-    function _VaultTokenized_init(string calldata name, string calldata symbol) external {
+    function _VaultTokenized_init(
+        bytes calldata data
+    ) external {
+        (string memory name, string memory symbol) = abi.decode(data, (string, string));
+
         __ERC20_init(name, symbol);
     }
 }
