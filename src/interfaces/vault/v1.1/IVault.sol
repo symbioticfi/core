@@ -2,12 +2,13 @@
 pragma solidity ^0.8.0;
 
 import {IVaultStorage} from "./IVaultStorage.sol";
+import {IImplementation} from "./IImplementation.sol";
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
-interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender {
+interface IVault is IVaultStorage, IImplementation, IAccessControl, IERC165, IERC3156FlashLender {
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();

@@ -105,15 +105,17 @@ contract VaultVotesTest is Test {
         vaultFactory.whitelist(vaultTokenizedV1Impl);
 
         address vaultImplementation =
-            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
+            address(new VaultImplementation(address(vaultFactory), address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
-        address vaultTokenizedImplementation = address(new VaultTokenizedImplementation(vaultImplementation));
+        address vaultTokenizedImplementation =
+            address(new VaultTokenizedImplementation(address(vaultFactory), vaultImplementation));
         address vaultTokenizedImpl = address(new VaultTokenized(address(vaultFactory), vaultTokenizedImplementation));
         vaultFactory.whitelist(vaultTokenizedImpl);
 
-        address vaultVotesImplementation = address(new VaultVotesImplementation(vaultImplementation));
+        address vaultVotesImplementation =
+            address(new VaultVotesImplementation(address(vaultFactory), vaultImplementation));
         address vaultVotesImpl = address(new VaultVotes(address(vaultFactory), vaultVotesImplementation));
         vaultFactory.whitelist(vaultVotesImpl);
 

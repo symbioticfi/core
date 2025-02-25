@@ -23,8 +23,9 @@ contract VaultVotesImplementation is VaultTokenizedImplementation, VotesUpgradea
     using Address for address;
 
     constructor(
+        address vaultFactory,
         address baseImplementation
-    ) VaultTokenizedImplementation(baseImplementation) {}
+    ) VaultTokenizedImplementation(vaultFactory, baseImplementation) {}
 
     /**
      * @inheritdoc IERC6372
@@ -108,7 +109,7 @@ contract VaultVotesImplementation is VaultTokenizedImplementation, VotesUpgradea
 
     function _VaultVotes_init(
         bytes calldata /* data */
-    ) external {
+    ) external onlyFactory {
         __EIP712_init("VaultVotes", "1");
     }
 }

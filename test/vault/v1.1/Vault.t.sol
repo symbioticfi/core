@@ -102,7 +102,7 @@ contract VaultTest is Test {
         vaultFactory.whitelist(vaultTokenizedV1Impl);
 
         address vaultImplementation =
-            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
+            address(new VaultImplementation(address(vaultFactory), address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
