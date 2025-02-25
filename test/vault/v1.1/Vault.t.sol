@@ -13,6 +13,7 @@ import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMi
 import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
+import {IVaultTokenized as IVaultTokenizedV1} from "../../../src/interfaces/vault/IVaultTokenized.sol";
 import {IVault as IVaultV1} from "../../../src/interfaces/vault/IVault.sol";
 import {VaultTokenized as VaultTokenizedV1} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {Vault} from "../../../src/contracts/vault/v1.1/Vault.sol";
@@ -4470,6 +4471,62 @@ contract VaultTest is Test {
                 })
             )
         );
+        vm.stopPrank();
+    }
+
+    function test_MigrateInvalidOrigin() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 2,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultTokenizedV1.InitParamsTokenized({
+                        baseParams: IVaultV1.InitParams({
+                            collateral: address(collateral),
+                            burner: address(0xdEaD),
+                            epochDuration: 7 days,
+                            depositWhitelist: false,
+                            isDepositLimit: false,
+                            depositLimit: 0,
+                            defaultAdminRoleHolder: alice,
+                            depositWhitelistSetRoleHolder: alice,
+                            depositorWhitelistRoleHolder: alice,
+                            isDepositLimitSetRoleHolder: alice,
+                            depositLimitSetRoleHolder: alice
+                        }),
+                        name: "Name",
+                        symbol: "SYMBOL"
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.InvalidOrigin.selector);
+        vaultFactory.migrate(vault_, 3, new bytes(0));
         vm.stopPrank();
     }
 

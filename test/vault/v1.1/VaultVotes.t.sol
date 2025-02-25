@@ -3985,7 +3985,7 @@ contract VaultVotesTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVault.InvalidOrigin.selector);
-        vaultFactory.migrate(vault_, 4, new bytes(0));
+        vaultFactory.migrate(vault_, 5, new bytes(0));
         vm.stopPrank();
     }
 

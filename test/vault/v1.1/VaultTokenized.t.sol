@@ -3753,6 +3753,58 @@ contract VaultTokenizedTest is Test {
         vm.stopPrank();
     }
 
+    function test_MigrateInvalidOrigin() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVaultV1.InitParams({
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.InvalidOrigin.selector);
+        vaultFactory.migrate(vault_, 4, new bytes(0));
+        vm.stopPrank();
+    }
+
     function test_NotFactoryCheck() public {
         vault = _getVault(7 days);
 
