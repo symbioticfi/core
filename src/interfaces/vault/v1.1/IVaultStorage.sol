@@ -33,6 +33,12 @@ interface IVaultStorage {
     function EPOCH_DURATION_SET_ROLE() external view returns (bytes32);
 
     /**
+     * @notice Get a flashloan enabled setter's role.
+     * @return identifier of the flashloan enabled setter role
+     */
+    function FLASHLOAN_ENABLED_SET_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Get a flash fee rate setter's role.
      * @return identifier of the flash fee rate setter role
      */
@@ -230,4 +236,10 @@ interface IVaultStorage {
      * @return flash fee receiver
      */
     function flashFeeReceiver() external view returns (address);
+
+    /**
+     * @notice Get if a flashloan mechanic is enabled.
+     * @return if the flashloan mechanic is enabled
+     */
+    function flashloanEnabled() external view returns (bool);
 }

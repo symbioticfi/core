@@ -54,6 +54,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         _epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
 
+        flashloanEnabled = params.flashloanEnabled;
         flashFeeRate = params.flashFeeRate;
         flashFeeReceiver = params.flashFeeReceiver;
 
@@ -118,15 +119,26 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         }
 
         if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.flashFeeReceiver == address(0)) {
-                if (params.flashFeeRateSetRoleHolder == address(0)) {
-                    if (params.flashFeeReceiverSetRoleHolder != address(0) && params.flashFeeRate == 0) {
+            if (params.flashloanEnabled) {
+                if (params.flashFeeReceiver == address(0)) {
+                    if (params.flashFeeRateSetRoleHolder == address(0)) {
+                        if (params.flashFeeReceiverSetRoleHolder != address(0) && params.flashFeeRate == 0) {
+                            revert IVault.InvalidFlashParams();
+                        }
+                    } else if (params.flashFeeReceiverSetRoleHolder == address(0)) {
                         revert IVault.InvalidFlashParams();
                     }
-                } else if (params.flashFeeReceiverSetRoleHolder == address(0)) {
+                } else if (params.flashFeeRateSetRoleHolder == address(0) && params.flashFeeRate == 0) {
                     revert IVault.InvalidFlashParams();
                 }
-            } else if (params.flashFeeRateSetRoleHolder == address(0) && params.flashFeeRate == 0) {
+            } else if (
+                params.flashloanEnabledSetRoleHolder == address(0)
+                    && (
+                        params.flashFeeReceiver != address(0) || params.flashFeeRate != 0
+                            || params.flashFeeReceiverSetRoleHolder != address(0)
+                            || params.flashFeeRateSetRoleHolder != address(0)
+                    )
+            ) {
                 revert IVault.InvalidFlashParams();
             }
         }
@@ -134,9 +146,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         _processMigrateParams(
             IVault.MigrateParams({
                 epochDurationSetEpochsDelay: params.epochDurationSetEpochsDelay,
+                flashloanEnabled: params.flashloanEnabled,
                 flashFeeRate: params.flashFeeRate,
                 flashFeeReceiver: params.flashFeeReceiver,
                 epochDurationSetRoleHolder: params.epochDurationSetRoleHolder,
+                flashloanEnabledSetRoleHolder: params.flashloanEnabledSetRoleHolder,
                 flashFeeRateSetRoleHolder: params.flashFeeRateSetRoleHolder,
                 flashFeeReceiverSetRoleHolder: params.flashFeeReceiverSetRoleHolder
             })

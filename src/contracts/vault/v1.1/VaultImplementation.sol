@@ -248,6 +248,9 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function maxFlashLoan(
         address token
     ) public view returns (uint256) {
+        if (!flashloanEnabled) {
+            return 0;
+        }
         address collateral_ = collateral;
         return token == collateral_ ? IERC20(collateral_).balanceOf(address(this)) : 0;
     }
@@ -395,6 +398,9 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         uint256 value,
         bytes calldata data
     ) public nonReentrant returns (bool) {
+        if (value == 0) {
+            revert TooLowFlashLoanValue();
+        }
         if (value > maxFlashLoan(token)) {
             revert MaxLoanExceeded();
         }
@@ -572,6 +578,21 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         _nextEpochDurationSetEpochsDelay = epochDurationSetEpochsDelay_;
 
         emit SetEpochDuration(epochDuration_, epochDurationSetEpochsDelay_);
+    }
+
+    /**
+     * @inheritdoc IVault
+     */
+    function setFlashloanEnabled(
+        bool status
+    ) external nonReentrant onlyRole(FLASHLOAN_ENABLED_SET_ROLE) {
+        if (flashloanEnabled == status) {
+            revert AlreadySet();
+        }
+
+        flashloanEnabled = status;
+
+        emit SetFlashloanEnabled(status);
     }
 
     /**
