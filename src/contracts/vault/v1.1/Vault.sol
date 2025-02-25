@@ -69,6 +69,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         }
     }
 
+    function _processMigration(
+        IVault.MigrateParams memory params
+    ) internal {
+        _processMigrateParams(params);
+
+        if ((params.epochDurationSetEpochsDelay - 2) * _epochDuration < MIN_EXIT_WINDOW) {
+            revert IVault.InsufficientExitWindow();
+        }
+    }
+
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         (IVault.InitParams memory params) = abi.decode(data, (IVault.InitParams));
 
@@ -185,13 +195,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         }
     }
 
-    function _migrate(uint64, /* oldVersion */ uint64, /* newVersion */ bytes memory data) internal virtual override {
-        (IVault.MigrateParams memory params) = abi.decode(data, (IVault.MigrateParams));
+    function _migrate(uint64 oldVersion, uint64, /* newVersion */ bytes memory data) internal virtual override {
+        if (oldVersion == 1) {
+            (IVault.MigrateParams memory params) = abi.decode(data, (IVault.MigrateParams));
 
-        _processMigrateParams(params);
-
-        if ((params.epochDurationSetEpochsDelay - 2) * _epochDuration < MIN_EXIT_WINDOW) {
-            revert IVault.InsufficientExitWindow();
+            _processMigration(params);
+        } else {
+            revert IVault.InvalidOrigin();
         }
     }
 }

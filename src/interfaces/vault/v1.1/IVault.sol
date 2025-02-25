@@ -2,12 +2,13 @@
 pragma solidity ^0.8.0;
 
 import {IVaultStorage} from "./IVaultStorage.sol";
+import {IImplementation} from "./IImplementation.sol";
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
-interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender {
+interface IVault is IVaultStorage, IImplementation, IAccessControl, IERC165, IERC3156FlashLender {
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();
@@ -29,6 +30,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     error InvalidLengthEpochs();
     error InvalidNewEpochDuration();
     error InvalidOnBehalfOf();
+    error InvalidOrigin();
     error InvalidReceiver();
     error InvalidRecipient();
     error InvalidReturnAmount();
@@ -104,7 +106,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
      * @param flashLoanEnabledSetRoleHolder address of the initial FLASH_LOAN_ENABLED_SET_ROLE holder
      * @param flashFeeRateSetRoleHolder address of the initial FLASH_FEE_RATE_SET_ROLE holder
      * @param flashFeeReceiverSetRoleHolder address of the initial FLASH_FEE_RECEIVER_SET_ROLE holder
-     * @dev Version 1 and 2 -> version 3 vaults migration.
+     * @dev Migrations: 1 -> 3; 2 -> 4
      */
     struct MigrateParams {
         uint256 epochDurationSetEpochsDelay;

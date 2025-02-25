@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import {VaultStorage} from "./VaultStorage.sol";
+import {Implementation} from "./Implementation.sol";
 
 import {IBaseDelegator} from "../../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../../interfaces/slasher/IBaseSlasher.sol";
@@ -20,7 +21,13 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
-contract VaultImplementation is VaultStorage, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVault {
+contract VaultImplementation is
+    VaultStorage,
+    Implementation,
+    AccessControlUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IVault
+{
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using Math for uint48;
@@ -37,7 +44,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
      */
     address public immutable SLASHER_FACTORY;
 
-    constructor(address delegatorFactory, address slasherFactory) {
+    constructor(address vaultFactory, address delegatorFactory, address slasherFactory) Implementation(vaultFactory) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
     }
@@ -717,5 +724,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
-    function _Vault_init() external {}
+    function _Vault_init(
+        bytes calldata /* data */
+    ) external onlyFactory {}
 }
