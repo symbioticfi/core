@@ -25,6 +25,7 @@ import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
+import {IImplementation} from "../../../src/interfaces/vault/v1.1/IImplementation.sol";
 
 import {Token} from "../../mocks/Token.sol";
 import {FeeOnTransferToken} from "../../mocks/FeeOnTransferToken.sol";
@@ -4379,7 +4380,7 @@ contract VaultTest is Test {
         );
         vm.stopPrank();
 
-        assertEq(Vault(payable(address(vault))).version(), 4);
+        assertEq(Vault(payable(address(vault))).version(), 3);
         assertEq(VaultImplementation(payable(address(vault))).flashFeeRate(), 1);
         assertEq(VaultImplementation(payable(address(vault))).epochDurationSetEpochsDelay(), 3);
     }
@@ -4401,7 +4402,7 @@ contract VaultTest is Test {
                     IVaultV1.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: 7 days,
+                        epochDuration: 1,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -4470,6 +4471,13 @@ contract VaultTest is Test {
             )
         );
         vm.stopPrank();
+    }
+
+    function test_NotFactoryCheck() public {
+        vault = _getVault(7 days);
+
+        vm.expectRevert(IImplementation.NotFactory.selector);
+        vault._Vault_init(new bytes(0));
     }
 
     // struct GasStruct {

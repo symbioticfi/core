@@ -7,7 +7,7 @@ contract Implementation is IImplementation {
     address private immutable FACTORY;
 
     modifier onlyFactory() {
-        _isFactory();
+        _checkFactory();
         _;
     }
 
@@ -17,7 +17,7 @@ contract Implementation is IImplementation {
         FACTORY = factory;
     }
 
-    function _isFactory() internal view {
+    function _checkFactory() internal view {
         if (msg.sender != FACTORY) {
             revert NotFactory();
         }

@@ -31,6 +31,7 @@ import {VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/u
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../src/interfaces/vault/v1.1/IVaultTokenized.sol";
+import {IImplementation} from "../../../src/interfaces/vault/v1.1/IImplementation.sol";
 
 import {Token} from "../../mocks/Token.sol";
 import {FeeOnTransferToken} from "../../mocks/FeeOnTransferToken.sol";
@@ -216,7 +217,7 @@ contract VaultVotesTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_, address delegator_,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: 4,
+                version: 5,
                 owner: address(0),
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
@@ -1630,7 +1631,7 @@ contract VaultVotesTest is Test {
             operatorNetworkSharesSetRoleHolders[0] = alice;
             (address vault_,,) = vaultConfigurator.create(
                 IVaultConfigurator.InitParams({
-                    version: 4,
+                    version: 5,
                     owner: alice,
                     vaultParams: abi.encode(
                         IVaultTokenized.InitParamsTokenized({
@@ -3863,7 +3864,7 @@ contract VaultVotesTest is Test {
         vaultFactory.migrate(address(vault), 5, new bytes(0));
         vm.stopPrank();
 
-        assertEq(VaultVotes(payable(address(vault))).version(), 4);
+        assertEq(VaultVotes(payable(address(vault))).version(), 5);
         assertEq(vault.delegates(alice), address(0));
     }
 
@@ -3878,7 +3879,7 @@ contract VaultVotesTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: 3,
+                version: 4,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
@@ -3932,7 +3933,7 @@ contract VaultVotesTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultVotes.InvalidData.selector);
-        vaultFactory.migrate(address(vault), 4, new bytes(1));
+        vaultFactory.migrate(address(vault), 5, new bytes(1));
         vm.stopPrank();
     }
 
@@ -3983,9 +3984,22 @@ contract VaultVotesTest is Test {
         );
 
         vm.startPrank(alice);
-        vm.expectRevert(IVaultVotes.InvalidOrigin.selector);
+        vm.expectRevert(IVault.InvalidOrigin.selector);
         vaultFactory.migrate(vault_, 4, new bytes(0));
         vm.stopPrank();
+    }
+
+    function test_NotFactoryCheck() public {
+        vault = _getVault(7 days);
+
+        vm.expectRevert(IImplementation.NotFactory.selector);
+        VaultImplementation(payable(address(vault)))._Vault_init(new bytes(0));
+
+        vm.expectRevert(IImplementation.NotFactory.selector);
+        vault._VaultTokenized_init(new bytes(0));
+
+        vm.expectRevert(IImplementation.NotFactory.selector);
+        vault._VaultVotes_init(new bytes(0));
     }
 
     function _getVault(
@@ -3997,7 +4011,7 @@ contract VaultVotesTest is Test {
         operatorNetworkSharesSetRoleHolders[0] = alice;
         (address vault_,,) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: 4,
+                version: 5,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
@@ -4059,7 +4073,7 @@ contract VaultVotesTest is Test {
         operatorNetworkLimitSetRoleHolders[0] = alice;
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: 4,
+                version: 5,
                 owner: alice,
                 vaultParams: abi.encode(
                     IVaultTokenized.InitParamsTokenized({
