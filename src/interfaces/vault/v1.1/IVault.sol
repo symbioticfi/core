@@ -57,7 +57,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
      * @param isDepositLimit if enabling deposit limit
      * @param depositLimit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
      * @param epochDurationSetEpochsDelay number of epochs to wait before accepting a new epoch duration
-     * @param flashloanEnabled if enabling flashloan mechanic
+     * @param flashLoanEnabled if enabling flash loan mechanic
      * @param flashFeeRate flash fee rate (100% = 1_000_000_000; 0.03% = 300_000)
      * @param flashFeeReceiver address of the flash fee receiver
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
@@ -67,7 +67,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
      * @param isDepositLimitSetRoleHolder address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder
      * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
      * @param epochDurationSetRoleHolder address of the initial EPOCH_DURATION_SET_ROLE holder
-     * @param flashloanEnabledSetRoleHolder address of the initial FLASHLOAN_ENABLED_SET_ROLE holder
+     * @param flashLoanEnabledSetRoleHolder address of the initial FLASH_LOAN_ENABLED_SET_ROLE holder
      * @param flashFeeRateSetRoleHolder address of the initial FLASH_FEE_RATE_SET_ROLE holder
      * @param flashFeeReceiverSetRoleHolder address of the initial FLASH_FEE_RECEIVER_SET_ROLE holder
      */
@@ -79,7 +79,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
         bool isDepositLimit;
         uint256 depositLimit;
         uint256 epochDurationSetEpochsDelay;
-        bool flashloanEnabled;
+        bool flashLoanEnabled;
         uint256 flashFeeRate;
         address flashFeeReceiver;
         address defaultAdminRoleHolder;
@@ -89,7 +89,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
         address epochDurationSetRoleHolder;
-        address flashloanEnabledSetRoleHolder;
+        address flashLoanEnabledSetRoleHolder;
         address flashFeeRateSetRoleHolder;
         address flashFeeReceiverSetRoleHolder;
     }
@@ -97,22 +97,22 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     /**
      * @notice Parameters needed for a vault migration.
      * @param epochDurationSetEpochsDelay number of epochs to wait before accepting a new epoch duration
-     * @param flashloanEnabled if enabling flashloan mechanic
+     * @param flashLoanEnabled if enabling flash loan mechanic
      * @param flashFeeRate flash fee rate (100% = 1_000_000_000; 0.03% = 300_000)
      * @param flashFeeReceiver address of the flash fee receiver
      * @param epochDurationSetRoleHolder address of the initial EPOCH_DURATION_SET_ROLE holder
-     * @param flashloanEnabledSetRoleHolder address of the initial FLASHLOAN_ENABLED_SET_ROLE holder
+     * @param flashLoanEnabledSetRoleHolder address of the initial FLASH_LOAN_ENABLED_SET_ROLE holder
      * @param flashFeeRateSetRoleHolder address of the initial FLASH_FEE_RATE_SET_ROLE holder
      * @param flashFeeReceiverSetRoleHolder address of the initial FLASH_FEE_RECEIVER_SET_ROLE holder
      * @dev Version 1 and 2 -> version 3 vaults migration.
      */
     struct MigrateParams {
         uint256 epochDurationSetEpochsDelay;
-        bool flashloanEnabled;
+        bool flashLoanEnabled;
         uint256 flashFeeRate;
         address flashFeeReceiver;
         address epochDurationSetRoleHolder;
-        address flashloanEnabledSetRoleHolder;
+        address flashLoanEnabledSetRoleHolder;
         address flashFeeRateSetRoleHolder;
         address flashFeeReceiverSetRoleHolder;
     }
@@ -209,8 +209,8 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     event SetEpochDuration(uint48 epochDuration, uint256 epochDurationSetEpochsDelay);
 
     /**
-     * @notice Emitted when a flashloan enabled status is set.
-     * @param status if enabled flashloan
+     * @notice Emitted when a flash loan enabled status is set.
+     * @param status if enabled flash loan
      */
     event SetFlashloanEnabled(bool status);
 
@@ -511,9 +511,9 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     function setEpochDuration(uint48 epochDuration_, uint256 epochDurationSetEpochsDelay_) external;
 
     /**
-     * @notice Set a flashloan enabled status.
-     * @param status if enabled flashloan
-     * @dev Only a FLASHLOAN_ENABLED_SET_ROLE holder can call this function.
+     * @notice Set a flash loan enabled status.
+     * @param status if enabled flash loan
+     * @dev Only a FLASH_LOAN_ENABLED_SET_ROLE holder can call this function.
      */
     function setFlashloanEnabled(
         bool status

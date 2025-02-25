@@ -248,7 +248,7 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
     function maxFlashLoan(
         address token
     ) public view returns (uint256) {
-        if (!flashloanEnabled) {
+        if (!flashLoanEnabled) {
             return 0;
         }
         address collateral_ = collateral;
@@ -585,12 +585,12 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
      */
     function setFlashloanEnabled(
         bool status
-    ) external nonReentrant onlyRole(FLASHLOAN_ENABLED_SET_ROLE) {
-        if (flashloanEnabled == status) {
+    ) external nonReentrant onlyRole(FLASH_LOAN_ENABLED_SET_ROLE) {
+        if (flashLoanEnabled == status) {
             revert AlreadySet();
         }
 
-        flashloanEnabled = status;
+        flashLoanEnabled = status;
 
         emit SetFlashloanEnabled(status);
     }

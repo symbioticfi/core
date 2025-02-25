@@ -54,7 +54,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
 
         _epochDurationSetEpochsDelay = params.epochDurationSetEpochsDelay;
 
-        flashloanEnabled = params.flashloanEnabled;
+        flashLoanEnabled = params.flashLoanEnabled;
         flashFeeRate = params.flashFeeRate;
         flashFeeReceiver = params.flashFeeReceiver;
 
@@ -119,7 +119,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         }
 
         if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.flashloanEnabled) {
+            if (params.flashLoanEnabled) {
                 if (params.flashFeeReceiver == address(0)) {
                     if (params.flashFeeRateSetRoleHolder == address(0)) {
                         if (params.flashFeeReceiverSetRoleHolder != address(0) && params.flashFeeRate == 0) {
@@ -132,7 +132,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
                     revert IVault.InvalidFlashParams();
                 }
             } else if (
-                params.flashloanEnabledSetRoleHolder == address(0)
+                params.flashLoanEnabledSetRoleHolder == address(0)
                     && (
                         params.flashFeeReceiver != address(0) || params.flashFeeRate != 0
                             || params.flashFeeReceiverSetRoleHolder != address(0)
@@ -146,11 +146,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         _processMigrateParams(
             IVault.MigrateParams({
                 epochDurationSetEpochsDelay: params.epochDurationSetEpochsDelay,
-                flashloanEnabled: params.flashloanEnabled,
+                flashLoanEnabled: params.flashLoanEnabled,
                 flashFeeRate: params.flashFeeRate,
                 flashFeeReceiver: params.flashFeeReceiver,
                 epochDurationSetRoleHolder: params.epochDurationSetRoleHolder,
-                flashloanEnabledSetRoleHolder: params.flashloanEnabledSetRoleHolder,
+                flashLoanEnabledSetRoleHolder: params.flashLoanEnabledSetRoleHolder,
                 flashFeeRateSetRoleHolder: params.flashFeeRateSetRoleHolder,
                 flashFeeReceiverSetRoleHolder: params.flashFeeReceiverSetRoleHolder
             })

@@ -36,7 +36,7 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bytes32 public constant FLASHLOAN_ENABLED_SET_ROLE = keccak256("FLASHLOAN_ENABLED_SET_ROLE");
+    bytes32 public constant FLASH_LOAN_ENABLED_SET_ROLE = keccak256("FLASH_LOAN_ENABLED_SET_ROLE");
 
     /**
      * @inheritdoc IVaultStorage
@@ -202,7 +202,7 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    bool public flashloanEnabled;
+    bool public flashLoanEnabled;
 
     uint256[42] private __gap;
 }
