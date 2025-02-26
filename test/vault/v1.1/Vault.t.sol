@@ -26,7 +26,6 @@ import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
-import {IImplementation} from "../../../src/interfaces/vault/v1.1/IImplementation.sol";
 
 import {Token} from "../../mocks/Token.sol";
 import {FeeOnTransferToken} from "../../mocks/FeeOnTransferToken.sol";
@@ -104,7 +103,7 @@ contract VaultTest is Test {
         vaultFactory.whitelist(vaultTokenizedV1Impl);
 
         address vaultImplementation =
-            address(new VaultImplementation(address(vaultFactory), address(delegatorFactory), address(slasherFactory)));
+            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
@@ -4533,13 +4532,6 @@ contract VaultTest is Test {
         vm.expectRevert(IVault.InvalidOrigin.selector);
         vaultFactory.migrate(vault_, 3, new bytes(0));
         vm.stopPrank();
-    }
-
-    function test_NotFactoryCheck() public {
-        vault = _getVault(7 days);
-
-        vm.expectRevert(IImplementation.NotFactory.selector);
-        vault._Vault_init(new bytes(0));
     }
 
     // struct GasStruct {

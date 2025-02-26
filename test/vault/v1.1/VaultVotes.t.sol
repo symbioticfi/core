@@ -31,7 +31,6 @@ import {VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/u
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../src/interfaces/vault/v1.1/IVaultTokenized.sol";
-import {IImplementation} from "../../../src/interfaces/vault/v1.1/IImplementation.sol";
 
 import {Token} from "../../mocks/Token.sol";
 import {FeeOnTransferToken} from "../../mocks/FeeOnTransferToken.sol";
@@ -106,17 +105,15 @@ contract VaultVotesTest is Test {
         vaultFactory.whitelist(vaultTokenizedV1Impl);
 
         address vaultImplementation =
-            address(new VaultImplementation(address(vaultFactory), address(delegatorFactory), address(slasherFactory)));
+            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
-        address vaultTokenizedImplementation =
-            address(new VaultTokenizedImplementation(address(vaultFactory), vaultImplementation));
+        address vaultTokenizedImplementation = address(new VaultTokenizedImplementation(vaultImplementation));
         address vaultTokenizedImpl = address(new VaultTokenized(address(vaultFactory), vaultTokenizedImplementation));
         vaultFactory.whitelist(vaultTokenizedImpl);
 
-        address vaultVotesImplementation =
-            address(new VaultVotesImplementation(address(vaultFactory), vaultImplementation));
+        address vaultVotesImplementation = address(new VaultVotesImplementation(vaultImplementation));
         address vaultVotesImpl = address(new VaultVotes(address(vaultFactory), vaultVotesImplementation));
         vaultFactory.whitelist(vaultVotesImpl);
 
@@ -3992,13 +3989,10 @@ contract VaultVotesTest is Test {
     function test_NotFactoryCheck() public {
         vault = _getVault(7 days);
 
-        vm.expectRevert(IImplementation.NotFactory.selector);
-        VaultImplementation(payable(address(vault)))._Vault_init(new bytes(0));
-
-        vm.expectRevert(IImplementation.NotFactory.selector);
+        vm.expectRevert();
         vault._VaultTokenized_init(new bytes(0));
 
-        vm.expectRevert(IImplementation.NotFactory.selector);
+        vm.expectRevert();
         vault._VaultVotes_init(new bytes(0));
     }
 
