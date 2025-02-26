@@ -269,7 +269,7 @@ contract VaultImplementation is
         if (token != collateral) {
             revert UnsupportedToken();
         }
-        return flashFeeReceiver == address(0) ? 0 : value.mulDiv(flashFeeRate, FLASH_FEE_BASE);
+        return flashFeeReceiver == address(0) ? 0 : value.mulDiv(flashFeeRate, FLASH_FEE_BASE, Math.Rounding.Ceil);
     }
 
     /**

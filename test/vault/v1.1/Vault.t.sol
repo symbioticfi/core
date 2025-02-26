@@ -349,7 +349,7 @@ contract VaultTest is Test {
         assertEq(vault.nextEpochStart(), blockTimestamp + 1);
 
         assertEq(vault.maxFlashLoan(address(collateral)), 0);
-        assertEq(vault.flashFee(address(collateral), 100), flashFeeRate.mulDiv(100, 10 ** 9));
+        assertEq(vault.flashFee(address(collateral), 100), flashFeeRate.mulDiv(100, 10 ** 9, Math.Rounding.Ceil));
     }
 
     function test_CreateRevertInvalidEpochDuration() public {
@@ -3284,7 +3284,9 @@ contract VaultTest is Test {
         _setFlashFeeRate(alice, flashFeeRate);
         assertEq(vault.flashFeeRate(), flashFeeRate);
 
-        assertEq(vault.flashFee(address(collateral), 100 ether), flashFeeRate.mulDiv(100 ether, 10 ** 9));
+        assertEq(
+            vault.flashFee(address(collateral), 100 ether), flashFeeRate.mulDiv(100 ether, 10 ** 9, Math.Rounding.Ceil)
+        );
 
         if (flashFeeRate != 1e8) {
             _setFlashFeeRate(alice, 1e8);
@@ -3423,7 +3425,10 @@ contract VaultTest is Test {
         assertEq(vault.flashFeeReceiver(), flashFeeReceiver);
 
         if (flashFeeReceiver != address(0)) {
-            assertEq(vault.flashFee(address(collateral), 100 ether), vault.flashFeeRate().mulDiv(100 ether, 10 ** 9));
+            assertEq(
+                vault.flashFee(address(collateral), 100 ether),
+                vault.flashFeeRate().mulDiv(100 ether, 10 ** 9, Math.Rounding.Ceil)
+            );
         } else {
             assertEq(vault.flashFee(address(collateral), 100 ether), 0);
         }
