@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 import {VaultStorage} from "./VaultStorage.sol";
-import {Implementation} from "./Implementation.sol";
 
 import {IVault} from "../../../interfaces/vault/v1.1/IVault.sol";
 import {IVaultTokenized} from "../../../interfaces/vault/v1.1/IVaultTokenized.sol";
@@ -20,7 +19,6 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 contract VaultTokenizedImplementation is
     VaultStorage,
-    Implementation,
     ERC20Upgradeable,
     ReentrancyGuardUpgradeable,
     Proxy,
@@ -31,7 +29,9 @@ contract VaultTokenizedImplementation is
 
     address private immutable BASE_IMPLEMENTATION;
 
-    constructor(address vaultFactory, address baseImplementation) Implementation(vaultFactory) {
+    constructor(
+        address baseImplementation
+    ) {
         BASE_IMPLEMENTATION = baseImplementation;
     }
 
@@ -136,7 +136,7 @@ contract VaultTokenizedImplementation is
 
     function _VaultTokenized_init(
         bytes calldata data
-    ) external onlyFactory {
+    ) external {
         (string memory name, string memory symbol) = abi.decode(data, (string, string));
 
         __ERC20_init(name, symbol);

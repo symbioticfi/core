@@ -39,7 +39,6 @@ import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.s
 import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
 
-import {IImplementation} from "../../../src/interfaces/vault/v1.1/IImplementation.sol";
 import {IVaultStorage} from "../../../src/interfaces/vault/v1.1/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -103,12 +102,11 @@ contract VaultTokenizedTest is Test {
         vaultFactory.whitelist(vaultTokenizedV1Impl);
 
         address vaultImplementation =
-            address(new VaultImplementation(address(vaultFactory), address(delegatorFactory), address(slasherFactory)));
+            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
-        address vaultTokenizedImplementation =
-            address(new VaultTokenizedImplementation(address(vaultFactory), vaultImplementation));
+        address vaultTokenizedImplementation = address(new VaultTokenizedImplementation(vaultImplementation));
         address vaultTokenizedImpl = address(new VaultTokenized(address(vaultFactory), vaultTokenizedImplementation));
         vaultFactory.whitelist(vaultTokenizedImpl);
 
@@ -3808,10 +3806,7 @@ contract VaultTokenizedTest is Test {
     function test_NotFactoryCheck() public {
         vault = _getVault(7 days);
 
-        vm.expectRevert(IImplementation.NotFactory.selector);
-        VaultImplementation(payable(address(vault)))._Vault_init(new bytes(0));
-
-        vm.expectRevert(IImplementation.NotFactory.selector);
+        vm.expectRevert();
         vault._VaultTokenized_init(new bytes(0));
     }
 

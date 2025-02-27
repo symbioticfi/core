@@ -2,23 +2,22 @@
 pragma solidity 0.8.25;
 
 import {console2} from "forge-std/Script.sol";
+import {SymbioticCoreInit} from "../../integration/SymbioticCoreInit.sol";
 
-import {SymbioticCoreInit} from "../integration/SymbioticCoreInit.sol";
+import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
+import {IVaultTokenized} from "../../../src/interfaces/vault/v1.1/IVaultTokenized.sol";
+import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol";
+import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator} from "../../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "../../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from
+    "../../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
+import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher} from "../../../src/interfaces/slasher/IVetoSlasher.sol";
 
-import {Vault} from "../../src/contracts/vault/Vault.sol";
-
-import {IVault} from "../../src/interfaces/vault/IVault.sol";
-import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
-import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
-import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
-import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
-
-contract VaultScript is SymbioticCoreInit {
+contract VaultVotesScript is SymbioticCoreInit {
     function run(
         address owner,
         address collateral,
@@ -26,6 +25,10 @@ contract VaultScript is SymbioticCoreInit {
         uint48 epochDuration,
         address[] calldata depositorsWhitelisted,
         uint256 depositLimit,
+        address flashFeeReceiver,
+        uint256 flashFeeRate,
+        string calldata name,
+        string calldata symbol,
         uint64 delegatorIndex,
         address hook,
         address network,
@@ -36,23 +39,35 @@ contract VaultScript is SymbioticCoreInit {
         SymbioticCoreInit.run(0);
 
         vm.startBroadcast();
-        (,, address deployer) = vm.readCallers();
-
-        bool depositWhitelist = depositorsWhitelisted.length != 0;
 
         bytes memory vaultParams = abi.encode(
-            IVault.InitParams({
-                collateral: collateral,
-                burner: burner,
-                epochDuration: epochDuration,
-                depositWhitelist: depositWhitelist,
-                isDepositLimit: depositLimit != 0,
-                depositLimit: depositLimit,
-                defaultAdminRoleHolder: depositWhitelist ? deployer : owner,
-                depositWhitelistSetRoleHolder: owner,
-                depositorWhitelistRoleHolder: owner,
-                isDepositLimitSetRoleHolder: owner,
-                depositLimitSetRoleHolder: owner
+            IVaultTokenized.InitParamsTokenized({
+                baseParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: collateral,
+                        burner: burner,
+                        epochDuration: epochDuration,
+                        depositWhitelist: depositorsWhitelisted.length != 0,
+                        isDepositLimit: depositLimit != 0,
+                        depositLimit: depositLimit,
+                        epochDurationSetEpochsDelay: 3,
+                        flashLoanEnabled: flashFeeReceiver != address(0),
+                        flashFeeRate: flashFeeRate,
+                        flashFeeReceiver: flashFeeReceiver,
+                        defaultAdminRoleHolder: owner,
+                        depositWhitelistSetRoleHolder: owner,
+                        depositorWhitelistRoleHolder: owner,
+                        depositorsWhitelisted: depositorsWhitelisted,
+                        isDepositLimitSetRoleHolder: owner,
+                        depositLimitSetRoleHolder: owner,
+                        epochDurationSetRoleHolder: owner,
+                        flashLoanEnabledSetRoleHolder: owner,
+                        flashFeeRateSetRoleHolder: owner,
+                        flashFeeReceiverSetRoleHolder: owner
+                    })
+                ),
+                name: name,
+                symbol: symbol
             })
         );
 
@@ -140,7 +155,7 @@ contract VaultScript is SymbioticCoreInit {
 
         (address vault_, address delegator_, address slasher_) = symbioticCore.vaultConfigurator.create(
             IVaultConfigurator.InitParams({
-                version: 1,
+                version: 5,
                 owner: owner,
                 vaultParams: vaultParams,
                 delegatorIndex: delegatorIndex,
@@ -150,18 +165,6 @@ contract VaultScript is SymbioticCoreInit {
                 slasherParams: slasherParams
             })
         );
-
-        if (depositWhitelist) {
-            Vault(vault_).grantRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), owner);
-            Vault(vault_).grantRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);
-
-            for (uint256 i; i < depositorsWhitelisted.length; ++i) {
-                Vault(vault_).setDepositorWhitelistStatus(depositorsWhitelisted[i], true);
-            }
-
-            Vault(vault_).renounceRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);
-            Vault(vault_).renounceRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), deployer);
-        }
 
         console2.log("Vault: ", vault_);
         console2.log("Delegator: ", delegator_);

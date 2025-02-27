@@ -26,7 +26,6 @@ import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "../../../src/interfaces/vault/v1.1/IVault.sol";
-import {IImplementation} from "../../../src/interfaces/vault/v1.1/IImplementation.sol";
 
 import {Token} from "../../mocks/Token.sol";
 import {FeeOnTransferToken} from "../../mocks/FeeOnTransferToken.sol";
@@ -104,7 +103,7 @@ contract VaultTest is Test {
         vaultFactory.whitelist(vaultTokenizedV1Impl);
 
         address vaultImplementation =
-            address(new VaultImplementation(address(vaultFactory), address(delegatorFactory), address(slasherFactory)));
+            address(new VaultImplementation(address(delegatorFactory), address(slasherFactory)));
         address vaultImpl = address(new Vault(address(vaultFactory), vaultImplementation));
         vaultFactory.whitelist(vaultImpl);
 
@@ -349,7 +348,7 @@ contract VaultTest is Test {
         assertEq(vault.nextEpochStart(), blockTimestamp + 1);
 
         assertEq(vault.maxFlashLoan(address(collateral)), 0);
-        assertEq(vault.flashFee(address(collateral), 100), flashFeeRate.mulDiv(100, 10 ** 9));
+        assertEq(vault.flashFee(address(collateral), 100), flashFeeRate.mulDiv(100, 10 ** 9, Math.Rounding.Ceil));
     }
 
     function test_CreateRevertInvalidEpochDuration() public {
@@ -3284,7 +3283,9 @@ contract VaultTest is Test {
         _setFlashFeeRate(alice, flashFeeRate);
         assertEq(vault.flashFeeRate(), flashFeeRate);
 
-        assertEq(vault.flashFee(address(collateral), 100 ether), flashFeeRate.mulDiv(100 ether, 10 ** 9));
+        assertEq(
+            vault.flashFee(address(collateral), 100 ether), flashFeeRate.mulDiv(100 ether, 10 ** 9, Math.Rounding.Ceil)
+        );
 
         if (flashFeeRate != 1e8) {
             _setFlashFeeRate(alice, 1e8);
@@ -3423,7 +3424,10 @@ contract VaultTest is Test {
         assertEq(vault.flashFeeReceiver(), flashFeeReceiver);
 
         if (flashFeeReceiver != address(0)) {
-            assertEq(vault.flashFee(address(collateral), 100 ether), vault.flashFeeRate().mulDiv(100 ether, 10 ** 9));
+            assertEq(
+                vault.flashFee(address(collateral), 100 ether),
+                vault.flashFeeRate().mulDiv(100 ether, 10 ** 9, Math.Rounding.Ceil)
+            );
         } else {
             assertEq(vault.flashFee(address(collateral), 100 ether), 0);
         }
@@ -4528,13 +4532,6 @@ contract VaultTest is Test {
         vm.expectRevert(IVault.InvalidOrigin.selector);
         vaultFactory.migrate(vault_, 3, new bytes(0));
         vm.stopPrank();
-    }
-
-    function test_NotFactoryCheck() public {
-        vault = _getVault(7 days);
-
-        vm.expectRevert(IImplementation.NotFactory.selector);
-        vault._Vault_init(new bytes(0));
     }
 
     // struct GasStruct {
