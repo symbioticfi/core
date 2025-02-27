@@ -26,7 +26,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
     /**
      * @notice The minimum period of time that must be available to exit in case of epoch increase after migration.
      */
-    uint256 public constant MIN_EXIT_WINDOW = 7 days;
+    uint48 public constant MIN_EXIT_WINDOW = 7 days;
 
     address private immutable IMPLEMENTATION;
 

@@ -78,14 +78,8 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     address public burner;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public _epochDurationInit;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public _epochDuration;
 
     /**
@@ -144,49 +138,22 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint256 public _epochDurationSetEpochsDelay;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint256 public _nextEpochDurationSetEpochsDelay;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint256 public _epochDurationInitIndex;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint256 public _prevEpochDurationInitIndex;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public _prevEpochDurationInit;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public _prevEpochDuration;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public _nextEpochDurationInit;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint48 public _nextEpochDuration;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
     uint256 public _nextEpochInitIndex;
 
     /**
