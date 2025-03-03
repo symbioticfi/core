@@ -741,19 +741,19 @@ contract VaultTest is Test {
                         isDepositLimit: false,
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
-                        flashLoanEnabled: true,
-                        flashFeeRate: 1,
+                        flashLoanEnabled: false,
+                        flashFeeRate: 0,
                         flashFeeReceiver: address(0),
-                        defaultAdminRoleHolder: alice,
+                        defaultAdminRoleHolder: address(0),
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,
                         depositorsWhitelisted: new address[](0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         epochDurationSetRoleHolder: alice,
-                        flashLoanEnabledSetRoleHolder: alice,
+                        flashLoanEnabledSetRoleHolder: address(0),
                         flashFeeRateSetRoleHolder: alice,
-                        flashFeeReceiverSetRoleHolder: alice
+                        flashFeeReceiverSetRoleHolder: address(0)
                     })
                 )
             )
@@ -773,19 +773,19 @@ contract VaultTest is Test {
                         isDepositLimit: false,
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
-                        flashLoanEnabled: true,
+                        flashLoanEnabled: false,
                         flashFeeRate: 1,
                         flashFeeReceiver: address(0),
-                        defaultAdminRoleHolder: alice,
+                        defaultAdminRoleHolder: address(0),
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,
                         depositorsWhitelisted: new address[](0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         epochDurationSetRoleHolder: alice,
-                        flashLoanEnabledSetRoleHolder: alice,
-                        flashFeeRateSetRoleHolder: alice,
-                        flashFeeReceiverSetRoleHolder: alice
+                        flashLoanEnabledSetRoleHolder: address(0),
+                        flashFeeRateSetRoleHolder: address(0),
+                        flashFeeReceiverSetRoleHolder: address(0)
                     })
                 )
             )
@@ -901,19 +901,19 @@ contract VaultTest is Test {
                         isDepositLimit: false,
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
-                        flashLoanEnabled: false,
+                        flashLoanEnabled: true,
                         flashFeeRate: 1,
                         flashFeeReceiver: address(0),
-                        defaultAdminRoleHolder: alice,
+                        defaultAdminRoleHolder: address(0),
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,
                         depositorsWhitelisted: new address[](0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         epochDurationSetRoleHolder: alice,
-                        flashLoanEnabledSetRoleHolder: alice,
-                        flashFeeRateSetRoleHolder: alice,
-                        flashFeeReceiverSetRoleHolder: alice
+                        flashLoanEnabledSetRoleHolder: address(0),
+                        flashFeeRateSetRoleHolder: address(0),
+                        flashFeeReceiverSetRoleHolder: address(0)
                     })
                 )
             )
