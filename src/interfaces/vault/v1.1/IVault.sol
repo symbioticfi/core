@@ -275,7 +275,8 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
      * @notice Get an epoch at a given timestamp.
      * @param timestamp time point to get the epoch at
      * @return epoch at the timestamp
-     * @dev Reverts if the timestamp is less than the start of the epoch 0.
+     * @dev Reverts if the timestamp is less than the start of the previous epoch duration initial timestamp.
+     *      Using a future timestamp may result in an unreliable epoch number because of possible changes in epoch duration.
      */
     function epochAt(
         uint48 timestamp
@@ -285,6 +286,8 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
      * @notice Get a start of the epoch.
      * @param epoch epoch to get the start of
      * @return start of the epoch
+     * @dev Reverts if the epoch is less than the previous epoch duration initial epoch.
+     *      Using a future epoch may result in an unreliable start timestamp because of possible changes in epoch duration.
      */
     function epochStart(
         uint256 epoch
@@ -312,6 +315,7 @@ interface IVault is IVaultStorage, IAccessControl, IERC165, IERC3156FlashLender 
     /**
      * @notice Get a start of the next vault epoch.
      * @return start of the next epoch
+     * @dev It may result in an unreliable start timestamp because of possible changes in epoch duration.
      */
     function nextEpochStart() external view returns (uint48);
 
