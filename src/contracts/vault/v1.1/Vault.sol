@@ -61,6 +61,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, Prox
         if (params.epochDurationSetRoleHolder != address(0)) {
             _grantRole(EPOCH_DURATION_SET_ROLE, params.epochDurationSetRoleHolder);
         }
+        if (params.flashLoanEnabledSetRoleHolder != address(0)) {
+            _grantRole(FLASH_LOAN_ENABLED_SET_ROLE, params.flashLoanEnabledSetRoleHolder);
+        }
         if (params.flashFeeRateSetRoleHolder != address(0)) {
             _grantRole(FLASH_FEE_RATE_SET_ROLE, params.flashFeeRateSetRoleHolder);
         }

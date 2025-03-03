@@ -272,8 +272,63 @@ contract VaultTest is Test {
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
-        assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), alice), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
+
+        assertEq(VaultImplementation(payable(address(vault))).hasRole(bytes32(uint256(1)), alice), false);
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEFAULT_ADMIN_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_WHITELIST_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSITOR_WHITELIST_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).IS_DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).EPOCH_DURATION_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_LOAN_ENABLED_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RATE_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RECEIVER_SET_ROLE(), alice
+            ),
+            true
+        );
+
         assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
@@ -4323,9 +4378,16 @@ contract VaultTest is Test {
 
         assertEq(Vault(payable(address(vault))).owner(), alice);
         assertEq(vault.collateral(), address(collateral));
+        assertEq(VaultImplementation(payable(address(vault))).hasRole(bytes32(uint256(1)), alice), false);
         assertEq(
             VaultImplementation(payable(address(vault))).hasRole(
                 VaultImplementation(payable(address(vault))).DEFAULT_ADMIN_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_WHITELIST_SET_ROLE(), alice
             ),
             true
         );
@@ -4335,6 +4397,21 @@ contract VaultTest is Test {
             ),
             true
         );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).IS_DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        vm.expectRevert();
+        VaultImplementation(payable(address(vault))).EPOCH_DURATION_SET_ROLE();
+
         assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
         assertEq(VaultImplementation(payable(address(vault))).epochDuration(), 7 days);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
@@ -4392,6 +4469,31 @@ contract VaultTest is Test {
         assertEq(Vault(payable(address(vault))).version(), 3);
         assertEq(VaultImplementation(payable(address(vault))).flashFeeRate(), 1);
         assertEq(VaultImplementation(payable(address(vault))).epochDurationSetEpochsDelay(), 3);
+
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).EPOCH_DURATION_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_LOAN_ENABLED_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RATE_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RECEIVER_SET_ROLE(), alice
+            ),
+            true
+        );
     }
 
     function test_MigrateRevertInsufficientExitWindow() public {
