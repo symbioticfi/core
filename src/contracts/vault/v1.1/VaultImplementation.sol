@@ -562,13 +562,20 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             _epochDuration = _nextEpochDuration;
             _epochDurationInit = _nextEpochDurationInit;
             _epochDurationSetEpochsDelay = _nextEpochDurationSetEpochsDelay;
+            _nextEpochInitIndex = 0;
+            _nextEpochDuration = 0;
+            _nextEpochDurationInit = 0;
+            _nextEpochDurationSetEpochsDelay = 0;
         }
 
         if (_epochDuration > epochDuration_) {
             revert InvalidNewEpochDuration();
         }
 
-        if (_epochDuration == epochDuration_ && _epochDurationSetEpochsDelay == epochDurationSetEpochsDelay_) {
+        if (
+            _nextEpochDurationInit == 0 && _epochDuration == epochDuration_
+                && _epochDurationSetEpochsDelay == epochDurationSetEpochsDelay_
+        ) {
             revert AlreadySet();
         }
 

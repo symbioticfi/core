@@ -3192,6 +3192,10 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.AlreadySet.selector);
         _setEpochDuration(alice, epochDuration);
+
+        _setEpochDuration(alice, epochDuration + 1);
+
+        _setEpochDuration(alice, epochDuration);
     }
 
     function test_SetFlashloanEnabled() public {
