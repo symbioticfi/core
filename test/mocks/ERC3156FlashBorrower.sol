@@ -36,7 +36,7 @@ contract ERC3156FlashBorrower is IERC3156FlashBorrower {
     ) external returns (bytes32) {
         (bool flag1, bool flag2) = abi.decode(data, (bool, bool));
         if (flag1) {
-            IERC20(token).safeTransfer(msg.sender, amount + fee);
+            IERC20(token).approve(msg.sender, amount + fee);
 
             if (flag2) {
                 IERC20(token).safeTransfer(msg.sender, 2);

@@ -414,6 +414,8 @@ contract VaultImplementation is VaultStorage, AccessControlUpgradeable, Reentran
             revert InvalidReceiver();
         }
 
+        IERC20(collateral_).safeTransferFrom(address(receiver), address(this), value + fee);
+
         uint256 balanceAfter = IERC20(collateral_).balanceOf(address(this));
         if (balanceAfter - balanceBefore < fee) {
             revert InvalidReturnAmount();
