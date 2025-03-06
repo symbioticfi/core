@@ -3922,7 +3922,7 @@ contract VaultTest is Test {
 
         assertEq(vault.maxFlashLoan(address(collateral)), amount);
 
-        borrower.run(amount, vault.RETURN_VALUE(), abi.encode(true));
+        borrower.run(amount, vault.RETURN_VALUE(), abi.encode(true, false));
 
         assertEq(collateral.balanceOf(address(vault)), amount);
         assertEq(collateral.balanceOf(address(borrower)), amount - vault.flashFee(address(collateral), amount));
@@ -3935,7 +3935,113 @@ contract VaultTest is Test {
 
         bytes32 RETURN_VALUE = vault.RETURN_VALUE();
         vm.expectRevert(IVault.MaxLoanExceeded.selector);
-        borrower.run(amount, RETURN_VALUE, abi.encode(true));
+        borrower.run(amount, RETURN_VALUE, abi.encode(true, false));
+    }
+
+    function test_FlashLoanFeeOnTransfer(uint256 amount, uint256 feeRate) public {
+        amount = bound(amount, 2, 100 * 10 ** 18);
+        feeRate = bound(feeRate, 1, 1e9);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (address vault_,,) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 3,
+                owner: alice,
+                vaultParams: abi.encode(
+                    IVault.InitParams({
+                        collateral: address(feeOnTransferCollateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 1,
+                        depositWhitelist: false,
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        epochDurationSetEpochsDelay: 3,
+                        flashLoanEnabled: true,
+                        flashFeeRate: 0,
+                        flashFeeReceiver: alice,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        depositorsWhitelisted: new address[](0),
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice,
+                        epochDurationSetRoleHolder: alice,
+                        flashLoanEnabledSetRoleHolder: alice,
+                        flashFeeRateSetRoleHolder: alice,
+                        flashFeeReceiverSetRoleHolder: alice
+                    })
+                ),
+                delegatorIndex: 0,
+                delegatorParams: abi.encode(
+                    INetworkRestakeDelegator.InitParams({
+                        baseParams: IBaseDelegator.BaseParams({
+                            defaultAdminRoleHolder: alice,
+                            hook: address(0),
+                            hookSetRoleHolder: alice
+                        }),
+                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    })
+                ),
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+            })
+        );
+
+        vault = VaultImplementation(vault_);
+
+        feeOnTransferCollateral.transfer(alice, amount + 1);
+        vm.startPrank(alice);
+        feeOnTransferCollateral.approve(address(vault), amount);
+        vault.deposit(alice, amount);
+        vm.stopPrank();
+
+        if (feeRate > 0) {
+            _setFlashFeeRate(alice, feeRate);
+        }
+
+        address receiver = address(0xdEaD);
+
+        _setFlashFeeReceiver(alice, receiver);
+
+        ERC3156FlashBorrower borrower = new ERC3156FlashBorrower(address(vault));
+
+        feeOnTransferCollateral.transfer(address(borrower), amount + 4);
+
+        assertEq(feeOnTransferCollateral.balanceOf(address(vault)), amount - 1);
+        assertEq(feeOnTransferCollateral.balanceOf(address(borrower)), amount + 3); // 1 is lost on receive, 1 on transferFrom, 1 on transfer
+        assertEq(feeOnTransferCollateral.balanceOf(address(receiver)), 0);
+
+        assertEq(vault.maxFlashLoan(address(feeOnTransferCollateral)), amount - 1);
+
+        borrower.run(amount - 1, vault.RETURN_VALUE(), abi.encode(true, true));
+
+        assertEq(feeOnTransferCollateral.balanceOf(address(vault)), amount - 1);
+        assertEq(
+            feeOnTransferCollateral.balanceOf(address(borrower)),
+            amount - vault.flashFee(address(feeOnTransferCollateral), amount - 1)
+        );
+        assertEq(
+            feeOnTransferCollateral.balanceOf(address(receiver)),
+            vault.flashFee(address(feeOnTransferCollateral), amount - 1) - 1
+        );
+
+        _grantFlashloanEnabledSetRole(alice, alice);
+        _setFlashloanEnabled(alice, false);
+
+        assertEq(vault.maxFlashLoan(address(feeOnTransferCollateral)), 0);
+
+        bytes32 RETURN_VALUE = vault.RETURN_VALUE();
+        vm.expectRevert(IVault.MaxLoanExceeded.selector);
+        borrower.run(amount, RETURN_VALUE, abi.encode(true, true));
     }
 
     function test_FlashLoanRevertTooLowFlashLoanValue(
@@ -4009,7 +4115,7 @@ contract VaultTest is Test {
 
         bytes32 RETURN_VALUE = vault.RETURN_VALUE();
         vm.expectRevert(IVault.TooLowFlashLoanValue.selector);
-        borrower.run(0, RETURN_VALUE, abi.encode(true));
+        borrower.run(0, RETURN_VALUE, abi.encode(true, false));
     }
 
     function test_FlashLoanRevert(uint256 amount, uint256 feeRate) public {
@@ -4084,7 +4190,7 @@ contract VaultTest is Test {
 
         bytes32 RETURN_VALUE = vault.RETURN_VALUE();
         vm.expectRevert();
-        borrower.run(amount, RETURN_VALUE, abi.encode(true));
+        borrower.run(amount, RETURN_VALUE, abi.encode(true, false));
     }
 
     function test_FlashLoanRevertMaxLoanExceeded(uint256 amount, uint256 feeRate) public {
@@ -4163,7 +4269,7 @@ contract VaultTest is Test {
 
         bytes32 RETURN_VALUE = vault.RETURN_VALUE();
         vm.expectRevert(IVault.MaxLoanExceeded.selector);
-        borrower.run(amount + 1, RETURN_VALUE, abi.encode(true));
+        borrower.run(amount + 1, RETURN_VALUE, abi.encode(true, false));
     }
 
     function test_FlashLoanRevertInvalidReceiver(uint256 amount, uint256 feeRate) public {
@@ -4241,7 +4347,7 @@ contract VaultTest is Test {
         collateral.transfer(address(borrower), amount);
 
         vm.expectRevert(IVault.InvalidReceiver.selector);
-        borrower.run(amount, bytes32(0), abi.encode(true));
+        borrower.run(amount, bytes32(0), abi.encode(true, false));
     }
 
     function test_FlashLoanRevertInvalidReturnAmount(uint256 amount, uint256 feeRate) public {
