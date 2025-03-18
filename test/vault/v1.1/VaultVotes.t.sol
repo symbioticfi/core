@@ -44,6 +44,7 @@ import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
 
 import {IVaultVotes} from "../../../src/interfaces/vault/v1.1/IVaultVotes.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import {VaultHints} from "../../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
@@ -3989,10 +3990,10 @@ contract VaultVotesTest is Test {
     function test_NotFactoryCheck() public {
         vault = _getVault(7 days);
 
-        vm.expectRevert();
-        vault._VaultTokenized_init(new bytes(0));
+        vm.expectRevert(Initializable.NotInitializing.selector);
+        vault._VaultTokenized_init(abi.encode("", ""));
 
-        vm.expectRevert();
+        vm.expectRevert(Initializable.NotInitializing.selector);
         vault._VaultVotes_init(new bytes(0));
     }
 
