@@ -78,9 +78,9 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     address public burner;
 
-    uint48 public _epochDurationInit;
+    uint48 internal _epochDurationInit;
 
-    uint48 public _epochDuration;
+    uint48 internal _epochDuration;
 
     /**
      * @inheritdoc IVaultStorage
