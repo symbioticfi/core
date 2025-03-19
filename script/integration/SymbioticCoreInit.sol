@@ -22,7 +22,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
 
     // General config
 
-    string public SYMBIOTIC_CORE_PROJECT_ROOT = "";
+    string public SYMBIOTIC_CORE_PROJECT_ROOT = "lib/core/";
     bool public SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
     // Vaults-related config
