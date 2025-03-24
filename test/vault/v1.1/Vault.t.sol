@@ -272,8 +272,63 @@ contract VaultTest is Test {
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
-        assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), alice), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
+
+        assertEq(VaultImplementation(payable(address(vault))).hasRole(bytes32(uint256(1)), alice), false);
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEFAULT_ADMIN_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_WHITELIST_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSITOR_WHITELIST_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).IS_DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).EPOCH_DURATION_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_LOAN_ENABLED_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RATE_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RECEIVER_SET_ROLE(), alice
+            ),
+            true
+        );
+
         assertEq(vault.epochDurationInit(), blockTimestamp);
         assertEq(vault.epochDuration(), epochDuration);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
@@ -686,19 +741,19 @@ contract VaultTest is Test {
                         isDepositLimit: false,
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
-                        flashLoanEnabled: true,
-                        flashFeeRate: 1,
+                        flashLoanEnabled: false,
+                        flashFeeRate: 0,
                         flashFeeReceiver: address(0),
-                        defaultAdminRoleHolder: alice,
+                        defaultAdminRoleHolder: address(0),
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,
                         depositorsWhitelisted: new address[](0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         epochDurationSetRoleHolder: alice,
-                        flashLoanEnabledSetRoleHolder: alice,
+                        flashLoanEnabledSetRoleHolder: address(0),
                         flashFeeRateSetRoleHolder: alice,
-                        flashFeeReceiverSetRoleHolder: alice
+                        flashFeeReceiverSetRoleHolder: address(0)
                     })
                 )
             )
@@ -718,19 +773,19 @@ contract VaultTest is Test {
                         isDepositLimit: false,
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
-                        flashLoanEnabled: true,
+                        flashLoanEnabled: false,
                         flashFeeRate: 1,
                         flashFeeReceiver: address(0),
-                        defaultAdminRoleHolder: alice,
+                        defaultAdminRoleHolder: address(0),
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,
                         depositorsWhitelisted: new address[](0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         epochDurationSetRoleHolder: alice,
-                        flashLoanEnabledSetRoleHolder: alice,
-                        flashFeeRateSetRoleHolder: alice,
-                        flashFeeReceiverSetRoleHolder: alice
+                        flashLoanEnabledSetRoleHolder: address(0),
+                        flashFeeRateSetRoleHolder: address(0),
+                        flashFeeReceiverSetRoleHolder: address(0)
                     })
                 )
             )
@@ -846,19 +901,19 @@ contract VaultTest is Test {
                         isDepositLimit: false,
                         depositLimit: 0,
                         epochDurationSetEpochsDelay: 3,
-                        flashLoanEnabled: false,
+                        flashLoanEnabled: true,
                         flashFeeRate: 1,
                         flashFeeReceiver: address(0),
-                        defaultAdminRoleHolder: alice,
+                        defaultAdminRoleHolder: address(0),
                         depositWhitelistSetRoleHolder: alice,
                         depositorWhitelistRoleHolder: alice,
                         depositorsWhitelisted: new address[](0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         epochDurationSetRoleHolder: alice,
-                        flashLoanEnabledSetRoleHolder: alice,
-                        flashFeeRateSetRoleHolder: alice,
-                        flashFeeReceiverSetRoleHolder: alice
+                        flashLoanEnabledSetRoleHolder: address(0),
+                        flashFeeRateSetRoleHolder: address(0),
+                        flashFeeReceiverSetRoleHolder: address(0)
                     })
                 )
             )
@@ -2900,8 +2955,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3), blockTimestamp + 3 * epochDuration);
         assertEq(vault.epochStart(3 + 1), blockTimestamp + (3 + 1) * epochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 0);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 0);
 
         _grantEpochDurationSetRole(alice, alice);
         vm.startPrank(alice);
@@ -2928,8 +2983,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3), blockTimestamp + 3 * epochDuration);
         assertEq(vault.epochStart(3 + 1), blockTimestamp + 3 * epochDuration + newEpochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -2953,8 +3008,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(0), blockTimestamp - 1);
         assertEq(vault.epochStart(1), blockTimestamp + epochDuration - 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         blockTimestamp = blockTimestamp + 3 * epochDuration - 2;
         vm.warp(blockTimestamp);
@@ -2977,8 +3032,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(0), blockTimestamp - 3 * epochDuration + 1);
         assertEq(vault.epochStart(1), blockTimestamp - (3 - 1) * epochDuration + 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -3001,8 +3056,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3), blockTimestamp);
         assertEq(vault.epochStart(3 + 1), blockTimestamp + newEpochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault._epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         vm.expectRevert(IVault.InvalidTimestamp.selector);
         vault.epochAt(0);
@@ -3018,8 +3073,8 @@ contract VaultTest is Test {
         assertEq(vault.epochAt(uint48(blockTimestamp + newEpochDuration)), 4);
         assertEq(vault.previousEpochStart(), blockTimestamp - epochDuration);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault._epochDurationSetEpochsDelay(), 3);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 5);
 
         _setEpochDuration(alice, newEpochDuration2);
 
@@ -3045,8 +3100,8 @@ contract VaultTest is Test {
         assertEq(vault.epochStart(3 + 5), blockTimestamp + 5 * newEpochDuration);
         assertEq(vault.epochStart(3 + 5 + 1), blockTimestamp + 5 * newEpochDuration + newEpochDuration2);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault._epochDurationSetEpochsDelay(), 5);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 3);
 
         _setEpochDuration(alice, newEpochDuration);
 
@@ -3066,8 +3121,8 @@ contract VaultTest is Test {
         assertEq(vault.epochAt(uint48(blockTimestamp + epochDuration)), 3);
         assertEq(vault.epochAt(uint48(blockTimestamp + newEpochDuration)), 3 + 1);
         assertEq(vault.epochDurationSetEpochsDelay(), 5);
-        assertEq(vault._epochDurationSetEpochsDelay(), 5);
-        assertEq(vault._nextEpochDurationSetEpochsDelay(), 3);
+        // assertEq(vault._epochDurationSetEpochsDelay(), 5);
+        // assertEq(vault._nextEpochDurationSetEpochsDelay(), 3);
 
         _setEpochDuration(alice, newEpochDuration2);
 
@@ -3191,6 +3246,10 @@ contract VaultTest is Test {
         vm.warp(blockTimestamp);
 
         vm.expectRevert(IVault.AlreadySet.selector);
+        _setEpochDuration(alice, epochDuration);
+
+        _setEpochDuration(alice, epochDuration + 1);
+
         _setEpochDuration(alice, epochDuration);
     }
 
@@ -3775,11 +3834,11 @@ contract VaultTest is Test {
         assertEq(vault.epochAt(uint48(blockTimestamp)), 3);
         assertEq(vault.currentEpochStart(), blockTimestamp - 1);
         assertEq(vault.previousEpochStart(), blockTimestamp - 1 - 7 days);
-        assertEq(vault.epochAt(uint48(blockTimestamp - newEpochDuration)), vault._nextEpochInitIndex() - 2);
+        // assertEq(vault.epochAt(uint48(blockTimestamp - newEpochDuration)), vault._nextEpochInitIndex() - 2);
         vm.expectRevert(IVault.InvalidCaptureEpoch.selector);
         _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - newEpochDuration), "");
 
-        assertEq(vault.epochAt(uint48(blockTimestamp - 7 days - 1)), vault._nextEpochInitIndex() - 1);
+        // assertEq(vault.epochAt(uint48(blockTimestamp - 7 days - 1)), vault._nextEpochInitIndex() - 1);
         _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 7 days - 1), "");
     }
 
@@ -4425,9 +4484,16 @@ contract VaultTest is Test {
 
         assertEq(Vault(payable(address(vault))).owner(), alice);
         assertEq(vault.collateral(), address(collateral));
+        assertEq(VaultImplementation(payable(address(vault))).hasRole(bytes32(uint256(1)), alice), false);
         assertEq(
             VaultImplementation(payable(address(vault))).hasRole(
                 VaultImplementation(payable(address(vault))).DEFAULT_ADMIN_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_WHITELIST_SET_ROLE(), alice
             ),
             true
         );
@@ -4437,6 +4503,21 @@ contract VaultTest is Test {
             ),
             true
         );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).IS_DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).DEPOSIT_LIMIT_SET_ROLE(), alice
+            ),
+            true
+        );
+        vm.expectRevert();
+        VaultImplementation(payable(address(vault))).EPOCH_DURATION_SET_ROLE();
+
         assertEq(VaultImplementation(payable(address(vault))).epochDurationInit(), blockTimestamp);
         assertEq(VaultImplementation(payable(address(vault))).epochDuration(), 7 days);
         vm.expectRevert(IVault.InvalidTimestamp.selector);
@@ -4494,6 +4575,31 @@ contract VaultTest is Test {
         assertEq(Vault(payable(address(vault))).version(), 3);
         assertEq(VaultImplementation(payable(address(vault))).flashFeeRate(), 1);
         assertEq(VaultImplementation(payable(address(vault))).epochDurationSetEpochsDelay(), 3);
+
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).EPOCH_DURATION_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_LOAN_ENABLED_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RATE_SET_ROLE(), alice
+            ),
+            true
+        );
+        assertEq(
+            VaultImplementation(payable(address(vault))).hasRole(
+                VaultImplementation(payable(address(vault))).FLASH_FEE_RECEIVER_SET_ROLE(), alice
+            ),
+            true
+        );
     }
 
     function test_MigrateRevertInsufficientExitWindow() public {
