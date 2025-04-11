@@ -1,6 +1,6 @@
 {
   "name": "@symbioticfi/core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Symbiotic is a shared security protocol enabling decentralized networks to control and customize their own multi-asset restaking implementation.",
   "homepage": "https://symbiotic.fi/",
   "bugs": "https://github.com/symbioticfi/core/issues",
@@ -9,6 +9,7 @@
   "files": [
     "src/**/*",
     "test/mocks/**/*",
+    "test/integration/**/*",
     "out/**/*.json"
   ],
   "repository": {
