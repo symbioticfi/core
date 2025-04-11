@@ -185,7 +185,7 @@ _Common Vault_
 Deployment script: [click](../script/deploy/Vault.s.sol)
 
 ```shell
-forge script script/deploy/Vault.s.sol:VaultScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 false 0 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,address,uint48,bool,uint256,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
+forge script script/deploy/Vault.s.sol:VaultScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 \[\] 0 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,uint48,address[],uint256,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
 ```
 
 _Tokenized Vault_
@@ -193,5 +193,29 @@ _Tokenized Vault_
 Deployment script: [click](../script/deploy/VaultTokenized.s.sol)
 
 ```shell
-forge script script/deploy/VaultTokenized.s.sol:VaultTokenizedScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 false 0 Test TEST 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,address,uint48,bool,uint256,string,string,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
+forge script script/deploy/VaultTokenized.s.sol:VaultTokenizedScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 \[\] 0 Test TEST 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,uint48,address[],uint256,string,string,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
+```
+
+_Common Vault V1.1_
+
+Deployment script: [click](../script/deploy/v1.1/Vault.s.sol)
+
+```shell
+forge script script/deploy/v1.1/Vault.s.sol:VaultScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 \[\] 0 0x0000000000000000000000000000000000000000 0 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,uint48,address[],uint256,address,uint256,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
+```
+
+_Tokenized Vault V1.1_
+
+Deployment script: [click](../script/deploy/v1.1/VaultTokenized.s.sol)
+
+```shell
+forge script script/deploy/v1.1/VaultTokenized.s.sol:VaultTokenizedScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 \[\] 0 0x0000000000000000000000000000000000000000 0 Test TEST 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,uint48,address[],uint256,address,uint256,string,string,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
+```
+
+_Votes Vault V1.1_
+
+Deployment script: [click](../script/deploy/v1.1/VaultVotes.s.sol)
+
+```shell
+forge script script/deploy/v1.1/VaultVotes.s.sol:VaultVotesScript 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 1 \[\] 0 0x0000000000000000000000000000000000000000 0 Test TEST 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false 0 0 --sig "run(address,address,address,uint48,address[],uint256,address,uint256,string,string,uint64,address,address,bool,uint64,uint48)" --broadcast --rpc-url=$ETH_RPC_URL
 ```

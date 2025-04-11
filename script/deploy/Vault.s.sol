@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {console2} from "forge-std/Script.sol";
+
+import {SymbioticCoreInit} from "../integration/SymbioticCoreInit.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
 
-import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
@@ -17,14 +18,13 @@ import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 
-contract VaultScript is Script {
+contract VaultScript is SymbioticCoreInit {
     function run(
-        address vaultConfigurator,
         address owner,
         address collateral,
         address burner,
         uint48 epochDuration,
-        address[] calldata whitelistedDepositors,
+        address[] calldata depositorsWhitelisted,
         uint256 depositLimit,
         uint64 delegatorIndex,
         address hook,
@@ -33,10 +33,12 @@ contract VaultScript is Script {
         uint64 slasherIndex,
         uint48 vetoDuration
     ) public {
+        SymbioticCoreInit.run(0);
+
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
-        bool depositWhitelist = whitelistedDepositors.length != 0;
+        bool depositWhitelist = depositorsWhitelisted.length != 0;
 
         bytes memory vaultParams = abi.encode(
             IVault.InitParams({
@@ -136,7 +138,7 @@ contract VaultScript is Script {
             );
         }
 
-        (address vault_, address delegator_, address slasher_) = IVaultConfigurator(vaultConfigurator).create(
+        (address vault_, address delegator_, address slasher_) = symbioticCore.vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: owner,
@@ -153,8 +155,8 @@ contract VaultScript is Script {
             Vault(vault_).grantRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), owner);
             Vault(vault_).grantRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);
 
-            for (uint256 i; i < whitelistedDepositors.length; ++i) {
-                Vault(vault_).setDepositorWhitelistStatus(whitelistedDepositors[i], true);
+            for (uint256 i; i < depositorsWhitelisted.length; ++i) {
+                Vault(vault_).setDepositorWhitelistStatus(depositorsWhitelisted[i], true);
             }
 
             Vault(vault_).renounceRole(Vault(vault_).DEPOSITOR_WHITELIST_ROLE(), deployer);

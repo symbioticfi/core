@@ -3,25 +3,25 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
-import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
-import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
-import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
-import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
-import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
-import {OptInService} from "../../src/contracts/service/OptInService.sol";
+import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../../../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../../src/contracts/OperatorRegistry.sol";
+import {MetadataService} from "../../../src/contracts/service/MetadataService.sol";
+import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "../../src/contracts/vault/Vault.sol";
-import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
-import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
-import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
+import {Vault} from "../../../src/contracts/vault/Vault.sol";
+import {VaultTokenized} from "../../../src/contracts/vault/VaultTokenized.sol";
+import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
+import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 
-import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {VaultConfigurator} from "../../../src/contracts/VaultConfigurator.sol";
 
 contract CoreScript is Script {
     function run(

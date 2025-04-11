@@ -3,13 +3,13 @@ pragma solidity 0.8.25;
 
 import "forge-std/Script.sol";
 
-import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
+import {NetworkRegistry} from "../../../src/contracts/NetworkRegistry.sol";
 
-contract OperatorRegistryScript is Script {
+contract NetworkRegistryScript is Script {
     function run() public {
         vm.startBroadcast();
 
-        new OperatorRegistry();
+        new NetworkRegistry();
 
         vm.stopBroadcast();
     }
