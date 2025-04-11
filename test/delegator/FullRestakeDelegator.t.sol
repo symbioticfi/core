@@ -1259,16 +1259,16 @@ contract FullRestakeDelegatorTest is Test {
         _setHook(alice, hook);
     }
 
-    // struct GasStruct {
-    //     uint256 gasSpent1;
-    //     uint256 gasSpent2;
-    // }
+    struct GasStruct {
+        uint256 gasSpent1;
+        uint256 gasSpent2;
+    }
 
-    // struct HintStruct {
-    //     uint256 num;
-    //     bool back;
-    //     uint256 secondsAgo;
-    // }
+    struct HintStruct {
+        uint256 num;
+        bool back;
+        uint256 secondsAgo;
+    }
 
     // function test_NetworkLimitHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
     //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
@@ -1284,10 +1284,10 @@ contract FullRestakeDelegatorTest is Test {
 
     //     address network = alice;
     //     _registerNetwork(network, alice);
-    //     _setMaxNetworkLimit(network, type(uint256).max);
+    //     _setMaxNetworkLimit(network, 0, type(uint256).max);
 
     //     for (uint256 i; i < hintStruct.num; ++i) {
-    //         _setNetworkLimit(alice, network, amount1);
+    //         _setNetworkLimit(alice, network, amount1 + i);
 
     //         blockTimestamp = blockTimestamp + epochDuration;
     //         vm.warp(blockTimestamp);
@@ -1301,12 +1301,13 @@ contract FullRestakeDelegatorTest is Test {
     //     baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
     //     FullRestakeDelegatorHints fullRestakeDelegatorHints =
     //         FullRestakeDelegatorHints(baseDelegatorHints.FULL_RESTAKE_DELEGATOR_HINTS());
-    //     bytes memory hint = fullRestakeDelegatorHints.networkLimitHint(address(delegator), network, timestamp);
+    //     bytes memory hint =
+    //         fullRestakeDelegatorHints.networkLimitHint(address(delegator), network.subnetwork(0), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     delegator.networkLimitAt(network, timestamp, new bytes(0));
+    //     delegator.networkLimitAt(network.subnetwork(0), timestamp, new bytes(0));
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
-    //     delegator.networkLimitAt(network, timestamp, hint);
+    //     delegator.networkLimitAt(network.subnetwork(0), timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
     //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     // }
