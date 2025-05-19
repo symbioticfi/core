@@ -68,7 +68,7 @@ library SymbioticCoreConstants {
                 operatorNetworkOptInService: ISymbioticOptInService(0x58973d16FFA900D11fC22e5e2B6840d9f7e13401),
                 vaultConfigurator: ISymbioticVaultConfigurator(0xD2191FE92987171691d552C219b8caEf186eb9cA)
             });
-        }  else if (block.chainid == 560048) {
+        } else if (block.chainid == 560_048) {
             // hoodi
             return Core({
                 vaultFactory: ISymbioticVaultFactory(0x407A039D94948484D356eFB765b3c74382A050B4),
@@ -83,7 +83,7 @@ library SymbioticCoreConstants {
                 operatorNetworkOptInService: ISymbioticOptInService(0x58973d16FFA900D11fC22e5e2B6840d9f7e13401),
                 vaultConfigurator: ISymbioticVaultConfigurator(0x94c344E816A53D07fC4c7F4a18f82b6Da87CFc8f)
             });
-        }else {
+        } else {
             revert("SymbioticCoreConstants.core(): chainid not supported");
         }
     }
@@ -190,6 +190,9 @@ library SymbioticCoreConstants {
         } else if (block.chainid == 11_155_111) {
             // sepolia
             return 0xB82381A3fBD3FaFA77B3a7bE693342618240067b;
+        } else if (block.chainid == 560_048) {
+            // hoodi
+            return 0x7E99eE3C66636DE415D2d7C880938F2f40f94De4;
         } else {
             revert("SymbioticCoreConstants.wstETH(): chainid not supported");
         }
@@ -219,6 +222,9 @@ library SymbioticCoreConstants {
             return 0xae78736Cd615f374D3085123A210448E74Fc6393;
         } else if (block.chainid == 17_000) {
             // holesky
+            return 0x7322c24752f79c05FFD1E2a6FCB97020C1C264F1;
+        } else if (block.chainid == 17_000) {
+            // hoodi
             return 0x7322c24752f79c05FFD1E2a6FCB97020C1C264F1;
         } else {
             revert("SymbioticCoreConstants.rETH(): chainid not supported");
@@ -379,7 +385,8 @@ library SymbioticCoreConstants {
     }
 
     function wstETHSupported() internal view returns (bool) {
-        return (block.chainid == 1 || block.chainid == 17_000 || block.chainid == 11_155_111);
+        return
+            (block.chainid == 1 || block.chainid == 17_000 || block.chainid == 11_155_111 || block.chainid == 560_048);
     }
 
     function cbETHSupported() internal view returns (bool) {
@@ -391,7 +398,7 @@ library SymbioticCoreConstants {
     }
 
     function rETHSupported() internal view returns (bool) {
-        return (block.chainid == 1 || block.chainid == 17_000);
+        return (block.chainid == 1 || block.chainid == 17_000 || block.chainid == 560_048);
     }
 
     function mETHSupported() internal view returns (bool) {
