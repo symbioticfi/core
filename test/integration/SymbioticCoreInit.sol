@@ -65,10 +65,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         symbioticCore = SymbioticCoreConstants.core();
     }
 
-    function _initCore_SymbioticCoreLocal() internal virtual {
-        symbioticCore = SymbioticCoreConstants.core(true);
-    }
-
     // override for backward compatibility (uses non-deterministic deployment)
     function _initCore_SymbioticCore(
         bool useExisting
