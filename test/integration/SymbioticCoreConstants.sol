@@ -22,23 +22,32 @@ library SymbioticCoreConstants {
         ISymbioticVaultConfigurator vaultConfigurator;
     }
 
-    function core(bool local) internal view returns (Core memory) {
+    function core(
+        bool local
+    ) internal view returns (Core memory) {
         if (local) {
             return Core({
                 vaultFactory: ISymbioticVaultFactory(address(bytes20(keccak256("SymbioticVaultFactory")))),
                 delegatorFactory: ISymbioticDelegatorFactory(address(bytes20(keccak256("SymbioticDelegatorFactory")))),
                 slasherFactory: ISymbioticSlasherFactory(address(bytes20(keccak256("SymbioticSlasherFactory")))),
                 networkRegistry: ISymbioticNetworkRegistry(address(bytes20(keccak256("SymbioticNetworkRegistry")))),
-                networkMetadataService: ISymbioticMetadataService(address(bytes20(keccak256("SymbioticNetworkMetadataService")))),
-                networkMiddlewareService: ISymbioticNetworkMiddlewareService(address(bytes20(keccak256("SymbioticNetworkMiddlewareService")))),
+                networkMetadataService: ISymbioticMetadataService(
+                    address(bytes20(keccak256("SymbioticNetworkMetadataService")))
+                ),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(
+                    address(bytes20(keccak256("SymbioticNetworkMiddlewareService")))
+                ),
                 operatorRegistry: ISymbioticOperatorRegistry(address(bytes20(keccak256("SymbioticOperatorRegistry")))),
-                operatorMetadataService: ISymbioticMetadataService(address(bytes20(keccak256("SymbioticOperatorMetadataService")))),
+                operatorMetadataService: ISymbioticMetadataService(
+                    address(bytes20(keccak256("SymbioticOperatorMetadataService")))
+                ),
                 operatorVaultOptInService: ISymbioticOptInService(address(bytes20(keccak256("SymbioticVaultOptInService")))),
-                operatorNetworkOptInService: ISymbioticOptInService(address(bytes20(keccak256("SymbioticNetworkOptInService")))),
+                operatorNetworkOptInService: ISymbioticOptInService(
+                    address(bytes20(keccak256("SymbioticNetworkOptInService")))
+                ),
                 vaultConfigurator: ISymbioticVaultConfigurator(address(bytes20(keccak256("SymbioticVaultConfigurator"))))
             });
-        }
-        else {
+        } else {
             return core();
         }
     }
