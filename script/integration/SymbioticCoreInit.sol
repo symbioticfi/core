@@ -199,6 +199,23 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             );
             delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
+            address operatorNetworkSpecificDelegatorImpl = deployCode(
+                string.concat(
+                    SYMBIOTIC_CORE_PROJECT_ROOT,
+                    "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
+                ),
+                abi.encode(
+                    address(operatorRegistry),
+                    address(networkRegistry),
+                    address(vaultFactory),
+                    address(operatorVaultOptInService),
+                    address(operatorNetworkOptInService),
+                    address(delegatorFactory),
+                    delegatorFactory.totalTypes()
+                )
+            );
+            delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
             address slasherImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
                 abi.encode(
@@ -387,6 +404,26 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             );
             symbioticCore.delegatorFactory.whitelist(
                 address(bytes20(keccak256("SymbioticOperatorSpecificDelegatorImpl")))
+            );
+
+            deployCodeTo(
+                string.concat(
+                    SYMBIOTIC_CORE_PROJECT_ROOT,
+                    "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
+                ),
+                abi.encode(
+                    address(symbioticCore.operatorRegistry),
+                    address(symbioticCore.networkRegistry),
+                    address(symbioticCore.vaultFactory),
+                    address(symbioticCore.operatorVaultOptInService),
+                    address(symbioticCore.operatorNetworkOptInService),
+                    address(symbioticCore.delegatorFactory),
+                    symbioticCore.delegatorFactory.totalTypes()
+                ),
+                address(bytes20(keccak256("SymbioticOperatorNetworkSpecificDelegatorImpl")))
+            );
+            symbioticCore.delegatorFactory.whitelist(
+                address(bytes20(keccak256("SymbioticOperatorNetworkSpecificDelegatorImpl")))
             );
 
             deployCodeTo(
