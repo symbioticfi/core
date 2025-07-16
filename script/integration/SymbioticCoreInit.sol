@@ -51,6 +51,8 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     uint256 public SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_SHARES = 1000;
     uint256 public SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_SHARES = 1e18;
 
+    address public SYMBIOTIC_CORE_OWNER = address(0);
+
     SymbioticCoreConstants.Core public symbioticCore;
 
     function run(
@@ -67,41 +69,31 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         symbioticCore = SymbioticCoreConstants.core();
     }
 
-    // override for backward compatibility (uses non-deterministic deployment)
+    // if useExisting is true, the core is not deployed, but the addresses are returned
     function _initCore_SymbioticCore(
         bool useExisting
     ) internal virtual {
-        _initCore_SymbioticCore(useExisting, false);
-    }
-
-    // if useExisting is true, the core is not deployed, but the addresses are returned
-    // if local is true, the core is deployed locally with deterministic addresses (uses cheats, requires anvil node)
-    // if local is false, the core is deployed with non-deterministic addresses (uses standard create)
-    function _initCore_SymbioticCore(bool useExisting, bool local) internal virtual {
-        if (useExisting && !local) {
-            // return existing core (addresses are not deterministic)
+        if (useExisting) {
+            // return existing core
             symbioticCore = SymbioticCoreConstants.core();
-        } else if (useExisting && local) {
-            // return locally deployed core (addresses are deterministic)
-            symbioticCore = SymbioticCoreConstants.core(true);
-        } else if (!local) {
+        } else {
             // non-deterministic deployment (uses standard create)
             ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(SYMBIOTIC_CORE_OWNER == address(0) ? address(this) : SYMBIOTIC_CORE_OWNER)
                 )
             );
             ISymbioticDelegatorFactory delegatorFactory = ISymbioticDelegatorFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(SYMBIOTIC_CORE_OWNER == address(0) ? address(this) : SYMBIOTIC_CORE_OWNER)
                 )
             );
             ISymbioticSlasherFactory slasherFactory = ISymbioticSlasherFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(SYMBIOTIC_CORE_OWNER == address(0) ? address(this) : SYMBIOTIC_CORE_OWNER)
                 )
             );
             ISymbioticNetworkRegistry networkRegistry = ISymbioticNetworkRegistry(
@@ -259,207 +251,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 operatorNetworkOptInService: operatorNetworkOptInService,
                 vaultConfigurator: vaultConfigurator
             });
-        } else if (local) {
-            // deterministic local deployment (uses cheats, requires anvil node)
-            symbioticCore = SymbioticCoreConstants.core(true);
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                abi.encode(address(this)),
-                address(symbioticCore.vaultFactory)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                abi.encode(address(this)),
-                address(symbioticCore.delegatorFactory)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                abi.encode(address(this)),
-                address(symbioticCore.slasherFactory)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkRegistry.sol/NetworkRegistry.json"),
-                abi.encode(address(this)),
-                address(symbioticCore.networkRegistry)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OperatorRegistry.sol/OperatorRegistry.json"),
-                abi.encode(address(this)),
-                address(symbioticCore.operatorRegistry)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/MetadataService.sol/MetadataService.json"),
-                abi.encode(address(symbioticCore.operatorRegistry)),
-                address(symbioticCore.operatorMetadataService)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/MetadataService.sol/MetadataService.json"),
-                abi.encode(address(symbioticCore.networkRegistry)),
-                address(symbioticCore.networkMetadataService)
-            );
-
-            deployCodeTo(
-                string.concat(
-                    SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json"
-                ),
-                abi.encode(address(symbioticCore.networkRegistry)),
-                address(symbioticCore.networkMiddlewareService)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OptInService.sol/OptInService.json"),
-                abi.encode(
-                    address(symbioticCore.operatorRegistry),
-                    address(symbioticCore.vaultFactory),
-                    "OperatorVaultOptInService"
-                ),
-                address(symbioticCore.operatorVaultOptInService)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OptInService.sol/OptInService.json"),
-                abi.encode(
-                    address(symbioticCore.operatorRegistry),
-                    address(symbioticCore.networkRegistry),
-                    "OperatorNetworkOptInService"
-                ),
-                address(symbioticCore.operatorNetworkOptInService)
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Vault.sol/Vault.json"),
-                abi.encode(
-                    address(symbioticCore.delegatorFactory),
-                    address(symbioticCore.slasherFactory),
-                    address(symbioticCore.vaultFactory)
-                ),
-                address(bytes20(keccak256("SymbioticVaultImpl")))
-            );
-            symbioticCore.vaultFactory.whitelist(address(bytes20(keccak256("SymbioticVaultImpl"))));
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultTokenized.sol/VaultTokenized.json"),
-                abi.encode(
-                    address(symbioticCore.delegatorFactory),
-                    address(symbioticCore.slasherFactory),
-                    address(symbioticCore.vaultFactory)
-                ),
-                address(bytes20(keccak256("SymbioticVaultTokenizedImpl")))
-            );
-            symbioticCore.vaultFactory.whitelist(address(bytes20(keccak256("SymbioticVaultTokenizedImpl"))));
-
-            deployCodeTo(
-                string.concat(
-                    SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json"
-                ),
-                abi.encode(
-                    address(symbioticCore.networkRegistry),
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.operatorVaultOptInService),
-                    address(symbioticCore.operatorNetworkOptInService),
-                    address(symbioticCore.delegatorFactory),
-                    symbioticCore.delegatorFactory.totalTypes()
-                ),
-                address(bytes20(keccak256("SymbioticNetworkRestakeDelegatorImpl")))
-            );
-            symbioticCore.delegatorFactory.whitelist(
-                address(bytes20(keccak256("SymbioticNetworkRestakeDelegatorImpl")))
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/FullRestakeDelegator.sol/FullRestakeDelegator.json"),
-                abi.encode(
-                    address(symbioticCore.networkRegistry),
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.operatorVaultOptInService),
-                    address(symbioticCore.operatorNetworkOptInService),
-                    address(symbioticCore.delegatorFactory),
-                    symbioticCore.delegatorFactory.totalTypes()
-                ),
-                address(bytes20(keccak256("SymbioticFullRestakeDelegatorImpl")))
-            );
-            symbioticCore.delegatorFactory.whitelist(address(bytes20(keccak256("SymbioticFullRestakeDelegatorImpl"))));
-
-            deployCodeTo(
-                string.concat(
-                    SYMBIOTIC_CORE_PROJECT_ROOT, "out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json"
-                ),
-                abi.encode(
-                    address(symbioticCore.operatorRegistry),
-                    address(symbioticCore.networkRegistry),
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.operatorVaultOptInService),
-                    address(symbioticCore.operatorNetworkOptInService),
-                    address(symbioticCore.delegatorFactory),
-                    symbioticCore.delegatorFactory.totalTypes()
-                ),
-                address(bytes20(keccak256("SymbioticOperatorSpecificDelegatorImpl")))
-            );
-            symbioticCore.delegatorFactory.whitelist(
-                address(bytes20(keccak256("SymbioticOperatorSpecificDelegatorImpl")))
-            );
-
-            deployCodeTo(
-                string.concat(
-                    SYMBIOTIC_CORE_PROJECT_ROOT,
-                    "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
-                ),
-                abi.encode(
-                    address(symbioticCore.operatorRegistry),
-                    address(symbioticCore.networkRegistry),
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.operatorVaultOptInService),
-                    address(symbioticCore.operatorNetworkOptInService),
-                    address(symbioticCore.delegatorFactory),
-                    symbioticCore.delegatorFactory.totalTypes()
-                ),
-                address(bytes20(keccak256("SymbioticOperatorNetworkSpecificDelegatorImpl")))
-            );
-            symbioticCore.delegatorFactory.whitelist(
-                address(bytes20(keccak256("SymbioticOperatorNetworkSpecificDelegatorImpl")))
-            );
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
-                abi.encode(
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.networkMiddlewareService),
-                    address(symbioticCore.slasherFactory),
-                    symbioticCore.slasherFactory.totalTypes()
-                ),
-                address(bytes20(keccak256("SymbioticSlasherImpl")))
-            );
-            symbioticCore.slasherFactory.whitelist(address(bytes20(keccak256("SymbioticSlasherImpl"))));
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VetoSlasher.sol/VetoSlasher.json"),
-                abi.encode(
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.networkMiddlewareService),
-                    address(symbioticCore.networkRegistry),
-                    address(symbioticCore.slasherFactory),
-                    symbioticCore.slasherFactory.totalTypes()
-                ),
-                address(bytes20(keccak256("SymbioticVetoSlasherImpl")))
-            );
-            symbioticCore.slasherFactory.whitelist(address(bytes20(keccak256("SymbioticVetoSlasherImpl"))));
-
-            deployCodeTo(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultConfigurator.sol/VaultConfigurator.json"),
-                abi.encode(
-                    address(symbioticCore.vaultFactory),
-                    address(symbioticCore.delegatorFactory),
-                    address(symbioticCore.slasherFactory)
-                ),
-                address(symbioticCore.vaultConfigurator)
-            );
         }
     }
 
