@@ -76,23 +76,26 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             symbioticCore = SymbioticCoreConstants.core();
         } else {
             // non-deterministic deployment (uses standard create)
-            (,, address deployer) = vm.readCallers();
+            (VmSafe.CallerMode callerMode,, address deployer) = vm.readCallers();
+            if (callerMode != VmSafe.CallerMode.Broadcast) {
+                vm.startPrank(deployer);
+            }
             ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                    abi.encode(SYMBIOTIC_CORE_OWNER == address(0) ? deployer : SYMBIOTIC_CORE_OWNER)
+                    abi.encode(deployer)
                 )
             );
             ISymbioticDelegatorFactory delegatorFactory = ISymbioticDelegatorFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                    abi.encode(SYMBIOTIC_CORE_OWNER == address(0) ? deployer : SYMBIOTIC_CORE_OWNER)
+                    abi.encode(deployer)
                 )
             );
             ISymbioticSlasherFactory slasherFactory = ISymbioticSlasherFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                    abi.encode(SYMBIOTIC_CORE_OWNER == address(0) ? deployer : SYMBIOTIC_CORE_OWNER)
+                    abi.encode(deployer)
                 )
             );
             ISymbioticNetworkRegistry networkRegistry = ISymbioticNetworkRegistry(
@@ -250,6 +253,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 operatorNetworkOptInService: operatorNetworkOptInService,
                 vaultConfigurator: vaultConfigurator
             });
+            if (callerMode != VmSafe.CallerMode.Prank) {
+                vm.stopPrank();
+            }
         }
     }
 
@@ -330,6 +336,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 })
             )
         });
+        if (callerMode == VmSafe.CallerMode.Prank) {
+            vm.startPrank(owner);
+        }
 
         return vault;
     }
@@ -472,6 +481,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 _setDepositorWhitelistStatus_SymbioticCore(owner, vault, whitelistedDepositors[i], true);
             }
         }
+        if (callerMode == VmSafe.CallerMode.Prank) {
+            vm.startPrank(owner);
+        }
 
         return vault;
     }
@@ -523,7 +535,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         if (callerMode == VmSafe.CallerMode.Prank) {
             vm.stopPrank();
         }
-        return _getVault_SymbioticCore(
+        address vault = _getVault_SymbioticCore(
             operators.length == 0 ? deployer : _randomPick_Symbiotic(operators),
             collateral,
             0x000000000000000000000000000000000000dEaD,
@@ -537,6 +549,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             slasherIndex,
             vetoDuration
         );
+        if (callerMode == VmSafe.CallerMode.Prank) {
+            vm.startPrank(deployer);
+        }
+        return vault;
     }
 
     function _vaultValidating_SymbioticCore(address vault, bytes32 subnetwork) internal virtual returns (bool) {

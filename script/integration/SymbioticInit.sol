@@ -106,7 +106,9 @@ contract SymbioticInit is Script, SymbioticCounter {
             vm.startBroadcast(txOrigin);
         }
         IERC20(token).safeTransfer(to, give);
-        vm.stopBroadcast();
+        if (callerMode != VmSafe.CallerMode.Broadcast) {
+            vm.stopBroadcast();
+        }
     }
 
     function _deal_Symbiotic(address to, uint256 give) public virtual {
@@ -115,7 +117,9 @@ contract SymbioticInit is Script, SymbioticCounter {
             vm.startBroadcast(txOrigin);
         }
         to.call{value: give}("");
-        vm.stopBroadcast();
+        if (callerMode != VmSafe.CallerMode.Broadcast) {
+            vm.stopBroadcast();
+        }
     }
 
     function _vmWalletToAddress_Symbiotic(
