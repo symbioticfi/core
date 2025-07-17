@@ -101,13 +101,19 @@ contract SymbioticInit is Script, SymbioticCounter {
     }
 
     function _deal_Symbiotic(address token, address to, uint256 give) public virtual {
-        vm.startBroadcast(tx.origin);
+        (Vm.CallerMode callerMode,, address txOrigin) = vm.readCallers();
+        if (callerMode != VmSafe.CallerMode.Broadcast) {
+            vm.startBroadcast(txOrigin);
+        }
         IERC20(token).safeTransfer(to, give);
         vm.stopBroadcast();
     }
 
     function _deal_Symbiotic(address to, uint256 give) public virtual {
-        vm.startBroadcast(tx.origin);
+        (Vm.CallerMode callerMode,, address txOrigin) = vm.readCallers();
+        if (callerMode != VmSafe.CallerMode.Broadcast) {
+            vm.startBroadcast(txOrigin);
+        }
         to.call{value: give}("");
         vm.stopBroadcast();
     }

@@ -41,7 +41,8 @@ contract OnboardNetworkScript is SymbioticCoreInit {
 
         SYMBIOTIC_CORE_DELEGATOR_TYPES = [0, 2];
 
-        address NETWORK = tx.origin;
+        (,, address txOrigin) = vm.readCallers();
+        address NETWORK = txOrigin;
         uint96 IDENTIFIER = 0;
         bytes32 SUBNETWORK = NETWORK.subnetwork(IDENTIFIER);
         address COLLATERAL = SymbioticCoreConstants.wstETH();
@@ -51,13 +52,13 @@ contract OnboardNetworkScript is SymbioticCoreInit {
         super.run(seed);
 
         if (COLLATERAL == SymbioticCoreConstants.wstETH()) {
-            uint256 balanceBefore = IERC20(COLLATERAL).balanceOf(tx.origin);
+            uint256 balanceBefore = IERC20(COLLATERAL).balanceOf(txOrigin);
             uint256 requiredAmount = _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18, COLLATERAL)
                 * SYMBIOTIC_CORE_NUMBER_OF_STAKERS;
             if (balanceBefore < requiredAmount) {
                 address stETH = IwstETH(COLLATERAL).stETH();
                 uint256 toSend = IwstETH(COLLATERAL).getStETHByWstETH(requiredAmount - balanceBefore) * 101 / 100;
-                vm.startBroadcast(tx.origin);
+                vm.startBroadcast(txOrigin);
                 stETH.call{value: toSend}("");
                 IERC20(stETH).forceApprove(COLLATERAL, toSend);
                 IwstETH(COLLATERAL).wrap(toSend);
