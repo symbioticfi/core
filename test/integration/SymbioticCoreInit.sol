@@ -51,8 +51,6 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     uint256 public SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_SHARES = 1000;
     uint256 public SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_SHARES = 1e18;
 
-    address public SYMBIOTIC_CORE_OWNER = address(0);
-
     SymbioticCoreConstants.Core public symbioticCore;
 
     function setUp() public virtual override {
