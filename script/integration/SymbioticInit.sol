@@ -102,22 +102,28 @@ contract SymbioticInit is Script, SymbioticCounter {
 
     function _deal_Symbiotic(address token, address to, uint256 give) public virtual {
         (Vm.CallerMode callerMode,, address txOrigin) = vm.readCallers();
-        if (callerMode != VmSafe.CallerMode.Broadcast) {
+        if (callerMode == VmSafe.CallerMode.Broadcast) {
+            vm.stopBroadcast();
+        }
+        if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
             vm.startBroadcast(txOrigin);
         }
         IERC20(token).safeTransfer(to, give);
-        if (callerMode != VmSafe.CallerMode.Broadcast) {
+        if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
             vm.stopBroadcast();
         }
     }
 
     function _deal_Symbiotic(address to, uint256 give) public virtual {
         (Vm.CallerMode callerMode,, address txOrigin) = vm.readCallers();
-        if (callerMode != VmSafe.CallerMode.Broadcast) {
+        if (callerMode == VmSafe.CallerMode.Broadcast) {
+            vm.stopBroadcast();
+        }
+        if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
             vm.startBroadcast(txOrigin);
         }
         to.call{value: give}("");
-        if (callerMode != VmSafe.CallerMode.Broadcast) {
+        if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
             vm.stopBroadcast();
         }
     }

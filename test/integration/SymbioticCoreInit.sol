@@ -75,7 +75,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         } else {
             // non-deterministic deployment (uses standard create)
             (VmSafe.CallerMode callerMode,, address deployer) = vm.readCallers();
-            if (callerMode != VmSafe.CallerMode.Broadcast) {
+            if (callerMode == VmSafe.CallerMode.Prank) {
+                vm.stopPrank();
+            }
+            if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
                 vm.startPrank(deployer);
             }
             ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
@@ -251,7 +254,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 operatorNetworkOptInService: operatorNetworkOptInService,
                 vaultConfigurator: vaultConfigurator
             });
-            if (callerMode != VmSafe.CallerMode.Prank) {
+            if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
                 vm.stopPrank();
             }
         }
@@ -281,7 +284,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         address collateral
     ) internal virtual returns (address) {
         (Vm.CallerMode callerMode,, address owner) = vm.readCallers();
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.stopPrank();
         }
 
@@ -334,7 +337,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 })
             )
         });
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.startPrank(owner);
         }
 
@@ -458,7 +461,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         }
 
         (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.stopPrank();
         }
         (address vault,,) = _createVault_SymbioticCore({
@@ -479,7 +482,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 _setDepositorWhitelistStatus_SymbioticCore(owner, vault, whitelistedDepositors[i], true);
             }
         }
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.startPrank(owner);
         }
 
@@ -530,7 +533,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         uint64 slasherIndex = _randomPick_Symbiotic(slasherTypes);
 
         (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.stopPrank();
         }
         address vault = _getVault_SymbioticCore(
@@ -547,7 +550,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             slasherIndex,
             vetoDuration
         );
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.startPrank(deployer);
         }
         return vault;
