@@ -65,28 +65,38 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         symbioticCore = SymbioticCoreConstants.core();
     }
 
+    // if useExisting is true, the core is not deployed, but the addresses are returned
     function _initCore_SymbioticCore(
         bool useExisting
     ) internal virtual {
         if (useExisting) {
-            _initCore_SymbioticCore();
+            // return existing core
+            symbioticCore = SymbioticCoreConstants.core();
         } else {
+            // non-deterministic deployment (uses standard create)
+            (VmSafe.CallerMode callerMode,, address deployer) = vm.readCallers();
+            if (callerMode == VmSafe.CallerMode.Prank) {
+                vm.stopPrank();
+            }
+            if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
+                vm.startPrank(deployer);
+            }
             ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(deployer)
                 )
             );
             ISymbioticDelegatorFactory delegatorFactory = ISymbioticDelegatorFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(deployer)
                 )
             );
             ISymbioticSlasherFactory slasherFactory = ISymbioticSlasherFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                    abi.encode(address(this))
+                    abi.encode(deployer)
                 )
             );
             ISymbioticNetworkRegistry networkRegistry = ISymbioticNetworkRegistry(
@@ -184,6 +194,23 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             );
             delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
+            address operatorNetworkSpecificDelegatorImpl = deployCode(
+                string.concat(
+                    SYMBIOTIC_CORE_PROJECT_ROOT,
+                    "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
+                ),
+                abi.encode(
+                    address(operatorRegistry),
+                    address(networkRegistry),
+                    address(vaultFactory),
+                    address(operatorVaultOptInService),
+                    address(operatorNetworkOptInService),
+                    address(delegatorFactory),
+                    delegatorFactory.totalTypes()
+                )
+            );
+            delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
             address slasherImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
                 abi.encode(
@@ -227,6 +254,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 operatorNetworkOptInService: operatorNetworkOptInService,
                 vaultConfigurator: vaultConfigurator
             });
+            if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
+                vm.stopPrank();
+            }
         }
     }
 
@@ -253,7 +283,11 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     function _getVault_SymbioticCore(
         address collateral
     ) internal virtual returns (address) {
-        address owner = address(this);
+        (Vm.CallerMode callerMode,, address owner) = vm.readCallers();
+        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.stopPrank();
+        }
+
         uint48 epochDuration = 7 days;
         uint48 vetoDuration = 1 days;
 
@@ -263,7 +297,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         operatorNetworkSharesSetRoleHolders[0] = owner;
         (address vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: address(this),
+            who: owner,
             version: 1,
             owner: owner,
             vaultParams: abi.encode(
@@ -303,6 +337,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 })
             )
         });
+        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.startPrank(owner);
+        }
 
         return vault;
     }
@@ -423,9 +460,13 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             );
         }
 
+        (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
+        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.stopPrank();
+        }
         (address vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: address(this),
+            who: deployer,
             version: 1,
             owner: owner,
             vaultParams: vaultParams,
@@ -440,6 +481,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             for (uint256 i; i < whitelistedDepositors.length; ++i) {
                 _setDepositorWhitelistStatus_SymbioticCore(owner, vault, whitelistedDepositors[i], true);
             }
+        }
+        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.startPrank(owner);
         }
 
         return vault;
@@ -488,8 +532,12 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         }
         uint64 slasherIndex = _randomPick_Symbiotic(slasherTypes);
 
-        return _getVault_SymbioticCore(
-            operators.length == 0 ? address(this) : _randomPick_Symbiotic(operators),
+        (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
+        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.stopPrank();
+        }
+        address vault = _getVault_SymbioticCore(
+            operators.length == 0 ? deployer : _randomPick_Symbiotic(operators),
             collateral,
             0x000000000000000000000000000000000000dEaD,
             epochDuration,
@@ -502,6 +550,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             slasherIndex,
             vetoDuration
         );
+        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.startPrank(deployer);
+        }
+        return vault;
     }
 
     function _vaultValidating_SymbioticCore(address vault, bytes32 subnetwork) internal virtual returns (bool) {

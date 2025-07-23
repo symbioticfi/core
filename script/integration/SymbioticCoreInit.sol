@@ -14,6 +14,8 @@ import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
+import {VmSafe} from "forge-std/Vm.sol";
+
 contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -67,28 +69,38 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         symbioticCore = SymbioticCoreConstants.core();
     }
 
+    // if useExisting is true, the core is not deployed, but the addresses are returned
     function _initCore_SymbioticCore(
         bool useExisting
     ) internal virtual {
         if (useExisting) {
-            _initCore_SymbioticCore();
+            // return existing core
+            symbioticCore = SymbioticCoreConstants.core();
         } else {
+            // non-deterministic deployment (uses standard create)
+            (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
+            if (callerMode == VmSafe.CallerMode.Broadcast) {
+                vm.stopBroadcast();
+            }
+            if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
+                vm.startBroadcast(deployer);
+            }
             ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                    abi.encode(tx.origin)
+                    abi.encode(deployer)
                 )
             );
             ISymbioticDelegatorFactory delegatorFactory = ISymbioticDelegatorFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                    abi.encode(tx.origin)
+                    abi.encode(deployer)
                 )
             );
             ISymbioticSlasherFactory slasherFactory = ISymbioticSlasherFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                    abi.encode(tx.origin)
+                    abi.encode(deployer)
                 )
             );
             ISymbioticNetworkRegistry networkRegistry = ISymbioticNetworkRegistry(
@@ -186,6 +198,23 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             );
             delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
+            address operatorNetworkSpecificDelegatorImpl = deployCode(
+                string.concat(
+                    SYMBIOTIC_CORE_PROJECT_ROOT,
+                    "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
+                ),
+                abi.encode(
+                    address(operatorRegistry),
+                    address(networkRegistry),
+                    address(vaultFactory),
+                    address(operatorVaultOptInService),
+                    address(operatorNetworkOptInService),
+                    address(delegatorFactory),
+                    delegatorFactory.totalTypes()
+                )
+            );
+            delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
             address slasherImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
                 abi.encode(
@@ -229,6 +258,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 operatorNetworkOptInService: operatorNetworkOptInService,
                 vaultConfigurator: vaultConfigurator
             });
+            if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
+                vm.stopBroadcast();
+            }
         }
     }
 
@@ -255,7 +287,11 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     function _getVault_SymbioticCore(
         address collateral
     ) internal virtual returns (address) {
-        address owner = tx.origin;
+        (Vm.CallerMode callerMode,, address owner) = vm.readCallers();
+        if (callerMode == VmSafe.CallerMode.Broadcast || callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
+            vm.stopBroadcast();
+        }
+
         uint48 epochDuration = 7 days;
         uint48 vetoDuration = 1 days;
 
@@ -265,7 +301,7 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         operatorNetworkSharesSetRoleHolders[0] = owner;
         (address vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: tx.origin,
+            who: owner,
             version: 1,
             owner: owner,
             vaultParams: abi.encode(
@@ -305,6 +341,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
                 })
             )
         });
+        if (callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
+            vm.startBroadcast(owner);
+        }
 
         return vault;
     }
@@ -425,9 +464,13 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             );
         }
 
+        (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
+        if (callerMode == VmSafe.CallerMode.Broadcast || callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
+            vm.stopBroadcast();
+        }
         (address vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: tx.origin,
+            who: deployer,
             version: 1,
             owner: owner,
             vaultParams: vaultParams,
@@ -442,6 +485,9 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             for (uint256 i; i < whitelistedDepositors.length; ++i) {
                 _setDepositorWhitelistStatus_SymbioticCore(owner, vault, whitelistedDepositors[i], true);
             }
+        }
+        if (callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
+            vm.startBroadcast(deployer);
         }
 
         return vault;
@@ -490,8 +536,12 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         }
         uint64 slasherIndex = _randomPick_Symbiotic(slasherTypes);
 
-        return _getVault_SymbioticCore(
-            operators.length == 0 ? tx.origin : _randomPick_Symbiotic(operators),
+        (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
+        if (callerMode == VmSafe.CallerMode.Broadcast || callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
+            vm.stopBroadcast();
+        }
+        address vault = _getVault_SymbioticCore(
+            operators.length == 0 ? deployer : _randomPick_Symbiotic(operators),
             collateral,
             0x000000000000000000000000000000000000dEaD,
             epochDuration,
@@ -504,6 +554,10 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             slasherIndex,
             vetoDuration
         );
+        if (callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
+            vm.startBroadcast(deployer);
+        }
+        return vault;
     }
 
     function _vaultValidating_SymbioticCore(address vault, bytes32 subnetwork) internal virtual returns (bool) {
