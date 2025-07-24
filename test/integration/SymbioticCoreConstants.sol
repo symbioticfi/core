@@ -223,7 +223,7 @@ library SymbioticCoreConstants {
         } else if (block.chainid == 17_000) {
             // holesky
             return 0x7322c24752f79c05FFD1E2a6FCB97020C1C264F1;
-        } else if (block.chainid == 17_000) {
+        } else if (block.chainid == 560_048) {
             // hoodi
             return 0x7322c24752f79c05FFD1E2a6FCB97020C1C264F1;
         } else {
