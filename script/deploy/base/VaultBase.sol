@@ -43,7 +43,7 @@ contract VaultBase is Script {
         vaultParams = params;
     }
 
-    function run() public {
+    function run() public returns (address, address, address) {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
@@ -169,5 +169,6 @@ contract VaultBase is Script {
         console2.log("Slasher: ", slasher_);
 
         vm.stopBroadcast();
+        return (vault_, delegator_, slasher_);
     }
 }
