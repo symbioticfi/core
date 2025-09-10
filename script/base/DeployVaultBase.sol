@@ -178,24 +178,12 @@ contract DeployVaultBase is Script, Logs {
         (,, address deployer) = vm.readCallers();
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
 
-        vaultParamsEncoded = abi.encode(
-            IVault.InitParams({
-                collateral: params.vaultParams.baseParams.collateral,
-                burner: params.vaultParams.baseParams.burner,
-                epochDuration: params.vaultParams.baseParams.epochDuration,
-                depositWhitelist: params.vaultParams.baseParams.depositWhitelist,
-                isDepositLimit: params.vaultParams.baseParams.isDepositLimit,
-                depositLimit: params.vaultParams.baseParams.depositLimit,
-                defaultAdminRoleHolder: needWhitelistDepositors
-                    ? deployer
-                    : params.vaultParams.baseParams.defaultAdminRoleHolder,
-                depositWhitelistSetRoleHolder: params.vaultParams.baseParams.depositWhitelistSetRoleHolder,
-                depositorWhitelistRoleHolder: needWhitelistDepositors
-                    ? deployer
-                    : params.vaultParams.baseParams.depositorWhitelistRoleHolder,
-                isDepositLimitSetRoleHolder: params.vaultParams.baseParams.isDepositLimitSetRoleHolder,
-                depositLimitSetRoleHolder: params.vaultParams.baseParams.depositLimitSetRoleHolder
-            })
-        );
+        IVault.InitParams memory baseParams = abi.decode(abi.encode(params.vaultParams.baseParams), (IVault.InitParams));
+        baseParams.defaultAdminRoleHolder =
+            needWhitelistDepositors ? deployer : params.vaultParams.baseParams.defaultAdminRoleHolder;
+        baseParams.depositorWhitelistRoleHolder =
+            needWhitelistDepositors ? deployer : params.vaultParams.baseParams.depositorWhitelistRoleHolder;
+
+        vaultParamsEncoded = abi.encode(baseParams);
     }
 }
