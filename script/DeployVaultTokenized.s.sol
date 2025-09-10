@@ -2,85 +2,98 @@
 pragma solidity 0.8.25;
 
 import "./base/DeployVaultTokenizedBase.sol";
-import {IVaultTokenized} from "../src/interfaces/vault/IVaultTokenized.sol";
 
 contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // Configuration constants - UPDATE THESE BEFORE DEPLOYMENT
 
-    // address of the owner of the vault
+    // Name of the ERC20 representing shares of the active stake in the vault
+    string NAME = "SymVault";
+    // Symbol of the ERC20 representing shares of the active stake in the vault
+    string SYMBOL = "SV";
+    // Address of the owner of the vault who can migrate the vault to new versions whitelisted by Symbiotic
     address OWNER = 0x0000000000000000000000000000000000000000;
-    // address of the collateral token
+    // Address of the collateral token
     address COLLATERAL = 0x0000000000000000000000000000000000000000;
-    // vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract)
+    // Vault's burner to send slashed funds to (e.g., 0xdEaD or some unwrapper contract; not used in case of no slasher)
     address BURNER = 0x0000000000000000000000000000000000000000;
-    // duration of the vault epoch
+    // Duration of the vault epoch (the withdrawal delay for staker varies from EPOCH_DURATION to 2 * EPOCH_DURATION depending on when the withdrawal is requested)
     uint48 EPOCH_DURATION = 1 days;
-    // addresses of the whitelisted depositors
-    address[] WHITELISTED_DEPOSITORS = new address[](0);
-    // deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
-    uint256 DEPOSIT_LIMIT = 0;
-    // index of the delegator implementation
+    // Type of the delegator:
+    //  0. NetworkRestakeDelegator (allows restaking across multiple networks and having multiple operators per network)
+    //  1. FullRestakeDelegator (do not use without knowing what you are doing)
+    //  2. OperatorSpecificDelegator (allows restaking across multiple networks with only a single operator)
+    //  3. OperatorNetworkSpecificDelegator (allocates the stake to a specific operator and network)
     uint64 DELEGATOR_INDEX = 0;
-    // address of the hook contract for the delegator
-    address HOOK = 0x0000000000000000000000000000000000000000;
-    // address of the network
-    address NETWORK = 0x0000000000000000000000000000000000000000;
-    // whether to deploy a slasher
+    // Setting depending on the delegator type:
+    // 0. NetworkLimitSetRoleHolders (adjust allocations for networks)
+    // 1. NetworkLimitSetRoleHolders (adjust allocations for networks)
+    // 2. NetworkLimitSetRoleHolders (adjust allocations for networks)
+    // 3. network (the only network that will receive the stake; should be an array with a single element)
+    address[] NETWORK_ALLOCATION_SETTERS_OR_NETWORK = [0x0000000000000000000000000000000000000000];
+    // Setting depending on the delegator type:
+    // 0. OperatorNetworkSharesSetRoleHolders (adjust allocations for operators inside networks; in shares, resulting percentage is operatorShares / totalOperatorShares)
+    // 1. OperatorNetworkLimitSetRoleHolders (adjust allocations for operators inside networks; in shares, resulting percentage is operatorShares / totalOperatorShares)
+    // 2. operator (the only operator that will receive the stake; should be an array with a single element)
+    // 3. operator (the only operator that will receive the stake; should be an array with a single element)
+    address[] OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR = [0x0000000000000000000000000000000000000000];
+    // Whether to deploy a slasher
     bool WITH_SLASHER = false;
-    // index of the slasher implementation
-    uint64 SLASHER_INDEX = 0;
-    // duration of a veto period for the slasher
+    // Type of the slasher:
+    //  0. Slasher (allows instant slashing)
+    //  1. VetoSlasher (allows having a veto period if the resolver is set)
+    uint64 SLASHER_INDEX = 1;
+    // Duration of a veto period (should be less than EPOCH_DURATION)
     uint48 VETO_DURATION = 1 days;
-    // delay in epochs for a network to update a resolver
-    uint48 RESOLVER_SET_EPOCHS_DELAY = 3;
-    // name of the tokenized vault
-    string NAME = "Test";
-    // symbol of the tokenized vault
-    string SYMBOL = "TEST";
 
     // Optional
 
-    // array of addresses of the initial NETWORK_LIMIT_SET_ROLE holders
-    address[] NETWORK_ALLOCATION_SETTERS_OR_NETWORK = new address[](0);
-    // array of addresses of the initial OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR holders
-    address[] OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR = new address[](0);
+    // Deposit limit (maximum amount of the active stake allowed in the vault)
+    uint256 DEPOSIT_LIMIT = 0;
+    // Addresses of the whitelisted depositors
+    address[] WHITELISTED_DEPOSITORS = new address[](0);
+    // Address of the hook contract which, e.g., can automatically adjust the allocations on slashing events (not used in case of no slasher)
+    address HOOK = 0x0000000000000000000000000000000000000000;
+    // Delay in epochs for a network to update a resolver
+    uint48 RESOLVER_SET_EPOCHS_DELAY = 3;
 
     constructor()
         DeployVaultTokenizedBase(
-            DeployVaultParams({
-                owner: OWNER,
-                vaultParams: VaultParams({
-                    baseParams: IVault.InitParams({
-                        collateral: COLLATERAL,
-                        burner: BURNER,
-                        epochDuration: EPOCH_DURATION,
-                        depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
-                        isDepositLimit: DEPOSIT_LIMIT != 0,
-                        depositLimit: DEPOSIT_LIMIT,
-                        defaultAdminRoleHolder: OWNER,
-                        depositWhitelistSetRoleHolder: OWNER,
-                        depositorWhitelistRoleHolder: OWNER,
-                        isDepositLimitSetRoleHolder: OWNER,
-                        depositLimitSetRoleHolder: OWNER
+            DeployVaultTokenizedParams({
+                deployVaultParams: DeployVaultParams({
+                    owner: OWNER,
+                    vaultParams: VaultParams({
+                        baseParams: IVault.InitParams({
+                            collateral: COLLATERAL,
+                            burner: BURNER,
+                            epochDuration: EPOCH_DURATION,
+                            depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
+                            isDepositLimit: DEPOSIT_LIMIT != 0,
+                            depositLimit: DEPOSIT_LIMIT,
+                            defaultAdminRoleHolder: OWNER,
+                            depositWhitelistSetRoleHolder: OWNER,
+                            depositorWhitelistRoleHolder: OWNER,
+                            isDepositLimitSetRoleHolder: OWNER,
+                            depositLimitSetRoleHolder: OWNER
+                        }),
+                        whitelistedDepositors: WHITELISTED_DEPOSITORS
                     }),
-                    whitelistedDepositors: WHITELISTED_DEPOSITORS
+                    delegatorIndex: DELEGATOR_INDEX,
+                    delegatorParams: DelegatorParams({
+                        baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
+                        networkAllocationSettersOrNetwork: NETWORK_ALLOCATION_SETTERS_OR_NETWORK,
+                        operatorAllocationSettersOrOperator: OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR
+                    }),
+                    withSlasher: WITH_SLASHER,
+                    slasherIndex: SLASHER_INDEX,
+                    slasherParams: SlasherParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: BURNER != address(0)}),
+                        vetoDuration: VETO_DURATION,
+                        resolverSetEpochsDelay: RESOLVER_SET_EPOCHS_DELAY
+                    })
                 }),
-                delegatorIndex: DELEGATOR_INDEX,
-                delegatorParams: DelegatorParams({
-                    baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
-                    networkAllocationSettersOrNetwork: NETWORK_ALLOCATION_SETTERS_OR_NETWORK,
-                    operatorAllocationSettersOrOperator: OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR
-                }),
-                withSlasher: WITH_SLASHER,
-                slasherIndex: SLASHER_INDEX,
-                slasherParams: SlasherParams({
-                    baseParams: IBaseSlasher.BaseParams({isBurnerHook: BURNER != address(0)}),
-                    vetoDuration: VETO_DURATION,
-                    resolverSetEpochsDelay: RESOLVER_SET_EPOCHS_DELAY
-                })
-            }),
-            NAME,
-            SYMBOL
+                name: NAME,
+                symbol: SYMBOL
+            })
         )
     {}
 }

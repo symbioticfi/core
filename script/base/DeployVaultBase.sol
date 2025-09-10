@@ -121,7 +121,7 @@ contract DeployVaultBase is Script, Logs {
             );
         }
 
-        bytes memory vaultParamsEncoded = _buildEncodedParams();
+        bytes memory vaultParamsEncoded = _getVaultParamsEncoded();
 
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
             SymbioticCoreConstants.core().vaultConfigurator
@@ -174,16 +174,16 @@ contract DeployVaultBase is Script, Logs {
         return (vault_, delegator_, slasher_);
     }
 
-    function _buildEncodedParams() internal virtual returns (bytes memory vaultParamsEncoded) {
+    function _getVaultParamsEncoded() internal virtual returns (bytes memory) {
         (,, address deployer) = vm.readCallers();
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
 
-        IVault.InitParams memory baseParams = abi.decode(abi.encode(params.vaultParams.baseParams), (IVault.InitParams));
+        IVault.InitParams memory baseParams = params.vaultParams.baseParams;
         baseParams.defaultAdminRoleHolder =
             needWhitelistDepositors ? deployer : params.vaultParams.baseParams.defaultAdminRoleHolder;
         baseParams.depositorWhitelistRoleHolder =
             needWhitelistDepositors ? deployer : params.vaultParams.baseParams.depositorWhitelistRoleHolder;
 
-        vaultParamsEncoded = abi.encode(baseParams);
+        return abi.encode(baseParams);
     }
 }
