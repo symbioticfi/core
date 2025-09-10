@@ -14,14 +14,17 @@ contract DeployVaultTokenizedBase is DeployVaultBase {
     string public name;
     string public symbol;
 
-    constructor(
-        DeployVaultTokenizedParams memory params_
-    ) DeployVaultBase(params_.deployVaultParams) {
-        name = params_.name;
-        symbol = params_.symbol;
+    function run(
+        DeployVaultTokenizedParams memory params
+    ) public returns (address, address, address) {
+        name = params.name;
+        symbol = params.symbol;
+        return run(params.deployVaultParams);
     }
 
-    function _getVaultParamsEncoded() internal virtual override returns (bytes memory) {
+    function _getVaultParamsEncoded(
+        DeployVaultParams memory params
+    ) internal virtual override returns (bytes memory) {
         (,, address deployer) = vm.readCallers();
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
 

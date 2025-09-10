@@ -50,15 +50,9 @@ contract DeployVaultBase is Script, Logs {
         SlasherParams slasherParams;
     }
 
-    DeployVaultParams public params;
-
-    constructor(
-        DeployVaultParams memory params_
-    ) {
-        params = params_;
-    }
-
-    function run() public returns (address, address, address) {
+    function run(
+        DeployVaultParams memory params
+    ) public returns (address, address, address) {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
@@ -124,7 +118,7 @@ contract DeployVaultBase is Script, Logs {
             );
         }
 
-        bytes memory vaultParamsEncoded = _getVaultParamsEncoded();
+        bytes memory vaultParamsEncoded = _getVaultParamsEncoded(params);
 
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
             SymbioticCoreConstants.core().vaultConfigurator
@@ -174,11 +168,13 @@ contract DeployVaultBase is Script, Logs {
         );
 
         vm.stopBroadcast();
-        _validateOwnershipTransfer(vault_, delegator_);
+        _validateOwnershipTransfer(vault_, delegator_, params);
         return (vault_, delegator_, slasher_);
     }
 
-    function _getVaultParamsEncoded() internal virtual returns (bytes memory) {
+    function _getVaultParamsEncoded(
+        DeployVaultParams memory params
+    ) internal virtual returns (bytes memory) {
         (,, address deployer) = vm.readCallers();
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
 
@@ -191,7 +187,7 @@ contract DeployVaultBase is Script, Logs {
         return abi.encode(baseParams);
     }
 
-    function _validateOwnershipTransfer(address vault, address delegator) internal {
+    function _validateOwnershipTransfer(address vault, address delegator, DeployVaultParams memory params) internal {
         (,, address oldAdmin) = vm.readCallers();
         bytes32 DEFAULT_ADMIN_ROLE = 0x00;
         // Validate vault role transfers
