@@ -79,32 +79,8 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
                     resolverSetEpochsDelay: RESOLVER_SET_EPOCHS_DELAY
                 })
             }),
-            _buidEncodedParams()
+            NAME,
+            SYMBOL
         )
     {}
-
-    function _buidEncodedParams() internal returns (bytes memory vaultParamsEncoded) {
-        (,, address deployer) = vm.readCallers();
-        bool needWhitelistDepositors = WHITELISTED_DEPOSITORS.length != 0;
-
-        vaultParamsEncoded = abi.encode(
-            IVaultTokenized.InitParamsTokenized({
-                baseParams: IVault.InitParams({
-                    collateral: COLLATERAL,
-                    burner: BURNER,
-                    epochDuration: EPOCH_DURATION,
-                    depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
-                    isDepositLimit: DEPOSIT_LIMIT != 0,
-                    depositLimit: DEPOSIT_LIMIT,
-                    defaultAdminRoleHolder: needWhitelistDepositors ? deployer : OWNER,
-                    depositWhitelistSetRoleHolder: OWNER,
-                    depositorWhitelistRoleHolder: needWhitelistDepositors ? deployer : OWNER,
-                    isDepositLimitSetRoleHolder: OWNER,
-                    depositLimitSetRoleHolder: OWNER
-                }),
-                name: NAME,
-                symbol: SYMBOL
-            })
-        );
-    }
 }

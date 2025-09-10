@@ -48,11 +48,11 @@ contract DeployVaultBase is Script, Logs {
     }
 
     DeployVaultParams public params;
-    bytes public vaultParamsEncoded;
 
-    constructor(DeployVaultParams memory params_, bytes memory vaultParamsEncoded_) {
+    constructor(
+        DeployVaultParams memory params_
+    ) {
         params = params_;
-        vaultParamsEncoded = vaultParamsEncoded_;
     }
 
     function run() public returns (address, address, address) {
@@ -121,6 +121,8 @@ contract DeployVaultBase is Script, Logs {
             );
         }
 
+        bytes memory vaultParamsEncoded = _buidEncodedParams();
+
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
             SymbioticCoreConstants.core().vaultConfigurator
         ).create(
@@ -170,5 +172,30 @@ contract DeployVaultBase is Script, Logs {
 
         vm.stopBroadcast();
         return (vault_, delegator_, slasher_);
+    }
+
+    function _buidEncodedParams() internal virtual returns (bytes memory vaultParamsEncoded) {
+        (,, address deployer) = vm.readCallers();
+        bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
+
+        vaultParamsEncoded = abi.encode(
+            IVault.InitParams({
+                collateral: params.vaultParams.baseParams.collateral,
+                burner: params.vaultParams.baseParams.burner,
+                epochDuration: params.vaultParams.baseParams.epochDuration,
+                depositWhitelist: params.vaultParams.baseParams.depositWhitelist,
+                isDepositLimit: params.vaultParams.baseParams.isDepositLimit,
+                depositLimit: params.vaultParams.baseParams.depositLimit,
+                defaultAdminRoleHolder: needWhitelistDepositors
+                    ? deployer
+                    : params.vaultParams.baseParams.defaultAdminRoleHolder,
+                depositWhitelistSetRoleHolder: params.vaultParams.baseParams.depositWhitelistSetRoleHolder,
+                depositorWhitelistRoleHolder: needWhitelistDepositors
+                    ? deployer
+                    : params.vaultParams.baseParams.depositorWhitelistRoleHolder,
+                isDepositLimitSetRoleHolder: params.vaultParams.baseParams.isDepositLimitSetRoleHolder,
+                depositLimitSetRoleHolder: params.vaultParams.baseParams.depositLimitSetRoleHolder
+            })
+        );
     }
 }
