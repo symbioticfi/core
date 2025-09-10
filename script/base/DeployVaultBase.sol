@@ -121,7 +121,7 @@ contract DeployVaultBase is Script, Logs {
             );
         }
 
-        bytes memory vaultParamsEncoded = _buidEncodedParams();
+        bytes memory vaultParamsEncoded = _buildEncodedParams();
 
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
             SymbioticCoreConstants.core().vaultConfigurator
@@ -174,7 +174,7 @@ contract DeployVaultBase is Script, Logs {
         return (vault_, delegator_, slasher_);
     }
 
-    function _buidEncodedParams() internal virtual returns (bytes memory vaultParamsEncoded) {
+    function _buildEncodedParams() internal virtual returns (bytes memory vaultParamsEncoded) {
         (,, address deployer) = vm.readCallers();
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
 

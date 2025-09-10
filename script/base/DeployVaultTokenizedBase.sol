@@ -13,7 +13,7 @@ contract DeployVaultTokenizedBase is DeployVaultBase {
         symbol = symbol_;
     }
 
-    function _buidEncodedParams() internal virtual override returns (bytes memory vaultParamsEncoded) {
+    function _buildEncodedParams() internal virtual override returns (bytes memory vaultParamsEncoded) {
         (,, address deployer) = vm.readCallers();
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
 
