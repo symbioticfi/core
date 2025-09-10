@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import "./base/DeployVaultTokenizedBase.sol";
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
+import "./utils/ScriptUtils.sol";
 
 contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // Configuration constants - UPDATE THESE BEFORE DEPLOYMENT
@@ -76,13 +76,13 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
                             isDepositLimitSetRoleHolder: OWNER,
                             depositLimitSetRoleHolder: OWNER
                         }),
-                        whitelistedDepositors: parseAddressesFromString(WHITELISTED_DEPOSITORS)
+                        whitelistedDepositors: ScriptUtils.parseAddressesFromString(WHITELISTED_DEPOSITORS)
                     }),
                     delegatorIndex: DELEGATOR_INDEX,
                     delegatorParams: DelegatorParams({
                         baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
-                        networkAllocationSettersOrNetwork: _createArray(NETWORK_ALLOCATION_SETTER),
-                        operatorAllocationSettersOrOperator: _createArray(OPERATOR_ALLOCATION_SETTER)
+                        networkAllocationSettersOrNetwork: ScriptUtils.createArray(NETWORK_ALLOCATION_SETTER),
+                        operatorAllocationSettersOrOperator: ScriptUtils.createArray(OPERATOR_ALLOCATION_SETTER)
                     }),
                     withSlasher: WITH_SLASHER,
                     slasherIndex: SLASHER_INDEX,

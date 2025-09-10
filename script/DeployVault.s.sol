@@ -2,16 +2,17 @@
 pragma solidity 0.8.25;
 
 import "./base/DeployVaultBase.sol";
+import "./utils/ScriptUtils.sol";
 
 contract DeployVaultScript is DeployVaultBase {
     // Configuration constants - UPDATE THESE BEFORE DEPLOYMENT
 
     // Address of the owner of the vault who can migrate the vault to new versions whitelisted by Symbiotic
-    address constant OWNER = 0x0000000000000000000000000000000000000000;
+    address constant OWNER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     // Address of the collateral token
-    address constant COLLATERAL = 0x0000000000000000000000000000000000000000;
+    address constant COLLATERAL = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     // Vault's burner to send slashed funds to (e.g., 0xdEaD or some unwrapper contract; not used in case of no slasher)
-    address constant BURNER = 0x0000000000000000000000000000000000000000;
+    address constant BURNER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     // Duration of the vault epoch (the withdrawal delay for staker varies from EPOCH_DURATION to 2 * EPOCH_DURATION depending on when the withdrawal is requested)
     uint48 constant EPOCH_DURATION = 1 days;
     // Type of the delegator:
@@ -25,13 +26,13 @@ contract DeployVaultScript is DeployVaultBase {
     // 1. NetworkLimitSetRoleHolders (adjust allocations for networks)
     // 2. NetworkLimitSetRoleHolders (adjust allocations for networks)
     // 3. network (the only network that will receive the stake; should be an array with a single element)
-    address constant NETWORK_ALLOCATION_SETTER = 0x0000000000000000000000000000000000000000;
+    address constant NETWORK_ALLOCATION_SETTER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     // Setting depending on the delegator type:
     // 0. OperatorNetworkSharesSetRoleHolders (adjust allocations for operators inside networks; in shares, resulting percentage is operatorShares / totalOperatorShares)
     // 1. OperatorNetworkLimitSetRoleHolders (adjust allocations for operators inside networks; in shares, resulting percentage is operatorShares / totalOperatorShares)
     // 2. operator (the only operator that will receive the stake; should be an array with a single element)
     // 3. operator (the only operator that will receive the stake; should be an array with a single element)
-    address constant OPERATOR_ALLOCATION_SETTER = 0x0000000000000000000000000000000000000000;
+    address constant OPERATOR_ALLOCATION_SETTER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     // Whether to deploy a slasher
     bool constant WITH_SLASHER = false;
     // Type of the slasher:
@@ -46,7 +47,8 @@ contract DeployVaultScript is DeployVaultBase {
     // Deposit limit (maximum amount of the active stake allowed in the vault)
     uint256 constant DEPOSIT_LIMIT = 0;
     // Comma-separated list of addresses of the whitelisted depositors
-    string constant WHITELISTED_DEPOSITORS = "";
+    string constant WHITELISTED_DEPOSITORS =
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
     // Address of the hook contract which, e.g., can automatically adjust the allocations on slashing events (not used in case of no slasher)
     address constant HOOK = 0x0000000000000000000000000000000000000000;
     // Delay in epochs for a network to update a resolver
@@ -70,13 +72,13 @@ contract DeployVaultScript is DeployVaultBase {
                         isDepositLimitSetRoleHolder: OWNER,
                         depositLimitSetRoleHolder: OWNER
                     }),
-                    whitelistedDepositors: parseAddressesFromString(WHITELISTED_DEPOSITORS)
+                    whitelistedDepositors: ScriptUtils.parseAddressesFromString(WHITELISTED_DEPOSITORS)
                 }),
                 delegatorIndex: DELEGATOR_INDEX,
                 delegatorParams: DelegatorParams({
                     baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
-                    networkAllocationSettersOrNetwork: _createArray(NETWORK_ALLOCATION_SETTER),
-                    operatorAllocationSettersOrOperator: _createArray(OPERATOR_ALLOCATION_SETTER)
+                    networkAllocationSettersOrNetwork: ScriptUtils.createArray(NETWORK_ALLOCATION_SETTER),
+                    operatorAllocationSettersOrOperator: ScriptUtils.createArray(OPERATOR_ALLOCATION_SETTER)
                 }),
                 withSlasher: WITH_SLASHER,
                 slasherIndex: SLASHER_INDEX,
@@ -88,12 +90,4 @@ contract DeployVaultScript is DeployVaultBase {
             })
         )
     {}
-
-    function _createArray(
-        address element
-    ) private pure returns (address[] memory) {
-        address[] memory arr = new address[](1);
-        arr[0] = element;
-        return arr;
-    }
 }

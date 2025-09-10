@@ -322,21 +322,4 @@ contract DeployVaultBase is Script, Logs {
             }
         }
     }
-
-    function parseAddressesFromString(
-        string memory addressString
-    ) public pure returns (address[] memory) {
-        // Split the string by comma delimiter
-        string[] memory addressStrings = vm.split(addressString, ",");
-
-        // Create array for addresses
-        address[] memory addresses = new address[](addressStrings.length);
-
-        // Parse each string to address
-        for (uint256 i = 0; i < addressStrings.length; i++) {
-            addresses[i] = vm.parseAddress(addressStrings[i]);
-        }
-
-        return addresses;
-    }
 }
