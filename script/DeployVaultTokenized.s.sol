@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import "./base/DeployVaultBase.sol";
+import "./base/DeployVaultTokenizedBase.sol";
+import {IVaultTokenized} from "../src/interfaces/vault/IVaultTokenized.sol";
 
-contract DeployVaultScript is DeployVaultBase {
+contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // Configuration constants - UPDATE THESE BEFORE DEPLOYMENT
 
     // address of the owner of the vault
@@ -32,6 +33,10 @@ contract DeployVaultScript is DeployVaultBase {
     uint48 VETO_DURATION = 1 days;
     // delay in epochs for a network to update a resolver
     uint48 RESOLVER_SET_EPOCHS_DELAY = 3;
+    // name of the tokenized vault
+    string NAME = "Test";
+    // symbol of the tokenized vault
+    string SYMBOL = "TEST";
 
     // Optional
 
@@ -41,7 +46,7 @@ contract DeployVaultScript is DeployVaultBase {
     address[] OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR = new address[](0);
 
     constructor()
-        DeployVaultBase(
+        DeployVaultTokenizedBase(
             DeployVaultParams({
                 owner: OWNER,
                 vaultParams: VaultParams({
@@ -83,18 +88,22 @@ contract DeployVaultScript is DeployVaultBase {
         bool needWhitelistDepositors = WHITELISTED_DEPOSITORS.length != 0;
 
         vaultParamsEncoded = abi.encode(
-            IVault.InitParams({
-                collateral: COLLATERAL,
-                burner: BURNER,
-                epochDuration: EPOCH_DURATION,
-                depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
-                isDepositLimit: DEPOSIT_LIMIT != 0,
-                depositLimit: DEPOSIT_LIMIT,
-                defaultAdminRoleHolder: needWhitelistDepositors ? deployer : OWNER,
-                depositWhitelistSetRoleHolder: OWNER,
-                depositorWhitelistRoleHolder: needWhitelistDepositors ? deployer : OWNER,
-                isDepositLimitSetRoleHolder: OWNER,
-                depositLimitSetRoleHolder: OWNER
+            IVaultTokenized.InitParamsTokenized({
+                baseParams: IVault.InitParams({
+                    collateral: COLLATERAL,
+                    burner: BURNER,
+                    epochDuration: EPOCH_DURATION,
+                    depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
+                    isDepositLimit: DEPOSIT_LIMIT != 0,
+                    depositLimit: DEPOSIT_LIMIT,
+                    defaultAdminRoleHolder: needWhitelistDepositors ? deployer : OWNER,
+                    depositWhitelistSetRoleHolder: OWNER,
+                    depositorWhitelistRoleHolder: needWhitelistDepositors ? deployer : OWNER,
+                    isDepositLimitSetRoleHolder: OWNER,
+                    depositLimitSetRoleHolder: OWNER
+                }),
+                name: NAME,
+                symbol: SYMBOL
             })
         );
     }

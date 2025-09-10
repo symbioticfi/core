@@ -3,22 +3,21 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
-import {Vault} from "../../../src/contracts/vault/Vault.sol";
+import {Vault} from "../../src/contracts/vault/Vault.sol";
 
-import {IVault} from "../../../src/interfaces/vault/IVault.sol";
-import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol";
-import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.sol";
-import {INetworkRestakeDelegator} from "../../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../../../src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "../../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IOperatorNetworkSpecificDelegator} from
-    "../../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
-import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
-import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "../../../src/interfaces/slasher/IVetoSlasher.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 
 import {Logs} from "./Logs.sol";
-import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
+import {SymbioticCoreConstants} from "../../test/integration/SymbioticCoreConstants.sol";
 
 contract DeployVaultBase is Script, Logs {
     struct VaultParams {
@@ -49,11 +48,11 @@ contract DeployVaultBase is Script, Logs {
     }
 
     DeployVaultParams public params;
+    bytes public vaultParamsEncoded;
 
-    constructor(
-        DeployVaultParams memory params_
-    ) {
+    constructor(DeployVaultParams memory params_, bytes memory vaultParamsEncoded_) {
         params = params_;
+        vaultParamsEncoded = vaultParamsEncoded_;
     }
 
     function run() public returns (address, address, address) {
@@ -61,26 +60,6 @@ contract DeployVaultBase is Script, Logs {
         (,, address deployer) = vm.readCallers();
 
         bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
-
-        bytes memory vaultParamsEncoded = abi.encode(
-            IVault.InitParams({
-                collateral: params.vaultParams.baseParams.collateral,
-                burner: params.vaultParams.baseParams.burner,
-                epochDuration: params.vaultParams.baseParams.epochDuration,
-                depositWhitelist: params.vaultParams.baseParams.depositWhitelist,
-                isDepositLimit: params.vaultParams.baseParams.isDepositLimit,
-                depositLimit: params.vaultParams.baseParams.depositLimit,
-                defaultAdminRoleHolder: needWhitelistDepositors
-                    ? deployer
-                    : params.vaultParams.baseParams.defaultAdminRoleHolder,
-                depositWhitelistSetRoleHolder: params.vaultParams.baseParams.depositWhitelistSetRoleHolder,
-                depositorWhitelistRoleHolder: needWhitelistDepositors
-                    ? deployer
-                    : params.vaultParams.baseParams.depositorWhitelistRoleHolder,
-                isDepositLimitSetRoleHolder: params.vaultParams.baseParams.isDepositLimitSetRoleHolder,
-                depositLimitSetRoleHolder: params.vaultParams.baseParams.depositLimitSetRoleHolder
-            })
-        );
 
         bytes memory delegatorParamsEncoded;
         IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
