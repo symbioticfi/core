@@ -45,6 +45,8 @@ contract DeployVaultScript is DeployVaultBase {
 
     // Deposit limit (maximum amount of the active stake allowed in the vault)
     uint256 constant DEPOSIT_LIMIT = 0;
+    // Comma-separated list of addresses of the whitelisted depositors
+    string constant WHITELISTED_DEPOSITORS = "";
     // Address of the hook contract which, e.g., can automatically adjust the allocations on slashing events (not used in case of no slasher)
     address constant HOOK = 0x0000000000000000000000000000000000000000;
     // Delay in epochs for a network to update a resolver
@@ -59,7 +61,7 @@ contract DeployVaultScript is DeployVaultBase {
                         collateral: COLLATERAL,
                         burner: BURNER,
                         epochDuration: EPOCH_DURATION,
-                        depositWhitelist: false,
+                        depositWhitelist: bytes(WHITELISTED_DEPOSITORS).length != 0,
                         isDepositLimit: DEPOSIT_LIMIT != 0,
                         depositLimit: DEPOSIT_LIMIT,
                         defaultAdminRoleHolder: OWNER,
@@ -68,7 +70,7 @@ contract DeployVaultScript is DeployVaultBase {
                         isDepositLimitSetRoleHolder: OWNER,
                         depositLimitSetRoleHolder: OWNER
                     }),
-                    whitelistedDepositors: new address[](0)
+                    whitelistedDepositors: parseAddressesFromString(WHITELISTED_DEPOSITORS)
                 }),
                 delegatorIndex: DELEGATOR_INDEX,
                 delegatorParams: DelegatorParams({
