@@ -50,6 +50,8 @@ contract DeployVaultBase is Script, Logs {
         SlasherParams slasherParams;
     }
 
+    bytes32 DEFAULT_ADMIN_ROLE = 0x00;
+
     function run(
         DeployVaultParams memory params
     ) public returns (address, address, address) {
@@ -116,8 +118,6 @@ contract DeployVaultBase is Script, Logs {
             );
         }
 
-        
-
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
             SymbioticCoreConstants.core().vaultConfigurator
         ).create(
@@ -146,10 +146,8 @@ contract DeployVaultBase is Script, Logs {
             }
 
             if (deployer != params.vaultParams.baseParams.defaultAdminRoleHolder) {
-                Vault(vault_).grantRole(
-                    Vault(vault_).DEFAULT_ADMIN_ROLE(), params.vaultParams.baseParams.defaultAdminRoleHolder
-                );
-                Vault(vault_).renounceRole(Vault(vault_).DEFAULT_ADMIN_ROLE(), deployer);
+                Vault(vault_).grantRole(DEFAULT_ADMIN_ROLE, params.vaultParams.baseParams.defaultAdminRoleHolder);
+                Vault(vault_).renounceRole(DEFAULT_ADMIN_ROLE, deployer);
             }
         }
 
@@ -187,7 +185,6 @@ contract DeployVaultBase is Script, Logs {
 
     function _validateOwnershipTransfer(address vault, address delegator, DeployVaultParams memory params) internal {
         (,, address oldAdmin) = vm.readCallers();
-        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
         // Validate vault role transfers
         assert(Vault(vault).hasRole(DEFAULT_ADMIN_ROLE, params.owner) == true);
         assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_LIMIT_SET_ROLE(), params.owner) == true);

@@ -13,7 +13,7 @@ contract DeployVaultScript is DeployVaultBase {
     // Vault's burner to send slashed funds to (e.g., 0xdEaD or some unwrapper contract; not used in case of no slasher)
     address BURNER = 0x0000000000000000000000000000000000000000;
     // Duration of the vault epoch (the withdrawal delay for staker varies from EPOCH_DURATION to 2 * EPOCH_DURATION depending on when the withdrawal is requested)
-    uint48 EPOCH_DURATION = 1 days;
+    uint48 EPOCH_DURATION = 7 days;
     // Type of the delegator:
     //  0. NetworkRestakeDelegator (allows restaking across multiple networks and having multiple operators per network)
     //  1. FullRestakeDelegator (do not use without knowing what you are doing)
@@ -53,38 +53,39 @@ contract DeployVaultScript is DeployVaultBase {
     uint48 RESOLVER_SET_EPOCHS_DELAY = 3;
 
     function run() public {
-        DeployVaultParams memory params = DeployVaultParams({
-            owner: OWNER,
-            vaultParams: VaultParams({
-                baseParams: IVault.InitParams({
-                    collateral: COLLATERAL,
-                    burner: BURNER,
-                    epochDuration: EPOCH_DURATION,
-                    depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
-                    isDepositLimit: DEPOSIT_LIMIT != 0,
-                    depositLimit: DEPOSIT_LIMIT,
-                    defaultAdminRoleHolder: OWNER,
-                    depositWhitelistSetRoleHolder: OWNER,
-                    depositorWhitelistRoleHolder: OWNER,
-                    isDepositLimitSetRoleHolder: OWNER,
-                    depositLimitSetRoleHolder: OWNER
+        run(
+            DeployVaultParams({
+                owner: OWNER,
+                vaultParams: VaultParams({
+                    baseParams: IVault.InitParams({
+                        collateral: COLLATERAL,
+                        burner: BURNER,
+                        epochDuration: EPOCH_DURATION,
+                        depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
+                        isDepositLimit: DEPOSIT_LIMIT != 0,
+                        depositLimit: DEPOSIT_LIMIT,
+                        defaultAdminRoleHolder: OWNER,
+                        depositWhitelistSetRoleHolder: OWNER,
+                        depositorWhitelistRoleHolder: OWNER,
+                        isDepositLimitSetRoleHolder: OWNER,
+                        depositLimitSetRoleHolder: OWNER
+                    }),
+                    whitelistedDepositors: WHITELISTED_DEPOSITORS
                 }),
-                whitelistedDepositors: WHITELISTED_DEPOSITORS
-            }),
-            delegatorIndex: DELEGATOR_INDEX,
-            delegatorParams: DelegatorParams({
-                baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
-                networkAllocationSettersOrNetwork: NETWORK_ALLOCATION_SETTERS_OR_NETWORK,
-                operatorAllocationSettersOrOperator: OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR
-            }),
-            withSlasher: WITH_SLASHER,
-            slasherIndex: SLASHER_INDEX,
-            slasherParams: SlasherParams({
-                baseParams: IBaseSlasher.BaseParams({isBurnerHook: BURNER != address(0)}),
-                vetoDuration: VETO_DURATION,
-                resolverSetEpochsDelay: RESOLVER_SET_EPOCHS_DELAY
+                delegatorIndex: DELEGATOR_INDEX,
+                delegatorParams: DelegatorParams({
+                    baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
+                    networkAllocationSettersOrNetwork: NETWORK_ALLOCATION_SETTERS_OR_NETWORK,
+                    operatorAllocationSettersOrOperator: OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR
+                }),
+                withSlasher: WITH_SLASHER,
+                slasherIndex: SLASHER_INDEX,
+                slasherParams: SlasherParams({
+                    baseParams: IBaseSlasher.BaseParams({isBurnerHook: BURNER != address(0)}),
+                    vetoDuration: VETO_DURATION,
+                    resolverSetEpochsDelay: RESOLVER_SET_EPOCHS_DELAY
+                })
             })
-        });
-        run(params);
+        );
     }
 }
