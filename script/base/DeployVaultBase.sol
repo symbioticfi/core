@@ -56,8 +56,6 @@ contract DeployVaultBase is Script, Logs {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
-        bool needWhitelistDepositors = params.vaultParams.whitelistedDepositors.length != 0;
-
         bytes memory delegatorParamsEncoded;
         IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
             defaultAdminRoleHolder: params.delegatorParams.baseParams.defaultAdminRoleHolder,
@@ -118,7 +116,7 @@ contract DeployVaultBase is Script, Logs {
             );
         }
 
-        bytes memory vaultParamsEncoded = _getVaultParamsEncoded(params);
+        
 
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
             SymbioticCoreConstants.core().vaultConfigurator
@@ -126,7 +124,7 @@ contract DeployVaultBase is Script, Logs {
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: params.owner,
-                vaultParams: vaultParamsEncoded,
+                vaultParams: _getVaultParamsEncoded(params),
                 delegatorIndex: params.delegatorIndex,
                 delegatorParams: delegatorParamsEncoded,
                 withSlasher: params.withSlasher,
@@ -135,7 +133,7 @@ contract DeployVaultBase is Script, Logs {
             })
         );
 
-        if (needWhitelistDepositors) {
+        if (params.vaultParams.whitelistedDepositors.length != 0) {
             for (uint256 i; i < params.vaultParams.whitelistedDepositors.length; ++i) {
                 Vault(vault_).setDepositorWhitelistStatus(params.vaultParams.whitelistedDepositors[i], true);
             }
