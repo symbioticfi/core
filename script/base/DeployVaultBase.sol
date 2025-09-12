@@ -122,7 +122,7 @@ contract DeployVaultBase is Script, Logs {
             SymbioticCoreConstants.core().vaultConfigurator
         ).create(
             IVaultConfigurator.InitParams({
-                version: 1,
+                version: _getVaultVersion(),
                 owner: params.owner,
                 vaultParams: _getVaultParamsEncoded(params),
                 delegatorIndex: params.delegatorIndex,
@@ -163,9 +163,14 @@ contract DeployVaultBase is Script, Logs {
             )
         );
 
-        vm.stopBroadcast();
         _validateOwnershipTransfer(vault_, delegator_, params);
+
+        vm.stopBroadcast();
         return (vault_, delegator_, slasher_);
+    }
+
+    function _getVaultVersion() internal virtual returns (uint64) {
+        return 1;
     }
 
     function _getVaultParamsEncoded(

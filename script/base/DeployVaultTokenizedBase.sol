@@ -22,6 +22,10 @@ contract DeployVaultTokenizedBase is DeployVaultBase {
         return run(params.deployVaultParams);
     }
 
+    function _getVaultVersion() internal virtual override returns (uint64) {
+        return 2;
+    }
+
     function _getVaultParamsEncoded(
         DeployVaultParams memory params
     ) internal virtual override returns (bytes memory) {

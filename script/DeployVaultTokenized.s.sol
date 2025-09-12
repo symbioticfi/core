@@ -15,7 +15,7 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // Address of the collateral token
     address COLLATERAL = 0x0000000000000000000000000000000000000000;
     // Vault's burner to send slashed funds to (e.g., 0xdEaD or some unwrapper contract; not used in case of no slasher)
-    address BURNER = 0x0000000000000000000000000000000000000000;
+    address BURNER = 0x000000000000000000000000000000000000dEaD;
     // Duration of the vault epoch (the withdrawal delay for staker varies from EPOCH_DURATION to 2 * EPOCH_DURATION depending on when the withdrawal is requested)
     uint48 EPOCH_DURATION = 7 days;
     // Type of the delegator:
@@ -37,7 +37,7 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // 3. operator (the only operator that will receive the stake; should be an array with a single element)
     address[] OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR = [0x0000000000000000000000000000000000000000];
     // Whether to deploy a slasher
-    bool WITH_SLASHER = false;
+    bool WITH_SLASHER = true;
     // Type of the slasher:
     //  0. Slasher (allows instant slashing)
     //  1. VetoSlasher (allows having a veto period if the resolver is set)
