@@ -20,6 +20,59 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     using SymbioticSubnetwork for bytes32;
     using SymbioticSubnetwork for address;
 
+    struct InitCoreLocalVars {
+        VmSafe.CallerMode callerMode;
+        address deployer;
+        ISymbioticVaultFactory vaultFactory;
+        ISymbioticDelegatorFactory delegatorFactory;
+        ISymbioticSlasherFactory slasherFactory;
+        ISymbioticNetworkRegistry networkRegistry;
+        ISymbioticOperatorRegistry operatorRegistry;
+        ISymbioticMetadataService operatorMetadataService;
+        ISymbioticMetadataService networkMetadataService;
+        ISymbioticNetworkMiddlewareService networkMiddlewareService;
+        ISymbioticOptInService operatorVaultOptInService;
+        ISymbioticOptInService operatorNetworkOptInService;
+        address vaultImpl;
+        address vaultTokenizedImpl;
+        address networkRestakeDelegatorImpl;
+        address fullRestakeDelegatorImpl;
+        address operatorSpecificDelegatorImpl;
+        address operatorNetworkSpecificDelegatorImpl;
+        address slasherImpl;
+        address vetoSlasherImpl;
+        ISymbioticVaultConfigurator vaultConfigurator;
+    }
+
+    struct GetVaultLocalVars {
+        bool depositWhitelist;
+        bytes vaultParams;
+        uint256 roleHolders;
+        address[] networkLimitSetRoleHolders;
+        address[] operatorNetworkLimitSetRoleHolders;
+        address[] operatorNetworkSharesSetRoleHolders;
+        bytes delegatorParams;
+        bytes slasherParams;
+        Vm.CallerMode callerMode;
+        address deployer;
+        address vault;
+    }
+
+    struct VaultParams {
+        address owner;
+        address collateral;
+        address burner;
+        uint48 epochDuration;
+        address[] whitelistedDepositors;
+        uint256 depositLimit;
+        uint64 delegatorIndex;
+        address hook;
+        address network;
+        bool withSlasher;
+        uint64 slasherIndex;
+        uint48 vetoDuration;
+    }
+
     // General config
 
     string public SYMBIOTIC_CORE_PROJECT_ROOT = "";
@@ -74,187 +127,190 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
             symbioticCore = SymbioticCoreConstants.core();
         } else {
             // non-deterministic deployment (uses standard create)
-            (VmSafe.CallerMode callerMode,, address deployer) = vm.readCallers();
-            if (callerMode == VmSafe.CallerMode.Prank) {
+            InitCoreLocalVars memory vars;
+            (vars.callerMode,, vars.deployer) = vm.readCallers();
+            if (vars.callerMode == VmSafe.CallerMode.Prank) {
                 vm.stopPrank();
             }
-            if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
-                vm.startPrank(deployer);
+            if (vars.callerMode != VmSafe.CallerMode.RecurrentPrank) {
+                vm.startPrank(vars.deployer);
             }
-            ISymbioticVaultFactory vaultFactory = ISymbioticVaultFactory(
+            vars.vaultFactory = ISymbioticVaultFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"),
-                    abi.encode(deployer)
+                    abi.encode(vars.deployer)
                 )
             );
-            ISymbioticDelegatorFactory delegatorFactory = ISymbioticDelegatorFactory(
+            vars.delegatorFactory = ISymbioticDelegatorFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                    abi.encode(deployer)
+                    abi.encode(vars.deployer)
                 )
             );
-            ISymbioticSlasherFactory slasherFactory = ISymbioticSlasherFactory(
+            vars.slasherFactory = ISymbioticSlasherFactory(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                    abi.encode(deployer)
+                    abi.encode(vars.deployer)
                 )
             );
-            ISymbioticNetworkRegistry networkRegistry = ISymbioticNetworkRegistry(
+            vars.networkRegistry = ISymbioticNetworkRegistry(
                 deployCode(string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkRegistry.sol/NetworkRegistry.json"))
             );
-            ISymbioticOperatorRegistry operatorRegistry = ISymbioticOperatorRegistry(
+            vars.operatorRegistry = ISymbioticOperatorRegistry(
                 deployCode(string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OperatorRegistry.sol/OperatorRegistry.json"))
             );
-            ISymbioticMetadataService operatorMetadataService = ISymbioticMetadataService(
+            vars.operatorMetadataService = ISymbioticMetadataService(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/MetadataService.sol/MetadataService.json"),
-                    abi.encode(address(operatorRegistry))
+                    abi.encode(address(vars.operatorRegistry))
                 )
             );
-            ISymbioticMetadataService networkMetadataService = ISymbioticMetadataService(
+            vars.networkMetadataService = ISymbioticMetadataService(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/MetadataService.sol/MetadataService.json"),
-                    abi.encode(address(networkRegistry))
+                    abi.encode(address(vars.networkRegistry))
                 )
             );
-            ISymbioticNetworkMiddlewareService networkMiddlewareService = ISymbioticNetworkMiddlewareService(
+            vars.networkMiddlewareService = ISymbioticNetworkMiddlewareService(
                 deployCode(
                     string.concat(
                         SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json"
                     ),
-                    abi.encode(address(networkRegistry))
+                    abi.encode(address(vars.networkRegistry))
                 )
             );
-            ISymbioticOptInService operatorVaultOptInService = ISymbioticOptInService(
+            vars.operatorVaultOptInService = ISymbioticOptInService(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OptInService.sol/OptInService.json"),
-                    abi.encode(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService")
+                    abi.encode(address(vars.operatorRegistry), address(vars.vaultFactory), "OperatorVaultOptInService")
                 )
             );
-            ISymbioticOptInService operatorNetworkOptInService = ISymbioticOptInService(
+            vars.operatorNetworkOptInService = ISymbioticOptInService(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OptInService.sol/OptInService.json"),
-                    abi.encode(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
+                    abi.encode(
+                        address(vars.operatorRegistry), address(vars.networkRegistry), "OperatorNetworkOptInService"
+                    )
                 )
             );
 
-            address vaultImpl = deployCode(
+            vars.vaultImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Vault.sol/Vault.json"),
-                abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
+                abi.encode(address(vars.delegatorFactory), address(vars.slasherFactory), address(vars.vaultFactory))
             );
-            vaultFactory.whitelist(vaultImpl);
+            vars.vaultFactory.whitelist(vars.vaultImpl);
 
-            address vaultTokenizedImpl = deployCode(
+            vars.vaultTokenizedImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultTokenized.sol/VaultTokenized.json"),
-                abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
+                abi.encode(address(vars.delegatorFactory), address(vars.slasherFactory), address(vars.vaultFactory))
             );
-            vaultFactory.whitelist(vaultTokenizedImpl);
+            vars.vaultFactory.whitelist(vars.vaultTokenizedImpl);
 
-            address networkRestakeDelegatorImpl = deployCode(
+            vars.networkRestakeDelegatorImpl = deployCode(
                 string.concat(
                     SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json"
                 ),
                 abi.encode(
-                    address(networkRegistry),
-                    address(vaultFactory),
-                    address(operatorVaultOptInService),
-                    address(operatorNetworkOptInService),
-                    address(delegatorFactory),
-                    delegatorFactory.totalTypes()
+                    address(vars.networkRegistry),
+                    address(vars.vaultFactory),
+                    address(vars.operatorVaultOptInService),
+                    address(vars.operatorNetworkOptInService),
+                    address(vars.delegatorFactory),
+                    vars.delegatorFactory.totalTypes()
                 )
             );
-            delegatorFactory.whitelist(networkRestakeDelegatorImpl);
+            vars.delegatorFactory.whitelist(vars.networkRestakeDelegatorImpl);
 
-            address fullRestakeDelegatorImpl = deployCode(
+            vars.fullRestakeDelegatorImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/FullRestakeDelegator.sol/FullRestakeDelegator.json"),
                 abi.encode(
-                    address(networkRegistry),
-                    address(vaultFactory),
-                    address(operatorVaultOptInService),
-                    address(operatorNetworkOptInService),
-                    address(delegatorFactory),
-                    delegatorFactory.totalTypes()
+                    address(vars.networkRegistry),
+                    address(vars.vaultFactory),
+                    address(vars.operatorVaultOptInService),
+                    address(vars.operatorNetworkOptInService),
+                    address(vars.delegatorFactory),
+                    vars.delegatorFactory.totalTypes()
                 )
             );
-            delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+            vars.delegatorFactory.whitelist(vars.fullRestakeDelegatorImpl);
 
-            address operatorSpecificDelegatorImpl = deployCode(
+            vars.operatorSpecificDelegatorImpl = deployCode(
                 string.concat(
                     SYMBIOTIC_CORE_PROJECT_ROOT, "out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json"
                 ),
                 abi.encode(
-                    address(operatorRegistry),
-                    address(networkRegistry),
-                    address(vaultFactory),
-                    address(operatorVaultOptInService),
-                    address(operatorNetworkOptInService),
-                    address(delegatorFactory),
-                    delegatorFactory.totalTypes()
+                    address(vars.operatorRegistry),
+                    address(vars.networkRegistry),
+                    address(vars.vaultFactory),
+                    address(vars.operatorVaultOptInService),
+                    address(vars.operatorNetworkOptInService),
+                    address(vars.delegatorFactory),
+                    vars.delegatorFactory.totalTypes()
                 )
             );
-            delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+            vars.delegatorFactory.whitelist(vars.operatorSpecificDelegatorImpl);
 
-            address operatorNetworkSpecificDelegatorImpl = deployCode(
+            vars.operatorNetworkSpecificDelegatorImpl = deployCode(
                 string.concat(
                     SYMBIOTIC_CORE_PROJECT_ROOT,
                     "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
                 ),
                 abi.encode(
-                    address(operatorRegistry),
-                    address(networkRegistry),
-                    address(vaultFactory),
-                    address(operatorVaultOptInService),
-                    address(operatorNetworkOptInService),
-                    address(delegatorFactory),
-                    delegatorFactory.totalTypes()
+                    address(vars.operatorRegistry),
+                    address(vars.networkRegistry),
+                    address(vars.vaultFactory),
+                    address(vars.operatorVaultOptInService),
+                    address(vars.operatorNetworkOptInService),
+                    address(vars.delegatorFactory),
+                    vars.delegatorFactory.totalTypes()
                 )
             );
-            delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+            vars.delegatorFactory.whitelist(vars.operatorNetworkSpecificDelegatorImpl);
 
-            address slasherImpl = deployCode(
+            vars.slasherImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
                 abi.encode(
-                    address(vaultFactory),
-                    address(networkMiddlewareService),
-                    address(slasherFactory),
-                    slasherFactory.totalTypes()
+                    address(vars.vaultFactory),
+                    address(vars.networkMiddlewareService),
+                    address(vars.slasherFactory),
+                    vars.slasherFactory.totalTypes()
                 )
             );
-            slasherFactory.whitelist(slasherImpl);
+            vars.slasherFactory.whitelist(vars.slasherImpl);
 
-            address vetoSlasherImpl = deployCode(
+            vars.vetoSlasherImpl = deployCode(
                 string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VetoSlasher.sol/VetoSlasher.json"),
                 abi.encode(
-                    address(vaultFactory),
-                    address(networkMiddlewareService),
-                    address(networkRegistry),
-                    address(slasherFactory),
-                    slasherFactory.totalTypes()
+                    address(vars.vaultFactory),
+                    address(vars.networkMiddlewareService),
+                    address(vars.networkRegistry),
+                    address(vars.slasherFactory),
+                    vars.slasherFactory.totalTypes()
                 )
             );
-            slasherFactory.whitelist(vetoSlasherImpl);
+            vars.slasherFactory.whitelist(vars.vetoSlasherImpl);
 
-            ISymbioticVaultConfigurator vaultConfigurator = ISymbioticVaultConfigurator(
+            vars.vaultConfigurator = ISymbioticVaultConfigurator(
                 deployCode(
                     string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultConfigurator.sol/VaultConfigurator.json"),
-                    abi.encode(address(vaultFactory), address(delegatorFactory), address(slasherFactory))
+                    abi.encode(address(vars.vaultFactory), address(vars.delegatorFactory), address(vars.slasherFactory))
                 )
             );
 
             symbioticCore = SymbioticCoreConstants.Core({
-                vaultFactory: vaultFactory,
-                delegatorFactory: delegatorFactory,
-                slasherFactory: slasherFactory,
-                networkRegistry: networkRegistry,
-                networkMetadataService: networkMetadataService,
-                networkMiddlewareService: networkMiddlewareService,
-                operatorRegistry: operatorRegistry,
-                operatorMetadataService: operatorMetadataService,
-                operatorVaultOptInService: operatorVaultOptInService,
-                operatorNetworkOptInService: operatorNetworkOptInService,
-                vaultConfigurator: vaultConfigurator
+                vaultFactory: vars.vaultFactory,
+                delegatorFactory: vars.delegatorFactory,
+                slasherFactory: vars.slasherFactory,
+                networkRegistry: vars.networkRegistry,
+                networkMetadataService: vars.networkMetadataService,
+                networkMiddlewareService: vars.networkMiddlewareService,
+                operatorRegistry: vars.operatorRegistry,
+                operatorMetadataService: vars.operatorMetadataService,
+                operatorVaultOptInService: vars.operatorVaultOptInService,
+                operatorNetworkOptInService: vars.operatorNetworkOptInService,
+                vaultConfigurator: vars.vaultConfigurator
             });
-            if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
+            if (vars.callerMode != VmSafe.CallerMode.RecurrentPrank) {
                 vm.stopPrank();
             }
         }
@@ -345,162 +401,144 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
     }
 
     function _getVault_SymbioticCore(
-        address owner,
-        address collateral,
-        address burner,
-        uint48 epochDuration,
-        address[] memory whitelistedDepositors,
-        uint256 depositLimit,
-        uint64 delegatorIndex,
-        address hook,
-        address network,
-        bool withSlasher,
-        uint64 slasherIndex,
-        uint48 vetoDuration
-    ) internal virtual returns (address) {
-        bool depositWhitelist = whitelistedDepositors.length != 0;
+        VaultParams memory params
+    ) internal virtual returns (address vault) {
+        GetVaultLocalVars memory vars;
+        vars.depositWhitelist = params.whitelistedDepositors.length != 0;
 
-        bytes memory vaultParams = abi.encode(
+        vars.vaultParams = abi.encode(
             ISymbioticVault.InitParams({
-                collateral: collateral,
-                burner: burner,
-                epochDuration: epochDuration,
-                depositWhitelist: depositWhitelist,
-                isDepositLimit: depositLimit != 0,
-                depositLimit: depositLimit,
-                defaultAdminRoleHolder: owner,
-                depositWhitelistSetRoleHolder: owner,
-                depositorWhitelistRoleHolder: owner,
-                isDepositLimitSetRoleHolder: owner,
-                depositLimitSetRoleHolder: owner
+                collateral: params.collateral,
+                burner: params.burner,
+                epochDuration: params.epochDuration,
+                depositWhitelist: vars.depositWhitelist,
+                isDepositLimit: params.depositLimit != 0,
+                depositLimit: params.depositLimit,
+                defaultAdminRoleHolder: params.owner,
+                depositWhitelistSetRoleHolder: params.owner,
+                depositorWhitelistRoleHolder: params.owner,
+                isDepositLimitSetRoleHolder: params.owner,
+                depositLimitSetRoleHolder: params.owner
             })
         );
 
-        uint256 roleHolders = 1;
-        if (hook != address(0) && hook != owner) {
-            roleHolders = 2;
+        vars.roleHolders = 1;
+        if (params.hook != address(0) && params.hook != params.owner) {
+            vars.roleHolders = 2;
         }
-        address[] memory networkLimitSetRoleHolders = new address[](roleHolders);
-        address[] memory operatorNetworkLimitSetRoleHolders = new address[](roleHolders);
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](roleHolders);
-        networkLimitSetRoleHolders[0] = owner;
-        operatorNetworkLimitSetRoleHolders[0] = owner;
-        operatorNetworkSharesSetRoleHolders[0] = owner;
-        if (roleHolders > 1) {
-            networkLimitSetRoleHolders[1] = hook;
-            operatorNetworkLimitSetRoleHolders[1] = hook;
-            operatorNetworkSharesSetRoleHolders[1] = hook;
+        vars.networkLimitSetRoleHolders = new address[](vars.roleHolders);
+        vars.operatorNetworkLimitSetRoleHolders = new address[](vars.roleHolders);
+        vars.operatorNetworkSharesSetRoleHolders = new address[](vars.roleHolders);
+        vars.networkLimitSetRoleHolders[0] = params.owner;
+        vars.operatorNetworkLimitSetRoleHolders[0] = params.owner;
+        vars.operatorNetworkSharesSetRoleHolders[0] = params.owner;
+        if (vars.roleHolders > 1) {
+            vars.networkLimitSetRoleHolders[1] = params.hook;
+            vars.operatorNetworkLimitSetRoleHolders[1] = params.hook;
+            vars.operatorNetworkSharesSetRoleHolders[1] = params.hook;
         }
 
-        bytes memory delegatorParams;
-        if (delegatorIndex == 0) {
-            delegatorParams = abi.encode(
+        if (params.delegatorIndex == 0) {
+            vars.delegatorParams = abi.encode(
                 ISymbioticNetworkRestakeDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: owner,
-                        hook: hook,
-                        hookSetRoleHolder: owner
+                        defaultAdminRoleHolder: params.owner,
+                        hook: params.hook,
+                        hookSetRoleHolder: params.owner
                     }),
-                    networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                    operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                    networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
+                    operatorNetworkSharesSetRoleHolders: vars.operatorNetworkSharesSetRoleHolders
                 })
             );
-        } else if (delegatorIndex == 1) {
-            delegatorParams = abi.encode(
+        } else if (params.delegatorIndex == 1) {
+            vars.delegatorParams = abi.encode(
                 ISymbioticFullRestakeDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: owner,
-                        hook: hook,
-                        hookSetRoleHolder: owner
+                        defaultAdminRoleHolder: params.owner,
+                        hook: params.hook,
+                        hookSetRoleHolder: params.owner
                     }),
-                    networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                    operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
+                    networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
+                    operatorNetworkLimitSetRoleHolders: vars.operatorNetworkLimitSetRoleHolders
                 })
             );
-        } else if (delegatorIndex == 2) {
-            delegatorParams = abi.encode(
+        } else if (params.delegatorIndex == 2) {
+            vars.delegatorParams = abi.encode(
                 ISymbioticOperatorSpecificDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: owner,
-                        hook: hook,
-                        hookSetRoleHolder: owner
+                        defaultAdminRoleHolder: params.owner,
+                        hook: params.hook,
+                        hookSetRoleHolder: params.owner
                     }),
-                    networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                    operator: owner
+                    networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
+                    operator: params.owner
                 })
             );
-        } else if (delegatorIndex == 3) {
-            delegatorParams = abi.encode(
+        } else if (params.delegatorIndex == 3) {
+            vars.delegatorParams = abi.encode(
                 ISymbioticOperatorNetworkSpecificDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: owner,
-                        hook: hook,
-                        hookSetRoleHolder: owner
+                        defaultAdminRoleHolder: params.owner,
+                        hook: params.hook,
+                        hookSetRoleHolder: params.owner
                     }),
-                    network: network,
-                    operator: owner
+                    network: params.network,
+                    operator: params.owner
                 })
             );
         }
 
-        bytes memory slasherParams;
-        if (slasherIndex == 0) {
-            slasherParams = abi.encode(
+        if (params.slasherIndex == 0) {
+            vars.slasherParams = abi.encode(
                 ISymbioticSlasher.InitParams({
-                    baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: burner != address(0)})
+                    baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: params.burner != address(0)})
                 })
             );
-        } else if (slasherIndex == 1) {
-            slasherParams = abi.encode(
+        } else if (params.slasherIndex == 1) {
+            vars.slasherParams = abi.encode(
                 ISymbioticVetoSlasher.InitParams({
-                    baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: burner != address(0)}),
-                    vetoDuration: vetoDuration,
+                    baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: params.burner != address(0)}),
+                    vetoDuration: params.vetoDuration,
                     resolverSetEpochsDelay: 3
                 })
             );
         }
 
-        (Vm.CallerMode callerMode,, address deployer) = vm.readCallers();
-        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
+        (vars.callerMode,, vars.deployer) = vm.readCallers();
+        if (vars.callerMode == VmSafe.CallerMode.Prank || vars.callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.stopPrank();
         }
-        (address vault,,) = _createVault_SymbioticCore({
+        (vars.vault,,) = _createVault_SymbioticCore({
             symbioticCore: symbioticCore,
-            who: deployer,
+            who: vars.deployer,
             version: 1,
-            owner: owner,
-            vaultParams: vaultParams,
-            delegatorIndex: delegatorIndex,
-            delegatorParams: delegatorParams,
-            withSlasher: withSlasher,
-            slasherIndex: slasherIndex,
-            slasherParams: slasherParams
+            owner: params.owner,
+            vaultParams: vars.vaultParams,
+            delegatorIndex: params.delegatorIndex,
+            delegatorParams: vars.delegatorParams,
+            withSlasher: params.withSlasher,
+            slasherIndex: params.slasherIndex,
+            slasherParams: vars.slasherParams
         });
 
-        if (depositWhitelist) {
-            for (uint256 i; i < whitelistedDepositors.length; ++i) {
-                _setDepositorWhitelistStatus_SymbioticCore(owner, vault, whitelistedDepositors[i], true);
+        if (vars.depositWhitelist) {
+            for (uint256 i; i < params.whitelistedDepositors.length; ++i) {
+                _setDepositorWhitelistStatus_SymbioticCore(
+                    params.owner, vars.vault, params.whitelistedDepositors[i], true
+                );
             }
         }
-        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
-            vm.startPrank(owner);
+        if (vars.callerMode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.startPrank(params.owner);
         }
 
-        return vault;
+        return vars.vault;
     }
 
     function _getVaultRandom_SymbioticCore(
         address[] memory operators,
         address collateral
     ) internal virtual returns (address) {
-        uint48 epochDuration =
-            uint48(_randomWithBounds_Symbiotic(SYMBIOTIC_CORE_MIN_EPOCH_DURATION, SYMBIOTIC_CORE_MAX_EPOCH_DURATION));
-        uint48 vetoDuration = uint48(
-            _randomWithBounds_Symbiotic(
-                SYMBIOTIC_CORE_MIN_VETO_DURATION, Math.min(SYMBIOTIC_CORE_MAX_VETO_DURATION, epochDuration / 2)
-            )
-        );
-
         uint256 count_ = 0;
         uint64[] memory delegatorTypes = new uint64[](SYMBIOTIC_CORE_DELEGATOR_TYPES.length);
         for (uint64 i; i < SYMBIOTIC_CORE_DELEGATOR_TYPES.length; ++i) {
@@ -536,19 +574,27 @@ contract SymbioticCoreInit is SymbioticInit, SymbioticCoreBindings {
         if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.stopPrank();
         }
+
+        uint48 epochDuration =
+            uint48(_randomWithBounds_Symbiotic(SYMBIOTIC_CORE_MIN_EPOCH_DURATION, SYMBIOTIC_CORE_MAX_EPOCH_DURATION));
+
         address vault = _getVault_SymbioticCore(
-            operators.length == 0 ? deployer : _randomPick_Symbiotic(operators),
-            collateral,
-            0x000000000000000000000000000000000000dEaD,
-            epochDuration,
-            new address[](0),
-            0,
-            delegatorIndex,
-            address(0),
-            address(0),
-            true,
-            slasherIndex,
-            vetoDuration
+            VaultParams({
+                owner: operators.length == 0 ? deployer : _randomPick_Symbiotic(operators),
+                collateral: collateral,
+                burner: 0x000000000000000000000000000000000000dEaD,
+                epochDuration: epochDuration,
+                whitelistedDepositors: new address[](0),
+                depositLimit: 0,
+                delegatorIndex: delegatorIndex,
+                hook: address(0),
+                network: address(0),
+                withSlasher: true,
+                slasherIndex: slasherIndex,
+                vetoDuration: uint48(
+                    _randomWithBounds_Symbiotic(SYMBIOTIC_CORE_MIN_VETO_DURATION, SYMBIOTIC_CORE_MAX_VETO_DURATION)
+                )
+            })
         );
         if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
             vm.startPrank(deployer);
