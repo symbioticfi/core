@@ -189,133 +189,168 @@ contract DeployVaultBase is Script, Logs {
     }
 
     function _validateOwnershipTransfer(address vault, address delegator, DeployVaultParams memory params) internal {
-        (,, address oldAdmin) = vm.readCallers();
+        (,, address deployer) = vm.readCallers();
         // Validate vault role transfers
-        assert(Vault(vault).hasRole(DEFAULT_ADMIN_ROLE, params.owner) == true);
-        assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_LIMIT_SET_ROLE(), params.owner) == true);
-        assert(Vault(vault).hasRole(Vault(vault).IS_DEPOSIT_LIMIT_SET_ROLE(), params.owner) == true);
-        assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_WHITELIST_SET_ROLE(), params.owner) == true);
-        assert(Vault(vault).hasRole(Vault(vault).DEPOSITOR_WHITELIST_ROLE(), params.owner) == true);
         assert(Vault(vault).owner() == params.owner);
-
-        if (oldAdmin != params.owner) {
-            assert(Vault(vault).hasRole(DEFAULT_ADMIN_ROLE, oldAdmin) == false);
-            assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_LIMIT_SET_ROLE(), oldAdmin) == false);
-            assert(Vault(vault).hasRole(Vault(vault).IS_DEPOSIT_LIMIT_SET_ROLE(), oldAdmin) == false);
-            assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_WHITELIST_SET_ROLE(), oldAdmin) == false);
-            assert(Vault(vault).hasRole(Vault(vault).DEPOSITOR_WHITELIST_ROLE(), oldAdmin) == false);
+        if (params.vaultParams.baseParams.defaultAdminRoleHolder != address(0)) {
+            assert(
+                Vault(vault).hasRole(DEFAULT_ADMIN_ROLE, params.vaultParams.baseParams.defaultAdminRoleHolder) == true
+            );
+        }
+        if (params.vaultParams.baseParams.depositLimitSetRoleHolder != address(0)) {
+            assert(
+                Vault(vault).hasRole(
+                    Vault(vault).DEPOSIT_LIMIT_SET_ROLE(), params.vaultParams.baseParams.depositLimitSetRoleHolder
+                ) == true
+            );
+        }
+        if (params.vaultParams.baseParams.isDepositLimitSetRoleHolder != address(0)) {
+            assert(
+                Vault(vault).hasRole(
+                    Vault(vault).IS_DEPOSIT_LIMIT_SET_ROLE(), params.vaultParams.baseParams.isDepositLimitSetRoleHolder
+                ) == true
+            );
+        }
+        if (params.vaultParams.baseParams.depositWhitelistSetRoleHolder != address(0)) {
+            assert(
+                Vault(vault).hasRole(
+                    Vault(vault).DEPOSIT_WHITELIST_SET_ROLE(),
+                    params.vaultParams.baseParams.depositWhitelistSetRoleHolder
+                ) == true
+            );
+        }
+        if (params.vaultParams.baseParams.depositorWhitelistRoleHolder != address(0)) {
+            assert(
+                Vault(vault).hasRole(
+                    Vault(vault).DEPOSITOR_WHITELIST_ROLE(), params.vaultParams.baseParams.depositorWhitelistRoleHolder
+                ) == true
+            );
+        }
+        if (deployer != params.vaultParams.baseParams.defaultAdminRoleHolder) {
+            assert(Vault(vault).hasRole(DEFAULT_ADMIN_ROLE, deployer) == false);
+        }
+        if (deployer != params.vaultParams.baseParams.depositLimitSetRoleHolder) {
+            assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_LIMIT_SET_ROLE(), deployer) == false);
+        }
+        if (deployer != params.vaultParams.baseParams.isDepositLimitSetRoleHolder) {
+            assert(Vault(vault).hasRole(Vault(vault).IS_DEPOSIT_LIMIT_SET_ROLE(), deployer) == false);
+        }
+        if (deployer != params.vaultParams.baseParams.depositWhitelistSetRoleHolder) {
+            assert(Vault(vault).hasRole(Vault(vault).DEPOSIT_WHITELIST_SET_ROLE(), deployer) == false);
+        }
+        if (deployer != params.vaultParams.baseParams.depositorWhitelistRoleHolder) {
+            assert(Vault(vault).hasRole(Vault(vault).DEPOSITOR_WHITELIST_ROLE(), deployer) == false);
         }
 
         // Validate delegator role transfers based on delegator type
         if (params.delegatorIndex == 0) {
-            assert(NetworkRestakeDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, params.owner) == true);
-            assert(
-                NetworkRestakeDelegator(delegator).hasRole(
-                    NetworkRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), params.owner
-                ) == true
-            );
-            assert(
-                NetworkRestakeDelegator(delegator).hasRole(
-                    NetworkRestakeDelegator(delegator).OPERATOR_NETWORK_SHARES_SET_ROLE(), params.owner
-                ) == true
-            );
-            assert(
-                NetworkRestakeDelegator(delegator).hasRole(
-                    NetworkRestakeDelegator(delegator).HOOK_SET_ROLE(), params.owner
-                ) == true
-            );
-
-            if (oldAdmin != params.owner) {
-                assert(NetworkRestakeDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, oldAdmin) == false);
+            if (params.delegatorParams.baseParams.defaultAdminRoleHolder != address(0)) {
                 assert(
                     NetworkRestakeDelegator(delegator).hasRole(
-                        NetworkRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), oldAdmin
-                    ) == false
+                        DEFAULT_ADMIN_ROLE, params.delegatorParams.baseParams.defaultAdminRoleHolder
+                    ) == true
                 );
+            }
+            for (uint256 i; i < params.delegatorParams.networkAllocationSettersOrNetwork.length; ++i) {
                 assert(
                     NetworkRestakeDelegator(delegator).hasRole(
-                        NetworkRestakeDelegator(delegator).OPERATOR_NETWORK_SHARES_SET_ROLE(), oldAdmin
-                    ) == false
+                        NetworkRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(),
+                        params.delegatorParams.networkAllocationSettersOrNetwork[i]
+                    ) == true
                 );
+            }
+            for (uint256 i; i < params.delegatorParams.operatorAllocationSettersOrOperator.length; ++i) {
                 assert(
                     NetworkRestakeDelegator(delegator).hasRole(
-                        NetworkRestakeDelegator(delegator).HOOK_SET_ROLE(), oldAdmin
-                    ) == false
+                        NetworkRestakeDelegator(delegator).OPERATOR_NETWORK_SHARES_SET_ROLE(),
+                        params.delegatorParams.operatorAllocationSettersOrOperator[i]
+                    ) == true
+                );
+            }
+            if (params.delegatorParams.baseParams.hookSetRoleHolder != address(0)) {
+                assert(
+                    NetworkRestakeDelegator(delegator).hasRole(
+                        NetworkRestakeDelegator(delegator).HOOK_SET_ROLE(),
+                        params.delegatorParams.baseParams.hookSetRoleHolder
+                    ) == true
                 );
             }
         } else if (params.delegatorIndex == 1) {
-            assert(FullRestakeDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, params.owner) == true);
-            assert(
-                FullRestakeDelegator(delegator).hasRole(
-                    FullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), params.owner
-                ) == true
-            );
-            assert(
-                FullRestakeDelegator(delegator).hasRole(
-                    FullRestakeDelegator(delegator).OPERATOR_NETWORK_LIMIT_SET_ROLE(), params.owner
-                ) == true
-            );
-            assert(
-                FullRestakeDelegator(delegator).hasRole(FullRestakeDelegator(delegator).HOOK_SET_ROLE(), params.owner)
-                    == false
-            );
-            if (oldAdmin != params.owner) {
-                assert(FullRestakeDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, oldAdmin) == false);
+            if (params.delegatorParams.baseParams.defaultAdminRoleHolder != address(0)) {
                 assert(
                     FullRestakeDelegator(delegator).hasRole(
-                        FullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), oldAdmin
-                    ) == false
+                        DEFAULT_ADMIN_ROLE, params.delegatorParams.baseParams.defaultAdminRoleHolder
+                    ) == true
                 );
+            }
+            for (uint256 i; i < params.delegatorParams.networkAllocationSettersOrNetwork.length; ++i) {
                 assert(
                     FullRestakeDelegator(delegator).hasRole(
-                        FullRestakeDelegator(delegator).OPERATOR_NETWORK_LIMIT_SET_ROLE(), oldAdmin
-                    ) == false
+                        FullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(),
+                        params.delegatorParams.networkAllocationSettersOrNetwork[i]
+                    ) == true
                 );
+            }
+            for (uint256 i; i < params.delegatorParams.operatorAllocationSettersOrOperator.length; ++i) {
                 assert(
-                    FullRestakeDelegator(delegator).hasRole(FullRestakeDelegator(delegator).HOOK_SET_ROLE(), oldAdmin)
-                        == false
+                    FullRestakeDelegator(delegator).hasRole(
+                        FullRestakeDelegator(delegator).OPERATOR_NETWORK_LIMIT_SET_ROLE(),
+                        params.delegatorParams.operatorAllocationSettersOrOperator[i]
+                    ) == true
+                );
+            }
+            if (params.delegatorParams.baseParams.hookSetRoleHolder != address(0)) {
+                assert(
+                    FullRestakeDelegator(delegator).hasRole(
+                        FullRestakeDelegator(delegator).HOOK_SET_ROLE(),
+                        params.delegatorParams.baseParams.hookSetRoleHolder
+                    ) == true
                 );
             }
         } else if (params.delegatorIndex == 2) {
-            assert(OperatorSpecificDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, params.owner) == true);
-            assert(
-                OperatorSpecificDelegator(delegator).hasRole(
-                    OperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), params.owner
-                ) == true
-            );
-            assert(
-                OperatorSpecificDelegator(delegator).hasRole(
-                    OperatorSpecificDelegator(delegator).HOOK_SET_ROLE(), params.owner
-                ) == false
-            );
-            if (oldAdmin != params.owner) {
-                assert(OperatorSpecificDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, oldAdmin) == false);
+            if (params.delegatorParams.baseParams.defaultAdminRoleHolder != address(0)) {
                 assert(
                     OperatorSpecificDelegator(delegator).hasRole(
-                        OperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), oldAdmin
-                    ) == false
-                );
-                assert(
-                    OperatorSpecificDelegator(delegator).hasRole(
-                        OperatorSpecificDelegator(delegator).HOOK_SET_ROLE(), oldAdmin
-                    ) == false
+                        DEFAULT_ADMIN_ROLE, params.delegatorParams.baseParams.defaultAdminRoleHolder
+                    ) == true
                 );
             }
-        } else if (params.delegatorIndex == 3) {
-            assert(OperatorNetworkSpecificDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, params.owner) == true);
+            if (params.delegatorParams.baseParams.hookSetRoleHolder != address(0)) {
+                assert(
+                    OperatorSpecificDelegator(delegator).hasRole(
+                        OperatorSpecificDelegator(delegator).HOOK_SET_ROLE(),
+                        params.delegatorParams.baseParams.hookSetRoleHolder
+                    ) == true
+                );
+            }
             assert(
-                OperatorNetworkSpecificDelegator(delegator).hasRole(
-                    OperatorNetworkSpecificDelegator(delegator).HOOK_SET_ROLE(), params.owner
-                ) == false
+                OperatorSpecificDelegator(delegator).operator()
+                    == params.delegatorParams.operatorAllocationSettersOrOperator[0]
             );
-            if (oldAdmin != params.owner) {
-                assert(OperatorNetworkSpecificDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, oldAdmin) == false);
+        } else if (params.delegatorIndex == 3) {
+            if (params.delegatorParams.baseParams.defaultAdminRoleHolder != address(0)) {
                 assert(
                     OperatorNetworkSpecificDelegator(delegator).hasRole(
-                        OperatorNetworkSpecificDelegator(delegator).HOOK_SET_ROLE(), oldAdmin
-                    ) == false
+                        DEFAULT_ADMIN_ROLE, params.delegatorParams.baseParams.defaultAdminRoleHolder
+                    ) == true
                 );
             }
+            if (params.delegatorParams.baseParams.hookSetRoleHolder != address(0)) {
+                assert(
+                    OperatorNetworkSpecificDelegator(delegator).hasRole(
+                        OperatorNetworkSpecificDelegator(delegator).HOOK_SET_ROLE(),
+                        params.delegatorParams.baseParams.hookSetRoleHolder
+                    ) == true
+                );
+            }
+            assert(
+                OperatorNetworkSpecificDelegator(delegator).network()
+                    == params.delegatorParams.networkAllocationSettersOrNetwork[0]
+            );
+            assert(
+                OperatorNetworkSpecificDelegator(delegator).operator()
+                    == params.delegatorParams.operatorAllocationSettersOrOperator[0]
+            );
         }
     }
 }
