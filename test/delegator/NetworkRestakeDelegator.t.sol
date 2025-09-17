@@ -1194,6 +1194,25 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkShares(alice.subnetwork(0), bob), operatorNetworkShares2);
     }
 
+
+    struct SlashWithHookLocalVariables {
+        uint256 depositAmount;
+        uint256 operatorNetworkShares1;
+        uint256 slashAmount1;
+        uint256 slashAmount2;
+        uint256 totalGas;
+        uint256 blockTimestamp;
+        address hook;
+        address[] networkLimitSetRoleHolders;
+        address[] operatorNetworkSharesSetRoleHolders;
+        address vault_;
+        address delegator_;
+        address slasher_;
+        address network;
+        uint256 hookGasLimit;
+        bool success;
+    }
+
     function test_SlashWithHookBase(
         // uint48 epochDuration,
         uint256 depositAmount,
@@ -1202,25 +1221,30 @@ contract NetworkRestakeDelegatorTest is Test {
         uint256 slashAmount1,
         uint256 slashAmount2
     ) public {
+        SlashWithHookLocalVariables memory vars;
+
         // epochDuration = uint48(bound(epochDuration, 1, 10 days));
-        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        vars.depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
         // networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
-        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
-        slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
-        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkShares1)));
+        vars.operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
+        vars.slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        vars.slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
+        vm.assume(
+            vars.slashAmount1
+                < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkShares1))
+        );
 
-        uint256 blockTimestamp = vm.getBlockTimestamp();
-        blockTimestamp = blockTimestamp + 1_720_700_948;
-        vm.warp(blockTimestamp);
+        vars.blockTimestamp = vm.getBlockTimestamp();
+        vars.blockTimestamp = vars.blockTimestamp + 1_720_700_948;
+        vm.warp(vars.blockTimestamp);
 
-        address hook = address(new SimpleNetworkRestakeDelegatorHook());
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](2);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        operatorNetworkSharesSetRoleHolders[1] = hook;
-        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+        vars.hook = address(new SimpleNetworkRestakeDelegatorHook());
+        vars.networkLimitSetRoleHolders = new address[](1);
+        vars.networkLimitSetRoleHolders[0] = alice;
+        vars.operatorNetworkSharesSetRoleHolders = new address[](2);
+        vars.operatorNetworkSharesSetRoleHolders[0] = alice;
+        vars.operatorNetworkSharesSetRoleHolders[1] = vars.hook;
+        (vars.vault_, vars.delegator_, vars.slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
@@ -1244,11 +1268,11 @@ contract NetworkRestakeDelegatorTest is Test {
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
                             defaultAdminRoleHolder: alice,
-                            hook: hook,
+                            hook: vars.hook,
                             hookSetRoleHolder: address(0)
                         }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                        networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: vars.operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: true,
@@ -1257,44 +1281,44 @@ contract NetworkRestakeDelegatorTest is Test {
             })
         );
 
-        vault = Vault(vault_);
-        delegator = NetworkRestakeDelegator(delegator_);
-        slasher = Slasher(slasher_);
+        vault = Vault(vars.vault_);
+        delegator = NetworkRestakeDelegator(vars.delegator_);
+        slasher = Slasher(vars.slasher_);
 
-        address network = alice;
-        _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, 0, type(uint256).max);
+        vars.network = alice;
+        _registerNetwork(vars.network, alice);
+        _setMaxNetworkLimit(vars.network, 0, type(uint256).max);
 
         _registerOperator(alice);
 
         _optInOperatorVault(alice);
 
-        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(alice, address(vars.network));
 
-        _deposit(alice, depositAmount);
+        _deposit(alice, vars.depositAmount);
 
-        _setNetworkLimit(alice, network, type(uint256).max);
+        _setNetworkLimit(alice, vars.network, type(uint256).max);
 
-        _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1);
+        _setOperatorNetworkShares(alice, vars.network, alice, vars.operatorNetworkShares1);
 
-        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), operatorNetworkShares1);
-        assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), operatorNetworkShares1);
+        assertEq(delegator.networkLimit(vars.network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.totalOperatorNetworkShares(vars.network.subnetwork(0)), vars.operatorNetworkShares1);
+        assertEq(delegator.operatorNetworkShares(vars.network.subnetwork(0), alice), vars.operatorNetworkShares1);
 
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
+        vars.blockTimestamp = vars.blockTimestamp + 1;
+        vm.warp(vars.blockTimestamp);
 
-        SimpleNetworkRestakeDelegatorHook(hook).setData(
+        SimpleNetworkRestakeDelegatorHook(vars.hook).setData(
             0,
-            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            slasher.slashableStake(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
+            delegator.stakeAt(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
             0
         );
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+        _slash(alice, vars.network, alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), "");
 
-        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), operatorNetworkShares1);
-        assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), operatorNetworkShares1);
+        assertEq(delegator.networkLimit(vars.network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.totalOperatorNetworkShares(vars.network.subnetwork(0)), vars.operatorNetworkShares1);
+        assertEq(delegator.operatorNetworkShares(vars.network.subnetwork(0), alice), vars.operatorNetworkShares1);
 
         bytes memory hints = abi.encode(
             ISlasher.SlashHints({
@@ -1320,17 +1344,17 @@ contract NetworkRestakeDelegatorTest is Test {
             })
         );
 
-        SimpleNetworkRestakeDelegatorHook(hook).setData(
+        SimpleNetworkRestakeDelegatorHook(vars.hook).setData(
             0,
-            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            slasher.slashableStake(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
+            delegator.stakeAt(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
             0
         );
-        _slash(alice, network, alice, slashAmount2, uint48(blockTimestamp - 1), hints);
+        _slash(alice, vars.network, alice, vars.slashAmount2, uint48(vars.blockTimestamp - 1), hints);
 
-        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), 0);
-        assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), 0);
+        assertEq(delegator.networkLimit(vars.network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.totalOperatorNetworkShares(vars.network.subnetwork(0)), 0);
+        assertEq(delegator.operatorNetworkShares(vars.network.subnetwork(0), alice), 0);
     }
 
     function test_SlashWithHookGas(
@@ -1341,25 +1365,30 @@ contract NetworkRestakeDelegatorTest is Test {
         uint256 slashAmount1,
         uint256 totalGas
     ) public {
+        SlashWithHookLocalVariables memory vars;
+
         // epochDuration = uint48(bound(epochDuration, 1, 10 days));
-        depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
+        vars.depositAmount = bound(depositAmount, 1, 100 * 10 ** 18);
         // networkLimit = bound(networkLimit, 1, type(uint256).max);
-        operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
-        slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
-        totalGas = bound(totalGas, 1, 20_000_000);
-        vm.assume(slashAmount1 < Math.min(depositAmount, Math.min(type(uint256).max, operatorNetworkShares1)));
+        vars.operatorNetworkShares1 = bound(operatorNetworkShares1, 1, type(uint256).max / 2);
+        vars.slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
+        vars.totalGas = bound(totalGas, 1, 20_000_000);
+        vm.assume(
+            vars.slashAmount1
+                < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkShares1))
+        );
 
-        uint256 blockTimestamp = vm.getBlockTimestamp();
-        blockTimestamp = blockTimestamp + 1_720_700_948;
-        vm.warp(blockTimestamp);
+        vars.blockTimestamp = vm.getBlockTimestamp();
+        vars.blockTimestamp = vars.blockTimestamp + 1_720_700_948;
+        vm.warp(vars.blockTimestamp);
 
-        address hook = address(new SimpleNetworkRestakeDelegatorHook());
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](2);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-        operatorNetworkSharesSetRoleHolders[1] = hook;
-        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+        vars.hook = address(new SimpleNetworkRestakeDelegatorHook());
+        vars.networkLimitSetRoleHolders = new address[](1);
+        vars.networkLimitSetRoleHolders[0] = alice;
+        vars.operatorNetworkSharesSetRoleHolders = new address[](2);
+        vars.operatorNetworkSharesSetRoleHolders[0] = alice;
+        vars.operatorNetworkSharesSetRoleHolders[1] = vars.hook;
+        (vars.vault_, vars.delegator_, vars.slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: alice,
@@ -1383,11 +1412,11 @@ contract NetworkRestakeDelegatorTest is Test {
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
                             defaultAdminRoleHolder: alice,
-                            hook: hook,
+                            hook: vars.hook,
                             hookSetRoleHolder: address(0)
                         }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                        networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: vars.operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: true,
@@ -1396,65 +1425,71 @@ contract NetworkRestakeDelegatorTest is Test {
             })
         );
 
-        vault = Vault(vault_);
-        delegator = NetworkRestakeDelegator(delegator_);
-        slasher = Slasher(slasher_);
+        vault = Vault(vars.vault_);
+        delegator = NetworkRestakeDelegator(vars.delegator_);
+        slasher = Slasher(vars.slasher_);
 
-        address network = alice;
-        _registerNetwork(network, alice);
-        _setMaxNetworkLimit(network, 0, type(uint256).max);
+        vars.network = alice;
+        _registerNetwork(vars.network, alice);
+        _setMaxNetworkLimit(vars.network, 0, type(uint256).max);
 
         _registerOperator(alice);
 
         _optInOperatorVault(alice);
 
-        _optInOperatorNetwork(alice, address(network));
+        _optInOperatorNetwork(alice, address(vars.network));
 
-        _deposit(alice, depositAmount);
+        _deposit(alice, vars.depositAmount);
 
-        _setNetworkLimit(alice, network, type(uint256).max);
+        _setNetworkLimit(alice, vars.network, type(uint256).max);
 
-        _setOperatorNetworkShares(alice, network, alice, operatorNetworkShares1);
+        _setOperatorNetworkShares(alice, vars.network, alice, vars.operatorNetworkShares1);
 
-        assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
-        assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), operatorNetworkShares1);
-        assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), operatorNetworkShares1);
+        assertEq(delegator.networkLimit(vars.network.subnetwork(0)), type(uint256).max);
+        assertEq(delegator.totalOperatorNetworkShares(vars.network.subnetwork(0)), vars.operatorNetworkShares1);
+        assertEq(delegator.operatorNetworkShares(vars.network.subnetwork(0), alice), vars.operatorNetworkShares1);
 
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
+        vars.blockTimestamp = vars.blockTimestamp + 1;
+        vm.warp(vars.blockTimestamp);
 
-        SimpleNetworkRestakeDelegatorHook(hook).setData(
+        SimpleNetworkRestakeDelegatorHook(vars.hook).setData(
             0,
-            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            slasher.slashableStake(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
+            delegator.stakeAt(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
             0
         );
-        _slash(alice, network, alice, slashAmount1, uint48(blockTimestamp - 1), "");
+        _slash(alice, vars.network, alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), "");
 
         vm.startPrank(alice);
-        uint256 HOOK_GAS_LIMIT = delegator.HOOK_GAS_LIMIT();
+        vars.hookGasLimit = delegator.HOOK_GAS_LIMIT();
         vm.expectRevert(IBaseDelegator.InsufficientHookGas.selector);
-        address(slasher).call{gas: HOOK_GAS_LIMIT}(
-            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
+        address(slasher).call{gas: vars.hookGasLimit}(
+            abi.encodeCall(
+                ISlasher.slash,
+                (vars.network.subnetwork(0), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), "")
+            )
         );
         vm.stopPrank();
 
-        SimpleNetworkRestakeDelegatorHook(hook).setData(
+        SimpleNetworkRestakeDelegatorHook(vars.hook).setData(
             0,
-            slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
-            delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
+            slasher.slashableStake(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
+            delegator.stakeAt(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), ""),
             0
         );
         vm.startPrank(alice);
-        (bool success,) = address(slasher).call{gas: totalGas}(
-            abi.encodeCall(ISlasher.slash, (network.subnetwork(0), alice, slashAmount1, uint48(blockTimestamp - 1), ""))
+        (vars.success,) = address(slasher).call{gas: vars.totalGas}(
+            abi.encodeCall(
+                ISlasher.slash,
+                (vars.network.subnetwork(0), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), "")
+            )
         );
         vm.stopPrank();
 
-        if (success) {
-            assertEq(delegator.networkLimit(network.subnetwork(0)), type(uint256).max);
-            assertEq(delegator.totalOperatorNetworkShares(network.subnetwork(0)), 0);
-            assertEq(delegator.operatorNetworkShares(network.subnetwork(0), alice), 0);
+        if (vars.success) {
+            assertEq(delegator.networkLimit(vars.network.subnetwork(0)), type(uint256).max);
+            assertEq(delegator.totalOperatorNetworkShares(vars.network.subnetwork(0)), 0);
+            assertEq(delegator.operatorNetworkShares(vars.network.subnetwork(0), alice), 0);
         }
     }
 

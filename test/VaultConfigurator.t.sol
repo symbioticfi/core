@@ -32,6 +32,14 @@ import {ISlasher} from "../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../src/interfaces/slasher/IBaseSlasher.sol";
 
 contract VaultConfiguratorTest is Test {
+    struct LocalVariables {
+        address[] networkLimitSetRoleHolders;
+        address[] operatorNetworkSharesSetRoleHolders;
+        address vault;
+        address networkRestakeDelegator;
+        address slasher;
+    }
+
     address owner;
     address alice;
     uint256 alicePrivateKey;
@@ -168,11 +176,13 @@ contract VaultConfiguratorTest is Test {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         vm.assume(owner_ != address(0));
 
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = address(106);
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = address(107);
-        (address vault_, address networkRestakeDelegator_, address slasher_) = vaultConfigurator.create(
+        LocalVariables memory vars;
+        vars.networkLimitSetRoleHolders = new address[](1);
+        vars.networkLimitSetRoleHolders[0] = address(106);
+        vars.operatorNetworkSharesSetRoleHolders = new address[](1);
+        vars.operatorNetworkSharesSetRoleHolders[0] = address(107);
+
+        (vars.vault, vars.networkRestakeDelegator, vars.slasher) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
                 owner: owner_,
@@ -199,8 +209,8 @@ contract VaultConfiguratorTest is Test {
                             hook: hook,
                             hookSetRoleHolder: address(105)
                         }),
-                        networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                        operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                        networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
+                        operatorNetworkSharesSetRoleHolders: vars.operatorNetworkSharesSetRoleHolders
                     })
                 ),
                 withSlasher: withSlasher,
@@ -209,14 +219,14 @@ contract VaultConfiguratorTest is Test {
             })
         );
 
-        vault = Vault(vault_);
-        networkRestakeDelegator = NetworkRestakeDelegator(networkRestakeDelegator_);
-        slasher = Slasher(slasher_);
+        vault = Vault(vars.vault);
+        networkRestakeDelegator = NetworkRestakeDelegator(vars.networkRestakeDelegator);
+        slasher = Slasher(vars.slasher);
 
         assertEq(vault.owner(), owner_);
         assertEq(vault.collateral(), address(collateral));
-        assertEq(vault.delegator(), networkRestakeDelegator_);
-        assertEq(vault.slasher(), withSlasher ? slasher_ : address(0));
+        assertEq(vault.delegator(), vars.networkRestakeDelegator);
+        assertEq(vault.slasher(), withSlasher ? vars.slasher : address(0));
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
@@ -228,7 +238,7 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.hasRole(vault.IS_DEPOSIT_LIMIT_SET_ROLE(), address(102)), true);
         assertEq(vault.hasRole(vault.DEPOSIT_LIMIT_SET_ROLE(), address(103)), true);
 
-        assertEq(networkRestakeDelegator.vault(), vault_);
+        assertEq(networkRestakeDelegator.vault(), vars.vault);
         assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.DEFAULT_ADMIN_ROLE(), address(104)), true);
         assertEq(networkRestakeDelegator.hook(), hook);
         assertEq(networkRestakeDelegator.hasRole(networkRestakeDelegator.HOOK_SET_ROLE(), address(105)), true);
@@ -239,7 +249,7 @@ contract VaultConfiguratorTest is Test {
         );
 
         if (withSlasher) {
-            assertEq(slasher.vault(), vault_);
+            assertEq(slasher.vault(), vars.vault);
         }
 
         assertEq(vault.isInitialized(), true);
