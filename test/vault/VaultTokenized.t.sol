@@ -337,9 +337,7 @@ contract VaultTokenizedTest is Test {
         assertEq(vault.epochAt(uint48(vars.blockTimestamp + 1)), 2);
         assertEq(vault.currentEpoch(), 1);
         assertEq(vault.currentEpochStart(), vars.blockTimestamp - (vault.epochDuration() - 1));
-        assertEq(
-            vault.previousEpochStart(), vars.blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration()
-        );
+        assertEq(vault.previousEpochStart(), vars.blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
         assertEq(vault.nextEpochStart(), vars.blockTimestamp + 1);
 
         // Test ERC20 functionality

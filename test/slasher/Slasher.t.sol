@@ -517,9 +517,7 @@ contract SlasherTest is Test {
                 vars.slashAmount1,
                 delegator.stakeAt(vars.network.subnetwork(0), alice, uint48(vars.blockTimestamp - 1), "")
             ),
-            slasher.slash(
-                vars.network.subnetwork(0), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), ""
-            )
+            slasher.slash(vars.network.subnetwork(0), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), "")
         );
         vm.stopPrank();
 
@@ -614,9 +612,7 @@ contract SlasherTest is Test {
         vm.startPrank(alice);
         assertEq(
             vars.slashAmountReal3,
-            slasher.slash(
-                vars.network.subnetwork(0), alice, vars.slashAmount3, uint48(vars.blockTimestamp - 2), ""
-            )
+            slasher.slash(vars.network.subnetwork(0), alice, vars.slashAmount3, uint48(vars.blockTimestamp - 2), "")
         );
         vm.stopPrank();
 
@@ -700,9 +696,7 @@ contract SlasherTest is Test {
                 vars.slashAmount1,
                 delegator.stakeAt(vars.network.subnetwork(1), alice, uint48(vars.blockTimestamp - 1), "")
             ),
-            slasher.slash(
-                vars.network.subnetwork(1), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), ""
-            )
+            slasher.slash(vars.network.subnetwork(1), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), "")
         );
         vm.stopPrank();
 
@@ -796,9 +790,7 @@ contract SlasherTest is Test {
         vm.startPrank(alice);
         assertEq(
             vars.slashAmountReal3,
-            slasher.slash(
-                vars.network.subnetwork(1), alice, vars.slashAmount3, uint48(vars.blockTimestamp - 2), ""
-            )
+            slasher.slash(vars.network.subnetwork(1), alice, vars.slashAmount3, uint48(vars.blockTimestamp - 2), "")
         );
         vm.stopPrank();
 
@@ -1247,8 +1239,7 @@ contract SlasherTest is Test {
         vars.slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         vars.totalGas = bound(totalGas, 1, 20_000_000);
         vm.assume(
-            vars.slashAmount1
-                < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkLimit1))
+            vars.slashAmount1 < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkLimit1))
         );
 
         // Setup block timestamp

@@ -1194,7 +1194,6 @@ contract NetworkRestakeDelegatorTest is Test {
         assertEq(delegator.operatorNetworkShares(alice.subnetwork(0), bob), operatorNetworkShares2);
     }
 
-
     struct SlashWithHookLocalVariables {
         uint256 depositAmount;
         uint256 operatorNetworkShares1;
@@ -1230,8 +1229,7 @@ contract NetworkRestakeDelegatorTest is Test {
         vars.slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         vars.slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
         vm.assume(
-            vars.slashAmount1
-                < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkShares1))
+            vars.slashAmount1 < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkShares1))
         );
 
         vars.blockTimestamp = vm.getBlockTimestamp();
@@ -1374,8 +1372,7 @@ contract NetworkRestakeDelegatorTest is Test {
         vars.slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         vars.totalGas = bound(totalGas, 1, 20_000_000);
         vm.assume(
-            vars.slashAmount1
-                < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkShares1))
+            vars.slashAmount1 < Math.min(vars.depositAmount, Math.min(type(uint256).max, vars.operatorNetworkShares1))
         );
 
         vars.blockTimestamp = vm.getBlockTimestamp();
