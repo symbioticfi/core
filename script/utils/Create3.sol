@@ -26,11 +26,11 @@ interface ICreateX {
 }
 
 /**
- * @title Create3Library
- * @notice Library providing convenient wrapper functions for CREATE3 deployments via CreateX factory
- * @dev This library simplifies CREATE3 deployments by handling salt generation and factory interactions
+ * @title Create3
+ * @notice Contract providing convenient wrapper functions for CREATE3 deployments via CreateX factory
+ * @dev This contract simplifies CREATE3 deployments by handling salt generation and factory interactions
  */
-library Create3Library {
+contract Create3 {
     /// @notice Address of the CreateX factory contract used for CREATE3 deployments
     /// @dev This is the canonical CreateX factory address deployed on multiple chains
     address public constant CREATEX_FACTORY = 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed;
