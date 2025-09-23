@@ -1,29 +1,30 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
+import {Logs} from "../../utils/Logs.sol";
 
-import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
-import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
-import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
-import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
-import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
-import {OptInService} from "../../src/contracts/service/OptInService.sol";
+import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../../../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../../src/contracts/OperatorRegistry.sol";
+import {MetadataService} from "../../../src/contracts/service/MetadataService.sol";
+import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "../../src/contracts/vault/Vault.sol";
-import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
-import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
-import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
+import {Vault} from "../../../src/contracts/vault/Vault.sol";
+import {VaultTokenized} from "../../../src/contracts/vault/VaultTokenized.sol";
+import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
+import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 
-import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {VaultConfigurator} from "../../../src/contracts/VaultConfigurator.sol";
 
-contract CoreScript is Script {
+contract DeployCoreBaseScript is Script {
     struct DeploymentData {
         VaultFactory vaultFactory;
         DelegatorFactory delegatorFactory;
@@ -165,19 +166,28 @@ contract CoreScript is Script {
         assert(data.vaultFactory.owner() == owner);
         assert(data.delegatorFactory.owner() == owner);
         assert(data.slasherFactory.owner() == owner);
-
-        console2.log("VaultFactory: ", address(data.vaultFactory));
-        console2.log("DelegatorFactory: ", address(data.delegatorFactory));
-        console2.log("SlasherFactory: ", address(data.slasherFactory));
-        console2.log("NetworkRegistry: ", address(data.networkRegistry));
-        console2.log("OperatorRegistry: ", address(data.operatorRegistry));
-        console2.log("OperatorMetadataService: ", address(data.operatorMetadataService));
-        console2.log("NetworkMetadataService: ", address(data.networkMetadataService));
-        console2.log("NetworkMiddlewareService: ", address(data.networkMiddlewareService));
-        console2.log("OperatorVaultOptInService: ", address(data.operatorVaultOptInService));
-        console2.log("OperatorNetworkOptInService: ", address(data.operatorNetworkOptInService));
-        console2.log("VaultConfigurator: ", address(data.vaultConfigurator));
-
         vm.stopBroadcast();
+
+        Logs.log(string.concat("Deployed VaultFactory: ", vm.toString(address(data.vaultFactory))));
+        Logs.log(string.concat("Deployed DelegatorFactory: ", vm.toString(address(data.delegatorFactory))));
+        Logs.log(string.concat("Deployed SlasherFactory: ", vm.toString(address(data.slasherFactory))));
+        Logs.log(string.concat("Deployed NetworkRegistry: ", vm.toString(address(data.networkRegistry))));
+        Logs.log(string.concat("Deployed OperatorRegistry: ", vm.toString(address(data.operatorRegistry))));
+        Logs.log(
+            string.concat("Deployed OperatorMetadataService: ", vm.toString(address(data.operatorMetadataService)))
+        );
+        Logs.log(string.concat("Deployed NetworkMetadataService: ", vm.toString(address(data.networkMetadataService))));
+        Logs.log(
+            string.concat("Deployed NetworkMiddlewareService: ", vm.toString(address(data.networkMiddlewareService)))
+        );
+        Logs.log(
+            string.concat("Deployed OperatorVaultOptInService: ", vm.toString(address(data.operatorVaultOptInService)))
+        );
+        Logs.log(
+            string.concat(
+                "Deployed OperatorNetworkOptInService: ", vm.toString(address(data.operatorNetworkOptInService))
+            )
+        );
+        Logs.log(string.concat("Deployed VaultConfigurator: ", vm.toString(address(data.vaultConfigurator))));
     }
 }

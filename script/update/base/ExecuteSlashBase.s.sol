@@ -17,11 +17,7 @@ contract ExecuteSlashBaseScript is Script {
 
         Logs.log(
             string.concat(
-                "Executed slash ", 
-                "\n    slashIndex:", 
-                vm.toString(slashIndex), 
-                "\n    vault:", 
-                vm.toString(vault)
+                "Executed slash ", "\n    slashIndex:", vm.toString(slashIndex), "\n    vault:", vm.toString(vault)
             )
         );
     }

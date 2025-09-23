@@ -3,26 +3,26 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
-import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {Vault} from "../../../src/contracts/vault/Vault.sol";
+import {IVault} from "../../../src/interfaces/vault/IVault.sol";
+import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol";
+import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator} from "../../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "../../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "../../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from
+    "../../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
+import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher} from "../../../src/interfaces/slasher/IVetoSlasher.sol";
+import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
+import {Logs} from "../../utils/Logs.sol";
+import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
-import {IVault} from "../../src/interfaces/vault/IVault.sol";
-import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
-import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
-import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
-import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
-import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
-import {Logs} from "./Logs.sol";
-import {SymbioticCoreConstants} from "../../test/integration/SymbioticCoreConstants.sol";
-
-contract DeployVaultBase is Script, Logs {
+contract DeployVaultBase is Script {
     struct VaultParams {
         IVault.InitParams baseParams;
         address[] whitelistedDepositors;
@@ -151,7 +151,7 @@ contract DeployVaultBase is Script, Logs {
             }
         }
 
-        log(
+        Logs.log(
             string.concat(
                 "Deployed vault",
                 "\n    vault:",

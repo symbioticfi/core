@@ -7,7 +7,13 @@ import {Logs} from "../../../utils/Logs.sol";
 import {MultisigBase} from "../../../utils/MultisigBase.sol";
 
 contract ExecuteSlashMultisigBaseScript is MultisigBase {
-    function run(address vault, uint256 slashIndex, address multisig, string memory chainAlias, string memory walletType) public {
+    function run(
+        address vault,
+        uint256 slashIndex,
+        address multisig,
+        string memory chainAlias,
+        string memory walletType
+    ) public {
         address[] memory targets = new address[](1);
         targets[0] = IVault(vault).slasher();
         bytes[] memory txns = new bytes[](1);
@@ -16,13 +22,12 @@ contract ExecuteSlashMultisigBaseScript is MultisigBase {
 
         Logs.log(
             string.concat(
-                "Proposed multisig to execute slash ", 
-                "\n    slashIndex:", 
-                vm.toString(slashIndex), 
-                "\n    vault:", 
+                "Proposed multisig to execute slash ",
+                "\n    slashIndex:",
+                vm.toString(slashIndex),
+                "\n    vault:",
                 vm.toString(vault)
             )
         );
     }
-
 }
