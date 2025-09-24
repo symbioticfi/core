@@ -1,39 +1,71 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-/**
- * @title ICreateX
- * @notice Interface for the CreateX factory contract that provides CREATE3 deployment functionality
- * @dev CreateX is a factory contract that enables deterministic contract deployment using CREATE3
- * https://github.com/pcaversaccio/createx/tree/main
- */
-interface ICreateX {
-    struct Values {
-        uint256 constructorAmount;
-        uint256 initCallAmount;
-    }
-
-    function deployCreate3(bytes32 salt, bytes memory initCode) external payable returns (address);
-    function computeCreate3Address(
-        bytes32 salt
-    ) external view returns (address computedAddress);
-    function deployCreate3AndInit(
-        bytes32 salt,
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values
-    ) external payable returns (address newContract);
-}
+import {ICreateX} from "@createx/contracts/ICreateX.sol";
 
 /**
- * @title Create3
- * @notice Contract providing convenient wrapper functions for CREATE3 deployments via CreateX factory
- * @dev This contract simplifies CREATE3 deployments by handling salt generation and factory interactions
+ * @title CreateXWrapper
+ * @notice Contract providing convenient wrapper functions for deployments via CreateX factory
+ * @dev This contract simplifies deployments by handling salt generation and factory interactions
  */
-contract Create3 {
+contract CreateXWrapper {
     /// @notice Address of the CreateX factory contract used for CREATE3 deployments
     /// @dev This is the canonical CreateX factory address deployed on multiple chains
     address public constant CREATEX_FACTORY = 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed;
+
+    /**
+     * @notice Deploys a contract using CREATE
+     * @param initCode The contract bytecode to deploy
+     * @return The address of the deployed contract
+     */
+    function deployCreate(
+        bytes memory initCode
+    ) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate(initCode);
+    }
+
+    /**
+     * @notice Deploys a contract using CREATE and calls an initialization function
+     * @param initCode The contract bytecode to deploy
+     * @param data The calldata for the initialization function call
+     * @param values The ETH values to send during deployment and initialization
+     * @return The address of the deployed and initialized contract
+     */
+    function deployCreateAndInit(
+        bytes memory initCode,
+        bytes memory data,
+        ICreateX.Values memory values
+    ) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreateAndInit(initCode, data, values);
+    }
+
+    /**
+     * @notice Deploys a contract using CREATE2
+     * @param initCode The contract bytecode to deploy
+     * @return The address of the deployed contract
+     */
+    function deployCreate2(
+        bytes memory initCode
+    ) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate2(initCode);
+    }
+
+    /**
+     * @notice Deploys a contract using CREATE2 and calls an initialization function
+     * @param salt An 32-byte salt value for deterministic address generation
+     * @param initCode The contract bytecode to deploy
+     * @param data The calldata for the initialization function call
+     * @param values The ETH values to send during deployment and initialization
+     * @return The address of the deployed and initialized contract
+     */
+    function deployCreate2AndInit(
+        bytes32 salt,
+        bytes memory initCode,
+        bytes memory data,
+        ICreateX.Values memory values
+    ) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate2AndInit(salt, initCode, data, values);
+    }
 
     /**
      * @notice Deploys a contract using CREATE3
