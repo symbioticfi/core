@@ -36,6 +36,16 @@ contract Create3 {
     address public constant CREATEX_FACTORY = 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed;
 
     /**
+     * @notice Deploys a contract using CREATE3
+     * @param salt An 11-byte salt value for deterministic address generation
+     * @param code The contract bytecode to deploy
+     * @return The address of the deployed contract
+     */
+    function deployCreate3(bytes32 salt, bytes memory code) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate3(salt, code);
+    }
+
+    /**
      * @notice Deploys a contract using CREATE3 with a deployer-specific salt
      * @dev Combines the deployer address with the provided salt to create a unique deployment salt
      * @param deployer The address of the deployer (used in salt generation)
@@ -43,8 +53,26 @@ contract Create3 {
      * @param code The contract bytecode to deploy
      * @return The address of the deployed contract
      */
-    function deployCreate3(address deployer, bytes11 salt, bytes memory code) public returns (address) {
+    function deployCreate3WithGuardedSalt(address deployer, bytes11 salt, bytes memory code) public returns (address) {
         return ICreateX(CREATEX_FACTORY).deployCreate3(getSaltForCreate3(salt, deployer), code);
+    }
+
+    /**
+     * @notice Deploys a contract using CREATE3 and calls an initialization function
+     * @dev Combines deployment and initialization in a single transaction
+     * @param salt An 32-byte salt value for deterministic address generation
+     * @param code The contract bytecode to deploy
+     * @param data The calldata for the initialization function call
+     * @param values The ETH values to send during deployment and initialization
+     * @return The address of the deployed and initialized contract
+     */
+    function deployCreate3AndInit(
+        bytes32 salt,
+        bytes memory code,
+        bytes memory data,
+        ICreateX.Values memory values
+    ) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate3AndInit(salt, code, data, values);
     }
 
     /**
@@ -57,7 +85,7 @@ contract Create3 {
      * @param values The ETH values to send during deployment and initialization
      * @return The address of the deployed and initialized contract
      */
-    function deployCreate3AndInit(
+    function deployCreate3AndInitWithGuardedSalt(
         address deployer,
         bytes11 salt,
         bytes memory code,
@@ -70,11 +98,23 @@ contract Create3 {
     /**
      * @notice Computes the deterministic address for a CREATE3 deployment
      * @dev Useful for predicting contract addresses before deployment
-     * @param salt An 11-byte salt value for address computation
+     * @param salt An 32-byte salt value
+     * @return The computed address where the contract would be deployed
+     */
+    function computeCreate3Address(
+        bytes32 salt
+    ) public view returns (address) {
+        return ICreateX(CREATEX_FACTORY).computeCreate3Address(salt);
+    }
+
+    /**
+     * @notice Computes the deterministic address for a CREATE3 deployment
+     * @dev Useful for predicting contract addresses before deployment
+     * @param salt An 11-byte salt value
      * @param deployer The address of the deployer (used in salt generation)
      * @return The computed address where the contract would be deployed
      */
-    function computeCreate3Address(bytes11 salt, address deployer) public view returns (address) {
+    function computeCreate3AddressWithGuardedSalt(bytes11 salt, address deployer) public view returns (address) {
         return ICreateX(CREATEX_FACTORY).computeCreate3Address(getSaltForCreate3(salt, deployer));
     }
 
