@@ -28,15 +28,10 @@ contract CreateXWrapper {
      * @notice Deploys a contract using CREATE and calls an initialization function
      * @param initCode The contract bytecode to deploy
      * @param data The calldata for the initialization function call
-     * @param values The ETH values to send during deployment and initialization
      * @return The address of the deployed and initialized contract
      */
-    function deployCreateAndInit(
-        bytes memory initCode,
-        bytes memory data,
-        ICreateX.Values memory values
-    ) public returns (address) {
-        return ICreateX(CREATEX_FACTORY).deployCreateAndInit(initCode, data, values);
+    function deployCreateAndInit(bytes memory initCode, bytes memory data) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreateAndInit(initCode, data, ICreateX.Values(0, 0));
     }
 
     /**
@@ -55,16 +50,10 @@ contract CreateXWrapper {
      * @param salt An 32-byte salt value for deterministic address generation
      * @param initCode The contract bytecode to deploy
      * @param data The calldata for the initialization function call
-     * @param values The ETH values to send during deployment and initialization
      * @return The address of the deployed and initialized contract
      */
-    function deployCreate2AndInit(
-        bytes32 salt,
-        bytes memory initCode,
-        bytes memory data,
-        ICreateX.Values memory values
-    ) public returns (address) {
-        return ICreateX(CREATEX_FACTORY).deployCreate2AndInit(salt, initCode, data, values);
+    function deployCreate2AndInit(bytes32 salt, bytes memory initCode, bytes memory data) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate2AndInit(salt, initCode, data, ICreateX.Values(0, 0));
     }
 
     /**
@@ -95,16 +84,10 @@ contract CreateXWrapper {
      * @param salt An 32-byte salt value for deterministic address generation
      * @param code The contract bytecode to deploy
      * @param data The calldata for the initialization function call
-     * @param values The ETH values to send during deployment and initialization
      * @return The address of the deployed and initialized contract
      */
-    function deployCreate3AndInit(
-        bytes32 salt,
-        bytes memory code,
-        bytes memory data,
-        ICreateX.Values memory values
-    ) public returns (address) {
-        return ICreateX(CREATEX_FACTORY).deployCreate3AndInit(salt, code, data, values);
+    function deployCreate3AndInit(bytes32 salt, bytes memory code, bytes memory data) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate3AndInit(salt, code, data, ICreateX.Values(0, 0));
     }
 
     /**
@@ -114,17 +97,17 @@ contract CreateXWrapper {
      * @param salt An 11-byte salt value for deterministic address generation
      * @param code The contract bytecode to deploy
      * @param data The calldata for the initialization function call
-     * @param values The ETH values to send during deployment and initialization
      * @return The address of the deployed and initialized contract
      */
     function deployCreate3AndInitWithGuardedSalt(
         address deployer,
         bytes11 salt,
         bytes memory code,
-        bytes memory data,
-        ICreateX.Values memory values
+        bytes memory data
     ) public returns (address) {
-        return ICreateX(CREATEX_FACTORY).deployCreate3AndInit(getSaltForCreate3(salt, deployer), code, data, values);
+        return ICreateX(CREATEX_FACTORY).deployCreate3AndInit(
+            getSaltForCreate3(salt, deployer), code, data, ICreateX.Values(0, 0)
+        );
     }
 
     /**
