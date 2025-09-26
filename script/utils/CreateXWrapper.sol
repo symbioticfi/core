@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ICreateX} from "@createx/contracts/ICreateX.sol";
+import {ICreateX} from "./interfaces/ICreateX.sol";
 
 /**
  * @title CreateXWrapper
