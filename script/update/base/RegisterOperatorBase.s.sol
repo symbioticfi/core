@@ -6,18 +6,14 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract RegisterOperatorBaseScript is ScriptBase {
-    function run(address operatorRegistry, bool send) public returns (bytes memory data, address target) {
+    function run(
+        address operatorRegistry
+    ) public returns (bytes memory data, address target) {
         target = operatorRegistry;
         data = abi.encodeCall(IOperatorRegistry(operatorRegistry).registerOperator, ());
-        if (send) {
-            sendTransaction(target, data);
-        }
+        sendTransaction(target, data);
 
-        Logs.log(
-            string.concat(
-                "Register operator"
-            )
-        );
+        Logs.log(string.concat("Register operator"));
         Logs.logSimulationLink(target, data);
 
         return (data, target);

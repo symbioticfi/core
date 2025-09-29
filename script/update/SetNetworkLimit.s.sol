@@ -13,6 +13,6 @@ contract SetNetworkLimitScript is SetNetworkLimitBaseScript {
     uint256 public NETWORK_LIMIT = 0;
 
     function run() public {
-        run(VAULT, SUBNETWORK, NETWORK_LIMIT, true);
+        run(VAULT, SUBNETWORK, NETWORK_LIMIT);
     }
 }

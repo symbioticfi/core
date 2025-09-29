@@ -6,7 +6,7 @@ import {Logs} from "../../utils/Logs.sol";
 
 import {console2} from "forge-std/Test.sol";
 
-// forge script script/update/multisig/SetOperatorNetworkLimitMultisig.s.sol:SetOperatorNetworkLimitMultisigScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
+// forge script script/update/multisig/SetOperatorNetworkLimitMultisig.s.sol:SetOperatorNetworkLimitMultisigScript --rpc-url=RPC -—sender SENDER_ADDRESS —-unlocked
 
 contract SetOperatorNetworkLimitMultisigScript is SetOperatorNetworkLimitBaseScript {
     address public VAULT = 0x450a90fdEa8B87a6448Ca1C87c88Ff65676aC45b;
@@ -15,10 +15,14 @@ contract SetOperatorNetworkLimitMultisigScript is SetOperatorNetworkLimitBaseScr
     uint256 public AMOUNT = 0;
 
     function run() public {
-        (bytes memory data, address target) = run(VAULT, SUBNETWORK, OPERATOR, AMOUNT, false);
+        (bytes memory data, address target) = run(VAULT, SUBNETWORK, OPERATOR, AMOUNT);
         Logs.log(
             string.concat(
-                "SetOperatorNetworkLimit multisig data:", "\n    data:", vm.toString(data), "\n    target:", vm.toString(target)
+                "SetOperatorNetworkLimit multisig data:",
+                "\n    data:",
+                vm.toString(data),
+                "\n    target:",
+                vm.toString(target)
             )
         );
     }

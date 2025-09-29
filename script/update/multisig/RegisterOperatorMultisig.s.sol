@@ -6,16 +6,20 @@ import {Logs} from "../../utils/Logs.sol";
 
 import {console2} from "forge-std/Test.sol";
 
-// forge script script/update/multisig/RegisterOperatorMultisig.s.sol:RegisterOperatorMultisigScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
+// forge script script/update/multisig/RegisterOperatorMultisig.s.sol:RegisterOperatorMultisigScript --rpc-url=RPC -—sender SENDER_ADDRESS —-unlocked
 
 contract RegisterOperatorMultisigScript is RegisterOperatorBaseScript {
     address public OPERATOR_REGISTRY = address(0);
 
     function run() public {
-        (bytes memory data, address target) = run(OPERATOR_REGISTRY, false);
+        (bytes memory data, address target) = run(OPERATOR_REGISTRY);
         Logs.log(
             string.concat(
-                "RegisterOperator multisig data:", "\n    data:", vm.toString(data), "\n    target:", vm.toString(target)
+                "RegisterOperator multisig data:",
+                "\n    data:",
+                vm.toString(data),
+                "\n    target:",
+                vm.toString(target)
             )
         );
     }

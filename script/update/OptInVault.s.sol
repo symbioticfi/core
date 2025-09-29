@@ -12,6 +12,6 @@ contract OptInVaultScript is OptInVaultBaseScript {
     address public VAULT = address(0);
 
     function run() public {
-        run(OPERATOR_VAULT_OPT_IN_SERVICE, VAULT, true);
+        run(OPERATOR_VAULT_OPT_IN_SERVICE, VAULT);
     }
 }

@@ -11,6 +11,6 @@ contract RegisterOperatorScript is RegisterOperatorBaseScript {
     address public OPERATOR_REGISTRY = address(0);
 
     function run() public {
-        run(OPERATOR_REGISTRY, true);
+        run(OPERATOR_REGISTRY);
     }
 }

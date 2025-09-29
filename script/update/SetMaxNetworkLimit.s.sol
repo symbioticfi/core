@@ -13,6 +13,6 @@ contract SetMaxNetworkLimitScript is SetMaxNetworkLimitBaseScript {
     uint256 public MAX_NETWORK_LIMIT = 0;
 
     function run() public {
-        run(VAULT, IDENTIFIER, MAX_NETWORK_LIMIT, true);
+        run(VAULT, IDENTIFIER, MAX_NETWORK_LIMIT);
     }
 }

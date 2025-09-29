@@ -7,18 +7,12 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SetHookBaseScript is ScriptBase {
-    function run(address vault, address hook, bool send) public returns (bytes memory data, address target) {
+    function run(address vault, address hook) public returns (bytes memory data, address target) {
         target = IVault(vault).delegator();
         data = abi.encodeCall(IBaseDelegator(IVault(vault).delegator()).setHook, (hook));
-        if (send) {
-            sendTransaction(target, data);
-        }
+        sendTransaction(target, data);
 
-        Logs.log(
-            string.concat(
-                "Set hook ", "\n    vault:", vm.toString(vault), "\n    hook:", vm.toString(hook)
-            )
-        );
+        Logs.log(string.concat("Set hook ", "\n    vault:", vm.toString(vault), "\n    hook:", vm.toString(hook)));
         Logs.logSimulationLink(target, data);
 
         return (data, target);

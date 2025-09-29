@@ -12,6 +12,6 @@ contract SetHookScript is SetHookBaseScript {
     address public HOOK = address(0);
 
     function run() public {
-        run(VAULT, HOOK, true);
+        run(VAULT, HOOK);
     }
 }

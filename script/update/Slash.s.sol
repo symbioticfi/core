@@ -15,6 +15,6 @@ contract SlashScript is SlashBaseScript {
     uint48 public CAPTURE_TIMESTAMP = 0;
 
     function run() public {
-        run(VAULT, SUBNETWORK, OPERATOR, AMOUNT, CAPTURE_TIMESTAMP, true);
+        run(VAULT, SUBNETWORK, OPERATOR, AMOUNT, CAPTURE_TIMESTAMP);
     }
 }

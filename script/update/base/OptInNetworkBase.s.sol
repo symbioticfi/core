@@ -6,18 +6,15 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract OptInNetworkBaseScript is ScriptBase {
-    function run(address operatorNetworkOptInService, address network, bool send) public returns (bytes memory data, address target) {
+    function run(
+        address operatorNetworkOptInService,
+        address network
+    ) public returns (bytes memory data, address target) {
         target = operatorNetworkOptInService;
         data = abi.encodeWithSignature("optIn(address)", network);
-        if (send) {
-            sendTransaction(target, data);
-        }
+        sendTransaction(target, data);
 
-        Logs.log(
-            string.concat(
-                "Opt in network ", "\n    network:", vm.toString(network)
-            )
-        );
+        Logs.log(string.concat("Opt in network ", "\n    network:", vm.toString(network)));
         Logs.logSimulationLink(target, data);
 
         return (data, target);

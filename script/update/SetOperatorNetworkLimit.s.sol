@@ -14,6 +14,6 @@ contract SetOperatorNetworkLimitScript is SetOperatorNetworkLimitBaseScript {
     uint256 public AMOUNT = 0;
 
     function run() public {
-        run(VAULT, SUBNETWORK, OPERATOR, AMOUNT, true);
+        run(VAULT, SUBNETWORK, OPERATOR, AMOUNT);
     }
 }

@@ -14,6 +14,6 @@ contract SetOperatorNetworkSharesScript is SetOperatorNetworkSharesBaseScript {
     uint256 public OPERATOR_NETWORK_SHARES = 0;
 
     function run() public {
-        run(VAULT, SUBNETWORK, OPERATOR, OPERATOR_NETWORK_SHARES, true);
+        run(VAULT, SUBNETWORK, OPERATOR, OPERATOR_NETWORK_SHARES);
     }
 }

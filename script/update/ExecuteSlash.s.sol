@@ -12,6 +12,6 @@ contract ExecuteSlashScript is ExecuteSlashBaseScript {
     uint256 public SLASH_INDEX = 0;
 
     function run() public {
-        run(VAULT, SLASH_INDEX, true);
+        run(VAULT, SLASH_INDEX);
     }
 }

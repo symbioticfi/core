@@ -12,6 +12,6 @@ contract OptInNetworkScript is OptInNetworkBaseScript {
     address public NETWORK = address(0);
 
     function run() public {
-        run(OPERATOR_NETWORK_OPT_IN_SERVICE, NETWORK, true);
+        run(OPERATOR_NETWORK_OPT_IN_SERVICE, NETWORK);
     }
 }

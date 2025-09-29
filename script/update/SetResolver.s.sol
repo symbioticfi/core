@@ -13,6 +13,6 @@ contract SetResolverScript is SetResolverBaseScript {
     address public RESOLVER = address(0);
 
     function run() public {
-        run(VAULT, IDENTIFIER, RESOLVER, true);
+        run(VAULT, IDENTIFIER, RESOLVER);
     }
 }
