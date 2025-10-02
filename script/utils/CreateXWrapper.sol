@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import {ICreateX} from "./interfaces/ICreateX.sol";
 
-import {Hashes} from "@openzeppelin/contracts/utils/cryptography/Hashes.sol";
-
 /**
  * @title CreateXWrapper
  * @notice Contract providing convenient wrapper functions for deployments via CreateX factory
@@ -123,17 +121,6 @@ contract CreateXWrapper {
     }
 
     /**
-     * @notice Computes the deterministic address for a CREATE deployment
-     * @dev Useful for predicting contract addresses before deployment
-     * @param deployer The address of the deployer
-     * @param nonce The nonce value for the deployment
-     * @return The computed address where the contract would be deployed
-     */
-    function computeCreateAddress(address deployer, uint256 nonce) public view returns (address) {
-        return ICreateX(CREATEX_FACTORY).computeCreateAddress(deployer, nonce);
-    }
-
-    /**
      * @notice Computes the deterministic address for a CREATE3 deployment
      * @dev Useful for predicting contract addresses before deployment
      * @param salt An 32-byte salt value
@@ -175,6 +162,6 @@ contract CreateXWrapper {
      * @return A 32-byte salt suitable for CREATE3 deployment
      */
     function getGuardedSalt(address deployer, bytes32 salt) public pure returns (bytes32) {
-        return Hashes.efficientKeccak256({a: bytes32(uint256(uint160(deployer))), b: salt});
+        return keccak256(abi.encodePacked(bytes32(uint256(uint160(deployer))), salt));
     }
 }
