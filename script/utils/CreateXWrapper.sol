@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {ICreateX} from "./interfaces/ICreateX.sol";
 
+import {Hashes} from "@openzeppelin/contracts/utils/cryptography/Hashes.sol";
+
 /**
  * @title CreateXWrapper
  * @notice Contract providing convenient wrapper functions for deployments via CreateX factory
@@ -43,6 +45,16 @@ contract CreateXWrapper {
         bytes memory initCode
     ) public returns (address) {
         return ICreateX(CREATEX_FACTORY).deployCreate2(initCode);
+    }
+
+    /**
+     * @notice Deploys a contract using CREATE2 with a salt
+     * @param salt An 11-byte salt value for deterministic address generation
+     * @param initCode The contract bytecode to deploy
+     * @return The address of the deployed contract
+     */
+    function deployCreate2WithSalt(bytes32 salt, bytes memory initCode) public returns (address) {
+        return ICreateX(CREATEX_FACTORY).deployCreate2(salt, initCode);
     }
 
     /**
@@ -111,6 +123,17 @@ contract CreateXWrapper {
     }
 
     /**
+     * @notice Computes the deterministic address for a CREATE deployment
+     * @dev Useful for predicting contract addresses before deployment
+     * @param deployer The address of the deployer
+     * @param nonce The nonce value for the deployment
+     * @return The computed address where the contract would be deployed
+     */
+    function computeCreateAddress(address deployer, uint256 nonce) public view returns (address) {
+        return ICreateX(CREATEX_FACTORY).computeCreateAddress(deployer, nonce);
+    }
+
+    /**
      * @notice Computes the deterministic address for a CREATE3 deployment
      * @dev Useful for predicting contract addresses before deployment
      * @param salt An 32-byte salt value
@@ -142,5 +165,16 @@ contract CreateXWrapper {
      */
     function getSaltForCreate3(bytes11 salt, address deployer) public pure returns (bytes32) {
         return bytes32(uint256(uint160(deployer)) << 96 | uint256(0x00) << 88 | uint256(uint88(salt)));
+    }
+
+    /**
+     * @notice Generates a guarded salt for CREATE3 deployment by combining deployer address and salt
+     * @dev The salt format is: [160-bit deployer address][8-bit zero padding][88-bit salt]
+     * @param deployer The deployer's address (160-bit)
+     * @param salt An 32-byte salt value
+     * @return A 32-byte salt suitable for CREATE3 deployment
+     */
+    function getGuardedSalt(address deployer, bytes32 salt) public pure returns (bytes32) {
+        return Hashes.efficientKeccak256({a: bytes32(uint256(uint160(deployer))), b: salt});
     }
 }

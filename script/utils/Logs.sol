@@ -13,6 +13,6 @@ library Logs {
         string memory data
     ) public {
         console2.log(data);
-        vm.writeFile(LOG_FILE, string.concat(vm.readFile(LOG_FILE), data, "\n"));
+        vm.writeLine(LOG_FILE, string.concat(data, "\n"));
     }
 }
