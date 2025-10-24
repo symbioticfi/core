@@ -45,9 +45,7 @@ contract CoreCreate3Script is Script, CreateXWrapper {
      * @notice Main deployment function using CREATE3
      * @param owner The owner address for the factory contracts
      */
-    function run(
-        address owner
-    ) public {
+    function run(address owner) public {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
@@ -257,11 +255,10 @@ contract CoreCreate3Script is Script, CreateXWrapper {
      * @param constructorArgs The ABI-encoded constructor arguments
      * @return newContract The address of the deployed contract
      */
-    function _deployContract(
-        bytes11 salt,
-        bytes memory creationCode,
-        bytes memory constructorArgs
-    ) internal returns (address newContract) {
+    function _deployContract(bytes11 salt, bytes memory creationCode, bytes memory constructorArgs)
+        internal
+        returns (address newContract)
+    {
         bytes memory initCode = abi.encodePacked(creationCode, constructorArgs);
         newContract = deployCreate3(bytes32(salt), initCode);
     }
