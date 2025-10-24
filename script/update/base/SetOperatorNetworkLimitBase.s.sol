@@ -7,12 +7,10 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SetOperatorNetworkLimitBaseScript is ScriptBase {
-    function run(
-        address vault,
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount
-    ) public returns (bytes memory data, address target) {
+    function run(address vault, bytes32 subnetwork, address operator, uint256 amount)
+        public
+        returns (bytes memory data, address target)
+    {
         target = IVault(vault).delegator();
         data = abi.encodeCall(
             IFullRestakeDelegator(IVault(vault).delegator()).setOperatorNetworkLimit, (subnetwork, operator, amount)

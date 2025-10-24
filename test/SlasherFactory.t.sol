@@ -180,9 +180,7 @@ contract SlasherFactoryTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -190,7 +188,9 @@ contract SlasherFactoryTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 

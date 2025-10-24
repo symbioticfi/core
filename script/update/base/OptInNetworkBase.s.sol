@@ -6,10 +6,10 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract OptInNetworkBaseScript is ScriptBase {
-    function run(
-        address operatorNetworkOptInService,
-        address network
-    ) public returns (bytes memory data, address target) {
+    function run(address operatorNetworkOptInService, address network)
+        public
+        returns (bytes memory data, address target)
+    {
         target = operatorNetworkOptInService;
         data = abi.encodeWithSignature("optIn(address)", network);
         sendTransaction(target, data);

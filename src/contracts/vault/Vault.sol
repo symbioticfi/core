@@ -24,11 +24,10 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
+    constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
+        VaultStorage(delegatorFactory, slasherFactory)
+        MigratableEntity(vaultFactory)
+    {}
 
     /**
      * @inheritdoc IVault
@@ -63,9 +62,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function activeBalanceOf(
-        address account
-    ) public view returns (uint256) {
+    function activeBalanceOf(address account) public view returns (uint256) {
         return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
@@ -80,9 +77,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function slashableBalanceOf(
-        address account
-    ) external view returns (uint256) {
+    function slashableBalanceOf(address account) external view returns (uint256) {
         uint256 epoch = currentEpoch();
         return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
     }
@@ -90,10 +85,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function deposit(
-        address onBehalfOf,
-        uint256 amount
-    ) public virtual nonReentrant returns (uint256 depositedAmount, uint256 mintedShares) {
+    function deposit(address onBehalfOf, uint256 amount)
+        public
+        virtual
+        nonReentrant
+        returns (uint256 depositedAmount, uint256 mintedShares)
+    {
         if (onBehalfOf == address(0)) {
             revert InvalidOnBehalfOf();
         }
@@ -129,10 +126,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function withdraw(
-        address claimer,
-        uint256 amount
-    ) external nonReentrant returns (uint256 burnedShares, uint256 mintedShares) {
+    function withdraw(address claimer, uint256 amount)
+        external
+        nonReentrant
+        returns (uint256 burnedShares, uint256 mintedShares)
+    {
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
@@ -153,10 +151,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function redeem(
-        address claimer,
-        uint256 shares
-    ) external nonReentrant returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    function redeem(address claimer, uint256 shares)
+        external
+        nonReentrant
+        returns (uint256 withdrawnAssets, uint256 mintedShares)
+    {
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
@@ -267,9 +266,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setDepositWhitelist(
-        bool status
-    ) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    function setDepositWhitelist(bool status) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
         }
@@ -282,10 +279,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setDepositorWhitelistStatus(
-        address account,
-        bool status
-    ) external nonReentrant onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+    function setDepositorWhitelistStatus(address account, bool status)
+        external
+        nonReentrant
+        onlyRole(DEPOSITOR_WHITELIST_ROLE)
+    {
         if (account == address(0)) {
             revert InvalidAccount();
         }
@@ -302,9 +300,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setIsDepositLimit(
-        bool status
-    ) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    function setIsDepositLimit(bool status) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
         }
@@ -317,9 +313,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function setDepositLimit(
-        uint256 limit
-    ) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    function setDepositLimit(uint256 limit) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (depositLimit == limit) {
             revert AlreadySet();
         }
@@ -329,9 +323,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositLimit(limit);
     }
 
-    function setDelegator(
-        address delegator_
-    ) external nonReentrant {
+    function setDelegator(address delegator_) external nonReentrant {
         if (isDelegatorInitialized) {
             revert DelegatorAlreadyInitialized();
         }
@@ -351,9 +343,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDelegator(delegator_);
     }
 
-    function setSlasher(
-        address slasher_
-    ) external nonReentrant {
+    function setSlasher(address slasher_) external nonReentrant {
         if (isSlasherInitialized) {
             revert SlasherAlreadyInitialized();
         }
@@ -375,11 +365,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetSlasher(slasher_);
     }
 
-    function _withdraw(
-        address claimer,
-        uint256 withdrawnAssets,
-        uint256 burnedShares
-    ) internal virtual returns (uint256 mintedShares) {
+    function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
+        internal
+        virtual
+        returns (uint256 mintedShares)
+    {
         _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
         _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
         _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
@@ -397,9 +387,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
-    function _claim(
-        uint256 epoch
-    ) internal returns (uint256 amount) {
+    function _claim(uint256 epoch) internal returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
         }
@@ -479,7 +467,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
     }
 
-    function _migrate(uint64, /* oldVersion */ uint64, /* newVersion */ bytes calldata /* data */ ) internal override {
+    function _migrate(
+        uint64,
+        /* oldVersion */
+        uint64,
+        /* newVersion */
+        bytes calldata /* data */
+    )
+        internal
+        override
+    {
         revert();
     }
 }

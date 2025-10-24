@@ -251,9 +251,7 @@ contract POCBaseTest is Test {
         (vault4, delegator4, slasher4) = _getVaultAndFullRestakeDelegatorAndVetoSlasher(7 days, 1 days);
     }
 
-    function _getVault(
-        uint48 epochDuration
-    ) internal returns (IVault) {
+    function _getVault(uint48 epochDuration) internal returns (IVault) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -281,9 +279,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -291,16 +287,19 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return IVault(vault_);
     }
 
-    function _getVaultAndNetworkRestakeDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (IVault, INetworkRestakeDelegator, ISlasher) {
+    function _getVaultAndNetworkRestakeDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (IVault, INetworkRestakeDelegator, ISlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -328,9 +327,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -338,16 +335,19 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (IVault(vault_), INetworkRestakeDelegator(delegator_), ISlasher(slasher_));
     }
 
-    function _getVaultAndFullRestakeDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (IVault, IFullRestakeDelegator, ISlasher) {
+    function _getVaultAndFullRestakeDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (IVault, IFullRestakeDelegator, ISlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -375,9 +375,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -385,17 +383,19 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (IVault(vault_), IFullRestakeDelegator(delegator_), ISlasher(slasher_));
     }
 
-    function _getVaultAndNetworkRestakeDelegatorAndVetoSlasher(
-        uint48 epochDuration,
-        uint48 vetoDuration
-    ) internal returns (IVault, INetworkRestakeDelegator, IVetoSlasher) {
+    function _getVaultAndNetworkRestakeDelegatorAndVetoSlasher(uint48 epochDuration, uint48 vetoDuration)
+        internal
+        returns (IVault, INetworkRestakeDelegator, IVetoSlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -423,9 +423,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -446,10 +444,10 @@ contract POCBaseTest is Test {
         return (IVault(vault_), INetworkRestakeDelegator(delegator_), IVetoSlasher(slasher_));
     }
 
-    function _getVaultAndFullRestakeDelegatorAndVetoSlasher(
-        uint48 epochDuration,
-        uint48 vetoDuration
-    ) internal returns (IVault, IFullRestakeDelegator, IVetoSlasher) {
+    function _getVaultAndFullRestakeDelegatorAndVetoSlasher(uint48 epochDuration, uint48 vetoDuration)
+        internal
+        returns (IVault, IFullRestakeDelegator, IVetoSlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -477,9 +475,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -500,9 +496,7 @@ contract POCBaseTest is Test {
         return (IVault(vault_), IFullRestakeDelegator(delegator_), IVetoSlasher(slasher_));
     }
 
-    function _registerOperator(
-        address user
-    ) internal {
+    function _registerOperator(address user) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -539,11 +533,10 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _deposit(
-        IVault vault,
-        address user,
-        uint256 amount
-    ) internal returns (uint256 depositedAmount, uint256 mintedShares) {
+    function _deposit(IVault vault, address user, uint256 amount)
+        internal
+        returns (uint256 depositedAmount, uint256 mintedShares)
+    {
         collateral.transfer(user, amount);
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
@@ -551,21 +544,19 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _withdraw(
-        IVault vault,
-        address user,
-        uint256 amount
-    ) internal returns (uint256 burnedShares, uint256 mintedShares) {
+    function _withdraw(IVault vault, address user, uint256 amount)
+        internal
+        returns (uint256 burnedShares, uint256 mintedShares)
+    {
         vm.startPrank(user);
         (burnedShares, mintedShares) = vault.withdraw(user, amount);
         vm.stopPrank();
     }
 
-    function _redeem(
-        IVault vault,
-        address user,
-        uint256 shares
-    ) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    function _redeem(IVault vault, address user, uint256 shares)
+        internal
+        returns (uint256 withdrawnAssets, uint256 mintedShares)
+    {
         vm.startPrank(user);
         (withdrawnAssets, mintedShares) = vault.redeem(user, shares);
         vm.stopPrank();
@@ -631,23 +622,17 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _setNetworkLimitNetwork(
-        INetworkRestakeDelegator delegator,
-        address user,
-        address network,
-        uint256 amount
-    ) internal {
+    function _setNetworkLimitNetwork(INetworkRestakeDelegator delegator, address user, address network, uint256 amount)
+        internal
+    {
         vm.startPrank(user);
         delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
     }
 
-    function _setNetworkLimitFull(
-        IFullRestakeDelegator delegator,
-        address user,
-        address network,
-        uint256 amount
-    ) internal {
+    function _setNetworkLimitFull(IFullRestakeDelegator delegator, address user, address network, uint256 amount)
+        internal
+    {
         vm.startPrank(user);
         delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
@@ -711,12 +696,10 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _executeSlash(
-        IVetoSlasher slasher,
-        address user,
-        uint256 slashIndex,
-        bytes memory hints
-    ) internal returns (uint256 slashAmount) {
+    function _executeSlash(IVetoSlasher slasher, address user, uint256 slashIndex, bytes memory hints)
+        internal
+        returns (uint256 slashAmount)
+    {
         vm.startPrank(user);
         slashAmount = slasher.executeSlash(slashIndex, hints);
         vm.stopPrank();
@@ -728,13 +711,9 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _setResolver(
-        IVetoSlasher slasher,
-        address user,
-        uint96 identifier,
-        address resolver,
-        bytes memory hints
-    ) internal {
+    function _setResolver(IVetoSlasher slasher, address user, uint96 identifier, address resolver, bytes memory hints)
+        internal
+    {
         vm.startPrank(user);
         slasher.setResolver(identifier, resolver, hints);
         vm.stopPrank();

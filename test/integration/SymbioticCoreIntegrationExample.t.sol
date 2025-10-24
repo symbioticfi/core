@@ -60,16 +60,14 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
         for (uint256 i; i < confirmedNetworkVaults.length; ++i) {
             for (uint256 j; j < operators_SymbioticCore.length; ++j) {
                 if (
-                    ISymbioticOptInService(symbioticCore.operatorVaultOptInService).isOptedIn(
-                        operators_SymbioticCore[j].addr, confirmedNetworkVaults[i]
-                    ) && _randomChoice_Symbiotic(SELECT_OPERATOR_CHANCE)
+                    ISymbioticOptInService(symbioticCore.operatorVaultOptInService)
+                            .isOptedIn(operators_SymbioticCore[j].addr, confirmedNetworkVaults[i])
+                        && _randomChoice_Symbiotic(SELECT_OPERATOR_CHANCE)
                 ) {
                     _operatorOptInWeak_SymbioticCore(operators_SymbioticCore[j].addr, network.addr);
-                    if (
-                        _delegateToOperatorTry_SymbioticCore(
+                    if (_delegateToOperatorTry_SymbioticCore(
                             confirmedNetworkVaults[i], subnetwork, operators_SymbioticCore[j].addr
-                        )
-                    ) {
+                        )) {
                         confirmedNetworkOperators[confirmedNetworkVaults[i]].push(operators_SymbioticCore[j].addr);
                     }
                 }
@@ -85,9 +83,8 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
                 console2.log("Operator:", confirmedNetworkOperators[confirmedNetworkVaults[i]][j]);
                 console2.log(
                     "Stake:",
-                    ISymbioticBaseDelegator(ISymbioticVault(confirmedNetworkVaults[i]).delegator()).stake(
-                        subnetwork, confirmedNetworkOperators[confirmedNetworkVaults[i]][j]
-                    )
+                    ISymbioticBaseDelegator(ISymbioticVault(confirmedNetworkVaults[i]).delegator())
+                        .stake(subnetwork, confirmedNetworkOperators[confirmedNetworkVaults[i]][j])
                 );
             }
         }
@@ -147,11 +144,9 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
                 if (_randomChoice_Symbiotic(SELECT_OPERATOR_CHANCE)) {
                     _operatorOptInWeak_SymbioticCore(operators_SymbioticCore[j].addr, confirmedNetworkVaults[i]);
                     _operatorOptInWeak_SymbioticCore(operators_SymbioticCore[j].addr, network.addr);
-                    if (
-                        _delegateToOperatorTry_SymbioticCore(
+                    if (_delegateToOperatorTry_SymbioticCore(
                             confirmedNetworkVaults[i], subnetwork, operators_SymbioticCore[j].addr
-                        )
-                    ) {
+                        )) {
                         confirmedNetworkOperators[confirmedNetworkVaults[i]].push(operators_SymbioticCore[j].addr);
                     }
                 }
@@ -167,9 +162,8 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
                 console2.log("Operator:", confirmedNetworkOperators[confirmedNetworkVaults[i]][j]);
                 console2.log(
                     "Stake:",
-                    ISymbioticBaseDelegator(ISymbioticVault(confirmedNetworkVaults[i]).delegator()).stake(
-                        subnetwork, confirmedNetworkOperators[confirmedNetworkVaults[i]][j]
-                    )
+                    ISymbioticBaseDelegator(ISymbioticVault(confirmedNetworkVaults[i]).delegator())
+                        .stake(subnetwork, confirmedNetworkOperators[confirmedNetworkVaults[i]][j])
                 );
             }
         }
@@ -179,14 +173,12 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
                 for (uint256 k; k < SYMBIOTIC_CORE_SUBNETWORKS.length; ++k) {
                     bytes32 subnetwork = networks_SymbioticCore[j].addr.subnetwork(SYMBIOTIC_CORE_SUBNETWORKS[k]);
                     for (uint256 l; l < operators_SymbioticCore.length; ++l) {
-                        if (
-                            _networkPossibleUtilizing_SymbioticCore(
+                        if (_networkPossibleUtilizing_SymbioticCore(
                                 networks_SymbioticCore[j].addr,
                                 SYMBIOTIC_CORE_SUBNETWORKS[k],
                                 confirmedNetworkVaults[i],
                                 operators_SymbioticCore[l].addr
-                            )
-                        ) {
+                            )) {
                             neighborNetworks[confirmedNetworkVaults[i]].push(subnetwork);
                             break;
                         }

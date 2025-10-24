@@ -27,9 +27,7 @@ contract SymbioticInit is Test {
         }
     }
 
-    function _skipBlocks_Symbiotic(
-        uint256 number
-    ) internal virtual {
+    function _skipBlocks_Symbiotic(uint256 number) internal virtual {
         vm.roll(vm.getBlockNumber() + number);
         vm.warp(vm.getBlockTimestamp() + number * SYMBIOTIC_BLOCK_TIME);
     }
@@ -38,9 +36,7 @@ contract SymbioticInit is Test {
         deal(token, to, give, adjust);
     }
 
-    function _supportsDeal_Symbiotic(
-        address token
-    ) internal virtual returns (bool) {
+    function _supportsDeal_Symbiotic(address token) internal virtual returns (bool) {
         if (token == 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0) {
             return false;
         }

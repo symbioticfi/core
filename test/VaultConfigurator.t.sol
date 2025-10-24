@@ -205,9 +205,7 @@ contract VaultConfiguratorTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(104),
-                            hook: hook,
-                            hookSetRoleHolder: address(105)
+                            defaultAdminRoleHolder: address(104), hook: hook, hookSetRoleHolder: address(105)
                         }),
                         networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: vars.operatorNetworkSharesSetRoleHolders
@@ -215,7 +213,9 @@ contract VaultConfiguratorTest is Test {
                 ),
                 withSlasher: withSlasher,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 

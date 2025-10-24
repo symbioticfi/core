@@ -52,11 +52,7 @@ interface ISlasher is IBaseSlasher {
      * @return slashedAmount virtual amount of the collateral slashed
      * @dev Only a network middleware can call this function.
      */
-    function slash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes calldata hints
-    ) external returns (uint256 slashedAmount);
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata hints)
+        external
+        returns (uint256 slashedAmount);
 }

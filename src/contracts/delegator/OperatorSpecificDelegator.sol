@@ -65,9 +65,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
     /**
      * @inheritdoc IOperatorSpecificDelegator
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) public view returns (uint256) {
+    function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
@@ -88,12 +86,12 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         emit SetNetworkLimit(subnetwork, amount);
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator_,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view override returns (uint256, bytes memory) {
+    function _stakeAt(bytes32 subnetwork, address operator_, uint48 timestamp, bytes memory hints)
+        internal
+        view
+        override
+        returns (uint256, bytes memory)
+    {
         StakeHints memory stakesHints;
         if (hints.length > 0) {
             stakesHints = abi.decode(hints, (StakeHints));

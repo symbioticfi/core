@@ -44,9 +44,7 @@ interface IMigratablesFactory is IRegistry {
      * @return address of the implementation
      * @dev Reverts when an invalid version.
      */
-    function implementation(
-        uint64 version
-    ) external view returns (address);
+    function implementation(uint64 version) external view returns (address);
 
     /**
      * @notice Get if a version is blacklisted (e.g., in case of invalid implementation).
@@ -54,26 +52,20 @@ interface IMigratablesFactory is IRegistry {
      * @return whether the version is blacklisted
      * @dev The given version is still deployable.
      */
-    function blacklisted(
-        uint64 version
-    ) external view returns (bool);
+    function blacklisted(uint64 version) external view returns (bool);
 
     /**
      * @notice Whitelist a new implementation for entities.
      * @param implementation address of the new implementation
      */
-    function whitelist(
-        address implementation
-    ) external;
+    function whitelist(address implementation) external;
 
     /**
      * @notice Blacklist a version of entities.
      * @param version version to blacklist
      * @dev The given version will still be deployable.
      */
-    function blacklist(
-        uint64 version
-    ) external;
+    function blacklist(uint64 version) external;
 
     /**
      * @notice Create a new entity at the factory.

@@ -36,52 +36,47 @@ contract BaseDelegatorHints is Hints {
             address(new OperatorNetworkSpecificDelegatorHints(address(this), vaultHints_));
     }
 
-    function stakeHints(
-        address delegator,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) public view returns (bytes memory hints) {
+    function stakeHints(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hints)
+    {
         if (IBaseDelegator(delegator).TYPE() == 0) {
-            hints = NetworkRestakeDelegatorHints(NETWORK_RESTAKE_DELEGATOR_HINTS).stakeHints(
-                delegator, subnetwork, operator, timestamp
-            );
+            hints = NetworkRestakeDelegatorHints(NETWORK_RESTAKE_DELEGATOR_HINTS)
+                .stakeHints(delegator, subnetwork, operator, timestamp);
         } else if (IBaseDelegator(delegator).TYPE() == 1) {
-            hints = FullRestakeDelegatorHints(FULL_RESTAKE_DELEGATOR_HINTS).stakeHints(
-                delegator, subnetwork, operator, timestamp
-            );
+            hints = FullRestakeDelegatorHints(FULL_RESTAKE_DELEGATOR_HINTS)
+                .stakeHints(delegator, subnetwork, operator, timestamp);
         } else if (IBaseDelegator(delegator).TYPE() == 2) {
-            hints = OperatorSpecificDelegatorHints(OPERATOR_SPECIFIC_DELEGATOR_HINTS).stakeHints(
-                delegator, subnetwork, operator, timestamp
-            );
+            hints = OperatorSpecificDelegatorHints(OPERATOR_SPECIFIC_DELEGATOR_HINTS)
+                .stakeHints(delegator, subnetwork, operator, timestamp);
         } else if (IBaseDelegator(delegator).TYPE() == 3) {
-            hints = OperatorNetworkSpecificDelegatorHints(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_HINTS).stakeHints(
-                delegator, subnetwork, operator, timestamp
-            );
+            hints = OperatorNetworkSpecificDelegatorHints(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_HINTS)
+                .stakeHints(delegator, subnetwork, operator, timestamp);
         }
     }
 
-    function stakeBaseHints(
-        address delegator,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) external view returns (bytes memory baseHints) {
-        bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
-            IBaseDelegator(delegator).OPERATOR_VAULT_OPT_IN_SERVICE(),
-            operator,
-            IBaseDelegator(delegator).vault(),
-            timestamp
-        );
-        bytes memory operatorNetworkOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS).optInHint(
-            IBaseDelegator(delegator).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, subnetwork.network(), timestamp
-        );
+    function stakeBaseHints(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        returns (bytes memory baseHints)
+    {
+        bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS)
+            .optInHint(
+                IBaseDelegator(delegator).OPERATOR_VAULT_OPT_IN_SERVICE(),
+                operator,
+                IBaseDelegator(delegator).vault(),
+                timestamp
+            );
+        bytes memory operatorNetworkOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS)
+            .optInHint(
+                IBaseDelegator(delegator).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, subnetwork.network(), timestamp
+            );
 
         if (operatorVaultOptInHint.length != 0 || operatorNetworkOptInHint.length != 0) {
             baseHints = abi.encode(
                 IBaseDelegator.StakeBaseHints({
-                    operatorVaultOptInHint: operatorVaultOptInHint,
-                    operatorNetworkOptInHint: operatorNetworkOptInHint
+                    operatorVaultOptInHint: operatorVaultOptInHint, operatorNetworkOptInHint: operatorNetworkOptInHint
                 })
             );
         }
@@ -108,18 +103,20 @@ contract NetworkRestakeDelegatorHints is Hints {
         VAULT_HINTS = vaultHints;
     }
 
-    function networkLimitHintInternal(
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function networkLimitHintInternal(bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _networkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(
-        address delegator,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function networkLimitHint(address delegator, bytes32 subnetwork, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -133,20 +130,20 @@ contract NetworkRestakeDelegatorHints is Hints {
         }
     }
 
-    function operatorNetworkSharesHintInternal(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function operatorNetworkSharesHintInternal(bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _operatorNetworkShares[subnetwork][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function operatorNetworkSharesHint(
-        address delegator,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function operatorNetworkSharesHint(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -162,18 +159,20 @@ contract NetworkRestakeDelegatorHints is Hints {
         }
     }
 
-    function totalOperatorNetworkSharesHintInternal(
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function totalOperatorNetworkSharesHintInternal(bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _totalOperatorNetworkShares[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function totalOperatorNetworkSharesHint(
-        address delegator,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function totalOperatorNetworkSharesHint(address delegator, bytes32 subnetwork, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -189,12 +188,11 @@ contract NetworkRestakeDelegatorHints is Hints {
         }
     }
 
-    function stakeHints(
-        address delegator,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) external view returns (bytes memory hints) {
+    function stakeHints(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
         bytes memory baseHints =
             BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator, timestamp);
 
@@ -241,18 +239,20 @@ contract FullRestakeDelegatorHints is Hints {
         VAULT_HINTS = vaultHints;
     }
 
-    function networkLimitHintInternal(
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function networkLimitHintInternal(bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _networkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(
-        address delegator,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function networkLimitHint(address delegator, bytes32 subnetwork, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator, abi.encodeCall(FullRestakeDelegatorHints.networkLimitHintInternal, (subnetwork, timestamp))
@@ -265,20 +265,20 @@ contract FullRestakeDelegatorHints is Hints {
         }
     }
 
-    function operatorNetworkLimitHintInternal(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function operatorNetworkLimitHintInternal(bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _operatorNetworkLimit[subnetwork][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function operatorNetworkLimitHint(
-        address delegator,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function operatorNetworkLimitHint(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -294,12 +294,11 @@ contract FullRestakeDelegatorHints is Hints {
         }
     }
 
-    function stakeHints(
-        address delegator,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) external view returns (bytes memory hints) {
+    function stakeHints(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
         bytes memory baseHints =
             BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator, timestamp);
 
@@ -343,18 +342,20 @@ contract OperatorSpecificDelegatorHints is Hints {
         VAULT_HINTS = vaultHints;
     }
 
-    function networkLimitHintInternal(
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function networkLimitHintInternal(bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _networkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function networkLimitHint(
-        address delegator,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function networkLimitHint(address delegator, bytes32 subnetwork, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -370,12 +371,11 @@ contract OperatorSpecificDelegatorHints is Hints {
         }
     }
 
-    function stakeHints(
-        address delegator,
-        bytes32 subnetwork,
-        address operator_,
-        uint48 timestamp
-    ) external view returns (bytes memory hints) {
+    function stakeHints(address delegator, bytes32 subnetwork, address operator_, uint48 timestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
         bytes memory baseHints =
             BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator_, timestamp);
 
@@ -387,9 +387,7 @@ contract OperatorSpecificDelegatorHints is Hints {
         if (baseHints.length != 0 || activeStakeHint.length != 0 || networkLimitHint_.length != 0) {
             hints = abi.encode(
                 IOperatorSpecificDelegator.StakeHints({
-                    baseHints: baseHints,
-                    activeStakeHint: activeStakeHint,
-                    networkLimitHint: networkLimitHint_
+                    baseHints: baseHints, activeStakeHint: activeStakeHint, networkLimitHint: networkLimitHint_
                 })
             );
         }
@@ -415,18 +413,20 @@ contract OperatorNetworkSpecificDelegatorHints is Hints {
         VAULT_HINTS = vaultHints;
     }
 
-    function maxNetworkLimitHintInternal(
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function maxNetworkLimitHintInternal(bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _maxNetworkLimit[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function maxNetworkLimitHint(
-        address delegator,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function maxNetworkLimitHint(address delegator, bytes32 subnetwork, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
@@ -442,12 +442,11 @@ contract OperatorNetworkSpecificDelegatorHints is Hints {
         }
     }
 
-    function stakeHints(
-        address delegator,
-        bytes32 subnetwork,
-        address operator_,
-        uint48 timestamp
-    ) external view returns (bytes memory hints) {
+    function stakeHints(address delegator, bytes32 subnetwork, address operator_, uint48 timestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
         bytes memory baseHints =
             BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeBaseHints(delegator, subnetwork, operator_, timestamp);
 
@@ -459,9 +458,7 @@ contract OperatorNetworkSpecificDelegatorHints is Hints {
         if (baseHints.length != 0 || activeStakeHint.length != 0 || maxNetworkLimitHint_.length != 0) {
             hints = abi.encode(
                 IOperatorNetworkSpecificDelegator.StakeHints({
-                    baseHints: baseHints,
-                    activeStakeHint: activeStakeHint,
-                    maxNetworkLimitHint: maxNetworkLimitHint_
+                    baseHints: baseHints, activeStakeHint: activeStakeHint, maxNetworkLimitHint: maxNetworkLimitHint_
                 })
             );
         }

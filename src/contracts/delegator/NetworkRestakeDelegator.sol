@@ -61,41 +61,36 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) public view returns (uint256) {
+    function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function totalOperatorNetworkSharesAt(
-        bytes32 subnetwork,
-        uint48 timestamp,
-        bytes memory hint
-    ) public view returns (uint256) {
+    function totalOperatorNetworkSharesAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint)
+        public
+        view
+        returns (uint256)
+    {
         return _totalOperatorNetworkShares[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function totalOperatorNetworkShares(
-        bytes32 subnetwork
-    ) public view returns (uint256) {
+    function totalOperatorNetworkShares(bytes32 subnetwork) public view returns (uint256) {
         return _totalOperatorNetworkShares[subnetwork].latest();
     }
 
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function operatorNetworkSharesAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hint
-    ) public view returns (uint256) {
+    function operatorNetworkSharesAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        public
+        view
+        returns (uint256)
+    {
         return _operatorNetworkShares[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
@@ -126,30 +121,28 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     /**
      * @inheritdoc INetworkRestakeDelegator
      */
-    function setOperatorNetworkShares(
-        bytes32 subnetwork,
-        address operator,
-        uint256 shares
-    ) external onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE) {
+    function setOperatorNetworkShares(bytes32 subnetwork, address operator, uint256 shares)
+        external
+        onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE)
+    {
         uint256 operatorNetworkShares_ = operatorNetworkShares(subnetwork, operator);
         if (operatorNetworkShares_ == shares) {
             revert AlreadySet();
         }
 
-        _totalOperatorNetworkShares[subnetwork].push(
-            Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares
-        );
+        _totalOperatorNetworkShares[subnetwork]
+        .push(Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares);
         _operatorNetworkShares[subnetwork][operator].push(Time.timestamp(), shares);
 
         emit SetOperatorNetworkShares(subnetwork, operator, shares);
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view override returns (uint256, bytes memory) {
+    function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        internal
+        view
+        override
+        returns (uint256, bytes memory)
+    {
         StakeHints memory stakesHints;
         if (hints.length > 0) {
             stakesHints = abi.decode(hints, (StakeHints));
@@ -160,13 +153,14 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return totalOperatorNetworkSharesAt_ == 0
             ? (0, stakesHints.baseHints)
             : (
-                operatorNetworkSharesAt(subnetwork, operator, timestamp, stakesHints.operatorNetworkSharesHint).mulDiv(
-                    Math.min(
-                        IVault(vault).activeStakeAt(timestamp, stakesHints.activeStakeHint),
-                        networkLimitAt(subnetwork, timestamp, stakesHints.networkLimitHint)
+                operatorNetworkSharesAt(subnetwork, operator, timestamp, stakesHints.operatorNetworkSharesHint)
+                    .mulDiv(
+                        Math.min(
+                            IVault(vault).activeStakeAt(timestamp, stakesHints.activeStakeHint),
+                            networkLimitAt(subnetwork, timestamp, stakesHints.networkLimitHint)
+                        ),
+                        totalOperatorNetworkSharesAt_
                     ),
-                    totalOperatorNetworkSharesAt_
-                ),
                 stakesHints.baseHints
             );
     }
@@ -175,9 +169,8 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(subnetwork);
         return totalOperatorNetworkShares_ == 0
             ? 0
-            : operatorNetworkShares(subnetwork, operator).mulDiv(
-                Math.min(IVault(vault).activeStake(), networkLimit(subnetwork)), totalOperatorNetworkShares_
-            );
+            : operatorNetworkShares(subnetwork, operator)
+                .mulDiv(Math.min(IVault(vault).activeStake(), networkLimit(subnetwork)), totalOperatorNetworkShares_);
     }
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
@@ -192,7 +185,8 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
 
         if (
             params.baseParams.defaultAdminRoleHolder == address(0)
-                && (params.networkLimitSetRoleHolders.length == 0 || params.operatorNetworkSharesSetRoleHolders.length == 0)
+                && (params.networkLimitSetRoleHolders.length == 0
+                    || params.operatorNetworkSharesSetRoleHolders.length == 0)
         ) {
             revert MissingRoleHolders();
         }

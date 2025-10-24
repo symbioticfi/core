@@ -99,12 +99,11 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function stakeAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) public view returns (uint256) {
+    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
         (uint256 stake_, bytes memory baseHints) = _stakeAt(subnetwork, operator, timestamp, hints);
         StakeBaseHints memory stakeBaseHints;
         if (baseHints.length > 0) {
@@ -113,12 +112,10 @@ abstract contract BaseDelegator is
 
         if (
             stake_ == 0
-                || !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedInAt(
-                    operator, vault, timestamp, stakeBaseHints.operatorVaultOptInHint
-                )
-                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedInAt(
-                    operator, subnetwork.network(), timestamp, stakeBaseHints.operatorNetworkOptInHint
-                )
+                || !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE)
+                    .isOptedInAt(operator, vault, timestamp, stakeBaseHints.operatorVaultOptInHint)
+                || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE)
+                    .isOptedInAt(operator, subnetwork.network(), timestamp, stakeBaseHints.operatorNetworkOptInHint)
         ) {
             return 0;
         }
@@ -163,9 +160,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setHook(
-        address hook_
-    ) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+    function setHook(address hook_) external nonReentrant onlyRole(HOOK_SET_ROLE) {
         if (hook == hook_) {
             revert AlreadySet();
         }
@@ -178,13 +173,10 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function onSlash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes memory data
-    ) external nonReentrant {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
+        external
+        nonReentrant
+    {
         if (msg.sender != IVault(vault).slasher()) {
             revert NotSlasher();
         }
@@ -206,9 +198,7 @@ abstract contract BaseDelegator is
         emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
-    function _initialize(
-        bytes calldata data
-    ) internal override {
+    function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
@@ -231,12 +221,12 @@ abstract contract BaseDelegator is
         }
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view virtual returns (uint256, bytes memory) {}
+    function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        internal
+        view
+        virtual
+        returns (uint256, bytes memory)
+    {}
 
     function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
 

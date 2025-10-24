@@ -64,12 +64,12 @@ contract OperatorNetworkSpecificDelegator is BaseDelegator, IOperatorNetworkSpec
         return _maxNetworkLimit[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator_,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view override returns (uint256, bytes memory) {
+    function _stakeAt(bytes32 subnetwork, address operator_, uint48 timestamp, bytes memory hints)
+        internal
+        view
+        override
+        returns (uint256, bytes memory)
+    {
         StakeHints memory stakesHints;
         if (hints.length > 0) {
             stakesHints = abi.decode(hints, (StakeHints));

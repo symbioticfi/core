@@ -6,9 +6,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract RegisterOperatorBaseScript is ScriptBase {
-    function run(
-        address operatorRegistry
-    ) public returns (bytes memory data, address target) {
+    function run(address operatorRegistry) public returns (bytes memory data, address target) {
         target = operatorRegistry;
         data = abi.encodeCall(IOperatorRegistry(operatorRegistry).registerOperator, ());
         sendTransaction(target, data);

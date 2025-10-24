@@ -26,28 +26,26 @@ contract BaseSlasherHints is Hints {
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
-    constructor(
-        address baseDelegatorHints
-    ) {
+    constructor(address baseDelegatorHints) {
         BASE_DELEGATOR_HINTS = baseDelegatorHints;
         SLASHER_HINTS = address(new SlasherHints(address(this)));
         VETO_SLASHER_HINTS = address(new VetoSlasherHints(address(this)));
     }
 
-    function cumulativeSlashHintInternal(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function cumulativeSlashHintInternal(bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _cumulativeSlash[subnetwork][operator].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function cumulativeSlashHint(
-        address slasher,
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function cumulativeSlashHint(address slasher, bytes32 subnetwork, address operator, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 slasher, abi.encodeCall(BaseSlasherHints.cumulativeSlashHintInternal, (subnetwork, operator, timestamp))
@@ -60,23 +58,22 @@ contract BaseSlasherHints is Hints {
         }
     }
 
-    function slashableStakeHints(
-        address slasher,
-        bytes32 subnetwork,
-        address operator,
-        uint48 captureTimestamp
-    ) external view returns (bytes memory hints) {
-        bytes memory stakeHints = BaseDelegatorHints(BASE_DELEGATOR_HINTS).stakeHints(
-            IVaultStorage(IBaseSlasher(slasher).vault()).delegator(), subnetwork, operator, captureTimestamp
-        );
+    function slashableStakeHints(address slasher, bytes32 subnetwork, address operator, uint48 captureTimestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
+        bytes memory stakeHints = BaseDelegatorHints(BASE_DELEGATOR_HINTS)
+            .stakeHints(
+                IVaultStorage(IBaseSlasher(slasher).vault()).delegator(), subnetwork, operator, captureTimestamp
+            );
 
         bytes memory cumulativeSlashFromHint = cumulativeSlashHint(slasher, subnetwork, operator, captureTimestamp);
 
         if (stakeHints.length > 0 || cumulativeSlashFromHint.length > 0) {
             hints = abi.encode(
                 IBaseSlasher.SlashableStakeHints({
-                    stakeHints: stakeHints,
-                    cumulativeSlashFromHint: cumulativeSlashFromHint
+                    stakeHints: stakeHints, cumulativeSlashFromHint: cumulativeSlashFromHint
                 })
             );
         }
@@ -91,20 +88,17 @@ contract SlasherHints is Hints {
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
-    constructor(
-        address baseSlasherHints
-    ) {
+    constructor(address baseSlasherHints) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 
-    function slashHints(
-        address slasher,
-        bytes32 subnetwork,
-        address operator,
-        uint48 captureTimestamp
-    ) external view returns (bytes memory hints) {
-        bytes memory slashableStakeHints =
-            BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
+    function slashHints(address slasher, bytes32 subnetwork, address operator, uint48 captureTimestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
+        bytes memory slashableStakeHints = BaseSlasherHints(BASE_SLASHER_HINTS)
+            .slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
         if (slashableStakeHints.length > 0) {
             hints = abi.encode(ISlasher.SlashHints({slashableStakeHints: slashableStakeHints}));
@@ -129,24 +123,24 @@ contract VetoSlasherHints is Hints {
     uint256 public resolverSetEpochsDelay;
     mapping(bytes32 subnetwork => Checkpoints.Trace208 value) internal _resolver;
 
-    constructor(
-        address baseSlasherHints
-    ) {
+    constructor(address baseSlasherHints) {
         BASE_SLASHER_HINTS = baseSlasherHints;
     }
 
-    function resolverHintInternal(
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function resolverHintInternal(bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _resolver[subnetwork].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function resolverHint(
-        address slasher,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function resolverHint(address slasher, bytes32 subnetwork, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 slasher, abi.encodeCall(VetoSlasherHints.resolverHintInternal, (subnetwork, timestamp))
@@ -159,14 +153,13 @@ contract VetoSlasherHints is Hints {
         }
     }
 
-    function requestSlashHints(
-        address slasher,
-        bytes32 subnetwork,
-        address operator,
-        uint48 captureTimestamp
-    ) external view returns (bytes memory hints) {
-        bytes memory slashableStakeHints =
-            BaseSlasherHints(BASE_SLASHER_HINTS).slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
+    function requestSlashHints(address slasher, bytes32 subnetwork, address operator, uint48 captureTimestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
+        bytes memory slashableStakeHints = BaseSlasherHints(BASE_SLASHER_HINTS)
+            .slashableStakeHints(slasher, subnetwork, operator, captureTimestamp);
 
         if (slashableStakeHints.length > 0) {
             hints = abi.encode(IVetoSlasher.RequestSlashHints({slashableStakeHints: slashableStakeHints}));
@@ -202,18 +195,17 @@ contract VetoSlasherHints is Hints {
         if (captureResolverHint.length > 0 || currentResolverHint.length > 0) {
             hints = abi.encode(
                 IVetoSlasher.VetoSlashHints({
-                    captureResolverHint: captureResolverHint,
-                    currentResolverHint: currentResolverHint
+                    captureResolverHint: captureResolverHint, currentResolverHint: currentResolverHint
                 })
             );
         }
     }
 
-    function setResolverHints(
-        address slasher,
-        bytes32 subnetwork,
-        uint48 timestamp
-    ) external view returns (bytes memory hints) {
+    function setResolverHints(address slasher, bytes32 subnetwork, uint48 timestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
         bytes memory resolverHint_ = resolverHint(slasher, subnetwork, timestamp);
 
         if (resolverHint_.length > 0) {

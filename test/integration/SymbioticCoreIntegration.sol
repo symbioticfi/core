@@ -198,25 +198,19 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
         _createStakers_SymbioticCore(numberOfStakers);
     }
 
-    function _createNetworks_SymbioticCore(
-        uint256 numberOfNetworks
-    ) internal virtual {
+    function _createNetworks_SymbioticCore(uint256 numberOfNetworks) internal virtual {
         for (uint256 i; i < numberOfNetworks; ++i) {
             networks_SymbioticCore.push(_getNetwork_SymbioticCore());
         }
     }
 
-    function _createOperators_SymbioticCore(
-        uint256 numberOfOperators
-    ) internal virtual {
+    function _createOperators_SymbioticCore(uint256 numberOfOperators) internal virtual {
         for (uint256 i; i < numberOfOperators; ++i) {
             operators_SymbioticCore.push(_getOperator_SymbioticCore());
         }
     }
 
-    function _createVaults_SymbioticCore(
-        uint256 numberOfVaults
-    ) internal virtual {
+    function _createVaults_SymbioticCore(uint256 numberOfVaults) internal virtual {
         for (uint256 i; i < numberOfVaults; ++i) {
             vaults_SymbioticCore.push(
                 _getVaultRandom_SymbioticCore(
@@ -227,9 +221,7 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
         }
     }
 
-    function _createStakers_SymbioticCore(
-        uint256 numberOfStakers
-    ) internal virtual {
+    function _createStakers_SymbioticCore(uint256 numberOfStakers) internal virtual {
         for (uint256 i; i < numberOfStakers; ++i) {
             stakers_SymbioticCore.push(_getStaker_SymbioticCore(tokens_SymbioticCore));
         }
@@ -284,10 +276,11 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
         }
     }
 
-    function _delegateToNetworkTry_SymbioticCore(
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual returns (bool success) {
+    function _delegateToNetworkTry_SymbioticCore(address vault, bytes32 subnetwork)
+        internal
+        virtual
+        returns (bool success)
+    {
         (, success) = _curatorDelegateToNetworkInternal_SymbioticCore(Ownable(vault).owner(), vault, subnetwork);
     }
 
@@ -309,20 +302,21 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
         }
     }
 
-    function _delegateToOperatorTry_SymbioticCore(
-        address vault,
-        bytes32 subnetwork,
-        address operator
-    ) internal virtual returns (bool success) {
-        (, success) =
-            _curatorDelegateToOperatorInternal_SymbioticCore(Ownable(vault).owner(), vault, subnetwork, operator);
+    function _delegateToOperatorTry_SymbioticCore(address vault, bytes32 subnetwork, address operator)
+        internal
+        virtual
+        returns (bool success)
+    {
+        (, success) = _curatorDelegateToOperatorInternal_SymbioticCore(
+            Ownable(vault).owner(), vault, subnetwork, operator
+        );
     }
 
-    function _delegateTry_SymbioticCore(
-        address vault,
-        bytes32 subnetwork,
-        address operator
-    ) internal virtual returns (bool) {
+    function _delegateTry_SymbioticCore(address vault, bytes32 subnetwork, address operator)
+        internal
+        virtual
+        returns (bool)
+    {
         return _delegateToNetworkTry_SymbioticCore(vault, subnetwork)
             && _delegateToOperatorTry_SymbioticCore(vault, subnetwork, operator);
     }
@@ -363,27 +357,23 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
                     }
 
                     for (uint256 l; l < operators_SymbioticCore.length; ++l) {
-                        if (
-                            _operatorPossibleValidating_SymbioticCore(
+                        if (_operatorPossibleValidating_SymbioticCore(
                                 operators_SymbioticCore[l].addr, vaults_SymbioticCore[k], subnetwork
-                            )
-                        ) {
-                            isPossibleOperatorForSubnetwork[subnetwork][vaults_SymbioticCore[k]][operators_SymbioticCore[l]
-                                .addr] = true;
-                            possibleOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]].push(
-                                operators_SymbioticCore[l].addr
-                            );
+                            )) {
+                            isPossibleOperatorForSubnetwork[
+                                subnetwork
+                            ][vaults_SymbioticCore[k]][operators_SymbioticCore[l].addr] = true;
+                            possibleOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]]
+                            .push(operators_SymbioticCore[l].addr);
                         }
-                        if (
-                            _operatorConfirmedValidating_SymbioticCore(
+                        if (_operatorConfirmedValidating_SymbioticCore(
                                 operators_SymbioticCore[l].addr, vaults_SymbioticCore[k], subnetwork
-                            )
-                        ) {
-                            isConfirmedOperatorForSubnetwork[subnetwork][vaults_SymbioticCore[k]][operators_SymbioticCore[l]
-                                .addr] = true;
-                            confirmedOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]].push(
-                                operators_SymbioticCore[l].addr
-                            );
+                            )) {
+                            isConfirmedOperatorForSubnetwork[
+                                subnetwork
+                            ][vaults_SymbioticCore[k]][operators_SymbioticCore[l].addr] = true;
+                            confirmedOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]]
+                            .push(operators_SymbioticCore[l].addr);
                         }
                     }
                 }

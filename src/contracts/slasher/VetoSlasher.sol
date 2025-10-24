@@ -123,10 +123,11 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
     /**
      * @inheritdoc IVetoSlasher
      */
-    function executeSlash(
-        uint256 slashIndex,
-        bytes calldata hints
-    ) external nonReentrant returns (uint256 slashedAmount) {
+    function executeSlash(uint256 slashIndex, bytes calldata hints)
+        external
+        nonReentrant
+        returns (uint256 slashedAmount)
+    {
         ExecuteSlashHints memory executeSlashHints;
         if (hints.length > 0) {
             executeSlashHints = abi.decode(hints, (ExecuteSlashHints));
@@ -142,9 +143,9 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
 
         if (
             resolverAt(request.subnetwork, request.captureTimestamp, executeSlashHints.captureResolverHint)
-                != address(0)
-                && resolverAt(request.subnetwork, Time.timestamp() - 1, executeSlashHints.currentResolverHint) != address(0)
-                && request.vetoDeadline > Time.timestamp()
+                    != address(0)
+                && resolverAt(request.subnetwork, Time.timestamp() - 1, executeSlashHints.currentResolverHint)
+                    != address(0) && request.vetoDeadline > Time.timestamp()
         ) {
             revert VetoPeriodNotEnded();
         }
@@ -207,7 +208,8 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             resolverAt(request.subnetwork, request.captureTimestamp, vetoSlashHints.captureResolverHint);
         if (
             captureResolver == address(0)
-                || resolverAt(request.subnetwork, Time.timestamp() - 1, vetoSlashHints.currentResolverHint) == address(0)
+                || resolverAt(request.subnetwork, Time.timestamp() - 1, vetoSlashHints.currentResolverHint)
+                    == address(0)
         ) {
             revert NoResolver();
         }
@@ -250,9 +252,10 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             }
 
             if (resolver_ != address(uint160(_resolver[subnetwork].latest()))) {
-                _resolver[subnetwork].push(
+                _resolver[subnetwork]
+                .push(
                     (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
-                        .toUint48(),
+                    .toUint48(),
                     uint160(resolver_)
                 );
             }

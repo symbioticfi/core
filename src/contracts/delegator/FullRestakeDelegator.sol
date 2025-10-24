@@ -59,21 +59,18 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) public view returns (uint256) {
+    function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function operatorNetworkLimitAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hint
-    ) public view returns (uint256) {
+    function operatorNetworkLimitAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        public
+        view
+        returns (uint256)
+    {
         return _operatorNetworkLimit[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
@@ -104,11 +101,10 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     /**
      * @inheritdoc IFullRestakeDelegator
      */
-    function setOperatorNetworkLimit(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount
-    ) external onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE) {
+    function setOperatorNetworkLimit(bytes32 subnetwork, address operator, uint256 amount)
+        external
+        onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE)
+    {
         if (operatorNetworkLimit(subnetwork, operator) == amount) {
             revert AlreadySet();
         }
@@ -118,12 +114,12 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         emit SetOperatorNetworkLimit(subnetwork, operator, amount);
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view override returns (uint256, bytes memory) {
+    function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        internal
+        view
+        override
+        returns (uint256, bytes memory)
+    {
         StakeHints memory stakesHints;
         if (hints.length > 0) {
             stakesHints = abi.decode(hints, (StakeHints));
@@ -159,7 +155,8 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
 
         if (
             params.baseParams.defaultAdminRoleHolder == address(0)
-                && (params.networkLimitSetRoleHolders.length == 0 || params.operatorNetworkLimitSetRoleHolders.length == 0)
+                && (params.networkLimitSetRoleHolders.length == 0
+                    || params.operatorNetworkLimitSetRoleHolders.length == 0)
         ) {
             revert MissingRoleHolders();
         }

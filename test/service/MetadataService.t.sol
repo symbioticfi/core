@@ -31,9 +31,7 @@ contract MetadataServiceTest is Test {
         registry = new OperatorRegistry();
     }
 
-    function test_Create(
-        string calldata metadataURL_
-    ) public {
+    function test_Create(string calldata metadataURL_) public {
         vm.assume(!metadataURL_.equal(""));
 
         service = IMetadataService(address(new MetadataService(address(registry))));
@@ -51,9 +49,7 @@ contract MetadataServiceTest is Test {
         assertEq(service.metadataURL(alice), metadataURL_);
     }
 
-    function test_SetMetadataURLRevertNotEntity(
-        string calldata metadataURL_
-    ) public {
+    function test_SetMetadataURLRevertNotEntity(string calldata metadataURL_) public {
         vm.assume(!metadataURL_.equal(""));
 
         service = IMetadataService(address(new MetadataService(address(registry))));
@@ -64,9 +60,7 @@ contract MetadataServiceTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetMetadataURLRevertAlreadySet(
-        string calldata metadataURL_
-    ) public {
+    function test_SetMetadataURLRevertAlreadySet(string calldata metadataURL_) public {
         vm.assume(!metadataURL_.equal(""));
 
         service = IMetadataService(address(new MetadataService(address(registry))));

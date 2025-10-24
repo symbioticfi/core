@@ -11,9 +11,7 @@ library Logs {
     address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
     Vm internal constant vm = Vm(VM_ADDRESS);
 
-    function log(
-        string memory data
-    ) public {
+    function log(string memory data) public {
         console2.log(data);
         vm.writeFile(LOG_FILE, string.concat(vm.readFile(LOG_FILE), data, "\n"));
     }

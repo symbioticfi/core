@@ -14,15 +14,11 @@ interface ICreateX {
     }
 
     function deployCreate3(bytes32 salt, bytes memory initCode) external payable returns (address);
-    function computeCreate3Address(
-        bytes32 salt
-    ) external view returns (address computedAddress);
-    function deployCreate3AndInit(
-        bytes32 salt,
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values
-    ) external payable returns (address newContract);
+    function computeCreate3Address(bytes32 salt) external view returns (address computedAddress);
+    function deployCreate3AndInit(bytes32 salt, bytes memory initCode, bytes memory data, Values memory values)
+        external
+        payable
+        returns (address newContract);
 }
 
 /**

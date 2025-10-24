@@ -3,30 +3,66 @@ evm_version = "cancun"
 solc = "0.8.25"
 optimizer = true
 optimizer_runs = 200
-via_ir = false
+via_ir = true
 src = "src"
 out = "out"
 libs = ["lib"]
 fs_permissions = [{ access = "read-write", path = "./"}]
 gas_reports = ["*"]
 gas_limit = "18446744073709551615"
+dynamic_test_linking = true
+ignored_warnings_from = ["test/","script/"]
+ffi = true
 
 [rpc_endpoints]
 mainnet = "${ETH_RPC_URL}"
+hoodi = "${ETH_RPC_URL_HOODI}"
 holesky = "${ETH_RPC_URL_HOLESKY}"
+sepolia = "${ETH_RPC_URL_SEPOLIA}"
 
 [fmt]
 bracket_spacing = false
 int_types = "long"
 line_length = 120
-multiline_func_header = "params_first"
+multiline_func_header = "attributes_first"
 number_underscore = "thousands"
 quote_style = "double"
 tab_width = 4
+single_line_statement_blocks = "preserve"
+sort_imports = false
+contract_new_lines = false
+override_spacing = false
+hex_underscore = "preserve"
+wrap_comments = false
 
-[fuzz]
-runs = 4096
+[lint]
+lint_on_build = false
+exclude_lints = ["asm-keccak256","mixed-case-function","mixed-case-variable","pascal-case-struct","screaming-snake-case-const"]
+ignore = ["test/**/*.sol","script/**/*.sol","src/interfaces/**/*.sol"]
+
+additional_compiler_profiles = [
+  { name = "test", via_ir = false, optimizer = false }
+]
+
+compilation_restrictions = [
+  { paths = "test/**", via_ir = false, optimizer = false }
+]
+
+[profile.default.fuzz]
+runs = 1000
 max_test_rejects = 262144
 
+[profile.pr.fuzz]
+runs = 10000
+max_test_rejects = 262144
+
+[profile.ci.fuzz]
+runs = 100000
+max_test_rejects = 262144
+
+[profile.debug]
+via_ir = false
+optimizer_runs = 200
+fuzz.runs = 100
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

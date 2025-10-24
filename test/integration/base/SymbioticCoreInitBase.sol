@@ -113,9 +113,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
     }
 
     // if useExisting is true, the core is not deployed, but the addresses are returned
-    function _initCore_SymbioticCore(
-        bool useExisting
-    ) internal virtual {
+    function _initCore_SymbioticCore(bool useExisting) internal virtual {
         if (useExisting) {
             // return existing core
             symbioticCore = SymbioticCoreConstants.core();
@@ -326,9 +324,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
 
     // ------------------------------------------------------------ VAULT-RELATED HELPERS ------------------------------------------------------------ //
 
-    function _getVault_SymbioticCore(
-        address collateral
-    ) internal virtual returns (address) {
+    function _getVault_SymbioticCore(address collateral) internal virtual returns (address) {
         (Vm.CallerMode callerMode,, address owner) = vm.readCallers();
 
         _stopBroadcastWhenCallerModeIsSingleOrRecurrent(callerMode);
@@ -388,9 +384,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return vault;
     }
 
-    function _getVault_SymbioticCore(
-        VaultParams memory params
-    ) internal virtual returns (address vault) {
+    function _getVault_SymbioticCore(VaultParams memory params) internal virtual returns (address vault) {
         GetVaultLocalVars memory vars;
         vars.depositWhitelist = params.whitelistedDepositors.length != 0;
 
@@ -430,9 +424,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             vars.delegatorParams = abi.encode(
                 ISymbioticNetworkRestakeDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: params.hook,
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: params.hook, hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
                     operatorNetworkSharesSetRoleHolders: vars.operatorNetworkSharesSetRoleHolders
@@ -442,9 +434,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             vars.delegatorParams = abi.encode(
                 ISymbioticFullRestakeDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: params.hook,
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: params.hook, hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
                     operatorNetworkLimitSetRoleHolders: vars.operatorNetworkLimitSetRoleHolders
@@ -454,9 +444,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             vars.delegatorParams = abi.encode(
                 ISymbioticOperatorSpecificDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: params.hook,
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: params.hook, hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
                     operator: params.owner
@@ -466,9 +454,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             vars.delegatorParams = abi.encode(
                 ISymbioticOperatorNetworkSpecificDelegator.InitParams({
                     baseParams: ISymbioticBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: params.hook,
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: params.hook, hookSetRoleHolder: params.owner
                     }),
                     network: params.network,
                     operator: params.owner
@@ -520,10 +506,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return vars.vault;
     }
 
-    function _getVaultRandom_SymbioticCore(
-        address[] memory operators,
-        address collateral
-    ) internal virtual returns (address) {
+    function _getVaultRandom_SymbioticCore(address[] memory operators, address collateral)
+        internal
+        virtual
+        returns (address)
+    {
         uint256 count_ = 0;
         uint64[] memory delegatorTypes = new uint64[](SYMBIOTIC_CORE_DELEGATOR_TYPES.length);
         for (uint64 i; i < SYMBIOTIC_CORE_DELEGATOR_TYPES.length; ++i) {
@@ -596,9 +583,9 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
         } else if (type_ == 3) {
-            delegatorSpecificCondition = ISymbioticOperatorNetworkSpecificDelegator(delegator).network()
-                == subnetwork.network()
-                && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
+            delegatorSpecificCondition =
+                ISymbioticOperatorNetworkSpecificDelegator(delegator).network() == subnetwork.network()
+                    && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
         }
 
         return delegatorSpecificCondition;
@@ -612,9 +599,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return operator;
     }
 
-    function _getOperatorWithOptIns_SymbioticCore(
-        address vault
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getOperatorWithOptIns_SymbioticCore(address vault) internal virtual returns (Vm.Wallet memory) {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
         _operatorOptIn_SymbioticCore(operator.addr, vault);
@@ -622,9 +607,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return operator;
     }
 
-    function _getOperatorWithOptIns_SymbioticCore(
-        address[] memory vaults
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getOperatorWithOptIns_SymbioticCore(address[] memory vaults) internal virtual returns (Vm.Wallet memory) {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
         for (uint256 i; i < vaults.length; ++i) {
@@ -634,10 +617,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return operator;
     }
 
-    function _getOperatorWithOptIns_SymbioticCore(
-        address vault,
-        address network
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getOperatorWithOptIns_SymbioticCore(address vault, address network)
+        internal
+        virtual
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
         _operatorOptIn_SymbioticCore(operator.addr, vault);
@@ -646,10 +630,12 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return operator;
     }
 
-    function _getOperatorWithOptIns_SymbioticCore(
-        address[] memory vaults,
-        address[] memory networks
-    ) internal virtual equalLengthsAddressAddress_Symbiotic(vaults, networks) returns (Vm.Wallet memory) {
+    function _getOperatorWithOptIns_SymbioticCore(address[] memory vaults, address[] memory networks)
+        internal
+        virtual
+        equalLengthsAddressAddress_Symbiotic(vaults, networks)
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory operator = _getOperator_SymbioticCore();
 
         for (uint256 i; i < vaults.length; ++i) {
@@ -663,9 +649,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return operator;
     }
 
-    function _operatorRegister_SymbioticCore(
-        address operator
-    ) internal virtual {
+    function _operatorRegister_SymbioticCore(address operator) internal virtual {
         _registerOperator_SymbioticCore(symbioticCore, operator);
     }
 
@@ -704,10 +688,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         }
     }
 
-    function _operatorOptInSignature_SymbioticCore(
-        Vm.Wallet memory operator,
-        address where
-    ) internal virtual returns (bytes memory) {
+    function _operatorOptInSignature_SymbioticCore(Vm.Wallet memory operator, address where)
+        internal
+        virtual
+        returns (bytes memory)
+    {
         uint48 deadline = uint48(vm.getBlockTimestamp() + 7 days);
 
         address service;
@@ -728,10 +713,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return abi.encodePacked(r, s, v);
     }
 
-    function _operatorOptOutSignature_SymbioticCore(
-        Vm.Wallet memory operator,
-        address where
-    ) internal virtual returns (bytes memory) {
+    function _operatorOptOutSignature_SymbioticCore(Vm.Wallet memory operator, address where)
+        internal
+        virtual
+        returns (bytes memory)
+    {
         uint48 deadline = uint48(vm.getBlockTimestamp() + 7 days);
 
         address service;
@@ -782,9 +768,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }
 
-    function _computeDomainSeparator_SymbioticCore(
-        address service
-    ) internal view virtual returns (bytes32) {
+    function _computeDomainSeparator_SymbioticCore(address service) internal view virtual returns (bytes32) {
         bytes32 DOMAIN_TYPEHASH =
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
@@ -796,11 +780,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return keccak256(abi.encode(DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, chainId, service));
     }
 
-    function _operatorPossibleValidating_SymbioticCore(
-        address operator,
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual returns (bool) {
+    function _operatorPossibleValidating_SymbioticCore(address operator, address vault, bytes32 subnetwork)
+        internal
+        virtual
+        returns (bool)
+    {
         address delegator = ISymbioticVault(vault).delegator();
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
 
@@ -823,11 +807,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return symbioticCore.operatorVaultOptInService.isOptedIn(operator, vault) && delegatorSpecificCondition;
     }
 
-    function _operatorConfirmedValidating_SymbioticCore(
-        address operator,
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual returns (bool) {
+    function _operatorConfirmedValidating_SymbioticCore(address operator, address vault, bytes32 subnetwork)
+        internal
+        virtual
+        returns (bool)
+    {
         return _operatorPossibleValidating_SymbioticCore(operator, vault, subnetwork)
             && symbioticCore.operatorNetworkOptInService.isOptedIn(operator, subnetwork.network());
     }
@@ -841,9 +825,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return network;
     }
 
-    function _getNetworkWithMiddleware_SymbioticCore(
-        address middleware
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getNetworkWithMiddleware_SymbioticCore(address middleware) internal virtual returns (Vm.Wallet memory) {
         Vm.Wallet memory network = _getAccount_Symbiotic();
         _networkRegister_SymbioticCore(network.addr);
         _networkSetMiddleware_SymbioticCore(network.addr, middleware);
@@ -851,11 +833,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return network;
     }
 
-    function _getNetworkWithMaxNetworkLimits_SymbioticCore(
-        uint96 identifier,
-        address vault,
-        uint256 maxNetworkLimit
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getNetworkWithMaxNetworkLimits_SymbioticCore(uint96 identifier, address vault, uint256 maxNetworkLimit)
+        internal
+        virtual
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory network = _getNetwork_SymbioticCore();
 
         _setMaxNetworkLimit_SymbioticCore(network.addr, vault, identifier, maxNetworkLimit);
@@ -876,10 +858,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return network;
     }
 
-    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
-        uint96 identifier,
-        address vault
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(uint96 identifier, address vault)
+        internal
+        virtual
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory network = _getNetwork_SymbioticCore();
 
         _networkSetMaxNetworkLimitRandom_SymbioticCore(network.addr, vault, identifier);
@@ -940,10 +923,12 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return network;
     }
 
-    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(
-        uint96[] memory identifiers,
-        address[] memory vaults
-    ) internal virtual equalLengthsUint96Address_Symbiotic(identifiers, vaults) returns (Vm.Wallet memory) {
+    function _getNetworkWithMaxNetworkLimitsRandom_SymbioticCore(uint96[] memory identifiers, address[] memory vaults)
+        internal
+        virtual
+        equalLengthsUint96Address_Symbiotic(identifiers, vaults)
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory network = _getNetwork_SymbioticCore();
 
         for (uint256 i; i < vaults.length; ++i) {
@@ -1113,9 +1098,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return network;
     }
 
-    function _networkRegister_SymbioticCore(
-        address network
-    ) internal virtual {
+    function _networkRegister_SymbioticCore(address network) internal virtual {
         _registerNetwork_SymbioticCore(symbioticCore, network);
     }
 
@@ -1132,11 +1115,10 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         _setMaxNetworkLimit_SymbioticCore(network, vault, identifier, maxNetworkLimit);
     }
 
-    function _networkSetMaxNetworkLimitRandom_SymbioticCore(
-        address network,
-        address vault,
-        uint96 identifier
-    ) internal virtual {
+    function _networkSetMaxNetworkLimitRandom_SymbioticCore(address network, address vault, uint96 identifier)
+        internal
+        virtual
+    {
         address collateral = ISymbioticVault(vault).collateral();
         uint256 amount = _randomWithBounds_Symbiotic(
             _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MIN_MAX_NETWORK_LIMIT_TIMES_1e18, collateral),
@@ -1151,11 +1133,10 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         _networkSetMaxNetworkLimit_SymbioticCore(network, vault, identifier, amount);
     }
 
-    function _networkSetMaxNetworkLimitReset_SymbioticCore(
-        address network,
-        address vault,
-        uint96 identifier
-    ) internal virtual {
+    function _networkSetMaxNetworkLimitReset_SymbioticCore(address network, address vault, uint96 identifier)
+        internal
+        virtual
+    {
         if (
             ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).maxNetworkLimit(network.subnetwork(identifier))
                 == 0
@@ -1165,12 +1146,10 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         _networkSetMaxNetworkLimit_SymbioticCore(network, vault, identifier, 0);
     }
 
-    function _networkSetResolver_SymbioticCore(
-        address network,
-        address vault,
-        uint96 identifier,
-        address resolver
-    ) internal virtual {
+    function _networkSetResolver_SymbioticCore(address network, address vault, uint96 identifier, address resolver)
+        internal
+        virtual
+    {
         _setResolver_SymbioticCore(network, vault, identifier, resolver);
     }
 
@@ -1206,14 +1185,13 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
 
     // ------------------------------------------------------------ STAKER-RELATED HELPERS ------------------------------------------------------------ //
 
-    function _getStaker_SymbioticCore(
-        address[] memory possibleTokens
-    ) internal virtual returns (Vm.Wallet memory);
+    function _getStaker_SymbioticCore(address[] memory possibleTokens) internal virtual returns (Vm.Wallet memory);
 
-    function _getStakerWithStake_SymbioticCore(
-        address[] memory possibleTokens,
-        address vault
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getStakerWithStake_SymbioticCore(address[] memory possibleTokens, address vault)
+        internal
+        virtual
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory staker = _getStaker_SymbioticCore(possibleTokens);
 
         _stakerDepositRandom_SymbioticCore(staker.addr, vault);
@@ -1221,10 +1199,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return staker;
     }
 
-    function _getStakerWithStake_SymbioticCore(
-        address[] memory possibleTokens,
-        address[] memory vaults
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getStakerWithStake_SymbioticCore(address[] memory possibleTokens, address[] memory vaults)
+        internal
+        virtual
+        returns (Vm.Wallet memory)
+    {
         Vm.Wallet memory staker = _getStaker_SymbioticCore(possibleTokens);
 
         for (uint256 i; i < vaults.length; ++i) {
@@ -1295,20 +1274,18 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         _setHook_SymbioticCore(curator, vault, hook);
     }
 
-    function _curatorSetNetworkLimit_SymbioticCore(
-        address curator,
-        address vault,
-        bytes32 subnetwork,
-        uint256 amount
-    ) internal virtual {
+    function _curatorSetNetworkLimit_SymbioticCore(address curator, address vault, bytes32 subnetwork, uint256 amount)
+        internal
+        virtual
+    {
         _setNetworkLimit_SymbioticCore(curator, vault, subnetwork, amount);
     }
 
-    function _curatorSetNetworkLimitRandom_SymbioticCore(
-        address curator,
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual returns (bool) {
+    function _curatorSetNetworkLimitRandom_SymbioticCore(address curator, address vault, bytes32 subnetwork)
+        internal
+        virtual
+        returns (bool)
+    {
         address collateral = ISymbioticVault(vault).collateral();
         address delegator = ISymbioticVault(vault).delegator();
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
@@ -1333,11 +1310,10 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return true;
     }
 
-    function _curatorSetNetworkLimitReset_SymbioticCore(
-        address curator,
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual {
+    function _curatorSetNetworkLimitReset_SymbioticCore(address curator, address vault, bytes32 subnetwork)
+        internal
+        virtual
+    {
         if (ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).networkLimit(subnetwork) == 0) {
             return;
         }
@@ -1364,9 +1340,8 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             SYMBIOTIC_CORE_MIN_OPERATOR_NETWORK_SHARES, SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_SHARES
         );
         if (
-            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkShares(
-                subnetwork, operator
-            ) == shares
+            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator())
+                    .operatorNetworkShares(subnetwork, operator) == shares
         ) {
             return true;
         }
@@ -1381,9 +1356,8 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         address operator
     ) internal virtual {
         if (
-            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkShares(
-                subnetwork, operator
-            ) == 0
+            ISymbioticNetworkRestakeDelegator(ISymbioticVault(vault).delegator())
+                    .operatorNetworkShares(subnetwork, operator) == 0
         ) {
             return;
         }
@@ -1412,9 +1386,8 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             _normalizeForToken_Symbiotic(SYMBIOTIC_CORE_MAX_OPERATOR_NETWORK_LIMIT_TIMES_1e18, collateral)
         );
         if (
-            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkLimit(
-                subnetwork, operator
-            ) == amount
+            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator())
+                    .operatorNetworkLimit(subnetwork, operator) == amount
         ) {
             return true;
         }
@@ -1429,20 +1402,19 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         address operator
     ) internal virtual {
         if (
-            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator()).operatorNetworkLimit(
-                subnetwork, operator
-            ) == 0
+            ISymbioticFullRestakeDelegator(ISymbioticVault(vault).delegator())
+                    .operatorNetworkLimit(subnetwork, operator) == 0
         ) {
             return;
         }
         _setOperatorNetworkLimit_SymbioticCore(curator, vault, subnetwork, operator, 0);
     }
 
-    function _curatorDelegateNetworkRandom_SymbioticCore(
-        address curator,
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual returns (bool) {
+    function _curatorDelegateNetworkRandom_SymbioticCore(address curator, address vault, bytes32 subnetwork)
+        internal
+        virtual
+        returns (bool)
+    {
         address delegator = ISymbioticVault(vault).delegator();
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
 
@@ -1462,18 +1434,20 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         address curator,
         address vault,
         bytes32 /* subnetwork */
-    ) internal virtual returns (bool) {
+    )
+        internal
+        virtual
+        returns (bool)
+    {
         address delegator = ISymbioticVault(vault).delegator();
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
 
         if (type_ == 0) {
-            return IAccessControl(delegator).hasRole(
-                ISymbioticNetworkRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
-            );
+            return IAccessControl(delegator)
+                .hasRole(ISymbioticNetworkRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator);
         } else if (type_ == 1) {
-            return IAccessControl(delegator).hasRole(
-                ISymbioticFullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
-            );
+            return IAccessControl(delegator)
+                .hasRole(ISymbioticFullRestakeDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator);
         } else if (type_ == 2) {
             return false;
         } else if (type_ == 3) {
@@ -1517,18 +1491,15 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         uint64 type_ = ISymbioticEntity(delegator).TYPE();
 
         if (type_ == 0) {
-            return IAccessControl(delegator).hasRole(
-                ISymbioticNetworkRestakeDelegator(delegator).OPERATOR_NETWORK_SHARES_SET_ROLE(), curator
-            );
+            return IAccessControl(delegator)
+                .hasRole(ISymbioticNetworkRestakeDelegator(delegator).OPERATOR_NETWORK_SHARES_SET_ROLE(), curator);
         } else if (type_ == 1) {
-            return IAccessControl(delegator).hasRole(
-                ISymbioticFullRestakeDelegator(delegator).OPERATOR_NETWORK_LIMIT_SET_ROLE(), curator
-            );
+            return IAccessControl(delegator)
+                .hasRole(ISymbioticFullRestakeDelegator(delegator).OPERATOR_NETWORK_LIMIT_SET_ROLE(), curator);
         } else if (type_ == 2) {
             if (ISymbioticOperatorSpecificDelegator(delegator).operator() == operator) {
-                return IAccessControl(delegator).hasRole(
-                    ISymbioticOperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator
-                );
+                return IAccessControl(delegator)
+                    .hasRole(ISymbioticOperatorSpecificDelegator(delegator).NETWORK_LIMIT_SET_ROLE(), curator);
             }
             return false;
         } else if (type_ == 3) {
@@ -1538,12 +1509,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         return false;
     }
 
-    function _curatorDelegateRandom_SymbioticCore(
-        address curator,
-        address vault,
-        bytes32 subnetwork,
-        address operator
-    ) internal virtual returns (bool) {
+    function _curatorDelegateRandom_SymbioticCore(address curator, address vault, bytes32 subnetwork, address operator)
+        internal
+        virtual
+        returns (bool)
+    {
         return _curatorDelegateNetworkRandom_SymbioticCore(curator, vault, subnetwork)
             && _curatorDelegateOperatorRandom_SymbioticCore(curator, vault, subnetwork, operator);
     }
@@ -1558,11 +1528,11 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             && _curatorDelegateOperatorHasRoles_SymbioticCore(curator, vault, subnetwork, operator);
     }
 
-    function _curatorDelegateToNetworkInternal_SymbioticCore(
-        address curator,
-        address vault,
-        bytes32 subnetwork
-    ) internal virtual returns (bool curatorFound, bool success) {
+    function _curatorDelegateToNetworkInternal_SymbioticCore(address curator, address vault, bytes32 subnetwork)
+        internal
+        virtual
+        returns (bool curatorFound, bool success)
+    {
         if (_curatorDelegateNetworkHasRoles_SymbioticCore(curator, vault, subnetwork)) {
             success = _curatorDelegateNetworkRandom_SymbioticCore(curator, vault, subnetwork);
             return (true, success);
@@ -1606,19 +1576,13 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
 
     // ------------------------------------------------------------ GENERAL HELPERS ------------------------------------------------------------ //
 
-    function _stopBroadcastWhenCallerModeIsSingle(
-        Vm.CallerMode callerMode
-    ) internal virtual;
+    function _stopBroadcastWhenCallerModeIsSingle(Vm.CallerMode callerMode) internal virtual;
 
     function _startBroadcastWhenCallerModeIsNotRecurrent(Vm.CallerMode callerMode, address deployer) internal virtual;
 
-    function _stopBroadcastWhenCallerModeIsNotRecurrent(
-        Vm.CallerMode callerMode
-    ) internal virtual;
+    function _stopBroadcastWhenCallerModeIsNotRecurrent(Vm.CallerMode callerMode) internal virtual;
 
     function _startBroadcastWhenCallerModeIsRecurrent(Vm.CallerMode callerMode, address deployer) internal virtual;
 
-    function _stopBroadcastWhenCallerModeIsSingleOrRecurrent(
-        Vm.CallerMode callerMode
-    ) internal virtual;
+    function _stopBroadcastWhenCallerModeIsSingleOrRecurrent(Vm.CallerMode callerMode) internal virtual;
 }

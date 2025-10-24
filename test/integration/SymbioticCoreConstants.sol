@@ -31,7 +31,9 @@ library SymbioticCoreConstants {
                 slasherFactory: ISymbioticSlasherFactory(0x685c2eD7D59814d2a597409058Ee7a92F21e48Fd),
                 networkRegistry: ISymbioticNetworkRegistry(0xC773b1011461e7314CF05f97d95aa8e92C1Fd8aA),
                 networkMetadataService: ISymbioticMetadataService(address(0)),
-                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0xD7dC9B366c027743D90761F71858BCa83C6899Ad),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(
+                    0xD7dC9B366c027743D90761F71858BCa83C6899Ad
+                ),
                 operatorRegistry: ISymbioticOperatorRegistry(0xAd817a6Bc954F678451A71363f04150FDD81Af9F),
                 operatorMetadataService: ISymbioticMetadataService(address(0)),
                 operatorVaultOptInService: ISymbioticOptInService(0xb361894bC06cbBA7Ea8098BF0e32EB1906A5F891),
@@ -46,7 +48,9 @@ library SymbioticCoreConstants {
                 slasherFactory: ISymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
                 networkRegistry: ISymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
                 networkMetadataService: ISymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
-                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(
+                    0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3
+                ),
                 operatorRegistry: ISymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
                 operatorMetadataService: ISymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
                 operatorVaultOptInService: ISymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
@@ -61,7 +65,9 @@ library SymbioticCoreConstants {
                 slasherFactory: ISymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
                 networkRegistry: ISymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
                 networkMetadataService: ISymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
-                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(
+                    0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3
+                ),
                 operatorRegistry: ISymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
                 operatorMetadataService: ISymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
                 operatorVaultOptInService: ISymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
@@ -76,7 +82,9 @@ library SymbioticCoreConstants {
                 slasherFactory: ISymbioticSlasherFactory(0xbf34bf75bb779c383267736c53a4ae86ac7bB299),
                 networkRegistry: ISymbioticNetworkRegistry(0x7d03b7343BF8d5cEC7C0C27ecE084a20113D15C9),
                 networkMetadataService: ISymbioticMetadataService(0x0F7E58Cc4eA615E8B8BEB080dF8B8FDB63C21496),
-                networkMiddlewareService: ISymbioticNetworkMiddlewareService(0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3),
+                networkMiddlewareService: ISymbioticNetworkMiddlewareService(
+                    0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3
+                ),
                 operatorRegistry: ISymbioticOperatorRegistry(0x6F75a4ffF97326A00e52662d82EA4FdE86a2C548),
                 operatorMetadataService: ISymbioticMetadataService(0x0999048aB8eeAfa053bF8581D4Aa451ab45755c9),
                 operatorVaultOptInService: ISymbioticOptInService(0x95CC0a052ae33941877c9619835A233D21D57351),
@@ -88,9 +96,7 @@ library SymbioticCoreConstants {
         }
     }
 
-    function token(
-        string memory symbol
-    ) internal view returns (address) {
+    function token(string memory symbol) internal view returns (address) {
         if (symbol.equal("wstETH")) {
             return wstETH();
         } else if (symbol.equal("cbETH")) {
@@ -134,9 +140,7 @@ library SymbioticCoreConstants {
         }
     }
 
-    function tokenSupported(
-        string memory symbol
-    ) internal view returns (bool) {
+    function tokenSupported(string memory symbol) internal view returns (bool) {
         if (symbol.equal("wstETH")) {
             return wstETHSupported();
         } else if (symbol.equal("cbETH")) {

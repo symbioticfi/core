@@ -7,9 +7,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
 
 contract DeployVaultFactoryBaseScript is Script {
-    function run(
-        address owner
-    ) public virtual {
+    function run(address owner) public virtual {
         vm.startBroadcast();
         VaultFactory vaultFactory = new VaultFactory(owner);
         vm.stopBroadcast();

@@ -7,9 +7,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {MetadataService} from "../../../src/contracts/service/MetadataService.sol";
 
 contract DeployMetadataServiceBaseScript is Script {
-    function run(
-        address registry
-    ) public virtual {
+    function run(address registry) public virtual {
         vm.startBroadcast();
         MetadataService metadataService = new MetadataService(registry);
         vm.stopBroadcast();

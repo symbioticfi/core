@@ -174,9 +174,7 @@ contract SlasherTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create(
-        uint48 epochDuration
-    ) public {
+    function test_Create(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint256 blockTimestamp = vm.getBlockTimestamp();
@@ -195,9 +193,7 @@ contract SlasherTest is Test {
         assertEq(slasher.slashableStake(alice.subnetwork(0), alice, 0, ""), 0);
     }
 
-    function test_CreateRevertNoBurner(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertNoBurner(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         address[] memory networkLimitSetRoleHolders = new address[](1);
@@ -227,9 +223,7 @@ contract SlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -237,7 +231,9 @@ contract SlasherTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
@@ -254,9 +250,7 @@ contract SlasherTest is Test {
         );
     }
 
-    function test_CreateRevertNotVault(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertNotVault(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault,) = _getVaultAndDelegator(epochDuration);
@@ -348,7 +342,9 @@ contract SlasherTest is Test {
         assertEq(
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
-                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), ""))
+                - Math.min(
+                    slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 1), "")
+                )
         );
 
         assertEq(slasher.latestSlashedCaptureTimestamp(network.subnetwork(0), bob), 0);
@@ -386,7 +382,9 @@ contract SlasherTest is Test {
         uint256 slashAmountReal3 = Math.min(
             slashAmount3,
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
-                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
+                - Math.min(
+                    slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
+                )
         );
         vm.assume(slashAmountReal3 > 0);
         assertEq(slashAmountReal3, _slash(alice, network, alice, slashAmount3, uint48(blockTimestamp - 2), ""));
@@ -410,8 +408,9 @@ contract SlasherTest is Test {
         assertEq(
             slasher.slashableStake(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""),
             delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
-                - Math.min(slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), ""))
-                - slashAmountReal3
+                - Math.min(
+                    slashAmount1, delegator.stakeAt(network.subnetwork(0), alice, uint48(blockTimestamp - 2), "")
+                ) - slashAmountReal3
         );
         assertEq(
             slasher.cumulativeSlashAt(alice.subnetwork(0), alice, uint48(blockTimestamp), abi.encode(1)),
@@ -1070,9 +1069,7 @@ contract SlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: address(0)
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: address(0)
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -1080,7 +1077,9 @@ contract SlasherTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: true})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: true})})
+                )
             })
         );
 
@@ -1163,9 +1162,7 @@ contract SlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: address(0)
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: address(0)
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -1173,7 +1170,9 @@ contract SlasherTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
@@ -1278,9 +1277,7 @@ contract SlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: address(0)
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: address(0)
                         }),
                         networkLimitSetRoleHolders: vars.networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: vars.operatorNetworkLimitSetRoleHolders
@@ -1288,7 +1285,9 @@ contract SlasherTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: true})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: true})})
+                )
             })
         );
 
@@ -1854,9 +1853,7 @@ contract SlasherTest is Test {
     //     assertLt(gasStruct.gasSpent1 - gasStruct.gasSpent2, 60_000);
     // }
 
-    function _getVaultAndDelegator(
-        uint48 epochDuration
-    ) internal returns (Vault, FullRestakeDelegator) {
+    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -1884,9 +1881,7 @@ contract SlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -1894,16 +1889,19 @@ contract SlasherTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (Vault(vault_), FullRestakeDelegator(delegator_));
     }
 
-    function _getVaultAndDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (Vault, FullRestakeDelegator, Slasher) {
+    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (Vault, FullRestakeDelegator, Slasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -1931,9 +1929,7 @@ contract SlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -1941,16 +1937,16 @@ contract SlasherTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _getSlasher(
-        address vault_
-    ) internal returns (Slasher) {
+    function _getSlasher(address vault_) internal returns (Slasher) {
         return Slasher(
             slasherFactory.create(
                 0,
@@ -1962,9 +1958,7 @@ contract SlasherTest is Test {
         );
     }
 
-    function _registerOperator(
-        address user
-    ) internal {
+    function _registerOperator(address user) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -2015,17 +2009,13 @@ contract SlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(
-        address user
-    ) internal {
+    function _optInOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(
-        address user
-    ) internal {
+    function _optOutOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

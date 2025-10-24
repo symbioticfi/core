@@ -78,9 +78,7 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return limit of the subnetwork
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) external view returns (uint256);
+    function networkLimit(bytes32 subnetwork) external view returns (uint256);
 
     /**
      * @notice Get an operator's limit for a subnetwork at a given timestamp using a hint
@@ -91,12 +89,10 @@ interface IFullRestakeDelegator is IBaseDelegator {
      * @param hint hint for checkpoint index
      * @return limit of the operator for the subnetwork at the given timestamp
      */
-    function operatorNetworkLimitAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hint
-    ) external view returns (uint256);
+    function operatorNetworkLimitAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        external
+        view
+        returns (uint256);
 
     /**
      * @notice Get an operator's limit for a subnetwork.

@@ -74,7 +74,9 @@ contract DeployVaultScript is DeployVaultBase {
                 }),
                 delegatorIndex: DELEGATOR_INDEX,
                 delegatorParams: DelegatorParams({
-                    baseParams: IBaseDelegator.BaseParams({defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER}),
+                    baseParams: IBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: OWNER, hook: HOOK, hookSetRoleHolder: OWNER
+                    }),
                     networkAllocationSettersOrNetwork: NETWORK_ALLOCATION_SETTERS_OR_NETWORK,
                     operatorAllocationSettersOrOperator: OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR
                 }),

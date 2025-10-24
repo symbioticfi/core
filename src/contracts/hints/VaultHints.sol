@@ -31,9 +31,12 @@ contract VaultHints is Hints {
 
     constructor() {}
 
-    function activeStakeHintInternal(
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function activeStakeHintInternal(uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _activeStake.upperLookupRecentCheckpoint(timestamp);
     }
 
@@ -48,9 +51,12 @@ contract VaultHints is Hints {
         }
     }
 
-    function activeSharesHintInternal(
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function activeSharesHintInternal(uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _activeShares.upperLookupRecentCheckpoint(timestamp);
     }
 
@@ -65,18 +71,20 @@ contract VaultHints is Hints {
         }
     }
 
-    function activeSharesOfHintInternal(
-        address account,
-        uint48 timestamp
-    ) external view internalFunction returns (bool exists, uint32 hint) {
+    function activeSharesOfHintInternal(address account, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
         (exists,,, hint) = _activeSharesOf[account].upperLookupRecentCheckpoint(timestamp);
     }
 
-    function activeSharesOfHint(
-        address vault,
-        address account,
-        uint48 timestamp
-    ) public view returns (bytes memory hint) {
+    function activeSharesOfHint(address vault, address account, uint48 timestamp)
+        public
+        view
+        returns (bytes memory hint)
+    {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(vault, abi.encodeCall(VaultHints.activeSharesOfHintInternal, (account, timestamp))),
             (bool, uint32)
@@ -87,11 +95,11 @@ contract VaultHints is Hints {
         }
     }
 
-    function activeBalanceOfHints(
-        address vault,
-        address account,
-        uint48 timestamp
-    ) external view returns (bytes memory hints) {
+    function activeBalanceOfHints(address vault, address account, uint48 timestamp)
+        external
+        view
+        returns (bytes memory hints)
+    {
         bytes memory activeSharesOfHint_ = activeSharesOfHint(vault, account, timestamp);
         bytes memory activeStakeHint_ = activeStakeHint(vault, timestamp);
         bytes memory activeSharesHint_ = activeSharesHint(vault, timestamp);

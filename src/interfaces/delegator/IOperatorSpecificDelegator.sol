@@ -74,9 +74,7 @@ interface IOperatorSpecificDelegator is IBaseDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return limit of the subnetwork
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) external view returns (uint256);
+    function networkLimit(bytes32 subnetwork) external view returns (uint256);
 
     /**
      * @notice Set a subnetwork's limit (how much stake the vault curator is ready to give to the subnetwork).

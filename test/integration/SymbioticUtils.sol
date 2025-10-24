@@ -18,36 +18,29 @@ contract SymbioticUtils is StdUtils, SymbioticCounter {
     // ------------------------------------------------------------ GENERAL HELPERS ------------------------------------------------------------ //
 
     function _random_Symbiotic() internal virtual returns (uint256) {
-        return uint256(
-            keccak256(abi.encode(SYMBIOTIC_SEED, vm.getBlockTimestamp(), vm.getBlockNumber(), _count_Symbiotic()))
-        );
+        return
+            uint256(
+                keccak256(abi.encode(SYMBIOTIC_SEED, vm.getBlockTimestamp(), vm.getBlockNumber(), _count_Symbiotic()))
+            );
     }
 
     function _randomWithBounds_Symbiotic(uint256 lower, uint256 upper) internal virtual returns (uint256) {
         return _bound(_random_Symbiotic(), lower, upper);
     }
 
-    function _randomChoice_Symbiotic(
-        uint256 coef
-    ) internal virtual returns (bool) {
+    function _randomChoice_Symbiotic(uint256 coef) internal virtual returns (bool) {
         return _randomWithBounds_Symbiotic(0, coef) == 0;
     }
 
-    function _randomPick_Symbiotic(
-        address[] memory array
-    ) internal virtual returns (address) {
+    function _randomPick_Symbiotic(address[] memory array) internal virtual returns (address) {
         return array[_randomWithBounds_Symbiotic(0, array.length - 1)];
     }
 
-    function _randomPick_Symbiotic(
-        uint256[] memory array
-    ) internal virtual returns (uint256) {
+    function _randomPick_Symbiotic(uint256[] memory array) internal virtual returns (uint256) {
         return array[_randomWithBounds_Symbiotic(0, array.length - 1)];
     }
 
-    function _randomPick_Symbiotic(
-        uint64[] memory array
-    ) internal virtual returns (uint64) {
+    function _randomPick_Symbiotic(uint64[] memory array) internal virtual returns (uint64) {
         return array[_randomWithBounds_Symbiotic(0, array.length - 1)];
     }
 
@@ -73,16 +66,15 @@ contract SymbioticUtils is StdUtils, SymbioticCounter {
         return false;
     }
 
-    function _createWalletByAddress_Symbiotic(
-        address addr
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _createWalletByAddress_Symbiotic(address addr) internal virtual returns (Vm.Wallet memory) {
         return VmSafe.Wallet({addr: addr, publicKeyX: 0, publicKeyY: 0, privateKey: 0});
     }
 
-    function _getWalletByAddress_Symbiotic(
-        Vm.Wallet[] memory array,
-        address element
-    ) internal virtual returns (Vm.Wallet memory) {
+    function _getWalletByAddress_Symbiotic(Vm.Wallet[] memory array, address element)
+        internal
+        virtual
+        returns (Vm.Wallet memory)
+    {
         for (uint256 i; i < array.length; ++i) {
             if (array[i].addr == element) {
                 return array[i];
@@ -91,15 +83,16 @@ contract SymbioticUtils is StdUtils, SymbioticCounter {
         revert("Wallet not found");
     }
 
-    function _vmWalletToAddress_Symbiotic(
-        Vm.Wallet memory wallet
-    ) internal pure virtual returns (address) {
+    function _vmWalletToAddress_Symbiotic(Vm.Wallet memory wallet) internal pure virtual returns (address) {
         return wallet.addr;
     }
 
-    function _vmWalletsToAddresses_Symbiotic(
-        Vm.Wallet[] memory wallets
-    ) internal pure virtual returns (address[] memory result) {
+    function _vmWalletsToAddresses_Symbiotic(Vm.Wallet[] memory wallets)
+        internal
+        pure
+        virtual
+        returns (address[] memory result)
+    {
         result = new address[](wallets.length);
         for (uint256 i; i < wallets.length; ++i) {
             result[i] = wallets[i].addr;

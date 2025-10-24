@@ -57,9 +57,5 @@ interface IOperatorNetworkSpecificDelegator is IBaseDelegator {
      * @param hint hint for checkpoint index
      * @return maximum limit of the subnetwork
      */
-    function maxNetworkLimitAt(
-        bytes32 subnetwork,
-        uint48 timestamp,
-        bytes memory hint
-    ) external view returns (uint256);
+    function maxNetworkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) external view returns (uint256);
 }

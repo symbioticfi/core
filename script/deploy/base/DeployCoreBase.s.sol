@@ -47,9 +47,7 @@ contract DeployCoreBaseScript is Script {
         VaultConfigurator vaultConfigurator;
     }
 
-    function run(
-        address owner
-    ) public {
+    function run(address owner) public {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 
@@ -69,8 +67,9 @@ contract DeployCoreBaseScript is Script {
             address(data.operatorRegistry), address(data.networkRegistry), "OperatorNetworkOptInService"
         );
 
-        data.vaultImpl =
-            address(new Vault(address(data.delegatorFactory), address(data.slasherFactory), address(data.vaultFactory)));
+        data.vaultImpl = address(
+            new Vault(address(data.delegatorFactory), address(data.slasherFactory), address(data.vaultFactory))
+        );
         data.vaultFactory.whitelist(data.vaultImpl);
         assert(data.vaultFactory.implementation(1) == address(data.vaultImpl));
         data.vaultTokenizedImpl = address(

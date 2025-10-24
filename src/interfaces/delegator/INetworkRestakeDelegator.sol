@@ -81,9 +81,7 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return limit of the subnetwork
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) external view returns (uint256);
+    function networkLimit(bytes32 subnetwork) external view returns (uint256);
 
     /**
      * @notice Get a sum of operators' shares for a subnetwork at a given timestamp using a hint.
@@ -92,20 +90,17 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @param hint hint for checkpoint index
      * @return total shares of the operators for the subnetwork at the given timestamp
      */
-    function totalOperatorNetworkSharesAt(
-        bytes32 subnetwork,
-        uint48 timestamp,
-        bytes memory hint
-    ) external view returns (uint256);
+    function totalOperatorNetworkSharesAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint)
+        external
+        view
+        returns (uint256);
 
     /**
      * @notice Get a sum of operators' shares for a subnetwork.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return total shares of the operators for the subnetwork
      */
-    function totalOperatorNetworkShares(
-        bytes32 subnetwork
-    ) external view returns (uint256);
+    function totalOperatorNetworkShares(bytes32 subnetwork) external view returns (uint256);
 
     /**
      * @notice Get an operator's shares for a subnetwork at a given timestamp using a hint (what percentage,
@@ -117,12 +112,10 @@ interface INetworkRestakeDelegator is IBaseDelegator {
      * @param hint hint for checkpoint index
      * @return shares of the operator for the subnetwork at the given timestamp
      */
-    function operatorNetworkSharesAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hint
-    ) external view returns (uint256);
+    function operatorNetworkSharesAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        external
+        view
+        returns (uint256);
 
     /**
      * @notice Get an operator's shares for a subnetwork (what percentage,

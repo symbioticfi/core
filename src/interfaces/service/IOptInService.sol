@@ -51,12 +51,7 @@ interface IOptInService {
      * @param hint hint for the checkpoint index
      * @return if the "who" is opted-in at the given timestamp
      */
-    function isOptedInAt(
-        address who,
-        address where,
-        uint48 timestamp,
-        bytes calldata hint
-    ) external view returns (bool);
+    function isOptedInAt(address who, address where, uint48 timestamp, bytes calldata hint) external view returns (bool);
 
     /**
      * @notice Check if a given "who" is opted-in to a particular "where" entity.
@@ -78,9 +73,7 @@ interface IOptInService {
      * @notice Opt-in a calling "who" to a particular "where" entity.
      * @param where address of the "where" entity
      */
-    function optIn(
-        address where
-    ) external;
+    function optIn(address where) external;
 
     /**
      * @notice Opt-in a "who" to a particular "where" entity with a signature.
@@ -95,9 +88,7 @@ interface IOptInService {
      * @notice Opt-out a calling "who" from a particular "where" entity.
      * @param where address of the "where" entity
      */
-    function optOut(
-        address where
-    ) external;
+    function optOut(address where) external;
 
     /**
      * @notice Opt-out a "who" from a particular "where" entity with a signature.
@@ -113,7 +104,5 @@ interface IOptInService {
      * @param where address of the "where" entity
      * @dev It can be used to invalidate a given signature.
      */
-    function increaseNonce(
-        address where
-    ) external;
+    function increaseNonce(address where) external;
 }

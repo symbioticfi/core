@@ -7,9 +7,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {NetworkMiddlewareService} from "../../../src/contracts/service/NetworkMiddlewareService.sol";
 
 contract DeployNetworkMiddlewareServiceBaseScript is Script {
-    function run(
-        address networkRegistry
-    ) public virtual {
+    function run(address networkRegistry) public virtual {
         vm.startBroadcast();
         NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(networkRegistry);
         vm.stopBroadcast();

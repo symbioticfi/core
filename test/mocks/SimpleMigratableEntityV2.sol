@@ -7,19 +7,13 @@ contract SimpleMigratableEntityV2 is MigratableEntity {
     uint256 public a;
     uint256 public b;
 
-    constructor(
-        address factory
-    ) MigratableEntity(factory) {}
+    constructor(address factory) MigratableEntity(factory) {}
 
-    function setA(
-        uint256 a_
-    ) public {
+    function setA(uint256 a_) public {
         a = a_ + 1;
     }
 
-    function setB(
-        uint256 b_
-    ) public {
+    function setB(uint256 b_) public {
         b = b_;
     }
 

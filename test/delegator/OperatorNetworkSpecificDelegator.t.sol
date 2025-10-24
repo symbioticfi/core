@@ -170,9 +170,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
     }
 
-    function test_Create(
-        uint48 epochDuration
-    ) public {
+    function test_Create(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -191,9 +189,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         assertEq(delegator.maxNetworkLimitAt(alice.subnetwork(0), 0, ""), 0);
     }
 
-    function test_CreateRevertNotVault(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertNotVault(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -206,9 +202,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: bob,
-                            hook: address(0),
-                            hookSetRoleHolder: bob
+                            defaultAdminRoleHolder: bob, hook: address(0), hookSetRoleHolder: bob
                         }),
                         network: bob,
                         operator: alice
@@ -218,9 +212,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertNotNetwork(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertNotNetwork(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -233,9 +225,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(0),
-                            hook: address(0),
-                            hookSetRoleHolder: address(1)
+                            defaultAdminRoleHolder: address(0), hook: address(0), hookSetRoleHolder: address(1)
                         }),
                         network: alice,
                         operator: alice
@@ -245,9 +235,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         );
     }
 
-    function test_CreateRevertNotOperator(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertNotOperator(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -260,9 +248,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: address(0),
-                            hook: address(0),
-                            hookSetRoleHolder: address(1)
+                            defaultAdminRoleHolder: address(0), hook: address(0), hookSetRoleHolder: address(1)
                         }),
                         network: bob,
                         operator: bob
@@ -272,9 +258,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         );
     }
 
-    function test_OnSlashRevertNotSlasher(
-        uint48 epochDuration
-    ) public {
+    function test_OnSlashRevertNotSlasher(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -446,9 +430,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
 
         bytes memory hints = abi.encode(
             IOperatorNetworkSpecificDelegator.StakeHints({
-                baseHints: "",
-                activeStakeHint: abi.encode(0),
-                maxNetworkLimitHint: abi.encode(0)
+                baseHints: "", activeStakeHint: abi.encode(0), maxNetworkLimitHint: abi.encode(0)
             })
         );
         uint256 gasLeft = gasleft();
@@ -459,9 +441,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         uint256 gasSpent = gasLeft - gasleft();
         hints = abi.encode(
             IOperatorNetworkSpecificDelegator.StakeHints({
-                baseHints: "",
-                activeStakeHint: abi.encode(0),
-                maxNetworkLimitHint: abi.encode(1)
+                baseHints: "", activeStakeHint: abi.encode(0), maxNetworkLimitHint: abi.encode(1)
             })
         );
         gasLeft = gasleft();
@@ -565,7 +545,9 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         // uint256 networkLimit,
         uint256 slashAmount1,
         uint256 slashAmount2
-    ) public {
+    )
+        public
+    {
         SlashWithHookLocalVariables memory vars;
 
         // epochDuration = uint48(bound(epochDuration, 1, 10 days));
@@ -607,9 +589,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 delegatorParams: abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: vars.hook,
-                            hookSetRoleHolder: address(0)
+                            defaultAdminRoleHolder: alice, hook: vars.hook, hookSetRoleHolder: address(0)
                         }),
                         network: bob,
                         operator: alice
@@ -617,7 +597,9 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
@@ -658,7 +640,9 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         // uint256 networkLimit,
         uint256 slashAmount1,
         uint256 totalGas
-    ) public {
+    )
+        public
+    {
         SlashWithHookLocalVariables memory vars;
 
         // epochDuration = uint48(bound(epochDuration, 1, 10 days));
@@ -699,9 +683,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 delegatorParams: abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: vars.hook,
-                            hookSetRoleHolder: address(0)
+                            defaultAdminRoleHolder: alice, hook: vars.hook, hookSetRoleHolder: address(0)
                         }),
                         network: bob,
                         operator: alice
@@ -709,7 +691,9 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
@@ -760,9 +744,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         }
     }
 
-    function test_SetHook(
-        uint48 epochDuration
-    ) public {
+    function test_SetHook(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -782,9 +764,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         assertEq(delegator.hook(), hook);
     }
 
-    function test_SetHookRevertAlreadySet(
-        uint48 epochDuration
-    ) public {
+    function test_SetHookRevertAlreadySet(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 10 days));
 
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
@@ -1324,9 +1304,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
     //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     // }
 
-    function _getVaultAndDelegator(
-        uint48 epochDuration
-    ) internal returns (Vault, OperatorNetworkSpecificDelegator) {
+    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, OperatorNetworkSpecificDelegator) {
         _registerNetwork(bob, bob);
         _registerOperator(alice);
 
@@ -1353,9 +1331,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 delegatorParams: abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         network: bob,
                         operator: alice
@@ -1363,16 +1339,19 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (Vault(vault_), OperatorNetworkSpecificDelegator(delegator_));
     }
 
-    function _getVaultAndDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (Vault, OperatorNetworkSpecificDelegator, Slasher) {
+    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (Vault, OperatorNetworkSpecificDelegator, Slasher)
+    {
         _registerNetwork(bob, bob);
         _registerOperator(alice);
 
@@ -1399,9 +1378,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 delegatorParams: abi.encode(
                     IOperatorNetworkSpecificDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         network: bob,
                         operator: alice
@@ -1409,16 +1386,16 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (Vault(vault_), OperatorNetworkSpecificDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _getSlasher(
-        address vault_
-    ) internal returns (Slasher) {
+    function _getSlasher(address vault_) internal returns (Slasher) {
         return Slasher(
             slasherFactory.create(
                 0,
@@ -1430,9 +1407,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         );
     }
 
-    function _registerOperator(
-        address user
-    ) internal {
+    function _registerOperator(address user) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -1483,17 +1458,13 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(
-        address user
-    ) internal {
+    function _optInOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(
-        address user
-    ) internal {
+    function _optOutOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();
