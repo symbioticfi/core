@@ -9,7 +9,7 @@ contract ScriptBase is Script {
         (bool success,) = target.call(data);
         vm.stopBroadcast();
         if (!success) {
-            revert("ExecuteSlash failed");
+            revert("Transaction failed");
         }
     }
 }
