@@ -17,18 +17,15 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
 import {ScriptBaseHarness} from "./ScriptBaseHarness.s.sol";
 
-import {ExecuteSlashBaseScript} from "../../../script/actions/base/ExecuteSlashBase.s.sol";
 import {OptInNetworkBaseScript} from "../../../script/actions/base/OptInNetworkBase.s.sol";
 import {OptInVaultBaseScript} from "../../../script/actions/base/OptInVaultBase.s.sol";
 import {RegisterOperatorBaseScript} from "../../../script/actions/base/RegisterOperatorBase.s.sol";
-import {RequestSlashBaseScript} from "../../../script/actions/base/RequestSlashBase.s.sol";
 import {SetHookBaseScript} from "../../../script/actions/base/SetHookBase.s.sol";
 import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/base/SetMaxNetworkLimitBase.s.sol";
 import {SetNetworkLimitBaseScript} from "../../../script/actions/base/SetNetworkLimitBase.s.sol";
 import {SetOperatorNetworkLimitBaseScript} from "../../../script/actions/base/SetOperatorNetworkLimitBase.s.sol";
 import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/base/SetOperatorNetworkSharesBase.s.sol";
 import {SetResolverBaseScript} from "../../../script/actions/base/SetResolverBase.s.sol";
-import {SlashBaseScript} from "../../../script/actions/base/SlashBase.s.sol";
 import {VetoSlashBaseScript} from "../../../script/actions/base/VetoSlashBase.s.sol";
 
 interface IVetoSlasherExtended is IVetoSlasher {
@@ -117,31 +114,7 @@ contract SetResolverScriptHarness is SetResolverBaseScript, ScriptBaseHarness {
     }
 }
 
-contract RequestSlashScriptHarness is RequestSlashBaseScript, ScriptBaseHarness {
-    constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
-
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
-    }
-}
-
-contract ExecuteSlashScriptHarness is ExecuteSlashBaseScript, ScriptBaseHarness {
-    constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
-
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
-    }
-}
-
 contract VetoSlashScriptHarness is VetoSlashBaseScript, ScriptBaseHarness {
-    constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
-
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
-    }
-}
-
-contract SlashScriptHarness is SlashBaseScript, ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
     function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
@@ -436,57 +409,6 @@ contract ActionScriptsTest is SymbioticCoreInit {
         assertEq(currentResolver, resolver.addr, "resolver mismatch");
     }
 
-    function test_RequestSlash() public {
-        (bytes32 subnetwork, uint48 captureTimestamp) = _setupStakeForNetworkRestake(
-            vaultNetworkRestakeVeto,
-            SUBNETWORK_ID,
-            DEFAULT_MAX_LIMIT,
-            DEFAULT_NETWORK_LIMIT,
-            DEFAULT_OPERATOR_SHARES,
-            DEFAULT_DEPOSIT
-        );
-
-        RequestSlashScriptHarness script = new RequestSlashScriptHarness(network.addr);
-        script.run(vaultNetworkRestakeVeto, subnetwork, operatorWallet.addr, DEFAULT_REQUEST_AMOUNT, captureTimestamp);
-
-        IVetoSlasherExtended slasher = IVetoSlasherExtended(IVault(vaultNetworkRestakeVeto).slasher());
-        (bytes32 storedSubnetwork, address storedOperator, uint256 amount,, uint48 vetoDeadline, bool completed) =
-            slasher.slashRequests(0);
-
-        assertEq(storedSubnetwork, subnetwork, "subnetwork mismatch");
-        assertEq(storedOperator, operatorWallet.addr, "operator mismatch");
-        assertEq(amount, DEFAULT_REQUEST_AMOUNT, "amount mismatch");
-        assertGt(vetoDeadline, captureTimestamp, "veto deadline not set");
-        assertFalse(completed, "request already completed");
-    }
-
-    function test_ExecuteSlash() public {
-        (bytes32 subnetwork, uint48 captureTimestamp) = _setupStakeForNetworkRestake(
-            vaultNetworkRestakeVeto,
-            SUBNETWORK_ID,
-            DEFAULT_MAX_LIMIT,
-            DEFAULT_NETWORK_LIMIT,
-            DEFAULT_OPERATOR_SHARES,
-            DEFAULT_DEPOSIT
-        );
-
-        RequestSlashScriptHarness requestScript = new RequestSlashScriptHarness(network.addr);
-        requestScript.run(
-            vaultNetworkRestakeVeto, subnetwork, operatorWallet.addr, DEFAULT_REQUEST_AMOUNT, captureTimestamp
-        );
-
-        ExecuteSlashScriptHarness executeScript = new ExecuteSlashScriptHarness(network.addr);
-        executeScript.run(vaultNetworkRestakeVeto, 0);
-
-        IVetoSlasherExtended slasher = IVetoSlasherExtended(IVault(vaultNetworkRestakeVeto).slasher());
-        (,,,,, bool completed) = slasher.slashRequests(0);
-        assertTrue(completed, "slash not completed");
-
-        uint256 cumulative =
-            IVetoSlasher(IVault(vaultNetworkRestakeVeto).slasher()).cumulativeSlash(subnetwork, operatorWallet.addr);
-        assertGt(cumulative, 0, "slash not recorded");
-    }
-
     function test_VetoSlash() public {
         SetResolverScriptHarness resolverScript = new SetResolverScriptHarness(network.addr);
         resolverScript.run(vaultNetworkRestakeVeto, SUBNETWORK_ID, resolver.addr);
@@ -500,9 +422,13 @@ contract ActionScriptsTest is SymbioticCoreInit {
             DEFAULT_DEPOSIT
         );
 
-        RequestSlashScriptHarness requestScript = new RequestSlashScriptHarness(network.addr);
-        requestScript.run(
-            vaultNetworkRestakeVeto, subnetwork, operatorWallet.addr, DEFAULT_REQUEST_AMOUNT, captureTimestamp
+        _requestSlash_SymbioticCore(
+            network.addr,
+            vaultNetworkRestakeVeto,
+            subnetwork,
+            operatorWallet.addr,
+            DEFAULT_REQUEST_AMOUNT,
+            captureTimestamp
         );
 
         VetoSlashScriptHarness vetoScript = new VetoSlashScriptHarness(resolver.addr);
@@ -515,25 +441,5 @@ contract ActionScriptsTest is SymbioticCoreInit {
         uint256 cumulative =
             IVetoSlasher(IVault(vaultNetworkRestakeVeto).slasher()).cumulativeSlash(subnetwork, operatorWallet.addr);
         assertEq(cumulative, 0, "slash should be vetoed");
-    }
-
-    function test_Slash() public {
-        (bytes32 subnetwork, uint48 captureTimestamp) = _setupStakeForNetworkRestake(
-            vaultNetworkRestakeNonVeto,
-            SUBNETWORK_ID,
-            DEFAULT_MAX_LIMIT,
-            DEFAULT_NETWORK_LIMIT,
-            DEFAULT_OPERATOR_SHARES,
-            DEFAULT_DEPOSIT
-        );
-
-        SlashScriptHarness script = new SlashScriptHarness(network.addr);
-        script.run(
-            vaultNetworkRestakeNonVeto, subnetwork, operatorWallet.addr, DEFAULT_REQUEST_AMOUNT, captureTimestamp
-        );
-
-        uint256 cumulative =
-            ISlasher(IVault(vaultNetworkRestakeNonVeto).slasher()).cumulativeSlash(subnetwork, operatorWallet.addr);
-        assertGt(cumulative, 0, "slash not executed");
     }
 }
