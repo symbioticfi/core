@@ -1,5 +1,5 @@
 # BaseDelegator
-[Git Source](https://github.com/symbioticfi/core/blob/5ab692fe7f696ff6aee61a77fae37dc444e1c86e/src/contracts/delegator/BaseDelegator.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/4905f62919b30e0606fff3aaa7fcd52bf8ee3d3e/src/contracts/delegator/BaseDelegator.sol)
 
 **Inherits:**
 [Entity](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/Entity.sol/abstract.Entity.md), [StaticDelegateCallable](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/StaticDelegateCallable.sol/abstract.StaticDelegateCallable.md), AccessControlUpgradeable, ReentrancyGuardUpgradeable, [IBaseDelegator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/delegator/IBaseDelegator.sol/interface.IBaseDelegator.md)

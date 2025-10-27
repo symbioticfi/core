@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 // solhint-disable no-console
-import {console} from "lib/forge-std/src/console.sol";
-import {Vm} from "lib/forge-std/src/Vm.sol";
+import {console} from "forge-std/console.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {IGnosisSafe} from "./interfaces/IGnosisSafe.sol";
 
