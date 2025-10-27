@@ -14,8 +14,8 @@ contract SymbioticInit is SymbioticUtils, Test {
 
     // General config
 
-    uint256 public SYMBIOTIC_INIT_TIMESTAMP = 1_731_324_431;
-    uint256 public SYMBIOTIC_INIT_BLOCK = 21_164_139;
+    uint256 public SYMBIOTIC_INIT_TIMESTAMP = 1_761_543_047;
+    uint256 public SYMBIOTIC_INIT_BLOCK = 23_666_709;
     uint256 public SYMBIOTIC_BLOCK_TIME = 12;
 
     function setUp() public virtual {

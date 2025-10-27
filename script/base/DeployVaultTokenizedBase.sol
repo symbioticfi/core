@@ -14,10 +14,10 @@ contract DeployVaultTokenizedBase is DeployVaultBase {
     string public name;
     string public symbol;
 
-    function run(DeployVaultTokenizedParams memory params) public returns (address, address, address) {
+    function runBase(DeployVaultTokenizedParams memory params) public returns (address, address, address) {
         name = params.name;
         symbol = params.symbol;
-        return run(params.deployVaultParams);
+        return runBase(params.deployVaultParams);
     }
 
     function _getVaultVersion() internal virtual override returns (uint64) {

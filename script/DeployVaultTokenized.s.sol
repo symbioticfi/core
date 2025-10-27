@@ -3,6 +3,8 @@ pragma solidity 0.8.25;
 
 import "./base/DeployVaultTokenizedBase.sol";
 
+// forge script script/DeployVaultTokenized.s.sol:DeployVaultTokenizedScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
+
 contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT
 
@@ -11,7 +13,7 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // Symbol of the ERC20 representing shares of the active stake in the vault
     string SYMBOL = "SV";
     // Address of the owner of the vault who can migrate the vault to new versions whitelisted by Symbiotic
-    address OWNER = 0x0000000000000000000000000000000000000000;
+    address OWNER = 0x0000000000000000000000000000000000000001;
     // Address of the collateral token
     address COLLATERAL = 0x0000000000000000000000000000000000000000;
     // Vault's burner to send slashed funds to (e.g., 0xdEaD or some unwrapper contract; not used in case of no slasher)
@@ -29,13 +31,13 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     // 1. NetworkLimitSetRoleHolders (adjust allocations for networks)
     // 2. NetworkLimitSetRoleHolders (adjust allocations for networks)
     // 3. network (the only network that will receive the stake; should be an array with a single element)
-    address[] NETWORK_ALLOCATION_SETTERS_OR_NETWORK = [0x0000000000000000000000000000000000000000];
+    address[] NETWORK_ALLOCATION_SETTERS_OR_NETWORK = [0x0000000000000000000000000000000000000001];
     // Setting depending on the delegator type:
     // 0. OperatorNetworkSharesSetRoleHolders (adjust allocations for operators inside networks; in shares, resulting percentage is operatorShares / totalOperatorShares)
     // 1. OperatorNetworkLimitSetRoleHolders (adjust allocations for operators inside networks; in shares, resulting percentage is operatorShares / totalOperatorShares)
     // 2. operator (the only operator that will receive the stake; should be an array with a single element)
     // 3. operator (the only operator that will receive the stake; should be an array with a single element)
-    address[] OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR = [0x0000000000000000000000000000000000000000];
+    address[] OPERATOR_ALLOCATION_SETTERS_OR_OPERATOR = [0x0000000000000000000000000000000000000001];
     // Whether to deploy a slasher
     bool WITH_SLASHER = true;
     // Type of the slasher:
@@ -57,7 +59,7 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
     uint48 RESOLVER_SET_EPOCHS_DELAY = 3;
 
     function run() public {
-        run(
+        runBase(
             DeployVaultTokenizedParams({
                 deployVaultParams: DeployVaultParams({
                     owner: OWNER,

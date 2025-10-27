@@ -7,14 +7,13 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SetNetworkLimitBaseScript is ScriptBase {
-    function run(address vault, bytes32 subnetwork, uint256 networkLimit)
+    function runBase(address vault, bytes32 subnetwork, uint256 networkLimit)
         public
+        virtual
         returns (bytes memory data, address target)
     {
         target = IVault(vault).delegator();
-        data = abi.encodeCall(
-            INetworkRestakeDelegator(IVault(vault).delegator()).setNetworkLimit, (subnetwork, networkLimit)
-        );
+        data = abi.encodeCall(INetworkRestakeDelegator.setNetworkLimit, (subnetwork, networkLimit));
         sendTransaction(target, data);
 
         Logs.log(

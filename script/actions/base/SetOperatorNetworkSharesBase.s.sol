@@ -7,14 +7,14 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SetOperatorNetworkSharesBaseScript is ScriptBase {
-    function run(address vault, bytes32 subnetwork, address operator, uint256 operatorNetworkShares)
+    function runBase(address vault, bytes32 subnetwork, address operator, uint256 operatorNetworkShares)
         public
+        virtual
         returns (bytes memory data, address target)
     {
         target = IVault(vault).delegator();
         data = abi.encodeCall(
-            INetworkRestakeDelegator(IVault(vault).delegator()).setOperatorNetworkShares,
-            (subnetwork, operator, operatorNetworkShares)
+            INetworkRestakeDelegator.setOperatorNetworkShares, (subnetwork, operator, operatorNetworkShares)
         );
         sendTransaction(target, data);
 

@@ -4,16 +4,18 @@ pragma solidity ^0.8.0;
 import "./base/OptInVaultBase.s.sol";
 
 // forge script script/actions/OptInVault.s.sol:OptInVaultScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
+// forge script script/actions/OptInVault.s.sol:OptInVaultScript --rpc-url=RPC -—sender MULTISIG_ADDRESS —-unlocked
 
 contract OptInVaultScript is OptInVaultBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
-    // Address of the OperatorVaultOptInService contract
-    address constant OPERATOR_VAULT_OPT_IN_SERVICE = address(0);
-    // Address of the vault being opted into
+    // Address of the Vault to opt into
     address constant VAULT = address(0);
 
     function run() public {
-        run(OPERATOR_VAULT_OPT_IN_SERVICE, VAULT);
+        (bytes memory data, address target) = runBase(VAULT);
+        Logs.log(
+            string.concat("OptInVault data:", "\n    data:", vm.toString(data), "\n    target:", vm.toString(target))
+        );
     }
 }

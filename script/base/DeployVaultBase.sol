@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
@@ -51,7 +51,7 @@ contract DeployVaultBase is Script {
 
     bytes32 DEFAULT_ADMIN_ROLE = 0x00;
 
-    function run(DeployVaultParams memory params) public returns (address, address, address) {
+    function runBase(DeployVaultParams memory params) public returns (address, address, address) {
         vm.startBroadcast();
         (,, address deployer) = vm.readCallers();
 

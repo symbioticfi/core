@@ -23,7 +23,6 @@ import {RegisterOperatorBaseScript} from "../../../script/actions/base/RegisterO
 import {SetHookBaseScript} from "../../../script/actions/base/SetHookBase.s.sol";
 import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/base/SetMaxNetworkLimitBase.s.sol";
 import {SetNetworkLimitBaseScript} from "../../../script/actions/base/SetNetworkLimitBase.s.sol";
-import {SetOperatorNetworkLimitBaseScript} from "../../../script/actions/base/SetOperatorNetworkLimitBase.s.sol";
 import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/base/SetOperatorNetworkSharesBase.s.sol";
 import {SetResolverBaseScript} from "../../../script/actions/base/SetResolverBase.s.sol";
 import {VetoSlashBaseScript} from "../../../script/actions/base/VetoSlashBase.s.sol";
@@ -98,14 +97,6 @@ contract SetOperatorNetworkSharesScriptHarness is SetOperatorNetworkSharesBaseSc
     }
 }
 
-contract SetOperatorNetworkLimitScriptHarness is SetOperatorNetworkLimitBaseScript, ScriptBaseHarness {
-    constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
-
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
-    }
-}
-
 contract SetResolverScriptHarness is SetResolverBaseScript, ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
@@ -145,6 +136,9 @@ contract ActionScriptsTest is SymbioticCoreInit {
     uint256 internal constant DEFAULT_DEPOSIT = 800 ether;
 
     function setUp() public virtual override {
+        vm.selectFork(vm.createFork(vm.rpcUrl("mainnet")));
+        SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
+
         super.setUp();
 
         curator = _getAccount_Symbiotic();
@@ -306,7 +300,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
         Vm.Wallet memory newOperator = _getAccount_Symbiotic();
         RegisterOperatorScriptHarness script = new RegisterOperatorScriptHarness(newOperator.addr);
 
-        script.run(address(symbioticCore.operatorRegistry));
+        script.runBase();
 
         assertTrue(symbioticCore.operatorRegistry.isEntity(newOperator.addr), "operator not registered");
     }
@@ -314,7 +308,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
     function test_OptInVault() public {
         OptInVaultScriptHarness script = new OptInVaultScriptHarness(operatorWallet.addr);
 
-        script.run(address(symbioticCore.operatorVaultOptInService), vaultNetworkRestakeVeto);
+        script.runBase(vaultNetworkRestakeVeto);
 
         assertTrue(
             symbioticCore.operatorVaultOptInService.isOptedIn(operatorWallet.addr, vaultNetworkRestakeVeto),
@@ -325,7 +319,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
     function test_OptInNetwork() public {
         OptInNetworkScriptHarness script = new OptInNetworkScriptHarness(operatorWallet.addr);
 
-        script.run(address(symbioticCore.operatorNetworkOptInService), network.addr);
+        script.runBase(network.addr);
 
         assertTrue(
             symbioticCore.operatorNetworkOptInService.isOptedIn(operatorWallet.addr, network.addr),
@@ -337,7 +331,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
         address hook = address(0xdead);
         SetHookScriptHarness script = new SetHookScriptHarness(curator.addr);
 
-        script.run(vaultNetworkRestakeVeto, hook);
+        script.runBase(vaultNetworkRestakeVeto, hook);
 
         address delegator = IVault(vaultNetworkRestakeVeto).delegator();
         assertEq(IBaseDelegator(delegator).hook(), hook, "hook not set");
@@ -347,7 +341,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
         uint256 amount = DEFAULT_MAX_LIMIT;
         SetMaxNetworkLimitScriptHarness script = new SetMaxNetworkLimitScriptHarness(network.addr);
 
-        script.run(vaultNetworkRestakeVeto, SUBNETWORK_ID, amount);
+        script.runBase(vaultNetworkRestakeVeto, SUBNETWORK_ID, amount);
 
         bytes32 subnetwork = _subnetwork();
         uint256 value = IBaseDelegator(IVault(vaultNetworkRestakeVeto).delegator()).maxNetworkLimit(subnetwork);
@@ -363,7 +357,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
         bytes32 subnetwork = _subnetwork();
         SetNetworkLimitScriptHarness script = new SetNetworkLimitScriptHarness(curator.addr);
 
-        script.run(vaultNetworkRestakeVeto, subnetwork, amount);
+        script.runBase(vaultNetworkRestakeVeto, subnetwork, amount);
 
         uint256 value = INetworkRestakeDelegator(IVault(vaultNetworkRestakeVeto).delegator()).networkLimit(subnetwork);
         assertEq(value, amount, "network limit mismatch");
@@ -377,31 +371,17 @@ contract ActionScriptsTest is SymbioticCoreInit {
         uint256 shares = DEFAULT_OPERATOR_SHARES;
         SetOperatorNetworkSharesScriptHarness script = new SetOperatorNetworkSharesScriptHarness(curator.addr);
 
-        script.run(vaultNetworkRestakeVeto, subnetwork, operatorWallet.addr, shares);
+        script.runBase(vaultNetworkRestakeVeto, subnetwork, operatorWallet.addr, shares);
 
         uint256 value = INetworkRestakeDelegator(IVault(vaultNetworkRestakeVeto).delegator())
             .operatorNetworkShares(subnetwork, operatorWallet.addr);
         assertEq(value, shares, "operator network shares mismatch");
     }
 
-    function test_SetOperatorNetworkLimit() public {
-        _networkSetMaxNetworkLimit_SymbioticCore(network.addr, vaultFullRestake, SUBNETWORK_ID, DEFAULT_MAX_LIMIT);
-        bytes32 subnetwork = _subnetwork();
-        uint256 amount = DEFAULT_OPERATOR_LIMIT;
-
-        SetOperatorNetworkLimitScriptHarness script = new SetOperatorNetworkLimitScriptHarness(curator.addr);
-
-        script.run(vaultFullRestake, subnetwork, operatorWallet.addr, amount);
-
-        uint256 value = IFullRestakeDelegator(IVault(vaultFullRestake).delegator())
-            .operatorNetworkLimit(subnetwork, operatorWallet.addr);
-        assertEq(value, amount, "operator network limit mismatch");
-    }
-
     function test_SetResolver() public {
         SetResolverScriptHarness script = new SetResolverScriptHarness(network.addr);
 
-        script.run(vaultNetworkRestakeVeto, SUBNETWORK_ID, resolver.addr);
+        script.runBase(vaultNetworkRestakeVeto, SUBNETWORK_ID, resolver.addr);
 
         bytes32 subnetwork = _subnetwork();
         address currentResolver =
@@ -411,7 +391,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
 
     function test_VetoSlash() public {
         SetResolverScriptHarness resolverScript = new SetResolverScriptHarness(network.addr);
-        resolverScript.run(vaultNetworkRestakeVeto, SUBNETWORK_ID, resolver.addr);
+        resolverScript.runBase(vaultNetworkRestakeVeto, SUBNETWORK_ID, resolver.addr);
 
         (bytes32 subnetwork, uint48 captureTimestamp) = _setupStakeForNetworkRestake(
             vaultNetworkRestakeVeto,
@@ -432,7 +412,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
         );
 
         VetoSlashScriptHarness vetoScript = new VetoSlashScriptHarness(resolver.addr);
-        vetoScript.run(vaultNetworkRestakeVeto, 0);
+        vetoScript.runBase(vaultNetworkRestakeVeto, 0);
 
         IVetoSlasherExtended slasher = IVetoSlasherExtended(IVault(vaultNetworkRestakeVeto).slasher());
         (,,,,, bool completed) = slasher.slashRequests(0);

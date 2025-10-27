@@ -7,9 +7,9 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract VetoSlashBaseScript is ScriptBase {
-    function run(address vault, uint256 slashIndex) public returns (bytes memory data, address target) {
+    function runBase(address vault, uint256 slashIndex) public virtual returns (bytes memory data, address target) {
         target = IVault(vault).slasher();
-        data = abi.encodeCall(IVetoSlasher(IVault(vault).slasher()).vetoSlash, (slashIndex, new bytes(0)));
+        data = abi.encodeCall(IVetoSlasher.vetoSlash, (slashIndex, new bytes(0)));
         sendTransaction(target, data);
 
         Logs.log(
