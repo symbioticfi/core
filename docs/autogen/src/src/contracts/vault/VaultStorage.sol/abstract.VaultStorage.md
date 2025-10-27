@@ -1,5 +1,5 @@
 # VaultStorage
-[Git Source](https://github.com/symbioticfi/core/blob/df9ca184c8ea82a887fc1922bce2558281ce8e60/src/contracts/vault/VaultStorage.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/0c5792225777a2fa2f15f10dba9650eb44861800/src/contracts/vault/VaultStorage.sol)
 
 **Inherits:**
 [StaticDelegateCallable](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/StaticDelegateCallable.sol/abstract.StaticDelegateCallable.md), [IVaultStorage](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/vault/IVaultStorage.sol/interface.IVaultStorage.md)

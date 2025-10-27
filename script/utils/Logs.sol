@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {console2} from "forge-std/console2.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {Simulation} from "@base/contracts/script/universal/Simulation.sol";
+import {Simulation} from "./Simulation.sol";
 
 library Logs {
     string internal constant LOG_FILE = "script/logs.txt";

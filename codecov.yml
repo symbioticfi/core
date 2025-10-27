@@ -48,3 +48,4 @@ ignore:
   - "script"
   - "test"
   - "src/test"
+  - "src/contracts/hints"

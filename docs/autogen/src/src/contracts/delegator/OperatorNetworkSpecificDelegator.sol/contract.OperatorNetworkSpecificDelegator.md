@@ -1,5 +1,5 @@
 # OperatorNetworkSpecificDelegator
-[Git Source](https://github.com/symbioticfi/core/blob/df9ca184c8ea82a887fc1922bce2558281ce8e60/src/contracts/delegator/OperatorNetworkSpecificDelegator.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/0c5792225777a2fa2f15f10dba9650eb44861800/src/contracts/delegator/OperatorNetworkSpecificDelegator.sol)
 
 **Inherits:**
 [BaseDelegator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/delegator/BaseDelegator.sol/abstract.BaseDelegator.md), [IOperatorNetworkSpecificDelegator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol/interface.IOperatorNetworkSpecificDelegator.md)
