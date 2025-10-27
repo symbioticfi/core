@@ -1,5 +1,5 @@
 # IOperatorNetworkSpecificDelegator
-[Git Source](https://github.com/symbioticfi/core/blob/0c5792225777a2fa2f15f10dba9650eb44861800/src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/5ab692fe7f696ff6aee61a77fae37dc444e1c86e/src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol)
 
 **Inherits:**
 [IBaseDelegator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/delegator/IBaseDelegator.sol/interface.IBaseDelegator.md)

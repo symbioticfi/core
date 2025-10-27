@@ -1,5 +1,5 @@
 # VetoSlasher
-[Git Source](https://github.com/symbioticfi/core/blob/0c5792225777a2fa2f15f10dba9650eb44861800/src/contracts/slasher/VetoSlasher.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/5ab692fe7f696ff6aee61a77fae37dc444e1c86e/src/contracts/slasher/VetoSlasher.sol)
 
 **Inherits:**
 [BaseSlasher](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/slasher/BaseSlasher.sol/abstract.BaseSlasher.md), [IVetoSlasher](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/slasher/IVetoSlasher.sol/interface.IVetoSlasher.md)
