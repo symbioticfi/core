@@ -757,8 +757,7 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) =
-            slasher.slashRequests(1);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(1);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -866,8 +865,7 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) =
-            slasher.slashRequests(1);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(1);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);

@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/RequestSlashBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/RequestSlash.s.sol:RequestSlashScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract RequestSlashScript is RequestSlashBaseScript {

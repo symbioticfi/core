@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/SetResolverBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/SetResolver.s.sol:SetResolverScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract SetResolverScript is SetResolverBaseScript {

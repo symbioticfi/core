@@ -18,7 +18,6 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
     uint256 public SELECT_OPERATOR_CHANCE = 1; // lower -> higher probability
 
     function setUp() public override {
-        SYMBIOTIC_CORE_PROJECT_ROOT = "";
         // vm.selectFork(vm.createFork(vm.rpcUrl("holesky")));
         // SYMBIOTIC_INIT_BLOCK = 2_727_202;
         // SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;

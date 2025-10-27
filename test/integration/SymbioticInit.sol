@@ -9,7 +9,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Test} from "forge-std/Test.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 
-contract SymbioticInit is Test {
+contract SymbioticInit is SymbioticUtils, Test {
     using Math for uint256;
 
     // General config
@@ -19,6 +19,8 @@ contract SymbioticInit is Test {
     uint256 public SYMBIOTIC_BLOCK_TIME = 12;
 
     function setUp() public virtual {
+        vm.setSeed(SYMBIOTIC_SEED);
+
         try vm.activeFork() returns (uint256 forkId) {
             vm.rollFork(forkId, SYMBIOTIC_INIT_BLOCK);
         } catch {

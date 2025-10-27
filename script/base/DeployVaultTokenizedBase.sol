@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import "./DeployVaultBase.sol";
-import {IVaultTokenized} from "../../../src/interfaces/vault/IVaultTokenized.sol";
+import {IVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
 
 contract DeployVaultTokenizedBase is DeployVaultBase {
     struct DeployVaultTokenizedParams {

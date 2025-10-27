@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {SymbioticCounter} from "./SymbioticCounter.sol";
-
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 
-contract SymbioticUtils is StdUtils, SymbioticCounter {
+contract SymbioticUtils is StdUtils {
     using Math for uint256;
 
     uint256 public SYMBIOTIC_SEED = 0;
@@ -18,14 +16,11 @@ contract SymbioticUtils is StdUtils, SymbioticCounter {
     // ------------------------------------------------------------ GENERAL HELPERS ------------------------------------------------------------ //
 
     function _random_Symbiotic() internal virtual returns (uint256) {
-        return
-            uint256(
-                keccak256(abi.encode(SYMBIOTIC_SEED, vm.getBlockTimestamp(), vm.getBlockNumber(), _count_Symbiotic()))
-            );
+        return vm.randomUint();
     }
 
     function _randomWithBounds_Symbiotic(uint256 lower, uint256 upper) internal virtual returns (uint256) {
-        return _bound(_random_Symbiotic(), lower, upper);
+        return vm.randomUint(lower, upper);
     }
 
     function _randomChoice_Symbiotic(uint256 coef) internal virtual returns (bool) {

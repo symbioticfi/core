@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/SetNetworkLimitBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/SetNetworkLimit.s.sol:SetNetworkLimitScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract SetNetworkLimitScript is SetNetworkLimitBaseScript {

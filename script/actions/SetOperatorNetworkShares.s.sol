@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/SetOperatorNetworkSharesBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/SetOperatorNetworkShares.s.sol:SetOperatorNetworkSharesScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract SetOperatorNetworkSharesScript is SetOperatorNetworkSharesBaseScript {

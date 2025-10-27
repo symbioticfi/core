@@ -10,9 +10,14 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Script} from "forge-std/Script.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 
-contract SymbioticInit is Script {
+contract SymbioticInit is SymbioticUtils, Script {
     using Math for uint256;
     using SafeERC20 for IERC20;
+
+    function run(uint256 seed) public virtual {
+        SYMBIOTIC_SEED = seed;
+        vm.setSeed(SYMBIOTIC_SEED);
+    }
 
     // ------------------------------------------------------------ GENERAL HELPERS ------------------------------------------------------------ //
 

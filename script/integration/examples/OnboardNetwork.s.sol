@@ -24,8 +24,6 @@ contract OnboardNetworkScript is SymbioticCoreInit {
     function run(uint256 seed) public override {
         // ------------------------------------------------------ CONFIG ------------------------------------------------------ //
 
-        SYMBIOTIC_CORE_PROJECT_ROOT = "";
-
         SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18 = 0.1 * 1e18;
         SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18 = 0.001 * 1e18;
         SYMBIOTIC_CORE_MAX_TOKENS_TO_DEPOSIT_TIMES_1e18 = 0.01 * 1e18;

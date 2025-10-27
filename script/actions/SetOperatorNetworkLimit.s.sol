@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/SetOperatorNetworkLimitBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/SetOperatorNetworkLimit.s.sol:SetOperatorNetworkLimitScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract SetOperatorNetworkLimitScript is SetOperatorNetworkLimitBaseScript {

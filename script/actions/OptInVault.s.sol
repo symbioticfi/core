@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/OptInVaultBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/OptInVault.s.sol:OptInVaultScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract OptInVaultScript is OptInVaultBaseScript {

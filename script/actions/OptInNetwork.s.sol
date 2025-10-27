@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/OptInNetworkBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/OptInNetwork.s.sol:OptInNetworkScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract OptInNetworkScript is OptInNetworkBaseScript {

@@ -18,9 +18,10 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {VmSafe} from "forge-std/Vm.sol";
 
 contract SymbioticCoreInit is SymbioticCoreInitBase, SymbioticInit, SymbioticCoreBindingsScript {
-    function run(uint256 seed) public virtual {
+    function run(uint256 seed) public virtual override {
+        SymbioticInit.run(seed);
+
         SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
-        SYMBIOTIC_SEED = seed;
 
         _initCore_SymbioticCore(SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT);
     }
@@ -47,7 +48,7 @@ contract SymbioticCoreInit is SymbioticCoreInitBase, SymbioticInit, SymbioticCor
     // ------------------------------------------------------------ BROADCAST HELPERS ------------------------------------------------------------ //
 
     function _stopBroadcastWhenCallerModeIsSingle(Vm.CallerMode callerMode) internal virtual override {
-        if (callerMode == VmSafe.CallerMode.Prank) {
+        if (callerMode == VmSafe.CallerMode.Broadcast) {
             vm.stopBroadcast();
         }
     }
@@ -57,13 +58,13 @@ contract SymbioticCoreInit is SymbioticCoreInitBase, SymbioticInit, SymbioticCor
         virtual
         override
     {
-        if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
+        if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
             vm.startBroadcast(deployer);
         }
     }
 
     function _stopBroadcastWhenCallerModeIsNotRecurrent(Vm.CallerMode callerMode) internal virtual override {
-        if (callerMode != VmSafe.CallerMode.RecurrentPrank) {
+        if (callerMode != VmSafe.CallerMode.RecurrentBroadcast) {
             vm.stopBroadcast();
         }
     }
@@ -73,13 +74,13 @@ contract SymbioticCoreInit is SymbioticCoreInitBase, SymbioticInit, SymbioticCor
         virtual
         override
     {
-        if (callerMode == VmSafe.CallerMode.RecurrentPrank) {
+        if (callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
             vm.startBroadcast(deployer);
         }
     }
 
     function _stopBroadcastWhenCallerModeIsSingleOrRecurrent(Vm.CallerMode callerMode) internal virtual override {
-        if (callerMode == VmSafe.CallerMode.Prank || callerMode == VmSafe.CallerMode.RecurrentPrank) {
+        if (callerMode == VmSafe.CallerMode.Broadcast || callerMode == VmSafe.CallerMode.RecurrentBroadcast) {
             vm.stopBroadcast();
         }
     }

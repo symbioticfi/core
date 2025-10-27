@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./base/SetHookBase.s.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 // forge script script/actions/SetHook.s.sol:SetHookScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
 
 contract SetHookScript is SetHookBaseScript {

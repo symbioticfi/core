@@ -18,9 +18,7 @@ contract CreateXWrapper {
      * @param initCode The contract bytecode to deploy
      * @return The address of the deployed contract
      */
-    function deployCreate(
-        bytes memory initCode
-    ) public returns (address) {
+    function deployCreate(bytes memory initCode) public returns (address) {
         return ICreateX(CREATEX_FACTORY).deployCreate(initCode);
     }
 
@@ -39,9 +37,7 @@ contract CreateXWrapper {
      * @param initCode The contract bytecode to deploy
      * @return The address of the deployed contract
      */
-    function deployCreate2(
-        bytes memory initCode
-    ) public returns (address) {
+    function deployCreate2(bytes memory initCode) public returns (address) {
         return ICreateX(CREATEX_FACTORY).deployCreate2(initCode);
     }
 
@@ -109,15 +105,12 @@ contract CreateXWrapper {
      * @param data The calldata for the initialization function call
      * @return The address of the deployed and initialized contract
      */
-    function deployCreate3AndInitWithGuardedSalt(
-        address deployer,
-        bytes11 salt,
-        bytes memory code,
-        bytes memory data
-    ) public returns (address) {
-        return ICreateX(CREATEX_FACTORY).deployCreate3AndInit(
-            getSaltForCreate3(salt, deployer), code, data, ICreateX.Values(0, 0)
-        );
+    function deployCreate3AndInitWithGuardedSalt(address deployer, bytes11 salt, bytes memory code, bytes memory data)
+        public
+        returns (address)
+    {
+        return ICreateX(CREATEX_FACTORY)
+            .deployCreate3AndInit(getSaltForCreate3(salt, deployer), code, data, ICreateX.Values(0, 0));
     }
 
     /**
@@ -126,9 +119,7 @@ contract CreateXWrapper {
      * @param salt An 32-byte salt value
      * @return The computed address where the contract would be deployed
      */
-    function computeCreate3Address(
-        bytes32 salt
-    ) public view returns (address) {
+    function computeCreate3Address(bytes32 salt) public view returns (address) {
         return ICreateX(CREATEX_FACTORY).computeCreate3Address(salt);
     }
 
