@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {Hints} from "./Hints.sol";
-import {INetworkRestakeDelegator} from "../../interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "../../interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "../../interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IOperatorNetworkSpecificDelegator} from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";
 import {VaultHints} from "./VaultHints.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
+
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
+import {IFullRestakeDelegator} from "../../interfaces/delegator/IFullRestakeDelegator.sol";
+import {INetworkRestakeDelegator} from "../../interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
+import {IOperatorSpecificDelegator} from "../../interfaces/delegator/IOperatorSpecificDelegator.sol";
 
 contract BaseDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;

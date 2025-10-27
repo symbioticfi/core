@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";

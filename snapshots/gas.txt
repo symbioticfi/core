@@ -1,0 +1,1629 @@
+No files changed, compilation skipped
+
+Ran 1 test for test/common/Registry.t.sol:FactoryTest
+[PASS] test_Create() (gas: 245091)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 776.46µs (102.92µs CPU time)
+
+Ran 3 tests for test/OperatorRegistry.t.sol:OperatorRegistryTest
+[PASS] test_Create() (gas: 30385)
+[PASS] test_Register() (gas: 121195)
+[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143526)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 849.13µs (311.00µs CPU time)
+
+Ran 7 tests for test/common/Factory.t.sol:FactoryTest
+[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 438847)
+[PASS] test_BlacklistRevertIinvalidType() (gas: 34346)
+[PASS] test_Create() (gas: 955167)
+[PASS] test_CreateRevertInvalidIndex() (gas: 745962)
+[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 366082)
+[PASS] test_WhitelistRevertInvalidImplementation1() (gas: 291539)
+[PASS] test_WhitelistRevertInvalidImplementation2() (gas: 646932)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 1.17ms (481.42µs CPU time)
+
+Ran 1 test for test/SlasherFactory.t.sol:SlasherFactoryTest
+[PASS] test_Create() (gas: 1451497)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 3.09ms (284.58µs CPU time)
+
+Ran 1 test for test/DelegatorFactory.t.sol:DelegatorFactoryTest
+[PASS] test_Create() (gas: 1601226)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 3.54ms (568.83µs CPU time)
+
+Ran 12 tests for test/service/OptInService.t.sol:OperatorOptInServiceTest
+[PASS] test_Create() (gas: 669669)
+[PASS] test_IncreaseNonce() (gas: 322937)
+[PASS] test_OptInRevertAlreadyOptedIn() (gas: 364757)
+[PASS] test_OptInRevertNotEntity() (gas: 157162)
+[PASS] test_OptInRevertNotWhereEntity() (gas: 162173)
+[PASS] test_OptInWithExpiredDeadline() (gas: 258583)
+[PASS] test_OptInWithInvalidSignature() (gas: 268481)
+[PASS] test_OptInWithSignature() (gas: 353418)
+[PASS] test_OptOutRevertNotOptedIn() (gas: 246774)
+[PASS] test_OptOutWithExpiredDeadline() (gas: 363819)
+[PASS] test_OptOutWithInvalidSignature() (gas: 373774)
+[PASS] test_OptOutWithSignature() (gas: 416417)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 3.82ms (3.10ms CPU time)
+
+Ran 1 test for test/common/Entity.t.sol:EntityTest
+[PASS] test_Create() (gas: 1055982)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 603.54µs (217.04µs CPU time)
+
+Ran 1 test for test/POC.t.sol:POCTest
+[PASS] test_POC() (gas: 463)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.39ms (18.33µs CPU time)
+
+Ran 10 tests for test/common/MigratablesFactory.t.sol:MigratablesFactoryTest
+[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 642946)
+[PASS] test_BlacklistRevertInvalidVersion() (gas: 32421)
+[PASS] test_Create() (gas: 2194649)
+[PASS] test_CreateRevertInvalidVersion() (gas: 648279)
+[PASS] test_Migrate(uint256) (runs: 1000, μ: 2207514, ~: 2207680)
+[PASS] test_MigrateRevertImproperOwner() (gas: 1613346)
+[PASS] test_MigrateRevertInvalidVersion() (gas: 1617070)
+[PASS] test_MigrateRevertOldVersion() (gas: 1606989)
+[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 594314)
+[PASS] test_WhitelistRevertInvalidImplementation() (gas: 495938)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 203.84ms (203.23ms CPU time)
+
+Ran 4 tests for test/common/MigratableEntity.t.sol:MigratableEntityTest
+[PASS] test_Create() (gas: 993828)
+[PASS] test_Migrate(uint256,uint256,uint256,uint256) (runs: 1000, μ: 2366077, ~: 2366302)
+[PASS] test_MigrateRevertNotFactory() (gas: 1605748)
+[PASS] test_ReinitRevertAlreadyInitialized() (gas: 1548267)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 231.73ms (231.54ms CPU time)
+
+Ran 1 test for test/common/MigratableEntityProxy.t.sol:MigratableEntityProxyTest
+[PASS] test_MigrateRevertProxyDeniedAdminAccess() (gas: 1590351)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 283.58µs (94.63µs CPU time)
+
+Ran 3 tests for test/service/MetadataService.t.sol:MetadataServiceTest
+[PASS] test_Create(string) (runs: 1000, μ: 225590, ~: 248403)
+[PASS] test_SetMetadataURLRevertAlreadySet(string) (runs: 1000, μ: 237840, ~: 260601)
+[PASS] test_SetMetadataURLRevertNotEntity(string) (runs: 1000, μ: 60619, ~: 60534)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 285.64ms (284.85ms CPU time)
+
+Ran 3 tests for test/service/NetworkMiddlewareService.t.sol:MiddlewareServiceTest
+[PASS] test_Create(address) (runs: 1000, μ: 193164, ~: 193243)
+[PASS] test_SetMiddlewareRevertAlreadySet(address) (runs: 1000, μ: 206729, ~: 206879)
+[PASS] test_SetMiddlewareRevertNotNetwork(address) (runs: 1000, μ: 59303, ~: 59381)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 201.79ms (198.44ms CPU time)
+
+Ran 3 tests for test/NetworkRegistry.t.sol:NetworkRegistryTest
+[PASS] test_Create() (gas: 30385)
+[PASS] test_Register() (gas: 121217)
+[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143570)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 250.29µs (112.29µs CPU time)
+
+Ran 1 test for test/VaultConfigurator.t.sol:VaultConfiguratorTest
+[PASS] test_Create(address,address,uint48,bool,bool,uint256,bool,address) (runs: 1000, μ: 1382377, ~: 1271659)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 410.65ms (409.36ms CPU time)
+
+Ran 1 test for test/VaultFactory.t.sol:VaultFactoryTest
+[PASS] test_Create() (gas: 973737)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.35ms (163.42µs CPU time)
+
+Ran 9 tests for test/integration/actions/ActionScripts.t.sol:ActionScriptsTest
+[PASS] test_OptInNetwork() (gas: 823352)
+[PASS] test_OptInVault() (gas: 822391)
+[PASS] test_RegisterOperator() (gas: 727532)
+[PASS] test_SetHook() (gas: 608837)
+[PASS] test_SetMaxNetworkLimit() (gas: 652573)
+[PASS] test_SetNetworkLimit() (gas: 803051)
+[PASS] test_SetOperatorNetworkShares() (gas: 939148)
+[PASS] test_SetResolver() (gas: 688156)
+[PASS] test_VetoSlash() (gas: 3122823)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 3.24s (908.44ms CPU time)
+
+Ran 3 tests for test/integration/SymbioticCoreIntegrationExample.t.sol:SymbioticCoreIntegrationExample
+[PASS] test_Network() (gas: 22541060)
+[PASS] test_NetworkAdvanced() (gas: 171805965)
+[PASS] test_Simple() (gas: 1995899)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 6.26s (188.20ms CPU time)
+
+Ran 19 tests for test/delegator/OperatorSpecificDelegator.t.sol:OperatorSpecificDelegatorTest
+[PASS] test_Create(uint48) (runs: 1000, μ: 1213821, ~: 1213732)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 1000, μ: 1358318, ~: 1358228)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 1000, μ: 1323935, ~: 1323855)
+[PASS] test_CreateRevertNotOperator(uint48) (runs: 1000, μ: 1330516, ~: 1330430)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 1000, μ: 1280497, ~: 1280410)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 1000, μ: 1329899, ~: 1329821)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 1000, μ: 1166014, ~: 1165931)
+[PASS] test_SetHook(uint48) (runs: 1000, μ: 1624321, ~: 1624229)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 1000, μ: 1402985, ~: 1402887)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 1000, μ: 1740707, ~: 1741515)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 1000, μ: 1368113, ~: 1368059)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 1000, μ: 1310500, ~: 1310500)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 1925065, ~: 1925759)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 1000, μ: 1496564, ~: 1496476)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 1000, μ: 1361838, ~: 1361842)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3381689, ~: 3390114)
+[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 1000, μ: 3235233, ~: 3227768)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 1000, μ: 3256586, ~: 3146801)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3258679, ~: 3260057)
+Suite result: ok. 19 passed; 0 failed; 0 skipped; finished in 11.39s (9.34s CPU time)
+
+Ran 56 tests for test/vault/VaultTokenized.t.sol:VaultTokenizedTest
+[PASS] test_Claim(uint256,uint256) (runs: 1000, μ: 1939082, ~: 1939300)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 1000, μ: 2275812, ~: 2275853)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 1000, μ: 2169803, ~: 2169852)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 1000, μ: 2178812, ~: 2178841)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 1000, μ: 2169734, ~: 2169770)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 1000, μ: 2113538, ~: 2113596)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 1000, μ: 2136852, ~: 2136889)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 1000, μ: 1937188, ~: 1937433)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 1000, μ: 1846233, ~: 1846555)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 1000, μ: 1836671, ~: 1836890)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 1000, μ: 1831470, ~: 1831739)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 1000, μ: 1767910, ~: 1768095)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 1000, μ: 207870, ~: 207785)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 207079)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 1000, μ: 196074, ~: 195986)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 1000, μ: 194789, ~: 194696)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 1000, μ: 195023, ~: 194934)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 1000, μ: 195975, ~: 195884)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 1000, μ: 196097, ~: 196019)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 1000, μ: 2443073, ~: 2443107)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1098206)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 1000, μ: 1084655, ~: 1084565)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 1000, μ: 2962346, ~: 2962385)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 1000, μ: 2933551, ~: 2933581)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1083521)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 1000, μ: 1546322, ~: 1546228)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 1000, μ: 1520651, ~: 1520533)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 1000, μ: 1528977, ~: 1528857)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 1000, μ: 3184119, ~: 3184144)
+[PASS] test_SetDelegator() (gas: 1133682)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1129014)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1704353)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 719177)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 1000, μ: 1776837, ~: 1776755)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 1000, μ: 1281606, ~: 1281478)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 1000, μ: 1868993, ~: 1869035)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 1000, μ: 1314182, ~: 1314126)
+[PASS] test_SetDepositWhitelist() (gas: 1191806)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1170520)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1606706)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1909728)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1277528)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1216701)
+[PASS] test_SetIsDepositLimit() (gas: 1191334)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1169663)
+[PASS] test_SetSlasher() (gas: 1033194)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1609359)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 974292)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1033576)
+[PASS] test_SetSlasherZeroAddress() (gas: 727045)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 4348729, ~: 4352170)
+[PASS] test_Transfer(uint256,uint256) (runs: 1000, μ: 1773726, ~: 1599573)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 1000, μ: 1521073, ~: 1521016)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 1000, μ: 1521118, ~: 1520992)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 1000, μ: 1548552, ~: 1548431)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 1000, μ: 3241422, ~: 3241471)
+Suite result: ok. 56 passed; 0 failed; 0 skipped; finished in 13.58s (17.01s CPU time)
+
+Ran 23 tests for test/delegator/FullRestakeDelegator.t.sol:FullRestakeDelegatorTest
+[PASS] test_Create(uint48) (runs: 1000, μ: 1126424, ~: 1126343)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 1000, μ: 1253074, ~: 1252986)
+[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 1000, μ: 1278351, ~: 1278266)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 1000, μ: 1226237, ~: 1226149)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 1000, μ: 1180225, ~: 1180139)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 1000, μ: 1226741, ~: 1226658)
+[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 1000, μ: 1252022, ~: 1251938)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 1000, μ: 1067033, ~: 1066948)
+[PASS] test_SetHook(uint48) (runs: 1000, μ: 1779299, ~: 1779198)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 1000, μ: 1430887, ~: 1430785)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 1000, μ: 1644147, ~: 1645372)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 1000, μ: 1269230, ~: 1269186)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 1000, μ: 1211586, ~: 1211571)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 1829516, ~: 1830041)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 1000, μ: 1397719, ~: 1397632)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 1000, μ: 1265375, ~: 1265345)
+[PASS] test_SetOperatorNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 1868022, ~: 1868579)
+[PASS] test_SetOperatorNetworkLimitBoth(uint48,uint256,uint256,uint256) (runs: 1000, μ: 1801672, ~: 1802212)
+[PASS] test_SetOperatorNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 1000, μ: 1435407, ~: 1435351)
+[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3609948, ~: 3614763)
+[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 1000, μ: 3999679, ~: 4007910)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 1000, μ: 4017940, ~: 4131690)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 4673094, ~: 4675461)
+Suite result: ok. 23 passed; 0 failed; 0 skipped; finished in 13.94s (11.48s CPU time)
+
+Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace208Test
+[PASS] testAt(uint48[],uint208[],uint32) (runs: 1000, μ: 4339982, ~: 4636625)
+[PASS] testLatest(uint48[],uint208[]) (runs: 1000, μ: 4405511, ~: 4659232)
+[PASS] testLatestCheckpoint(uint48[],uint208[]) (runs: 1000, μ: 4372048, ~: 4611629)
+[PASS] testLength(uint48[],uint208[]) (runs: 1000, μ: 4235280, ~: 4421050)
+[PASS] testLookup(uint48[],uint208[],uint48) (runs: 1000, μ: 4298372, ~: 4515644)
+[PASS] testPop(uint48[],uint208[]) (runs: 1000, μ: 4213453, ~: 4537410)
+[PASS] testPush(uint48[],uint208[],uint48) (runs: 1000, μ: 4619240, ~: 4961471)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint208[],uint48) (runs: 1000, μ: 4523001, ~: 4792714)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint208[],uint48,uint32) (runs: 1000, μ: 4250964, ~: 4506469)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint208[],uint48,uint32) (runs: 1000, μ: 4232270, ~: 4522043)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 14.22s (19.96s CPU time)
+
+Ran 30 tests for test/slasher/VetoSlasher.t.sol:VetoSlasherTest
+[PASS] test_Create(uint48,uint48) (runs: 1000, μ: 1385503, ~: 1386864)
+[PASS] test_CreateRevertInvalidResolverSetEpochsDelay(uint48,uint48,uint256) (runs: 1000, μ: 1233495, ~: 1233405)
+[PASS] test_CreateRevertInvalidVetoDuration(uint48,uint48,uint256) (runs: 1000, μ: 1233477, ~: 1233434)
+[PASS] test_CreateRevertNotVault(uint48,uint48,uint256) (runs: 1000, μ: 1177368, ~: 1177391)
+[PASS] test_ExecuteSlash1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3958369, ~: 3962802)
+[PASS] test_ExecuteSlash2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3845977, ~: 3848697)
+[PASS] test_ExecuteSlashRevertInsufficientSlash1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3144482, ~: 3156348)
+[PASS] test_ExecuteSlashRevertInsufficientSlash2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3376788, ~: 3387133)
+[PASS] test_ExecuteSlashRevertNotNetworkMiddleware(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2781282, ~: 2782709)
+[PASS] test_ExecuteSlashRevertSlashPeriodEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2796955, ~: 2798107)
+[PASS] test_ExecuteSlashRevertSlashRequestCompleted(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3242353, ~: 3243316)
+[PASS] test_ExecuteSlashRevertSlashRequestNotExist(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2772593, ~: 2773766)
+[PASS] test_ExecuteSlashRevertVetoPeriodNotEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2870601, ~: 2870551)
+[PASS] test_ExecuteSlashWithoutResolver1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3190562, ~: 3202188)
+[PASS] test_ExecuteSlashWithoutResolver2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3358002, ~: 3369150)
+[PASS] test_RequestSlash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3414449, ~: 3414975)
+[PASS] test_RequestSlashRevertInsufficientSlash(uint48,uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3171394, ~: 3173566)
+[PASS] test_RequestSlashRevertInvalidCaptureTimestamp(uint48,uint48,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2557648, ~: 2557676)
+[PASS] test_RequestSlashRevertNotNetworkMiddleware(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2949674, ~: 2950114)
+[PASS] test_SetResolver(uint48,uint48,address,address) (runs: 1000, μ: 2073090, ~: 2074643)
+[PASS] test_SetResolverRevertAlreadySet1(uint48,uint48) (runs: 1000, μ: 1482501, ~: 1483997)
+[PASS] test_SetResolverRevertAlreadySet2(uint48,uint48) (runs: 1000, μ: 1567045, ~: 1568520)
+[PASS] test_SetResolverRevertNotNetwork(uint48,uint48) (runs: 1000, μ: 1479636, ~: 1480973)
+[PASS] test_VetoSlash(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2966888, ~: 2966807)
+[PASS] test_VetoSlashRevertNoResolver1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2780313, ~: 2780274)
+[PASS] test_VetoSlashRevertNoResolver2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2947339, ~: 2947221)
+[PASS] test_VetoSlashRevertNotResolver(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2865188, ~: 2865102)
+[PASS] test_VetoSlashRevertSlashRequestCompleted(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2909807, ~: 2909695)
+[PASS] test_VetoSlashRevertSlashRequestNotExist(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2854126, ~: 2854080)
+[PASS] test_VetoSlashRevertVetoPeriodEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2866510, ~: 2866479)
+Suite result: ok. 30 passed; 0 failed; 0 skipped; finished in 6.47s (26.82s CPU time)
+
+Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace256Test
+[PASS] testAt(uint48[],uint256[],uint32) (runs: 1000, μ: 8436554, ~: 8854797)
+[PASS] testLatest(uint48[],uint256[]) (runs: 1000, μ: 8195173, ~: 8698420)
+[PASS] testLatestCheckpoint(uint48[],uint256[]) (runs: 1000, μ: 8283274, ~: 8744604)
+[PASS] testLength(uint48[],uint256[]) (runs: 1000, μ: 8324509, ~: 8826027)
+[PASS] testLookup(uint48[],uint256[],uint48) (runs: 1000, μ: 8099554, ~: 8659422)
+[PASS] testPop(uint48[],uint256[]) (runs: 1000, μ: 8140826, ~: 8592549)
+[PASS] testPush(uint48[],uint256[],uint48) (runs: 1000, μ: 8741400, ~: 9456179)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint256[],uint48) (runs: 1000, μ: 8396507, ~: 8915068)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint256[],uint48,uint32) (runs: 1000, μ: 8089325, ~: 8530147)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint256[],uint48,uint32) (runs: 1000, μ: 7887616, ~: 8197706)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 15.62s (25.98s CPU time)
+
+Ran 22 tests for test/delegator/NetworkRestakeDelegator.t.sol:NetworkRestakeDelegatorTest
+[PASS] test_Create(uint48) (runs: 1000, μ: 1122754, ~: 1122670)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 1000, μ: 1253114, ~: 1253028)
+[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 1000, μ: 1278327, ~: 1278242)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 1000, μ: 1226228, ~: 1226147)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 1000, μ: 1180286, ~: 1180203)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 1000, μ: 1226804, ~: 1226722)
+[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 1000, μ: 1252016, ~: 1251936)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 1000, μ: 1067095, ~: 1067002)
+[PASS] test_SetHook(uint48) (runs: 1000, μ: 1779195, ~: 1779098)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 1000, μ: 1430868, ~: 1430773)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 1000, μ: 1644448, ~: 1645413)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 1000, μ: 1269199, ~: 1269152)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 1000, μ: 1211559, ~: 1211542)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 1829373, ~: 1829951)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 1000, μ: 1397647, ~: 1397576)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 1000, μ: 1265357, ~: 1265342)
+[PASS] test_SetOperatorNetworkSharesBoth(uint48,uint256,uint256,uint256) (runs: 1000, μ: 3293493, ~: 3294579)
+[PASS] test_SetOperatorNetworkSharesRevertAlreadySet(uint48,uint256) (runs: 1000, μ: 1529675, ~: 1529630)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 4188732, ~: 4188086)
+[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 1000, μ: 4240848, ~: 4234717)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 1000, μ: 4205906, ~: 4204632)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 4592714, ~: 4629372)
+Suite result: ok. 22 passed; 0 failed; 0 skipped; finished in 15.21s (12.95s CPU time)
+
+Ran 55 tests for test/vault/Vault.t.sol:VaultTest
+[PASS] test_Claim(uint256,uint256) (runs: 1000, μ: 1882997, ~: 1883293)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 1000, μ: 2217672, ~: 2217729)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 1000, μ: 2111943, ~: 2111990)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 1000, μ: 2120914, ~: 2120955)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 1000, μ: 2111880, ~: 2111909)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 1000, μ: 2055852, ~: 2055952)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 1000, μ: 2078978, ~: 2079015)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 1000, μ: 1881230, ~: 1881524)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 1000, μ: 1790327, ~: 1790800)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 1000, μ: 1781025, ~: 1781176)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 1000, μ: 1775623, ~: 1776018)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 1000, μ: 1637807, ~: 1637939)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 1000, μ: 202126, ~: 202042)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 201337)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 1000, μ: 190423, ~: 190336)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 1000, μ: 189155, ~: 189068)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 1000, μ: 189395, ~: 189306)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 1000, μ: 190325, ~: 190234)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 1000, μ: 190455, ~: 190369)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 1000, μ: 2319006, ~: 2319029)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1046630)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 1000, μ: 1033051, ~: 1032954)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 1000, μ: 2841814, ~: 2841828)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 1000, μ: 2872147, ~: 2872181)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1031922)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 1000, μ: 1492863, ~: 1492741)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 1000, μ: 1467180, ~: 1467014)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 1000, μ: 1475527, ~: 1475407)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 1000, μ: 3116786, ~: 3116862)
+[PASS] test_SetDelegator() (gas: 1081968)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1077705)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1602079)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 667955)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 1000, μ: 1722042, ~: 1721964)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 1000, μ: 1229278, ~: 1229129)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 1000, μ: 1814815, ~: 1814862)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 1000, μ: 1261563, ~: 1261491)
+[PASS] test_SetDepositWhitelist() (gas: 1139613)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1118569)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1552840)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1853589)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1225203)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1164552)
+[PASS] test_SetIsDepositLimit() (gas: 1139207)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1117844)
+[PASS] test_SetSlasher() (gas: 981347)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1506906)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 922923)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 982053)
+[PASS] test_SetSlasherZeroAddress() (gas: 675779)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 4285231, ~: 4289187)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 1000, μ: 1467475, ~: 1467361)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 1000, μ: 1467523, ~: 1467363)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 1000, μ: 1494960, ~: 1494831)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 1000, μ: 3119116, ~: 3119136)
+Suite result: ok. 55 passed; 0 failed; 0 skipped; finished in 13.57s (16.54s CPU time)
+
+Ran 15 tests for test/delegator/OperatorNetworkSpecificDelegator.t.sol:OperatorNetworkSpecificDelegatorTest
+[PASS] test_Create(uint48) (runs: 1000, μ: 1353343, ~: 1353258)
+[PASS] test_CreateRevertNotNetwork(uint48) (runs: 1000, μ: 1484313, ~: 1484216)
+[PASS] test_CreateRevertNotOperator(uint48) (runs: 1000, μ: 1490207, ~: 1490122)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 1000, μ: 1433463, ~: 1433373)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 1000, μ: 1322006, ~: 1321918)
+[PASS] test_SetHook(uint48) (runs: 1000, μ: 1730769, ~: 1730676)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 1000, μ: 1533305, ~: 1533203)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 1878430, ~: 1879054)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 1000, μ: 1465848, ~: 1465793)
+[PASS] test_SetMaxNetworkLimitRevertInvalidNetwork(uint48,uint256) (runs: 1000, μ: 1621710, ~: 1621659)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 1000, μ: 1313495, ~: 1313472)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3341120, ~: 3349312)
+[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 1000, μ: 3125011, ~: 3117542)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 1000, μ: 2969612, ~: 2957232)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3330937, ~: 3331598)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 15.62s (8.10s CPU time)
+
+Ran 12 tests for test/slasher/Slasher.t.sol:SlasherTest
+[PASS] test_Create(uint48) (runs: 1000, μ: 1324834, ~: 1324753)
+[PASS] test_CreateRevertNoBurner(uint48) (runs: 1000, μ: 1249737, ~: 1249654)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 1000, μ: 1171615, ~: 1171527)
+[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 5870218, ~: 5880956)
+[PASS] test_SlashRevertInsufficientSlash1(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 3252813, ~: 3262381)
+[PASS] test_SlashRevertInsufficientSlash2(uint48,uint256,uint256,uint256,uint256,bool) (runs: 1000, μ: 2472884, ~: 2472777)
+[PASS] test_SlashRevertInvalidCaptureTimestamp(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2504326, ~: 2504139)
+[PASS] test_SlashRevertNotNetworkMiddleware(uint48,uint256,uint256,uint256,uint256) (runs: 1000, μ: 2584535, ~: 2584489)
+[PASS] test_SlashSubnetworks(uint48,uint256,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 1000, μ: 9558791, ~: 9589110)
+[PASS] test_SlashWithBurner(uint256,uint256,uint256,uint256) (runs: 1000, μ: 3182531, ~: 3182432)
+[PASS] test_SlashWithBurnerDisabled(uint256,uint256,uint256,uint256) (runs: 1000, μ: 3111820, ~: 3111773)
+[FAIL: call reverted as expected, but without data; counterexample: calldata=0x0198021f0000000000000000000000000000000ebbb379e32d8eec3dbd953e5e186e93a70000000000000000000000000002665068925df8e7723c9ba4a2101451343705000000000000000000000000000000000000000000000000000000006e2d4763000000000000001148ee9fb58deea96a47a34ab5a99d61958e76f72cbd973e96 args=[5013450665413050031981637359298524648359 [5.013e39], 53514305151147353802023928193830875426993925 [5.351e43], 1848461155 [1.848e9], 108499019990126189354956015209196222419908490716249232719510 [1.084e59]]] test_SlashWithBurnerGas(uint256,uint256,uint256,uint256) (runs: 0, μ: 0, ~: 0)
+Suite result: FAILED. 11 passed; 1 failed; 0 skipped; finished in 17.54s (33.98s CPU time)
+
+╭-------------------------------------+-----------------+------+--------+------+---------╮
+| script/utils/Logs.sol:Logs Contract |                 |      |        |      |         |
++========================================================================================+
+| Deployment Cost                     | Deployment Size |      |        |      |         |
+|-------------------------------------+-----------------+------+--------+------+---------|
+| 734588                              | 3701            |      |        |      |         |
+|-------------------------------------+-----------------+------+--------+------+---------|
+|                                     |                 |      |        |      |         |
+|-------------------------------------+-----------------+------+--------+------+---------|
+| Function Name                       | Min             | Avg  | Median | Max  | # Calls |
+|-------------------------------------+-----------------+------+--------+------+---------|
+| log                                 | 4505            | 4586 | 4590   | 4677 | 10      |
+╰-------------------------------------+-----------------+------+--------+------+---------╯
+
+╭--------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/DelegatorFactory.sol:DelegatorFactory Contract |                 |        |        |        |         |
++=====================================================================================================================+
+| Deployment Cost                                              | Deployment Size |        |        |        |         |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 0                                                            | 2499            |        |        |        |         |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                              |                 |        |        |        |         |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                | Min             | Avg    | Median | Max    | # Calls |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| create                                                       | 153385          | 204276 | 205372 | 320820 | 5128    |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isEntity                                                     | 376             | 376    | 376    | 2376   | 46114   |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalTypes                                                   | 2472            | 2472   | 2472   | 2472   | 944     |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| whitelist                                                    | 79044           | 83401  | 79142  | 96276  | 944     |
+╰--------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| src/contracts/NetworkRegistry.sol:NetworkRegistry Contract |                 |       |        |       |         |
++=================================================================================================================+
+| Deployment Cost                                            | Deployment Size |       |        |       |         |
+|------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 115572                                                     | 603             |       |        |       |         |
+|------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                            |                 |       |        |       |         |
+|------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                              | Min             | Avg   | Median | Max   | # Calls |
+|------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| isEntity                                                   | 2389            | 2389  | 2389   | 2389  | 72638   |
+|------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| registerNetwork                                            | 23460           | 89004 | 89221  | 89221 | 22831   |
+╰------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭--------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| src/contracts/OperatorRegistry.sol:OperatorRegistry Contract |                 |       |        |       |         |
++===================================================================================================================+
+| Deployment Cost                                              | Deployment Size |       |        |       |         |
+|--------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 115572                                                       | 603             |       |        |       |         |
+|--------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                              |                 |       |        |       |         |
+|--------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                | Min             | Avg   | Median | Max   | # Calls |
+|--------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| isEntity                                                     | 2389            | 2389  | 2389   | 2389  | 44500   |
+|--------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| registerOperator                                             | 23438           | 86057 | 89199  | 89199 | 25420   |
+╰--------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭----------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/SlasherFactory.sol:SlasherFactory Contract |                 |        |        |        |         |
++=================================================================================================================+
+| Deployment Cost                                          | Deployment Size |        |        |        |         |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 476569                                                   | 2499            |        |        |        |         |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                          |                 |        |        |        |         |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                            | Min             | Avg    | Median | Max    | # Calls |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| create                                                   | 168829          | 215893 | 225360 | 272571 | 1802    |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isEntity                                                 | 376             | 377    | 376    | 2376   | 12557   |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalTypes                                               | 2472            | 2472   | 2472   | 2472   | 496     |
+|----------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| whitelist                                                | 78934           | 87304  | 79154  | 96276  | 496     |
+╰----------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭----------------------------------------------------------------+-----------------+---------+--------+---------+---------╮
+| src/contracts/VaultConfigurator.sol:VaultConfigurator Contract |                 |         |        |         |         |
++=========================================================================================================================+
+| Deployment Cost                                                | Deployment Size |         |        |         |         |
+|----------------------------------------------------------------+-----------------+---------+--------+---------+---------|
+| 342709                                                         | 2019            |         |        |         |         |
+|----------------------------------------------------------------+-----------------+---------+--------+---------+---------|
+|                                                                |                 |         |        |         |         |
+|----------------------------------------------------------------+-----------------+---------+--------+---------+---------|
+| Function Name                                                  | Min             | Avg     | Median | Max     | # Calls |
+|----------------------------------------------------------------+-----------------+---------+--------+---------+---------|
+| create                                                         | 173717          | 1007009 | 949015 | 1194216 | 46682   |
+╰----------------------------------------------------------------+-----------------+---------+--------+---------+---------╯
+
+╭------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/VaultFactory.sol:VaultFactory Contract |                 |        |        |        |         |
++=============================================================================================================+
+| Deployment Cost                                      | Deployment Size |        |        |        |         |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 0                                                    | 4661            |        |        |        |         |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                      |                 |        |        |        |         |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                        | Min             | Avg    | Median | Max    | # Calls |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| create                                               | 164807          | 171143 | 169574 | 638657 | 2582    |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isEntity                                             | 448             | 1017   | 448    | 2448   | 81839   |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| lastVersion                                          | 2368            | 2368   | 2368   | 2368   | 48937   |
+|------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| whitelist                                            | 95353           | 95373  | 95353  | 95441  | 236     |
+╰------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭---------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/common/Factory.sol:Factory Contract |                 |        |        |        |         |
++==========================================================================================================+
+| Deployment Cost                                   | Deployment Size |        |        |        |         |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 0                                                 | 2499            |        |        |        |         |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                   |                 |        |        |        |         |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                     | Min             | Avg    | Median | Max    | # Calls |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| blacklist                                         | 25864           | 38148  | 38691  | 49348  | 4       |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| blacklisted                                       | 2563            | 2563   | 2563   | 2563   | 3       |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| create                                            | 24181           | 103992 | 145804 | 162904 | 5       |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| implementation                                    | 2622            | 4060   | 4779   | 4779   | 3       |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isEntity                                          | 2376            | 2376   | 2376   | 2376   | 2       |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalTypes                                        | 2472            | 2472   | 2472   | 2472   | 15      |
+|---------------------------------------------------+-----------------+--------+--------+--------+---------|
+| whitelist                                         | 27057           | 75198  | 87071  | 97698  | 12      |
+╰---------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------╮
+| src/contracts/common/MigratableEntityProxy.sol:MigratableEntityProxy Contract |                 |       |        |        |         |
++=====================================================================================================================================+
+| Deployment Cost                                                               | Deployment Size |       |        |        |         |
+|-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| 0                                                                             | 2083            |       |        |        |         |
+|-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+|                                                                               |                 |       |        |        |         |
+|-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| Function Name                                                                 | Min             | Avg   | Median | Max    | # Calls |
+|-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| fallback                                                                      | 59              | 32305 | 8397   | 355894 | 592128  |
+|-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| upgradeToAndCall                                                              | 22103           | 22103 | 22103  | 22103  | 1       |
+╰-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------╯
+
+╭-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/common/MigratablesFactory.sol:MigratablesFactory Contract |                 |        |        |        |         |
++================================================================================================================================+
+| Deployment Cost                                                         | Deployment Size |        |        |        |         |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 909406                                                                  | 4661            |        |        |        |         |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                         |                 |        |        |        |         |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                           | Min             | Avg    | Median | Max    | # Calls |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| blacklist                                                               | 23851           | 37744  | 38826  | 49474  | 4       |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| blacklisted                                                             | 2629            | 2629   | 2629   | 2629   | 3       |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| create                                                                  | 24916           | 409539 | 411750 | 411750 | 523     |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| implementation                                                          | 569             | 5049   | 5067   | 5067   | 259     |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isEntity                                                                | 448             | 2355   | 2448   | 2448   | 2753    |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| lastVersion                                                             | 2368            | 2368   | 2368   | 2368   | 775     |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| migrate                                                                 | 24722           | 81403  | 82080  | 82404  | 516     |
+|-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| whitelist                                                               | 27214           | 83802  | 78114  | 95353  | 1565    |
+╰-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/delegator/FullRestakeDelegator.sol:FullRestakeDelegator Contract |                 |        |        |        |         |
++=======================================================================================================================================+
+| Deployment Cost                                                                | Deployment Size |        |        |        |         |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 2224730                                                                        | 11645           |        |        |        |         |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                |                 |        |        |        |         |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                  | Min             | Avg    | Median | Max    | # Calls |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                                                        | 376             | 376    | 376    | 376    | 241     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| HOOK_GAS_LIMIT                                                                 | 883             | 883    | 883    | 883    | 256     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_LIMIT_SET_ROLE                                                         | 575             | 575    | 575    | 575    | 478     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_REGISTRY                                                               | 750             | 750    | 750    | 750    | 256     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_NETWORK_LIMIT_SET_ROLE                                                | 487             | 487    | 487    | 487    | 4465    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_NETWORK_OPT_IN_SERVICE                                                | 310             | 310    | 310    | 310    | 256     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_VAULT_OPT_IN_SERVICE                                                  | 288             | 288    | 288    | 288    | 256     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| TYPE                                                                           | 725             | 725    | 725    | 725    | 27598   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VAULT_FACTORY                                                                  | 244             | 244    | 244    | 244    | 256     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VERSION                                                                        | 902             | 902    | 902    | 902    | 256     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hasRole                                                                        | 2995            | 2995   | 2995   | 2995   | 4431    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hook                                                                           | 2724            | 2724   | 2724   | 2724   | 768     |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                                                     | 29475           | 166166 | 174104 | 194518 | 17439   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| maxNetworkLimit                                                                | 2919            | 2919   | 2919   | 2919   | 1233    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| networkLimit                                                                   | 2706            | 5082   | 2706   | 9234   | 22212   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| networkLimitAt                                                                 | 3413            | 10673  | 10397  | 12781  | 4352    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| onSlash                                                                        | 8884            | 23300  | 15391  | 92742  | 8329    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| operatorNetworkLimit                                                           | 2672            | 6020   | 9200   | 9200   | 13975   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| operatorNetworkLimitAt                                                         | 3733            | 11154  | 10717  | 13101  | 4096    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setHook                                                                        | 9944            | 21619  | 22661  | 31211  | 1024    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setMaxNetworkLimit                                                             | 10836           | 36897  | 37072  | 80443  | 11764   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setNetworkLimit                                                                | 4652            | 87766  | 99322  | 99322  | 12406   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setOperatorNetworkLimit                                                        | 11406           | 88900  | 97709  | 97709  | 20213   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stake                                                                          | 8809            | 40571  | 48080  | 54608  | 5433    |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stakeAt                                                                        | 970             | 58096  | 56029  | 73239  | 39818   |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vault                                                                          | 965             | 997    | 965    | 2965   | 16158   |
+╰--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/delegator/NetworkRestakeDelegator.sol:NetworkRestakeDelegator Contract |                 |        |        |        |         |
++=============================================================================================================================================+
+| Deployment Cost                                                                      | Deployment Size |        |        |        |         |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 2321841                                                                              | 12130           |        |        |        |         |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                      |                 |        |        |        |         |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                        | Min             | Avg    | Median | Max    | # Calls |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEFAULT_ADMIN_ROLE                                                                   | 662             | 662    | 662    | 662    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                                                              | 354             | 354    | 354    | 354    | 241     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| HOOK_GAS_LIMIT                                                                       | 927             | 927    | 927    | 927    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| HOOK_SET_ROLE                                                                        | 531             | 531    | 531    | 531    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_LIMIT_SET_ROLE                                                               | 553             | 553    | 553    | 553    | 777     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_REGISTRY                                                                     | 750             | 750    | 750    | 750    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_NETWORK_OPT_IN_SERVICE                                                      | 288             | 288    | 288    | 288    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_NETWORK_SHARES_SET_ROLE                                                     | 861             | 861    | 861    | 861    | 5989    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_VAULT_OPT_IN_SERVICE                                                        | 244             | 244    | 244    | 244    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| TYPE                                                                                 | 725             | 725    | 725    | 725    | 35194   |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VAULT_FACTORY                                                                        | 222             | 222    | 222    | 222    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VERSION                                                                              | 946             | 946    | 946    | 946    | 256     |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hasRole                                                                              | 2995            | 2995   | 2995   | 2995   | 6766    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hook                                                                                 | 2702            | 2702   | 2702   | 2702   | 1024    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                                                           | 29475           | 168871 | 174104 | 194518 | 23093   |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| maxNetworkLimit                                                                      | 2941            | 2941   | 2941   | 2941   | 1273    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| networkLimit                                                                         | 2684            | 4438   | 2684   | 9212   | 26664   |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| networkLimitAt                                                                       | 3422            | 10640  | 10406  | 12790  | 5120    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| onSlash                                                                              | 13725           | 56403  | 20019  | 116446 | 1916    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| operatorNetworkShares                                                                | 2870            | 5999   | 2870   | 9398   | 15100   |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| operatorNetworkSharesAt                                                              | 3337            | 10844  | 10321  | 12705  | 7936    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setHook                                                                              | 9922            | 21597  | 22639  | 31189  | 1024    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setMaxNetworkLimit                                                                   | 10814           | 36459  | 37050  | 80421  | 3312    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setNetworkLimit                                                                      | 4619            | 73371  | 99289  | 99289  | 3181    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setOperatorNetworkShares                                                             | 11926           | 122628 | 112330 | 191640 | 9951    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stake                                                                                | 8853            | 37962  | 21279  | 63824  | 5174    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stakeAt                                                                              | 1143            | 64573  | 65526  | 88387  | 6016    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalOperatorNetworkShares                                                           | 3014            | 9057   | 9542   | 9542   | 3450    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalOperatorNetworkSharesAt                                                         | 3510            | 10665  | 10494  | 12878  | 3584    |
+|--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vault                                                                                | 1009            | 1055   | 1009   | 3009   | 22068   |
+╰--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/delegator/OperatorNetworkSpecificDelegator.sol:OperatorNetworkSpecificDelegator Contract |                 |        |        |        |         |
++===============================================================================================================================================================+
+| Deployment Cost                                                                                        | Deployment Size |        |        |        |         |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 1961380                                                                                                | 10401           |        |        |        |         |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                                        |                 |        |        |        |         |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                                          | Min             | Avg    | Median | Max    | # Calls |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                                                                                | 310             | 310    | 310    | 310    | 240     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| HOOK_GAS_LIMIT                                                                                         | 795             | 795    | 795    | 795    | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_REGISTRY                                                                                       | 662             | 662    | 662    | 662    | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_NETWORK_OPT_IN_SERVICE                                                                        | 244             | 244    | 244    | 244    | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_VAULT_OPT_IN_SERVICE                                                                          | 222             | 222    | 222    | 222    | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| TYPE                                                                                                   | 637             | 637    | 637    | 637    | 240     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VAULT_FACTORY                                                                                          | 200             | 200    | 200    | 200    | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VERSION                                                                                                | 814             | 814    | 814    | 814    | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hook                                                                                                   | 2636            | 2636   | 2636   | 2636   | 768     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                                                                             | 80446           | 166619 | 178354 | 178354 | 4352    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| maxNetworkLimit                                                                                        | 2831            | 2831   | 2831   | 2831   | 3072    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| maxNetworkLimitAt                                                                                      | 3259            | 10556  | 10243  | 12627  | 3840    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| network                                                                                                | 2614            | 2614   | 2614   | 2614   | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| onSlash                                                                                                | 15303           | 42538  | 26973  | 85338  | 1536    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| operator                                                                                               | 2570            | 2570   | 2570   | 2570   | 256     |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setHook                                                                                                | 9878            | 21553  | 22595  | 31145  | 1024    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setMaxNetworkLimit                                                                                     | 10770           | 84686  | 79202  | 129798 | 3840    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stake                                                                                                  | 8721            | 24558  | 23200  | 43375  | 3328    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stakeAt                                                                                                | 3996            | 43534  | 48195  | 64505  | 2816    |
+|--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vault                                                                                                  | 877             | 1002   | 877    | 2877   | 4096    |
+╰--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/delegator/OperatorSpecificDelegator.sol:OperatorSpecificDelegator Contract |                 |        |        |        |         |
++=================================================================================================================================================+
+| Deployment Cost                                                                          | Deployment Size |        |        |        |         |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 2102325                                                                                  | 11098           |        |        |        |         |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                          |                 |        |        |        |         |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                            | Min             | Avg    | Median | Max    | # Calls |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                                                                  | 332             | 332    | 332    | 332    | 240     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| HOOK_GAS_LIMIT                                                                           | 839             | 839    | 839    | 839    | 256     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_LIMIT_SET_ROLE                                                                   | 531             | 531    | 531    | 531    | 373     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_REGISTRY                                                                         | 706             | 706    | 706    | 706    | 256     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_NETWORK_OPT_IN_SERVICE                                                          | 266             | 266    | 266    | 266    | 256     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| OPERATOR_VAULT_OPT_IN_SERVICE                                                            | 244             | 244    | 244    | 244    | 256     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| TYPE                                                                                     | 681             | 681    | 681    | 681    | 12869   |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VAULT_FACTORY                                                                            | 222             | 222    | 222    | 222    | 256     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VERSION                                                                                  | 858             | 858    | 858    | 858    | 256     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hasRole                                                                                  | 2973            | 2973   | 2973   | 2973   | 117     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hook                                                                                     | 2680            | 2680   | 2680   | 2680   | 768     |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                                                               | 29401           | 151861 | 176359 | 196772 | 6412    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| maxNetworkLimit                                                                          | 2875            | 2875   | 2875   | 2875   | 1016    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| networkLimit                                                                             | 2662            | 7709   | 9190   | 9190   | 4025    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| networkLimitAt                                                                           | 3369            | 10587  | 10353  | 12737  | 5120    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| onSlash                                                                                  | 13659           | 46137  | 19953  | 85423  | 1914    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| operator                                                                                 | 2592            | 2592   | 2592   | 2592   | 12397   |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setHook                                                                                  | 9900            | 21575  | 22617  | 31167  | 1024    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setMaxNetworkLimit                                                                       | 10792           | 36429  | 37028  | 80399  | 3203    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setNetworkLimit                                                                          | 4619            | 69472  | 68576  | 99289  | 3760    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stake                                                                                    | 8765            | 24253  | 21049  | 47742  | 3328    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| stakeAt                                                                                  | 20587           | 45279  | 46043  | 62349  | 2938    |
+|------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vault                                                                                    | 921             | 1020   | 921    | 2921   | 5132    |
+╰------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭--------------------------------------------------------------------+-----------------+-------+--------+--------+---------╮
+| src/contracts/service/MetadataService.sol:MetadataService Contract |                 |       |        |        |         |
++==========================================================================================================================+
+| Deployment Cost                                                    | Deployment Size |       |        |        |         |
+|--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| 257737                                                             | 1451            |       |        |        |         |
+|--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+|                                                                    |                 |       |        |        |         |
+|--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| Function Name                                                      | Min             | Avg   | Median | Max    | # Calls |
+|--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| metadataURL                                                        | 2927            | 4090  | 2931   | 9564   | 512     |
+|--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
+| setMetadataURL                                                     | 27177           | 54027 | 45219  | 120785 | 1024    |
+╰--------------------------------------------------------------------+-----------------+-------+--------+--------+---------╯
+
+╭--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| src/contracts/service/NetworkMiddlewareService.sol:NetworkMiddlewareService Contract |                 |       |        |       |         |
++===========================================================================================================================================+
+| Deployment Cost                                                                      | Deployment Size |       |        |       |         |
+|--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 120202                                                                               | 764             |       |        |       |         |
+|--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                                      |                 |       |        |       |         |
+|--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                                        | Min             | Avg   | Median | Max   | # Calls |
+|--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| NETWORK_REGISTRY                                                                     | 223             | 223   | 223    | 223   | 256     |
+|--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| middleware                                                                           | 165             | 2410  | 2411   | 2411  | 22874   |
+|--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| setMiddleware                                                                        | 26722           | 50200 | 50702  | 50702 | 23299   |
+╰--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭--------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/service/OptInService.sol:OptInService Contract |                 |        |        |        |         |
++=====================================================================================================================+
+| Deployment Cost                                              | Deployment Size |        |        |        |         |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 1212661                                                      | 7461            |        |        |        |         |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                              |                 |        |        |        |         |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                | Min             | Avg    | Median | Max    | # Calls |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| WHERE_REGISTRY                                               | 222             | 222    | 222    | 222    | 1       |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| eip712Domain                                                 | 1269            | 1269   | 1269   | 1269   | 7       |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| increaseNonce                                                | 45534           | 45534  | 45534  | 45534  | 1       |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isOptedIn                                                    | 2663            | 4011   | 4866   | 4866   | 85439   |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isOptedInAt                                                  | 3312            | 5946   | 5939   | 8238   | 97374   |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| nonces                                                       | 2699            | 2699   | 2699   | 2699   | 4       |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| optIn(address)                                               | 27256           | 103486 | 103511 | 103523 | 33733   |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| optIn(address,address,uint48,bytes)                          | 24233           | 50759  | 34102  | 110600 | 4       |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| optOut(address)                                              | 24330           | 43619  | 44239  | 61670  | 4       |
+|--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| optOut(address,address,uint48,bytes)                         | 24157           | 42271  | 34002  | 68655  | 3       |
+╰--------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭----------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/slasher/Slasher.sol:Slasher Contract |                 |        |        |        |         |
++===========================================================================================================+
+| Deployment Cost                                    | Deployment Size |        |        |        |         |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 1525061                                            | 8015            |        |        |        |         |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                    |                 |        |        |        |         |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                      | Min             | Avg    | Median | Max    | # Calls |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| BURNER_GAS_LIMIT                                   | 443             | 443    | 443    | 443    | 1       |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                            | 310             | 310    | 310    | 310    | 241     |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_MIDDLEWARE_SERVICE                         | 288             | 288    | 288    | 288    | 256     |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| TYPE                                               | 439             | 439    | 439    | 439    | 240     |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VAULT_FACTORY                                      | 200             | 200    | 200    | 200    | 256     |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| cumulativeSlash                                    | 2628            | 8503   | 9156   | 9156   | 2560    |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| cumulativeSlashAt                                  | 3493            | 9095   | 10477  | 12782  | 6400    |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                         | 29326           | 72089  | 72768  | 86356  | 6575    |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| latestSlashedCaptureTimestamp                      | 2561            | 2561   | 2561   | 2561   | 1280    |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| slash                                              | 48              | 261254 | 281667 | 419643 | 12095   |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| slashableStake                                     | 14151           | 62172  | 85954  | 102639 | 9472    |
+|----------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vault                                              | 588             | 714    | 588    | 2588   | 6190    |
+╰----------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/slasher/VetoSlasher.sol:VetoSlasher Contract |                 |        |        |        |         |
++===================================================================================================================+
+| Deployment Cost                                            | Deployment Size |        |        |        |         |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 2374544                                                    | 12320           |        |        |        |         |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                            |                 |        |        |        |         |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                              | Min             | Avg    | Median | Max    | # Calls |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                                    | 288             | 288    | 288    | 288    | 241     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_MIDDLEWARE_SERVICE                                 | 266             | 266    | 266    | 266    | 256     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| NETWORK_REGISTRY                                           | 596             | 596    | 596    | 596    | 256     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| TYPE                                                       | 549             | 549    | 549    | 549    | 240     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| VAULT_FACTORY                                              | 178             | 178    | 178    | 178    | 256     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| cumulativeSlash                                            | 9149            | 9149   | 9149   | 9149   | 1536    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| cumulativeSlashAt                                          | 5876            | 8780   | 10527  | 12826  | 3072    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| executeSlash                                               | 8169            | 211297 | 293043 | 356654 | 3840    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                                 | 29337           | 113339 | 118916 | 132416 | 7710    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| latestSlashedCaptureTimestamp                              | 2539            | 2539   | 2539   | 2539   | 1536    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| requestSlash                                               | 11271           | 185702 | 213385 | 213393 | 6912    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| resolver                                                   | 3500            | 7065   | 8426   | 8426   | 1792    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| resolverAt                                                 | 3139            | 6430   | 5766   | 8144   | 2560    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| resolverSetEpochsDelay                                     | 2656            | 2656   | 2656   | 2656   | 256     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setResolver                                                | 11407           | 53892  | 60557  | 62600  | 5376    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| slashRequests                                              | 2535            | 10800  | 11351  | 11351  | 4096    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| slashRequestsLength                                        | 2480            | 2480   | 2480   | 2480   | 256     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vault                                                      | 808             | 881    | 808    | 2808   | 6941    |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vetoDuration                                               | 2750            | 2750   | 2750   | 2750   | 768     |
+|------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| vetoSlash                                                  | 8302            | 18651  | 19141  | 26487  | 2048    |
+╰------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭----------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/vault/Vault.sol:Vault Contract |                 |        |        |        |         |
++=====================================================================================================+
+| Deployment Cost                              | Deployment Size |        |        |        |         |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| 3823732                                      | 19435           |        |        |        |         |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                              |                 |        |        |        |         |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                | Min             | Avg    | Median | Max    | # Calls |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEFAULT_ADMIN_ROLE                           | 1124            | 1124   | 1124   | 1124   | 512     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| DELEGATOR_FACTORY                            | 750             | 750    | 750    | 750    | 256     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEPOSITOR_WHITELIST_ROLE                     | 201             | 201    | 201    | 201    | 771     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEPOSIT_LIMIT_SET_ROLE                       | 1147            | 1147   | 1147   | 1147   | 1280    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEPOSIT_WHITELIST_SET_ROLE                   | 1477            | 1477   | 1477   | 1477   | 518     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                      | 376             | 376    | 376    | 376    | 185     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| IS_DEPOSIT_LIMIT_SET_ROLE                    | 179             | 179    | 179    | 179    | 1282    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| SLASHER_FACTORY                              | 992             | 992    | 992    | 992    | 256     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeBalanceOf                              | 7681            | 25158  | 27057  | 27057  | 2984    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeBalanceOfAt                            | 9583            | 33990  | 32665  | 53283  | 7424    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeShares                                 | 3560            | 9341   | 9984   | 9984   | 2560    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeSharesAt                               | 3465            | 11539  | 10597  | 17418  | 6912    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeSharesOf                               | 3404            | 9338   | 9932   | 9932   | 2816    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeSharesOfAt                             | 3373            | 11144  | 10599  | 17573  | 6400    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeStake                                  | 3516            | 9248   | 9940   | 9940   | 11893   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeStakeAt                                | 3817            | 11812  | 11213  | 17770  | 58495   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| burner                                       | 394             | 671    | 394    | 2394   | 14794   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| claim                                        | 6483            | 32684  | 14611  | 75745  | 1536    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| claimBatch                                   | 6303            | 40907  | 38995  | 106820 | 1536    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| collateral                                   | 3590            | 3590   | 3590   | 3590   | 6549    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| currentEpoch                                 | 3213            | 3213   | 3213   | 3213   | 17920   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| currentEpochStart                            | 3389            | 3389   | 3389   | 3389   | 3328    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| delegator                                    | 1538            | 3356   | 3538   | 3538   | 133636  |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| deposit                                      | 5707            | 314747 | 329711 | 336946 | 20001   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| depositLimit                                 | 3602            | 3602   | 3602   | 3602   | 1280    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| depositWhitelist                             | 2623            | 2623   | 2623   | 2623   | 1053    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| epochAt                                      | 3128            | 3274   | 3293   | 3293   | 2304    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| epochDuration                                | 79              | 1952   | 2640   | 2640   | 80945   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| epochDurationInit                            | 2580            | 2580   | 2580   | 2580   | 256     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| grantRole                                    | 7329            | 7329   | 7329   | 7329   | 2059    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| hasRole                                      | 3413            | 3413   | 3413   | 3413   | 1792    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                   | 72087           | 237653 | 244147 | 264047 | 40026   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| isDelegatorInitialized                       | 2674            | 2674   | 2674   | 2674   | 258     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| isDepositLimit                               | 3223            | 3223   | 3223   | 3223   | 541     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| isDepositorWhitelisted                       | 3123            | 3123   | 3123   | 3123   | 257     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| isInitialized                                | 2562            | 4686   | 4691   | 4691   | 514     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| isSlasherInitialized                         | 2872            | 2872   | 2872   | 2872   | 258     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| isWithdrawalsClaimed                         | 3557            | 3557   | 3557   | 3557   | 768     |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| nextEpochStart                               | 3530            | 3530   | 3530   | 3530   | 1024    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| onSlash                                      | 8133            | 78830  | 100902 | 111379 | 11380   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| owner                                        | 3174            | 3174   | 3174   | 3174   | 13240   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| previousEpochStart                           | 2692            | 2877   | 2877   | 3062   | 1024    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| redeem                                       | 5437            | 116751 | 31803  | 266133 | 1280    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDelegator                                 | 8248            | 27474  | 27473  | 43773  | 38483   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDepositLimit                              | 10771           | 24010  | 31917  | 31917  | 1792    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDepositWhitelist                          | 9975            | 13589  | 14041  | 14041  | 9       |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDepositorWhitelistStatus                  | 8677            | 21235  | 21786  | 32691  | 4       |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| setIsDepositLimit                            | 10146           | 14229  | 14233  | 14233  | 1284    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| setSlasher                                   | 8534            | 25996  | 25175  | 43938  | 38484   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| slashableBalanceOf                           | 24608           | 42223  | 43984  | 43984  | 2817    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| slasher                                      | 1664            | 3427   | 3428   | 3428   | 13696   |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalStake                                   | 9978            | 16122  | 16402  | 16402  | 5890    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdraw                                     | 6776            | 217041 | 267530 | 267530 | 6972    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdrawalShares                             | 3447            | 3447   | 3447   | 3447   | 3840    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdrawalSharesOf                           | 3523            | 3523   | 3523   | 3523   | 3584    |
+|----------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdrawals                                  | 2853            | 2853   | 2853   | 2853   | 5376    |
+╰----------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭----------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| src/contracts/vault/VaultTokenized.sol:VaultTokenized Contract |                 |        |        |        |         |
++=======================================================================================================================+
+| Deployment Cost                                                | Deployment Size |        |        |        |         |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 4440153                                                        | 22513           |        |        |        |         |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                |                 |        |        |        |         |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                  | Min             | Avg    | Median | Max    | # Calls |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEFAULT_ADMIN_ROLE                                             | 1278            | 1278   | 1278   | 1278   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| DELEGATOR_FACTORY                                              | 860             | 860    | 860    | 860    | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEPOSITOR_WHITELIST_ROLE                                       | 267             | 267    | 267    | 267    | 515     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEPOSIT_LIMIT_SET_ROLE                                         | 1301            | 1301   | 1301   | 1301   | 1024    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| DEPOSIT_WHITELIST_SET_ROLE                                     | 1653            | 1653   | 1653   | 1653   | 262     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| FACTORY                                                        | 464             | 464    | 464    | 464    | 60      |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| IS_DEPOSIT_LIMIT_SET_ROLE                                      | 223             | 223    | 223    | 223    | 1026    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| SLASHER_FACTORY                                                | 1124            | 1124   | 1124   | 1124   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeBalanceOf                                                | 7791            | 25405  | 27167  | 27167  | 2816    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeBalanceOfAt                                              | 9781            | 34188  | 32863  | 53481  | 7424    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeShares                                                   | 3736            | 9619   | 10160  | 10160  | 3044    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeSharesAt                                                 | 3575            | 11649  | 10707  | 17528  | 6912    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeSharesOf                                                 | 3558            | 9596   | 10086  | 10086  | 3414    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeSharesOfAt                                               | 3461            | 11232  | 10687  | 17661  | 6400    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeStake                                                    | 3692            | 9621   | 10116  | 10116  | 3328    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| activeStakeAt                                                  | 3949            | 12093  | 13176  | 17902  | 8448    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| allowance                                                      | 4126            | 4126   | 4126   | 4126   | 370     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| approve                                                        | 24436           | 24436  | 24436  | 24436  | 114     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| balanceOf                                                      | 3228            | 9056   | 9756   | 9756   | 2390    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| burner                                                         | 482             | 2149   | 2482   | 2482   | 1540    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| claim                                                          | 6659            | 32860  | 14787  | 75921  | 1536    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| claimBatch                                                     | 6435            | 41039  | 39127  | 106952 | 1536    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| collateral                                                     | 3766            | 3766   | 3766   | 3766   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| currentEpoch                                                   | 3345            | 3345   | 3345   | 3345   | 17920   |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| currentEpochStart                                              | 3499            | 3499   | 3499   | 3499   | 1024    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| decimals                                                       | 5791            | 5791   | 5791   | 5791   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| delegator                                                      | 1714            | 2914   | 3714   | 3714   | 1281    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| deposit                                                        | 5817            | 302625 | 331615 | 338850 | 7941    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| depositLimit                                                   | 3800            | 3800   | 3800   | 3800   | 1024    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| depositWhitelist                                               | 2733            | 2733   | 2733   | 2733   | 514     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| epochAt                                                        | 3260            | 3406   | 3425   | 3425   | 2304    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| epochDuration                                                  | 750             | 2500   | 2750   | 2750   | 4096    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| epochDurationInit                                              | 2690            | 2690   | 2690   | 2690   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| grantRole                                                      | 7417            | 7417   | 7417   | 7417   | 2059    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| hasRole                                                        | 3545            | 3545   | 3545   | 3545   | 512     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| initialize                                                     | 75458           | 256732 | 292979 | 292979 | 9238    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isDelegatorInitialized                                         | 2784            | 2784   | 2784   | 2784   | 258     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isDepositLimit                                                 | 3377            | 3377   | 3377   | 3377   | 2       |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isDepositorWhitelisted                                         | 3255            | 3255   | 3255   | 3255   | 257     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isInitialized                                                  | 2672            | 4792   | 4801   | 4801   | 258     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isSlasherInitialized                                           | 2982            | 2982   | 2982   | 2982   | 258     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| isWithdrawalsClaimed                                           | 3711            | 3711   | 3711   | 3711   | 768     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| name                                                           | 2915            | 2915   | 2915   | 2915   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| nextEpochStart                                                 | 3662            | 3662   | 3662   | 3662   | 1024    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| onSlash                                                        | 8265            | 78426  | 48149  | 111511 | 513     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| owner                                                          | 3306            | 3306   | 3306   | 3306   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| previousEpochStart                                             | 2780            | 2965   | 2965   | 3150   | 1024    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| redeem                                                         | 5503            | 117554 | 31869  | 268042 | 1280    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDelegator                                                   | 8380            | 27646  | 27649  | 43905  | 7695    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDepositLimit                                                | 10947           | 24186  | 32093  | 32093  | 1792    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDepositWhitelist                                            | 10085           | 13699  | 14151  | 14151  | 9       |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setDepositorWhitelistStatus                                    | 8831            | 21389  | 21940  | 32845  | 4       |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setIsDepositLimit                                              | 10256           | 14339  | 14343  | 14343  | 1284    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| setSlasher                                                     | 8710            | 25434  | 25351  | 44114  | 7696    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| slashableBalanceOf                                             | 24784           | 42398  | 44160  | 44160  | 2816    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| slasher                                                        | 3604            | 3604   | 3604   | 3604   | 769     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| symbol                                                         | 3927            | 3927   | 3927   | 3927   | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalStake                                                     | 10110           | 16156  | 16534  | 16534  | 4352    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| totalSupply                                                    | 2438            | 8139   | 8862   | 8862   | 2276    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| transfer                                                       | 10503           | 55120  | 10503  | 110696 | 256     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| transferFrom                                                   | 35972           | 35972  | 35972  | 35972  | 114     |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdraw                                                       | 6974            | 231767 | 269571 | 269571 | 6144    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdrawalShares                                               | 3623            | 3623   | 3623   | 3623   | 3840    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdrawalSharesOf                                             | 3677            | 3677   | 3677   | 3677   | 3584    |
+|----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| withdrawals                                                    | 2963            | 2963   | 2963   | 2963   | 5376    |
+╰----------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭---------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| test/integration/actions/ActionScripts.t.sol:OptInNetworkScriptHarness Contract |                 |        |        |        |         |
++========================================================================================================================================+
+| Deployment Cost                                                                 | Deployment Size |        |        |        |         |
+|---------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 647731                                                                          | 2821            |        |        |        |         |
+|---------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                 |                 |        |        |        |         |
+|---------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                   | Min             | Avg    | Median | Max    | # Calls |
+|---------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| runBase                                                                         | 128622          | 128622 | 128622 | 128622 | 1       |
+╰---------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭-------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| test/integration/actions/ActionScripts.t.sol:OptInVaultScriptHarness Contract |                 |        |        |        |         |
++======================================================================================================================================+
+| Deployment Cost                                                               | Deployment Size |        |        |        |         |
+|-------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 646843                                                                        | 2817            |        |        |        |         |
+|-------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                               |                 |        |        |        |         |
+|-------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                 | Min             | Avg    | Median | Max    | # Calls |
+|-------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| runBase                                                                       | 128681          | 128681 | 128681 | 128681 | 1       |
+╰-------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭-------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/integration/actions/ActionScripts.t.sol:RegisterOperatorScriptHarness Contract |                 |       |        |       |         |
++==========================================================================================================================================+
+| Deployment Cost                                                                     | Deployment Size |       |        |       |         |
+|-------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 587376                                                                              | 2541            |       |        |       |         |
+|-------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                                     |                 |       |        |       |         |
+|-------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                                       | Min             | Avg   | Median | Max   | # Calls |
+|-------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| runBase                                                                             | 96162           | 96162 | 96162  | 96162 | 1       |
+╰-------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭----------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/integration/actions/ActionScripts.t.sol:SetHookScriptHarness Contract |                 |       |        |       |         |
++=================================================================================================================================+
+| Deployment Cost                                                            | Deployment Size |       |        |       |         |
+|----------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 465905                                                                     | 1980            |       |        |       |         |
+|----------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                            |                 |       |        |       |         |
+|----------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                              | Min             | Avg   | Median | Max   | # Calls |
+|----------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| runBase                                                                    | 89401           | 89401 | 89401  | 89401 | 1       |
+╰----------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/integration/actions/ActionScripts.t.sol:SetMaxNetworkLimitScriptHarness Contract |                 |       |        |       |         |
++============================================================================================================================================+
+| Deployment Cost                                                                       | Deployment Size |       |        |       |         |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 502417                                                                                | 2149            |       |        |       |         |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                                       |                 |       |        |       |         |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                                         | Min             | Avg   | Median | Max   | # Calls |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| runBase                                                                               | 96428           | 96428 | 96428  | 96428 | 1       |
+╰---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| test/integration/actions/ActionScripts.t.sol:SetNetworkLimitScriptHarness Contract |                 |        |        |        |         |
++===========================================================================================================================================+
+| Deployment Cost                                                                    | Deployment Size |        |        |        |         |
+|------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 496816                                                                             | 2123            |        |        |        |         |
+|------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                    |                 |        |        |        |         |
+|------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                      | Min             | Avg    | Median | Max    | # Calls |
+|------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| runBase                                                                            | 161767          | 161767 | 161767 | 161767 | 1       |
+╰------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭---------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| test/integration/actions/ActionScripts.t.sol:SetOperatorNetworkSharesScriptHarness Contract |                 |        |        |        |         |
++====================================================================================================================================================+
+| Deployment Cost                                                                             | Deployment Size |        |        |        |         |
+|---------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 533902                                                                                      | 2295            |        |        |        |         |
+|---------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                             |                 |        |        |        |         |
+|---------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                               | Min             | Avg    | Median | Max    | # Calls |
+|---------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| runBase                                                                                     | 255470          | 255470 | 255470 | 255470 | 1       |
+╰---------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
+| test/integration/actions/ActionScripts.t.sol:SetResolverScriptHarness Contract |                 |        |        |        |         |
++=======================================================================================================================================+
+| Deployment Cost                                                                | Deployment Size |        |        |        |         |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| 505897                                                                         | 2165            |        |        |        |         |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+|                                                                                |                 |        |        |        |         |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| Function Name                                                                  | Min             | Avg    | Median | Max    | # Calls |
+|--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
+| runBase                                                                        | 120467          | 120467 | 120467 | 120467 | 2       |
+╰--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
+
+╭------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/integration/actions/ActionScripts.t.sol:VetoSlashScriptHarness Contract |                 |       |        |       |         |
++===================================================================================================================================+
+| Deployment Cost                                                              | Deployment Size |       |        |       |         |
+|------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 476500                                                                       | 2029            |       |        |       |         |
+|------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                              |                 |       |        |       |         |
+|------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                                | Min             | Avg   | Median | Max   | # Calls |
+|------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| runBase                                                                      | 82322           | 82322 | 82322  | 82322 | 1       |
+╰------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/libraries/Checkpoints.t.sol:CheckpointsTrace208Test Contract |                 |       |        |       |         |
++========================================================================================================================+
+| Deployment Cost                                                   | Deployment Size |       |        |       |         |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 2564969                                                           | 12639           |       |        |       |         |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                   |                 |       |        |       |         |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                     | Min             | Avg   | Median | Max   | # Calls |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| push                                                              | 26605           | 26705 | 26653  | 26917 | 256     |
+╰-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/libraries/Checkpoints.t.sol:CheckpointsTrace256Test Contract |                 |       |        |       |         |
++========================================================================================================================+
+| Deployment Cost                                                   | Deployment Size |       |        |       |         |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 2712344                                                           | 13375           |       |        |       |         |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                   |                 |       |        |       |         |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                     | Min             | Avg   | Median | Max   | # Calls |
+|-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| push                                                              | 31735           | 31879 | 31807  | 32143 | 256     |
+╰-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭-----------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/FakeEntity.sol:FakeEntity Contract |                 |       |        |       |         |
++====================================================================================================+
+| Deployment Cost                               | Deployment Size |       |        |       |         |
+|-----------------------------------------------+-----------------+-------+--------+-------+---------|
+| 136309                                        | 587             |       |        |       |         |
+|-----------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                               |                 |       |        |       |         |
+|-----------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                 | Min             | Avg   | Median | Max   | # Calls |
+|-----------------------------------------------+-----------------+-------+--------+-------+---------|
+| FACTORY                                       | 196             | 196   | 196    | 196   | 2       |
+|-----------------------------------------------+-----------------+-------+--------+-------+---------|
+| TYPE                                          | 2305            | 2305  | 2305   | 2305  | 2       |
+|-----------------------------------------------+-----------------+-------+--------+-------+---------|
+| setType                                       | 43595           | 43595 | 43595  | 43595 | 1       |
+╰-----------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/FeeOnTransferToken.sol:FeeOnTransferToken Contract |                 |       |        |       |         |
++====================================================================================================================+
+| Deployment Cost                                               | Deployment Size |       |        |       |         |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 517987                                                        | 2791            |       |        |       |         |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                               |                 |       |        |       |         |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                 | Min             | Avg   | Median | Max   | # Calls |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| approve                                                       | 45911           | 45974 | 45995  | 46019 | 1229    |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| balanceOf                                                     | 530             | 1854  | 2530   | 2530  | 3637    |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| decimals                                                      | 253             | 253   | 253    | 253   | 6767    |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| totalSupply                                                   | 2315            | 2315  | 2315   | 2315  | 71      |
+|---------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| transfer                                                      | 58419           | 58474 | 58491  | 58515 | 1024    |
+╰---------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------+-----------------+------+--------+------+---------╮
+| test/mocks/SimpleBurner.sol:SimpleBurner Contract |                 |      |        |      |         |
++======================================================================================================+
+| Deployment Cost                                   | Deployment Size |      |        |      |         |
+|---------------------------------------------------+-----------------+------+--------+------+---------|
+| 265563                                            | 1140            |      |        |      |         |
+|---------------------------------------------------+-----------------+------+--------+------+---------|
+|                                                   |                 |      |        |      |         |
+|---------------------------------------------------+-----------------+------+--------+------+---------|
+| Function Name                                     | Min             | Avg  | Median | Max  | # Calls |
+|---------------------------------------------------+-----------------+------+--------+------+---------|
+| counter1                                          | 2253            | 2253 | 2253   | 2253 | 512     |
+╰---------------------------------------------------+-----------------+------+--------+------+---------╯
+
+╭---------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/SimpleEntity.sol:SimpleEntity Contract |                 |       |        |       |         |
++========================================================================================================+
+| Deployment Cost                                   | Deployment Size |       |        |       |         |
+|---------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 218943                                            | 1008            |       |        |       |         |
+|---------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                   |                 |       |        |       |         |
+|---------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                     | Min             | Avg   | Median | Max   | # Calls |
+|---------------------------------------------------+-----------------+-------+--------+-------+---------|
+| FACTORY                                           | 196             | 196   | 196    | 196   | 13      |
+|---------------------------------------------------+-----------------+-------+--------+-------+---------|
+| TYPE                                              | 228             | 228   | 228    | 228   | 11      |
+|---------------------------------------------------+-----------------+-------+--------+-------+---------|
+| initialize                                        | 2707            | 18666 | 23986  | 23986 | 4       |
+╰---------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/SimpleFullRestakeDelegatorHook.sol:SimpleFullRestakeDelegatorHook Contract |                 |       |        |       |         |
++============================================================================================================================================+
+| Deployment Cost                                                                       | Deployment Size |       |        |       |         |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 290793                                                                                | 1124            |       |        |       |         |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                                       |                 |       |        |       |         |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                                         | Min             | Avg   | Median | Max   | # Calls |
+|---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| setData                                                                               | 33433           | 52026 | 52029  | 70625 | 1024    |
+╰---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/SimpleMigratableEntity.sol:SimpleMigratableEntity Contract |                 |       |        |       |         |
++============================================================================================================================+
+| Deployment Cost                                                       | Deployment Size |       |        |       |         |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 427914                                                                | 1928            |       |        |       |         |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                       |                 |       |        |       |         |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                         | Min             | Avg   | Median | Max   | # Calls |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| FACTORY                                                               | 227             | 227   | 227    | 227   | 1042    |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| a                                                                     | 2260            | 2260  | 2260   | 2260  | 256     |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| initialize                                                            | 2735            | 70771 | 70902  | 70902 | 521     |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| migrate                                                               | 2598            | 2598  | 2598   | 2598  | 1       |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| owner                                                                 | 2456            | 2456  | 2456   | 2456  | 515     |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| setA                                                                  | 2506            | 21861 | 22406  | 22406 | 256     |
+|-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| version                                                               | 2375            | 2375  | 2375   | 2375  | 515     |
+╰-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/SimpleMigratableEntityV2.sol:SimpleMigratableEntityV2 Contract |                 |       |        |       |         |
++================================================================================================================================+
+| Deployment Cost                                                           | Deployment Size |       |        |       |         |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 477124                                                                    | 2156            |       |        |       |         |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                           |                 |       |        |       |         |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                             | Min             | Avg   | Median | Max   | # Calls |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| FACTORY                                                                   | 249             | 249   | 249    | 249   | 517     |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| a                                                                         | 2282            | 2282  | 2282   | 2282  | 512     |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| b                                                                         | 2359            | 2359  | 2359   | 2359  | 512     |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| migrate                                                                   | 9236            | 28747 | 29136  | 29136 | 512     |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| setA                                                                      | 5389            | 5856  | 5389   | 22489 | 256     |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| setB                                                                      | 2349            | 5538  | 5149   | 22249 | 256     |
+|---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| version                                                                   | 2419            | 2419  | 2419   | 2419  | 256     |
+╰---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/SimpleNetworkRestakeDelegatorHook.sol:SimpleNetworkRestakeDelegatorHook Contract |                 |       |        |       |         |
++==================================================================================================================================================+
+| Deployment Cost                                                                             | Deployment Size |       |        |       |         |
+|---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 290793                                                                                      | 1124            |       |        |       |         |
+|---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                                                             |                 |       |        |       |         |
+|---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                                                               | Min             | Avg   | Median | Max   | # Calls |
+|---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| setData                                                                                     | 33433           | 52040 | 52029  | 70625 | 1024    |
+╰---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------╮
+| test/mocks/SimpleOperatorNetworkSpecificDelegatorHook.sol:SimpleOperatorNetworkSpecificDelegatorHook Contract |                 |      |        |      |         |
++==================================================================================================================================================================+
+| Deployment Cost                                                                                               | Deployment Size |      |        |      |         |
+|---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------|
+| 138383                                                                                                        | 420             |      |        |      |         |
+|---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------|
+|                                                                                                               |                 |      |        |      |         |
+|---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------|
+| Function Name                                                                                                 | Min             | Avg  | Median | Max  | # Calls |
+|---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------|
+| counter1                                                                                                      | 2247            | 2247 | 2247   | 2247 | 1024    |
+╰---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------╯
+
+╭-------------------------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/SimpleRegistry.sol:SimpleRegistry Contract |                 |       |        |       |         |
++============================================================================================================+
+| Deployment Cost                                       | Deployment Size |       |        |       |         |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| 168415                                                | 559             |       |        |       |         |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+|                                                       |                 |       |        |       |         |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                                         | Min             | Avg   | Median | Max   | # Calls |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| entity                                                | 2352            | 3418  | 3418   | 4485  | 6       |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| isEntity                                              | 2368            | 2368  | 2368   | 2368  | 4       |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| register                                              | 71933           | 80483 | 80483  | 89033 | 2       |
+|-------------------------------------------------------+-----------------+-------+--------+-------+---------|
+| totalEntities                                         | 2299            | 2299  | 2299   | 2299  | 3       |
+╰-------------------------------------------------------+-----------------+-------+--------+-------+---------╯
+
+╭-------------------------------------+-----------------+-------+--------+-------+---------╮
+| test/mocks/Token.sol:Token Contract |                 |       |        |       |         |
++==========================================================================================+
+| Deployment Cost                     | Deployment Size |       |        |       |         |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| 493828                              | 2680            |       |        |       |         |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+|                                     |                 |       |        |       |         |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                       | Min             | Avg   | Median | Max   | # Calls |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| approve                             | 45899           | 45961 | 45959  | 46019 | 26198   |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| balanceOf                           | 530             | 1652  | 2530   | 2530  | 59728   |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| decimals                            | 253             | 253   | 253    | 253   | 5227    |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| totalSupply                         | 2315            | 2315  | 2315   | 2315  | 76      |
+|-------------------------------------+-----------------+-------+--------+-------+---------|
+| transfer                            | 51184           | 51237 | 51232  | 51280 | 26119   |
+╰-------------------------------------+-----------------+-------+--------+-------+---------╯
+
+
+Ran 28 test suites in 34.52s (148.03s CPU time): 316 tests passed, 1 failed, 0 skipped (317 total tests)
+
+Failing tests:
+Encountered 1 failing test in test/slasher/Slasher.t.sol:SlasherTest
+[FAIL: call reverted as expected, but without data; counterexample: calldata=0x0198021f0000000000000000000000000000000ebbb379e32d8eec3dbd953e5e186e93a70000000000000000000000000002665068925df8e7723c9ba4a2101451343705000000000000000000000000000000000000000000000000000000006e2d4763000000000000001148ee9fb58deea96a47a34ab5a99d61958e76f72cbd973e96 args=[5013450665413050031981637359298524648359 [5.013e39], 53514305151147353802023928193830875426993925 [5.351e43], 1848461155 [1.848e9], 108499019990126189354956015209196222419908490716249232719510 [1.084e59]]] test_SlashWithBurnerGas(uint256,uint256,uint256,uint256) (runs: 0, μ: 0, ~: 0)
+
+Encountered a total of 1 failing tests, 316 tests succeeded

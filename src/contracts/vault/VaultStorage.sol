@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {IVaultStorage} from "../../interfaces/vault/IVaultStorage.sol";
-
 import {Checkpoints} from "../libraries/Checkpoints.sol";
+
+import {IVaultStorage} from "../../interfaces/vault/IVaultStorage.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";

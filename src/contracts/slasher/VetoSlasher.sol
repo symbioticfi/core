@@ -3,13 +3,13 @@ pragma solidity 0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Subnetwork} from "../libraries/Subnetwork.sol";
+
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
-import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";

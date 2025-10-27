@@ -357,9 +357,6 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
 
         _stopBroadcastWhenCallerModeIsSingleOrRecurrent(callerMode);
 
-        uint48 epochDuration = 7 days;
-        uint48 vetoDuration = 1 days;
-
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = owner;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -373,7 +370,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
                 ISymbioticVault.InitParams({
                     collateral: collateral,
                     burner: 0x000000000000000000000000000000000000dEaD,
-                    epochDuration: epochDuration,
+                    epochDuration: 7 days,
                     depositWhitelist: false,
                     isDepositLimit: false,
                     depositLimit: 0,
@@ -401,7 +398,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             slasherParams: abi.encode(
                 ISymbioticVetoSlasher.InitParams({
                     baseParams: ISymbioticBaseSlasher.BaseParams({isBurnerHook: true}),
-                    vetoDuration: vetoDuration,
+                    vetoDuration: 1 days,
                     resolverSetEpochsDelay: 3
                 })
             )

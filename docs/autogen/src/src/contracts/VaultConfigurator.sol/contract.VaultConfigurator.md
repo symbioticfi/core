@@ -1,0 +1,66 @@
+# VaultConfigurator
+[Git Source](https://github.com/symbioticfi/core/blob/df9ca184c8ea82a887fc1922bce2558281ce8e60/src/contracts/VaultConfigurator.sol)
+
+**Inherits:**
+[IVaultConfigurator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/IVaultConfigurator.sol/interface.IVaultConfigurator.md)
+
+
+## State Variables
+### VAULT_FACTORY
+Get the vault factory's address.
+
+
+```solidity
+address public immutable VAULT_FACTORY
+```
+
+
+### DELEGATOR_FACTORY
+Get the delegator factory's address.
+
+
+```solidity
+address public immutable DELEGATOR_FACTORY
+```
+
+
+### SLASHER_FACTORY
+Get the slasher factory's address.
+
+
+```solidity
+address public immutable SLASHER_FACTORY
+```
+
+
+## Functions
+### constructor
+
+
+```solidity
+constructor(address vaultFactory, address delegatorFactory, address slasherFactory) ;
+```
+
+### create
+
+Create a new vault with a delegator and a slasher.
+
+
+```solidity
+function create(InitParams memory params) public returns (address vault, address delegator, address slasher);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`params`|`InitParams`|initial parameters needed for a vault with a delegator and a slasher deployment|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`vault`|`address`|address of the vault|
+|`delegator`|`address`|address of the delegator|
+|`slasher`|`address`|address of the slasher|
+
+

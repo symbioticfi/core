@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
+import {Subnetwork} from "../libraries/Subnetwork.sol";
+
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
-
-import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";

@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Vault} from "./Vault.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+
 import {IVaultTokenized} from "../../interfaces/vault/IVaultTokenized.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";

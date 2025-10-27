@@ -23,19 +23,39 @@ out/**/
 !out/SlasherHints.sol/
 !out/OptInServiceHints.sol/
 
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/17000/
-/broadcast/*/31337/
-/broadcast/*/11155111/
-/broadcast/**/dry-run/
+# Ignore node_modules and dependencies
+node_modules
+*.log
+yarn-error.log
 
-# Docs
-docs/
+# Ignore build outputs
+dist
+out
+**/__pycache__
 
-# Dotenv file
+# Ignore environment files
 .env
 
-# Other files
-.gas-snapshot
+# Ignore version control files
+.git
+.gitignore
+
+# Ignore editor and OS-specific files
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+
+cache/
+out/
+broadcast/
+deployments/
+
 lcov.info
+/target
+/coverage
+/report
+.password

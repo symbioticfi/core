@@ -1,0 +1,15 @@
+# DelegatorFactory
+[Git Source](https://github.com/symbioticfi/core/blob/df9ca184c8ea82a887fc1922bce2558281ce8e60/src/contracts/DelegatorFactory.sol)
+
+**Inherits:**
+[Factory](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/Factory.sol/contract.Factory.md), [IDelegatorFactory](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/IDelegatorFactory.sol/interface.IDelegatorFactory.md)
+
+
+## Functions
+### constructor
+
+
+```solidity
+constructor(address owner_) Factory(owner_);
+```
+

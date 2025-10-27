@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {ERC4626Math} from "../libraries/ERC4626Math.sol";
+
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
-import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
