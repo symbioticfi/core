@@ -1320,7 +1320,7 @@ contract SlasherTest is Test {
         vm.startPrank(alice);
         vars.BURNER_GAS_LIMIT = slasher.BURNER_GAS_LIMIT();
         vm.expectRevert(IBaseSlasher.InsufficientBurnerGas.selector);
-        slasher.slash{gas: vars.BURNER_GAS_LIMIT + 20_000}(
+        slasher.slash{gas: vars.BURNER_GAS_LIMIT + 40_000}(
             vars.network.subnetwork(0), alice, vars.slashAmount1, uint48(vars.blockTimestamp - 1), ""
         );
         vm.stopPrank();

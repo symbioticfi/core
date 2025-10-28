@@ -1,5 +1,5 @@
 # Vault
-[Git Source](https://github.com/symbioticfi/core/blob/34733e78ecb0c08640f857df155aa6d467dd9462/src/contracts/vault/Vault.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/45a7dbdd18fc5ac73ecf7310fc6816999bb8eef3/src/contracts/vault/Vault.sol)
 
 **Inherits:**
 [VaultStorage](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/vault/VaultStorage.sol/abstract.VaultStorage.md), [MigratableEntity](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/MigratableEntity.sol/abstract.MigratableEntity.md), AccessControlUpgradeable, [IVault](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/vault/IVault.sol/interface.IVault.md)
