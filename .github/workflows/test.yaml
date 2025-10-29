@@ -35,14 +35,3 @@ jobs:
 
       - name: Run Forge tests
         run: forge test --isolate
-
-      - name: Run Forge coverage
-        run: |
-          forge coverage --report lcov
-        id: coverage
-        env:
-          COVERAGE: true
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
