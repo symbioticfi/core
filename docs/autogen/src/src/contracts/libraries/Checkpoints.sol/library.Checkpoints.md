@@ -1,5 +1,5 @@
 # Checkpoints
-[Git Source](https://github.com/symbioticfi/core/blob/0515f07ba8e6512d27a7c84c3818ae0c899b4806/src/contracts/libraries/Checkpoints.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/f05307516bbf31fe6a8fa180eab4a8d7068a66a2/src/contracts/libraries/Checkpoints.sol)
 
 This library defines the `Trace*` struct, for checkpointing values as they change at different points in
 time, and later looking up past values by key.

@@ -1,5 +1,5 @@
 # IVault
-[Git Source](https://github.com/symbioticfi/core/blob/0515f07ba8e6512d27a7c84c3818ae0c899b4806/src/interfaces/vault/IVault.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/f05307516bbf31fe6a8fa180eab4a8d7068a66a2/src/interfaces/vault/IVault.sol)
 
 **Inherits:**
 [IMigratableEntity](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/common/IMigratableEntity.sol/interface.IMigratableEntity.md), [IVaultStorage](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/vault/IVaultStorage.sol/interface.IVaultStorage.md)

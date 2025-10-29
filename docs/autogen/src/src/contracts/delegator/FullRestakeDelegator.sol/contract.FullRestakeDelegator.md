@@ -1,5 +1,5 @@
 # FullRestakeDelegator
-[Git Source](https://github.com/symbioticfi/core/blob/0515f07ba8e6512d27a7c84c3818ae0c899b4806/src/contracts/delegator/FullRestakeDelegator.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/f05307516bbf31fe6a8fa180eab4a8d7068a66a2/src/contracts/delegator/FullRestakeDelegator.sol)
 
 **Inherits:**
 [BaseDelegator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/delegator/BaseDelegator.sol/abstract.BaseDelegator.md), [IFullRestakeDelegator](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/delegator/IFullRestakeDelegator.sol/interface.IFullRestakeDelegator.md)

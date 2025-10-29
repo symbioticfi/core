@@ -3,7 +3,6 @@
 This repository contains the core Symbiotic smart contracts responsible for managing deposits, stake allocations and slashing.
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/symbioticfi/core)
-[![codecov](https://codecov.io/github/symbioticfi/core/graph/badge.svg?token=677FQ1HFHJ)](https://codecov.io/github/symbioticfi/core)
 
 Symbiotic core consists of:
 
