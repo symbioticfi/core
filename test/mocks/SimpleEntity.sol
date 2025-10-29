@@ -8,9 +8,7 @@ contract SimpleEntity is Entity {
 
     constructor(address factory, uint64 type_) Entity(factory, type_) {}
 
-    function setA(
-        uint256 _a
-    ) public {
+    function setA(uint256 _a) public {
         a = _a;
     }
 }

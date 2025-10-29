@@ -6,7 +6,5 @@ import {Factory} from "./common/Factory.sol";
 import {ISlasherFactory} from "../interfaces/ISlasherFactory.sol";
 
 contract SlasherFactory is Factory, ISlasherFactory {
-    constructor(
-        address owner_
-    ) Factory(owner_) {}
+    constructor(address owner_) Factory(owner_) {}
 }

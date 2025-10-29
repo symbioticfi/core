@@ -95,9 +95,7 @@ interface IVaultStorage {
      * @return epoch at the timestamp
      * @dev Reverts if the timestamp is less than the start of the epoch 0.
      */
-    function epochAt(
-        uint48 timestamp
-    ) external view returns (uint256);
+    function epochAt(uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a current vault epoch.
@@ -135,9 +133,7 @@ interface IVaultStorage {
      * @param account address to check
      * @return if the account is whitelisted as a depositor
      */
-    function isDepositorWhitelisted(
-        address account
-    ) external view returns (bool);
+    function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
      * @notice Get if the deposit limit is set.
@@ -193,27 +189,21 @@ interface IVaultStorage {
      * @param account account to get the number of active shares for
      * @return number of active shares for the account
      */
-    function activeSharesOf(
-        address account
-    ) external view returns (uint256);
+    function activeSharesOf(address account) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the withdrawals at a given epoch.
      * @param epoch epoch to get the total amount of the withdrawals at
      * @return total amount of the withdrawals at the epoch
      */
-    function withdrawals(
-        uint256 epoch
-    ) external view returns (uint256);
+    function withdrawals(uint256 epoch) external view returns (uint256);
 
     /**
      * @notice Get a total number of withdrawal shares at a given epoch.
      * @param epoch epoch to get the total number of withdrawal shares at
      * @return total number of withdrawal shares at the epoch
      */
-    function withdrawalShares(
-        uint256 epoch
-    ) external view returns (uint256);
+    function withdrawalShares(uint256 epoch) external view returns (uint256);
 
     /**
      * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).

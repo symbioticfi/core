@@ -208,9 +208,7 @@ contract VaultTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -218,7 +216,9 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
@@ -331,9 +331,7 @@ contract VaultTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -341,14 +339,14 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
     }
 
-    function test_CreateRevertInvalidCollateral(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertInvalidCollateral(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         address[] memory networkLimitSetRoleHolders = new address[](1);
@@ -380,9 +378,7 @@ contract VaultTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -390,14 +386,14 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
     }
 
-    function test_CreateRevertMissingRoles1(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertMissingRoles1(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -426,9 +422,7 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles2(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertMissingRoles2(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -457,9 +451,7 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles3(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertMissingRoles3(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -488,9 +480,7 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles4(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertMissingRoles4(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -519,9 +509,7 @@ contract VaultTest is Test {
         );
     }
 
-    function test_CreateRevertMissingRoles5(
-        uint48 epochDuration
-    ) public {
+    function test_CreateRevertMissingRoles5(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
         uint64 lastVersion = vaultFactory.lastVersion();
@@ -589,9 +577,7 @@ contract VaultTest is Test {
                     abi.encode(
                         IFullRestakeDelegator.InitParams({
                             baseParams: IBaseDelegator.BaseParams({
-                                defaultAdminRoleHolder: alice,
-                                hook: address(0),
-                                hookSetRoleHolder: alice
+                                defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                             }),
                             networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                             operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -645,9 +631,7 @@ contract VaultTest is Test {
                     abi.encode(
                         IFullRestakeDelegator.InitParams({
                             baseParams: IBaseDelegator.BaseParams({
-                                defaultAdminRoleHolder: alice,
-                                hook: address(0),
-                                hookSetRoleHolder: alice
+                                defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                             }),
                             networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                             operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -751,9 +735,7 @@ contract VaultTest is Test {
                     abi.encode(
                         IFullRestakeDelegator.InitParams({
                             baseParams: IBaseDelegator.BaseParams({
-                                defaultAdminRoleHolder: alice,
-                                hook: address(0),
-                                hookSetRoleHolder: alice
+                                defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                             }),
                             networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                             operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -1178,9 +1160,7 @@ contract VaultTest is Test {
                     delegatorParams: abi.encode(
                         INetworkRestakeDelegator.InitParams({
                             baseParams: IBaseDelegator.BaseParams({
-                                defaultAdminRoleHolder: alice,
-                                hook: address(0),
-                                hookSetRoleHolder: alice
+                                defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                             }),
                             networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                             operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -1404,9 +1384,7 @@ contract VaultTest is Test {
         assertEq(vault.slashableBalanceOf(bob), amount2);
     }
 
-    function test_DepositRevertInvalidOnBehalfOf(
-        uint256 amount1
-    ) public {
+    function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1527,9 +1505,7 @@ contract VaultTest is Test {
         assertEq(vault.totalStake(), amount1 - amount2 - amount3);
     }
 
-    function test_WithdrawRevertInvalidClaimer(
-        uint256 amount1
-    ) public {
+    function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1543,9 +1519,7 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function test_WithdrawRevertInsufficientWithdrawal(
-        uint256 amount1
-    ) public {
+    function test_WithdrawRevertInsufficientWithdrawal(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1557,9 +1531,7 @@ contract VaultTest is Test {
         _withdraw(alice, 0);
     }
 
-    function test_WithdrawRevertTooMuchWithdraw(
-        uint256 amount1
-    ) public {
+    function test_WithdrawRevertTooMuchWithdraw(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1672,9 +1644,7 @@ contract VaultTest is Test {
         assertEq(vault.totalStake(), amount1 - withdrawnAssets2 - withdrawnAssets3);
     }
 
-    function test_RedeemRevertInvalidClaimer(
-        uint256 amount1
-    ) public {
+    function test_RedeemRevertInvalidClaimer(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1688,9 +1658,7 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function test_RedeemRevertInsufficientRedeemption(
-        uint256 amount1
-    ) public {
+    function test_RedeemRevertInsufficientRedeemption(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -1702,9 +1670,7 @@ contract VaultTest is Test {
         _redeem(alice, 0);
     }
 
-    function test_RedeemRevertTooMuchRedeem(
-        uint256 amount1
-    ) public {
+    function test_RedeemRevertTooMuchRedeem(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
@@ -2218,9 +2184,7 @@ contract VaultTest is Test {
         _deposit(alice, depositAmount);
     }
 
-    function test_SetDepositLimitToNull(
-        uint256 limit1
-    ) public {
+    function test_SetDepositLimitToNull(uint256 limit1) public {
         uint48 epochDuration = 1;
 
         vault = _getVault(epochDuration);
@@ -2261,9 +2225,7 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function test_SetDepositLimitRevertAlreadySet(
-        uint256 limit
-    ) public {
+    function test_SetDepositLimitRevertAlreadySet(uint256 limit) public {
         uint48 epochDuration = 1;
 
         vault = _getVault(epochDuration);
@@ -2373,9 +2335,8 @@ contract VaultTest is Test {
             );
 
             test_SlashStruct.activeStake1 = depositAmount - withdrawAmount1 - withdrawAmount2
-                - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(
-                    test_SlashStruct.slashAmountReal1, depositAmount
-                );
+                - (depositAmount - withdrawAmount1 - withdrawAmount2)
+                .mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
             test_SlashStruct.withdrawals1 =
                 withdrawAmount1 - withdrawAmount1.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
             test_SlashStruct.nextWithdrawals1 =
@@ -2404,27 +2365,26 @@ contract VaultTest is Test {
                 depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2
             );
             assertTrue(
-                (
-                    test_SlashStruct.withdrawals1
-                        - test_SlashStruct.withdrawals1.mulDiv(
-                            test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
-                        )
-                ) - vault.withdrawals(vault.currentEpoch()) <= 4
+                (test_SlashStruct.withdrawals1
+                            - test_SlashStruct.withdrawals1
+                                .mulDiv(
+                                    test_SlashStruct.slashAmountSlashed2,
+                                    depositAmount - test_SlashStruct.slashAmountReal1
+                                )) - vault.withdrawals(vault.currentEpoch()) <= 4
             );
             assertTrue(
-                (
-                    test_SlashStruct.nextWithdrawals1
-                        - test_SlashStruct.nextWithdrawals1.mulDiv(
-                            test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
-                        )
-                ) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
+                (test_SlashStruct.nextWithdrawals1
+                            - test_SlashStruct.nextWithdrawals1
+                                .mulDiv(
+                                    test_SlashStruct.slashAmountSlashed2,
+                                    depositAmount - test_SlashStruct.slashAmountReal1
+                                )) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
             );
             assertEq(
                 vault.activeStake(),
                 test_SlashStruct.activeStake1
-                    - test_SlashStruct.activeStake1.mulDiv(
-                        test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1
-                    )
+                    - test_SlashStruct.activeStake1
+                        .mulDiv(test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1)
             );
         } else {
             test_SlashStruct.slashAmountReal1 =
@@ -2440,9 +2400,8 @@ contract VaultTest is Test {
             );
 
             test_SlashStruct.activeStake1 = depositAmount - withdrawAmount1 - withdrawAmount2
-                - (depositAmount - withdrawAmount1 - withdrawAmount2).mulDiv(
-                    test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1
-                );
+                - (depositAmount - withdrawAmount1 - withdrawAmount2)
+                .mulDiv(test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1);
             test_SlashStruct.withdrawals1 = withdrawAmount1;
             test_SlashStruct.nextWithdrawals1 = withdrawAmount2
                 - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount - withdrawAmount1);
@@ -2471,21 +2430,21 @@ contract VaultTest is Test {
             );
             assertEq(vault.withdrawals(vault.currentEpoch()), test_SlashStruct.withdrawals1);
             assertTrue(
-                (
-                    test_SlashStruct.nextWithdrawals1
-                        - test_SlashStruct.nextWithdrawals1.mulDiv(
-                            test_SlashStruct.slashAmountSlashed2,
-                            depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
-                        )
-                ) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
+                (test_SlashStruct.nextWithdrawals1
+                            - test_SlashStruct.nextWithdrawals1
+                                .mulDiv(
+                                    test_SlashStruct.slashAmountSlashed2,
+                                    depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
+                                )) - vault.withdrawals(vault.currentEpoch() + 1) <= 2
             );
             assertEq(
                 vault.activeStake(),
                 test_SlashStruct.activeStake1
-                    - test_SlashStruct.activeStake1.mulDiv(
-                        test_SlashStruct.slashAmountSlashed2,
-                        depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
-                    )
+                    - test_SlashStruct.activeStake1
+                        .mulDiv(
+                            test_SlashStruct.slashAmountSlashed2,
+                            depositAmount - withdrawAmount1 - test_SlashStruct.slashAmountReal1
+                        )
             );
         }
     }
@@ -2695,9 +2654,7 @@ contract VaultTest is Test {
     //     assertLt(gasStruct.gasSpent1 - gasStruct.gasSpent2, 10_000);
     // }
 
-    function _getVault(
-        uint48 epochDuration
-    ) internal returns (Vault) {
+    function _getVault(uint48 epochDuration) internal returns (Vault) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -2725,9 +2682,7 @@ contract VaultTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -2735,16 +2690,19 @@ contract VaultTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return Vault(vault_);
     }
 
-    function _getVaultAndDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (Vault, FullRestakeDelegator, Slasher) {
+    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (Vault, FullRestakeDelegator, Slasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -2772,9 +2730,7 @@ contract VaultTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -2782,16 +2738,16 @@ contract VaultTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (Vault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
-    function _registerOperator(
-        address user
-    ) internal {
+    function _registerOperator(address user) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -2860,17 +2816,13 @@ contract VaultTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(
-        address user
-    ) internal {
+    function _optInOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(
-        address user
-    ) internal {
+    function _optOutOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();

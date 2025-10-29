@@ -21,12 +21,8 @@ contract OnboardNetworkScript is SymbioticCoreInit {
     uint256 public SYMBIOTIC_CORE_NUMBER_OF_OPERATORS = 3;
     uint256 public SYMBIOTIC_CORE_NUMBER_OF_STAKERS = 1;
 
-    function run(
-        uint256 seed
-    ) public override {
+    function run(uint256 seed) public override {
         // ------------------------------------------------------ CONFIG ------------------------------------------------------ //
-
-        SYMBIOTIC_CORE_PROJECT_ROOT = "";
 
         SYMBIOTIC_CORE_TOKENS_TO_SET_TIMES_1e18 = 0.1 * 1e18;
         SYMBIOTIC_CORE_MIN_TOKENS_TO_DEPOSIT_TIMES_1e18 = 0.001 * 1e18;
@@ -138,10 +134,6 @@ contract OnboardNetworkScript is SymbioticCoreInit {
 
 interface IwstETH {
     function stETH() external view returns (address);
-    function getStETHByWstETH(
-        uint256 _wstETHAmount
-    ) external view returns (uint256);
-    function wrap(
-        uint256 _stETHAmount
-    ) external returns (uint256);
+    function getStETHByWstETH(uint256 _wstETHAmount) external view returns (uint256);
+    function wrap(uint256 _stETHAmount) external returns (uint256);
 }

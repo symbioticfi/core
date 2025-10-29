@@ -30,8 +30,10 @@ import {FeeOnTransferToken} from "./mocks/FeeOnTransferToken.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 
 import {Subnetwork} from "../src/contracts/libraries/Subnetwork.sol";
+import "./integration/SymbioticCoreBytecode.sol";
 
 contract POCBaseTest is Test {
     using Math for uint256;
@@ -75,83 +77,78 @@ contract POCBaseTest is Test {
     IFullRestakeDelegator public delegator4;
     IVetoSlasher public slasher4;
 
-    string public SYMBIOTIC_CORE_PROJECT_ROOT;
-
     function setUp() public virtual {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
 
         vaultFactory = IVaultFactory(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultFactory.sol/VaultFactory.json"), abi.encode(owner)
-            )
+            _deployCreate2(bytes32("vaultFactory"), SymbioticCoreBytecode.vaultFactory(), abi.encode(owner))
         );
         delegatorFactory = IDelegatorFactory(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/DelegatorFactory.sol/DelegatorFactory.json"),
-                abi.encode(owner)
-            )
+            _deployCreate2(bytes32("delegatorFactory"), SymbioticCoreBytecode.delegatorFactory(), abi.encode(owner))
         );
         slasherFactory = ISlasherFactory(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/SlasherFactory.sol/SlasherFactory.json"),
-                abi.encode(owner)
-            )
+            _deployCreate2(bytes32("slasherFactory"), SymbioticCoreBytecode.slasherFactory(), abi.encode(owner))
         );
-        networkRegistry = INetworkRegistry(
-            deployCode(string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkRegistry.sol/NetworkRegistry.json"))
-        );
+        networkRegistry =
+            INetworkRegistry(_deployCreate2(bytes32("networkRegistry"), SymbioticCoreBytecode.networkRegistry(), ""));
         operatorRegistry = IOperatorRegistry(
-            deployCode(string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OperatorRegistry.sol/OperatorRegistry.json"))
+            _deployCreate2(bytes32("operatorRegistry"), SymbioticCoreBytecode.operatorRegistry(), "")
         );
         operatorMetadataService = IMetadataService(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/MetadataService.sol/MetadataService.json"),
+            _deployCreate2(
+                bytes32("operatorMetadataService"),
+                SymbioticCoreBytecode.metadataService(),
                 abi.encode(address(operatorRegistry))
             )
         );
         networkMetadataService = IMetadataService(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/MetadataService.sol/MetadataService.json"),
+            _deployCreate2(
+                bytes32("networkMetadataService"),
+                SymbioticCoreBytecode.metadataService(),
                 abi.encode(address(networkRegistry))
             )
         );
         networkMiddlewareService = INetworkMiddlewareService(
-            deployCode(
-                string.concat(
-                    SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkMiddlewareService.sol/NetworkMiddlewareService.json"
-                ),
+            _deployCreate2(
+                bytes32("networkMiddlewareService"),
+                SymbioticCoreBytecode.networkMiddlewareService(),
                 abi.encode(address(networkRegistry))
             )
         );
         operatorVaultOptInService = IOptInService(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OptInService.sol/OptInService.json"),
+            _deployCreate2(
+                bytes32("operatorVaultOptInService"),
+                SymbioticCoreBytecode.optInService(),
                 abi.encode(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService")
             )
         );
         operatorNetworkOptInService = IOptInService(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/OptInService.sol/OptInService.json"),
+            _deployCreate2(
+                bytes32("operatorNetworkOptInService"),
+                SymbioticCoreBytecode.optInService(),
                 abi.encode(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService")
             )
         );
 
-        address vaultImpl = deployCode(
-            string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Vault.sol/Vault.json"),
+        address vaultImpl = _deployCreate2(
+            bytes32("vault"),
+            SymbioticCoreBytecode.vault(),
             abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultImpl);
 
-        address vaultTokenizedImpl = deployCode(
-            string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultTokenized.sol/VaultTokenized.json"),
+        address vaultTokenizedImpl = _deployCreate2(
+            bytes32("vaultTokenized"),
+            SymbioticCoreBytecode.vaultTokenized(),
             abi.encode(address(delegatorFactory), address(slasherFactory), address(vaultFactory))
         );
         vaultFactory.whitelist(vaultTokenizedImpl);
 
-        address networkRestakeDelegatorImpl = deployCode(
-            string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/NetworkRestakeDelegator.sol/NetworkRestakeDelegator.json"),
+        address networkRestakeDelegatorImpl = _deployCreate2(
+            bytes32("networkRestakeDelegator"),
+            SymbioticCoreBytecode.networkRestakeDelegator(),
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -163,8 +160,9 @@ contract POCBaseTest is Test {
         );
         delegatorFactory.whitelist(networkRestakeDelegatorImpl);
 
-        address fullRestakeDelegatorImpl = deployCode(
-            string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/FullRestakeDelegator.sol/FullRestakeDelegator.json"),
+        address fullRestakeDelegatorImpl = _deployCreate2(
+            bytes32("fullRestakeDelegator"),
+            SymbioticCoreBytecode.fullRestakeDelegator(),
             abi.encode(
                 address(networkRegistry),
                 address(vaultFactory),
@@ -176,10 +174,9 @@ contract POCBaseTest is Test {
         );
         delegatorFactory.whitelist(fullRestakeDelegatorImpl);
 
-        address operatorSpecificDelegatorImpl = deployCode(
-            string.concat(
-                SYMBIOTIC_CORE_PROJECT_ROOT, "out/OperatorSpecificDelegator.sol/OperatorSpecificDelegator.json"
-            ),
+        address operatorSpecificDelegatorImpl = _deployCreate2(
+            bytes32("operatorSpecificDelegator"),
+            SymbioticCoreBytecode.operatorSpecificDelegator(),
             abi.encode(
                 address(operatorRegistry),
                 address(networkRegistry),
@@ -192,11 +189,9 @@ contract POCBaseTest is Test {
         );
         delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
-        address operatorNetworkSpecificDelegatorImpl = deployCode(
-            string.concat(
-                SYMBIOTIC_CORE_PROJECT_ROOT,
-                "out/OperatorNetworkSpecificDelegator.sol/OperatorNetworkSpecificDelegator.json"
-            ),
+        address operatorNetworkSpecificDelegatorImpl = _deployCreate2(
+            bytes32("operatorNetworkSpecificDelegator"),
+            SymbioticCoreBytecode.operatorNetworkSpecificDelegator(),
             abi.encode(
                 address(operatorRegistry),
                 address(networkRegistry),
@@ -209,8 +204,9 @@ contract POCBaseTest is Test {
         );
         delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
 
-        address slasherImpl = deployCode(
-            string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/Slasher.sol/Slasher.json"),
+        address slasherImpl = _deployCreate2(
+            bytes32("slasher"),
+            SymbioticCoreBytecode.slasher(),
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -220,8 +216,9 @@ contract POCBaseTest is Test {
         );
         slasherFactory.whitelist(slasherImpl);
 
-        address vetoSlasherImpl = deployCode(
-            string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VetoSlasher.sol/VetoSlasher.json"),
+        address vetoSlasherImpl = _deployCreate2(
+            bytes32("vetoSlasher"),
+            SymbioticCoreBytecode.vetoSlasher(),
             abi.encode(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -236,8 +233,9 @@ contract POCBaseTest is Test {
         feeOnTransferCollateral = new FeeOnTransferToken("FeeOnTransferToken");
 
         vaultConfigurator = IVaultConfigurator(
-            deployCode(
-                string.concat(SYMBIOTIC_CORE_PROJECT_ROOT, "out/VaultConfigurator.sol/VaultConfigurator.json"),
+            _deployCreate2(
+                bytes32("vaultConfigurator"),
+                SymbioticCoreBytecode.vaultConfigurator(),
                 abi.encode(address(vaultFactory), address(delegatorFactory), address(slasherFactory))
             )
         );
@@ -251,9 +249,39 @@ contract POCBaseTest is Test {
         (vault4, delegator4, slasher4) = _getVaultAndFullRestakeDelegatorAndVetoSlasher(7 days, 1 days);
     }
 
-    function _getVault(
-        uint48 epochDuration
-    ) internal returns (IVault) {
+    function _deployCreate2(bytes32 salt, bytes memory baseCode, bytes memory constructorArgs)
+        internal
+        returns (address deployed)
+    {
+        bytes memory creationCode;
+        assembly {
+            creationCode := mload(0x40)
+            let w := not(0x1f)
+            let baseCodeLen := mload(baseCode)
+            // Copy `baseCode` one word at a time, backwards.
+            for { let o := and(add(baseCodeLen, 0x20), w) } 1 {} {
+                mstore(add(creationCode, o), mload(add(baseCode, o)))
+                o := add(o, w) // `sub(o, 0x20)`.
+                if iszero(o) { break }
+            }
+            let constructorArgsLen := mload(constructorArgs)
+            let output := add(creationCode, baseCodeLen)
+            // Copy `constructorArgs` one word at a time, backwards.
+            for { let o := and(add(constructorArgsLen, 0x20), w) } 1 {} {
+                mstore(add(output, o), mload(add(constructorArgs, o)))
+                o := add(o, w) // `sub(o, 0x20)`.
+                if iszero(o) { break }
+            }
+            let totalLen := add(baseCodeLen, constructorArgsLen)
+            let last := add(add(creationCode, 0x20), totalLen)
+            mstore(last, 0) // Zeroize the slot after the bytes.
+            mstore(creationCode, totalLen) // Store the length.
+            mstore(0x40, add(last, 0x20)) // Allocate memory.
+        }
+        return Create2.deploy(0, salt, creationCode);
+    }
+
+    function _getVault(uint48 epochDuration) internal returns (IVault) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -281,9 +309,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -291,16 +317,19 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return IVault(vault_);
     }
 
-    function _getVaultAndNetworkRestakeDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (IVault, INetworkRestakeDelegator, ISlasher) {
+    function _getVaultAndNetworkRestakeDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (IVault, INetworkRestakeDelegator, ISlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -328,9 +357,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -338,16 +365,19 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (IVault(vault_), INetworkRestakeDelegator(delegator_), ISlasher(slasher_));
     }
 
-    function _getVaultAndFullRestakeDelegatorAndSlasher(
-        uint48 epochDuration
-    ) internal returns (IVault, IFullRestakeDelegator, ISlasher) {
+    function _getVaultAndFullRestakeDelegatorAndSlasher(uint48 epochDuration)
+        internal
+        returns (IVault, IFullRestakeDelegator, ISlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -375,9 +405,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -385,17 +413,19 @@ contract POCBaseTest is Test {
                 ),
                 withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (IVault(vault_), IFullRestakeDelegator(delegator_), ISlasher(slasher_));
     }
 
-    function _getVaultAndNetworkRestakeDelegatorAndVetoSlasher(
-        uint48 epochDuration,
-        uint48 vetoDuration
-    ) internal returns (IVault, INetworkRestakeDelegator, IVetoSlasher) {
+    function _getVaultAndNetworkRestakeDelegatorAndVetoSlasher(uint48 epochDuration, uint48 vetoDuration)
+        internal
+        returns (IVault, INetworkRestakeDelegator, IVetoSlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -423,9 +453,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -446,10 +474,10 @@ contract POCBaseTest is Test {
         return (IVault(vault_), INetworkRestakeDelegator(delegator_), IVetoSlasher(slasher_));
     }
 
-    function _getVaultAndFullRestakeDelegatorAndVetoSlasher(
-        uint48 epochDuration,
-        uint48 vetoDuration
-    ) internal returns (IVault, IFullRestakeDelegator, IVetoSlasher) {
+    function _getVaultAndFullRestakeDelegatorAndVetoSlasher(uint48 epochDuration, uint48 vetoDuration)
+        internal
+        returns (IVault, IFullRestakeDelegator, IVetoSlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -477,9 +505,7 @@ contract POCBaseTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -500,9 +526,7 @@ contract POCBaseTest is Test {
         return (IVault(vault_), IFullRestakeDelegator(delegator_), IVetoSlasher(slasher_));
     }
 
-    function _registerOperator(
-        address user
-    ) internal {
+    function _registerOperator(address user) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -539,11 +563,10 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _deposit(
-        IVault vault,
-        address user,
-        uint256 amount
-    ) internal returns (uint256 depositedAmount, uint256 mintedShares) {
+    function _deposit(IVault vault, address user, uint256 amount)
+        internal
+        returns (uint256 depositedAmount, uint256 mintedShares)
+    {
         collateral.transfer(user, amount);
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
@@ -551,21 +574,19 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _withdraw(
-        IVault vault,
-        address user,
-        uint256 amount
-    ) internal returns (uint256 burnedShares, uint256 mintedShares) {
+    function _withdraw(IVault vault, address user, uint256 amount)
+        internal
+        returns (uint256 burnedShares, uint256 mintedShares)
+    {
         vm.startPrank(user);
         (burnedShares, mintedShares) = vault.withdraw(user, amount);
         vm.stopPrank();
     }
 
-    function _redeem(
-        IVault vault,
-        address user,
-        uint256 shares
-    ) internal returns (uint256 withdrawnAssets, uint256 mintedShares) {
+    function _redeem(IVault vault, address user, uint256 shares)
+        internal
+        returns (uint256 withdrawnAssets, uint256 mintedShares)
+    {
         vm.startPrank(user);
         (withdrawnAssets, mintedShares) = vault.redeem(user, shares);
         vm.stopPrank();
@@ -631,23 +652,17 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _setNetworkLimitNetwork(
-        INetworkRestakeDelegator delegator,
-        address user,
-        address network,
-        uint256 amount
-    ) internal {
+    function _setNetworkLimitNetwork(INetworkRestakeDelegator delegator, address user, address network, uint256 amount)
+        internal
+    {
         vm.startPrank(user);
         delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
     }
 
-    function _setNetworkLimitFull(
-        IFullRestakeDelegator delegator,
-        address user,
-        address network,
-        uint256 amount
-    ) internal {
+    function _setNetworkLimitFull(IFullRestakeDelegator delegator, address user, address network, uint256 amount)
+        internal
+    {
         vm.startPrank(user);
         delegator.setNetworkLimit(network.subnetwork(0), amount);
         vm.stopPrank();
@@ -711,12 +726,10 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _executeSlash(
-        IVetoSlasher slasher,
-        address user,
-        uint256 slashIndex,
-        bytes memory hints
-    ) internal returns (uint256 slashAmount) {
+    function _executeSlash(IVetoSlasher slasher, address user, uint256 slashIndex, bytes memory hints)
+        internal
+        returns (uint256 slashAmount)
+    {
         vm.startPrank(user);
         slashAmount = slasher.executeSlash(slashIndex, hints);
         vm.stopPrank();
@@ -728,13 +741,9 @@ contract POCBaseTest is Test {
         vm.stopPrank();
     }
 
-    function _setResolver(
-        IVetoSlasher slasher,
-        address user,
-        uint96 identifier,
-        address resolver,
-        bytes memory hints
-    ) internal {
+    function _setResolver(IVetoSlasher slasher, address user, uint96 identifier, address resolver, bytes memory hints)
+        internal
+    {
         vm.startPrank(user);
         slasher.setResolver(identifier, resolver, hints);
         vm.stopPrank();

@@ -198,11 +198,9 @@ contract VetoSlasherTest is Test {
         assertEq(slasher.resolver(bytes32(0), ""), address(0));
     }
 
-    function test_CreateRevertNotVault(
-        uint48 epochDuration,
-        uint48 vetoDuration,
-        uint256 resolverSetEpochsDelay
-    ) public {
+    function test_CreateRevertNotVault(uint48 epochDuration, uint48 vetoDuration, uint256 resolverSetEpochsDelay)
+        public
+    {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
         vetoDuration = uint48(bound(vetoDuration, 0, type(uint48).max / 2));
         resolverSetEpochsDelay = bound(resolverSetEpochsDelay, 3, type(uint256).max);
@@ -334,6 +332,7 @@ contract VetoSlasherTest is Test {
         assertEq(0, _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), ""));
 
         (
+
             // bytes32 subnetwork_,
             ,
             // address operator_,
@@ -356,10 +355,7 @@ contract VetoSlasherTest is Test {
         assertEq(1, _requestSlash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - 1), ""));
 
         (
-            // subnetwork_,
-            ,
-            // operator_,
-            ,
+            ,,
             amount_,
             captureTimestamp_,
             vetoDeadline_,
@@ -735,15 +731,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            //  vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(0);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(0);
 
         assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
@@ -769,15 +757,7 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            // uint48 vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(1);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(1);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -795,15 +775,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal2, depositAmount));
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            //  vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(1);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(1);
 
         assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
@@ -893,15 +865,7 @@ contract VetoSlasherTest is Test {
 
         _requestSlash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), "");
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            // uint48 vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(1);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(1);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -921,15 +885,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            //  vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(0);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(0);
 
         assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
@@ -954,15 +910,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal2, depositAmount));
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            //  vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(1);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(1);
 
         assertEq(slasher.latestSlashedCaptureTimestamp(alice.subnetwork(0), alice), captureTimestamp_);
 
@@ -1048,15 +996,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            //  vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(0);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(0);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -1141,15 +1081,7 @@ contract VetoSlasherTest is Test {
 
         assertEq(vault.totalStake(), depositAmount - Math.min(slashAmountReal1, depositAmount));
 
-        (
-            subnetwork_,
-            operator_,
-            amount_,
-            captureTimestamp_,
-            //  vetoDeadline_,
-            ,
-            completed_
-        ) = slasher.slashRequests(0);
+        (subnetwork_, operator_, amount_, captureTimestamp_,, completed_) = slasher.slashRequests(0);
 
         assertEq(subnetwork_, alice.subnetwork(0));
         assertEq(operator_, alice);
@@ -2375,9 +2307,7 @@ contract VetoSlasherTest is Test {
     //     assertGe(gasStruct.gasSpent1, gasStruct.gasSpent2);
     // }
 
-    function _getVaultAndDelegator(
-        uint48 epochDuration
-    ) internal returns (Vault, FullRestakeDelegator) {
+    function _getVaultAndDelegator(uint48 epochDuration) internal returns (Vault, FullRestakeDelegator) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
@@ -2405,9 +2335,7 @@ contract VetoSlasherTest is Test {
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -2415,17 +2343,19 @@ contract VetoSlasherTest is Test {
                 ),
                 withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}))
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         return (Vault(vault_), FullRestakeDelegator(delegator_));
     }
 
-    function _getVaultAndDelegatorAndSlasher(
-        uint48 epochDuration,
-        uint48 vetoDuration
-    ) internal returns (Vault, FullRestakeDelegator, VetoSlasher) {
+    function _getVaultAndDelegatorAndSlasher(uint48 epochDuration, uint48 vetoDuration)
+        internal
+        returns (Vault, FullRestakeDelegator, VetoSlasher)
+    {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -2453,9 +2383,7 @@ contract VetoSlasherTest is Test {
                 delegatorParams: abi.encode(
                     IFullRestakeDelegator.InitParams({
                         baseParams: IBaseDelegator.BaseParams({
-                            defaultAdminRoleHolder: alice,
-                            hook: address(0),
-                            hookSetRoleHolder: alice
+                            defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
                         }),
                         networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                         operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -2494,9 +2422,7 @@ contract VetoSlasherTest is Test {
         );
     }
 
-    function _registerOperator(
-        address user
-    ) internal {
+    function _registerOperator(address user) internal {
         vm.startPrank(user);
         operatorRegistry.registerOperator();
         vm.stopPrank();
@@ -2547,17 +2473,13 @@ contract VetoSlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _optInOperatorVault(
-        address user
-    ) internal {
+    function _optInOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optIn(address(vault));
         vm.stopPrank();
     }
 
-    function _optOutOperatorVault(
-        address user
-    ) internal {
+    function _optOutOperatorVault(address user) internal {
         vm.startPrank(user);
         operatorVaultOptInService.optOut(address(vault));
         vm.stopPrank();
@@ -2600,11 +2522,10 @@ contract VetoSlasherTest is Test {
         vm.stopPrank();
     }
 
-    function _executeSlash(
-        address user,
-        uint256 slashIndex,
-        bytes memory hints
-    ) internal returns (uint256 slashAmount) {
+    function _executeSlash(address user, uint256 slashIndex, bytes memory hints)
+        internal
+        returns (uint256 slashAmount)
+    {
         vm.startPrank(user);
         slashAmount = slasher.executeSlash(slashIndex, hints);
         vm.stopPrank();
@@ -2660,11 +2581,7 @@ contract VetoSlasherHintsHelper is Test {
         }
     }
 
-    function tryExecuteSlash(
-        address slasher,
-        uint256 slashIndex,
-        bytes memory hints
-    ) external returns (bool reverted) {
+    function tryExecuteSlash(address slasher, uint256 slashIndex, bytes memory hints) external returns (bool reverted) {
         try VetoSlasher(slasher).executeSlash(slashIndex, hints) {}
         catch {
             reverted = true;
@@ -2687,13 +2604,10 @@ contract VetoSlasherHintsHelper is Test {
         }
     }
 
-    function trySetResolver(
-        address slasher,
-        uint96 identifier,
-        address resolver,
-        uint256 shares,
-        bytes memory hints
-    ) external returns (bool reverted) {
+    function trySetResolver(address slasher, uint96 identifier, address resolver, uint256 shares, bytes memory hints)
+        external
+        returns (bool reverted)
+    {
         try VetoSlasher(slasher).setResolver(identifier, resolver, hints) {}
         catch {
             reverted = true;

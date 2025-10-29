@@ -122,9 +122,7 @@ interface IBaseDelegator is IEntity {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return maximum limit of the subnetwork
      */
-    function maxNetworkLimit(
-        bytes32 subnetwork
-    ) external view returns (uint256);
+    function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256);
 
     /**
      * @notice Get a stake that a given subnetwork could be able to slash for a certain operator at a given timestamp
@@ -136,12 +134,10 @@ interface IBaseDelegator is IEntity {
      * @return slashable stake at the given timestamp until the end of the consequent epoch
      * @dev Warning: it is not safe to use timestamp >= current one for the stake capturing, as it can change later.
      */
-    function stakeAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hints
-    ) external view returns (uint256);
+    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        external
+        view
+        returns (uint256);
 
     /**
      * @notice Get a stake that a given subnetwork will be able to slash
@@ -167,9 +163,7 @@ interface IBaseDelegator is IEntity {
      * @dev Only a HOOK_SET_ROLE holder can call this function.
      *      The hook can have arbitrary logic under certain functions, however, it doesn't affect the stake guarantees.
      */
-    function setHook(
-        address hook
-    ) external;
+    function setHook(address hook) external;
 
     /**
      * @notice Called when a slash happens.

@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -38,9 +38,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
 
     mapping(address who => mapping(address where => Checkpoints.Trace208 value)) internal _isOptedIn;
 
-    modifier checkDeadline(
-        uint48 deadline
-    ) {
+    modifier checkDeadline(uint48 deadline) {
         if (deadline < Time.timestamp()) {
             revert ExpiredSignature();
         }
@@ -55,12 +53,11 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function isOptedInAt(
-        address who,
-        address where,
-        uint48 timestamp,
-        bytes calldata hint
-    ) external view returns (bool) {
+    function isOptedInAt(address who, address where, uint48 timestamp, bytes calldata hint)
+        external
+        view
+        returns (bool)
+    {
         return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
     }
 
@@ -74,21 +71,17 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function optIn(
-        address where
-    ) external {
+    function optIn(address where) external {
         _optIn(msg.sender, where);
     }
 
     /**
      * @inheritdoc IOptInService
      */
-    function optIn(
-        address who,
-        address where,
-        uint48 deadline,
-        bytes calldata signature
-    ) external checkDeadline(deadline) {
+    function optIn(address who, address where, uint48 deadline, bytes calldata signature)
+        external
+        checkDeadline(deadline)
+    {
         if (!SignatureChecker.isValidSignatureNow(who, _hash(true, who, where, deadline), signature)) {
             revert InvalidSignature();
         }
@@ -99,21 +92,17 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function optOut(
-        address where
-    ) external {
+    function optOut(address where) external {
         _optOut(msg.sender, where);
     }
 
     /**
      * @inheritdoc IOptInService
      */
-    function optOut(
-        address who,
-        address where,
-        uint48 deadline,
-        bytes calldata signature
-    ) external checkDeadline(deadline) {
+    function optOut(address who, address where, uint48 deadline, bytes calldata signature)
+        external
+        checkDeadline(deadline)
+    {
         if (!SignatureChecker.isValidSignatureNow(who, _hash(false, who, where, deadline), signature)) {
             revert InvalidSignature();
         }
@@ -124,9 +113,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     /**
      * @inheritdoc IOptInService
      */
-    function increaseNonce(
-        address where
-    ) external {
+    function increaseNonce(address where) external {
         _increaseNonce(msg.sender, where);
     }
 

@@ -165,9 +165,7 @@ interface IVetoSlasher is IBaseSlasher {
      * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
      * @return completed if the slash was vetoed/executed
      */
-    function slashRequests(
-        uint256 slashIndex
-    )
+    function slashRequests(uint256 slashIndex)
         external
         view
         returns (

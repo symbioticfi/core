@@ -89,12 +89,10 @@ interface IBaseSlasher is IEntity {
      * @param hint hint for the checkpoint index
      * @return cumulative slash amount until the given timestamp (inclusively)
      */
-    function cumulativeSlashAt(
-        bytes32 subnetwork,
-        address operator,
-        uint48 timestamp,
-        bytes memory hint
-    ) external view returns (uint256);
+    function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        external
+        view
+        returns (uint256);
 
     /**
      * @notice Get a cumulative slash amount for an operator on a subnetwork.
@@ -112,10 +110,8 @@ interface IBaseSlasher is IEntity {
      * @param hints hints for the checkpoints' indexes
      * @return slashable amount of the stake
      */
-    function slashableStake(
-        bytes32 subnetwork,
-        address operator,
-        uint48 captureTimestamp,
-        bytes memory hints
-    ) external view returns (uint256);
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
+        external
+        view
+        returns (uint256);
 }

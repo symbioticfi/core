@@ -3,10 +3,10 @@ pragma solidity 0.8.25;
 
 import {Vault} from "./Vault.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+
 import {IVaultTokenized} from "../../interfaces/vault/IVaultTokenized.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -17,11 +17,9 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     using Checkpoints for Checkpoints.Trace256;
     using SafeERC20 for IERC20;
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory
-    ) Vault(delegatorFactory, slasherFactory, vaultFactory) {}
+    constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
+        Vault(delegatorFactory, slasherFactory, vaultFactory)
+    {}
 
     /**
      * @inheritdoc ERC20Upgradeable
@@ -40,29 +38,28 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     /**
      * @inheritdoc ERC20Upgradeable
      */
-    function balanceOf(
-        address account
-    ) public view override returns (uint256) {
+    function balanceOf(address account) public view override returns (uint256) {
         return activeSharesOf(account);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function deposit(
-        address onBehalfOf,
-        uint256 amount
-    ) public override(Vault, IVault) returns (uint256 depositedAmount, uint256 mintedShares) {
+    function deposit(address onBehalfOf, uint256 amount)
+        public
+        override(Vault, IVault)
+        returns (uint256 depositedAmount, uint256 mintedShares)
+    {
         (depositedAmount, mintedShares) = super.deposit(onBehalfOf, amount);
 
         emit Transfer(address(0), onBehalfOf, mintedShares);
     }
 
-    function _withdraw(
-        address claimer,
-        uint256 withdrawnAssets,
-        uint256 burnedShares
-    ) internal override returns (uint256 mintedShares) {
+    function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
+        internal
+        override
+        returns (uint256 mintedShares)
+    {
         mintedShares = super._withdraw(claimer, withdrawnAssets, burnedShares);
 
         emit Transfer(msg.sender, address(0), burnedShares);

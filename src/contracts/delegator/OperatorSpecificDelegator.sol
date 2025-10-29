@@ -3,12 +3,12 @@ pragma solidity 0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
 
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../interfaces/delegator/IOperatorSpecificDelegator.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
-
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -65,9 +65,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
     /**
      * @inheritdoc IOperatorSpecificDelegator
      */
-    function networkLimit(
-        bytes32 subnetwork
-    ) public view returns (uint256) {
+    function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
@@ -88,12 +86,12 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         emit SetNetworkLimit(subnetwork, amount);
     }
 
-    function _stakeAt(
-        bytes32 subnetwork,
-        address operator_,
-        uint48 timestamp,
-        bytes memory hints
-    ) internal view override returns (uint256, bytes memory) {
+    function _stakeAt(bytes32 subnetwork, address operator_, uint48 timestamp, bytes memory hints)
+        internal
+        view
+        override
+        returns (uint256, bytes memory)
+    {
         StakeHints memory stakesHints;
         if (hints.length > 0) {
             stakesHints = abi.decode(hints, (StakeHints));

@@ -10,9 +10,7 @@ contract SimpleBurner is IBurner {
 
     address public immutable COLLATERAL;
 
-    constructor(
-        address collateral
-    ) {
+    constructor(address collateral) {
         COLLATERAL = collateral;
     }
 

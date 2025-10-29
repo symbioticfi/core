@@ -11,23 +11,19 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract Slasher is BaseSlasher, ISlasher {
-    constructor(
-        address vaultFactory,
-        address networkMiddlewareService,
-        address slasherFactory,
-        uint64 entityType
-    ) BaseSlasher(vaultFactory, networkMiddlewareService, slasherFactory, entityType) {}
+    constructor(address vaultFactory, address networkMiddlewareService, address slasherFactory, uint64 entityType)
+        BaseSlasher(vaultFactory, networkMiddlewareService, slasherFactory, entityType)
+    {}
 
     /**
      * @inheritdoc ISlasher
      */
-    function slash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes calldata hints
-    ) external nonReentrant onlyNetworkMiddleware(subnetwork) returns (uint256 slashedAmount) {
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata hints)
+        external
+        nonReentrant
+        onlyNetworkMiddleware(subnetwork)
+        returns (uint256 slashedAmount)
+    {
         SlashHints memory slashHints;
         if (hints.length > 0) {
             slashHints = abi.decode(hints, (SlashHints));
@@ -64,7 +60,15 @@ contract Slasher is BaseSlasher, ISlasher {
         emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
     }
 
-    function __initialize(address, /* vault_ */ bytes memory data) internal override returns (BaseParams memory) {
+    function __initialize(
+        address,
+        /* vault_ */
+        bytes memory data
+    )
+        internal
+        override
+        returns (BaseParams memory)
+    {
         InitParams memory params = abi.decode(data, (InitParams));
 
         return params.baseParams;

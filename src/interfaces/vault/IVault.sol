@@ -177,20 +177,14 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @param hints hints for checkpoints' indexes
      * @return active balance for the account at the timestamp
      */
-    function activeBalanceOfAt(
-        address account,
-        uint48 timestamp,
-        bytes calldata hints
-    ) external view returns (uint256);
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata hints) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.
      * @param account account to get the active balance for
      * @return active balance for the account
      */
-    function activeBalanceOf(
-        address account
-    ) external view returns (uint256);
+    function activeBalanceOf(address account) external view returns (uint256);
 
     /**
      * @notice Get withdrawals for a particular account at a given epoch (zero if claimed).
@@ -205,9 +199,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @param account account to get the slashable collateral for
      * @return total amount of the account's slashable collateral
      */
-    function slashableBalanceOf(
-        address account
-    ) external view returns (uint256);
+    function slashableBalanceOf(address account) external view returns (uint256);
 
     /**
      * @notice Deposit collateral into the vault.
@@ -216,10 +208,9 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @return depositedAmount real amount of the collateral deposited
      * @return mintedShares amount of the active shares minted
      */
-    function deposit(
-        address onBehalfOf,
-        uint256 amount
-    ) external returns (uint256 depositedAmount, uint256 mintedShares);
+    function deposit(address onBehalfOf, uint256 amount)
+        external
+        returns (uint256 depositedAmount, uint256 mintedShares);
 
     /**
      * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).
@@ -269,9 +260,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @param status if enabling deposit whitelist
      * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
      */
-    function setDepositWhitelist(
-        bool status
-    ) external;
+    function setDepositWhitelist(bool status) external;
 
     /**
      * @notice Set a depositor whitelist status.
@@ -286,34 +275,26 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @param status if enabling deposit limit
      * @dev Only a IS_DEPOSIT_LIMIT_SET_ROLE holder can call this function.
      */
-    function setIsDepositLimit(
-        bool status
-    ) external;
+    function setIsDepositLimit(bool status) external;
 
     /**
      * @notice Set a deposit limit.
      * @param limit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
      * @dev Only a DEPOSIT_LIMIT_SET_ROLE holder can call this function.
      */
-    function setDepositLimit(
-        uint256 limit
-    ) external;
+    function setDepositLimit(uint256 limit) external;
 
     /**
      * @notice Set a delegator.
      * @param delegator vault's delegator to delegate the stake to networks and operators
      * @dev Can be set only once.
      */
-    function setDelegator(
-        address delegator
-    ) external;
+    function setDelegator(address delegator) external;
 
     /**
      * @notice Set a slasher.
      * @param slasher vault's slasher to provide a slashing mechanism to networks
      * @dev Can be set only once.
      */
-    function setSlasher(
-        address slasher
-    ) external;
+    function setSlasher(address slasher) external;
 }

@@ -1,0 +1,57 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+        exclude: "^(docs/autogen|snapshots/)"
+      - id: trailing-whitespace
+        exclude: "^(docs/autogen|snapshots/)"
+      - id: end-of-file-fixer
+        exclude: "^(docs/autogen|snapshots/)"
+      - id: check-merge-conflict
+      - id: check-json
+        exclude: "^(docs/autogen|snapshots/)"
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: sort-imports
+        name: Sort imports
+        description: Normalize and sort import statements in Solidity files
+        language: system
+        entry: python3 script/utils/sort_imports.py
+        files: "^(src|examples)/.*\\.sol$"
+        pass_filenames: true
+      - id: sort-errors
+        name: Sort solidity errors
+        description: Alphabetize error declarations in Solidity files
+        language: system
+        entry: python3 script/utils/sort_errors.py
+        files: "^(src|examples)/.*\\.sol$"
+        pass_filenames: true
+      - id: format
+        name: Format solidity code
+        description: Format solidity code with `forge fmt`
+        language: system
+        entry: forge fmt
+        files: '\.sol$'
+        exclude: "^lib/"
+        pass_filenames: true
+      - id: doc
+        name: Generate documentation
+        description: Generate docs with `forge doc`
+        language: system
+        entry: bash -lc 'forge build; rm -rf docs/autogen; forge doc -b -o docs/autogen'
+        pass_filenames: false
+      - id: forge-snapshots
+        name: Update forge snapshots
+        language: system
+        entry: bash -lc 'mkdir -p snapshots; forge build; forge build --sizes | tee snapshots/sizes.txt >/dev/null; forge test --isolate --gas-report | tee snapshots/gas.txt >/dev/null'
+        pass_filenames: false
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        name: Format non-solidity files with prettier
+        exclude: "^(docs/autogen|snapshots/)"

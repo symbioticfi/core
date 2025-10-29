@@ -513,13 +513,11 @@ contract OperatorOptInServiceTest is Test {
         service.optOut(operator, where, deadline, signature);
     }
 
-    function computeOptInDigest(
-        IOptInService _service,
-        address who,
-        address where,
-        uint256 nonce,
-        uint48 deadline
-    ) internal view returns (bytes32) {
+    function computeOptInDigest(IOptInService _service, address who, address where, uint256 nonce, uint48 deadline)
+        internal
+        view
+        returns (bytes32)
+    {
         bytes32 OPT_IN_TYPEHASH = keccak256("OptIn(address who,address where,uint256 nonce,uint48 deadline)");
         bytes32 structHash = keccak256(abi.encode(OPT_IN_TYPEHASH, who, where, nonce, deadline));
 
@@ -528,13 +526,11 @@ contract OperatorOptInServiceTest is Test {
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }
 
-    function computeOptOutDigest(
-        IOptInService _service,
-        address who,
-        address where,
-        uint256 nonce,
-        uint48 deadline
-    ) internal view returns (bytes32) {
+    function computeOptOutDigest(IOptInService _service, address who, address where, uint256 nonce, uint48 deadline)
+        internal
+        view
+        returns (bytes32)
+    {
         bytes32 OPT_OUT_TYPEHASH = keccak256("OptOut(address who,address where,uint256 nonce,uint48 deadline)");
         bytes32 structHash = keccak256(abi.encode(OPT_OUT_TYPEHASH, who, where, nonce, deadline));
 
@@ -543,9 +539,7 @@ contract OperatorOptInServiceTest is Test {
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }
 
-    function _computeDomainSeparator(
-        address _service
-    ) internal view returns (bytes32) {
+    function _computeDomainSeparator(address _service) internal view returns (bytes32) {
         bytes32 DOMAIN_TYPEHASH =
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
