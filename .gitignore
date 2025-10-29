@@ -54,6 +54,7 @@ out/
 broadcast/
 deployments/
 
+script/logs.txt
 lcov.info
 /target
 /coverage
