@@ -1,27 +1,6 @@
 # Compiler files
 cache/
 out/**/
-!out/Vault.sol/
-!out/VaultTokenized.sol/
-!out/NetworkRestakeDelegator.sol/
-!out/FullRestakeDelegator.sol/
-!out/OperatorSpecificDelegator.sol/
-!out/OperatorNetworkSpecificDelegator.sol/
-!out/Slasher.sol/
-!out/VetoSlasher.sol/
-!out/VaultFactory.sol/
-!out/DelegatorFactory.sol/
-!out/SlasherFactory.sol/
-!out/OperatorRegistry.sol/
-!out/NetworkRegistry.sol/
-!out/OptInService.sol/
-!out/MetadataService.sol/
-!out/NetworkMiddlewareService.sol/
-!out/VaultConfigurator.sol/
-!out/VaultHints.sol/
-!out/DelegatorHints.sol/
-!out/SlasherHints.sol/
-!out/OptInServiceHints.sol/
 
 # Ignore node_modules and dependencies
 node_modules
