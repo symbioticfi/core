@@ -1,5 +1,5 @@
 # Subnetwork
-[Git Source](https://github.com/symbioticfi/core/blob/45a7dbdd18fc5ac73ecf7310fc6816999bb8eef3/src/contracts/libraries/Subnetwork.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/0515f07ba8e6512d27a7c84c3818ae0c899b4806/src/contracts/libraries/Subnetwork.sol)
 
 This library adds functions to work with subnetworks.
 

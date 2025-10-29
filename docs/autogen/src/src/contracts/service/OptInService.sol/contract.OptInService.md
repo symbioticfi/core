@@ -1,5 +1,5 @@
 # OptInService
-[Git Source](https://github.com/symbioticfi/core/blob/45a7dbdd18fc5ac73ecf7310fc6816999bb8eef3/src/contracts/service/OptInService.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/0515f07ba8e6512d27a7c84c3818ae0c899b4806/src/contracts/service/OptInService.sol)
 
 **Inherits:**
 [StaticDelegateCallable](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/StaticDelegateCallable.sol/abstract.StaticDelegateCallable.md), EIP712, [IOptInService](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/service/IOptInService.sol/interface.IOptInService.md)

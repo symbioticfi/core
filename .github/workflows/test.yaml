@@ -17,7 +17,8 @@ env:
 jobs:
   forge-test:
     name: Foundry project
-    runs-on: ubuntu-latest
+    runs-on:
+      group: relay
     timeout-minutes: 180
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
@@ -35,3 +36,14 @@ jobs:
 
       - name: Run Forge tests
         run: forge test --isolate
+
+      - name: Run Forge coverage
+        run: |
+          forge coverage --report lcov
+        id: coverage
+        env:
+          COVERAGE: true
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
