@@ -33,27 +33,6 @@ contract CreateXWrapper {
     }
 
     /**
-     * @notice Computes the deterministic address for a CREATE deployment
-     * @dev Useful for predicting contract addresses before deployment
-     * @param deployer The address of the deployer (used in salt generation)
-     * @param nonce The nonce value for the deployment
-     * @return The computed address where the contract would be deployed
-     */
-    function computeCreateAddress(address deployer, uint256 nonce) public view returns (address) {
-        return ICreateX(CREATEX_FACTORY).computeCreateAddress(deployer, nonce);
-    }
-
-    /**
-     * @notice Computes the deterministic address for a CREATE deployment
-     * @dev Useful for predicting contract addresses before deployment
-     * @param nonce The nonce value for the deployment
-     * @return The computed address where the contract would be deployed
-     */
-    function computeCreateAddress(uint256 nonce) public view returns (address) {
-        return ICreateX(CREATEX_FACTORY).computeCreateAddress(nonce);
-    }
-
-    /**
      * @notice Deploys a contract using CREATE2
      * @param initCode The contract bytecode to deploy
      * @return The address of the deployed contract
@@ -81,29 +60,6 @@ contract CreateXWrapper {
      */
     function deployCreate2AndInit(bytes32 salt, bytes memory initCode, bytes memory data) public returns (address) {
         return ICreateX(CREATEX_FACTORY).deployCreate2AndInit(salt, initCode, data, ICreateX.Values(0, 0));
-    }
-
-    /**
-     * @notice Computes the deterministic address for a CREATE2 deployment
-     * @dev Useful for predicting contract addresses before deployment
-     * @param salt An 32-byte salt value for deterministic address generation
-     * @param initCodeHash The hash of the contract bytecode
-     * @param deployer The address of the deployer (used in salt generation)
-     * @return The computed address where the contract would be deployed
-     */
-    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash, address deployer) public view returns (address) {
-        return ICreateX(CREATEX_FACTORY).computeCreate2Address(salt, initCodeHash, deployer);
-    }
-
-    /**
-     * @notice Computes the deterministic address for a CREATE2 deployment
-     * @dev Useful for predicting contract addresses before deployment
-     * @param salt An 32-byte salt value for deterministic address generation
-     * @param initCodeHash The hash of the contract bytecode
-     * @return The computed address where the contract would be deployed
-     */
-    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash) public view returns (address) {
-        return ICreateX(CREATEX_FACTORY).computeCreate2Address(salt, initCodeHash);
     }
 
     /**

@@ -1,5 +1,5 @@
 # BaseSlasher
-[Git Source](https://github.com/symbioticfi/core/blob/72d444d21da2b07516bb08def1e4b57d35cf27c3/src/contracts/slasher/BaseSlasher.sol)
+[Git Source](https://github.com/symbioticfi/core/blob/454f363c3e06eeffbe2515756b914d72c84b8ae4/src/contracts/slasher/BaseSlasher.sol)
 
 **Inherits:**
 [Entity](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/Entity.sol/abstract.Entity.md), [StaticDelegateCallable](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/contracts/common/StaticDelegateCallable.sol/abstract.StaticDelegateCallable.md), ReentrancyGuardUpgradeable, [IBaseSlasher](/Users/andreikorokhov/symbiotic/core/docs/autogen/src/src/interfaces/slasher/IBaseSlasher.sol/interface.IBaseSlasher.md)
