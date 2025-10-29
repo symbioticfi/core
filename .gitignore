@@ -37,8 +37,8 @@ out
 .env
 
 # Ignore version control files
-.git
-.gitignore
+docs/autogen/.git
+docs/autogen/.gitignore
 
 # Ignore editor and OS-specific files
 *.swp
