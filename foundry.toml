@@ -50,15 +50,15 @@ compilation_restrictions = [
 
 [profile.default.fuzz]
 runs = 1000
-max_test_rejects = 262144
+max_test_rejects = 4294967295
 
 [profile.pr.fuzz]
 runs = 10000
-max_test_rejects = 262144
+max_test_rejects = 4294967295
 
 [profile.ci.fuzz]
 runs = 100000
-max_test_rejects = 262144
+max_test_rejects = 4294967295
 
 [profile.debug]
 via_ir = false
