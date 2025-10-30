@@ -5,8 +5,6 @@
 - [Requirements for merge](#requirements-for-merge)
 - [Branching](#branching)
   - [Main](#main)
-  - [Dev](#dev)
-  - [Feature](#feature)
   - [Audit](#audit)
 - [Code Practices](#code-practices)
   - [Code Style](#code-style)
@@ -19,7 +17,6 @@
   - [Gas Metering](#gas-metering)
 - [Deployment](#deployment)
   - [Bytecode Hash](#bytecode-hash)
-  - [Monorepo](#monorepo)
 - [Dependency Management](#dependency-management)
 - [Releases](#releases)
 
