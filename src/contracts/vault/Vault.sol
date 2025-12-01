@@ -70,8 +70,19 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function withdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
-        return
-            ERC4626Math.previewRedeem(withdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]);
+        uint256[] storage entries = withdrawalEntries[epoch][account];
+        uint256 claimableShares;
+        uint48 now_ = Time.timestamp();
+        uint256 length = entries.length;
+
+        for (uint256 i; i < length; ++i) {
+            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
+            if (unlockAt <= now_) {
+                claimableShares += shares;
+            }
+        }
+
+        return ERC4626Math.previewRedeem(claimableShares, withdrawals[epoch], withdrawalShares[epoch]);
     }
 
     /**
@@ -79,7 +90,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function slashableBalanceOf(address account) external view returns (uint256) {
         uint256 epoch = currentEpoch();
-        return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
+        // For slashing, we need ALL withdrawal shares (not just claimable ones)
+        uint256 epochShares = withdrawalSharesOf(epoch, account);
+        uint256 nextEpochShares = withdrawalSharesOf(epoch + 1, account);
+        return activeBalanceOf(account)
+            + ERC4626Math.previewRedeem(epochShares, withdrawals[epoch], withdrawalShares[epoch])
+            + ERC4626Math.previewRedeem(nextEpochShares, withdrawals[epoch + 1], withdrawalShares[epoch + 1]);
     }
 
     /**
@@ -382,27 +398,61 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         withdrawals[epoch] = withdrawals_ + withdrawnAssets;
         withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+
+        // Set fixed unlock time: now + epochDuration + 1
+        uint48 unlockAt = Time.timestamp() + epochDuration + 1;
+        uint256 packed = _packWithdrawal(mintedShares, unlockAt);
+        withdrawalEntries[epoch][claimer].push(packed);
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
     function _claim(uint256 epoch) internal returns (uint256 amount) {
-        if (epoch >= currentEpoch()) {
+        if (epoch > currentEpoch()) {
             revert InvalidEpoch();
         }
 
-        if (isWithdrawalsClaimed[epoch][msg.sender]) {
-            revert AlreadyClaimed();
+        uint256[] storage entries = withdrawalEntries[epoch][msg.sender];
+        uint256 length = entries.length;
+        if (length == 0) {
+            revert InsufficientClaim();
         }
 
-        amount = withdrawalsOf(epoch, msg.sender);
+        uint256 claimableShares;
+        uint48 now_ = Time.timestamp();
+        uint256 writeIndex;
+
+        // Iterate through all withdrawals and collect claimable ones
+        for (uint256 i; i < length; ++i) {
+            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
+
+            if (unlockAt <= now_) {
+                // This withdrawal is ready to claim
+                claimableShares += shares;
+            } else {
+                // This withdrawal is not ready yet, keep it in the array
+                if (writeIndex != i) {
+                    entries[writeIndex] = entries[i];
+                }
+                writeIndex++;
+            }
+        }
+
+        if (claimableShares == 0) {
+            revert WithdrawalNotReady();
+        }
+
+        // Remove claimed withdrawals by resizing the array
+        // Pop elements from the end until we reach writeIndex
+        while (entries.length > writeIndex) {
+            entries.pop();
+        }
+
+        amount = ERC4626Math.previewRedeem(claimableShares, withdrawals[epoch], withdrawalShares[epoch]);
 
         if (amount == 0) {
             revert InsufficientClaim();
         }
-
-        isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
     function _initialize(uint64, address, bytes memory data) internal virtual override {

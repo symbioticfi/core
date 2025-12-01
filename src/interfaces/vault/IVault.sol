@@ -31,6 +31,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error SlasherAlreadyInitialized();
     error TooMuchRedeem();
     error TooMuchWithdraw();
+    error WithdrawalNotReady();
 
     /**
      * @notice Initial parameters needed for a vault deployment.

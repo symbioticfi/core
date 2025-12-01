@@ -117,12 +117,55 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    mapping(uint256 epoch => mapping(address account => uint256 amount)) public withdrawalSharesOf;
+    mapping(uint256 epoch => mapping(address account => uint256[])) public withdrawalEntries;
 
     /**
      * @inheritdoc IVaultStorage
      */
     mapping(uint256 epoch => mapping(address account => bool value)) public isWithdrawalsClaimed;
+
+    /**
+     * @notice Get total withdrawal shares for a particular account at a given epoch (for slashing).
+     * @param epoch epoch to get the total withdrawal shares for the account at
+     * @param account account to get the total withdrawal shares for
+     * @return total number of withdrawal shares for the account at the epoch
+     */
+    function withdrawalSharesOf(uint256 epoch, address account) public view returns (uint256) {
+        uint256[] storage entries = withdrawalEntries[epoch][account];
+        uint256 total;
+        uint256 length = entries.length;
+        for (uint256 i; i < length; ++i) {
+            // Extract shares from upper 208 bits
+            total += entries[i] >> 48;
+        }
+        return total;
+    }
+
+    /**
+     * @notice Pack shares and unlock timestamp into a single uint256.
+     * @param shares withdrawal shares (max 2^208 - 1)
+     * @param unlockAt unlock timestamp (uint48)
+     * @return packed value: (shares << 48) | unlockAt
+     */
+    function _packWithdrawal(uint256 shares, uint48 unlockAt) internal pure returns (uint256) {
+        // Ensure shares fits in 208 bits
+        uint256 maxShares = type(uint256).max >> 48; // 2^208 - 1
+        if (shares > maxShares) {
+            revert(); // Shares too large
+        }
+        return (shares << 48) | uint256(unlockAt);
+    }
+
+    /**
+     * @notice Unpack shares and unlock timestamp from a packed uint256.
+     * @param packed packed value
+     * @return shares withdrawal shares
+     * @return unlockAt unlock timestamp
+     */
+    function _unpackWithdrawal(uint256 packed) internal pure returns (uint256 shares, uint48 unlockAt) {
+        unlockAt = uint48(packed & type(uint48).max);
+        shares = packed >> 48;
+    }
 
     Checkpoints.Trace256 internal _activeShares;
 

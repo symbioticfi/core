@@ -214,6 +214,14 @@ interface IVaultStorage {
     function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
 
     /**
+     * @notice Get all withdrawal entries for a particular account at a given epoch.
+     * @param epoch epoch to get the withdrawal entries for the account at
+     * @param account account to get the withdrawal entries for
+     * @return array of packed withdrawal entries (shares << 48 | unlockAt)
+     */
+    function withdrawalEntries(uint256 epoch, address account) external view returns (uint256[] memory);
+
+    /**
      * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
      * @param epoch epoch to check the withdrawals for the account at
      * @param account account to check the withdrawals for
