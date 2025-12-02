@@ -40,8 +40,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function totalStake() public view returns (uint256) {
-        uint256 epoch = currentEpoch();
-        return activeStake() + withdrawals[epoch] + withdrawals[epoch + 1];
+        (uint256 pendingWithdrawals,,,) = _previewWithdrawalTotals(Time.timestamp());
+        // Total slashable stake = active stake + pending (non-claimable) withdrawals
+        return activeStake() + pendingWithdrawals;
     }
 
     /**
@@ -67,13 +68,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     }
 
     /**
-     * @inheritdoc IVault
+     * @notice Get claimable withdrawals for a particular account.
+     * @param account account to get the withdrawals for
+     * @return claimable withdrawals for the account
      */
-    function withdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
-        uint256[] storage entries = withdrawalEntries[epoch][account];
+    function withdrawalsOf(address account) public view returns (uint256) {
+        uint256[] storage entries = withdrawalEntries[account];
         uint256 claimableShares;
         uint48 now_ = Time.timestamp();
         uint256 length = entries.length;
+        (, , uint256 claimableWithdrawals_, uint256 claimableWithdrawalShares_) = _previewWithdrawalTotals(now_);
 
         for (uint256 i; i < length; ++i) {
             (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
@@ -82,20 +86,123 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             }
         }
 
-        return ERC4626Math.previewRedeem(claimableShares, withdrawals[epoch], withdrawalShares[epoch]);
+        return ERC4626Math.previewRedeem(claimableShares, claimableWithdrawals_, claimableWithdrawalShares_);
     }
 
     /**
      * @inheritdoc IVault
      */
     function slashableBalanceOf(address account) external view returns (uint256) {
-        uint256 epoch = currentEpoch();
-        // For slashing, we need ALL withdrawal shares (not just claimable ones)
-        uint256 epochShares = withdrawalSharesOf(epoch, account);
-        uint256 nextEpochShares = withdrawalSharesOf(epoch + 1, account);
-        return activeBalanceOf(account)
-            + ERC4626Math.previewRedeem(epochShares, withdrawals[epoch], withdrawalShares[epoch])
-            + ERC4626Math.previewRedeem(nextEpochShares, withdrawals[epoch + 1], withdrawalShares[epoch + 1]);
+        uint256 total = activeBalanceOf(account);
+        uint48 now_ = Time.timestamp();
+
+        // Sum all slashable withdrawal shares (unlockAt > now)
+        uint256 slashableShares = withdrawalSharesOf(account);
+
+        if (slashableShares > 0) {
+            (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_,,) = _previewWithdrawalTotals(now_);
+            total += ERC4626Math.previewRedeem(slashableShares, pendingWithdrawals_, pendingWithdrawalShares_);
+        }
+
+        return total;
+    }
+
+    function _updateWithdrawalQueue(uint48 now_)
+        internal
+        returns (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_)
+    {
+        pendingWithdrawals_ = withdrawals;
+        pendingWithdrawalShares_ = withdrawalShares;
+
+        uint256 claimableWithdrawals_ = claimableWithdrawals;
+        uint256 claimableWithdrawalShares_ = claimableWithdrawalShares;
+
+        uint256 cursor = _withdrawalQueueCursor;
+        uint256 length = _withdrawalQueue.length;
+
+        while (cursor < length) {
+            WithdrawalWindow storage window = _withdrawalQueue[cursor];
+            if (window.unlockAt > now_) {
+                break;
+            }
+
+            uint256 windowShares = window.shares;
+            uint256 windowAssets =
+                ERC4626Math.previewRedeem(windowShares, pendingWithdrawals_, pendingWithdrawalShares_);
+
+            pendingWithdrawals_ -= windowAssets;
+            pendingWithdrawalShares_ -= windowShares;
+            claimableWithdrawals_ += windowAssets;
+            claimableWithdrawalShares_ += windowShares;
+
+            unchecked {
+                ++cursor;
+            }
+        }
+
+        if (cursor != _withdrawalQueueCursor) {
+            withdrawals = pendingWithdrawals_;
+            withdrawalShares = pendingWithdrawalShares_;
+            claimableWithdrawals = claimableWithdrawals_;
+            claimableWithdrawalShares = claimableWithdrawalShares_;
+            _withdrawalQueueCursor = cursor;
+
+            if (cursor == length && length > 0) {
+                delete _withdrawalQueue;
+                _withdrawalQueueCursor = 0;
+            }
+        }
+    }
+
+    function _previewWithdrawalTotals(uint48 now_)
+        internal
+        view
+        returns (
+            uint256 pendingWithdrawals_,
+            uint256 pendingWithdrawalShares_,
+            uint256 claimableWithdrawals_,
+            uint256 claimableWithdrawalShares_
+        )
+    {
+        pendingWithdrawals_ = withdrawals;
+        pendingWithdrawalShares_ = withdrawalShares;
+        claimableWithdrawals_ = claimableWithdrawals;
+        claimableWithdrawalShares_ = claimableWithdrawalShares;
+
+        uint256 cursor = _withdrawalQueueCursor;
+        uint256 length = _withdrawalQueue.length;
+
+        while (cursor < length) {
+            WithdrawalWindow storage window = _withdrawalQueue[cursor];
+            if (window.unlockAt > now_) {
+                break;
+            }
+
+            uint256 windowShares = window.shares;
+            uint256 windowAssets =
+                ERC4626Math.previewRedeem(windowShares, pendingWithdrawals_, pendingWithdrawalShares_);
+
+            pendingWithdrawals_ -= windowAssets;
+            pendingWithdrawalShares_ -= windowShares;
+            claimableWithdrawals_ += windowAssets;
+            claimableWithdrawalShares_ += windowShares;
+
+            unchecked {
+                ++cursor;
+            }
+        }
+    }
+
+    function _pushWithdrawalWindow(uint256 shares, uint48 unlockAt) internal {
+        uint256 length = _withdrawalQueue.length;
+        if (length > 0) {
+            WithdrawalWindow storage last = _withdrawalQueue[length - 1];
+            if (last.unlockAt == unlockAt) {
+                last.shares += shares;
+                return;
+            }
+        }
+        _withdrawalQueue.push(WithdrawalWindow({unlockAt: unlockAt, shares: shares}));
     }
 
     /**
@@ -190,40 +297,20 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     }
 
     /**
-     * @inheritdoc IVault
+     * @notice Claim all claimable collateral from the vault.
+     * @param recipient account that receives the collateral
+     * @return amount amount of the collateral claimed
      */
-    function claim(address recipient, uint256 epoch) external nonReentrant returns (uint256 amount) {
+    function claim(address recipient) external nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
 
-        amount = _claim(epoch);
+        amount = _claim();
 
         IERC20(collateral).safeTransfer(recipient, amount);
 
-        emit Claim(msg.sender, recipient, epoch, amount);
-    }
-
-    /**
-     * @inheritdoc IVault
-     */
-    function claimBatch(address recipient, uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
-        if (recipient == address(0)) {
-            revert InvalidRecipient();
-        }
-
-        uint256 length = epochs.length;
-        if (length == 0) {
-            revert InvalidLengthEpochs();
-        }
-
-        for (uint256 i; i < length; ++i) {
-            amount += _claim(epochs[i]);
-        }
-
-        IERC20(collateral).safeTransfer(recipient, amount);
-
-        emit ClaimBatch(msg.sender, recipient, epochs, amount);
+        emit Claim(msg.sender, recipient, amount);
     }
 
     /**
@@ -234,41 +321,36 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
 
-        uint256 currentEpoch_ = currentEpoch();
-        uint256 captureEpoch = epochAt(captureTimestamp);
-        if ((currentEpoch_ > 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
+        uint48 now_ = Time.timestamp();
+        (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_) = _updateWithdrawalQueue(now_);
+
+        // Validate capture timestamp: must be within the slashing guarantee window
+        // The guarantee window is: captureTimestamp to captureTimestamp + withdrawalDelay
+        // We can only slash if the guarantee is still valid (now <= captureTimestamp + withdrawalDelay)
+        if (captureTimestamp > now_ || now_ > captureTimestamp + withdrawalDelay) {
             revert InvalidCaptureEpoch();
         }
 
         uint256 activeStake_ = activeStake();
-        uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
-        if (captureEpoch == currentEpoch_) {
-            uint256 slashableStake = activeStake_ + nextWithdrawals;
-            slashedAmount = Math.min(amount, slashableStake);
-            if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
-                uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
 
-                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
-                withdrawals[captureEpoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-            }
-        } else {
-            uint256 withdrawals_ = withdrawals[currentEpoch_];
-            uint256 slashableStake = activeStake_ + withdrawals_ + nextWithdrawals;
-            slashedAmount = Math.min(amount, slashableStake);
-            if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
-                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableStake);
-                uint256 withdrawalsSlashed = slashedAmount - activeSlashed - nextWithdrawalsSlashed;
+        // Calculate total slashable stake: active stake + pending withdrawals
+        uint256 slashableStake = activeStake_ + pendingWithdrawals_;
+        slashedAmount = Math.min(amount, slashableStake);
 
-                if (withdrawals_ < withdrawalsSlashed) {
-                    nextWithdrawalsSlashed += withdrawalsSlashed - withdrawals_;
-                    withdrawalsSlashed = withdrawals_;
-                }
+        if (slashedAmount > 0) {
+            uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
+            uint256 withdrawalsSlashed = slashedAmount - activeSlashed;
 
-                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
-                withdrawals[currentEpoch_ + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-                withdrawals[currentEpoch_] = withdrawals_ - withdrawalsSlashed;
+            _activeStake.push(now_, activeStake_ - activeSlashed);
+            withdrawals = pendingWithdrawals_ - withdrawalsSlashed;
+            // Note: withdrawalShares are reduced proportionally when withdrawals are reduced
+            // The exchange rate (withdrawals / withdrawalShares) should remain constant
+            // So we reduce shares proportionally: withdrawalShares = withdrawalShares * (1 - withdrawalsSlashed / withdrawals)
+            if (withdrawals > 0) {
+                withdrawalShares =
+                    pendingWithdrawalShares_.mulDiv(withdrawals, pendingWithdrawals_, Math.Rounding.Floor);
+            } else {
+                withdrawalShares = 0;
             }
         }
 
@@ -386,40 +468,39 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         virtual
         returns (uint256 mintedShares)
     {
-        _activeSharesOf[msg.sender].push(Time.timestamp(), activeSharesOf(msg.sender) - burnedShares);
-        _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
-        _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
+        uint48 now_ = Time.timestamp();
+        (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_) = _updateWithdrawalQueue(now_);
 
-        uint256 epoch = currentEpoch() + 1;
-        uint256 withdrawals_ = withdrawals[epoch];
-        uint256 withdrawalsShares_ = withdrawalShares[epoch];
+        _activeSharesOf[msg.sender].push(now_, activeSharesOf(msg.sender) - burnedShares);
+        _activeShares.push(now_, activeShares() - burnedShares);
+        _activeStake.push(now_, activeStake() - withdrawnAssets);
 
-        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, withdrawalsShares_, withdrawals_);
+        // Calculate unlock time: now + withdrawalDelay
+        uint48 unlockAt = now_ + withdrawalDelay;
 
-        withdrawals[epoch] = withdrawals_ + withdrawnAssets;
-        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
+        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, pendingWithdrawalShares_, pendingWithdrawals_);
 
-        // Set fixed unlock time: now + epochDuration + 1
-        uint48 unlockAt = Time.timestamp() + epochDuration + 1;
+        withdrawals = pendingWithdrawals_ + withdrawnAssets;
+        withdrawalShares = pendingWithdrawalShares_ + mintedShares;
+
         uint256 packed = _packWithdrawal(mintedShares, unlockAt);
-        withdrawalEntries[epoch][claimer].push(packed);
+        withdrawalEntries[claimer].push(packed);
+        _pushWithdrawalWindow(mintedShares, unlockAt);
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
-    function _claim(uint256 epoch) internal returns (uint256 amount) {
-        if (epoch > currentEpoch()) {
-            revert InvalidEpoch();
-        }
+    function _claim() internal returns (uint256 amount) {
+        uint48 now_ = Time.timestamp();
+        _updateWithdrawalQueue(now_);
 
-        uint256[] storage entries = withdrawalEntries[epoch][msg.sender];
+        uint256[] storage entries = withdrawalEntries[msg.sender];
         uint256 length = entries.length;
         if (length == 0) {
             revert InsufficientClaim();
         }
 
         uint256 claimableShares;
-        uint48 now_ = Time.timestamp();
         uint256 writeIndex;
 
         // Iterate through all withdrawals and collect claimable ones
@@ -448,11 +529,15 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             entries.pop();
         }
 
-        amount = ERC4626Math.previewRedeem(claimableShares, withdrawals[epoch], withdrawalShares[epoch]);
+        amount = ERC4626Math.previewRedeem(claimableShares, claimableWithdrawals, claimableWithdrawalShares);
 
         if (amount == 0) {
             revert InsufficientClaim();
         }
+
+        // Update global pool after claiming
+        claimableWithdrawals = claimableWithdrawals - amount;
+        claimableWithdrawalShares = claimableWithdrawalShares - claimableShares;
     }
 
     function _initialize(uint64, address, bytes memory data) internal virtual override {
@@ -462,7 +547,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidCollateral();
         }
 
-        if (params.epochDuration == 0) {
+        if (params.withdrawalDelay == 0) {
             revert InvalidEpochDuration();
         }
 
@@ -492,8 +577,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         burner = params.burner;
 
-        epochDurationInit = Time.timestamp();
-        epochDuration = params.epochDuration;
+        withdrawalDelay = params.withdrawalDelay;
 
         depositWhitelist = params.depositWhitelist;
 

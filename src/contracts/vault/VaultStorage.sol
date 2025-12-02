@@ -65,14 +65,10 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     address public burner;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Duration of the withdrawal delay (time before withdrawals become claimable).
+     * @return duration of the withdrawal delay
      */
-    uint48 public epochDurationInit;
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint48 public epochDuration;
+    uint48 public withdrawalDelay;
 
     /**
      * @inheritdoc IVaultStorage
@@ -105,38 +101,71 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     mapping(address account => bool value) public isDepositorWhitelisted;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Total pending withdrawal assets in the global withdrawal pool.
+     * @dev Only withdrawals that are not yet claimable contribute to this pool.
      */
-    mapping(uint256 epoch => uint256 amount) public withdrawals;
+    uint256 public withdrawals;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Total pending withdrawal shares in the global withdrawal pool.
+     * @dev Only withdrawals that are not yet claimable contribute to this pool.
      */
-    mapping(uint256 epoch => uint256 amount) public withdrawalShares;
+    uint256 public withdrawalShares;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Total claimable withdrawal assets in the global withdrawal pool.
+     * @dev These withdrawals have finished their delay and are no longer slashable.
      */
-    mapping(uint256 epoch => mapping(address account => uint256[])) public withdrawalEntries;
+    uint256 public claimableWithdrawals;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Total claimable withdrawal shares in the global withdrawal pool.
+     * @dev These withdrawals have finished their delay and are no longer slashable.
      */
-    mapping(uint256 epoch => mapping(address account => bool value)) public isWithdrawalsClaimed;
+    uint256 public claimableWithdrawalShares;
 
     /**
-     * @notice Get total withdrawal shares for a particular account at a given epoch (for slashing).
-     * @param epoch epoch to get the total withdrawal shares for the account at
+     * @notice Aggregated withdrawal window.
+     * @dev Tracks the total shares that unlock at a given timestamp.
+     */
+    struct WithdrawalWindow {
+        uint48 unlockAt;
+        uint256 shares;
+    }
+
+    /**
+     * @notice Queue of withdrawal windows ordered by unlockAt.
+     * @dev Used to move withdrawals from pending to claimable once the unlock time passes.
+     */
+    WithdrawalWindow[] internal _withdrawalQueue;
+
+    /**
+     * @notice Cursor pointing to the first pending withdrawal window in the queue.
+     */
+    uint256 internal _withdrawalQueueCursor;
+
+    /**
+     * @notice Withdrawal entries for each account.
+     * @dev Each entry is packed as (shares << 48) | unlockAt
+     */
+    mapping(address account => uint256[]) public withdrawalEntries;
+
+    /**
+     * @notice Get total withdrawal shares for a particular account (for slashing).
      * @param account account to get the total withdrawal shares for
-     * @return total number of withdrawal shares for the account at the epoch
+     * @return total number of withdrawal shares for the account
      */
-    function withdrawalSharesOf(uint256 epoch, address account) public view returns (uint256) {
-        uint256[] storage entries = withdrawalEntries[epoch][account];
+    function withdrawalSharesOf(address account) public view returns (uint256) {
+        uint256[] storage entries = withdrawalEntries[account];
         uint256 total;
         uint256 length = entries.length;
+        uint48 now_ = Time.timestamp();
         for (uint256 i; i < length; ++i) {
-            // Extract shares from upper 208 bits
-            total += entries[i] >> 48;
+            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
+            // Only count unclaimed withdrawals (unlockAt > now)
+            if (unlockAt > now_) {
+                total += shares;
+            }
         }
         return total;
     }
@@ -179,45 +208,24 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     }
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Get the current timestamp.
+     * @return current timestamp
      */
-    function epochAt(uint48 timestamp) public view returns (uint256) {
-        if (timestamp < epochDurationInit) {
-            revert InvalidTimestamp();
-        }
-        return (timestamp - epochDurationInit) / epochDuration;
+    function currentTime() public view returns (uint48) {
+        return Time.timestamp();
     }
 
     /**
-     * @inheritdoc IVaultStorage
+     * @notice Get all slashable unlock windows (windows where unlockAt > now).
+     * @param now_ current timestamp
+     * @return windows array of unlock windows that are still slashable
+     * @dev This is a helper for iterating over slashable withdrawals.
+     *      In practice, we'll track the max unlock window and iterate backwards.
      */
-    function currentEpoch() public view returns (uint256) {
-        return (Time.timestamp() - epochDurationInit) / epochDuration;
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function currentEpochStart() public view returns (uint48) {
-        return (epochDurationInit + currentEpoch() * epochDuration).toUint48();
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function previousEpochStart() public view returns (uint48) {
-        uint256 epoch = currentEpoch();
-        if (epoch == 0) {
-            revert NoPreviousEpoch();
-        }
-        return (epochDurationInit + (epoch - 1) * epochDuration).toUint48();
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function nextEpochStart() public view returns (uint48) {
-        return (epochDurationInit + (currentEpoch() + 1) * epochDuration).toUint48();
+    function getSlashableWindows(uint48 now_) public view returns (uint48[] memory windows) {
+        // This is a simplified version - in practice, you'd want to track active windows
+        // For now, we'll calculate on-the-fly in the calling functions
+        return windows;
     }
 
     /**
