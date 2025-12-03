@@ -13,16 +13,18 @@ import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {DoubleEndedQueue} from "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
+    using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
     using Math for uint256;
-    using SafeCast for uint256;
     using SafeERC20 for IERC20;
+
+    uint48 private constant BUCKET_DURATION = 1 hours;
 
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         VaultStorage(delegatorFactory, slasherFactory)
@@ -36,7 +38,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         return isDelegatorInitialized && isSlasherInitialized;
     }
 
-    /**
+        /**
      * @inheritdoc IVault
      */
     function totalStake() public view returns (uint256) {
@@ -73,14 +75,15 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @return claimable withdrawals for the account
      */
     function withdrawalsOf(address account) public view returns (uint256) {
-        uint256[] storage entries = withdrawalEntries[account];
+        DoubleEndedQueue.Bytes32Deque storage queue = _withdrawalEntries[account];
         uint256 claimableShares;
         uint48 now_ = Time.timestamp();
-        uint256 length = entries.length;
-        (, , uint256 claimableWithdrawals_, uint256 claimableWithdrawalShares_) = _previewWithdrawalTotals(now_);
+        uint256 length = queue.length();
+        (,, uint256 claimableWithdrawals_, uint256 claimableWithdrawalShares_) = _previewWithdrawalTotals(now_);
 
         for (uint256 i; i < length; ++i) {
-            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
+            uint256 packed = uint256(queue.at(i));
+            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(packed);
             if (unlockAt <= now_) {
                 claimableShares += shares;
             }
@@ -105,104 +108,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         return total;
-    }
-
-    function _updateWithdrawalQueue(uint48 now_)
-        internal
-        returns (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_)
-    {
-        pendingWithdrawals_ = withdrawals;
-        pendingWithdrawalShares_ = withdrawalShares;
-
-        uint256 claimableWithdrawals_ = claimableWithdrawals;
-        uint256 claimableWithdrawalShares_ = claimableWithdrawalShares;
-
-        uint256 cursor = _withdrawalQueueCursor;
-        uint256 length = _withdrawalQueue.length;
-
-        while (cursor < length) {
-            WithdrawalWindow storage window = _withdrawalQueue[cursor];
-            if (window.unlockAt > now_) {
-                break;
-            }
-
-            uint256 windowShares = window.shares;
-            uint256 windowAssets =
-                ERC4626Math.previewRedeem(windowShares, pendingWithdrawals_, pendingWithdrawalShares_);
-
-            pendingWithdrawals_ -= windowAssets;
-            pendingWithdrawalShares_ -= windowShares;
-            claimableWithdrawals_ += windowAssets;
-            claimableWithdrawalShares_ += windowShares;
-
-            unchecked {
-                ++cursor;
-            }
-        }
-
-        if (cursor != _withdrawalQueueCursor) {
-            withdrawals = pendingWithdrawals_;
-            withdrawalShares = pendingWithdrawalShares_;
-            claimableWithdrawals = claimableWithdrawals_;
-            claimableWithdrawalShares = claimableWithdrawalShares_;
-            _withdrawalQueueCursor = cursor;
-
-            if (cursor == length && length > 0) {
-                delete _withdrawalQueue;
-                _withdrawalQueueCursor = 0;
-            }
-        }
-    }
-
-    function _previewWithdrawalTotals(uint48 now_)
-        internal
-        view
-        returns (
-            uint256 pendingWithdrawals_,
-            uint256 pendingWithdrawalShares_,
-            uint256 claimableWithdrawals_,
-            uint256 claimableWithdrawalShares_
-        )
-    {
-        pendingWithdrawals_ = withdrawals;
-        pendingWithdrawalShares_ = withdrawalShares;
-        claimableWithdrawals_ = claimableWithdrawals;
-        claimableWithdrawalShares_ = claimableWithdrawalShares;
-
-        uint256 cursor = _withdrawalQueueCursor;
-        uint256 length = _withdrawalQueue.length;
-
-        while (cursor < length) {
-            WithdrawalWindow storage window = _withdrawalQueue[cursor];
-            if (window.unlockAt > now_) {
-                break;
-            }
-
-            uint256 windowShares = window.shares;
-            uint256 windowAssets =
-                ERC4626Math.previewRedeem(windowShares, pendingWithdrawals_, pendingWithdrawalShares_);
-
-            pendingWithdrawals_ -= windowAssets;
-            pendingWithdrawalShares_ -= windowShares;
-            claimableWithdrawals_ += windowAssets;
-            claimableWithdrawalShares_ += windowShares;
-
-            unchecked {
-                ++cursor;
-            }
-        }
-    }
-
-    function _pushWithdrawalWindow(uint256 shares, uint48 unlockAt) internal {
-        uint256 length = _withdrawalQueue.length;
-        if (length > 0) {
-            WithdrawalWindow storage last = _withdrawalQueue[length - 1];
-            if (last.unlockAt == unlockAt) {
-                last.shares += shares;
-                return;
-            }
-        }
-        _withdrawalQueue.push(WithdrawalWindow({unlockAt: unlockAt, shares: shares}));
     }
 
     /**
@@ -322,7 +227,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         uint48 now_ = Time.timestamp();
-        (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_) = _updateWithdrawalQueue(now_);
+        (uint256 pendingWithdrawals_,) = _processMaturedBuckets(now_);
 
         // Validate capture timestamp: must be within the slashing guarantee window
         // The guarantee window is: captureTimestamp to captureTimestamp + withdrawalDelay
@@ -343,15 +248,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
             _activeStake.push(now_, activeStake_ - activeSlashed);
             withdrawals = pendingWithdrawals_ - withdrawalsSlashed;
-            // Note: withdrawalShares are reduced proportionally when withdrawals are reduced
-            // The exchange rate (withdrawals / withdrawalShares) should remain constant
-            // So we reduce shares proportionally: withdrawalShares = withdrawalShares * (1 - withdrawalsSlashed / withdrawals)
-            if (withdrawals > 0) {
-                withdrawalShares =
-                    pendingWithdrawalShares_.mulDiv(withdrawals, pendingWithdrawals_, Math.Rounding.Floor);
-            } else {
-                withdrawalShares = 0;
-            }
         }
 
         if (slashedAmount > 0) {
@@ -463,70 +359,237 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetSlasher(slasher_);
     }
 
+    /**
+     * @notice Get all withdrawal entries for a particular account.
+     * @param account account to get the withdrawal entries for
+     * @return array of packed withdrawal entries (shares << 48 | unlockAt)
+     */
+    function withdrawalEntries(address account) external view returns (uint256[] memory) {
+        DoubleEndedQueue.Bytes32Deque storage queue = _withdrawalEntries[account];
+        uint256 length = queue.length();
+        uint256[] memory result = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            result[i] = uint256(queue.at(i));
+        }
+
+        return result;
+    }
+
+    function _recordWithdrawalShares(uint256 bucketIndex, uint256 mintedShares) internal {
+        if (mintedShares == 0) {
+            return;
+        }
+
+        uint256 length_ = _withdrawalBucketCumulativeShares.length;
+
+        if (length_ == 0) {
+            if (bucketIndex != 0) {
+                revert InvalidTimestamp();
+            }
+            _withdrawalBucketCumulativeShares.push(mintedShares);
+            return;
+        }
+
+        if (bucketIndex == length_ - 1) {
+            _withdrawalBucketCumulativeShares[bucketIndex] += mintedShares;
+            return;
+        }
+
+        if (bucketIndex == length_) {
+            uint256 previous = _withdrawalBucketCumulativeShares[length_ - 1];
+            _withdrawalBucketCumulativeShares.push(previous + mintedShares);
+            return;
+        }
+
+        revert InvalidTimestamp();
+    }
+
+    function _bucketSharesBetween(uint256 fromIndex, uint256 toIndex) internal view returns (uint256) {
+        if (fromIndex > toIndex) {
+            return 0;
+        }
+
+        uint256 length_ = _withdrawalBucketCumulativeShares.length;
+        if (length_ == 0 || fromIndex >= length_) {
+            return 0;
+        }
+
+        if (toIndex >= length_) {
+            revert InvalidTimestamp();
+        }
+
+        uint256 upper = _withdrawalBucketCumulativeShares[toIndex];
+        uint256 lower = fromIndex == 0 ? 0 : _withdrawalBucketCumulativeShares[fromIndex - 1];
+        return upper - lower;
+    }
+
+    function _bucketizeUnlock(uint48 unlockAt) internal pure returns (uint48) {
+        uint256 unlockAt256 = unlockAt;
+        uint256 bucket =
+            (unlockAt256 + uint256(BUCKET_DURATION) - 1) / uint256(BUCKET_DURATION) * uint256(BUCKET_DURATION);
+        if (bucket > type(uint48).max) {
+            revert InvalidTimestamp();
+        }
+        return uint48(bucket);
+    }
+
+    function _bucketIndex(uint48 unlockAt) internal returns (uint256 index) {
+        (bool exists, uint48 lastKey, uint256 lastIndex) = _withdrawalBucketTrace.latestCheckpoint();
+        if (!exists) {
+            _withdrawalBucketTrace.push(unlockAt, 0);
+            return 0;
+        }
+
+        if (unlockAt < lastKey) {
+            revert InvalidTimestamp();
+        }
+
+        if (unlockAt == lastKey) {
+            return lastIndex;
+        }
+
+        index = lastIndex + 1;
+        _withdrawalBucketTrace.push(unlockAt, index);
+    }
+
+    function _lastMaturedBucket(uint48 now_) internal view returns (bool hasMatured, uint256 index) {
+        (bool exists,,) = _withdrawalBucketTrace.latestCheckpoint();
+        if (!exists) {
+            return (false, 0);
+        }
+
+        Checkpoints.Checkpoint256 memory checkpoint = _withdrawalBucketTrace.at(uint32(_processedWithdrawalBucket));
+        if (checkpoint._key > now_) {
+            return (false, 0);
+        }
+
+        uint256 matureIndex = _withdrawalBucketTrace.upperLookupRecent(now_);
+        return (true, matureIndex);
+    }
+
+    function _processMaturedBuckets(uint48 now_)
+        internal
+        returns (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_)
+    {
+        pendingWithdrawals_ = withdrawals;
+        pendingWithdrawalShares_ = withdrawalShares;
+
+        (bool hasMatured, uint256 maturedIndex) = _lastMaturedBucket(now_);
+        if (!hasMatured || maturedIndex < _processedWithdrawalBucket) {
+            return (pendingWithdrawals_, pendingWithdrawalShares_);
+        }
+
+        uint256 maturedShares = _bucketSharesBetween(_processedWithdrawalBucket, maturedIndex);
+        if (maturedShares == 0) {
+            _processedWithdrawalBucket = maturedIndex + 1;
+            return (pendingWithdrawals_, pendingWithdrawalShares_);
+        }
+
+        uint256 maturedAssets = ERC4626Math.previewRedeem(maturedShares, pendingWithdrawals_, pendingWithdrawalShares_);
+
+        pendingWithdrawals_ -= maturedAssets;
+        pendingWithdrawalShares_ -= maturedShares;
+
+        withdrawals = pendingWithdrawals_;
+        withdrawalShares = pendingWithdrawalShares_;
+        claimableWithdrawals = claimableWithdrawals + maturedAssets;
+        claimableWithdrawalShares = claimableWithdrawalShares + maturedShares;
+
+        _processedWithdrawalBucket = maturedIndex + 1;
+    }
+
+    function _previewWithdrawalTotals(uint48 now_)
+        internal
+        view
+        returns (
+            uint256 pendingWithdrawals_,
+            uint256 pendingWithdrawalShares_,
+            uint256 claimableWithdrawals_,
+            uint256 claimableWithdrawalShares_
+        )
+    {
+        pendingWithdrawals_ = withdrawals;
+        pendingWithdrawalShares_ = withdrawalShares;
+        claimableWithdrawals_ = claimableWithdrawals;
+        claimableWithdrawalShares_ = claimableWithdrawalShares;
+
+        (bool hasMatured, uint256 maturedIndex) = _lastMaturedBucket(now_);
+        if (!hasMatured || maturedIndex < _processedWithdrawalBucket) {
+            return (pendingWithdrawals_, pendingWithdrawalShares_, claimableWithdrawals_, claimableWithdrawalShares_);
+        }
+
+        uint256 maturedShares = _bucketSharesBetween(_processedWithdrawalBucket, maturedIndex);
+        if (maturedShares > 0) {
+            uint256 maturedAssets =
+                ERC4626Math.previewRedeem(maturedShares, pendingWithdrawals_, pendingWithdrawalShares_);
+
+            pendingWithdrawals_ -= maturedAssets;
+            pendingWithdrawalShares_ -= maturedShares;
+            claimableWithdrawals_ += maturedAssets;
+            claimableWithdrawalShares_ += maturedShares;
+        }
+    }
+
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         virtual
         returns (uint256 mintedShares)
     {
         uint48 now_ = Time.timestamp();
-        (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_) = _updateWithdrawalQueue(now_);
+        (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_) = _processMaturedBuckets(now_);
 
         _activeSharesOf[msg.sender].push(now_, activeSharesOf(msg.sender) - burnedShares);
         _activeShares.push(now_, activeShares() - burnedShares);
         _activeStake.push(now_, activeStake() - withdrawnAssets);
 
-        // Calculate unlock time: now + withdrawalDelay
-        uint48 unlockAt = now_ + withdrawalDelay;
+        // Calculate unlock time bucket: now + withdrawalDelay, rounded up to the nearest hour bucket
+        uint48 unlockAt = _bucketizeUnlock(now_ + withdrawalDelay);
 
         mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, pendingWithdrawalShares_, pendingWithdrawals_);
 
         withdrawals = pendingWithdrawals_ + withdrawnAssets;
         withdrawalShares = pendingWithdrawalShares_ + mintedShares;
 
+        uint256 bucketIndex = _bucketIndex(unlockAt);
+        _recordWithdrawalShares(bucketIndex, mintedShares);
+
         uint256 packed = _packWithdrawal(mintedShares, unlockAt);
-        withdrawalEntries[claimer].push(packed);
-        _pushWithdrawalWindow(mintedShares, unlockAt);
+        _withdrawalEntries[claimer].pushBack(bytes32(packed));
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
     function _claim() internal returns (uint256 amount) {
         uint48 now_ = Time.timestamp();
-        _updateWithdrawalQueue(now_);
+        _processMaturedBuckets(now_);
 
-        uint256[] storage entries = withdrawalEntries[msg.sender];
-        uint256 length = entries.length;
-        if (length == 0) {
+        DoubleEndedQueue.Bytes32Deque storage queue = _withdrawalEntries[msg.sender];
+
+        if (queue.empty()) {
             revert InsufficientClaim();
         }
 
         uint256 claimableShares;
-        uint256 writeIndex;
 
-        // Iterate through all withdrawals and collect claimable ones
-        for (uint256 i; i < length; ++i) {
-            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
+        // Pop claimable withdrawals from the front of the queue
+        // Since withdrawals are added in chronological order, we can pop until we find a non-claimable one
+        while (!queue.empty()) {
+            uint256 packed = uint256(queue.front());
+            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(packed);
 
             if (unlockAt <= now_) {
-                // This withdrawal is ready to claim
+                // This withdrawal is ready to claim - pop it from the queue
                 claimableShares += shares;
+                queue.popFront();
             } else {
-                // This withdrawal is not ready yet, keep it in the array
-                if (writeIndex != i) {
-                    entries[writeIndex] = entries[i];
-                }
-                writeIndex++;
+                // Since withdrawals are in chronological order, all remaining are not claimable yet
+                break;
             }
         }
 
         if (claimableShares == 0) {
             revert WithdrawalNotReady();
-        }
-
-        // Remove claimed withdrawals by resizing the array
-        // Pop elements from the end until we reach writeIndex
-        while (entries.length > writeIndex) {
-            entries.pop();
         }
 
         amount = ERC4626Math.previewRedeem(claimableShares, claimableWithdrawals, claimableWithdrawalShares);

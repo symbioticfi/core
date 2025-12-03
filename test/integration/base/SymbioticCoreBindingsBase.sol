@@ -257,7 +257,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         broadcast(who)
         returns (uint256 amount)
     {
-        amount = ISymbioticVault(vault).claim(recipient, epoch);
+        amount = ISymbioticVault(vault).claim(recipient);
     }
 
     function _claim_SymbioticCore(address who, address vault, uint256 epoch) internal virtual returns (uint256 amount) {
@@ -270,7 +270,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         broadcast(who)
         returns (uint256 amount)
     {
-        amount = ISymbioticVault(vault).claimBatch(recipient, epochs);
+        amount = ISymbioticVault(vault).claim(recipient);
     }
 
     function _claimBatch_SymbioticCore(address who, address vault, uint256[] memory epochs)

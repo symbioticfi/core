@@ -54,7 +54,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         address owner;
         address collateral;
         address burner;
-        uint48 epochDuration;
+        uint48 withdrawalDelay;
         address[] whitelistedDepositors;
         uint256 depositLimit;
         uint64 delegatorIndex;
@@ -370,7 +370,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
                 ISymbioticVault.InitParams({
                     collateral: collateral,
                     burner: 0x000000000000000000000000000000000000dEaD,
-                    epochDuration: 7 days,
+                    withdrawalDelay: 7 days,
                     depositWhitelist: false,
                     isDepositLimit: false,
                     depositLimit: 0,
@@ -417,7 +417,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             ISymbioticVault.InitParams({
                 collateral: params.collateral,
                 burner: params.burner,
-                epochDuration: params.epochDuration,
+                withdrawalDelay: params.withdrawalDelay,
                 depositWhitelist: vars.depositWhitelist,
                 isDepositLimit: params.depositLimit != 0,
                 depositLimit: params.depositLimit,
@@ -579,7 +579,7 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
                 owner: operators.length == 0 ? deployer : _randomPick_Symbiotic(operators),
                 collateral: collateral,
                 burner: 0x000000000000000000000000000000000000dEaD,
-                epochDuration: epochDuration,
+                withdrawalDelay: epochDuration,
                 whitelistedDepositors: new address[](0),
                 depositLimit: 0,
                 delegatorIndex: delegatorIndex,

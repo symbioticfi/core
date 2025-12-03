@@ -549,44 +549,44 @@ contract VetoSlasherTest is Test {
         _setResolver(network, 0, resolver1, "");
 
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""), resolver1
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""), resolver1
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
 
         _setResolver(network, 0, resolver2, "");
 
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""), resolver2
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.withdrawalDelay()), ""), resolver2
         );
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""), resolver1
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""), resolver1
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
 
-        blockTimestamp = blockTimestamp + vault.epochDuration();
+        blockTimestamp = blockTimestamp + vault.withdrawalDelay();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""), resolver2
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""), resolver2
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
 
         _setResolver(network, 0, address(0), "");
 
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""), resolver1
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""), resolver1
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), resolver1);
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.withdrawalDelay()), ""),
             address(0)
         );
 
-        blockTimestamp = blockTimestamp + 3 * vault.epochDuration();
+        blockTimestamp = blockTimestamp + 3 * vault.withdrawalDelay();
         vm.warp(blockTimestamp);
 
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""),
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.withdrawalDelay()), ""),
             address(0)
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
@@ -594,11 +594,11 @@ contract VetoSlasherTest is Test {
         _setResolver(network, 0, resolver1, "");
 
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             address(0)
         );
         assertEq(
-            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.epochDuration()), ""), resolver1
+            slasher.resolverAt(network.subnetwork(0), uint48(blockTimestamp + 3 * vault.withdrawalDelay()), ""), resolver1
         );
         assertEq(slasher.resolver(network.subnetwork(0), ""), address(0));
     }
@@ -2320,7 +2320,7 @@ contract VetoSlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -2368,7 +2368,7 @@ contract VetoSlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -2463,13 +2463,13 @@ contract VetoSlasherTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(user, epochs);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 

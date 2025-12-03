@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 interface IVaultStorage {
     error InvalidTimestamp();
-    error NoPreviousEpoch();
 
     /**
      * @notice Get a deposit whitelist enabler/disabler's role.
@@ -78,49 +77,10 @@ interface IVaultStorage {
     function isSlasherInitialized() external view returns (bool);
 
     /**
-     * @notice Get a time point of the epoch duration set.
-     * @return time point of the epoch duration set
+     * @notice Get a duration of the withdrawal delay (time before withdrawals become claimable).
+     * @return duration of the withdrawal delay
      */
-    function epochDurationInit() external view returns (uint48);
-
-    /**
-     * @notice Get a duration of the vault epoch.
-     * @return duration of the epoch
-     */
-    function epochDuration() external view returns (uint48);
-
-    /**
-     * @notice Get an epoch at a given timestamp.
-     * @param timestamp time point to get the epoch at
-     * @return epoch at the timestamp
-     * @dev Reverts if the timestamp is less than the start of the epoch 0.
-     */
-    function epochAt(uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a current vault epoch.
-     * @return current epoch
-     */
-    function currentEpoch() external view returns (uint256);
-
-    /**
-     * @notice Get a start of the current vault epoch.
-     * @return start of the current epoch
-     */
-    function currentEpochStart() external view returns (uint48);
-
-    /**
-     * @notice Get a start of the previous vault epoch.
-     * @return start of the previous epoch
-     * @dev Reverts if the current epoch is 0.
-     */
-    function previousEpochStart() external view returns (uint48);
-
-    /**
-     * @notice Get a start of the next vault epoch.
-     * @return start of the next epoch
-     */
-    function nextEpochStart() external view returns (uint48);
+    function withdrawalDelay() external view returns (uint48);
 
     /**
      * @notice Get if the deposit whitelist is enabled.
@@ -192,40 +152,40 @@ interface IVaultStorage {
     function activeSharesOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the withdrawals at a given epoch.
-     * @param epoch epoch to get the total amount of the withdrawals at
-     * @return total amount of the withdrawals at the epoch
+     * @notice Get total pending withdrawal assets in the global withdrawal pool.
+     * @return total amount of pending withdrawal assets
      */
-    function withdrawals(uint256 epoch) external view returns (uint256);
+    function withdrawals() external view returns (uint256);
 
     /**
-     * @notice Get a total number of withdrawal shares at a given epoch.
-     * @param epoch epoch to get the total number of withdrawal shares at
-     * @return total number of withdrawal shares at the epoch
+     * @notice Get total pending withdrawal shares in the global withdrawal pool.
+     * @return total number of pending withdrawal shares
      */
-    function withdrawalShares(uint256 epoch) external view returns (uint256);
+    function withdrawalShares() external view returns (uint256);
 
     /**
-     * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the number of withdrawal shares for the account at
-     * @param account account to get the number of withdrawal shares for
-     * @return number of withdrawal shares for the account at the epoch
+     * @notice Get total claimable withdrawal assets in the global withdrawal pool.
+     * @return total amount of claimable withdrawal assets
      */
-    function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
+    function claimableWithdrawals() external view returns (uint256);
 
     /**
-     * @notice Get all withdrawal entries for a particular account at a given epoch.
-     * @param epoch epoch to get the withdrawal entries for the account at
+     * @notice Get total claimable withdrawal shares in the global withdrawal pool.
+     * @return total number of claimable withdrawal shares
+     */
+    function claimableWithdrawalShares() external view returns (uint256);
+
+    /**
+     * @notice Get total withdrawal shares for a particular account (for slashing).
+     * @param account account to get the total withdrawal shares for
+     * @return total number of withdrawal shares for the account
+     */
+    function withdrawalSharesOf(address account) external view returns (uint256);
+
+    /**
+     * @notice Get all withdrawal entries for a particular account.
      * @param account account to get the withdrawal entries for
      * @return array of packed withdrawal entries (shares << 48 | unlockAt)
      */
-    function withdrawalEntries(uint256 epoch, address account) external view returns (uint256[] memory);
-
-    /**
-     * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
-     * @param epoch epoch to check the withdrawals for the account at
-     * @param account account to check the withdrawals for
-     * @return if the withdrawals are claimed for the account at the epoch
-     */
-    function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
+    function withdrawalEntries(address account) external view returns (uint256[] memory);
 }

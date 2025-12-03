@@ -190,7 +190,7 @@ contract VaultConfiguratorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: burner,
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: depositWhitelist,
                         isDepositLimit: isDepositLimit,
                         depositLimit: depositLimit,
@@ -228,7 +228,7 @@ contract VaultConfiguratorTest is Test {
         assertEq(vault.delegator(), vars.networkRestakeDelegator);
         assertEq(vault.slasher(), withSlasher ? vars.slasher : address(0));
         assertEq(vault.burner(), burner);
-        assertEq(vault.epochDuration(), epochDuration);
+        assertEq(vault.withdrawalDelay(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositLimit(), isDepositLimit);
         assertEq(vault.depositLimit(), depositLimit);

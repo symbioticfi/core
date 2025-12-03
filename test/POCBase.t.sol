@@ -294,7 +294,7 @@ contract POCBaseTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -342,7 +342,7 @@ contract POCBaseTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -390,7 +390,7 @@ contract POCBaseTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -438,7 +438,7 @@ contract POCBaseTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -490,7 +490,7 @@ contract POCBaseTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -594,13 +594,13 @@ contract POCBaseTest is Test {
 
     function _claim(IVault vault, address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 
     function _claimBatch(IVault vault, address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(user, epochs);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 

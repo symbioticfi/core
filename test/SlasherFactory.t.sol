@@ -165,7 +165,7 @@ contract SlasherFactoryTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: 1,
+                        withdrawalDelay: 1,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,

@@ -5,7 +5,6 @@ import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultStorage} from "./IVaultStorage.sol";
 
 interface IVault is IMigratableEntity, IVaultStorage {
-    error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();
     error DepositLimitReached();
@@ -18,9 +17,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error InvalidClaimer();
     error InvalidCollateral();
     error InvalidDelegator();
-    error InvalidEpoch();
     error InvalidEpochDuration();
-    error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
     error InvalidSlasher();
@@ -37,7 +34,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @notice Initial parameters needed for a vault deployment.
      * @param collateral vault's underlying collateral
      * @param burner vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract)
-     * @param epochDuration duration of the vault epoch (it determines sync points for withdrawals)
+     * @param withdrawalDelay duration of the withdrawal delay (time before withdrawals become claimable)
      * @param depositWhitelist if enabling deposit whitelist
      * @param isDepositLimit if enabling deposit limit
      * @param depositLimit deposit limit (maximum amount of the collateral that can be in the vault simultaneously)
@@ -50,7 +47,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     struct InitParams {
         address collateral;
         address burner;
-        uint48 epochDuration;
+        uint48 withdrawalDelay;
         bool depositWhitelist;
         bool isDepositLimit;
         uint256 depositLimit;
@@ -88,7 +85,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral withdrawn
      * @param burnedShares amount of the active shares burned
-     * @param mintedShares amount of the epoch withdrawal shares minted
+     * @param mintedShares amount of the withdrawal shares minted
      */
     event Withdraw(
         address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares
@@ -98,19 +95,9 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @notice Emitted when a claim is made.
      * @param claimer account that claimed
      * @param recipient account that received the collateral
-     * @param epoch epoch the collateral was claimed for
      * @param amount amount of the collateral claimed
      */
-    event Claim(address indexed claimer, address indexed recipient, uint256 epoch, uint256 amount);
-
-    /**
-     * @notice Emitted when a batch claim is made.
-     * @param claimer account that claimed
-     * @param recipient account that received the collateral
-     * @param epochs epochs the collateral was claimed for
-     * @param amount amount of the collateral claimed
-     */
-    event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] epochs, uint256 amount);
+    event Claim(address indexed claimer, address indexed recipient, uint256 amount);
 
     /**
      * @notice Emitted when a slash happens.
@@ -188,12 +175,11 @@ interface IVault is IMigratableEntity, IVaultStorage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get withdrawals for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the withdrawals for the account at
+     * @notice Get claimable withdrawals for a particular account.
      * @param account account to get the withdrawals for
-     * @return withdrawals for the account at the epoch
+     * @return claimable withdrawals for the account
      */
-    function withdrawalsOf(uint256 epoch, address account) external view returns (uint256);
+    function withdrawalsOf(address account) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the collateral that can be slashed for a given account.
@@ -214,38 +200,29 @@ interface IVault is IMigratableEntity, IVaultStorage {
         returns (uint256 depositedAmount, uint256 mintedShares);
 
     /**
-     * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).
+     * @notice Withdraw collateral from the vault (it will be claimable after the withdrawal delay).
      * @param claimer account that needs to claim the withdrawal
      * @param amount amount of the collateral to withdraw
      * @return burnedShares amount of the active shares burned
-     * @return mintedShares amount of the epoch withdrawal shares minted
+     * @return mintedShares amount of the withdrawal shares minted
      */
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares);
 
     /**
-     * @notice Redeem collateral from the vault (it will be claimable after the next epoch).
+     * @notice Redeem collateral from the vault (it will be claimable after the withdrawal delay).
      * @param claimer account that needs to claim the withdrawal
      * @param shares amount of the active shares to redeem
      * @return withdrawnAssets amount of the collateral withdrawn
-     * @return mintedShares amount of the epoch withdrawal shares minted
+     * @return mintedShares amount of the withdrawal shares minted
      */
     function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares);
 
     /**
-     * @notice Claim collateral from the vault.
+     * @notice Claim all claimable collateral from the vault.
      * @param recipient account that receives the collateral
-     * @param epoch epoch to claim the collateral for
      * @return amount amount of the collateral claimed
      */
-    function claim(address recipient, uint256 epoch) external returns (uint256 amount);
-
-    /**
-     * @notice Claim collateral from the vault for multiple epochs.
-     * @param recipient account that receives the collateral
-     * @param epochs epochs to claim the collateral for
-     * @return amount amount of the collateral claimed
-     */
-    function claimBatch(address recipient, uint256[] calldata epochs) external returns (uint256 amount);
+    function claim(address recipient) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.

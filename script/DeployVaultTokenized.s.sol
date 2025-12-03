@@ -67,7 +67,7 @@ contract DeployVaultTokenizedScript is DeployVaultTokenizedBase {
                         baseParams: IVault.InitParams({
                             collateral: COLLATERAL,
                             burner: BURNER,
-                            epochDuration: EPOCH_DURATION,
+                            withdrawalDelay: EPOCH_DURATION,
                             depositWhitelist: WHITELISTED_DEPOSITORS.length != 0,
                             isDepositLimit: DEPOSIT_LIMIT != 0,
                             depositLimit: DEPOSIT_LIMIT,

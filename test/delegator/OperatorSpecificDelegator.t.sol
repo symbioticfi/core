@@ -459,19 +459,19 @@ contract OperatorSpecificDelegatorTest is Test {
         _setNetworkLimit(alice, network, networkLimit1);
 
         assertEq(
-            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit1
         );
 
-        blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
+        blockTimestamp = blockTimestamp + vault.withdrawalDelay();
         vm.warp(blockTimestamp);
 
         assertEq(
-            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.epochDuration()), ""),
+            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.withdrawalDelay()), ""),
             networkLimit1
         );
         assertEq(
-            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit1
         );
 
@@ -479,11 +479,11 @@ contract OperatorSpecificDelegatorTest is Test {
 
         assertEq(delegator.maxNetworkLimit(network.subnetwork(0)), maxNetworkLimit2);
         assertEq(
-            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.epochDuration()), ""),
+            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + vault.withdrawalDelay()), ""),
             maxNetworkLimit2
         );
         assertEq(
-            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.networkLimitAt(network.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             maxNetworkLimit2
         );
     }
@@ -638,13 +638,13 @@ contract OperatorSpecificDelegatorTest is Test {
 
         _deposit(alice, depositAmount);
 
-        blockTimestamp = blockTimestamp + 2 * vault.epochDuration();
+        blockTimestamp = blockTimestamp + 2 * vault.withdrawalDelay();
         vm.warp(blockTimestamp);
 
         _setNetworkLimit(alice, alice, networkLimit);
 
         assertEq(
-            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit
         );
         assertEq(delegator.networkLimit(alice.subnetwork(0)), networkLimit);
@@ -658,7 +658,7 @@ contract OperatorSpecificDelegatorTest is Test {
         assertEq(_slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - 1), ""), slashAmount1Real);
 
         assertEq(
-            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit
         );
         assertEq(delegator.networkLimit(alice.subnetwork(0)), networkLimit);
@@ -673,7 +673,7 @@ contract OperatorSpecificDelegatorTest is Test {
         assertEq(_slash(alice, alice, alice, slashAmount2, uint48(blockTimestamp - 1), ""), slashAmount2Real);
 
         assertEq(
-            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.networkLimitAt(alice.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit
         );
         assertEq(delegator.networkLimit(alice.subnetwork(0)), networkLimit);
@@ -731,7 +731,7 @@ contract OperatorSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -826,7 +826,7 @@ contract OperatorSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1476,7 +1476,7 @@ contract OperatorSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1524,7 +1524,7 @@ contract OperatorSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1609,13 +1609,13 @@ contract OperatorSpecificDelegatorTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(user, epochs);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 

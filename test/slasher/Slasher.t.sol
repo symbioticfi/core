@@ -208,7 +208,7 @@ contract SlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1054,7 +1054,7 @@ contract SlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: burner,
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1147,7 +1147,7 @@ contract SlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: burner,
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1262,7 +1262,7 @@ contract SlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: vars.burner,
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1866,7 +1866,7 @@ contract SlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1914,7 +1914,7 @@ contract SlasherTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1999,13 +1999,13 @@ contract SlasherTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(user, epochs);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 

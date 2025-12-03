@@ -483,13 +483,13 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
 
         _deposit(alice, depositAmount);
 
-        blockTimestamp = blockTimestamp + 2 * vault.epochDuration();
+        blockTimestamp = blockTimestamp + 2 * vault.withdrawalDelay();
         vm.warp(blockTimestamp);
 
         _setMaxNetworkLimit(bob, 0, networkLimit);
 
         assertEq(
-            delegator.maxNetworkLimitAt(bob.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.maxNetworkLimitAt(bob.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit
         );
         assertEq(delegator.maxNetworkLimit(bob.subnetwork(0)), networkLimit);
@@ -503,7 +503,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         assertEq(_slash(bob, bob, alice, slashAmount1, uint48(blockTimestamp - 1), ""), slashAmount1Real);
 
         assertEq(
-            delegator.maxNetworkLimitAt(bob.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.maxNetworkLimitAt(bob.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit
         );
         assertEq(delegator.maxNetworkLimit(bob.subnetwork(0)), networkLimit);
@@ -518,7 +518,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         assertEq(_slash(bob, bob, alice, slashAmount2, uint48(blockTimestamp - 1), ""), slashAmount2Real);
 
         assertEq(
-            delegator.maxNetworkLimitAt(bob.subnetwork(0), uint48(blockTimestamp + 2 * vault.epochDuration()), ""),
+            delegator.maxNetworkLimitAt(bob.subnetwork(0), uint48(blockTimestamp + 2 * vault.withdrawalDelay()), ""),
             networkLimit
         );
         assertEq(delegator.maxNetworkLimit(bob.subnetwork(0)), networkLimit);
@@ -574,7 +574,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -668,7 +668,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: 7 days,
+                        withdrawalDelay: 7 days,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1316,7 +1316,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1363,7 +1363,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
                     IVault.InitParams({
                         collateral: address(collateral),
                         burner: address(0xdEaD),
-                        epochDuration: epochDuration,
+                        withdrawalDelay: epochDuration,
                         depositWhitelist: false,
                         isDepositLimit: false,
                         depositLimit: 0,
@@ -1448,13 +1448,13 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user, epoch);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claimBatch(user, epochs);
+        amount = vault.claim(user);
         vm.stopPrank();
     }
 

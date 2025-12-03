@@ -29,7 +29,7 @@ contract Slasher is BaseSlasher, ISlasher {
             slashHints = abi.decode(hints, (SlashHints));
         }
 
-        if (captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp())
+        if (captureTimestamp < Time.timestamp() - IVault(vault).withdrawalDelay() || captureTimestamp >= Time.timestamp())
         {
             revert InvalidCaptureTimestamp();
         }

@@ -90,7 +90,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         }
 
         if (
-            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault).epochDuration()
+            captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault).withdrawalDelay()
                 || captureTimestamp >= Time.timestamp()
         ) {
             revert InvalidCaptureTimestamp();
@@ -150,7 +150,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             revert VetoPeriodNotEnded();
         }
 
-        if (Time.timestamp() - request.captureTimestamp > IVault(vault).epochDuration()) {
+        if (Time.timestamp() - request.captureTimestamp > IVault(vault).withdrawalDelay()) {
             revert SlashPeriodEnded();
         }
 
@@ -254,7 +254,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             if (resolver_ != address(uint160(_resolver[subnetwork].latest()))) {
                 _resolver[subnetwork]
                 .push(
-                    (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
+                    (Time.timestamp() + resolverSetEpochsDelay * IVault(vault_).withdrawalDelay())
                     .toUint48(),
                     uint160(resolver_)
                 );
@@ -273,8 +273,8 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
     function __initialize(address vault_, bytes memory data) internal override returns (BaseParams memory) {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
-        uint48 epochDuration = IVault(vault_).epochDuration();
-        if (params.vetoDuration >= epochDuration) {
+        uint48 withdrawalDelay = IVault(vault_).withdrawalDelay();
+        if (params.vetoDuration >= withdrawalDelay) {
             revert InvalidVetoDuration();
         }
 

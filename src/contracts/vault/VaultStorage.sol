@@ -4,15 +4,14 @@ pragma solidity 0.8.25;
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
-
 import {IVaultStorage} from "../../interfaces/vault/IVaultStorage.sol";
 
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {DoubleEndedQueue} from "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
-    using SafeCast for uint256;
+    using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
     /**
      * @inheritdoc IVaultStorage
@@ -125,30 +124,28 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     uint256 public claimableWithdrawalShares;
 
     /**
-     * @notice Aggregated withdrawal window.
-     * @dev Tracks the total shares that unlock at a given timestamp.
+     * @notice Withdrawal entries for each account stored as a queue.
+     * @dev Each entry is packed as (shares << 48) | unlockAt and stored as bytes32.
+     *      Uses DoubleEndedQueue for O(1) popFront() operations when claiming.
      */
-    struct WithdrawalWindow {
-        uint48 unlockAt;
-        uint256 shares;
-    }
+    mapping(address account => DoubleEndedQueue.Bytes32Deque) internal _withdrawalEntries;
 
     /**
-     * @notice Queue of withdrawal windows ordered by unlockAt.
-     * @dev Used to move withdrawals from pending to claimable once the unlock time passes.
+     * @notice Checkpoint trace mapping unlock timestamp to bucket index.
+     * @dev Value is the bucket index used across cumulative withdrawal storage.
      */
-    WithdrawalWindow[] internal _withdrawalQueue;
+    Checkpoints.Trace256 internal _withdrawalBucketTrace;
 
     /**
-     * @notice Cursor pointing to the first pending withdrawal window in the queue.
+     * @notice Index of the first bucket that has not been processed into the claimable pool.
      */
-    uint256 internal _withdrawalQueueCursor;
+    uint256 internal _processedWithdrawalBucket;
 
     /**
-     * @notice Withdrawal entries for each account.
-     * @dev Each entry is packed as (shares << 48) | unlockAt
+     * @notice Cumulative withdrawal shares per bucket, stored as prefix sums.
+     * @dev `_withdrawalBucketCumulativeShares[i]` equals total shares across buckets `[0, i]`.
      */
-    mapping(address account => uint256[]) public withdrawalEntries;
+    uint256[] internal _withdrawalBucketCumulativeShares;
 
     /**
      * @notice Get total withdrawal shares for a particular account (for slashing).
@@ -156,12 +153,13 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      * @return total number of withdrawal shares for the account
      */
     function withdrawalSharesOf(address account) public view returns (uint256) {
-        uint256[] storage entries = withdrawalEntries[account];
+        DoubleEndedQueue.Bytes32Deque storage queue = _withdrawalEntries[account];
+        uint256 length = queue.length();
         uint256 total;
-        uint256 length = entries.length;
         uint48 now_ = Time.timestamp();
         for (uint256 i; i < length; ++i) {
-            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(entries[i]);
+            uint256 packed = uint256(queue.at(i));
+            (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(packed);
             // Only count unclaimed withdrawals (unlockAt > now)
             if (unlockAt > now_) {
                 total += shares;

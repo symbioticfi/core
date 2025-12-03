@@ -112,7 +112,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         }
 
         if (
-            captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
+            captureTimestamp < Time.timestamp() - IVault(vault).withdrawalDelay() || captureTimestamp >= Time.timestamp()
                 || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
         ) {
             return (0, 0);
