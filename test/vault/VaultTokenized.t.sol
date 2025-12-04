@@ -296,8 +296,6 @@ contract VaultTokenizedTest is Test {
         // Test withdrawals - updated for new system
         assertEq(vault.withdrawals(), 0);
         assertEq(vault.withdrawalShares(), 0);
-        assertEq(vault.claimableWithdrawals(), 0);
-        assertEq(vault.claimableWithdrawalShares(), 0);
         // assertEq(vault.isWithdrawalsClaimed(0, alice), false); // Removed - no longer epoch-based
 
         // Test whitelist and slashing
@@ -1915,9 +1913,9 @@ contract VaultTokenizedTest is Test {
         vm.warp(blockTimestamp);
 
         vm.startPrank(alice);
-        // currentEpoch() removed - claim() no longer takes epoch parameter
+        // currentEpoch() removed - claim() now takes index parameter
         vm.expectRevert(IVault.InvalidRecipient.selector);
-        vault.claim(address(0));
+        vault.claim(address(0), 0);
         vm.stopPrank();
     }
 
@@ -2092,7 +2090,7 @@ contract VaultTokenizedTest is Test {
 
         vm.expectRevert(IVault.InvalidRecipient.selector);
         vm.startPrank(alice);
-        vault.claim(address(0));
+        vault.claim(address(0), 0);
         vm.stopPrank();
     }
 
@@ -3130,15 +3128,16 @@ contract VaultTokenizedTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user);
+        amount = vault.claim(user, 0);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        // claimBatch no longer exists - claim all claimable withdrawals instead
+        // claimBatch now takes count parameter
         // Note: epochs parameter is ignored as the new system doesn't use epochs
-        amount = vault.claim(user);
+        uint256 count = epochs.length > 0 ? epochs.length : 1;
+        amount = vault.claimBatch(user, count);
         vm.stopPrank();
     }
 

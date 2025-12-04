@@ -163,17 +163,6 @@ interface IVaultStorage {
      */
     function withdrawalShares() external view returns (uint256);
 
-    /**
-     * @notice Get total claimable withdrawal assets in the global withdrawal pool.
-     * @return total amount of claimable withdrawal assets
-     */
-    function claimableWithdrawals() external view returns (uint256);
-
-    /**
-     * @notice Get total claimable withdrawal shares in the global withdrawal pool.
-     * @return total number of claimable withdrawal shares
-     */
-    function claimableWithdrawalShares() external view returns (uint256);
 
     /**
      * @notice Get total withdrawal shares for a particular account (for slashing).

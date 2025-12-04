@@ -24,8 +24,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     using Math for uint256;
     using SafeERC20 for IERC20;
 
-    uint48 private constant BUCKET_DURATION = 1 hours;
-
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         VaultStorage(delegatorFactory, slasherFactory)
         MigratableEntity(vaultFactory)
@@ -38,11 +36,11 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         return isDelegatorInitialized && isSlasherInitialized;
     }
 
-        /**
+    /**
      * @inheritdoc IVault
      */
     function totalStake() public view returns (uint256) {
-        (uint256 pendingWithdrawals,,,) = _previewWithdrawalTotals(Time.timestamp());
+        (uint256 pendingWithdrawals,) = _previewWithdrawalTotals(Time.timestamp());
         // Total slashable stake = active stake + pending (non-claimable) withdrawals
         return activeStake() + pendingWithdrawals;
     }
@@ -76,20 +74,23 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function withdrawalsOf(address account) public view returns (uint256) {
         DoubleEndedQueue.Bytes32Deque storage queue = _withdrawalEntries[account];
-        uint256 claimableShares;
+        uint256 totalAssets;
         uint48 now_ = Time.timestamp();
         uint256 length = queue.length();
-        (,, uint256 claimableWithdrawals_, uint256 claimableWithdrawalShares_) = _previewWithdrawalTotals(now_);
 
         for (uint256 i; i < length; ++i) {
             uint256 packed = uint256(queue.at(i));
             (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(packed);
             if (unlockAt <= now_) {
-                claimableShares += shares;
+                // Calculate assets for this entry based on its bucket's conversion ratio
+                uint256 bucketIndex = _bucketIndexFromUnlockAt(unlockAt);
+                uint256 assetPerShare = _bucketAssetPerShare(bucketIndex);
+
+                totalAssets += shares.mulDiv(assetPerShare, 1e18, Math.Rounding.Floor);
             }
         }
 
-        return ERC4626Math.previewRedeem(claimableShares, claimableWithdrawals_, claimableWithdrawalShares_);
+        return totalAssets;
     }
 
     /**
@@ -103,7 +104,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         uint256 slashableShares = withdrawalSharesOf(account);
 
         if (slashableShares > 0) {
-            (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_,,) = _previewWithdrawalTotals(now_);
+            (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_) = _previewWithdrawalTotals(now_);
             total += ERC4626Math.previewRedeem(slashableShares, pendingWithdrawals_, pendingWithdrawalShares_);
         }
 
@@ -202,16 +203,35 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     }
 
     /**
-     * @notice Claim all claimable collateral from the vault.
+     * @notice Claim collateral from the vault for a specific withdrawal index.
      * @param recipient account that receives the collateral
+     * @param index index of the withdrawal entry to claim
      * @return amount amount of the collateral claimed
      */
-    function claim(address recipient) external nonReentrant returns (uint256 amount) {
+    function claim(address recipient, uint256 index) external nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
 
-        amount = _claim();
+        amount = _claimIndex(index);
+
+        IERC20(collateral).safeTransfer(recipient, amount);
+
+        emit Claim(msg.sender, recipient, amount);
+    }
+
+    /**
+     * @notice Claim collateral from the vault for the first count claimable withdrawal entries.
+     * @param recipient account that receives the collateral
+     * @param count number of withdrawal entries to claim (from the front of the queue)
+     * @return amount total amount of the collateral claimed
+     */
+    function claimBatch(address recipient, uint256 count) external nonReentrant returns (uint256 amount) {
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
+        amount = _claimBatch(count);
 
         IERC20(collateral).safeTransfer(recipient, amount);
 
@@ -248,9 +268,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
             _activeStake.push(now_, activeStake_ - activeSlashed);
             withdrawals = pendingWithdrawals_ - withdrawalsSlashed;
-        }
 
-        if (slashedAmount > 0) {
             IERC20(collateral).safeTransfer(burner, slashedAmount);
         }
 
@@ -381,24 +399,29 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             return;
         }
 
-        uint256 length_ = _withdrawalBucketCumulativeShares.length;
+        uint256 length_ = _withdrawalPrefixSum.length;
 
         if (length_ == 0) {
             if (bucketIndex != 0) {
                 revert InvalidTimestamp();
             }
-            _withdrawalBucketCumulativeShares.push(mintedShares);
+            _withdrawalPrefixSum.push(PrefixSum({cumulativeShares: mintedShares, cumulativeAssets: 0}));
             return;
         }
 
         if (bucketIndex == length_ - 1) {
-            _withdrawalBucketCumulativeShares[bucketIndex] += mintedShares;
+            _withdrawalPrefixSum[bucketIndex].cumulativeShares += mintedShares;
             return;
         }
 
         if (bucketIndex == length_) {
-            uint256 previous = _withdrawalBucketCumulativeShares[length_ - 1];
-            _withdrawalBucketCumulativeShares.push(previous + mintedShares);
+            PrefixSum memory previous = _withdrawalPrefixSum[length_ - 1];
+            _withdrawalPrefixSum.push(
+                PrefixSum({
+                    cumulativeShares: previous.cumulativeShares + mintedShares,
+                    cumulativeAssets: previous.cumulativeAssets
+                })
+            );
             return;
         }
 
@@ -410,7 +433,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             return 0;
         }
 
-        uint256 length_ = _withdrawalBucketCumulativeShares.length;
+        uint256 length_ = _withdrawalPrefixSum.length;
         if (length_ == 0 || fromIndex >= length_) {
             return 0;
         }
@@ -419,19 +442,53 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidTimestamp();
         }
 
-        uint256 upper = _withdrawalBucketCumulativeShares[toIndex];
-        uint256 lower = fromIndex == 0 ? 0 : _withdrawalBucketCumulativeShares[fromIndex - 1];
+        uint256 upper = _withdrawalPrefixSum[toIndex].cumulativeShares;
+        uint256 lower = fromIndex == 0 ? 0 : _withdrawalPrefixSum[fromIndex - 1].cumulativeShares;
         return upper - lower;
     }
 
-    function _bucketizeUnlock(uint48 unlockAt) internal pure returns (uint48) {
-        uint256 unlockAt256 = unlockAt;
-        uint256 bucket =
-            (unlockAt256 + uint256(BUCKET_DURATION) - 1) / uint256(BUCKET_DURATION) * uint256(BUCKET_DURATION);
-        if (bucket > type(uint48).max) {
+    /**
+     * @notice Get cumulative assets between two bucket indices.
+     * @param fromIndex starting bucket index (inclusive)
+     * @param toIndex ending bucket index (inclusive)
+     * @return cumulative assets across buckets [fromIndex, toIndex]
+     */
+    function _bucketAssetsBetween(uint256 fromIndex, uint256 toIndex) internal view returns (uint256) {
+        if (fromIndex > toIndex) {
+            return 0;
+        }
+
+        uint256 length_ = _withdrawalPrefixSum.length;
+        if (length_ == 0 || fromIndex >= length_) {
+            return 0;
+        }
+
+        if (toIndex >= length_) {
             revert InvalidTimestamp();
         }
-        return uint48(bucket);
+
+        uint256 upper = _withdrawalPrefixSum[toIndex].cumulativeAssets;
+        uint256 lower = fromIndex == 0 ? 0 : _withdrawalPrefixSum[fromIndex - 1].cumulativeAssets;
+        return upper - lower;
+    }
+
+    /**
+     * @notice Get asset-per-share ratio for a specific bucket.
+     * @param bucketIndex bucket index to get the ratio for
+     * @return assetPerShare asset amount per share (scaled by 1e18), or 0 if bucket hasn't matured yet
+     */
+    function _bucketAssetPerShare(uint256 bucketIndex) internal view returns (uint256) {
+        uint256 bucketShares = _bucketSharesBetween(bucketIndex, bucketIndex);
+        if (bucketShares == 0) {
+            return 0;
+        }
+
+        uint256 bucketAssets = _bucketAssetsBetween(bucketIndex, bucketIndex);
+        if (bucketAssets == 0) {
+            return 0;
+        }
+
+        return bucketAssets.mulDiv(1e18, bucketShares, Math.Rounding.Floor);
     }
 
     function _bucketIndex(uint48 unlockAt) internal returns (uint256 index) {
@@ -493,8 +550,19 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         withdrawals = pendingWithdrawals_;
         withdrawalShares = pendingWithdrawalShares_;
-        claimableWithdrawals = claimableWithdrawals + maturedAssets;
-        claimableWithdrawalShares = claimableWithdrawalShares + maturedShares;
+
+        // Store cumulative assets for each bucket in this range
+        // This preserves the asset value at which shares in each bucket were converted
+        // even if slashing occurs between different buckets maturing
+        uint256 cumulativeAssetsBefore =
+            _processedWithdrawalBucket == 0 ? 0 : _withdrawalPrefixSum[_processedWithdrawalBucket - 1].cumulativeAssets;
+
+        for (uint256 i = _processedWithdrawalBucket; i <= maturedIndex; ++i) {
+            // Calculate assets for this bucket proportionally
+            uint256 bucketAssets = maturedAssets.mulDiv(_bucketSharesBetween(i, i), maturedShares, Math.Rounding.Floor);
+            cumulativeAssetsBefore += bucketAssets;
+            _withdrawalPrefixSum[i].cumulativeAssets = cumulativeAssetsBefore;
+        }
 
         _processedWithdrawalBucket = maturedIndex + 1;
     }
@@ -502,21 +570,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     function _previewWithdrawalTotals(uint48 now_)
         internal
         view
-        returns (
-            uint256 pendingWithdrawals_,
-            uint256 pendingWithdrawalShares_,
-            uint256 claimableWithdrawals_,
-            uint256 claimableWithdrawalShares_
-        )
+        returns (uint256 pendingWithdrawals_, uint256 pendingWithdrawalShares_)
     {
         pendingWithdrawals_ = withdrawals;
         pendingWithdrawalShares_ = withdrawalShares;
-        claimableWithdrawals_ = claimableWithdrawals;
-        claimableWithdrawalShares_ = claimableWithdrawalShares;
 
         (bool hasMatured, uint256 maturedIndex) = _lastMaturedBucket(now_);
         if (!hasMatured || maturedIndex < _processedWithdrawalBucket) {
-            return (pendingWithdrawals_, pendingWithdrawalShares_, claimableWithdrawals_, claimableWithdrawalShares_);
+            return (pendingWithdrawals_, pendingWithdrawalShares_);
         }
 
         uint256 maturedShares = _bucketSharesBetween(_processedWithdrawalBucket, maturedIndex);
@@ -526,8 +587,6 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
             pendingWithdrawals_ -= maturedAssets;
             pendingWithdrawalShares_ -= maturedShares;
-            claimableWithdrawals_ += maturedAssets;
-            claimableWithdrawalShares_ += maturedShares;
         }
     }
 
@@ -543,8 +602,8 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         _activeShares.push(now_, activeShares() - burnedShares);
         _activeStake.push(now_, activeStake() - withdrawnAssets);
 
-        // Calculate unlock time bucket: now + withdrawalDelay, rounded up to the nearest hour bucket
-        uint48 unlockAt = _bucketizeUnlock(now_ + withdrawalDelay);
+        // Calculate unlock time: now + withdrawalDelay
+        uint48 unlockAt = now_ + withdrawalDelay;
 
         mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, pendingWithdrawalShares_, pendingWithdrawals_);
 
@@ -560,7 +619,67 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
-    function _claim() internal returns (uint256 amount) {
+    /**
+     * @notice Claim a specific withdrawal entry by index.
+     * @param index index of the withdrawal entry to claim
+     * @return amount amount of the collateral claimed
+     */
+    function _claimIndex(uint256 index) internal returns (uint256 amount) {
+        uint48 now_ = Time.timestamp();
+        _processMaturedBuckets(now_);
+
+        DoubleEndedQueue.Bytes32Deque storage queue = _withdrawalEntries[msg.sender];
+
+        if (queue.length() <= index) {
+            revert InsufficientClaim();
+        }
+
+        // Get the entry at the specified index
+        uint256 packed = uint256(queue.at(index));
+        (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(packed);
+
+        // Check if the withdrawal is ready to claim
+        if (unlockAt > now_) {
+            revert WithdrawalNotReady();
+        }
+
+        // Calculate assets for this entry based on its bucket's conversion ratio
+        uint256 bucketIndex = _bucketIndexFromUnlockAt(unlockAt);
+        uint256 assetPerShare = _bucketAssetPerShare(bucketIndex);
+
+        // Use the stored asset-per-share ratio for this bucket
+        amount = shares.mulDiv(assetPerShare, 1e18, Math.Rounding.Floor);
+
+        if (amount == 0) {
+            revert InsufficientClaim();
+        }
+
+        // Remove the element at the specified index from the queue
+        // We do this by popping elements before the index, popping the target, then pushing back
+        uint256[] memory temp = new uint256[](index);
+        for (uint256 i; i < index; ++i) {
+            temp[i] = uint256(queue.popFront());
+        }
+
+        // Pop the target element (already validated above)
+        queue.popFront();
+
+        // Push back all the elements that were before the target
+        for (uint256 i; i < index; ++i) {
+            queue.pushFront(bytes32(temp[index - 1 - i]));
+        }
+    }
+
+    /**
+     * @notice Claim the first count claimable withdrawal entries.
+     * @param count number of withdrawal entries to claim (from the front of the queue)
+     * @return amount total amount of the collateral claimed
+     */
+    function _claimBatch(uint256 count) internal returns (uint256 amount) {
+        if (count == 0) {
+            revert InsufficientClaim();
+        }
+
         uint48 now_ = Time.timestamp();
         _processMaturedBuckets(now_);
 
@@ -571,36 +690,66 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
 
         uint256 claimableShares;
+        uint256 claimedCount = 0;
 
         // Pop claimable withdrawals from the front of the queue
         // Since withdrawals are added in chronological order, we can pop until we find a non-claimable one
-        while (!queue.empty()) {
+        while (!queue.empty() && claimedCount < count) {
             uint256 packed = uint256(queue.front());
             (uint256 shares, uint48 unlockAt) = _unpackWithdrawal(packed);
 
             if (unlockAt <= now_) {
-                // This withdrawal is ready to claim - pop it from the queue
+                // This withdrawal is ready to claim
                 claimableShares += shares;
+
+                // Calculate assets for this entry based on its bucket's conversion ratio
+                uint256 bucketIndex = _bucketIndexFromUnlockAt(unlockAt);
+                uint256 assetPerShare = _bucketAssetPerShare(bucketIndex);
+
+                // Use the stored asset-per-share ratio for this bucket
+                amount += shares.mulDiv(assetPerShare, 1e18, Math.Rounding.Floor);
+
                 queue.popFront();
+                claimedCount++;
             } else {
                 // Since withdrawals are in chronological order, all remaining are not claimable yet
                 break;
             }
         }
 
-        if (claimableShares == 0) {
+        if (claimedCount == 0) {
             revert WithdrawalNotReady();
         }
-
-        amount = ERC4626Math.previewRedeem(claimableShares, claimableWithdrawals, claimableWithdrawalShares);
 
         if (amount == 0) {
             revert InsufficientClaim();
         }
+    }
 
-        // Update global pool after claiming
-        claimableWithdrawals = claimableWithdrawals - amount;
-        claimableWithdrawalShares = claimableWithdrawalShares - claimableShares;
+    /**
+     * @notice Get bucket index from unlock timestamp.
+     * @param unlockAt unlock timestamp
+     * @return bucket index for the given unlock timestamp
+     */
+    function _bucketIndexFromUnlockAt(uint48 unlockAt) internal view returns (uint256) {
+        // Use the timestamp directly as the bucket timestamp (1 second per bucket)
+        uint48 bucketTimestamp = unlockAt;
+
+        // Find the bucket index in the trace
+        (bool exists, uint48 lastKey, uint256 lastIndex) = _withdrawalBucketTrace.latestCheckpoint();
+        if (!exists) {
+            return 0;
+        }
+
+        if (bucketTimestamp < lastKey) {
+            // Bucket is in the past, use upperLookupRecent to find it
+            return _withdrawalBucketTrace.upperLookupRecent(bucketTimestamp);
+        } else if (bucketTimestamp == lastKey) {
+            return lastIndex;
+        } else {
+            // Bucket is in the future, return the next index (but this shouldn't happen for claimable entries)
+            return lastIndex + 1;
+        }
     }
 
     function _initialize(uint64, address, bytes memory data) internal virtual override {

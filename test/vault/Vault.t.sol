@@ -249,8 +249,6 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOf(alice), 0);
         assertEq(vault.withdrawals(), 0);
         assertEq(vault.withdrawalShares(), 0);
-        assertEq(vault.claimableWithdrawals(), 0);
-        assertEq(vault.claimableWithdrawalShares(), 0);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
         assertEq(vault.slashableBalanceOf(alice), 0);
@@ -1408,19 +1406,19 @@ contract VaultTest is Test {
         uint256 expectedWithdrawals1 = amount2;
         uint256 actualWithdrawals1 = vault.withdrawals();
         assertTrue(
-            (expectedWithdrawals1 >= actualWithdrawals1 && expectedWithdrawals1 - actualWithdrawals1 <= 10000)
-                || (actualWithdrawals1 >= expectedWithdrawals1 && actualWithdrawals1 - expectedWithdrawals1 <= 10000)
+            (expectedWithdrawals1 >= actualWithdrawals1 && expectedWithdrawals1 - actualWithdrawals1 <= 10_000)
+                || (actualWithdrawals1 >= expectedWithdrawals1 && actualWithdrawals1 - expectedWithdrawals1 <= 10_000)
         );
         uint256 expectedShares1 = mintedShares;
         uint256 actualShares1 = vault.withdrawalShares();
         assertTrue(
-            (expectedShares1 >= actualShares1 && expectedShares1 - actualShares1 <= 10000)
-                || (actualShares1 >= expectedShares1 && actualShares1 - expectedShares1 <= 10000)
+            (expectedShares1 >= actualShares1 && expectedShares1 - actualShares1 <= 10_000)
+                || (actualShares1 >= expectedShares1 && actualShares1 - expectedShares1 <= 10_000)
         );
         uint256 actualSharesOf1 = vault.withdrawalSharesOf(alice);
         assertTrue(
-            (expectedShares1 >= actualSharesOf1 && expectedShares1 - actualSharesOf1 <= 10000)
-                || (actualSharesOf1 >= expectedShares1 && actualSharesOf1 - expectedShares1 <= 10000)
+            (expectedShares1 >= actualSharesOf1 && expectedShares1 - actualSharesOf1 <= 10_000)
+                || (actualSharesOf1 >= expectedShares1 && actualSharesOf1 - expectedShares1 <= 10_000)
         );
         assertEq(vault.slashableBalanceOf(alice), amount1);
 
@@ -1453,19 +1451,22 @@ contract VaultTest is Test {
         uint256 expectedWithdrawals = amount2 + amount3;
         uint256 actualWithdrawals = vault.withdrawals();
         assertTrue(
-            (expectedWithdrawals >= actualWithdrawals && expectedWithdrawals - actualWithdrawals <= expectedWithdrawals / 1000 + 10000)
-                || (actualWithdrawals >= expectedWithdrawals && actualWithdrawals - expectedWithdrawals <= expectedWithdrawals / 1000 + 10000)
+            (expectedWithdrawals >= actualWithdrawals
+                    && expectedWithdrawals - actualWithdrawals <= expectedWithdrawals / 1000 + 10_000)
+                || (actualWithdrawals >= expectedWithdrawals
+                    && actualWithdrawals - expectedWithdrawals <= expectedWithdrawals / 1000 + 10_000)
         );
         uint256 expectedShares = amount2 * 10 ** 0 + amount3 * 10 ** 0;
         uint256 actualShares = vault.withdrawalShares();
         assertTrue(
-            (expectedShares >= actualShares && expectedShares - actualShares <= expectedShares / 1000 + 10000)
-                || (actualShares >= expectedShares && actualShares - expectedShares <= expectedShares / 1000 + 10000)
+            (expectedShares >= actualShares && expectedShares - actualShares <= expectedShares / 1000 + 10_000)
+                || (actualShares >= expectedShares && actualShares - expectedShares <= expectedShares / 1000 + 10_000)
         );
         uint256 actualSharesOf = vault.withdrawalSharesOf(alice);
         assertTrue(
-            (expectedShares >= actualSharesOf && expectedShares - actualSharesOf <= expectedShares / 1000 + 10000)
-                || (actualSharesOf >= expectedShares && actualSharesOf - expectedShares <= expectedShares / 1000 + 10000)
+            (expectedShares >= actualSharesOf && expectedShares - actualSharesOf <= expectedShares / 1000 + 10_000)
+                || (actualSharesOf >= expectedShares
+                    && actualSharesOf - expectedShares <= expectedShares / 1000 + 10_000)
         );
         assertEq(vault.slashableBalanceOf(alice), amount1);
 
@@ -1563,19 +1564,19 @@ contract VaultTest is Test {
         uint256 expectedWithdrawals1 = withdrawnAssets2;
         uint256 actualWithdrawals1 = vault.withdrawals();
         assertTrue(
-            (expectedWithdrawals1 >= actualWithdrawals1 && expectedWithdrawals1 - actualWithdrawals1 <= 10000)
-                || (actualWithdrawals1 >= expectedWithdrawals1 && actualWithdrawals1 - expectedWithdrawals1 <= 10000)
+            (expectedWithdrawals1 >= actualWithdrawals1 && expectedWithdrawals1 - actualWithdrawals1 <= 10_000)
+                || (actualWithdrawals1 >= expectedWithdrawals1 && actualWithdrawals1 - expectedWithdrawals1 <= 10_000)
         );
         uint256 expectedShares1 = mintedShares;
         uint256 actualShares1 = vault.withdrawalShares();
         assertTrue(
-            (expectedShares1 >= actualShares1 && expectedShares1 - actualShares1 <= 10000)
-                || (actualShares1 >= expectedShares1 && actualShares1 - expectedShares1 <= 10000)
+            (expectedShares1 >= actualShares1 && expectedShares1 - actualShares1 <= 10_000)
+                || (actualShares1 >= expectedShares1 && actualShares1 - expectedShares1 <= 10_000)
         );
         uint256 actualSharesOf1 = vault.withdrawalSharesOf(alice);
         assertTrue(
-            (expectedShares1 >= actualSharesOf1 && expectedShares1 - actualSharesOf1 <= 10000)
-                || (actualSharesOf1 >= expectedShares1 && actualSharesOf1 - expectedShares1 <= 10000)
+            (expectedShares1 >= actualSharesOf1 && expectedShares1 - actualSharesOf1 <= 10_000)
+                || (actualSharesOf1 >= expectedShares1 && actualSharesOf1 - expectedShares1 <= 10_000)
         );
         assertEq(vault.slashableBalanceOf(alice), amount1);
 
@@ -1610,19 +1611,19 @@ contract VaultTest is Test {
         uint256 expectedWithdrawals = withdrawnAssets2 + withdrawnAssets3;
         uint256 actualWithdrawals = vault.withdrawals();
         assertTrue(
-            (expectedWithdrawals >= actualWithdrawals && expectedWithdrawals - actualWithdrawals <= 10000)
-                || (actualWithdrawals >= expectedWithdrawals && actualWithdrawals - expectedWithdrawals <= 10000)
+            (expectedWithdrawals >= actualWithdrawals && expectedWithdrawals - actualWithdrawals <= 10_000)
+                || (actualWithdrawals >= expectedWithdrawals && actualWithdrawals - expectedWithdrawals <= 10_000)
         );
         uint256 expectedShares = withdrawnAssets2 * 10 ** 0 + withdrawnAssets3 * 10 ** 0;
         uint256 actualShares = vault.withdrawalShares();
         assertTrue(
-            (expectedShares >= actualShares && expectedShares - actualShares <= 10000)
-                || (actualShares >= expectedShares && actualShares - expectedShares <= 10000)
+            (expectedShares >= actualShares && expectedShares - actualShares <= 10_000)
+                || (actualShares >= expectedShares && actualShares - expectedShares <= 10_000)
         );
         uint256 actualSharesOf = vault.withdrawalSharesOf(alice);
         assertTrue(
-            (expectedShares >= actualSharesOf && expectedShares - actualSharesOf <= 10000)
-                || (actualSharesOf >= expectedShares && actualSharesOf - expectedShares <= 10000)
+            (expectedShares >= actualSharesOf && expectedShares - actualSharesOf <= 10_000)
+                || (actualSharesOf >= expectedShares && actualSharesOf - expectedShares <= 10_000)
         );
         assertEq(vault.slashableBalanceOf(alice), amount1);
 
@@ -1734,9 +1735,9 @@ contract VaultTest is Test {
         vm.warp(blockTimestamp);
 
         vm.startPrank(alice);
-        // currentEpoch() removed - claim() no longer takes epoch parameter
+        // currentEpoch() removed - claim() now takes index parameter
         vm.expectRevert(IVault.InvalidRecipient.selector);
-        vault.claim(address(0));
+        vault.claim(address(0), 0);
         vm.stopPrank();
     }
 
@@ -1763,8 +1764,6 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 2;
         vm.warp(blockTimestamp);
 
-        // currentEpoch() removed - claim() no longer takes epoch parameter
-        // Note: InvalidEpoch error replaced with WithdrawalNotReady when claiming too early
         vm.expectRevert(IVault.WithdrawalNotReady.selector);
         _claim(alice, 0);
     }
@@ -1792,7 +1791,6 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + withdrawalDelay + 1 hours + 1;
         vm.warp(blockTimestamp);
 
-        // currentEpoch() removed - claim() no longer takes epoch parameter
         _claim(alice, 0);
 
         // Try to claim again - should fail with InsufficientClaim (no more claimable withdrawals)
@@ -1908,7 +1906,7 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.InvalidRecipient.selector);
         vm.startPrank(alice);
-        vault.claim(address(0));
+        vault.claim(address(0), 0);
         vm.stopPrank();
     }
 
@@ -2333,6 +2331,10 @@ contract VaultTest is Test {
 
         _deposit(alice, depositAmount);
         _withdraw(alice, withdrawAmount1);
+        console2.log("withdrawalDelay", vault.withdrawalDelay());
+        console2.log("captureAgo", captureAgo);
+        console2.log("activeStake", vault.activeStake());
+        console2.log("blockTimestamp", blockTimestamp);
 
         blockTimestamp = blockTimestamp + vault.withdrawalDelay();
         vm.warp(blockTimestamp);
@@ -2349,98 +2351,95 @@ contract VaultTest is Test {
 
         Test_SlashStruct memory test_SlashStruct;
 
-            test_SlashStruct.slashAmountReal1 = Math.min(slashAmount1, depositAmount - withdrawAmount1);
-            test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-            assertEq(
-                _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""),
-                test_SlashStruct.slashAmountReal1
-            );
-            assertEq(
-                collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
-                test_SlashStruct.slashAmountReal1
-            );
+        test_SlashStruct.slashAmountReal1 = Math.min(slashAmount1, vault.totalStake());
+        test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
+        assertEq(
+            _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""),
+            test_SlashStruct.slashAmountReal1
+        );
+        assertEq(
+            collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
+            test_SlashStruct.slashAmountReal1
+        );
 
-            test_SlashStruct.activeStake1 = depositAmount - withdrawAmount1 - withdrawAmount2
-                - (depositAmount - withdrawAmount1 - withdrawAmount2)
-                .mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
-            test_SlashStruct.withdrawals1 =
-                withdrawAmount1 - withdrawAmount1.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
-            test_SlashStruct.nextWithdrawals1 =
-                withdrawAmount2 - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
-            // Allow for small rounding differences in totalStake calculation
-            uint256 expectedTotalStake = depositAmount - test_SlashStruct.slashAmountReal1;
-            uint256 actualTotalStake = vault.totalStake();
-            assertTrue(
-                (expectedTotalStake >= actualTotalStake && expectedTotalStake - actualTotalStake <= 10)
-                    || (actualTotalStake >= expectedTotalStake && actualTotalStake - expectedTotalStake <= 10)
-            );
-            // vault.withdrawals() returns total pending withdrawals (sum of all pending withdrawals)
-            // After first slash, withdrawals should be withdrawals1 + nextWithdrawals1
-            // Allow for small rounding differences
-            uint256 expectedWithdrawals1 = test_SlashStruct.withdrawals1 + test_SlashStruct.nextWithdrawals1;
-            uint256 actualWithdrawals1 = vault.withdrawals();
-            assertTrue(
-                (expectedWithdrawals1 >= actualWithdrawals1 && expectedWithdrawals1 - actualWithdrawals1 <= 10)
-                    || (actualWithdrawals1 >= expectedWithdrawals1 && actualWithdrawals1 - expectedWithdrawals1 <= 10)
-            );
-            // Allow for small rounding differences in activeStake calculation
-            uint256 expectedActiveStake = test_SlashStruct.activeStake1;
-            uint256 actualActiveStake = vault.activeStake();
-            assertTrue(
-                (expectedActiveStake >= actualActiveStake && expectedActiveStake - actualActiveStake <= 10)
-                    || (actualActiveStake >= expectedActiveStake && actualActiveStake - expectedActiveStake <= 10)
-            );
+        test_SlashStruct.activeStake1 = depositAmount - withdrawAmount1 - withdrawAmount2
+            - (depositAmount - withdrawAmount1 - withdrawAmount2)
+            .mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
+        test_SlashStruct.withdrawals1 =
+            withdrawAmount1 - withdrawAmount1.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
+        test_SlashStruct.nextWithdrawals1 =
+            withdrawAmount2 - withdrawAmount2.mulDiv(test_SlashStruct.slashAmountReal1, depositAmount);
+        // Allow for small rounding differences in totalStake calculation
+        uint256 expectedTotalStake = depositAmount - test_SlashStruct.slashAmountReal1;
+        uint256 actualTotalStake = vault.totalStake();
+        assertTrue(
+            (expectedTotalStake >= actualTotalStake && expectedTotalStake - actualTotalStake <= 10)
+                || (actualTotalStake >= expectedTotalStake && actualTotalStake - expectedTotalStake <= 10)
+        );
+        // vault.withdrawals() returns total pending withdrawals (sum of all pending withdrawals)
+        // After first slash, withdrawals should be withdrawals1 + nextWithdrawals1
+        // Allow for small rounding differences
+        uint256 expectedWithdrawals1 = test_SlashStruct.withdrawals1 + test_SlashStruct.nextWithdrawals1;
+        uint256 actualWithdrawals1 = vault.withdrawals();
+        assertTrue(
+            (expectedWithdrawals1 >= actualWithdrawals1 && expectedWithdrawals1 - actualWithdrawals1 <= 10)
+                || (actualWithdrawals1 >= expectedWithdrawals1 && actualWithdrawals1 - expectedWithdrawals1 <= 10)
+        );
+        // Allow for small rounding differences in activeStake calculation
+        uint256 expectedActiveStake = test_SlashStruct.activeStake1;
+        uint256 actualActiveStake = vault.activeStake();
+        assertTrue(
+            (expectedActiveStake >= actualActiveStake && expectedActiveStake - actualActiveStake <= 10)
+                || (actualActiveStake >= expectedActiveStake && actualActiveStake - expectedActiveStake <= 10)
+        );
 
-            test_SlashStruct.slashAmountSlashed2 = Math.min(
-                depositAmount - test_SlashStruct.slashAmountReal1,
-                Math.min(slashAmount2, depositAmount - withdrawAmount1)
-            );
-            test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-            assertEq(
-                _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
-                Math.min(slashAmount2, depositAmount - withdrawAmount1)
-            );
-            assertEq(
-                collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
-                test_SlashStruct.slashAmountSlashed2
-            );
+        test_SlashStruct.slashAmountSlashed2 = Math.min(
+            depositAmount - test_SlashStruct.slashAmountReal1, Math.min(slashAmount2, depositAmount - withdrawAmount1)
+        );
+        test_SlashStruct.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
 
-            // Allow for small rounding differences in totalStake calculation after second slash
-            uint256 expectedTotalStake2 = depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2;
-            uint256 actualTotalStake2 = vault.totalStake();
-            assertTrue(
-                (expectedTotalStake2 >= actualTotalStake2 && expectedTotalStake2 - actualTotalStake2 <= 10)
-                    || (actualTotalStake2 >= expectedTotalStake2 && actualTotalStake2 - expectedTotalStake2 <= 10)
-            );
-            // After second slash, withdrawals should be sum of both withdrawal amounts after slashing
-            uint256 withdrawals1AfterSlash2 = test_SlashStruct.withdrawals1
-                - test_SlashStruct.withdrawals1
-                    .mulDiv(
-                        test_SlashStruct.slashAmountSlashed2,
-                        depositAmount - test_SlashStruct.slashAmountReal1
-                    );
-            uint256 nextWithdrawals1AfterSlash2 = test_SlashStruct.nextWithdrawals1
-                - test_SlashStruct.nextWithdrawals1
-                    .mulDiv(
-                        test_SlashStruct.slashAmountSlashed2,
-                        depositAmount - test_SlashStruct.slashAmountReal1
-                    );
-            uint256 expectedWithdrawals2 = withdrawals1AfterSlash2 + nextWithdrawals1AfterSlash2;
-            uint256 actualWithdrawals2 = vault.withdrawals();
-            // Allow for small rounding differences
-            assertTrue(
-                (expectedWithdrawals2 >= actualWithdrawals2 && expectedWithdrawals2 - actualWithdrawals2 <= 20)
-                    || (actualWithdrawals2 >= expectedWithdrawals2 && actualWithdrawals2 - expectedWithdrawals2 <= 20)
-            );
-            // Allow for small rounding differences in activeStake calculation after second slash
-            uint256 expectedActiveStake2 = test_SlashStruct.activeStake1
-                - test_SlashStruct.activeStake1
-                    .mulDiv(test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1);
-            uint256 actualActiveStake2 = vault.activeStake();
-            assertTrue(
-                (expectedActiveStake2 >= actualActiveStake2 && expectedActiveStake2 - actualActiveStake2 <= 10)
-                    || (actualActiveStake2 >= expectedActiveStake2 && actualActiveStake2 - expectedActiveStake2 <= 10)
-            );
+        console2.log("activeStakeAtSlash2", vault.activeStakeAt(uint48(blockTimestamp - captureAgo), new bytes(0)));
+        console2.log("blockTimestamp", blockTimestamp);
+        assertEq(
+            _slash(alice, alice, bob, slashAmount2, uint48(blockTimestamp - captureAgo), ""),
+            Math.min(slashAmount2, test_SlashStruct.slashAmountSlashed2)
+        );
+        assertEq(
+            collateral.balanceOf(address(vault.burner())) - test_SlashStruct.tokensBeforeBurner,
+            test_SlashStruct.slashAmountSlashed2
+        );
+
+        // Allow for small rounding differences in totalStake calculation after second slash
+        uint256 expectedTotalStake2 =
+            depositAmount - test_SlashStruct.slashAmountReal1 - test_SlashStruct.slashAmountSlashed2;
+        uint256 actualTotalStake2 = vault.totalStake();
+        assertTrue(
+            (expectedTotalStake2 >= actualTotalStake2 && expectedTotalStake2 - actualTotalStake2 <= 10)
+                || (actualTotalStake2 >= expectedTotalStake2 && actualTotalStake2 - expectedTotalStake2 <= 10)
+        );
+        // After second slash, withdrawals should be sum of both withdrawal amounts after slashing
+        uint256 withdrawals1AfterSlash2 = test_SlashStruct.withdrawals1
+            - test_SlashStruct.withdrawals1
+                .mulDiv(test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1);
+        uint256 nextWithdrawals1AfterSlash2 = test_SlashStruct.nextWithdrawals1
+            - test_SlashStruct.nextWithdrawals1
+                .mulDiv(test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1);
+        uint256 expectedWithdrawals2 = withdrawals1AfterSlash2 + nextWithdrawals1AfterSlash2;
+        uint256 actualWithdrawals2 = vault.withdrawals();
+        // Allow for small rounding differences
+        assertTrue(
+            (expectedWithdrawals2 >= actualWithdrawals2 && expectedWithdrawals2 - actualWithdrawals2 <= 20)
+                || (actualWithdrawals2 >= expectedWithdrawals2 && actualWithdrawals2 - expectedWithdrawals2 <= 20)
+        );
+        // Allow for small rounding differences in activeStake calculation after second slash
+        uint256 expectedActiveStake2 = test_SlashStruct.activeStake1
+            - test_SlashStruct.activeStake1
+                .mulDiv(test_SlashStruct.slashAmountSlashed2, depositAmount - test_SlashStruct.slashAmountReal1);
+        uint256 actualActiveStake2 = vault.activeStake();
+        assertTrue(
+            (expectedActiveStake2 >= actualActiveStake2 && expectedActiveStake2 - actualActiveStake2 <= 10)
+                || (actualActiveStake2 >= expectedActiveStake2 && actualActiveStake2 - expectedActiveStake2 <= 10)
+        );
     }
 
     // struct GasStruct {
@@ -2800,13 +2799,14 @@ contract VaultTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user);
+        amount = vault.claim(user, 0);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user);
+        uint256 count = epochs.length > 0 ? epochs.length : 1;
+        amount = vault.claimBatch(user, count);
         vm.stopPrank();
     }
 

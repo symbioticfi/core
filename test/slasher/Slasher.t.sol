@@ -1999,13 +1999,14 @@ contract SlasherTest is Test {
 
     function _claim(address user, uint256 epoch) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user);
+        amount = vault.claim(user, 0);
         vm.stopPrank();
     }
 
     function _claimBatch(address user, uint256[] memory epochs) internal returns (uint256 amount) {
         vm.startPrank(user);
-        amount = vault.claim(user);
+        uint256 count = epochs.length > 0 ? epochs.length : 1;
+        amount = vault.claimBatch(user, count);
         vm.stopPrank();
     }
 

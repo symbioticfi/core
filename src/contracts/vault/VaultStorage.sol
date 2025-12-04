@@ -64,6 +64,13 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     address public burner;
 
     /**
+     * @notice Initial timestamp for epoch calculation.
+     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
+     *      It is no longer used in the contract logic. Use withdrawalDelay instead.
+     */
+    uint48 public epochDurationInit;
+
+    /**
      * @notice Duration of the withdrawal delay (time before withdrawals become claimable).
      * @return duration of the withdrawal delay
      */
@@ -100,6 +107,40 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     mapping(address account => bool value) public isDepositorWhitelisted;
 
     /**
+     * @notice Withdrawal assets per epoch.
+     * @dev DEPRECATED: This mapping is kept for storage layout compatibility with previous versions.
+     *      It is no longer used in the contract logic. Use the withdrawals() getter function instead.
+     */
+    mapping(uint256 epoch => uint256 amount) internal _withdrawalsEpoch;
+
+    /**
+     * @notice Withdrawal shares per epoch.
+     * @dev DEPRECATED: This mapping is kept for storage layout compatibility with previous versions.
+     *      It is no longer used in the contract logic. Use the withdrawalShares() getter function instead.
+     */
+    mapping(uint256 epoch => uint256 amount) internal _withdrawalSharesEpoch;
+
+    /**
+     * @notice Withdrawal shares per epoch per account.
+     * @dev DEPRECATED: This mapping is kept for storage layout compatibility with previous versions.
+     *      It is no longer used in the contract logic. Use _withdrawalEntries mapping instead.
+     */
+    mapping(uint256 epoch => mapping(address account => uint256 amount)) internal _withdrawalSharesOfEpoch;
+
+    /**
+     * @notice Whether withdrawals have been claimed per epoch per account.
+     * @dev DEPRECATED: This mapping is kept for storage layout compatibility with previous versions.
+     *      It is no longer used in the contract logic. Use _withdrawalEntries mapping instead.
+     */
+    mapping(uint256 epoch => mapping(address account => bool value)) internal _isWithdrawalsClaimed;
+
+    Checkpoints.Trace256 internal _activeShares;
+
+    Checkpoints.Trace256 internal _activeStake;
+
+    mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
+
+    /**
      * @notice Total pending withdrawal assets in the global withdrawal pool.
      * @dev Only withdrawals that are not yet claimable contribute to this pool.
      */
@@ -110,18 +151,6 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      * @dev Only withdrawals that are not yet claimable contribute to this pool.
      */
     uint256 public withdrawalShares;
-
-    /**
-     * @notice Total claimable withdrawal assets in the global withdrawal pool.
-     * @dev These withdrawals have finished their delay and are no longer slashable.
-     */
-    uint256 public claimableWithdrawals;
-
-    /**
-     * @notice Total claimable withdrawal shares in the global withdrawal pool.
-     * @dev These withdrawals have finished their delay and are no longer slashable.
-     */
-    uint256 public claimableWithdrawalShares;
 
     /**
      * @notice Withdrawal entries for each account stored as a queue.
@@ -142,10 +171,25 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     uint256 internal _processedWithdrawalBucket;
 
     /**
-     * @notice Cumulative withdrawal shares per bucket, stored as prefix sums.
-     * @dev `_withdrawalBucketCumulativeShares[i]` equals total shares across buckets `[0, i]`.
+     * @notice Prefix sum entry containing cumulative shares and assets.
+     * @dev Stores cumulative values up to and including a bucket index.
      */
-    uint256[] internal _withdrawalBucketCumulativeShares;
+    struct PrefixSum {
+        uint256 cumulativeShares;
+        uint256 cumulativeAssets;
+    }
+
+    /**
+     * @notice Cumulative withdrawal shares and assets per bucket, stored as prefix sums.
+     * @dev `_withdrawalPrefixSum[i]` equals cumulative shares and assets across buckets `[0, i]`.
+     *      Assets are only set when buckets mature; before maturity, cumulativeAssets equals the previous bucket's value.
+     */
+    PrefixSum[] internal _withdrawalPrefixSum;
+
+    constructor(address delegatorFactory, address slasherFactory) {
+        DELEGATOR_FACTORY = delegatorFactory;
+        SLASHER_FACTORY = slasherFactory;
+    }
 
     /**
      * @notice Get total withdrawal shares for a particular account (for slashing).
@@ -192,38 +236,6 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     function _unpackWithdrawal(uint256 packed) internal pure returns (uint256 shares, uint48 unlockAt) {
         unlockAt = uint48(packed & type(uint48).max);
         shares = packed >> 48;
-    }
-
-    Checkpoints.Trace256 internal _activeShares;
-
-    Checkpoints.Trace256 internal _activeStake;
-
-    mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
-
-    constructor(address delegatorFactory, address slasherFactory) {
-        DELEGATOR_FACTORY = delegatorFactory;
-        SLASHER_FACTORY = slasherFactory;
-    }
-
-    /**
-     * @notice Get the current timestamp.
-     * @return current timestamp
-     */
-    function currentTime() public view returns (uint48) {
-        return Time.timestamp();
-    }
-
-    /**
-     * @notice Get all slashable unlock windows (windows where unlockAt > now).
-     * @param now_ current timestamp
-     * @return windows array of unlock windows that are still slashable
-     * @dev This is a helper for iterating over slashable withdrawals.
-     *      In practice, we'll track the max unlock window and iterate backwards.
-     */
-    function getSlashableWindows(uint48 now_) public view returns (uint48[] memory windows) {
-        // This is a simplified version - in practice, you'd want to track active windows
-        // For now, we'll calculate on-the-fly in the calling functions
-        return windows;
     }
 
     /**

@@ -218,11 +218,20 @@ interface IVault is IMigratableEntity, IVaultStorage {
     function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares);
 
     /**
-     * @notice Claim all claimable collateral from the vault.
+     * @notice Claim collateral from the vault for a specific withdrawal index.
      * @param recipient account that receives the collateral
+     * @param index index of the withdrawal entry to claim
      * @return amount amount of the collateral claimed
      */
-    function claim(address recipient) external returns (uint256 amount);
+    function claim(address recipient, uint256 index) external returns (uint256 amount);
+
+    /**
+     * @notice Claim collateral from the vault for the first count claimable withdrawal entries.
+     * @param recipient account that receives the collateral
+     * @param count number of withdrawal entries to claim (from the front of the queue)
+     * @return amount total amount of the collateral claimed
+     */
+    function claimBatch(address recipient, uint256 count) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.
