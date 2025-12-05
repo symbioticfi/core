@@ -171,20 +171,16 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     uint256 internal _processedWithdrawalBucket;
 
     /**
-     * @notice Prefix sum entry containing cumulative shares and assets.
-     * @dev Stores cumulative values up to and including a bucket index.
+     * @notice Cumulative withdrawal shares per bucket, stored as prefix sums.
+     * @dev `_withdrawalPrefixSum[i]` equals cumulative shares across buckets `[0, i]`.
      */
-    struct PrefixSum {
-        uint256 cumulativeShares;
-        uint256 cumulativeAssets;
-    }
+    uint256[] internal _withdrawalPrefixSum;
 
     /**
-     * @notice Cumulative withdrawal shares and assets per bucket, stored as prefix sums.
-     * @dev `_withdrawalPrefixSum[i]` equals cumulative shares and assets across buckets `[0, i]`.
-     *      Assets are only set when buckets mature; before maturity, cumulativeAssets equals the previous bucket's value.
+     * @notice Asset-per-share rate checkpoints by bucket index (1e18 scaled).
+     * @dev Stores the rate only when it changes so consecutive bucket indexes with the same rate reuse a single entry.
      */
-    PrefixSum[] internal _withdrawalPrefixSum;
+    Checkpoints.Trace256 internal _withdrawalBucketRate;
 
     constructor(address delegatorFactory, address slasherFactory) {
         DELEGATOR_FACTORY = delegatorFactory;

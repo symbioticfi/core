@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
+import "forge-std/console2.sol";
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
@@ -84,7 +85,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             if (unlockAt <= now_) {
                 // Calculate assets for this entry based on its bucket's conversion ratio
                 uint256 bucketIndex = _bucketIndexFromUnlockAt(unlockAt);
-                uint256 assetPerShare = _bucketAssetPerShare(bucketIndex);
+                uint256 assetPerShare = _bucketAssetPerShareRate(bucketIndex);
 
                 totalAssets += shares.mulDiv(assetPerShare, 1e18, Math.Rounding.Floor);
             }
@@ -405,23 +406,18 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             if (bucketIndex != 0) {
                 revert InvalidTimestamp();
             }
-            _withdrawalPrefixSum.push(PrefixSum({cumulativeShares: mintedShares, cumulativeAssets: 0}));
+            _withdrawalPrefixSum.push(mintedShares);
             return;
         }
 
         if (bucketIndex == length_ - 1) {
-            _withdrawalPrefixSum[bucketIndex].cumulativeShares += mintedShares;
+            _withdrawalPrefixSum[bucketIndex] += mintedShares;
             return;
         }
 
         if (bucketIndex == length_) {
-            PrefixSum memory previous = _withdrawalPrefixSum[length_ - 1];
-            _withdrawalPrefixSum.push(
-                PrefixSum({
-                    cumulativeShares: previous.cumulativeShares + mintedShares,
-                    cumulativeAssets: previous.cumulativeAssets
-                })
-            );
+            uint256 previous = _withdrawalPrefixSum[length_ - 1];
+            _withdrawalPrefixSum.push(previous + mintedShares);
             return;
         }
 
@@ -442,53 +438,18 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert InvalidTimestamp();
         }
 
-        uint256 upper = _withdrawalPrefixSum[toIndex].cumulativeShares;
-        uint256 lower = fromIndex == 0 ? 0 : _withdrawalPrefixSum[fromIndex - 1].cumulativeShares;
+        uint256 upper = _withdrawalPrefixSum[toIndex];
+        uint256 lower = fromIndex == 0 ? 0 : _withdrawalPrefixSum[fromIndex - 1];
         return upper - lower;
     }
 
     /**
-     * @notice Get cumulative assets between two bucket indices.
-     * @param fromIndex starting bucket index (inclusive)
-     * @param toIndex ending bucket index (inclusive)
-     * @return cumulative assets across buckets [fromIndex, toIndex]
+     * @notice Get stored asset-per-share rate for a specific bucket index.
+     * @param bucketIndex bucket index to get the rate for
+     * @return assetPerShare asset amount per share (scaled by 1e18), or 0 if the bucket hasn't been processed yet
      */
-    function _bucketAssetsBetween(uint256 fromIndex, uint256 toIndex) internal view returns (uint256) {
-        if (fromIndex > toIndex) {
-            return 0;
-        }
-
-        uint256 length_ = _withdrawalPrefixSum.length;
-        if (length_ == 0 || fromIndex >= length_) {
-            return 0;
-        }
-
-        if (toIndex >= length_) {
-            revert InvalidTimestamp();
-        }
-
-        uint256 upper = _withdrawalPrefixSum[toIndex].cumulativeAssets;
-        uint256 lower = fromIndex == 0 ? 0 : _withdrawalPrefixSum[fromIndex - 1].cumulativeAssets;
-        return upper - lower;
-    }
-
-    /**
-     * @notice Get asset-per-share ratio for a specific bucket.
-     * @param bucketIndex bucket index to get the ratio for
-     * @return assetPerShare asset amount per share (scaled by 1e18), or 0 if bucket hasn't matured yet
-     */
-    function _bucketAssetPerShare(uint256 bucketIndex) internal view returns (uint256) {
-        uint256 bucketShares = _bucketSharesBetween(bucketIndex, bucketIndex);
-        if (bucketShares == 0) {
-            return 0;
-        }
-
-        uint256 bucketAssets = _bucketAssetsBetween(bucketIndex, bucketIndex);
-        if (bucketAssets == 0) {
-            return 0;
-        }
-
-        return bucketAssets.mulDiv(1e18, bucketShares, Math.Rounding.Floor);
+    function _bucketAssetPerShareRate(uint256 bucketIndex) internal view returns (uint256) {
+        return _withdrawalBucketRate.upperLookupRecent(uint48(bucketIndex));
     }
 
     function _bucketIndex(uint48 unlockAt) internal returns (uint256 index) {
@@ -516,6 +477,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             return (false, 0);
         }
 
+        uint256 bucketCount = _withdrawalBucketTrace.length();
+        if (_processedWithdrawalBucket >= bucketCount) {
+            // All buckets processed; nothing left to mature
+            return (false, 0);
+        }
+
         Checkpoints.Checkpoint256 memory checkpoint = _withdrawalBucketTrace.at(uint32(_processedWithdrawalBucket));
         if (checkpoint._key > now_) {
             return (false, 0);
@@ -523,6 +490,13 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         uint256 matureIndex = _withdrawalBucketTrace.upperLookupRecent(now_);
         return (true, matureIndex);
+    }
+
+    function lastMaturedBucket(uint48 now_) public view returns (bool hasMatured, uint256 index) {
+        console2.log("_withdrawalBucketTrace.length()",_withdrawalBucketTrace.length());
+        console2.log("_withdrawalPrefixSum.length",_withdrawalPrefixSum.length);
+        console2.log("_processedWithdrawalBucket",_processedWithdrawalBucket);
+        return _lastMaturedBucket(now_);
     }
 
     function _processMaturedBuckets(uint48 now_)
@@ -551,17 +525,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         withdrawals = pendingWithdrawals_;
         withdrawalShares = pendingWithdrawalShares_;
 
-        // Store cumulative assets for each bucket in this range
-        // This preserves the asset value at which shares in each bucket were converted
-        // even if slashing occurs between different buckets maturing
-        uint256 cumulativeAssetsBefore =
-            _processedWithdrawalBucket == 0 ? 0 : _withdrawalPrefixSum[_processedWithdrawalBucket - 1].cumulativeAssets;
+        uint256 assetPerShare = maturedAssets.mulDiv(1e18, maturedShares, Math.Rounding.Floor);
 
-        for (uint256 i = _processedWithdrawalBucket; i <= maturedIndex; ++i) {
-            // Calculate assets for this bucket proportionally
-            uint256 bucketAssets = maturedAssets.mulDiv(_bucketSharesBetween(i, i), maturedShares, Math.Rounding.Floor);
-            cumulativeAssetsBefore += bucketAssets;
-            _withdrawalPrefixSum[i].cumulativeAssets = cumulativeAssetsBefore;
+        // Store rate only when it changes to reuse checkpoints across buckets with identical conversion rates
+        (bool exists,, uint256 lastRate) = _withdrawalBucketRate.latestCheckpoint();
+        if (!exists || lastRate != assetPerShare) {
+            _withdrawalBucketRate.push(uint48(_processedWithdrawalBucket), assetPerShare);
         }
 
         _processedWithdrawalBucket = maturedIndex + 1;
@@ -645,7 +614,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
         // Calculate assets for this entry based on its bucket's conversion ratio
         uint256 bucketIndex = _bucketIndexFromUnlockAt(unlockAt);
-        uint256 assetPerShare = _bucketAssetPerShare(bucketIndex);
+        uint256 assetPerShare = _bucketAssetPerShareRate(bucketIndex);
 
         // Use the stored asset-per-share ratio for this bucket
         amount = shares.mulDiv(assetPerShare, 1e18, Math.Rounding.Floor);
@@ -704,7 +673,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
                 // Calculate assets for this entry based on its bucket's conversion ratio
                 uint256 bucketIndex = _bucketIndexFromUnlockAt(unlockAt);
-                uint256 assetPerShare = _bucketAssetPerShare(bucketIndex);
+                uint256 assetPerShare = _bucketAssetPerShareRate(bucketIndex);
 
                 // Use the stored asset-per-share ratio for this bucket
                 amount += shares.mulDiv(assetPerShare, 1e18, Math.Rounding.Floor);
