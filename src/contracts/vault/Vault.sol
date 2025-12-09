@@ -20,6 +20,7 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
+    using Checkpoints for Checkpoints.Trace208;
     using Math for uint256;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
@@ -41,7 +42,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      */
     function totalStake() public view returns (uint256) {
         uint256 epoch = currentEpoch();
-        return activeStake() + withdrawals[epoch] + withdrawals[epoch + 1];
+        return activeStake() + _withdrawals[epoch] + _withdrawals[epoch + 1];
     }
 
     /**
@@ -69,17 +70,29 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function withdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
-        return
-            ERC4626Math.previewRedeem(withdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]);
+    function withdrawalsOf(uint256 index, address account) public view returns (uint256) {
+        Withdrawal memory withdrawal = _withdrawalsOf[account][index];
+        uint256 bucketIndex = timeToBucket.upperLookupRecent(withdrawal.unlockAt);
+        return ERC4626Math.previewRedeem(withdrawal.shares, _withdrawals[bucketIndex], _withdrawalShares[bucketIndex]);
+
     }
 
     /**
      * @inheritdoc IVault
      */
     function slashableBalanceOf(address account) external view returns (uint256) {
-        uint256 epoch = currentEpoch();
-        return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
+        uint256 amount;
+        Withdrawal[] storage withdrawals_ = _withdrawalsOf[account];
+        for (uint256 i = withdrawals_.length - 1; i > 0; --i) {
+            Withdrawal memory withdrawal = withdrawals_[i];
+            if(withdrawal.unlockAt <= block.timestamp) {
+                break;
+            }
+            uint256 bucketIndex = timeToBucket.upperLookupRecent(withdrawal.unlockAt);
+            amount += ERC4626Math.previewRedeem(withdrawal.shares, _withdrawals[bucketIndex], _withdrawalShares[bucketIndex]);
+        }
+
+        return activeBalanceOf(account) + amount;
     }
 
     /**
@@ -176,38 +189,38 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
     /**
      * @inheritdoc IVault
      */
-    function claim(address recipient, uint256 epoch) external nonReentrant returns (uint256 amount) {
+    function claim(address recipient, uint256 index) external nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
 
-        amount = _claim(epoch);
+        amount = _claim(index);
 
         IERC20(collateral).safeTransfer(recipient, amount);
 
-        emit Claim(msg.sender, recipient, epoch, amount);
+        emit Claim(msg.sender, recipient, index, amount);
     }
 
     /**
      * @inheritdoc IVault
      */
-    function claimBatch(address recipient, uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
+    function claimBatch(address recipient, uint256[] calldata indexes) external nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
 
-        uint256 length = epochs.length;
+        uint256 length = indexes.length;
         if (length == 0) {
             revert InvalidLengthEpochs();
         }
 
         for (uint256 i; i < length; ++i) {
-            amount += _claim(epochs[i]);
+            amount += _claim(indexes[i]);
         }
 
         IERC20(collateral).safeTransfer(recipient, amount);
 
-        emit ClaimBatch(msg.sender, recipient, epochs, amount);
+        emit ClaimBatch(msg.sender, recipient, indexes, amount);
     }
 
     /**
@@ -218,47 +231,32 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
             revert NotSlasher();
         }
 
-        uint256 currentEpoch_ = currentEpoch();
-        uint256 captureEpoch = epochAt(captureTimestamp);
-        if ((currentEpoch_ > 0 && captureEpoch < currentEpoch_ - 1) || captureEpoch > currentEpoch_) {
+        if (captureTimestamp < uint48(block.timestamp) + epochDuration || captureTimestamp >= uint48(block.timestamp)) {
             revert InvalidCaptureEpoch();
         }
 
+        uint256 unmaturedWithdrawals = withdrawalsPrefixes.latest() - withdrawalsPrefixes.upperLookupRecent(uint48(block.timestamp));
+        uint256 unmaturedWithdrawalShares = withdrawalSharesPrefixes.latest() - withdrawalSharesPrefixes.upperLookupRecent(uint48(block.timestamp));
+        uint208 lastBucket = timeToBucket.latest();
+        _withdrawals[lastBucket] -= unmaturedWithdrawals;
+        _withdrawalShares[lastBucket] -= unmaturedWithdrawalShares;
+        _withdrawalShares[lastBucket + 1] = unmaturedWithdrawalShares;
+        timeToBucket.push(uint48(block.timestamp), lastBucket + 1);
+
         uint256 activeStake_ = activeStake();
-        uint256 nextWithdrawals = withdrawals[currentEpoch_ + 1];
-        if (captureEpoch == currentEpoch_) {
-            uint256 slashableStake = activeStake_ + nextWithdrawals;
-            slashedAmount = Math.min(amount, slashableStake);
-            if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
-                uint256 nextWithdrawalsSlashed = slashedAmount - activeSlashed;
-
-                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
-                withdrawals[captureEpoch + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-            }
-        } else {
-            uint256 withdrawals_ = withdrawals[currentEpoch_];
-            uint256 slashableStake = activeStake_ + withdrawals_ + nextWithdrawals;
-            slashedAmount = Math.min(amount, slashableStake);
-            if (slashedAmount > 0) {
-                uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
-                uint256 nextWithdrawalsSlashed = slashedAmount.mulDiv(nextWithdrawals, slashableStake);
-                uint256 withdrawalsSlashed = slashedAmount - activeSlashed - nextWithdrawalsSlashed;
-
-                if (withdrawals_ < withdrawalsSlashed) {
-                    nextWithdrawalsSlashed += withdrawalsSlashed - withdrawals_;
-                    withdrawalsSlashed = withdrawals_;
-                }
-
-                _activeStake.push(Time.timestamp(), activeStake_ - activeSlashed);
-                withdrawals[currentEpoch_ + 1] = nextWithdrawals - nextWithdrawalsSlashed;
-                withdrawals[currentEpoch_] = withdrawals_ - withdrawalsSlashed;
-            }
-        }
+        uint256 slashableStake = activeStake_ + unmaturedWithdrawals;
+        slashedAmount = Math.min(amount, slashableStake);
 
         if (slashedAmount > 0) {
+            uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
+            uint256 withdrawalsSlashed = slashedAmount - activeSlashed;
+
+            _activeStake.push(uint48(block.timestamp), activeStake_ - activeSlashed);
+            unmaturedWithdrawals -= withdrawalsSlashed;
+
             IERC20(collateral).safeTransfer(burner, slashedAmount);
         }
+        _withdrawals[lastBucket + 1] = unmaturedWithdrawals;
 
         emit OnSlash(amount, captureTimestamp, slashedAmount);
     }
@@ -374,35 +372,35 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         _activeShares.push(Time.timestamp(), activeShares() - burnedShares);
         _activeStake.push(Time.timestamp(), activeStake() - withdrawnAssets);
 
-        uint256 epoch = currentEpoch() + 1;
-        uint256 withdrawals_ = withdrawals[epoch];
-        uint256 withdrawalsShares_ = withdrawalShares[epoch];
+        uint256 lastBucket = timeToBucket.latest();
+        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, _withdrawalShares[lastBucket], _withdrawals[lastBucket]);
+        _withdrawals[lastBucket] += withdrawnAssets;
+        _withdrawalShares[lastBucket] += mintedShares;
 
-        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, withdrawalsShares_, withdrawals_);
-
-        withdrawals[epoch] = withdrawals_ + withdrawnAssets;
-        withdrawalShares[epoch] = withdrawalsShares_ + mintedShares;
-        withdrawalSharesOf[epoch][claimer] += mintedShares;
+        uint48 unlockAt = uint48(block.timestamp) + epochDuration;
+        _withdrawalsOf[msg.sender].push(Withdrawal(false, unlockAt, mintedShares));
+        withdrawalsPrefixes.push(unlockAt, withdrawalsPrefixes.latest() + withdrawnAssets);
+        withdrawalSharesPrefixes.push(unlockAt, withdrawalSharesPrefixes.latest() + mintedShares);
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
-    function _claim(uint256 epoch) internal returns (uint256 amount) {
-        if (epoch >= currentEpoch()) {
+    function _claim(uint256 index) internal returns (uint256 amount) {
+        if (index >= _withdrawalsOf[msg.sender].length) {
             revert InvalidEpoch();
         }
+        Withdrawal memory withdrawal = _withdrawalsOf[msg.sender][index];
 
-        if (isWithdrawalsClaimed[epoch][msg.sender]) {
+        if (withdrawal.claimed) {
             revert AlreadyClaimed();
         }
 
-        amount = withdrawalsOf(epoch, msg.sender);
-
-        if (amount == 0) {
-            revert InsufficientClaim();
+        if (withdrawal.unlockAt <= block.timestamp) {
+            revert WithdrawalNotMatured();
         }
-
-        isWithdrawalsClaimed[epoch][msg.sender] = true;
+        uint256 bucketIndex = timeToBucket.upperLookupRecent(withdrawal.unlockAt);
+        _withdrawalsOf[msg.sender][index].claimed = true;
+        amount = ERC4626Math.previewRedeem(withdrawal.shares, _withdrawals[bucketIndex], _withdrawalShares[bucketIndex]);
     }
 
     function _initialize(uint64, address, bytes memory data) internal virtual override {

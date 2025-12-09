@@ -5,6 +5,12 @@ interface IVaultStorage {
     error InvalidTimestamp();
     error NoPreviousEpoch();
 
+    struct Withdrawal {
+        bool claimed;
+        uint48 unlockAt;
+        uint256 shares;
+    }
+
     /**
      * @notice Get a deposit whitelist enabler/disabler's role.
      * @return identifier of the whitelist enabler/disabler role
@@ -94,18 +100,21 @@ interface IVaultStorage {
      * @param timestamp time point to get the epoch at
      * @return epoch at the timestamp
      * @dev Reverts if the timestamp is less than the start of the epoch 0.
+     * @dev DEPRECATED: Epoch-related functionality is deprecated.
      */
     function epochAt(uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a current vault epoch.
      * @return current epoch
+     * @dev DEPRECATED: Epoch-related functionality is deprecated.
      */
     function currentEpoch() external view returns (uint256);
 
     /**
      * @notice Get a start of the current vault epoch.
      * @return start of the current epoch
+     * @dev DEPRECATED: Epoch-related functionality is deprecated.
      */
     function currentEpochStart() external view returns (uint48);
 
@@ -113,12 +122,14 @@ interface IVaultStorage {
      * @notice Get a start of the previous vault epoch.
      * @return start of the previous epoch
      * @dev Reverts if the current epoch is 0.
+     * @dev DEPRECATED: Epoch-related functionality is deprecated.
      */
     function previousEpochStart() external view returns (uint48);
 
     /**
      * @notice Get a start of the next vault epoch.
      * @return start of the next epoch
+     * @dev DEPRECATED: Epoch-related functionality is deprecated.
      */
     function nextEpochStart() external view returns (uint48);
 
@@ -192,32 +203,32 @@ interface IVaultStorage {
     function activeSharesOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the withdrawals at a given epoch.
-     * @param epoch epoch to get the total amount of the withdrawals at
-     * @return total amount of the withdrawals at the epoch
+     * @notice Get a total amount of the withdrawals at a given index.
+     * @param index index to get the total amount of the withdrawals at
+     * @return total amount of the withdrawals at the index
      */
-    function withdrawals(uint256 epoch) external view returns (uint256);
+    function withdrawals(uint256 index) external view returns (uint256);
 
     /**
-     * @notice Get a total number of withdrawal shares at a given epoch.
-     * @param epoch epoch to get the total number of withdrawal shares at
-     * @return total number of withdrawal shares at the epoch
+     * @notice Get a total number of withdrawal shares at a given index.
+     * @param index index to get the total number of withdrawal shares at
+     * @return total number of withdrawal shares at the index
      */
-    function withdrawalShares(uint256 epoch) external view returns (uint256);
+    function withdrawalShares(uint256 index) external view returns (uint256);
 
     /**
-     * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the number of withdrawal shares for the account at
+     * @notice Get a number of withdrawal shares for a particular account at a given index (zero if claimed).
+     * @param index index to get the number of withdrawal shares for the account at
      * @param account account to get the number of withdrawal shares for
-     * @return number of withdrawal shares for the account at the epoch
+     * @return number of withdrawal shares for the account at the index
      */
-    function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
+    function withdrawalSharesOf(uint256 index, address account) external view returns (uint256);
 
     /**
-     * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
-     * @param epoch epoch to check the withdrawals for the account at
+     * @notice Get if the withdrawals are claimed for a particular account at a given index.
+     * @param index index to check the withdrawals for the account at
      * @param account account to check the withdrawals for
-     * @return if the withdrawals are claimed for the account at the epoch
+     * @return if the withdrawals are claimed for the account at the index
      */
-    function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
+    function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
 }

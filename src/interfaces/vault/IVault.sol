@@ -31,6 +31,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error SlasherAlreadyInitialized();
     error TooMuchRedeem();
     error TooMuchWithdraw();
+    error WithdrawalNotMatured();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -97,19 +98,19 @@ interface IVault is IMigratableEntity, IVaultStorage {
      * @notice Emitted when a claim is made.
      * @param claimer account that claimed
      * @param recipient account that received the collateral
-     * @param epoch epoch the collateral was claimed for
+     * @param index index the collateral was claimed for
      * @param amount amount of the collateral claimed
      */
-    event Claim(address indexed claimer, address indexed recipient, uint256 epoch, uint256 amount);
+    event Claim(address indexed claimer, address indexed recipient, uint256 index, uint256 amount);
 
     /**
      * @notice Emitted when a batch claim is made.
      * @param claimer account that claimed
      * @param recipient account that received the collateral
-     * @param epochs epochs the collateral was claimed for
+     * @param indexes indexes the collateral was claimed for
      * @param amount amount of the collateral claimed
      */
-    event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] epochs, uint256 amount);
+    event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] indexes, uint256 amount);
 
     /**
      * @notice Emitted when a slash happens.
@@ -187,12 +188,12 @@ interface IVault is IMigratableEntity, IVaultStorage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get withdrawals for a particular account at a given epoch (zero if claimed).
-     * @param epoch epoch to get the withdrawals for the account at
+     * @notice Get withdrawals for a particular account at a given index (zero if claimed).
+     * @param index index to get the withdrawals for the account at
      * @param account account to get the withdrawals for
-     * @return withdrawals for the account at the epoch
+     * @return withdrawals for the account at the index
      */
-    function withdrawalsOf(uint256 epoch, address account) external view returns (uint256);
+    function withdrawalsOf(uint256 index, address account) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the collateral that can be slashed for a given account.
@@ -233,18 +234,18 @@ interface IVault is IMigratableEntity, IVaultStorage {
     /**
      * @notice Claim collateral from the vault.
      * @param recipient account that receives the collateral
-     * @param epoch epoch to claim the collateral for
+     * @param index index to claim the collateral for
      * @return amount amount of the collateral claimed
      */
-    function claim(address recipient, uint256 epoch) external returns (uint256 amount);
+    function claim(address recipient, uint256 index) external returns (uint256 amount);
 
     /**
-     * @notice Claim collateral from the vault for multiple epochs.
+     * @notice Claim collateral from the vault for multiple indexes.
      * @param recipient account that receives the collateral
-     * @param epochs epochs to claim the collateral for
+     * @param indexes indexes to claim the collateral for
      * @return amount amount of the collateral claimed
      */
-    function claimBatch(address recipient, uint256[] calldata epochs) external returns (uint256 amount);
+    function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
 
     /**
      * @notice Slash callback for burning collateral.

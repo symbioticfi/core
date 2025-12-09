@@ -12,6 +12,7 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     using Checkpoints for Checkpoints.Trace256;
+    using Checkpoints for Checkpoints.Trace208;
     using SafeCast for uint256;
 
     /**
@@ -105,30 +106,38 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     mapping(address account => bool value) public isDepositorWhitelisted;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    mapping(uint256 epoch => uint256 amount) public withdrawals;
+    mapping(uint256 epoch => uint256 amount) internal _epochWithdrawals;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    mapping(uint256 epoch => uint256 amount) public withdrawalShares;
+    mapping(uint256 epoch => uint256 amount) internal _epochWithdrawalShares;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    mapping(uint256 epoch => mapping(address account => uint256 amount)) public withdrawalSharesOf;
+    mapping(uint256 epoch => mapping(address account => uint256 amount)) internal _epochWithdrawalSharesOf;
 
     /**
-     * @inheritdoc IVaultStorage
+     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    mapping(uint256 epoch => mapping(address account => bool value)) public isWithdrawalsClaimed;
+    mapping(uint256 epoch => mapping(address account => bool value)) internal _isEpochWithdrawalsClaimed;
 
     Checkpoints.Trace256 internal _activeShares;
 
     Checkpoints.Trace256 internal _activeStake;
 
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
+
+    mapping(address account => Withdrawal[] withdrawals) internal _withdrawalsOf;
+    mapping(uint256 => uint256) internal _withdrawals;
+    mapping(uint256 => uint256) internal _withdrawalShares;
+
+    Checkpoints.Trace208 public timeToBucket;
+    Checkpoints.Trace256 public withdrawalsPrefixes;
+    Checkpoints.Trace256 public withdrawalSharesPrefixes;
 
     constructor(address delegatorFactory, address slasherFactory) {
         DELEGATOR_FACTORY = delegatorFactory;
@@ -142,14 +151,14 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
         if (timestamp < epochDurationInit) {
             revert InvalidTimestamp();
         }
-        return (timestamp - epochDurationInit) / epochDuration;
+        return timeToBucket.upperLookupRecent(timestamp);
     }
 
     /**
      * @inheritdoc IVaultStorage
      */
     function currentEpoch() public view returns (uint256) {
-        return (Time.timestamp() - epochDurationInit) / epochDuration;
+        return timeToBucket.upperLookupRecent(uint48(block.timestamp));
     }
 
     /**
@@ -217,6 +226,22 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     function activeSharesOf(address account) public view returns (uint256) {
         return _activeSharesOf[account].latest();
+    }
+
+    function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool) {
+        return _withdrawalsOf[account][index].claimed;
+    }
+
+    function withdrawalShares(uint256 index) external view returns (uint256) {
+        return _withdrawalShares[index];
+    }
+
+    function withdrawalSharesOf(uint256 index, address account) external view returns (uint256) {
+        return _withdrawalsOf[account][index].shares;
+    }
+    
+    function withdrawals(uint256 index) external view returns (uint256) {
+        return _withdrawals[index];
     }
 
     uint256[50] private __gap;
