@@ -244,5 +244,17 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
         return _withdrawals[index];
     }
 
+    function latestWithdrawalBucket() external view returns (uint256) {
+        return timeToBucket.latest();
+    }
+
+    function unmaturedWithdrawals(uint48 timestamp) public view returns (uint256) {
+        return withdrawalsPrefixes.length() == 1 ? withdrawalsPrefixes.latest() : withdrawalsPrefixes.latest() - withdrawalsPrefixes.upperLookupRecent(timestamp);
+    }
+
+    function unmaturedWithdrawalShares(uint48 timestamp) public view returns (uint256) {
+        return withdrawalSharesPrefixes.length() == 1 ? withdrawalSharesPrefixes.latest() : withdrawalSharesPrefixes.latest() - withdrawalSharesPrefixes.upperLookupRecent(timestamp);
+    }
+
     uint256[50] private __gap;
 }
