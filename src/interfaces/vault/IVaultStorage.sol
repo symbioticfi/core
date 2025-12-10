@@ -231,4 +231,17 @@ interface IVaultStorage {
      * @return if the withdrawals are claimed for the account at the index
      */
     function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
+
+    /**
+     * @notice Get a total number of unmatured withdrawal shares at a given timestamp.
+     * @param timestamp time point to get the total number of unmatured withdrawal shares at
+     * @return total number of unmatured withdrawal shares at the timestamp
+     */
+    function unmaturedWithdrawalShares(uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get the latest withdrawal bucket.
+     * @return latest withdrawal bucket
+     */
+    function latestWithdrawalBucket() external view returns (uint256);
 }

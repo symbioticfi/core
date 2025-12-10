@@ -41,7 +41,12 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
      * @inheritdoc IVault
      */
     function totalStake() public view returns (uint256) {
-        return activeStake() + unmaturedWithdrawals(uint48(block.timestamp));
+        uint208 lastBucket = timeToBucket.latest();
+        uint256 lastWithdrawalShares = _withdrawalShares[lastBucket];
+        uint256 unmaturedWithdrawals = lastWithdrawalShares == 0
+            ? 0
+            : unmaturedWithdrawalShares(uint48(block.timestamp)).mulDiv(_withdrawals[lastBucket], lastWithdrawalShares);
+        return activeStake() + unmaturedWithdrawals;
     }
 
     /**
@@ -238,30 +243,28 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (captureTimestamp + epochDuration < uint48(block.timestamp) || captureTimestamp >= uint48(block.timestamp)) {
             revert InvalidCaptureEpoch();
         }
-
-        uint256 unmaturedWithdrawals = unmaturedWithdrawals(uint48(block.timestamp));
-        uint256 unmaturedWithdrawalShares = unmaturedWithdrawalShares(uint48(block.timestamp));
         uint208 lastBucket = timeToBucket.latest();
-        _withdrawals[lastBucket] -= unmaturedWithdrawals;
-        _withdrawalShares[lastBucket] -= unmaturedWithdrawalShares;
-        _withdrawalShares[lastBucket + 1] = unmaturedWithdrawalShares;
+        uint256 lastWithdrawals = _withdrawals[lastBucket];
+        uint256 lastWithdrawalShares = _withdrawalShares[lastBucket];
+
+        uint256 unmaturedWithdrawalShares = unmaturedWithdrawalShares(uint48(block.timestamp));
+        uint256 unmaturedWithdrawals =
+            lastWithdrawalShares == 0 ? 0 : unmaturedWithdrawalShares.mulDiv(lastWithdrawals, lastWithdrawalShares);
+
         timeToBucket.push(uint48(block.timestamp), lastBucket + 1);
+        _withdrawals[lastBucket] = lastWithdrawals - unmaturedWithdrawals;
+        _withdrawalShares[lastBucket] = lastWithdrawalShares - unmaturedWithdrawalShares;
+        _withdrawalShares[lastBucket + 1] = unmaturedWithdrawalShares;
 
         uint256 activeStake_ = activeStake();
         uint256 slashableStake = activeStake_ + unmaturedWithdrawals;
         slashedAmount = Math.min(amount, slashableStake);
+        uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
+        _activeStake.push(uint48(block.timestamp), activeStake_ - activeSlashed);
 
-        if (slashedAmount > 0) {
-            uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
-            uint256 withdrawalsSlashed = slashedAmount - activeSlashed;
+        _withdrawals[lastBucket + 1] = unmaturedWithdrawals - (slashedAmount - activeSlashed);
 
-            _activeStake.push(uint48(block.timestamp), activeStake_ - activeSlashed);
-            unmaturedWithdrawals -= withdrawalsSlashed;
-
-            IERC20(collateral).safeTransfer(burner, slashedAmount);
-        }
-        _withdrawals[lastBucket + 1] = unmaturedWithdrawals;
-
+        IERC20(collateral).safeTransfer(burner, slashedAmount);
         emit OnSlash(amount, captureTimestamp, slashedAmount);
     }
 
