@@ -370,6 +370,20 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetSlasher(slasher_);
     }
 
+    function migrateWithdrawals() public {
+        uint48 epochDurationInit_ = epochDurationInit;
+        uint48 epochDuration_ = epochDuration;
+        for (uint48 i = epochDurationInit_; i < block.timestamp + epochDuration_; i += epochDuration_) {
+            uint256 epoch = (i - epochDurationInit_) / epochDuration_;
+            uint256 shares = _epochWithdrawalSharesOf[epoch][msg.sender];
+            if (shares > 0) {
+                _withdrawalsOf[msg.sender].push(
+                    Withdrawal(_isEpochWithdrawalsClaimed[epoch][msg.sender], i + epochDuration_, shares)
+                );
+            }
+        }
+    }
+
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         virtual
@@ -483,6 +497,45 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         internal
         override
     {
-        revert();
+        uint256 assetPerShare;
+        uint256 currentAssetPerShare;
+        uint256 withdrawals;
+        uint256 withdrawalShares;
+        uint256 bucketWithdrawals;
+        uint256 bucketWithdrawalShares;
+        uint208 latestBucket;
+        uint48 epochDurationInit_ = epochDurationInit;
+        uint48 epochDuration_ = epochDuration;
+        for (uint48 i = epochDurationInit_; i < block.timestamp + epochDuration_; i += epochDuration_) {
+            uint256 epoch = (i - epochDurationInit_) / epochDuration_;
+            withdrawalShares = _epochWithdrawalShares[epoch];
+            if (withdrawalShares == 0) {
+                continue;
+            }
+            withdrawals = _epochWithdrawals[epoch];
+            withdrawalsPrefixes.push(i + epochDuration_, withdrawalsPrefixes.latest() + withdrawals);
+            withdrawalSharesPrefixes.push(i + epochDuration_, withdrawalSharesPrefixes.latest() + withdrawalShares);
+
+            currentAssetPerShare = withdrawals.mulDiv(1e27, withdrawalShares);
+            if(assetPerShare == 0) {
+                assetPerShare = currentAssetPerShare;
+                timeToBucket.push(i + epochDuration_, latestBucket);
+            }
+            // in case of slashing we need to create a new bucket
+            if (assetPerShare != currentAssetPerShare) {
+                _withdrawals[latestBucket] = bucketWithdrawals;
+                _withdrawalShares[latestBucket] = bucketWithdrawalShares;
+                assetPerShare = currentAssetPerShare;
+                bucketWithdrawals = withdrawals;
+                bucketWithdrawalShares = withdrawalShares;
+                latestBucket++;
+                timeToBucket.push(i + epochDuration_, latestBucket);
+            } else {
+                bucketWithdrawals += withdrawals;
+                bucketWithdrawalShares += withdrawalShares;
+            }
+        }
+        _withdrawals[latestBucket] = bucketWithdrawals;
+        _withdrawalShares[latestBucket] = bucketWithdrawalShares;
     }
 }
