@@ -104,6 +104,16 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         return activeBalanceOf(account) + amount;
     }
 
+    function getWithdrawalsAt(uint48 timestamp) public view returns (uint256, uint256) {
+        // if timestamp is before the migration, use the epoch withdrawals
+        if(timestamp < timeToBucket.at(0)._key) {
+            uint48 epoch = (timestamp - epochDurationInit) / epochDuration;
+            return (_epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
+        }
+        uint256 bucketIndex = timeToBucket.upperLookupRecent(timestamp);
+        return (_withdrawals[bucketIndex], _withdrawalShares[bucketIndex]);
+    }
+
     /**
      * @inheritdoc IVault
      */
@@ -370,16 +380,14 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetSlasher(slasher_);
     }
 
-    function migrateWithdrawals() public {
-        uint48 epochDurationInit_ = epochDurationInit;
-        uint48 epochDuration_ = epochDuration;
-        for (uint48 i = epochDurationInit_; i < block.timestamp + epochDuration_; i += epochDuration_) {
-            uint256 epoch = (i - epochDurationInit_) / epochDuration_;
-            uint256 shares = _epochWithdrawalSharesOf[epoch][msg.sender];
+    function migrateWithdrawalsOf(uint48[] calldata epochs, address account) public {
+        uint256 length = epochs.length;
+        for (uint256 i; i < length; ++i) {
+            uint48 epoch = epochs[i];
+            uint256 shares = _epochWithdrawalSharesOf[epoch][account];
+            uint48 unlockAt = epochDurationInit + (epoch + 1) * epochDuration;
             if (shares > 0) {
-                _withdrawalsOf[msg.sender].push(
-                    Withdrawal(_isEpochWithdrawalsClaimed[epoch][msg.sender], i + epochDuration_, shares)
-                );
+                _withdrawalsOf[account].push(Withdrawal(_isEpochWithdrawalsClaimed[epoch][account], unlockAt, shares));
             }
         }
     }
@@ -420,9 +428,9 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         if (withdrawal.unlockAt >= block.timestamp) {
             revert WithdrawalNotMatured();
         }
-        uint256 bucketIndex = timeToBucket.upperLookupRecent(withdrawal.unlockAt);
         _withdrawalsOf[msg.sender][index].claimed = true;
-        amount = ERC4626Math.previewRedeem(withdrawal.shares, _withdrawals[bucketIndex], _withdrawalShares[bucketIndex]);
+        (uint256 withdrawals, uint256 withdrawalShares) = getWithdrawalsAt(withdrawal.unlockAt);
+        amount = ERC4626Math.previewRedeem(withdrawal.shares, withdrawals, withdrawalShares);
     }
 
     function _initialize(uint64, address, bytes memory data) internal virtual override {
@@ -497,45 +505,26 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         internal
         override
     {
-        uint256 assetPerShare;
-        uint256 currentAssetPerShare;
         uint256 withdrawals;
         uint256 withdrawalShares;
-        uint256 bucketWithdrawals;
-        uint256 bucketWithdrawalShares;
-        uint208 latestBucket;
-        uint48 epochDurationInit_ = epochDurationInit;
         uint48 epochDuration_ = epochDuration;
-        for (uint48 i = epochDurationInit_; i < block.timestamp + epochDuration_; i += epochDuration_) {
-            uint256 epoch = (i - epochDurationInit_) / epochDuration_;
-            withdrawalShares = _epochWithdrawalShares[epoch];
-            if (withdrawalShares == 0) {
-                continue;
-            }
-            withdrawals = _epochWithdrawals[epoch];
-            withdrawalsPrefixes.push(i + epochDuration_, withdrawalsPrefixes.latest() + withdrawals);
-            withdrawalSharesPrefixes.push(i + epochDuration_, withdrawalSharesPrefixes.latest() + withdrawalShares);
+        uint48 epochDurationInit_ = epochDurationInit;
 
-            currentAssetPerShare = withdrawals.mulDiv(1e27, withdrawalShares);
-            if(assetPerShare == 0) {
-                assetPerShare = currentAssetPerShare;
-                timeToBucket.push(i + epochDuration_, latestBucket);
-            }
-            // in case of slashing we need to create a new bucket
-            if (assetPerShare != currentAssetPerShare) {
-                _withdrawals[latestBucket] = bucketWithdrawals;
-                _withdrawalShares[latestBucket] = bucketWithdrawalShares;
-                assetPerShare = currentAssetPerShare;
-                bucketWithdrawals = withdrawals;
-                bucketWithdrawalShares = withdrawalShares;
-                latestBucket++;
-                timeToBucket.push(i + epochDuration_, latestBucket);
-            } else {
-                bucketWithdrawals += withdrawals;
-                bucketWithdrawalShares += withdrawalShares;
-            }
-        }
-        _withdrawals[latestBucket] = bucketWithdrawals;
-        _withdrawalShares[latestBucket] = bucketWithdrawalShares;
+        uint48 epoch = (block.timestamp - epochDurationInit_).toUint48() / epochDuration_;
+        withdrawalShares = _epochWithdrawalShares[epoch];
+        withdrawals = _epochWithdrawals[epoch];
+
+        uint48 nextEpochStart = epochDurationInit_ + (epoch + 1) * epochDuration_;
+        withdrawalsPrefixes.push(nextEpochStart, withdrawals);
+        withdrawalSharesPrefixes.push(nextEpochStart, withdrawalShares);
+
+        withdrawalShares += _epochWithdrawalShares[epoch + 1];
+        withdrawals += _epochWithdrawals[epoch + 1];
+        withdrawalsPrefixes.push(nextEpochStart + epochDuration_, withdrawals);
+        withdrawalSharesPrefixes.push(nextEpochStart + epochDuration_, withdrawalShares);
+
+        timeToBucket.push(nextEpochStart, epoch);
+        _withdrawals[epoch] = withdrawals;
+        _withdrawalShares[epoch] = withdrawalShares;
     }
 }
