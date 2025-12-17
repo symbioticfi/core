@@ -382,11 +382,17 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
 
     function migrateWithdrawalsOf(uint48[] calldata epochs, address account) public {
         uint256 length = epochs.length;
+        uint48 epochDuration_ = epochDuration;
+        uint48 epochDurationInit_ = epochDurationInit;
+        uint48 migrationEpoch = (timeToBucket.at(0)._key - epochDurationInit_) / epochDuration_ - 1;
         for (uint256 i; i < length; ++i) {
             uint48 epoch = epochs[i];
             uint256 shares = _epochWithdrawalSharesOf[epoch][account];
-            uint48 unlockAt = epochDurationInit + (epoch + 1) * epochDuration;
+            uint48 unlockAt = epochDurationInit_ + (epoch + 1) * epochDuration_;
             if (shares > 0) {
+                if (epoch >= migrationEpoch) {
+                    shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
+                }
                 _withdrawalsOf[account].push(Withdrawal(_isEpochWithdrawalsClaimed[epoch][account], unlockAt, shares));
             }
         }
@@ -506,25 +512,22 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         override
     {
         uint256 withdrawals;
-        uint256 withdrawalShares;
         uint48 epochDuration_ = epochDuration;
         uint48 epochDurationInit_ = epochDurationInit;
 
         uint48 epoch = (block.timestamp - epochDurationInit_).toUint48() / epochDuration_;
-        withdrawalShares = _epochWithdrawalShares[epoch];
         withdrawals = _epochWithdrawals[epoch];
 
         uint48 nextEpochStart = epochDurationInit_ + (epoch + 1) * epochDuration_;
         withdrawalsPrefixes.push(nextEpochStart, withdrawals);
-        withdrawalSharesPrefixes.push(nextEpochStart, withdrawalShares);
+        withdrawalSharesPrefixes.push(nextEpochStart, withdrawals);
 
-        withdrawalShares += _epochWithdrawalShares[epoch + 1];
         withdrawals += _epochWithdrawals[epoch + 1];
         withdrawalsPrefixes.push(nextEpochStart + epochDuration_, withdrawals);
-        withdrawalSharesPrefixes.push(nextEpochStart + epochDuration_, withdrawalShares);
+        withdrawalSharesPrefixes.push(nextEpochStart + epochDuration_, withdrawals);
 
         timeToBucket.push(nextEpochStart, epoch);
         _withdrawals[epoch] = withdrawals;
-        _withdrawalShares[epoch] = withdrawalShares;
+        _withdrawalShares[epoch] = withdrawals;
     }
 }
