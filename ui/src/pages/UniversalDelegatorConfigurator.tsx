@@ -564,14 +564,10 @@ export function UniversalDelegatorConfigurator() {
   }, [model, ops]);
 
   const applyModelUpdate = useCallback(
-    (
-      updater: (current: UniversalDelegatorModel) => UniversalDelegatorModel,
-      options?: { syncOps?: boolean },
-    ) => {
+    (updater: (current: UniversalDelegatorModel) => UniversalDelegatorModel) => {
       pushHistorySnapshot();
       setModel((prev) => {
         const updated = updater(prev);
-        if (options?.syncOps === false) return updated;
         const auto = autoSyncAll(updated);
         setOps((prevOps) => {
           const compiled = compileOpsFromModels({ baselineModel, nextModel: auto.model });
@@ -673,7 +669,7 @@ export function UniversalDelegatorConfigurator() {
       state: { draft: { size: "", isShared: false }, synced: null },
       networks: [],
     };
-    applyModelUpdate((prev) => ({ ...prev, groups: [...prev.groups, group] }), { syncOps: false });
+    applyModelUpdate((prev) => ({ ...prev, groups: [...prev.groups, group] }));
   }
 
   function addGroupFromTemplate() {
@@ -712,7 +708,7 @@ export function UniversalDelegatorConfigurator() {
       state: { draft: { size: "", isShared }, synced: null },
       networks,
     };
-    applyModelUpdate((prev) => ({ ...prev, groups: [...prev.groups, group] }), { syncOps: false });
+    applyModelUpdate((prev) => ({ ...prev, groups: [...prev.groups, group] }));
   }
 
   function swapNeighborSlots() {
@@ -790,13 +786,10 @@ export function UniversalDelegatorConfigurator() {
       operators: [],
     };
 
-    applyModelUpdate(
-      (prev) => ({
-        ...prev,
-        groups: prev.groups.map((g) => (g.id === groupId ? { ...g, networks: [...g.networks, network] } : g)),
-      }),
-      { syncOps: false },
-    );
+    applyModelUpdate((prev) => ({
+      ...prev,
+      groups: prev.groups.map((g) => (g.id === groupId ? { ...g, networks: [...g.networks, network] } : g)),
+    }));
   }
 
   function updateNetworkDraft(groupId: string, networkId: string, patch: Partial<NetworkDraft>) {
@@ -825,19 +818,16 @@ export function UniversalDelegatorConfigurator() {
       state: { draft: { size: "", operator: "" }, synced: null },
     };
 
-    applyModelUpdate(
-      (prev) => ({
-        ...prev,
-        groups: prev.groups.map((g) => {
-          if (g.id !== groupId) return g;
-          return {
-            ...g,
-            networks: g.networks.map((n) => (n.id === networkId ? { ...n, operators: [...n.operators, slot] } : n)),
-          };
-        }),
+    applyModelUpdate((prev) => ({
+      ...prev,
+      groups: prev.groups.map((g) => {
+        if (g.id !== groupId) return g;
+        return {
+          ...g,
+          networks: g.networks.map((n) => (n.id === networkId ? { ...n, operators: [...n.operators, slot] } : n)),
+        };
       }),
-      { syncOps: false },
-    );
+    }));
   }
 
   function updateOperatorDraft(groupId: string, networkId: string, operatorId: string, patch: Partial<OperatorDraft>) {
