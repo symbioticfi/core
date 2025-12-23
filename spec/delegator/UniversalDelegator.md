@@ -1,7 +1,7 @@
 # Universal Delegator
 
 `UniversalDelegator` is a `BaseDelegator` implementation that allocates a vault’s stake through a small ordered tree of “slots”.
-Slots can be configured to allocate **exclusively** (no overlap) or **shared** (overlap / restaking) between siblings.
+Slots can be configured to allocate in **isolated** mode (no overlap) or **shared** (overlap / restaking) between siblings.
 
 This document describes the contract behavior in `src/contracts/delegator/UniversalDelegator.sol`.
 
@@ -70,7 +70,7 @@ Let:
 - `availableParent = getAvailable(parentIndex)` (or `getAvailableAt(parentIndex, t)`)
 - `cap = slots[index].size`
 
-In exclusive mode (parent not shared), the child’s effective available is:
+In isolated mode (parent not shared), the child’s effective available is:
 
 - `childAvailable = saturatingSub(availableParent, slots[index].prevSum)`
 
@@ -95,6 +95,7 @@ Creates a new child slot under `parentIndex`:
   - `prevSum` is set to the current `_getChildrenSize(parentIndex)` (total size of existing children).
   - `isShared` is checkpointed on the new slot.
   - `size` is set to the provided `size`.
+- `size` may be `0`, which creates a valid slot that allocates nothing until resized.
 
 `isShared = true` is only allowed when creating a depth-1 slot (i.e., `parentIndex` is the root); otherwise it reverts with `WrongDepth()`.
 
@@ -102,7 +103,10 @@ Creates a new child slot under `parentIndex`:
 
 Updates a slot’s `size` cap.
 
-- Increasing size is only allowed when it doesn’t exceed the parent’s currently unallocated capacity (see `NotEnoughAvailable()`).
+- Increasing size is constrained only for **isolated parents** (parent `isShared == 0`) when the slot is **fully allocated** and **not the last child**.
+  In that case, the increase (`size - currentSize`) must fit within the parent’s unallocated balance
+  (`getUnallocated(parentIndex)`, i.e., `getAvailable(parentIndex)` minus the total size of its children), otherwise it reverts with `NotEnoughAvailable()`.
+  For shared parents, or when the slot is not fully allocated / is the last child, increases are allowed.
 - Decreasing size below the slot’s current allocation schedules a “pending free” amount on the parent via `pendingFreeCumulative`.
 - Updates `prevSum` checkpoints for following siblings using `_syncPrevSums(index)`.
 
