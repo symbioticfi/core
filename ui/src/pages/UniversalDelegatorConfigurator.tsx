@@ -1,10 +1,17 @@
 import { usePrivy } from "@privy-io/react-auth";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useAccount, usePublicClient, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { type Address, BaseError, type Hex, encodeFunctionData, isAddress } from "viem";
 
 import { universalDelegatorAbi } from "../contracts/universalDelegator";
 import { formatIndex, getChildIndex } from "../utils/universalDelegatorIndex";
+import { GroupCard } from "./universalDelegator/components/GroupCard";
+import { MulticallPanel } from "./universalDelegator/components/MulticallPanel";
+import { NetworkCard } from "./universalDelegator/components/NetworkCard";
+import { OperatorCard } from "./universalDelegator/components/OperatorCard";
+import { StatusBanner } from "./universalDelegator/components/StatusBanner";
+import { AddSlotButton } from "./universalDelegator/components/SlotVisuals";
+import { WalletStatus } from "./universalDelegator/components/WalletStatus";
 import {
   type GroupConstructor,
   type GroupDraft,
@@ -52,8 +59,7 @@ import {
   simulateMulticallCandidates,
   sumBigints,
 } from "./universalDelegator/logic";
-
-const FILL_OPACITY = 0.2;
+import { useTxStatus } from "./universalDelegator/useTxStatus";
 
 type SlotMetrics = {
   allocatedValue: bigint;
@@ -61,21 +67,6 @@ type SlotMetrics = {
   allocatedPct: number;
   pendingPct: number;
 };
-
-function pendingPatternStyle(colorVar: string): CSSProperties {
-  const lineColor = `var(${colorVar})`;
-  return {
-    backgroundImage: `linear-gradient(${lineColor} 0 2px, transparent 2px 10px), linear-gradient(90deg, ${lineColor} 0 2px, transparent 2px 10px)`,
-    backgroundSize: "10px 10px",
-    backgroundPosition: "-1px -1px",
-    backgroundRepeat: "repeat",
-    opacity: FILL_OPACITY,
-  };
-}
-
-function allocatedFillStyle(colorVar: string): CSSProperties {
-  return { backgroundColor: `var(${colorVar})`, opacity: FILL_OPACITY };
-}
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
@@ -102,17 +93,25 @@ function computeSlotMetrics(params: {
   return { allocatedValue, pendingValue, allocatedPct, pendingPct };
 }
 
-function SlotIndexBadge(props: { index: bigint; onCopy: (index: bigint) => void }) {
-  return (
-    <button
-      type="button"
-      className="badge badge-sm font-mono text-[10px] shrink-0 whitespace-nowrap cursor-pointer bg-base-100 text-base-content/60 border-base-300/60 transition-colors hover:bg-primary/10 hover:border-primary/30 hover:text-base-content hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      title={formatIndex(props.index)}
-      onClick={() => props.onCopy(props.index)}
-    >
-      {getChildIndex(props.index).toString()}
-    </button>
-  );
+function formatBalanceDisplay(params: {
+  canReadBalances: boolean;
+  hasRootBalance: boolean;
+  indexDefined: boolean;
+  loading: boolean;
+  value: bigint;
+}): string {
+  if (!params.canReadBalances || !params.hasRootBalance || !params.indexDefined) return "—";
+  if (params.loading) return "loading…";
+  return params.value.toString();
+}
+
+function hasReadError(data: readonly unknown[] | undefined): boolean {
+  if (!data) return false;
+  return data.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    if (!("error" in item)) return false;
+    return Boolean((item as { error?: unknown }).error);
+  });
 }
 
 export function UniversalDelegatorConfigurator() {
@@ -125,6 +124,7 @@ export function UniversalDelegatorConfigurator() {
     hash: txHash,
     query: { enabled: Boolean(txHash) },
   });
+  const txStatus = useTxStatus({ isPending, isConfirming, isConfirmed, error });
   const handledTxHashRef = useRef<Hex | null>(null);
 
   const nextId = useRef(1);
@@ -547,6 +547,27 @@ export function UniversalDelegatorConfigurator() {
     ? allocatedLoading
     : canReadBalances && balancesLoading && rootBalance === null;
   const pendingLoading = shouldUseOnchainAllocations ? availableLoading || allocatedLoading : false;
+  const onchainReadActive = canReadBalances || canReadOnchainAllocations || canReadAvailable;
+  const hasReadErrors = useMemo(
+    () => hasReadError(balancesData) || hasReadError(allocatedData) || hasReadError(availableData),
+    [allocatedData, availableData, balancesData],
+  );
+  const statusBanner = useMemo(() => {
+    if (hasReadErrors) {
+      return { tone: "error" as const, message: "Some on-chain reads failed. Check RPC endpoints or retry." };
+    }
+    if (isReconstructing || (onchainReadActive && (balancesLoading || allocatedLoading || availableLoading))) {
+      return { tone: "info" as const, message: "Loading on-chain data..." };
+    }
+    return null;
+  }, [
+    allocatedLoading,
+    availableLoading,
+    balancesLoading,
+    hasReadErrors,
+    isReconstructing,
+    onchainReadActive,
+  ]);
 
   const encodedCalls = useMemo(() => encodeOpsToCalls(selectedOps), [selectedOps]);
 
@@ -558,6 +579,10 @@ export function UniversalDelegatorConfigurator() {
       args: [encodedCalls],
     });
   }, [encodedCalls]);
+  const handleCopyCalldata = useCallback(() => {
+    if (!multicallCalldata) return;
+    void navigator.clipboard.writeText(multicallCalldata).then(() => flashToast("Calldata copied!"));
+  }, [flashToast, multicallCalldata]);
 
   const pushHistorySnapshot = useCallback(() => {
     setHistory((prev) => [...prev, { model: cloneModel(model), ops: cloneOps(ops) }]);
@@ -875,6 +900,7 @@ export function UniversalDelegatorConfigurator() {
     isAddress(delegatorAddress) &&
     encodedCalls.length > 0 &&
     !isPending &&
+    !isConfirming &&
     !isValidatingMulticall &&
     !multicallError;
 
@@ -883,7 +909,6 @@ export function UniversalDelegatorConfigurator() {
   const walletConnected = Boolean(authenticated && isConnected && accountAddress);
   const shortAccountAddress = accountAddress ? formatShortAddress(accountAddress) : "";
   const chainLabel = chain?.name ?? "Unknown chain";
-  const walletStatusLabel = walletConnected ? "Wallet connected" : "Wallet disconnected";
   const delegatorTrimmed = delegatorAddress.trim();
   const isDelegatorInvalid = delegatorTrimmed.length > 0 && !isAddress(delegatorTrimmed);
   const zoomCrumbs = useMemo(() => {
@@ -992,117 +1017,39 @@ export function UniversalDelegatorConfigurator() {
         <div className="flex-1">
           <div className="text-lg font-semibold">UniversalDelegator Configurator</div>
         </div>
-        <div className="flex-none flex items-center gap-3">
-          <div className="hidden sm:flex flex-col gap-1 rounded-xl border border-base-300 bg-base-100 px-3 py-2 text-xs shadow-sm">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-base-content/60">
-              <span className={`h-2 w-2 rounded-full ${walletConnected ? "bg-success" : "bg-warning"}`} />
-              <span>{walletStatusLabel}</span>
-            </div>
-            {walletConnected ? (
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs" title={accountAddress ?? undefined}>
-                  {shortAccountAddress}
-                </span>
-                <span className="badge badge-sm border-base-300/80 bg-base-100">{chainLabel}</span>
-              </div>
-            ) : null}
-          </div>
-          {authenticated ? (
-            <button className={`btn btn-outline btn-sm min-w-[92px] ${hoverActionClass}`} onClick={logout}>
-              Disconnect
-            </button>
-          ) : (
-            <button className={`btn btn-primary btn-sm min-w-[92px] ${hoverActionClass}`} onClick={login}>
-              Connect
-            </button>
-          )}
-        </div>
+        <WalletStatus
+          authenticated={authenticated}
+          walletConnected={walletConnected}
+          accountAddress={accountAddress}
+          shortAccountAddress={shortAccountAddress}
+          chainLabel={chainLabel}
+          actionClass={hoverActionClass}
+          onLogin={login}
+          onLogout={logout}
+        />
       </div>
 
       <div className="mx-auto w-full max-w-[120rem] px-2 py-4 sm:px-3 lg:px-4">
         <div className="flex flex-col gap-4">
-          <div className="card bg-base-200 shadow">
-            <div className="card-body gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold">Multicall</div>
-                  <div className="text-xs opacity-70">{encodedCalls.length} call(s) queued</div>
-                  <div className="text-xs opacity-70">
-                    Strategy: {selectedCandidateLabel}
-                    {selectedCandidateLabel !== primaryCandidateLabel ? " (fallback)" : null}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {isValidatingMulticall ? (
-                    <div className="text-xs opacity-70 whitespace-nowrap">
-                      Validating multicall against on-chain state…
-                    </div>
-                  ) : null}
-                  <button className="btn btn-primary btn-sm" disabled={!canExecute} onClick={executeMulticall}>
-                    {isPending ? "Submitting…" : "Execute"}
-                  </button>
-                </div>
-              </div>
-
-              {multicallWarning ? (
-                <div className="alert alert-warning text-xs">
-                  <span>{multicallWarning}</span>
-                </div>
-              ) : null}
-
-              {(isPending || isConfirming || isConfirmed || error) && (
-                <div className="rounded-lg bg-base-100 p-3 text-sm">
-                  {txHash ? <div className="font-mono text-xs break-all">{txHash}</div> : null}
-                  <div className="mt-2">
-                    {error ? (
-                      <div className="text-error">{error.message}</div>
-                    ) : isConfirmed ? (
-                      <div className="text-success">Confirmed</div>
-                    ) : isConfirming ? (
-                      <div>Waiting for confirmation…</div>
-                    ) : isPending ? (
-                      <div>Waiting for wallet approval…</div>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-
-              <div className="divider my-0">Ops</div>
-              <div className="max-h-[28rem] overflow-auto rounded-lg bg-base-100 p-3">
-                {selectedOps.length === 0 ? (
-                  <div className="text-sm opacity-70">No operations yet.</div>
-                ) : (
-                  <ol className="list-decimal pl-4 text-xs font-mono">
-                    {selectedOps.map((op, i) => (
-                      <li
-                        key={i}
-                        className={`mb-1 ${
-                          multicallErrorOp && multicallErrorOp.index === i ? "text-error font-semibold" : ""
-                        }`}
-                      >
-                        {formatOp(op)}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  className={`btn btn-ghost btn-sm ${hoverActionClass}`}
-                  disabled={!multicallCalldata}
-                  onClick={() =>
-                    multicallCalldata
-                      ? void navigator.clipboard.writeText(multicallCalldata).then(() => flashToast("Calldata copied!"))
-                      : Promise.resolve()
-                  }
-                >
-                  Copy Calldata
-                </button>
-                {multicallError ? <div className="ml-auto text-right text-xs text-error">{multicallError}</div> : null}
-              </div>
-            </div>
-          </div>
+          {statusBanner ? <StatusBanner tone={statusBanner.tone} message={statusBanner.message} /> : null}
+          <MulticallPanel
+            encodedCallsCount={encodedCalls.length}
+            selectedCandidateLabel={selectedCandidateLabel}
+            primaryCandidateLabel={primaryCandidateLabel}
+            isValidatingMulticall={isValidatingMulticall}
+            canExecute={canExecute}
+            isPending={isPending}
+            onExecute={executeMulticall}
+            multicallWarning={multicallWarning}
+            txHash={txHash}
+            txStatus={txStatus}
+            selectedOps={selectedOps}
+            multicallErrorOp={multicallErrorOp}
+            multicallError={multicallError}
+            multicallCalldata={multicallCalldata}
+            onCopyCalldata={handleCopyCalldata}
+            hoverActionClass={hoverActionClass}
+          />
 
           <div className="card bg-base-200 shadow">
             <div className="card-body gap-4">
@@ -1307,6 +1254,20 @@ export function UniversalDelegatorConfigurator() {
                       pendingByIndex,
                     });
                     const { allocatedValue, pendingValue, allocatedPct, pendingPct } = metrics;
+                    const allocatedDisplay = formatBalanceDisplay({
+                      canReadBalances,
+                      hasRootBalance,
+                      indexDefined: groupIndex !== undefined,
+                      loading: allocationsLoading || pendingLoading,
+                      value: allocatedValue,
+                    });
+                    const pendingDisplay = formatBalanceDisplay({
+                      canReadBalances,
+                      hasRootBalance,
+                      indexDefined: groupIndex !== undefined,
+                      loading: pendingLoading,
+                      value: pendingValue,
+                    });
                     const isGroupFocused = zoom.kind !== "all" && zoom.groupId === group.id;
                     const isGroupHovered = hoveredGroupId === group.id;
                     const handleGroupClick = (event: MouseEvent<HTMLDivElement>) => {
@@ -1331,129 +1292,62 @@ export function UniversalDelegatorConfigurator() {
                     };
 
                     return (
-                      <div
+                      <GroupCard
                         key={group.id}
-                        className={`card shrink-0 min-w-[18rem] bg-base-100 shadow relative overflow-hidden border transition-colors ${
-                          isGroupHovered ? "border-white" : "border-transparent"
-                        } ${isGroupFocused ? "cursor-zoom-out" : "cursor-zoom-in"}`}
-                        style={{ flexGrow: groupGrow, flexBasis: 0 }}
-                        onClick={handleGroupClick}
-                        onMouseMove={handleGroupHover}
-                        onMouseLeave={handleGroupLeave}
+                        group={group}
+                        groupIndex={groupIndex}
+                        allocatedPct={allocatedPct}
+                        pendingPct={pendingPct}
+                        allocatedDisplay={allocatedDisplay}
+                        pendingDisplay={pendingDisplay}
+                        groupGrow={groupGrow}
+                        isFocused={isGroupFocused}
+                        isHovered={isGroupHovered}
+                        sizeInvalid={draft.size.trim() !== "" && !sizeValid}
+                        onCopyIndex={copyIndexToClipboard}
+                        onToggleShared={(next) => updateGroupDraft(group.id, { isShared: next })}
+                        onSizeChange={(value) => updateGroupDraft(group.id, { size: value })}
+                        onCardClick={handleGroupClick}
+                        onCardHover={handleGroupHover}
+                        onCardLeave={handleGroupLeave}
                       >
-                        <div
-                          className="pointer-events-none absolute inset-y-0 left-0"
-                          style={{ width: `${allocatedPct}%`, ...allocatedFillStyle("--color-primary") }}
+                        <NetworksRow
+                          group={group}
+                          slotIdToIndex={slotIdToIndex}
+                          allocatedByIndex={allocationsByIndex}
+                          pendingByIndex={pendingByIndex}
+                          allocationsLoading={allocationsLoading}
+                          pendingLoading={pendingLoading}
+                          canReadBalances={canReadBalances}
+                          hasRootBalance={hasRootBalance}
+                          onCopyIndex={copyIndexToClipboard}
+                          onAddNetwork={() => addDraftNetwork(group.id)}
+                          showAddNetwork={zoom.kind !== "network"}
+                          focusedNetworkId={zoom.kind === "network" ? zoom.networkId : null}
+                          onZoomNetwork={(networkId) =>
+                            setZoom((prev) =>
+                              prev.kind === "network" && prev.networkId === networkId
+                                ? { kind: "group", groupId: group.id }
+                                : { kind: "network", groupId: group.id, networkId },
+                            )
+                          }
+                          onUpdateNetworkDraft={(networkId, patch) => updateNetworkDraft(group.id, networkId, patch)}
+                          onAddOperator={(networkId) => addDraftOperator(group.id, networkId)}
+                          onUpdateOperatorDraft={(networkId, operatorId, patch) =>
+                            updateOperatorDraft(group.id, networkId, operatorId, patch)
+                          }
                         />
-                        {pendingPct > 0 ? (
-                          <div
-                            className="pointer-events-none absolute inset-y-0"
-                            style={{
-                              left: `${allocatedPct}%`,
-                              width: `${pendingPct}%`,
-                              ...pendingPatternStyle("--color-primary"),
-                            }}
-                          />
-                        ) : null}
-                        <div className="card-body relative z-10 gap-3">
-                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,8rem)] items-start gap-3">
-                            <div className="min-w-0 overflow-hidden">
-                              <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                {groupIndex !== undefined ? (
-                                  <SlotIndexBadge index={groupIndex} onCopy={copyIndexToClipboard} />
-                                ) : null}
-                                <div className="font-semibold">Group</div>
-                              </div>
-                              <div className="font-mono text-xs opacity-70">
-                                <div className="truncate">
-                                  Allocated:{" "}
-                                  {!canReadBalances || !hasRootBalance || groupIndex === undefined
-                                    ? "—"
-                                    : allocationsLoading || pendingLoading
-                                      ? "loading…"
-                                      : allocatedValue.toString()}
-                                </div>
-                                <div className="truncate">
-                                  Pending:{" "}
-                                  {!canReadBalances || !hasRootBalance || groupIndex === undefined
-                                    ? "—"
-                                    : pendingLoading
-                                      ? "loading…"
-                                      : pendingValue.toString()}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-2 min-w-0">
-                              <label className="label cursor-pointer gap-2 py-0">
-                                <span className="label-text text-xs">Shared</span>
-                                <input
-                                  type="checkbox"
-                                  className="toggle toggle-sm"
-                                  checked={draft.isShared}
-                                  onChange={(e) => updateGroupDraft(group.id, { isShared: e.target.checked })}
-                                />
-                              </label>
-
-                              <label className="form-control w-full min-w-0">
-                                <div className="label py-0">
-                                  <span className="label-text text-xs">Size</span>
-                                </div>
-                                <input
-                                  className={[
-                                    "input input-bordered input-sm w-full min-w-0",
-                                    draft.size.trim() !== "" && !sizeValid ? "input-error" : "",
-                                  ].join(" ")}
-                                  value={draft.size}
-                                  onChange={(e) => updateGroupDraft(group.id, { size: e.target.value })}
-                                />
-                              </label>
-                            </div>
-                          </div>
-
-                          <NetworksRow
-                            group={group}
-                            slotIdToIndex={slotIdToIndex}
-                            allocatedByIndex={allocationsByIndex}
-                            pendingByIndex={pendingByIndex}
-                            allocationsLoading={allocationsLoading}
-                            pendingLoading={pendingLoading}
-                            canReadBalances={canReadBalances}
-                            hasRootBalance={hasRootBalance}
-                            onCopyIndex={copyIndexToClipboard}
-                            onAddNetwork={() => addDraftNetwork(group.id)}
-                            showAddNetwork={zoom.kind !== "network"}
-                            focusedNetworkId={zoom.kind === "network" ? zoom.networkId : null}
-                            onZoomNetwork={(networkId) =>
-                              setZoom((prev) =>
-                                prev.kind === "network" && prev.networkId === networkId
-                                  ? { kind: "group", groupId: group.id }
-                                  : { kind: "network", groupId: group.id, networkId },
-                              )
-                            }
-                            onUpdateNetworkDraft={(networkId, patch) => updateNetworkDraft(group.id, networkId, patch)}
-                            onAddOperator={(networkId) => addDraftOperator(group.id, networkId)}
-                            onUpdateOperatorDraft={(networkId, operatorId, patch) =>
-                              updateOperatorDraft(group.id, networkId, operatorId, patch)
-                            }
-                          />
-                        </div>
-                      </div>
+                      </GroupCard>
                     );
                   })}
 
                   {zoom.kind === "all" ? (
-                    <button
+                    <AddSlotButton
                       key="add-group"
-                      type="button"
+                      label="Add group"
                       className="flex shrink-0 w-[18rem] cursor-pointer items-center justify-center rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-sm opacity-70 hover:cursor-pointer hover:opacity-100"
                       onClick={addDraftGroup}
-                    >
-                      <div className="text-center">
-                        <div className="text-2xl leading-none">+</div>
-                        <div className="mt-1">Add group</div>
-                      </div>
-                    </button>
+                    />
                   ) : null}
                 </div>
               </div>
@@ -1524,6 +1418,20 @@ function NetworksRow(props: {
             pendingByIndex: props.pendingByIndex,
           });
           const { allocatedValue, pendingValue, allocatedPct, pendingPct } = metrics;
+          const allocatedDisplay = formatBalanceDisplay({
+            canReadBalances: props.canReadBalances,
+            hasRootBalance: props.hasRootBalance,
+            indexDefined: networkIndex !== undefined,
+            loading: props.allocationsLoading || props.pendingLoading,
+            value: allocatedValue,
+          });
+          const pendingDisplay = formatBalanceDisplay({
+            canReadBalances: props.canReadBalances,
+            hasRootBalance: props.hasRootBalance,
+            indexDefined: networkIndex !== undefined,
+            loading: props.pendingLoading,
+            value: pendingValue,
+          });
           const subnetworkTrimmed = draft.subnetwork.trim();
           const subnetworkValid = subnetworkTrimmed === "" || parseBytes32(subnetworkTrimmed) !== null;
           const isFocused = focusedNetworkId === network.id;
@@ -1547,128 +1455,59 @@ function NetworksRow(props: {
             setHoveredNetworkId((prev) => (prev === network.id ? null : prev));
           };
           return (
-            <div
+            <NetworkCard
               key={network.id}
-              data-network-card
-              className={
-                isShared
-                  ? `card bg-base-200 border shadow relative overflow-hidden transition-colors ${
-                      props.onZoomNetwork ? (isNetworkHovered ? "border-white" : "border-base-300") : "border-base-300"
-                    } ${props.onZoomNetwork ? (isFocused ? "cursor-zoom-out" : "cursor-zoom-in") : ""}`
-                  : `card shrink-0 min-w-[18rem] bg-base-200 border shadow relative overflow-hidden transition-colors ${
-                      props.onZoomNetwork ? (isNetworkHovered ? "border-white" : "border-base-300") : "border-base-300"
-                    } ${props.onZoomNetwork ? (isFocused ? "cursor-zoom-out" : "cursor-zoom-in") : ""}`
-              }
-              style={isShared ? { width: `${networkWidthPct}%` } : { flexGrow: networkGrow, flexBasis: 0 }}
-              onClick={handleNetworkClick}
-              onMouseMove={handleNetworkHover}
-              onMouseLeave={handleNetworkLeave}
+              network={network}
+              networkIndex={networkIndex}
+              allocatedPct={allocatedPct}
+              pendingPct={pendingPct}
+              allocatedDisplay={allocatedDisplay}
+              pendingDisplay={pendingDisplay}
+              isShared={isShared}
+              isFocused={isFocused}
+              isHovered={isNetworkHovered}
+              zoomable={Boolean(props.onZoomNetwork)}
+              networkGrow={networkGrow}
+              networkWidthPct={networkWidthPct}
+              sizeInvalid={draft.size.trim() !== "" && !sizeValid}
+              subnetworkInvalid={subnetworkTrimmed !== "" && !subnetworkValid}
+              onCopyIndex={props.onCopyIndex}
+              onSubnetworkChange={(value) => props.onUpdateNetworkDraft(network.id, { subnetwork: value })}
+              onSizeChange={(value) => props.onUpdateNetworkDraft(network.id, { size: value })}
+              onCardClick={handleNetworkClick}
+              onCardHover={handleNetworkHover}
+              onCardLeave={handleNetworkLeave}
             >
-              <div
-                className="pointer-events-none absolute inset-y-0 left-0"
-                style={{ width: `${allocatedPct}%`, ...allocatedFillStyle("--color-secondary") }}
+              <OperatorsRow
+                network={network}
+                slotIdToIndex={props.slotIdToIndex}
+                allocatedByIndex={props.allocatedByIndex}
+                allocationsLoading={props.allocationsLoading}
+                pendingByIndex={props.pendingByIndex}
+                pendingLoading={props.pendingLoading}
+                canReadBalances={props.canReadBalances}
+                hasRootBalance={props.hasRootBalance}
+                onCopyIndex={props.onCopyIndex}
+                onAddOperator={() => props.onAddOperator(network.id)}
+                onUpdateOperatorDraft={(operatorId, patch) => props.onUpdateOperatorDraft(network.id, operatorId, patch)}
               />
-              {pendingPct > 0 ? (
-                <div
-                  className="pointer-events-none absolute inset-y-0"
-                  style={{
-                    left: `${allocatedPct}%`,
-                    width: `${pendingPct}%`,
-                    ...pendingPatternStyle("--color-secondary"),
-                  }}
-                />
-              ) : null}
-              <div className="card-body relative z-10 gap-3">
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,6rem)] items-start gap-3">
-                  <div className="min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                      {networkIndex !== undefined ? (
-                        <SlotIndexBadge index={networkIndex} onCopy={props.onCopyIndex} />
-                      ) : null}
-                      <div className="font-semibold">Network</div>
-                    </div>
-                    <div className="font-mono text-xs opacity-70">
-                      <div className="truncate">
-                        Allocated:{" "}
-                        {!props.canReadBalances || !props.hasRootBalance || networkIndex === undefined
-                          ? "—"
-                          : props.allocationsLoading || props.pendingLoading
-                            ? "loading…"
-                            : allocatedValue.toString()}
-                      </div>
-                      <div className="truncate">
-                        Pending:{" "}
-                        {!props.canReadBalances || !props.hasRootBalance || networkIndex === undefined
-                          ? "—"
-                          : props.pendingLoading
-                            ? "loading…"
-                            : pendingValue.toString()}
-                      </div>
-                    </div>
-                    <input
-                      className={[
-                        "input input-bordered input-sm font-mono mt-2 w-full max-w-[66ch]",
-                        subnetworkTrimmed !== "" && !subnetworkValid ? "input-error" : "",
-                      ].join(" ")}
-                      placeholder="0x…"
-                      value={draft.subnetwork}
-                      onChange={(e) => props.onUpdateNetworkDraft(network.id, { subnetwork: e.target.value })}
-                    />
-                  </div>
-
-                  <label className="form-control w-full min-w-0 overflow-hidden">
-                    <div className="label py-0">
-                      <span className="label-text text-xs">Size</span>
-                    </div>
-                    <input
-                      className={[
-                        "input input-bordered input-sm w-full min-w-0",
-                        draft.size.trim() !== "" && !sizeValid ? "input-error" : "",
-                      ].join(" ")}
-                      value={draft.size}
-                      onChange={(e) => props.onUpdateNetworkDraft(network.id, { size: e.target.value })}
-                    />
-                  </label>
-                </div>
-
-                <OperatorsRow
-                  network={network}
-                  slotIdToIndex={props.slotIdToIndex}
-                  allocatedByIndex={props.allocatedByIndex}
-                  allocationsLoading={props.allocationsLoading}
-                  pendingByIndex={props.pendingByIndex}
-                  pendingLoading={props.pendingLoading}
-                  canReadBalances={props.canReadBalances}
-                  hasRootBalance={props.hasRootBalance}
-                  onCopyIndex={props.onCopyIndex}
-                  onAddOperator={() => props.onAddOperator(network.id)}
-                  onUpdateOperatorDraft={(operatorId, patch) =>
-                    props.onUpdateOperatorDraft(network.id, operatorId, patch)
-                  }
-                />
-              </div>
-            </div>
+            </NetworkCard>
           );
         })}
 
         {showAddNetwork ? (
-          <button
+          <AddSlotButton
             key="add-network"
             ref={addButtonRef}
-            type="button"
+            label="Add network"
             className={[
               isShared || !hasNetworks
                 ? "flex w-full min-w-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-base-300 bg-base-200 p-6 text-sm opacity-70 hover:cursor-pointer hover:opacity-100"
                 : "flex shrink-0 w-[18rem] cursor-pointer items-center justify-center rounded-lg border border-dashed border-base-300 bg-base-200 p-6 text-sm opacity-70 hover:cursor-pointer hover:opacity-100",
             ].join(" ")}
             onClick={props.onAddNetwork}
-            data-no-zoom
-          >
-            <div className="text-center">
-              <div className="text-2xl leading-none">+</div>
-              <div className="mt-1">Add network</div>
-            </div>
-          </button>
+            dataNoZoom
+          />
         ) : null}
       </div>
     </div>
@@ -1719,103 +1558,53 @@ function OperatorsRow(props: {
             pendingByIndex: props.pendingByIndex,
           });
           const { allocatedValue, pendingValue, allocatedPct, pendingPct } = metrics;
+          const allocatedDisplay = formatBalanceDisplay({
+            canReadBalances: props.canReadBalances,
+            hasRootBalance: props.hasRootBalance,
+            indexDefined: operatorIndex !== undefined,
+            loading: props.allocationsLoading || props.pendingLoading,
+            value: allocatedValue,
+          });
+          const pendingDisplay = formatBalanceDisplay({
+            canReadBalances: props.canReadBalances,
+            hasRootBalance: props.hasRootBalance,
+            indexDefined: operatorIndex !== undefined,
+            loading: props.pendingLoading,
+            value: pendingValue,
+          });
           const operatorTrimmed = draft.operator.trim();
           const operatorValid = operatorTrimmed === "" || isAddress(operatorTrimmed);
           return (
-            <div
+            <OperatorCard
               key={operator.id}
-              className="card shrink-0 min-w-[18rem] bg-base-100 border border-base-300 shadow relative overflow-hidden cursor-default"
-              style={{ flexGrow: operatorGrow, flexBasis: 0 }}
-              data-no-zoom
-            >
-              <div
-                className="pointer-events-none absolute inset-y-0 left-0"
-                style={{ width: `${allocatedPct}%`, ...allocatedFillStyle("--color-accent") }}
-              />
-              {pendingPct > 0 ? (
-                <div
-                  className="pointer-events-none absolute inset-y-0"
-                  style={{
-                    left: `${allocatedPct}%`,
-                    width: `${pendingPct}%`,
-                    ...pendingPatternStyle("--color-accent"),
-                  }}
-                />
-              ) : null}
-              <div className="card-body relative z-10 gap-2">
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,6rem)] items-start gap-3">
-                  <div className="min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                      {operatorIndex !== undefined ? (
-                        <SlotIndexBadge index={operatorIndex} onCopy={props.onCopyIndex} />
-                      ) : null}
-                      <div className="font-semibold">Operator</div>
-                    </div>
-                    <div className="font-mono text-xs opacity-70">
-                      <div className="truncate">
-                        Allocated:{" "}
-                        {!props.canReadBalances || !props.hasRootBalance || operatorIndex === undefined
-                          ? "—"
-                          : props.allocationsLoading || props.pendingLoading
-                            ? "loading…"
-                            : allocatedValue.toString()}
-                      </div>
-                      <div className="truncate">
-                        Pending:{" "}
-                        {!props.canReadBalances || !props.hasRootBalance || operatorIndex === undefined
-                          ? "—"
-                          : props.pendingLoading
-                            ? "loading…"
-                            : pendingValue.toString()}
-                      </div>
-                    </div>
-                    <input
-                      className={[
-                        "input input-bordered input-sm font-mono mt-2 w-full max-w-[42ch]",
-                        operatorTrimmed !== "" && !operatorValid ? "input-error" : "",
-                      ].join(" ")}
-                      placeholder="0x…"
-                      value={draft.operator}
-                      onChange={(e) => props.onUpdateOperatorDraft(operator.id, { operator: e.target.value })}
-                    />
-                  </div>
-
-                  <label className="form-control w-full min-w-0 overflow-hidden">
-                    <div className="label py-0">
-                      <span className="label-text text-xs">Size</span>
-                    </div>
-                    <input
-                      className={[
-                        "input input-bordered input-sm w-full min-w-0",
-                        draft.size.trim() !== "" && !sizeValid ? "input-error" : "",
-                      ].join(" ")}
-                      value={draft.size}
-                      onChange={(e) => props.onUpdateOperatorDraft(operator.id, { size: e.target.value })}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+              operator={operator}
+              operatorIndex={operatorIndex}
+              allocatedPct={allocatedPct}
+              pendingPct={pendingPct}
+              allocatedDisplay={allocatedDisplay}
+              pendingDisplay={pendingDisplay}
+              operatorGrow={operatorGrow}
+              sizeInvalid={draft.size.trim() !== "" && !sizeValid}
+              operatorInvalid={operatorTrimmed !== "" && !operatorValid}
+              onCopyIndex={props.onCopyIndex}
+              onOperatorChange={(value) => props.onUpdateOperatorDraft(operator.id, { operator: value })}
+              onSizeChange={(value) => props.onUpdateOperatorDraft(operator.id, { size: value })}
+            />
           );
         })}
 
-        <button
+        <AddSlotButton
           key="add-operator"
           ref={addButtonRef}
-          type="button"
+          label="Add operator"
           className={[
             hasOperators
               ? "flex shrink-0 w-[18rem] cursor-pointer items-center justify-center rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-sm opacity-70 hover:cursor-pointer hover:opacity-100"
               : "flex w-full min-w-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-sm opacity-70 hover:cursor-pointer hover:opacity-100",
           ].join(" ")}
           onClick={props.onAddOperator}
-          data-no-zoom
-        >
-          <div className="text-center">
-            <div className="text-2xl leading-none">+</div>
-            <div className="mt-1">Add operator</div>
-          </div>
-        </button>
+          dataNoZoom
+        />
       </div>
     </div>
   );
