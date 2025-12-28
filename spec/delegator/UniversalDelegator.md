@@ -178,6 +178,18 @@ Operator assignment is tracked historically via `operatorToSlot[parentIndex][ope
 
 With the enforced depth policy, this means “restaked” is effectively “the operator’s network slot (depth 2) is under a shared group slot (depth 1)”.
 
+## Shared groups: intent and trade-offs
+
+Shared groups (depth 1 with `isShared = true`) are intended to model restaking between sibling networks:
+
+- Depth-2 network slots allocate against the same parent availability, so their allocations can overlap.
+- Operators remain isolated within each network (depth 3 is never shared).
+
+Trade-offs of shared groups:
+
+- Slashes across subnetworks compete for the same underlying vault stake; slash ordering (including captureTimestamp choice within an epoch) can affect remaining slashable stake for other subnetworks.
+- There is no per-network reserve or fairness isolation inside a shared group; use isolated groups for strict separation.
+
 ## Hints
 
 Some `*At(...)` view functions accept `bytes hints` to speed up checkpoint lookups.

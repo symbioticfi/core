@@ -26,6 +26,7 @@ contract UniversalDelegatorTest is Test {
     using UniversalDelegatorIndex for uint96;
 
     uint48 internal constant EPOCH_DURATION = 3;
+    uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
 
     address internal owner;
     address internal alice;
@@ -356,6 +357,199 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(net1), 80);
         assertEq(delegator.getAllocated(op1), 50);
         assertEq(delegator.getAllocated(op2), 30);
+    }
+
+    function test_isolatedGroups_prioritizedOverTime() public {
+        delegator.createSlot(0, false, 30);
+        delegator.createSlot(0, false, 50);
+        delegator.createSlot(0, false, 100);
+
+        uint96 slot1 = uint96(0).createIndex(uint32(1));
+        uint96 slot2 = uint96(0).createIndex(uint32(2));
+        uint96 slot3 = uint96(0).createIndex(uint32(3));
+
+        vm.warp(1);
+        _deposit(alice, 60);
+
+        assertEq(delegator.getAllocatedAt(slot1, 1, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot2, 1, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot3, 1, ""), 0);
+
+        vm.warp(2);
+        _deposit(alice, 60);
+
+        assertEq(delegator.getAllocatedAt(slot1, 2, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot2, 2, ""), 50);
+        assertEq(delegator.getAllocatedAt(slot3, 2, ""), 40);
+    }
+
+    function test_isolatedNetworks_followGroupPriority() public {
+        _deposit(alice, 150);
+
+        delegator.createSlot(0, false, 200);
+        uint96 group = uint96(0).createIndex(uint32(1));
+
+        delegator.createSlot(group, false, 60);
+        delegator.createSlot(group, false, 120);
+        uint96 net1 = group.createIndex(uint32(1));
+        uint96 net2 = group.createIndex(uint32(2));
+
+        assertEq(delegator.getAllocated(group), 150);
+        assertEq(delegator.getAllocated(net1), 60);
+        assertEq(delegator.getAllocated(net2), 90);
+    }
+
+    function test_isolatedOperators_prioritizedAfterStakeDecrease() public {
+        delegator.createSlot(0, false, 1_000);
+        uint96 group = uint96(0).createIndex(uint32(1));
+
+        delegator.createSlot(group, false, 1_000);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        delegator.createSlot(networkSlot, false, 70);
+        delegator.createSlot(networkSlot, false, 70);
+        uint96 op1 = networkSlot.createIndex(uint32(1));
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+
+        vm.warp(1);
+        _deposit(alice, 100);
+
+        assertEq(delegator.getAllocated(op1), 70);
+        assertEq(delegator.getAllocated(op2), 30);
+
+        vm.warp(2);
+        _withdraw(alice, 40);
+
+        assertEq(delegator.getAllocated(op1), 60);
+        assertEq(delegator.getAllocated(op2), 0);
+    }
+
+    function test_isolatedSlots_pendingFree_delaysReallocation() public {
+        _deposit(alice, 100);
+
+        delegator.createSlot(0, false, 70);
+        delegator.createSlot(0, false, 70);
+        uint96 slot1 = uint96(0).createIndex(uint32(1));
+        uint96 slot2 = uint96(0).createIndex(uint32(2));
+
+        assertEq(delegator.getAllocated(slot1), 70);
+        assertEq(delegator.getAllocated(slot2), 30);
+
+        vm.warp(1);
+        delegator.setSize(slot1, 30);
+
+        assertEq(delegator.getAvailable(0), 60);
+        assertEq(delegator.getAllocated(slot1), 30);
+        assertEq(delegator.getAllocated(slot2), 30);
+
+        vm.warp(1 + EPOCH_DURATION);
+        assertEq(delegator.getAvailable(0), 100);
+        assertEq(delegator.getAllocated(slot1), 30);
+        assertEq(delegator.getAllocated(slot2), 70);
+    }
+
+    function test_isolatedSlots_lateSizeIncrease_doesNotAffectEarlier() public {
+        _deposit(alice, 90);
+
+        delegator.createSlot(0, false, 50);
+        delegator.createSlot(0, false, 60);
+        uint96 slot1 = uint96(0).createIndex(uint32(1));
+        uint96 slot2 = uint96(0).createIndex(uint32(2));
+
+        assertEq(delegator.getAllocated(slot1), 50);
+        assertEq(delegator.getAllocated(slot2), 40);
+
+        vm.warp(1);
+        delegator.setSize(slot2, 100);
+
+        assertEq(delegator.getAllocated(slot1), 50);
+        assertEq(delegator.getAllocated(slot2), 40);
+
+        vm.warp(2);
+        _deposit(alice, 30);
+
+        assertEq(delegator.getAllocated(slot1), 50);
+        assertEq(delegator.getAllocated(slot2), 70);
+    }
+
+    function testFuzz_isolatedGroups_followPriority(uint256 depositAmount, uint256 size1, uint256 size2) public {
+        uint256 amount = bound(depositAmount, 1, MAX_AMOUNT);
+        uint256 cap1 = bound(size1, 0, MAX_AMOUNT);
+        uint256 cap2 = bound(size2, 0, MAX_AMOUNT);
+
+        delegator.createSlot(0, false, cap1);
+        delegator.createSlot(0, false, cap2);
+        uint96 slot1 = uint96(0).createIndex(uint32(1));
+        uint96 slot2 = uint96(0).createIndex(uint32(2));
+
+        _deposit(alice, amount);
+
+        uint256 expected1 = amount < cap1 ? amount : cap1;
+        uint256 remaining = amount > expected1 ? amount - expected1 : 0;
+        uint256 expected2 = remaining < cap2 ? remaining : cap2;
+
+        assertEq(delegator.getAllocated(slot1), expected1);
+        assertEq(delegator.getAllocated(slot2), expected2);
+        assertLe(delegator.getAllocated(slot1) + delegator.getAllocated(slot2), delegator.getAvailable(0));
+    }
+
+    function testFuzz_isolatedOperators_followPriority(uint256 depositAmount, uint256 size1, uint256 size2) public {
+        uint256 amount = bound(depositAmount, 1, MAX_AMOUNT);
+        uint256 cap1 = bound(size1, 0, MAX_AMOUNT);
+        uint256 cap2 = bound(size2, 0, MAX_AMOUNT);
+
+        delegator.createSlot(0, false, MAX_AMOUNT);
+        uint96 group = uint96(0).createIndex(uint32(1));
+
+        delegator.createSlot(group, false, MAX_AMOUNT);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        delegator.createSlot(networkSlot, false, cap1);
+        delegator.createSlot(networkSlot, false, cap2);
+        uint96 op1 = networkSlot.createIndex(uint32(1));
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+
+        _deposit(alice, amount);
+
+        uint256 expected1 = amount < cap1 ? amount : cap1;
+        uint256 remaining = amount > expected1 ? amount - expected1 : 0;
+        uint256 expected2 = remaining < cap2 ? remaining : cap2;
+
+        assertEq(delegator.getAllocated(op1), expected1);
+        assertEq(delegator.getAllocated(op2), expected2);
+    }
+
+    function testFuzz_isolatedSlots_depositWithdraw_overTime(
+        uint256 depositAmount,
+        uint256 withdrawAmount,
+        uint256 size1,
+        uint256 size2
+    ) public {
+        uint256 amount = bound(depositAmount, 1, MAX_AMOUNT);
+        uint256 cap1 = bound(size1, 0, MAX_AMOUNT);
+        uint256 cap2 = bound(size2, 0, MAX_AMOUNT);
+
+        delegator.createSlot(0, false, cap1);
+        delegator.createSlot(0, false, cap2);
+        uint96 slot1 = uint96(0).createIndex(uint32(1));
+        uint96 slot2 = uint96(0).createIndex(uint32(2));
+
+        vm.warp(1);
+        _deposit(alice, amount);
+
+        uint256 withdraw = bound(withdrawAmount, 0, amount);
+        vm.warp(2);
+        if (withdraw > 0) {
+            _withdraw(alice, withdraw);
+        }
+
+        uint256 remaining = amount - withdraw;
+        uint256 expected1 = remaining < cap1 ? remaining : cap1;
+        uint256 afterFirst = remaining > expected1 ? remaining - expected1 : 0;
+        uint256 expected2 = afterFirst < cap2 ? afterFirst : cap2;
+
+        assertEq(delegator.getAllocated(slot1), expected1);
+        assertEq(delegator.getAllocated(slot2), expected2);
     }
 
     function test_isRestaked_trueWhenGroupIsShared() public {
