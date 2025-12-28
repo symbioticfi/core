@@ -299,7 +299,7 @@ contract VaultHandler is Test {
         }
 
         uint48 captureTimestamp = uint48(block.timestamp) - 1;
-        amount = _bound(amount, 1, stake/2);
+        amount = _bound(amount, 1, stake / 2);
 
         uint256 slashedAmount = slasher.slash(subnetwork, operator, amount, captureTimestamp, "");
         totalSlashed += slashedAmount;

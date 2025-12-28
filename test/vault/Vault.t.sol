@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test, console2, stdError} from "forge-std/Test.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
@@ -14,6 +14,7 @@ import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {VaultV1} from "../helpers/v1/VaultV1.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
@@ -22,7 +23,6 @@ import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
-import {IVaultFull} from "./IVaultFull.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {FeeOnTransferToken} from "../mocks/FeeOnTransferToken.sol";
@@ -39,6 +39,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
+import {VaultTestHelper} from "../helpers/VaultTestHelper.sol";
 
 contract VaultTest is Test {
     using Math for uint256;
@@ -66,8 +67,9 @@ contract VaultTest is Test {
     Token collateral;
     FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
+    VaultTestHelper vaultTestHelper;
 
-    IVaultFull vault;
+    IVault vault;
     FullRestakeDelegator delegator;
     Slasher slasher;
 
@@ -88,6 +90,12 @@ contract VaultTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        vaultTestHelper = new VaultTestHelper();
+
+        address vaultImplV1 =
+            _createVaultV1Impl(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
+        vaultFactory.whitelist(vaultImplV1);
 
         address vaultImpl = _createVaultImpl(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
 
@@ -188,8 +196,15 @@ contract VaultTest is Test {
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = alice;
-        (IVaultFull vault_, address delegator_, address slasher_) = _createInitializedVault(
-            epochDuration, networkLimitSetRoleHolders, operatorNetworkSharesSetRoleHolders, vaultFactory.lastVersion(), burner, depositWhitelist, isDepositLimit, depositLimit
+        (IVault vault_, address delegator_, address slasher_) = _createInitializedVault(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            vaultFactory.lastVersion(),
+            burner,
+            depositWhitelist,
+            isDepositLimit,
+            depositLimit
         );
         vault = vault_;
 
@@ -198,25 +213,17 @@ contract VaultTest is Test {
         assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
         assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
 
-        assertEq(vault.owner(), address(0));
+        assertEq(Vault(address(vault)).owner(), address(0));
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.delegator(), delegator_);
         assertEq(vault.slasher(), slasher_);
         assertEq(vault.burner(), burner);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
-        assertEq(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), alice), true);
-        assertEq(vault.hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
-        assertEq(vault.epochDurationInit(), blockTimestamp);
+        assertEq(Vault(address(vault)).hasRole(Vault(address(vault)).DEFAULT_ADMIN_ROLE(), alice), true);
+        assertEq(Vault(address(vault)).hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
         assertEq(vault.epochDuration(), epochDuration);
-        vm.expectRevert(IVaultStorage.InvalidTimestamp.selector);
-        assertEq(vault.epochAt(0), 0);
-        assertEq(vault.epochAt(uint48(blockTimestamp)), 0);
-        assertEq(vault.currentEpoch(), 0);
         assertEq(vault.currentEpochStart(), blockTimestamp);
-        vm.expectRevert(IVaultStorage.NoPreviousEpoch.selector);
-        vault.previousEpochStart();
-        assertEq(vault.nextEpochStart(), blockTimestamp + epochDuration);
         assertEq(vault.totalStake(), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeShares(), 0);
@@ -226,11 +233,11 @@ contract VaultTest is Test {
         assertEq(vault.activeSharesOf(alice), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeBalanceOf(alice), 0);
+        assertEq(vault.withdrawalsLength(alice), 0);
         assertEq(vault.withdrawals(0), 0);
         assertEq(vault.withdrawalShares(0), 0);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
-        assertEq(vault.slashableBalanceOf(alice), 0);
         assertEq(vault.isDelegatorInitialized(), true);
         assertEq(vault.isSlasherInitialized(), true);
         assertEq(vault.isInitialized(), true);
@@ -246,7 +253,14 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
         vm.expectRevert(IVault.InvalidEpochDuration.selector);
         _createInitializedVault(
-            epochDuration, networkLimitSetRoleHolders, operatorNetworkSharesSetRoleHolders, lastVersion, address(0xdEaD), false, false, 0
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            lastVersion,
+            address(0xdEaD),
+            false,
+            false,
+            0
         );
     }
 
@@ -261,7 +275,14 @@ contract VaultTest is Test {
         collateral = Token(address(0));
         vm.expectRevert(IVault.InvalidCollateral.selector);
         _createInitializedVault(
-            epochDuration, networkLimitSetRoleHolders, operatorNetworkSharesSetRoleHolders, lastVersion, address(0xdEaD), false, false, 0
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            lastVersion,
+            address(0xdEaD),
+            false,
+            false,
+            0
         );
     }
 
@@ -271,7 +292,7 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -300,7 +321,7 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -329,7 +350,7 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -358,7 +379,7 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -387,7 +408,7 @@ contract VaultTest is Test {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vm.expectRevert(IVault.MissingRoles.selector);
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -413,7 +434,7 @@ contract VaultTest is Test {
     function test_SetDelegator() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -469,7 +490,7 @@ contract VaultTest is Test {
     function test_SetDelegatorRevertDelegatorAlreadyInitialized() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -522,7 +543,7 @@ contract VaultTest is Test {
     function test_SetDelegatorRevertNotDelegator() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -551,7 +572,7 @@ contract VaultTest is Test {
     function test_SetDelegatorRevertInvalidDelegator() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -573,26 +594,25 @@ contract VaultTest is Test {
             )
         );
 
-        address vault2 = 
-            vaultFactory.create(
-                lastVersion,
-                alice,
-                _getEncodedVaultParams(
-                    IVault.InitParams({
-                        collateral: address(collateral),
-                        burner: address(0xdEaD),
-                        epochDuration: 7 days,
-                        depositWhitelist: false,
-                        isDepositLimit: false,
-                        depositLimit: 0,
-                        defaultAdminRoleHolder: alice,
-                        depositWhitelistSetRoleHolder: alice,
-                        depositorWhitelistRoleHolder: alice,
-                        isDepositLimitSetRoleHolder: alice,
-                        depositLimitSetRoleHolder: alice
-                    })
-                )
-            );
+        address vault2 = vaultFactory.create(
+            lastVersion,
+            alice,
+            _getEncodedVaultParams(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    burner: address(0xdEaD),
+                    epochDuration: 7 days,
+                    depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
+                    defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
+                })
+            )
+        );
 
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
@@ -623,7 +643,7 @@ contract VaultTest is Test {
     function test_SetSlasher() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -667,7 +687,7 @@ contract VaultTest is Test {
     function test_SetSlasherRevertSlasherAlreadyInitialized() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -708,7 +728,7 @@ contract VaultTest is Test {
     function test_SetSlasherRevertNotSlasher() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -729,7 +749,6 @@ contract VaultTest is Test {
                 )
             )
         );
-        
 
         slasher = Slasher(
             slasherFactory.create(
@@ -748,7 +767,7 @@ contract VaultTest is Test {
     function test_SetSlasherRevertInvalidSlasher() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -770,26 +789,25 @@ contract VaultTest is Test {
             )
         );
 
-        address vault2 = 
-            vaultFactory.create(
-                lastVersion,
-                alice,
-                _getEncodedVaultParams(
-                    IVault.InitParams({
-                        collateral: address(collateral),
-                        burner: address(0xdEaD),
-                        epochDuration: 7 days,
-                        depositWhitelist: false,
-                        isDepositLimit: false,
-                        depositLimit: 0,
-                        defaultAdminRoleHolder: alice,
-                        depositWhitelistSetRoleHolder: alice,
-                        depositorWhitelistRoleHolder: alice,
-                        isDepositLimitSetRoleHolder: alice,
-                        depositLimitSetRoleHolder: alice
-                    })
-                )
-            );
+        address vault2 = vaultFactory.create(
+            lastVersion,
+            alice,
+            _getEncodedVaultParams(
+                IVault.InitParams({
+                    collateral: address(collateral),
+                    burner: address(0xdEaD),
+                    epochDuration: 7 days,
+                    depositWhitelist: false,
+                    isDepositLimit: false,
+                    depositLimit: 0,
+                    defaultAdminRoleHolder: alice,
+                    depositWhitelistSetRoleHolder: alice,
+                    depositorWhitelistRoleHolder: alice,
+                    isDepositLimitSetRoleHolder: alice,
+                    depositLimitSetRoleHolder: alice
+                })
+            )
+        );
 
         slasher = Slasher(
             slasherFactory.create(
@@ -808,7 +826,7 @@ contract VaultTest is Test {
     function test_SetSlasherZeroAddress() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
-        vault = IVaultFull(
+        vault = IVault(
             vaultFactory.create(
                 lastVersion,
                 alice,
@@ -853,7 +871,6 @@ contract VaultTest is Test {
         }
         assertEq(collateral.balanceOf(address(vault)) - tokensBefore, amount1);
 
-        assertEq(vault.totalStake(), amount1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1);
         assertEq(vault.activeShares(), shares1);
@@ -866,7 +883,6 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
-        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -878,7 +894,6 @@ contract VaultTest is Test {
             assertEq(mintedShares, shares2);
         }
 
-        assertEq(vault.totalStake(), amount1 + amount2);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeShares(), shares1 + shares2);
@@ -927,7 +942,6 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 + amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
-        assertEq(vault.slashableBalanceOf(alice), amount1 + amount2);
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
@@ -1034,7 +1048,6 @@ contract VaultTest is Test {
         vm.stopPrank();
         assertEq(feeOnTransferCollateral.balanceOf(address(vault)) - tokensBefore, amount1 - 1);
 
-        assertEq(vault.totalStake(), amount1 - 1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1);
         assertEq(vault.activeShares(), shares1);
@@ -1047,7 +1060,6 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1);
         assertEq(vault.activeBalanceOf(alice), amount1 - 1);
-        assertEq(vault.slashableBalanceOf(alice), amount1 - 1);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -1063,7 +1075,6 @@ contract VaultTest is Test {
         }
         vm.stopPrank();
 
-        assertEq(vault.totalStake(), amount1 - 1 + amount2 - 1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeShares(), shares1 + shares2);
@@ -1112,7 +1123,6 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - 1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1 + amount2 - 1);
         assertEq(vault.activeBalanceOf(alice), amount1 - 1 + amount2 - 1);
-        assertEq(vault.slashableBalanceOf(alice), amount1 - 1 + amount2 - 1);
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
@@ -1207,7 +1217,6 @@ contract VaultTest is Test {
             assertEq(mintedShares, shares2);
         }
 
-        assertEq(vault.totalStake(), amount1 + amount2);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeShares(), shares1 + shares2);
@@ -1220,14 +1229,12 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1);
         assertEq(vault.activeBalanceOf(alice), amount1);
-        assertEq(vault.slashableBalanceOf(alice), amount1);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeSharesOfAt(bob, uint48(blockTimestamp), ""), shares2);
         assertEq(vault.activeSharesOf(bob), shares2);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp - 1), ""), 0);
         assertEq(vault.activeBalanceOfAt(bob, uint48(blockTimestamp), ""), amount2);
         assertEq(vault.activeBalanceOf(bob), amount2);
-        assertEq(vault.slashableBalanceOf(bob), amount2);
     }
 
     function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
@@ -1276,7 +1283,7 @@ contract VaultTest is Test {
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
 
-        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - burnedShares);
         assertEq(vault.activeShares(), shares - burnedShares);
@@ -1289,11 +1296,10 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 - amount2);
-        uint256 lastBucket = vault.latestWithdrawalBucket();
+        uint256 lastBucket = _latestWithdrawalBucket();
         assertEq(vault.withdrawals(lastBucket), amount2);
         assertEq(vault.withdrawalShares(lastBucket), mintedShares);
         assertEq(vault.withdrawalSharesOf(0, alice), amount2);
-        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         shares -= burnedShares;
 
@@ -1306,7 +1312,7 @@ contract VaultTest is Test {
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
 
-        assertEq(vault.totalStake(), amount1 - amount2);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - burnedShares);
         assertEq(vault.activeShares(), shares - burnedShares);
@@ -1322,12 +1328,69 @@ contract VaultTest is Test {
         assertEq(vault.withdrawals(lastBucket), amount2 + amount3);
         assertEq(vault.withdrawalShares(lastBucket), amount2 + amount3);
         assertEq(vault.withdrawalSharesOf(1, alice), amount3);
-        assertEq(vault.slashableBalanceOf(alice), amount1 - amount2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.totalStake(), amount1 - amount2 - amount3);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
+    }
+
+    function test_WithdrawUnlockAtAndLength(uint256 amount1, uint256 amount2, uint256 amount3) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 7;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 3;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        assertEq(vault.withdrawalsLength(alice), 1);
+        assertEq(vault.withdrawalUnlockAt(0, alice), uint48(blockTimestamp + epochDuration));
+
+        blockTimestamp = blockTimestamp + 2;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount3);
+
+        assertEq(vault.withdrawalsLength(alice), 2);
+        assertEq(vault.withdrawalUnlockAt(1, alice), uint48(blockTimestamp + epochDuration));
+    }
+
+    function test_WithdrawRecordsClaimer(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, amount1);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 5;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        vm.startPrank(alice);
+        (, uint256 mintedShares) = vault.withdraw(bob, amount2);
+        vm.stopPrank();
+
+        assertEq(vault.withdrawalsLength(alice), 0);
+        assertEq(vault.withdrawalsLength(bob), 1);
+        assertEq(vault.withdrawalUnlockAt(0, bob), uint48(blockTimestamp + epochDuration));
+        assertEq(vault.withdrawalSharesOf(0, bob), mintedShares);
     }
 
     function test_WithdrawRevertInvalidClaimer(uint256 amount1) public {
@@ -1392,7 +1455,7 @@ contract VaultTest is Test {
         assertEq(withdrawnAssets_, withdrawnAssets2);
         assertEq(mintedShares_, mintedShares);
 
-        assertEq(vault.totalStake(), amount1);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - amount2);
         assertEq(vault.activeShares(), shares - amount2);
@@ -1405,11 +1468,10 @@ contract VaultTest is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - withdrawnAssets2);
         assertEq(vault.activeBalanceOf(alice), amount1 - withdrawnAssets2);
-        uint256 lastBucket = vault.latestWithdrawalBucket();
+        uint256 lastBucket = _latestWithdrawalBucket();
         assertEq(vault.withdrawals(lastBucket), withdrawnAssets2);
         assertEq(vault.withdrawalShares(lastBucket), mintedShares);
         assertEq(vault.withdrawalSharesOf(0, alice), mintedShares);
-        assertEq(vault.slashableBalanceOf(alice), amount1);
 
         shares -= amount2;
 
@@ -1422,7 +1484,7 @@ contract VaultTest is Test {
         assertEq(withdrawnAssets_, withdrawnAssets3);
         assertEq(mintedShares_, mintedShares);
 
-        assertEq(vault.totalStake(), amount1 - withdrawnAssets2);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - amount3);
         assertEq(vault.activeShares(), shares - amount3);
@@ -1440,12 +1502,11 @@ contract VaultTest is Test {
         assertEq(vault.withdrawals(lastBucket), withdrawnAssets2 + withdrawnAssets3);
         assertEq(vault.withdrawalShares(lastBucket), withdrawnAssets2 + withdrawnAssets3);
         assertEq(vault.withdrawalSharesOf(1, alice), withdrawnAssets3);
-        assertEq(vault.slashableBalanceOf(alice), amount1 - withdrawnAssets2);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.totalStake(), amount1 - withdrawnAssets2 - withdrawnAssets3);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
     }
 
     function test_RedeemRevertInvalidClaimer(uint256 amount1) public {
@@ -1567,7 +1628,7 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + 2;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVault.InvalidEpoch.selector);
+        vm.expectRevert(stdError.indexOOBError);
         _claim(alice, 10);
     }
 
@@ -1769,7 +1830,7 @@ contract VaultTest is Test {
         indexes[0] = 0;
         indexes[1] = 2;
 
-        vm.expectRevert(IVault.InvalidEpoch.selector);
+        vm.expectRevert(stdError.indexOOBError);
         _claimBatch(alice, indexes);
     }
 
@@ -1840,6 +1901,38 @@ contract VaultTest is Test {
 
         vm.expectRevert(IVault.WithdrawalNotMatured.selector);
         _claimBatch(alice, indexes);
+    }
+
+    function test_TotalStakeUnlockBoundary(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, amount1);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        uint48 epochDuration = 10;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, amount1);
+
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _withdraw(alice, amount2);
+
+        uint48 unlockAt = vault.withdrawalUnlockAt(0, alice);
+        assertEq(unlockAt, uint48(blockTimestamp + epochDuration));
+        assertEq(vault.totalStake(), amount1);
+
+        vm.warp(unlockAt);
+        assertEq(vault.totalStake(), amount1 - amount2);
+
+        vm.expectRevert(IVault.WithdrawalNotMatured.selector);
+        _claim(alice, 0);
+
+        vm.warp(uint256(unlockAt) + 1);
+        assertEq(_claim(alice, 0), amount2);
     }
 
     function test_SetDepositWhitelist() public {
@@ -2037,6 +2130,199 @@ contract VaultTest is Test {
         _setDepositLimit(alice, limit);
     }
 
+    function test_MigrateWithdrawals_FactoryUpgradePath() public {
+        uint48 epochDuration = 10;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (IVault vault_,, ) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVault(address(vaultV1));
+
+        uint256 aliceDeposit = 1000;
+        uint256 bobDeposit = 500;
+        _deposit(alice, aliceDeposit);
+        _deposit(bob, bobDeposit);
+
+        uint256 aliceWithdrawEpoch0 = 200;
+        uint256 bobWithdrawEpoch0 = 100;
+        _withdraw(alice, aliceWithdrawEpoch0);
+        _withdraw(bob, bobWithdrawEpoch0);
+
+        uint256 epoch1Start = blockTimestamp + epochDuration;
+        vm.warp(epoch1Start + 1);
+
+        uint256 aliceWithdrawEpoch1 = 150;
+        uint256 bobWithdrawEpoch1 = 60;
+        _withdraw(alice, aliceWithdrawEpoch1);
+        _withdraw(bob, bobWithdrawEpoch1);
+
+        uint256 epoch2Start = blockTimestamp + 2 * epochDuration;
+        vm.warp(epoch2Start + 1);
+
+        uint256 epoch1Withdrawals = aliceWithdrawEpoch0 + bobWithdrawEpoch0;
+        uint256 epoch2Withdrawals = aliceWithdrawEpoch1 + bobWithdrawEpoch1;
+        uint256 expectedAliceEpoch1 = Math.mulDiv(aliceWithdrawEpoch0, epoch1Withdrawals + 1, epoch1Withdrawals + 1);
+
+        vm.startPrank(alice);
+        assertEq(vault.claim(alice, 1), expectedAliceEpoch1);
+        vm.stopPrank();
+
+        uint256 migrateTimestamp = epoch2Start + epochDuration / 2;
+        vm.warp(migrateTimestamp);
+
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), "");
+
+        IVault vaultV2 = IVault(address(vaultV1));
+
+        uint48 nextEpochStart = uint48(blockTimestamp + 3 * epochDuration);
+        assertEq(vaultTestHelper.withdrawalSharesPrefixesLength(address(vaultV2)), 2);
+
+        (uint48 prefixKey0, uint256 prefixVal0) = vaultTestHelper.withdrawalSharesPrefixesAt(address(vaultV2), 0);
+        assertEq(prefixKey0, nextEpochStart);
+        assertEq(prefixVal0, epoch2Withdrawals);
+
+        (uint48 prefixKey1, uint256 prefixVal1) = vaultTestHelper.withdrawalSharesPrefixesAt(address(vaultV2), 1);
+        assertEq(prefixKey1, uint48(nextEpochStart + epochDuration));
+        assertEq(prefixVal1, epoch2Withdrawals);
+
+        assertEq(vaultTestHelper.timeToBucketLength(address(vaultV2)), 3);
+        (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.timeToBucketAt(address(vaultV2), 2);
+        assertEq(bucketKey, nextEpochStart);
+        assertEq(bucketVal, 2);
+
+        vm.expectRevert();
+        vaultV2.migrateWithdrawalsOf(alice, 1);
+
+        vaultV2.migrateWithdrawalsOf(bob, 1);
+        vaultV2.migrateWithdrawalsOf(alice, 2);
+        vaultV2.migrateWithdrawalsOf(bob, 2);
+
+        assertEq(vaultV2.withdrawalsLength(bob), 2);
+        assertEq(vaultV2.withdrawalsLength(alice), 1);
+
+        assertEq(vaultV2.withdrawalUnlockAt(0, bob), uint48(epoch2Start));
+        assertEq(vaultV2.withdrawalUnlockAt(1, bob), nextEpochStart);
+        assertEq(vaultV2.withdrawalUnlockAt(0, alice), nextEpochStart);
+
+        (uint48 bucketKeyPre, uint208 bucketValPre) = vaultTestHelper.timeToBucketAt(address(vaultV2), 1);
+        assertEq(bucketKeyPre, uint48(epoch2Start));
+        assertEq(bucketValPre, 1);
+
+        uint256 expectedBobEpoch1 = Math.mulDiv(bobWithdrawEpoch0, epoch1Withdrawals + 1, epoch1Withdrawals + 1);
+        uint256 expectedAliceEpoch2 = Math.mulDiv(aliceWithdrawEpoch1, epoch2Withdrawals + 1, epoch2Withdrawals + 1);
+        uint256 expectedBobEpoch2 = Math.mulDiv(bobWithdrawEpoch1, epoch2Withdrawals + 1, epoch2Withdrawals + 1);
+
+        assertEq(vaultV2.withdrawalSharesOf(0, bob), bobWithdrawEpoch0);
+        assertEq(vaultV2.withdrawalSharesOf(1, bob), expectedBobEpoch2);
+        assertEq(vaultV2.withdrawalSharesOf(0, alice), expectedAliceEpoch2);
+
+        assertEq(vaultV2.withdrawalsOf(0, bob), expectedBobEpoch1);
+        assertEq(vaultV2.withdrawalsOf(1, bob), expectedBobEpoch2);
+        assertEq(vaultV2.withdrawalsOf(0, alice), expectedAliceEpoch2);
+
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.startPrank(bob);
+        vaultV2.claim(bob, 0);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedBobEpoch1);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVault.WithdrawalNotMatured.selector);
+        vaultV2.claim(alice, 0);
+        vm.stopPrank();
+
+        vm.warp(uint256(nextEpochStart) + 1);
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        vm.startPrank(alice);
+        vaultV2.claim(alice, 0);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, expectedAliceEpoch2);
+    }
+
+    function test_MigrateWithdrawals_ClaimAfterUpgrade() public {
+        uint48 epochDuration = 5;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (IVault vault_,, ) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVault(address(vaultV1));
+
+        uint256 aliceDeposit = 1000;
+        _deposit(alice, aliceDeposit);
+
+        uint256 withdrawEpoch0 = 250;
+        _withdraw(alice, withdrawEpoch0);
+
+        uint256 epoch1Start = blockTimestamp + epochDuration;
+        vm.warp(epoch1Start + 1);
+
+        uint256 withdrawEpoch1 = 180;
+        _withdraw(alice, withdrawEpoch1);
+
+        uint256 epoch2Start = blockTimestamp + 2 * epochDuration;
+        vm.warp(epoch2Start + epochDuration / 2);
+
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), "");
+
+        IVault vaultV2 = IVault(address(vaultV1));
+        vaultV2.migrateWithdrawalsOf(alice, 1);
+        vaultV2.migrateWithdrawalsOf(alice, 2);
+
+        uint256 expectedEpoch1 = Math.mulDiv(withdrawEpoch0, withdrawEpoch0 + 1, withdrawEpoch0 + 1);
+        uint256 expectedEpoch2 = Math.mulDiv(withdrawEpoch1, withdrawEpoch1 + 1, withdrawEpoch1 + 1);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        vm.startPrank(alice);
+        vaultV2.claim(alice, 0);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, expectedEpoch1);
+        assertEq(vaultV2.isWithdrawalsClaimed(0, alice), true);
+
+        uint48 nextEpochStart = uint48(blockTimestamp + 3 * epochDuration);
+        vm.warp(uint256(nextEpochStart) + 1);
+
+        aliceBalanceBefore = collateral.balanceOf(alice);
+        vm.startPrank(alice);
+        vaultV2.claim(alice, 1);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, expectedEpoch2);
+        assertEq(vaultV2.isWithdrawalsClaimed(1, alice), true);
+    }
+
     function test_OnSlashRevertNotSlasher() public {
         uint48 epochDuration = 1;
 
@@ -2083,7 +2369,6 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + captureAgo;
         vm.warp(blockTimestamp);
 
-        assertEq(vault.totalStake(), depositAmount);
         assertEq(
             _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""),
             Math.min(slashAmount1, depositAmount)
@@ -2128,15 +2413,15 @@ contract VaultTest is Test {
         vm.warp(blockTimestamp);
 
         uint256 activeStake = depositAmount - withdrawAmount1 - withdrawAmount2;
-        assertEq(vault.totalStake(), activeStake);
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
         assertEq(vault.activeStake(), activeStake);
-        uint256 lastBucket = vault.latestWithdrawalBucket();
+        uint256 lastBucket = _latestWithdrawalBucket();
         assertEq(vault.withdrawals(lastBucket), withdrawAmount1 + withdrawAmount2);
 
         blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
-        uint256 slashAmountReal = Math.min(slashAmount1, vault.totalStake());
+        uint256 slashAmountReal = Math.min(slashAmount1, activeStake);
         uint256 tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
         assertEq(_slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""), slashAmountReal);
         assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountReal);
@@ -2179,23 +2464,27 @@ contract VaultTest is Test {
         blockTimestamp = blockTimestamp + captureAgo;
         vm.warp(blockTimestamp);
 
-        uint256 slashAmountReal = Math.min(slashAmount1, vault.activeStake());
-        uint256 tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-
-        uint256 totalStake = vault.totalStake();
         uint256 activeStake = vault.activeStake();
-        uint256 lastBucket = vault.latestWithdrawalBucket();
-        uint256 withdrawals = vault.withdrawals(lastBucket);
+        uint256 lastBucket = _latestWithdrawalBucket();
+        uint256 lastWithdrawals = vault.withdrawals(lastBucket);
+        uint256 lastWithdrawalShares = vault.withdrawalShares(lastBucket);
+        uint256 unmaturedWithdrawalShares = _unmaturedWithdrawalShares(uint48(blockTimestamp));
+        uint256 unmaturedWithdrawals =
+            lastWithdrawalShares == 0 ? 0 : unmaturedWithdrawalShares.mulDiv(lastWithdrawals, lastWithdrawalShares);
+        uint256 slashableStake = activeStake + unmaturedWithdrawals;
+        uint256 slashAmountReal = Math.min(slashAmount1, activeStake);
+        uint256 tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
         console2.log("-------slasher", address(slasher));
 
         assertEq(_slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""), slashAmountReal);
         assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountReal);
 
-        uint256 activeStakeAfter =
-            depositAmount - withdrawAmount1 - withdrawAmount2 - slashAmountReal.mulDiv(activeStake, totalStake);
+        uint256 activeSlashed = slashAmountReal.mulDiv(activeStake, slashableStake);
+        uint256 activeStakeAfter = activeStake - activeSlashed;
         assertApproxEqAbs(vault.activeStake(), activeStakeAfter, 10);
 
-        uint256 withdrawalsAfter = withdrawals - slashAmountReal.mulDiv(withdrawals, totalStake);
+        uint256 unmaturedSlashed = slashAmountReal - activeSlashed;
+        uint256 withdrawalsAfter = unmaturedWithdrawals - unmaturedSlashed;
         assertApproxEqAbs(vault.withdrawals(lastBucket + 1), withdrawalsAfter, 10);
     }
 
@@ -2236,11 +2525,6 @@ contract VaultTest is Test {
         vm.warp(blockTimestamp);
 
         // First slash
-        uint256 totalStake1 = vault.totalStake();
-        uint256 activeStake1 = vault.activeStake();
-        uint256 lastBucket1 = vault.latestWithdrawalBucket();
-        uint256 withdrawals1 = vault.withdrawals(lastBucket1);
-
         uint256 slashAmountReal1 = _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
 
         blockTimestamp = blockTimestamp + captureAgo;
@@ -2248,10 +2532,12 @@ contract VaultTest is Test {
 
         // Second slash
         // Calculate unmatured withdrawals the same way the slash function does
-        uint256 lastBucket2 = vault.latestWithdrawalBucket();
+        uint256 lastBucket2 = _latestWithdrawalBucket();
         uint256 lastWithdrawals2 = vault.withdrawals(lastBucket2);
         uint256 lastWithdrawalShares2 = vault.withdrawalShares(lastBucket2);
-        uint256 unmaturedWithdrawalShares2 = vault.unmaturedWithdrawalShares(uint48(blockTimestamp));
+        uint256 unmaturedWithdrawalShares2 =
+            vaultTestHelper.withdrawalSharesPrefixesLatest(address(vault))
+                - vaultTestHelper.withdrawalSharesPrefixesUpperLookupRecent(address(vault), uint48(blockTimestamp));
         uint256 unmaturedWithdrawals2 =
             lastWithdrawalShares2 == 0 ? 0 : unmaturedWithdrawalShares2.mulDiv(lastWithdrawals2, lastWithdrawalShares2);
 
@@ -2261,13 +2547,34 @@ contract VaultTest is Test {
         uint256 slashAmountReal2 = _slash(alice, alice, alice, slashAmount2, uint48(blockTimestamp - captureAgo), "");
 
         // Calculate state after second slash
-        uint256 activeStakeAfter = activeStake2 - slashAmountReal2.mulDiv(activeStake2, slashableStake2);
+        uint256 activeSlashed2 = slashAmountReal2.mulDiv(activeStake2, slashableStake2);
+        uint256 activeStakeAfter = activeStake2 - activeSlashed2;
         assertApproxEqAbs(vault.activeStake(), activeStakeAfter, 10);
 
         // The unmatured withdrawals are slashed proportionally
-        uint256 withdrawalsAfter =
-            unmaturedWithdrawals2 - slashAmountReal2.mulDiv(unmaturedWithdrawals2, slashableStake2);
+        uint256 unmaturedSlashed2 = slashAmountReal2 - activeSlashed2;
+        uint256 withdrawalsAfter = unmaturedWithdrawals2 - unmaturedSlashed2;
         assertApproxEqAbs(vault.withdrawals(lastBucket2 + 1), withdrawalsAfter, 10);
+    }
+
+    function _latestWithdrawalBucket() internal view returns (uint256) {
+        return vaultTestHelper.timeToBucketLatest(address(vault));
+    }
+
+    function _unmaturedWithdrawalShares(uint48 timestamp) internal view returns (uint256) {
+        return vaultTestHelper.withdrawalSharesPrefixesLatest(address(vault))
+            - vaultTestHelper.withdrawalSharesPrefixesUpperLookupRecent(address(vault), timestamp);
+    }
+
+    function _expectedTotalStake(uint48 timestamp) internal view returns (uint256) {
+        uint256 lastBucket = _latestWithdrawalBucket();
+        uint256 lastWithdrawalShares = vault.withdrawalShares(lastBucket);
+        uint256 activeStake_ = vault.activeStake();
+        if (lastWithdrawalShares == 0) {
+            return activeStake_;
+        }
+        uint256 unmaturedShares = _unmaturedWithdrawalShares(timestamp);
+        return activeStake_ + unmaturedShares.mulDiv(vault.withdrawals(lastBucket), lastWithdrawalShares);
     }
 
     function _prepareVault() internal {
@@ -2289,31 +2596,44 @@ contract VaultTest is Test {
         _setOperatorNetworkLimit(alice, alice, bob, type(uint256).max / 2);
     }
 
-
-    function _getVault(uint48 epochDuration) internal returns (IVaultFull) {
+    function _getVault(uint48 epochDuration) internal returns (IVault) {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = alice;
-        (IVaultFull vault_,,) = _createInitializedVault(
-            epochDuration, networkLimitSetRoleHolders, operatorNetworkSharesSetRoleHolders, vaultFactory.lastVersion(), address(0xdEaD), false, false, 0
+        (IVault vault_,,) = _createInitializedVault(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            vaultFactory.lastVersion(),
+            address(0xdEaD),
+            false,
+            false,
+            0
         );
         return vault_;
     }
 
     function _getVaultAndDelegatorAndSlasher(uint48 epochDuration)
         internal
-        returns (IVaultFull, FullRestakeDelegator, Slasher)
+        returns (IVault, FullRestakeDelegator, Slasher)
     {
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
         operatorNetworkLimitSetRoleHolders[0] = alice;
-        (IVaultFull vault_, address delegator_, address slasher_) = _createInitializedVault(
-            epochDuration, networkLimitSetRoleHolders, operatorNetworkLimitSetRoleHolders, vaultFactory.lastVersion(), address(0xdEaD), false, false, 0
+        (IVault vault_, address delegator_, address slasher_) = _createInitializedVault(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkLimitSetRoleHolders,
+            vaultFactory.lastVersion(),
+            address(0xdEaD),
+            false,
+            false,
+            0
         );
 
-        return (IVaultFull(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
+        return (IVault(vault_), FullRestakeDelegator(delegator_), Slasher(slasher_));
     }
 
     function _registerOperator(address user) internal {
@@ -2472,6 +2792,14 @@ contract VaultTest is Test {
         return address(new Vault(delegatorFactory, slasherFactory, vaultFactory));
     }
 
+    function _createVaultV1Impl(address delegatorFactory, address slasherFactory, address vaultFactory)
+        internal
+        virtual
+        returns (address)
+    {
+        return address(new VaultV1(delegatorFactory, slasherFactory, vaultFactory));
+    }
+
     function _createInitializedVault(
         uint48 epochDuration,
         address[] memory networkLimitSetRoleHolders,
@@ -2481,11 +2809,35 @@ contract VaultTest is Test {
         bool depositWhitelist,
         bool isDepositLimit,
         uint256 depositLimit
-    ) internal virtual returns (IVaultFull, address, address) {
+    ) internal virtual returns (IVault, address, address) {
+        return _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            version,
+            burner,
+            depositWhitelist,
+            isDepositLimit,
+            depositLimit,
+            address(0)
+        );
+    }
+
+    function _createInitializedVaultWithOwner(
+        uint48 epochDuration,
+        address[] memory networkLimitSetRoleHolders,
+        address[] memory operatorNetworkSharesSetRoleHolders,
+        uint64 version,
+        address burner,
+        bool depositWhitelist,
+        bool isDepositLimit,
+        uint256 depositLimit,
+        address owner_
+    ) internal virtual returns (IVault, address, address) {
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: version,
-                owner: address(0),
+                owner: owner_,
                 vaultParams: abi.encode(
                     IVault.InitParams({
                         collateral: address(collateral),
@@ -2519,11 +2871,10 @@ contract VaultTest is Test {
             })
         );
 
-        return (IVaultFull(vault_), address(delegator_), address(slasher_));
+        return (IVault(vault_), address(delegator_), address(slasher_));
     }
 
-    function _getEncodedVaultParams(IVault.InitParams memory params) internal virtual pure returns (bytes memory) {
+    function _getEncodedVaultParams(IVault.InitParams memory params) internal pure virtual returns (bytes memory) {
         return abi.encode(params);
     }
-
 }

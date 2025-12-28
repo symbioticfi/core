@@ -65,10 +65,7 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     address public burner;
 
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    uint48 public epochDurationInit;
+    uint48 internal _epochDurationInit;
 
     /**
      * @inheritdoc IVaultStorage
@@ -132,12 +129,20 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
     mapping(address account => Withdrawal[] withdrawals) internal _withdrawalsOf;
-    mapping(uint256 => uint256) internal _withdrawals;
-    mapping(uint256 => uint256) internal _withdrawalShares;
 
-    Checkpoints.Trace208 public timeToBucket;
-    Checkpoints.Trace256 public withdrawalsPrefixes;
-    Checkpoints.Trace256 public withdrawalSharesPrefixes;
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    mapping(uint256 bucketIndex => uint256 value) public withdrawalShares;
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    mapping(uint256 bucketIndex => uint256 value) public withdrawals;
+
+    Checkpoints.Trace256 internal _withdrawalSharesPrefixes;
+
+    Checkpoints.Trace208 internal _timeToBucket;
 
     constructor(address delegatorFactory, address slasherFactory) {
         DELEGATOR_FACTORY = delegatorFactory;
@@ -147,43 +152,8 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
     /**
      * @inheritdoc IVaultStorage
      */
-    function epochAt(uint48 timestamp) public view returns (uint256) {
-        if (timestamp < epochDurationInit) {
-            revert InvalidTimestamp();
-        }
-        return timeToBucket.upperLookupRecent(timestamp);
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function currentEpoch() public view returns (uint256) {
-        return timeToBucket.upperLookupRecent(uint48(block.timestamp));
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
     function currentEpochStart() public view returns (uint48) {
-        return (epochDurationInit + currentEpoch() * epochDuration).toUint48();
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function previousEpochStart() public view returns (uint48) {
-        uint256 epoch = currentEpoch();
-        if (epoch == 0) {
-            revert NoPreviousEpoch();
-        }
-        return (epochDurationInit + (epoch - 1) * epochDuration).toUint48();
-    }
-
-    /**
-     * @inheritdoc IVaultStorage
-     */
-    function nextEpochStart() public view returns (uint48) {
-        return (epochDurationInit + (currentEpoch() + 1) * epochDuration).toUint48();
+        return uint48(block.timestamp);
     }
 
     /**
@@ -228,29 +198,33 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
         return _activeSharesOf[account].latest();
     }
 
-    function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool) {
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function withdrawalSharesOf(uint256 index, address account) public view returns (uint256) {
+        return _withdrawalsOf[account][index].shares;
+    }
+
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function isWithdrawalsClaimed(uint256 index, address account) public view returns (bool) {
         return _withdrawalsOf[account][index].claimed;
     }
 
-    function withdrawalShares(uint256 index) external view returns (uint256) {
-        return _withdrawalShares[index];
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function withdrawalUnlockAt(uint256 index, address account) public view returns (uint48) {
+        return _withdrawalsOf[account][index].unlockAt;
     }
 
-    function withdrawalSharesOf(uint256 index, address account) external view returns (uint256) {
-        return _withdrawalsOf[account][index].shares;
-    }
-    
-    function withdrawals(uint256 index) external view returns (uint256) {
-        return _withdrawals[index];
-    }
-
-    function latestWithdrawalBucket() external view returns (uint256) {
-        return timeToBucket.latest();
+    /**
+     * @inheritdoc IVaultStorage
+     */
+    function withdrawalsLength(address account) public view returns (uint256) {
+        return _withdrawalsOf[account].length;
     }
 
-    function unmaturedWithdrawalShares(uint48 timestamp) public view returns (uint256) {
-        return withdrawalSharesPrefixes.length() == 1 ? withdrawalSharesPrefixes.latest() : withdrawalSharesPrefixes.latest() - withdrawalSharesPrefixes.upperLookupRecent(timestamp);
-    }
-
-    uint256[50] private __gap;
+    uint256[45] private __gap;
 }

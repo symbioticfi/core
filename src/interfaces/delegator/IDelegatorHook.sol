@@ -10,11 +10,6 @@ interface IDelegatorHook {
      * @param captureTimestamp time point when the stake was captured
      * @param data some additional data
      */
-    function onSlash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes calldata data
-    ) external;
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata data)
+        external;
 }

@@ -640,7 +640,7 @@ contract FullRestakeDelegatorTest is Test {
             networkLimit1
         );
 
-        blockTimestamp = vault.currentEpochStart() + vault.epochDuration();
+        blockTimestamp = blockTimestamp + vault.epochDuration();
         vm.warp(blockTimestamp);
 
         assertEq(

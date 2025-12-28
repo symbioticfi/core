@@ -610,9 +610,9 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
         } else if (type_ == 3) {
-            delegatorSpecificCondition =
-                ISymbioticOperatorNetworkSpecificDelegator(delegator).network() == subnetwork.network()
-                    && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
+            delegatorSpecificCondition = ISymbioticOperatorNetworkSpecificDelegator(delegator).network()
+                    == subnetwork.network()
+                && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
         }
 
         return delegatorSpecificCondition;

@@ -130,8 +130,9 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert AlreadySet();
         }
 
-        _totalOperatorNetworkShares[subnetwork]
-        .push(Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares);
+        _totalOperatorNetworkShares[subnetwork].push(
+            Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares
+        );
         _operatorNetworkShares[subnetwork][operator].push(Time.timestamp(), shares);
 
         emit SetOperatorNetworkShares(subnetwork, operator, shares);
