@@ -44,7 +44,7 @@ Practical implications:
 Each slot stores (all checkpointed unless stated):
 
 - `size`: per-slot cap (upper bound on allocation from its parent).
-- `prevSum`: prefix sum of *sizes* of earlier siblings (used only when the parent is not shared).
+- `prevSum`: prefix sum of _sizes_ of earlier siblings (used only when the parent is not shared).
 - `isShared`: if `1`, this slot’s **children** can overlap their allocation (restaking between siblings).
 - `pendingFreeCumulative`: cumulative “pending free” amount used to delay re-use of freed stake.
 - `children[]`: ordered list of `uint32 localIndex` values.
@@ -150,11 +150,11 @@ Rules:
 - Reverts if not assigned (`NetworkNotAssigned()`).
 - Reverts if the slot still has allocation (`SlotAllocated()`).
 
-The active slot for a subnetwork is stored historically via `networkToSlot[subnetwork]` checkpoints.
+The active slot for a subnetwork is stored historically via `_networkToSlot[subnetwork]` checkpoints.
 
 ### Operators
 
-Operators are assigned *under a specific parent slot* (typically the network’s slot) using:
+Operators are assigned _under a specific parent slot_ (typically the network’s slot) using:
 
 - `assignOperator(index, operator)`
 

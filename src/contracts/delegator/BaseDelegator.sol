@@ -181,6 +181,8 @@ abstract contract BaseDelegator is
             revert NotSlasher();
         }
 
+        _onSlash(subnetwork, operator, amount, captureTimestamp, data);
+
         address hook_ = hook;
         if (hook_ != address(0)) {
             bytes memory calldata_ =
@@ -231,6 +233,10 @@ abstract contract BaseDelegator is
     function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
+
+    function _onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
+        internal
+        virtual {}
 
     function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

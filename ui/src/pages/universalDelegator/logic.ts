@@ -345,7 +345,7 @@ function computeSimulatedAllocationsFromStateWithPending(
     const parentPending = pendingByIndex.get(parentIndex) ?? 0n;
     const parentAvailable = saturatingSub(parentAllocated, parentPending);
     const parentSlot = state.slots.get(parentIndex);
-    const parentIsShared = parentIndex === 0n ? false : (parentSlot?.isShared ?? false);
+    const parentIsShared = parentIndex === 0n ? false : parentSlot?.isShared ?? false;
 
     let prevSum = 0n;
     for (const child of children) {
@@ -441,12 +441,12 @@ export function computePendingByIndexFromOps(params: {
     }
 
     if (op.kind === "assignNetwork") {
-      state.networkToSlot.set(op.subnetwork.toLowerCase(), op.index);
+      state._networkToSlot.set(op.subnetwork.toLowerCase(), op.index);
       continue;
     }
 
     if (op.kind === "unassignNetwork") {
-      state.networkToSlot.set(op.subnetwork.toLowerCase(), 0n);
+      state._networkToSlot.set(op.subnetwork.toLowerCase(), 0n);
       continue;
     }
 
@@ -503,7 +503,7 @@ export function computeSimulatedAllocationsWithPending(params: {
     groupPrevSum += groupSize;
 
     const groupIsShared = group.state.draft.isShared;
-    const groupPending = groupIndex !== undefined ? (pendingByIndex.get(groupIndex.toString()) ?? 0n) : 0n;
+    const groupPending = groupIndex !== undefined ? pendingByIndex.get(groupIndex.toString()) ?? 0n : 0n;
     const groupAvailable = saturatingSub(groupAllocated, groupPending);
     let networkPrevSum = 0n;
     for (const network of group.networks) {
@@ -515,7 +515,7 @@ export function computeSimulatedAllocationsWithPending(params: {
       if (networkIndex !== undefined) allocatedByIndex.set(networkIndex.toString(), networkAllocated);
       networkPrevSum += networkSize;
 
-      const networkPending = networkIndex !== undefined ? (pendingByIndex.get(networkIndex.toString()) ?? 0n) : 0n;
+      const networkPending = networkIndex !== undefined ? pendingByIndex.get(networkIndex.toString()) ?? 0n : 0n;
       const networkAvailable = saturatingSub(networkAllocated, networkPending);
       let operatorPrevSum = 0n;
       for (const operator of network.operators) {
@@ -815,8 +815,7 @@ export function autoSyncAll(model: UniversalDelegatorModel): { model: UniversalD
       const synced = network.state.synced;
       const syncedSize = synced ? parseUint(synced.size) : null;
       const isSizeDirty = synced === null || syncedSize === null || syncedSize !== size;
-      const isSubnetworkDirty =
-        subnetworkValid && (synced === null || synced.subnetwork.trim() !== subnetworkTrimmed);
+      const isSubnetworkDirty = subnetworkValid && (synced === null || synced.subnetwork.trim() !== subnetworkTrimmed);
 
       if (synced === null || isSizeDirty || isSubnetworkDirty) {
         if (network.index === null) {
@@ -940,7 +939,7 @@ type SimState = {
   children: Map<bigint, bigint[]>;
   slots: Map<bigint, SimSlot>;
   created: Set<bigint>;
-  networkToSlot: Map<string, bigint>;
+  _networkToSlot: Map<string, bigint>;
   operatorBySlot: Map<bigint, Address>;
   operatorToSlot: Map<string, bigint>;
   nextChildLocalIndex: Map<bigint, bigint>;
@@ -1008,7 +1007,7 @@ function cloneSimState(state: SimState): SimState {
     children: new Map([...state.children.entries()].map(([k, v]) => [k, v.slice()])),
     slots: new Map([...state.slots.entries()].map(([k, v]) => [k, { ...v }])),
     created: new Set(state.created),
-    networkToSlot: new Map(state.networkToSlot),
+    _networkToSlot: new Map(state._networkToSlot),
     operatorBySlot: new Map(state.operatorBySlot),
     operatorToSlot: new Map(state.operatorToSlot),
     nextChildLocalIndex: new Map(state.nextChildLocalIndex),
@@ -1020,7 +1019,7 @@ export function buildSimStateFromModel(model: UniversalDelegatorModel): SimState
     children: new Map([[0n, []]]),
     slots: new Map(),
     created: new Set([0n]),
-    networkToSlot: new Map(),
+    _networkToSlot: new Map(),
     operatorBySlot: new Map(),
     operatorToSlot: new Map(),
     nextChildLocalIndex: new Map(),
@@ -1052,7 +1051,7 @@ export function buildSimStateFromModel(model: UniversalDelegatorModel): SimState
       const subnetworkRaw = (networkSynced?.subnetwork ?? network.state.draft.subnetwork).trim();
       const subnetworkParsed = subnetworkRaw === "" ? null : parseBytes32(subnetworkRaw);
       if (subnetworkParsed) {
-        state.networkToSlot.set(subnetworkParsed.toLowerCase(), networkIndex);
+        state._networkToSlot.set(subnetworkParsed.toLowerCase(), networkIndex);
       }
 
       for (const operator of network.operators) {
@@ -1134,12 +1133,12 @@ export function simulateOpsFromState(initial: SimState, ops: UdOperation[]): Sim
     }
 
     if (op.kind === "assignNetwork") {
-      state.networkToSlot.set(op.subnetwork.toLowerCase(), op.index);
+      state._networkToSlot.set(op.subnetwork.toLowerCase(), op.index);
       continue;
     }
 
     if (op.kind === "unassignNetwork") {
-      state.networkToSlot.set(op.subnetwork.toLowerCase(), 0n);
+      state._networkToSlot.set(op.subnetwork.toLowerCase(), 0n);
       continue;
     }
 
@@ -1254,12 +1253,12 @@ function compileMinimalOpsFromInitialAndFinal(params: { initial: SimState; final
   }
 
   const allSubnetworks = new Set<string>();
-  for (const key of params.initial.networkToSlot.keys()) allSubnetworks.add(key);
-  for (const key of params.final.networkToSlot.keys()) allSubnetworks.add(key);
+  for (const key of params.initial._networkToSlot.keys()) allSubnetworks.add(key);
+  for (const key of params.final._networkToSlot.keys()) allSubnetworks.add(key);
   const subnetworkKeys = [...allSubnetworks].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   for (const subnetwork of subnetworkKeys) {
-    const initialIndex = params.initial.networkToSlot.get(subnetwork) ?? 0n;
-    const finalIndex = params.final.networkToSlot.get(subnetwork) ?? 0n;
+    const initialIndex = params.initial._networkToSlot.get(subnetwork) ?? 0n;
+    const finalIndex = params.final._networkToSlot.get(subnetwork) ?? 0n;
     if (initialIndex === finalIndex) continue;
     if (initialIndex !== 0n) assignOps.push({ kind: "unassignNetwork", subnetwork: subnetwork as Hex });
     if (finalIndex !== 0n) assignOps.push({ kind: "assignNetwork", index: finalIndex, subnetwork: subnetwork as Hex });
@@ -1463,7 +1462,7 @@ function computeSimulatedAllocationsFromState(state: SimState, rootBalance: bigi
     const children = state.children.get(parentIndex) ?? [];
     const parentAllocated = allocated.get(parentIndex) ?? 0n;
     const parentSlot = state.slots.get(parentIndex);
-    const parentIsShared = parentIndex === 0n ? false : (parentSlot?.isShared ?? false);
+    const parentIsShared = parentIndex === 0n ? false : parentSlot?.isShared ?? false;
 
     let prevSum = 0n;
     for (const child of children) {
@@ -1505,8 +1504,8 @@ export function describeNotEnoughAvailable(params: {
     parentDepth === 0
       ? "root"
       : parentDepth === 1
-        ? `Group #${getChildIndex(parentIndex)}`
-        : `Network #${getChildIndex(parentIndex)}`;
+      ? `Group #${getChildIndex(parentIndex)}`
+      : `Network #${getChildIndex(parentIndex)}`;
   const childLabel = childDepth === 1 ? "Group" : childDepth === 2 ? "Network" : "Operator";
 
   const children = before.children.get(parentIndex) ?? [];

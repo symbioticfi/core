@@ -8,15 +8,23 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
 import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
 import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 
 import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDelegatorIndex.sol";
+import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
@@ -24,6 +32,7 @@ import {Token} from "../mocks/Token.sol";
 
 contract UniversalDelegatorTest is Test {
     using UniversalDelegatorIndex for uint96;
+    using Subnetwork for address;
 
     uint48 internal constant EPOCH_DURATION = 3;
     uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
@@ -35,11 +44,17 @@ contract UniversalDelegatorTest is Test {
     VaultFactory internal vaultFactory;
     DelegatorFactory internal delegatorFactory;
     SlasherFactory internal slasherFactory;
+    NetworkRegistry internal networkRegistry;
+    OperatorRegistry internal operatorRegistry;
+    NetworkMiddlewareService internal networkMiddlewareService;
+    OptInService internal operatorVaultOptInService;
+    OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
 
     Token internal collateral;
     Vault internal vault;
     UniversalDelegator internal delegator;
+    Slasher internal slasher;
 
     function setUp() public {
         vm.warp(0);
@@ -51,6 +66,13 @@ contract UniversalDelegatorTest is Test {
         vaultFactory = new VaultFactory(owner);
         delegatorFactory = new DelegatorFactory(owner);
         slasherFactory = new SlasherFactory(owner);
+        networkRegistry = new NetworkRegistry();
+        operatorRegistry = new OperatorRegistry();
+        networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
+        operatorVaultOptInService =
+            new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
+        operatorNetworkOptInService =
+            new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
         address vaultImpl =
             address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -58,21 +80,31 @@ contract UniversalDelegatorTest is Test {
 
         address delegatorImpl = address(
             new UniversalDelegator(
-                address(0x1111),
+                address(networkRegistry),
                 address(vaultFactory),
-                address(0x2222),
-                address(0x3333),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
                 address(delegatorFactory),
                 delegatorFactory.totalTypes()
             )
         );
         delegatorFactory.whitelist(delegatorImpl);
 
+        address slasherImpl = address(
+            new Slasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(slasherImpl);
+
         collateral = new Token("Token");
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
 
-        (address vault_, address delegator_,) = vaultConfigurator.create(
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: vaultFactory.lastVersion(),
                 owner: owner,
@@ -100,14 +132,17 @@ contract UniversalDelegatorTest is Test {
                         curatorRoleHolder: owner
                     })
                 ),
-                withSlasher: false,
+                withSlasher: true,
                 slasherIndex: 0,
-                slasherParams: ""
+                slasherParams: abi.encode(
+                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                )
             })
         );
 
         vault = Vault(vault_);
         delegator = UniversalDelegator(delegator_);
+        slasher = Slasher(slasher_);
     }
 
     function test_checkpointTracksHistory_andDefaults() public {
@@ -400,10 +435,10 @@ contract UniversalDelegatorTest is Test {
     }
 
     function test_isolatedOperators_prioritizedAfterStakeDecrease() public {
-        delegator.createSlot(0, false, 1_000);
+        delegator.createSlot(0, false, 1000);
         uint96 group = uint96(0).createIndex(uint32(1));
 
-        delegator.createSlot(group, false, 1_000);
+        delegator.createSlot(group, false, 1000);
         uint96 networkSlot = group.createIndex(uint32(1));
 
         delegator.createSlot(networkSlot, false, 70);
@@ -470,6 +505,172 @@ contract UniversalDelegatorTest is Test {
 
         assertEq(delegator.getAllocated(slot1), 50);
         assertEq(delegator.getAllocated(slot2), 70);
+    }
+
+    function test_sharedGroup_slashCappedAcrossNetworks_sameCaptureTimestamp() public {
+        address network1 = makeAddr("network1");
+        address network2 = makeAddr("network2");
+        address network3 = makeAddr("network3");
+        address middleware = makeAddr("middleware");
+        address operator1 = alice;
+        address operator2 = bob;
+        address operator3 = makeAddr("charlie");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerNetwork(network3, middleware);
+        _registerOperator(operator1);
+        _registerOperator(operator2);
+        _registerOperator(operator3);
+        _optIn(operator1, network1);
+        _optIn(operator2, network2);
+        _optIn(operator3, network3);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        bytes32 subnetwork3 = network3.subnetwork(0);
+
+        delegator.createSlot(0, true, 60);
+        delegator.createSlot(0, false, 40);
+        uint96 group1 = uint96(0).createIndex(uint32(1));
+        uint96 group2 = uint96(0).createIndex(uint32(2));
+
+        delegator.createSlot(group1, false, 60);
+        delegator.createSlot(group1, false, 60);
+        uint96 netSlot1 = group1.createIndex(uint32(1));
+        uint96 netSlot2 = group1.createIndex(uint32(2));
+        delegator.assignNetwork(netSlot1, subnetwork1);
+        delegator.assignNetwork(netSlot2, subnetwork2);
+
+        delegator.createSlot(netSlot1, false, 60);
+        uint96 opSlot1 = netSlot1.createIndex(uint32(1));
+        delegator.assignOperator(opSlot1, operator1);
+
+        delegator.createSlot(netSlot2, false, 60);
+        uint96 opSlot2 = netSlot2.createIndex(uint32(1));
+        delegator.assignOperator(opSlot2, operator2);
+
+        delegator.createSlot(group2, false, 40);
+        uint96 netSlot3 = group2.createIndex(uint32(1));
+        delegator.assignNetwork(netSlot3, subnetwork3);
+
+        delegator.createSlot(netSlot3, false, 40);
+        uint96 opSlot3 = netSlot3.createIndex(uint32(1));
+        delegator.assignOperator(opSlot3, operator3);
+
+        vm.warp(18);
+        _deposit(alice, 100);
+
+        uint48 captureTimestamp = 18;
+        vm.warp(20);
+
+        vm.startPrank(middleware);
+        assertEq(slasher.slash(subnetwork1, operator1, 60, captureTimestamp, ""), 60);
+        vm.expectRevert();
+        slasher.slash(subnetwork2, operator2, 60, captureTimestamp, "");
+        assertEq(slasher.slash(subnetwork3, operator3, 40, captureTimestamp, ""), 40);
+        vm.stopPrank();
+    }
+
+    function test_sharedGroup_slashCappedAcrossNetworks_differentCaptureTimestamp() public {
+        address network1 = makeAddr("network1");
+        address network2 = makeAddr("network2");
+        address middleware = makeAddr("middleware");
+        address operator1 = alice;
+        address operator2 = bob;
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(operator1);
+        _registerOperator(operator2);
+        _optIn(operator1, network1);
+        _optIn(operator2, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+
+        delegator.createSlot(0, true, 60);
+        uint96 group = uint96(0).createIndex(uint32(1));
+
+        delegator.createSlot(group, false, 60);
+        delegator.createSlot(group, false, 60);
+        uint96 netSlot1 = group.createIndex(uint32(1));
+        uint96 netSlot2 = group.createIndex(uint32(2));
+        delegator.assignNetwork(netSlot1, subnetwork1);
+        delegator.assignNetwork(netSlot2, subnetwork2);
+
+        delegator.createSlot(netSlot1, false, 60);
+        uint96 opSlot1 = netSlot1.createIndex(uint32(1));
+        delegator.assignOperator(opSlot1, operator1);
+
+        delegator.createSlot(netSlot2, false, 60);
+        uint96 opSlot2 = netSlot2.createIndex(uint32(1));
+        delegator.assignOperator(opSlot2, operator2);
+
+        vm.warp(1);
+        _deposit(alice, 60);
+
+        vm.warp(5);
+
+        vm.startPrank(middleware);
+        assertEq(slasher.slash(subnetwork1, operator1, 60, 3, ""), 60);
+        vm.expectRevert();
+        slasher.slash(subnetwork2, operator2, 60, 4, "");
+        vm.stopPrank();
+    }
+
+    function test_sharedGroup_slashAllowsNewStake_laterCaptureTimestamp() public {
+        address network1 = makeAddr("network1");
+        address network2 = makeAddr("network2");
+        address middleware = makeAddr("middleware");
+        address operator1 = alice;
+        address operator2 = bob;
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(operator1);
+        _registerOperator(operator2);
+        _optIn(operator1, network1);
+        _optIn(operator2, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+
+        delegator.createSlot(0, true, 200);
+        uint96 group = uint96(0).createIndex(uint32(1));
+
+        delegator.createSlot(group, false, 200);
+        delegator.createSlot(group, false, 200);
+        uint96 netSlot1 = group.createIndex(uint32(1));
+        uint96 netSlot2 = group.createIndex(uint32(2));
+        delegator.assignNetwork(netSlot1, subnetwork1);
+        delegator.assignNetwork(netSlot2, subnetwork2);
+
+        delegator.createSlot(netSlot1, false, 200);
+        uint96 opSlot1 = netSlot1.createIndex(uint32(1));
+        delegator.assignOperator(opSlot1, operator1);
+
+        delegator.createSlot(netSlot2, false, 200);
+        uint96 opSlot2 = netSlot2.createIndex(uint32(1));
+        delegator.assignOperator(opSlot2, operator2);
+
+        vm.warp(1);
+        _deposit(alice, 100);
+
+        vm.warp(4);
+        vm.startPrank(middleware);
+        assertEq(slasher.slash(subnetwork1, operator1, 60, 2, ""), 60);
+        vm.expectRevert();
+        slasher.slash(subnetwork2, operator2, 60, 2, "");
+        vm.stopPrank();
+
+        vm.warp(6);
+        _deposit(alice, 80);
+
+        vm.warp(8);
+        vm.startPrank(middleware);
+        assertEq(slasher.slash(subnetwork2, operator2, 60, 6, ""), 60);
+        vm.stopPrank();
     }
 
     function testFuzz_isolatedGroups_followPriority(uint256 depositAmount, uint256 size1, uint256 size2) public {
@@ -709,7 +910,7 @@ contract UniversalDelegatorTest is Test {
 
         _withdraw(alice, 100);
         delegator.unassignNetwork(subnetwork);
-        assertEq(delegator.slotByNetwork(subnetwork), 0);
+        assertEq(delegator.slotOfNetwork(subnetwork), 0);
     }
 
     function test_operatorAssignment_duplicateAndUnassignChecks() public {
@@ -739,7 +940,7 @@ contract UniversalDelegatorTest is Test {
 
         _withdraw(alice, 100);
         delegator.unassignOperator(networkSlot, alice);
-        assertEq(delegator.slotByOperator(networkSlot, alice), 0);
+        assertEq(delegator.slotOfOperator(networkSlot, alice), 0);
     }
 
     function test_setIsShared_revertsWhenAllocated() public {
@@ -855,6 +1056,26 @@ contract UniversalDelegatorTest is Test {
 
         assertEq(delegator.getAvailableAt(0, 2, ""), 80);
         assertEq(delegator.getAvailableAt(0, 4, ""), 100);
+    }
+
+    function _registerOperator(address operator) internal {
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+    }
+
+    function _registerNetwork(address network, address middleware) internal {
+        vm.startPrank(network);
+        networkRegistry.registerNetwork();
+        networkMiddlewareService.setMiddleware(middleware);
+        vm.stopPrank();
+    }
+
+    function _optIn(address operator, address network) internal {
+        vm.startPrank(operator);
+        operatorVaultOptInService.optIn(address(vault));
+        operatorNetworkOptInService.optIn(network);
+        vm.stopPrank();
     }
 
     function _deposit(address user, uint256 amount) internal {

@@ -33,9 +33,10 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
 
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => Slot slot) public slots;
-    mapping(bytes32 subnetwork => Checkpoints.Trace208) public networkToSlot;
-    mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) public operatorToSlot;
+    mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
+    mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
     mapping(uint96 index => address operator) public operatorBySlot;
+    mapping(uint96 index => Checkpoints.Trace256 amount) internal _cumulativeSlash;
 
     constructor(
         address networkRegistry,
@@ -117,12 +118,12 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         view
         returns (uint256)
     {
-        uint96 index = slotByOperatorAt(slotByNetworkAt(subnetwork, timestamp, hints), operator, timestamp, hints);
+        uint96 index = slotOfAt(subnetwork, operator, timestamp, hints);
         return index > 0 ? getAllocatedAt(index, timestamp, hints) : 0;
     }
 
     function getAllocated(bytes32 subnetwork, address operator) public view returns (uint256) {
-        uint96 index = slotByOperator(slotByNetwork(subnetwork), operator);
+        uint96 index = slotOf(subnetwork, operator);
         return index > 0 ? getAllocated(index) : 0;
     }
 
@@ -131,24 +132,36 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         return getAvailable(index).saturatingSub(_getChildrenSize(index));
     }
 
-    function slotByNetworkAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint96) {
-        return uint96(networkToSlot[subnetwork].upperLookupRecent(timestamp, hint));
+    function slotOfNetworkAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint96) {
+        return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp, hint));
     }
 
-    function slotByNetwork(bytes32 subnetwork) public view returns (uint96) {
-        return uint96(networkToSlot[subnetwork].latest());
+    function slotOfNetwork(bytes32 subnetwork) public view returns (uint96) {
+        return uint96(_networkToSlot[subnetwork].latest());
     }
 
-    function slotByOperatorAt(uint96 parentIndex, address operator, uint48 timestamp, bytes memory hint)
+    function slotOfOperatorAt(uint96 parentIndex, address operator, uint48 timestamp, bytes memory hint)
         public
         view
         returns (uint96)
     {
-        return uint96(operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp, hint));
+        return uint96(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp, hint));
     }
 
-    function slotByOperator(uint96 parentIndex, address operator) public view returns (uint96) {
-        return uint96(operatorToSlot[parentIndex][operator].latest());
+    function slotOfOperator(uint96 parentIndex, address operator) public view returns (uint96) {
+        return uint96(_operatorToSlot[parentIndex][operator].latest());
+    }
+
+    function slotOfAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        public
+        view
+        returns (uint96)
+    {
+        return slotOfOperatorAt(slotOfNetworkAt(subnetwork, timestamp, hints), operator, timestamp, hints);
+    }
+
+    function slotOf(bytes32 subnetwork, address operator) public view returns (uint96) {
+        return slotOfOperator(slotOfNetwork(subnetwork), operator);
     }
 
     function isRestakedAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
@@ -156,7 +169,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         view
         returns (bool)
     {
-        uint96 index = slotByOperatorAt(slotByNetworkAt(subnetwork, timestamp, hints), operator, timestamp, hints);
+        uint96 index = slotOfAt(subnetwork, operator, timestamp, hints);
         if (index == 0) {
             return false;
         }
@@ -169,7 +182,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     }
 
     function isRestaked(bytes32 subnetwork, address operator) public view returns (bool) {
-        uint96 index = slotByOperator(slotByNetwork(subnetwork), operator);
+        uint96 index = slotOf(subnetwork, operator);
         if (index == 0) {
             return false;
         }
@@ -276,23 +289,23 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (index.getDepth() != 2) {
             revert WrongDepth();
         }
-        if (slotByNetwork(subnetwork) > 0) {
+        if (slotOfNetwork(subnetwork) > 0) {
             revert NetworkAlreadyAssigned();
         }
-        networkToSlot[subnetwork].push(uint48(block.timestamp), index);
+        _networkToSlot[subnetwork].push(uint48(block.timestamp), index);
 
         emit AssignNetwork(index, subnetwork);
     }
 
     function unassignNetwork(bytes32 subnetwork) public onlyRole(CURATOR_ROLE) {
-        uint96 index = slotByNetwork(subnetwork);
+        uint96 index = slotOfNetwork(subnetwork);
         if (index == 0) {
             revert NetworkNotAssigned();
         }
         if (getAllocated(index) > 0) {
             revert SlotAllocated();
         }
-        networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+        _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
 
         emit UnassignNetwork(subnetwork);
     }
@@ -302,24 +315,24 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             revert WrongDepth();
         }
         uint96 parentIndex = index.getParentIndex();
-        if (slotByOperator(parentIndex, operator) != 0) {
+        if (slotOfOperator(parentIndex, operator) != 0) {
             revert OperatorAlreadyAssigned();
         }
-        operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), index);
+        _operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), index);
         operatorBySlot[index] = operator;
 
         emit AssignOperator(index, operator);
     }
 
     function unassignOperator(uint96 parentIndex, address operator) public onlyRole(CURATOR_ROLE) {
-        uint96 index = slotByOperator(parentIndex, operator);
+        uint96 index = slotOfOperator(parentIndex, operator);
         if (index == 0) {
             revert OperatorNotAssigned();
         }
         if (getAllocated(index) > 0) {
             revert SlotAllocated();
         }
-        operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), 0);
+        _operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), 0);
         delete operatorBySlot[index];
 
         emit UnassignOperator(index, operator);
@@ -365,6 +378,33 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     }
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {}
+
+    function _onSlash(
+        bytes32 subnetwork,
+        address operator,
+        uint256 amount,
+        uint48 captureTimestamp,
+        bytes memory /*data*/
+    )
+        internal
+        override
+    {
+        uint96 groupIndex =
+            slotOfAt(subnetwork, operator, captureTimestamp, new bytes(0)).getParentIndex().getParentIndex();
+
+        uint256 latestCumulativeSlash = _cumulativeSlash[groupIndex].latest();
+        if (
+            amount
+                > getAllocatedAt(groupIndex, captureTimestamp, new bytes(0))
+                    .saturatingSub(
+                        latestCumulativeSlash - _cumulativeSlash[groupIndex].upperLookupRecent(captureTimestamp)
+                    )
+        ) {
+            revert();
+        }
+
+        _cumulativeSlash[groupIndex].push(uint48(block.timestamp), latestCumulativeSlash + amount);
+    }
 
     function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
