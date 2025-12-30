@@ -29,7 +29,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     }
 
     bytes32 public constant CURATOR_ROLE = keccak256("CURATOR_ROLE");
-    uint256 MAX_DEPTH = 3;
 
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => Slot slot) public slots;
