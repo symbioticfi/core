@@ -78,8 +78,18 @@ contract UniversalDelegatorUiSetup is Script {
         IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
             defaultAdminRoleHolder: broadcaster, hook: address(0), hookSetRoleHolder: broadcaster
         });
-        IUniversalDelegator.InitParams memory initParams =
-            IUniversalDelegator.InitParams({baseParams: baseParams, curatorRoleHolder: broadcaster});
+        IUniversalDelegator.InitParams memory initParams = IUniversalDelegator.InitParams({
+            baseParams: baseParams,
+            createSlotRoleHolder: broadcaster,
+            setIsSharedRoleHolder: broadcaster,
+            setSizeRoleHolder: broadcaster,
+            setShareRoleHolder: broadcaster,
+            swapSlotsRoleHolder: broadcaster,
+            assignNetworkRoleHolder: broadcaster,
+            unassignNetworkRoleHolder: broadcaster,
+            assignOperatorRoleHolder: broadcaster,
+            unassignOperatorRoleHolder: broadcaster
+        });
 
         bytes memory initCalldata =
             abi.encodeCall(IEntity.initialize, (abi.encode(address(vault), abi.encode(initParams))));
@@ -88,7 +98,7 @@ contract UniversalDelegatorUiSetup is Script {
 
         vm.stopBroadcast();
 
-        console2.log("Curator/admin:", broadcaster);
+        console2.log("Role holder/admin:", broadcaster);
         console2.log("Vault (mock):", address(vault));
         console2.log("Vault activeStake:", vault.activeStake());
         console2.log("Vault epochDuration:", uint256(vault.epochDuration()));

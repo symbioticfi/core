@@ -104,6 +104,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     function _slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
         internal
         view
+        virtual
         returns (uint256 slashableStake_, uint256 stakeAmount)
     {
         SlashableStakeHints memory slashableStakeHints;

@@ -171,7 +171,7 @@ Operator assignment is tracked historically via `operatorToSlot[parentIndex][ope
 
 ## Restaking detection
 
-`isRestaked(subnetwork, operator)` and `isRestakedAt(subnetwork, operator, t, ...)` return `true` when the operator’s slot has any **shared ancestor**:
+`isShared(subnetwork, operator)` and `isSharedAt(subnetwork, operator, t, ...)` return `true` when the operator’s slot has any **shared ancestor**:
 
 - Walks up from the operator slot’s parent to the root.
 - Returns `true` if any `slots[ancestor].isShared` is `1`.
@@ -199,11 +199,24 @@ Some `*At(...)` view functions accept `bytes hints` to speed up checkpoint looku
 ```solidity
 IUniversalDelegator.StakeHints({
     baseHints: /* hints forwarded to BaseDelegator opt-in checks */,
-    allocatedHints: /* hints forwarded into allocation lookups */
+    allocatedHints: /* ABI-encoded AllocatedByOperatorAtHints */
 });
 ```
 
-`UniversalDelegator` uses `allocatedHints` across multiple checkpoint traces. If you are not certain hints match the queried trace, pass empty bytes (`""`) to avoid reverts.
+Other `*At(...)` methods accept ABI-encoded hint structs defined in `IUniversalDelegator`, for example:
+
+- `BalanceAtHints` (`activeStakeHint`, `allocatedHints`)
+- `AvailableAtHints` (`balanceHints`, `pendingFreeHint`, `pendingFreeEpochHint`)
+- `AllocatedAtHints` (`sizeHint`, `availableHints`, `prevSumHint`)
+- `AllocatedByOperatorAtHints` (`slotOfHints`, `allocatedHints`)
+- `SlotOfNetworkAtHints` (`networkSlotHint`)
+- `SlotOfOperatorAtHints` (`operatorSlotHint`)
+- `SlotOfAtHints` (`slotOfNetworkHints`, `slotOfOperatorHints`)
+- `IsSharedAtHints` (`slotOfHints`, `networkIsSharedHint`, `groupIsSharedHint`)
+
+Nested `*Hints` fields are ABI-encoded hints for the referenced `*At(...)` function.
+
+If you are not certain hints match the queried trace, pass empty bytes (`""`) to avoid reverts.
 
 ## Caveats
 

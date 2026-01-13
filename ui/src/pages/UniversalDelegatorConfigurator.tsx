@@ -81,12 +81,11 @@ function computeSlotMetrics(params: {
   pendingByIndex: Map<string, bigint>;
 }): SlotMetrics {
   const key = params.index !== undefined ? params.index.toString() : null;
-  const allocatedRaw = key ? (params.allocationsByIndex.get(key) ?? 0n) : 0n;
-  const pendingRaw = key ? (params.pendingByIndex.get(key) ?? 0n) : 0n;
+  const allocatedRaw = key ? params.allocationsByIndex.get(key) ?? 0n : 0n;
+  const pendingRaw = key ? params.pendingByIndex.get(key) ?? 0n : 0n;
   const pendingValue = pendingRaw > allocatedRaw ? allocatedRaw : pendingRaw;
   const allocatedValue = saturatingSub(allocatedRaw, pendingValue);
-  const allocatedPct =
-    params.size > 0n ? Math.min(100, Number((allocatedValue * 10000n) / params.size) / 100) : 0;
+  const allocatedPct = params.size > 0n ? Math.min(100, Number((allocatedValue * 10000n) / params.size) / 100) : 0;
   const pendingPctRaw = params.size > 0n ? Number((pendingValue * 10000n) / params.size) / 100 : 0;
   const pendingPct = Math.max(0, Math.min(100 - allocatedPct, pendingPctRaw));
 
@@ -464,7 +463,7 @@ export function UniversalDelegatorConfigurator() {
         const index = availableIndices[i];
         if (index === undefined) continue;
         const available = item.result as bigint;
-        const balance = index === 0n ? (rootBalance ?? 0n) : (onchainAllocationsByIndex.get(index.toString()) ?? 0n);
+        const balance = index === 0n ? rootBalance ?? 0n : onchainAllocationsByIndex.get(index.toString()) ?? 0n;
         map.set(index.toString(), saturatingSub(balance, available));
       }
     }
@@ -560,14 +559,7 @@ export function UniversalDelegatorConfigurator() {
       return { tone: "info" as const, message: "Loading on-chain data..." };
     }
     return null;
-  }, [
-    allocatedLoading,
-    availableLoading,
-    balancesLoading,
-    hasReadErrors,
-    isReconstructing,
-    onchainReadActive,
-  ]);
+  }, [allocatedLoading, availableLoading, balancesLoading, hasReadErrors, isReconstructing, onchainReadActive]);
 
   const encodedCalls = useMemo(() => encodeOpsToCalls(selectedOps), [selectedOps]);
 
@@ -946,10 +938,10 @@ export function UniversalDelegatorConfigurator() {
     needsNetworks && needsOperators
       ? Boolean(groupNetworksCount && groupOperatorsCount)
       : needsNetworks
-        ? Boolean(groupNetworksCount)
-        : needsOperators
-          ? Boolean(groupOperatorsCount)
-          : true;
+      ? Boolean(groupNetworksCount)
+      : needsOperators
+      ? Boolean(groupOperatorsCount)
+      : true;
 
   const swapScope = useMemo((): { label: string; items: Array<GroupSlot | NetworkSlot | OperatorSlot> } => {
     if (zoom.kind === "all") return { label: "Groups", items: model.groups };
@@ -1091,7 +1083,7 @@ export function UniversalDelegatorConfigurator() {
                           <option value="shared-multi">Shared Networks with Multiple Operators</option>
                           <option value="shared-single">Shared Networks with Single Operator</option>
                           <option value="single-multi">Single Network with Multiple Operators</option>
-                          <option value="single-single">Single Operator with Single Operator</option>
+                          <option value="single-single">Single Network with Single Operator</option>
                         </select>
                       </label>
 
@@ -1225,15 +1217,15 @@ export function UniversalDelegatorConfigurator() {
               <div className="divider my-0">
                 <div className="text-xs opacity-70 whitespace-nowrap">
                   <div>
-                    Allocated: {canReadBalances ? (rootBalance?.toString() ?? (balancesLoading ? "loading…" : "—")) : "—"}
+                    Allocated: {canReadBalances ? rootBalance?.toString() ?? (balancesLoading ? "loading…" : "—") : "—"}
                   </div>
                   <div>
                     Pending:{" "}
                     {!canReadBalances || !hasRootBalance
                       ? "—"
                       : pendingLoading
-                        ? "loading…"
-                        : (pendingByIndex.get("0") ?? 0n).toString()}
+                      ? "loading…"
+                      : (pendingByIndex.get("0") ?? 0n).toString()}
                   </div>
                 </div>
               </div>
@@ -1489,7 +1481,9 @@ function NetworksRow(props: {
                 hasRootBalance={props.hasRootBalance}
                 onCopyIndex={props.onCopyIndex}
                 onAddOperator={() => props.onAddOperator(network.id)}
-                onUpdateOperatorDraft={(operatorId, patch) => props.onUpdateOperatorDraft(network.id, operatorId, patch)}
+                onUpdateOperatorDraft={(operatorId, patch) =>
+                  props.onUpdateOperatorDraft(network.id, operatorId, patch)
+                }
               />
             </NetworkCard>
           );
