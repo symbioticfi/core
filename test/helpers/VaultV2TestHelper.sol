@@ -2,14 +2,14 @@
 pragma solidity 0.8.25;
 
 import {Hints} from "../../src/contracts/hints/Hints.sol";
-import {VaultStorage} from "../../src/contracts/vault/VaultStorage.sol";
+import {VaultV2Storage} from "../../src/contracts/vault/VaultV2Storage.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 
-contract VaultTestHelper is VaultStorage, Hints {
+contract VaultV2TestHelper is VaultV2Storage, Hints {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
 
-    constructor() VaultStorage(address(0), address(0)) {}
+    constructor() VaultV2Storage(address(0), address(0)) {}
 
     function _timeToBucketLatestInternal() external view internalFunction returns (uint208) {
         return _timeToBucket.latest();
@@ -48,26 +48,28 @@ contract VaultTestHelper is VaultStorage, Hints {
 
     function timeToBucketLatest(address vault) external view returns (uint208) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._timeToBucketLatestInternal, ())), (uint208)
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._timeToBucketLatestInternal, ())), (uint208)
         );
     }
 
     function timeToBucketAt(address vault, uint32 pos) external view returns (uint48, uint208) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._timeToBucketAtInternal, (pos))),
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._timeToBucketAtInternal, (pos))),
             (uint48, uint208)
         );
     }
 
     function timeToBucketLength(address vault) external view returns (uint256) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._timeToBucketLengthInternal, ())), (uint256)
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._timeToBucketLengthInternal, ())), (uint256)
         );
     }
 
     function withdrawalSharesPrefixesLatest(address vault) external view returns (uint256) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesLatestInternal, ())),
+            _selfStaticDelegateCall(
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesLatestInternal, ())
+            ),
             (uint256)
         );
     }
@@ -79,7 +81,7 @@ contract VaultTestHelper is VaultStorage, Hints {
     {
         return abi.decode(
             _selfStaticDelegateCall(
-                vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesUpperLookupRecentInternal, (timestamp))
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesUpperLookupRecentInternal, (timestamp))
             ),
             (uint256)
         );
@@ -87,14 +89,18 @@ contract VaultTestHelper is VaultStorage, Hints {
 
     function withdrawalSharesPrefixesAt(address vault, uint32 pos) external view returns (uint48, uint256) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesAtInternal, (pos))),
+            _selfStaticDelegateCall(
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesAtInternal, (pos))
+            ),
             (uint48, uint256)
         );
     }
 
     function withdrawalSharesPrefixesLength(address vault) external view returns (uint256) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesLengthInternal, ())),
+            _selfStaticDelegateCall(
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesLengthInternal, ())
+            ),
             (uint256)
         );
     }

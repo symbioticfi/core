@@ -16,15 +16,15 @@ import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
 import {Vault} from "../../src/contracts/vault/Vault.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
-import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
+import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
 
 import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
@@ -54,7 +54,7 @@ contract UniversalDelegatorTest is Test {
     Token internal collateral;
     Vault internal vault;
     UniversalDelegator internal delegator;
-    Slasher internal slasher;
+    IUniversalSlasher internal slasher;
 
     function setUp() public {
         vm.warp(0);
@@ -91,9 +91,10 @@ contract UniversalDelegatorTest is Test {
         delegatorFactory.whitelist(delegatorImpl);
 
         address slasherImpl = address(
-            new Slasher(
+            new UniversalSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
+                address(networkRegistry),
                 address(slasherFactory),
                 slasherFactory.totalTypes()
             )
@@ -143,14 +144,18 @@ contract UniversalDelegatorTest is Test {
                 withSlasher: true,
                 slasherIndex: 0,
                 slasherParams: abi.encode(
-                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
+                    IUniversalSlasher.InitParams({
+                        baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                        vetoDuration: 1,
+                        resolverSetEpochsDelay: 3
+                    })
                 )
             })
         );
 
         vault = Vault(vault_);
         delegator = UniversalDelegator(delegator_);
-        slasher = Slasher(slasher_);
+        slasher = IUniversalSlasher(slasher_);
     }
 
     function test_checkpointTracksHistory_andDefaults() public {
@@ -603,10 +608,10 @@ contract UniversalDelegatorTest is Test {
         vm.warp(20);
 
         vm.startPrank(middleware);
-        assertEq(slasher.slash(subnetwork1, operator1, 60, captureTimestamp, ""), 60);
+        assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, captureTimestamp), 60);
         vm.expectRevert();
-        slasher.slash(subnetwork2, operator2, 60, captureTimestamp, "");
-        assertEq(slasher.slash(subnetwork3, operator3, 40, captureTimestamp, ""), 40);
+        _requestAndExecuteSlash(subnetwork2, operator2, 60, captureTimestamp);
+        assertEq(_requestAndExecuteSlash(subnetwork3, operator3, 40, captureTimestamp), 40);
         vm.stopPrank();
     }
 
@@ -651,9 +656,9 @@ contract UniversalDelegatorTest is Test {
         vm.warp(5);
 
         vm.startPrank(middleware);
-        assertEq(slasher.slash(subnetwork1, operator1, 60, 3, ""), 60);
+        assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, 3), 60);
         vm.expectRevert();
-        slasher.slash(subnetwork2, operator2, 60, 4, "");
+        _requestAndExecuteSlash(subnetwork2, operator2, 60, 4);
         vm.stopPrank();
     }
 
@@ -697,9 +702,9 @@ contract UniversalDelegatorTest is Test {
 
         vm.warp(4);
         vm.startPrank(middleware);
-        assertEq(slasher.slash(subnetwork1, operator1, 60, 2, ""), 60);
+        assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, 2), 60);
         vm.expectRevert();
-        slasher.slash(subnetwork2, operator2, 60, 2, "");
+        _requestAndExecuteSlash(subnetwork2, operator2, 60, 2);
         vm.stopPrank();
 
         vm.warp(6);
@@ -707,7 +712,7 @@ contract UniversalDelegatorTest is Test {
 
         vm.warp(8);
         vm.startPrank(middleware);
-        assertEq(slasher.slash(subnetwork2, operator2, 60, 6, ""), 60);
+        assertEq(_requestAndExecuteSlash(subnetwork2, operator2, 60, 6), 60);
         vm.stopPrank();
     }
 
@@ -947,7 +952,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(slashableAfter, slashableBefore);
 
         vm.startPrank(middleware);
-        assertEq(slasher.slash(subnetwork1, operator1, slashableBefore, captureTimestamp, ""), slashableBefore);
+        assertEq(_requestAndExecuteSlash(subnetwork1, operator1, slashableBefore, captureTimestamp), slashableBefore);
         vm.stopPrank();
     }
 
@@ -1019,7 +1024,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(slashableAfter, slashableBefore);
 
         vm.startPrank(middleware);
-        assertEq(slasher.slash(subnetwork, operator1, slashableBefore, captureTimestamp, ""), slashableBefore);
+        assertEq(_requestAndExecuteSlash(subnetwork, operator1, slashableBefore, captureTimestamp), slashableBefore);
         vm.stopPrank();
     }
 
@@ -1373,6 +1378,14 @@ contract UniversalDelegatorTest is Test {
 
         assertEq(delegator.getAvailableAt(0, 2, ""), 80);
         assertEq(delegator.getAvailableAt(0, 4, ""), 100);
+    }
+
+    function _requestAndExecuteSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp)
+        internal
+        returns (uint256)
+    {
+        uint256 slashIndex = slasher.requestSlash(subnetwork, operator, amount, captureTimestamp, "");
+        return slasher.executeSlash(slashIndex, "");
     }
 
     function _createSlot(uint96 parentIndex, bool isShared, uint256 size) internal {

@@ -113,6 +113,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             requestSlashHints = abi.decode(hints, (RequestSlashHints));
         }
 
+        // TODO: saturatingSub
         if (
             captureTimestamp < Time.timestamp() + vetoDuration - IVault(vault).epochDuration()
                 || captureTimestamp >= Time.timestamp()
