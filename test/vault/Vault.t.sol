@@ -2141,7 +2141,7 @@ contract VaultTest is Test {
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = alice;
-        (IVault vault_,, ) = _createInitializedVaultWithOwner(
+        (IVault vault_,,) = _createInitializedVaultWithOwner(
             epochDuration,
             networkLimitSetRoleHolders,
             operatorNetworkSharesSetRoleHolders,
@@ -2267,7 +2267,7 @@ contract VaultTest is Test {
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = alice;
-        (IVault vault_,, ) = _createInitializedVaultWithOwner(
+        (IVault vault_,,) = _createInitializedVaultWithOwner(
             epochDuration,
             networkLimitSetRoleHolders,
             operatorNetworkSharesSetRoleHolders,
@@ -2535,9 +2535,8 @@ contract VaultTest is Test {
         uint256 lastBucket2 = _latestWithdrawalBucket();
         uint256 lastWithdrawals2 = vault.withdrawals(lastBucket2);
         uint256 lastWithdrawalShares2 = vault.withdrawalShares(lastBucket2);
-        uint256 unmaturedWithdrawalShares2 =
-            vaultTestHelper.withdrawalSharesPrefixesLatest(address(vault))
-                - vaultTestHelper.withdrawalSharesPrefixesUpperLookupRecent(address(vault), uint48(blockTimestamp));
+        uint256 unmaturedWithdrawalShares2 = vaultTestHelper.withdrawalSharesPrefixesLatest(address(vault))
+            - vaultTestHelper.withdrawalSharesPrefixesUpperLookupRecent(address(vault), uint48(blockTimestamp));
         uint256 unmaturedWithdrawals2 =
             lastWithdrawalShares2 == 0 ? 0 : unmaturedWithdrawalShares2.mulDiv(lastWithdrawals2, lastWithdrawalShares2);
 

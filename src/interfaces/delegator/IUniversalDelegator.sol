@@ -61,16 +61,6 @@ interface IUniversalDelegator is IBaseDelegator {
     }
 
     /**
-     * @notice Hints for a balance lookup.
-     * @param activeStakeHint hint for the vault active stake checkpoint (used when index == 0)
-     * @param allocatedHints hints forwarded to getAllocatedAt(uint96,...)
-     */
-    struct BalanceHints {
-        bytes activeStakeHint;
-        bytes allocatedHints;
-    }
-
-    /**
      * @notice Hints for an available balance lookup.
      * @param balanceHints hints forwarded to getBalanceAt
      * @param pendingFreeHint hint for pendingFreeCumulative at the requested timestamp

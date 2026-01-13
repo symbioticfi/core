@@ -65,6 +65,9 @@ abstract contract VaultStorage is StaticDelegateCallable, IVaultStorage {
      */
     address public burner;
 
+    /**
+     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
+     */
     uint48 internal _epochDurationInit;
 
     /**

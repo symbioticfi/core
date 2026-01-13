@@ -17,7 +17,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-contract VetoSlasher is BaseSlasher, IUniversalSlasher {
+contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     using Math for uint256;
     using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace208;
@@ -195,6 +195,9 @@ contract VetoSlasher is BaseSlasher, IUniversalSlasher {
         _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
         _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
+        _updateGroupCumulativeSlash(
+            request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, executeSlashHints.slotOfHint
+        );
 
         _delegatorOnSlash(
             request.subnetwork,
@@ -327,6 +330,18 @@ contract VetoSlasher is BaseSlasher, IUniversalSlasher {
             ),
             stakeAmount
         );
+    }
+
+    function _updateGroupCumulativeSlash(
+        bytes32 subnetwork,
+        address operator,
+        uint256 amount,
+        uint48 captureTimestamp,
+        bytes memory hint
+    ) internal {
+        uint96 groupIndex = IUniversalDelegator(IVault(vault).delegator())
+            .getSlotOfAt(subnetwork, operator, captureTimestamp, hint).getParentIndex().getParentIndex();
+        _groupCumulativeSlash[groupIndex].push(Time.timestamp(), groupCumulativeSlash(groupIndex) + amount);
     }
 
     function __initialize(address vault_, bytes memory data) internal override returns (BaseParams memory) {

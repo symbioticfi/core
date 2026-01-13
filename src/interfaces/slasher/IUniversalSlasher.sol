@@ -76,11 +76,13 @@ interface IUniversalSlasher is IBaseSlasher {
      * @param captureResolverHint hint for the resolver checkpoint at the capture time
      * @param currentResolverHint hint for the resolver checkpoint at the current time
      * @param slashableStakeHints hints for the slashable stake checkpoints
+     * @param slotOfHint hint for the slot lookup
      */
     struct ExecuteSlashHints {
         bytes captureResolverHint;
         bytes currentResolverHint;
         bytes slashableStakeHints;
+        bytes slotOfHint;
     }
 
     /**

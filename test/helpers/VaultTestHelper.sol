@@ -37,12 +37,7 @@ contract VaultTestHelper is VaultStorage, Hints {
         return _withdrawalSharesPrefixes.upperLookupRecent(timestamp);
     }
 
-    function _withdrawalSharesPrefixesAtInternal(uint32 pos)
-        external
-        view
-        internalFunction
-        returns (uint48, uint256)
-    {
+    function _withdrawalSharesPrefixesAtInternal(uint32 pos) external view internalFunction returns (uint48, uint256) {
         Checkpoints.Checkpoint256 memory checkpoint = _withdrawalSharesPrefixes.at(pos);
         return (checkpoint._key, checkpoint._value);
     }
@@ -77,7 +72,11 @@ contract VaultTestHelper is VaultStorage, Hints {
         );
     }
 
-    function withdrawalSharesPrefixesUpperLookupRecent(address vault, uint48 timestamp) external view returns (uint256) {
+    function withdrawalSharesPrefixesUpperLookupRecent(address vault, uint48 timestamp)
+        external
+        view
+        returns (uint256)
+    {
         return abi.decode(
             _selfStaticDelegateCall(
                 vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesUpperLookupRecentInternal, (timestamp))
@@ -95,9 +94,7 @@ contract VaultTestHelper is VaultStorage, Hints {
 
     function withdrawalSharesPrefixesLength(address vault) external view returns (uint256) {
         return abi.decode(
-            _selfStaticDelegateCall(
-                vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesLengthInternal, ())
-            ),
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultTestHelper._withdrawalSharesPrefixesLengthInternal, ())),
             (uint256)
         );
     }
