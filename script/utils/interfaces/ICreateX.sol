@@ -77,12 +77,10 @@ interface ICreateX {
         payable
         returns (address newContract);
 
-    function deployCreate2AndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values,
-        address refundAddress
-    ) external payable returns (address newContract);
+    function deployCreate2AndInit(bytes memory initCode, bytes memory data, Values memory values, address refundAddress)
+        external
+        payable
+        returns (address newContract);
 
     function deployCreate2AndInit(bytes memory initCode, bytes memory data, Values memory values)
         external
@@ -124,12 +122,10 @@ interface ICreateX {
         payable
         returns (address newContract);
 
-    function deployCreate3AndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values,
-        address refundAddress
-    ) external payable returns (address newContract);
+    function deployCreate3AndInit(bytes memory initCode, bytes memory data, Values memory values, address refundAddress)
+        external
+        payable
+        returns (address newContract);
 
     function deployCreate3AndInit(bytes memory initCode, bytes memory data, Values memory values)
         external

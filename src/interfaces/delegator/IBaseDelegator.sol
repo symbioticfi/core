@@ -174,11 +174,6 @@ interface IBaseDelegator is IEntity {
      * @param data some additional data
      * @dev Only the vault's slasher can call this function.
      */
-    function onSlash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes calldata data
-    ) external;
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata data)
+        external;
 }

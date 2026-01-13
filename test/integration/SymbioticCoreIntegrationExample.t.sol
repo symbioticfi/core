@@ -233,6 +233,6 @@ contract SymbioticCoreIntegrationExample is SymbioticCoreIntegration {
             ISymbioticBaseDelegator(ISymbioticVault(vault).delegator()).stake(subnetwork, newOperator.addr)
         );
         console2.log("Total stake after new staker:", ISymbioticVault(vault).totalStake());
-        console2.log("User stake:", ISymbioticVault(vault).slashableBalanceOf(newStaker.addr));
+        console2.log("User stake:", ISymbioticVault(vault).activeBalanceOf(newStaker.addr));
     }
 }
