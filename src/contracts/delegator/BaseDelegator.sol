@@ -232,5 +232,9 @@ abstract contract BaseDelegator is
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
 
+    function _onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
+        internal
+        virtual {}
+
     function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }
