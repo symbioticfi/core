@@ -126,4 +126,51 @@ contract VaultV2TokenizedTest is VaultV2Test {
         }
     }
 
+    function test_MigrateTokenized_FactoryUpgradePath() public {
+        uint48 epochDuration = 10;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        uint48 vetoDuration = epochDuration > 1 ? 1 : 0;
+        bytes memory vetoSlasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                vetoDuration: vetoDuration,
+                resolverSetEpochsDelay: 3
+            })
+        );
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            2,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this),
+            1,
+            vetoSlasherParams
+        );
+        vault = IVaultV2(address(vault_));
+        address oldSlasher = vault.slasher();
+
+        assertEq(VaultV2(address(vault)).name(), VAULT_NAME);
+        assertEq(VaultV2(address(vault)).symbol(), VAULT_SYMBOL);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vault));
+        _assertMigrationState(vaultV2, oldSlasher);
+        assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
+        assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
+    }
 }

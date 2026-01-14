@@ -92,7 +92,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function VERSION() external pure returns (uint64) {
+    function VERSION() public pure returns (uint64) {
         return 1;
     }
 
@@ -126,7 +126,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function stake(bytes32 subnetwork, address operator) external view returns (uint256) {
+    function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, subnetwork.network())
@@ -140,7 +140,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external nonReentrant {
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) public nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -160,7 +160,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setHook(address hook_) external nonReentrant onlyRole(HOOK_SET_ROLE) {
+    function setHook(address hook_) public nonReentrant onlyRole(HOOK_SET_ROLE) {
         if (hook == hook_) {
             revert AlreadySet();
         }
@@ -174,7 +174,7 @@ abstract contract BaseDelegator is
      * @inheritdoc IBaseDelegator
      */
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
-        external
+        public
         nonReentrant
     {
         if (msg.sender != IVault(vault).slasher()) {

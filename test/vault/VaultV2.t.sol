@@ -20,10 +20,15 @@ import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRest
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
 import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
+import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
+import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
 
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
+import {IVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
+import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {FeeOnTransferToken} from "../mocks/FeeOnTransferToken.sol";
@@ -32,8 +37,11 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
+import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -159,6 +167,18 @@ contract VaultV2Test is Test {
         );
         delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
 
+        address universalDelegatorImpl = address(
+            new UniversalDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(universalDelegatorImpl);
+
         address slasherImpl = address(
             new Slasher(
                 address(vaultFactory),
@@ -179,6 +199,17 @@ contract VaultV2Test is Test {
             )
         );
         slasherFactory.whitelist(vetoSlasherImpl);
+
+        address universalSlasherImpl = address(
+            new UniversalSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkRegistry),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(universalSlasherImpl);
 
         collateral = new Token("Token");
         feeOnTransferCollateral = new FeeOnTransferToken("FeeOnTransferToken");
@@ -1277,16 +1308,23 @@ contract VaultV2Test is Test {
         assertEq(vault.activeBalanceOf(bob), amount2);
     }
 
-    function test_DepositRevertInvalidOnBehalfOf(uint256 amount1) public {
+    function test_DepositDonation(uint256 amount1) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
 
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
 
+        collateral.transfer(alice, amount1);
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.InvalidOnBehalfOf.selector);
-        vault.deposit(address(0), amount1);
+        collateral.approve(address(vault), amount1);
+        (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(address(0), amount1);
         vm.stopPrank();
+
+        assertEq(depositedAmount, amount1);
+        assertEq(mintedShares, 0);
+        assertEq(vault.activeStake(), amount1);
+        assertEq(vault.activeShares(), 0);
+        assertEq(vault.activeSharesOf(alice), 0);
     }
 
     function test_DepositRevertInsufficientDeposit() public {
@@ -2181,7 +2219,15 @@ contract VaultV2Test is Test {
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = alice;
-        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+        uint48 vetoDuration = epochDuration > 1 ? 1 : 0;
+        bytes memory vetoSlasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                vetoDuration: vetoDuration,
+                resolverSetEpochsDelay: 3
+            })
+        );
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
             epochDuration,
             networkLimitSetRoleHolders,
             operatorNetworkSharesSetRoleHolders,
@@ -2190,10 +2236,13 @@ contract VaultV2Test is Test {
             false,
             false,
             0,
-            address(this)
+            address(this),
+            1,
+            vetoSlasherParams
         );
         VaultV1 vaultV1 = VaultV1(address(vault_));
         vault = IVaultV2(address(vaultV1));
+        address oldSlasher = vaultV1.slasher();
 
         uint256 aliceDeposit = 1000;
         uint256 bobDeposit = 500;
@@ -2227,18 +2276,22 @@ contract VaultV2Test is Test {
         uint256 migrateTimestamp = epoch2Start + epochDuration / 2;
         vm.warp(migrateTimestamp);
 
-        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), "");
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
 
         IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        _assertMigrationState(vaultV2, oldSlasher);
+        assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
+        assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
 
         uint48 nextEpochStart = uint48(blockTimestamp + 3 * epochDuration);
-        assertEq(vaultTestHelper.withdrawalSharesPrefixesLength(address(vaultV2)), 2);
+        assertEq(vaultTestHelper.withdrawalSharesCumulativeLength(address(vaultV2)), 2);
 
-        (uint48 prefixKey0, uint256 prefixVal0) = vaultTestHelper.withdrawalSharesPrefixesAt(address(vaultV2), 0);
+        (uint48 prefixKey0, uint256 prefixVal0) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 0);
         assertEq(prefixKey0, nextEpochStart);
         assertEq(prefixVal0, epoch2Withdrawals);
 
-        (uint48 prefixKey1, uint256 prefixVal1) = vaultTestHelper.withdrawalSharesPrefixesAt(address(vaultV2), 1);
+        (uint48 prefixKey1, uint256 prefixVal1) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 1);
         assertEq(prefixKey1, uint48(nextEpochStart + epochDuration));
         assertEq(prefixVal1, epoch2Withdrawals);
 
@@ -2320,6 +2373,7 @@ contract VaultV2Test is Test {
         );
         VaultV1 vaultV1 = VaultV1(address(vault_));
         vault = IVaultV2(address(vaultV1));
+        address oldSlasher = vaultV1.slasher();
 
         uint256 aliceDeposit = 1000;
         _deposit(alice, aliceDeposit);
@@ -2336,9 +2390,11 @@ contract VaultV2Test is Test {
         uint256 epoch2Start = blockTimestamp + 2 * epochDuration;
         vm.warp(epoch2Start + epochDuration / 2);
 
-        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), "");
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
 
         IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        _assertMigrationState(vaultV2, oldSlasher);
         vaultV2.migrateWithdrawalsOf(alice, 1);
         vaultV2.migrateWithdrawalsOf(alice, 2);
 
@@ -2575,8 +2631,8 @@ contract VaultV2Test is Test {
         uint256 lastBucket2 = _latestWithdrawalBucket();
         uint256 lastWithdrawals2 = vault.withdrawals(lastBucket2);
         uint256 lastWithdrawalShares2 = vault.withdrawalShares(lastBucket2);
-        uint256 unmaturedWithdrawalShares2 = vaultTestHelper.withdrawalSharesPrefixesLatest(address(vault))
-            - vaultTestHelper.withdrawalSharesPrefixesUpperLookupRecent(address(vault), uint48(blockTimestamp));
+        uint256 unmaturedWithdrawalShares2 = vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault))
+            - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), uint48(blockTimestamp));
         uint256 unmaturedWithdrawals2 =
             lastWithdrawalShares2 == 0 ? 0 : unmaturedWithdrawalShares2.mulDiv(lastWithdrawals2, lastWithdrawalShares2);
 
@@ -2601,8 +2657,8 @@ contract VaultV2Test is Test {
     }
 
     function _unmaturedWithdrawalShares(uint48 timestamp) internal view returns (uint256) {
-        return vaultTestHelper.withdrawalSharesPrefixesLatest(address(vault))
-            - vaultTestHelper.withdrawalSharesPrefixesUpperLookupRecent(address(vault), timestamp);
+        return vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault))
+            - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), timestamp);
     }
 
     function _expectedTotalStake(uint48 timestamp) internal view returns (uint256) {
@@ -2881,27 +2937,82 @@ contract VaultV2Test is Test {
         uint256 depositLimit,
         address owner_
     ) internal virtual returns (IVaultV2, address, address) {
+        bytes memory slasherParams =
+            abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}));
+        return _createInitializedVaultWithOwnerAndSlasher(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            version,
+            burner,
+            depositWhitelist,
+            isDepositLimit,
+            depositLimit,
+            owner_,
+            0,
+            slasherParams
+        );
+    }
+
+    function _createInitializedVaultWithOwnerAndSlasher(
+        uint48 epochDuration,
+        address[] memory networkLimitSetRoleHolders,
+        address[] memory operatorNetworkSharesSetRoleHolders,
+        uint64 version,
+        address burner,
+        bool depositWhitelist,
+        bool isDepositLimit,
+        uint256 depositLimit,
+        address owner_,
+        uint64 slasherIndex,
+        bytes memory slasherParams
+    ) internal virtual returns (IVaultV2, address, address) {
+        IVault.InitParams memory baseParams = IVault.InitParams({
+            collateral: address(collateral),
+            burner: burner,
+            epochDuration: epochDuration,
+            depositWhitelist: depositWhitelist,
+            isDepositLimit: isDepositLimit,
+            depositLimit: depositLimit,
+            defaultAdminRoleHolder: alice,
+            depositWhitelistSetRoleHolder: alice,
+            depositorWhitelistRoleHolder: alice,
+            isDepositLimitSetRoleHolder: alice,
+            depositLimitSetRoleHolder: alice
+        });
+
+        bytes memory vaultParams;
+        if (version == 1) {
+            vaultParams = abi.encode(baseParams);
+        } else if (version == 2) {
+            vaultParams = abi.encode(
+                IVaultTokenized.InitParamsTokenized({baseParams: baseParams, name: VAULT_NAME, symbol: VAULT_SYMBOL})
+            );
+        } else {
+            vaultParams = abi.encode(
+                IVaultV2.InitParams({
+                    name: VAULT_NAME,
+                    symbol: VAULT_SYMBOL,
+                    collateral: baseParams.collateral,
+                    burner: baseParams.burner,
+                    epochDuration: baseParams.epochDuration,
+                    depositWhitelist: baseParams.depositWhitelist,
+                    isDepositLimit: baseParams.isDepositLimit,
+                    depositLimit: baseParams.depositLimit,
+                    defaultAdminRoleHolder: baseParams.defaultAdminRoleHolder,
+                    depositWhitelistSetRoleHolder: baseParams.depositWhitelistSetRoleHolder,
+                    depositorWhitelistRoleHolder: baseParams.depositorWhitelistRoleHolder,
+                    isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
+                    depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder
+                })
+            );
+        }
+
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: version,
                 owner: owner_,
-                vaultParams: abi.encode(
-                    IVaultV2.InitParams({
-                        name: VAULT_NAME,
-                        symbol: VAULT_SYMBOL,
-                        collateral: address(collateral),
-                        burner: burner,
-                        epochDuration: epochDuration,
-                        depositWhitelist: depositWhitelist,
-                        isDepositLimit: isDepositLimit,
-                        depositLimit: depositLimit,
-                        defaultAdminRoleHolder: alice,
-                        depositWhitelistSetRoleHolder: alice,
-                        depositorWhitelistRoleHolder: alice,
-                        isDepositLimitSetRoleHolder: alice,
-                        depositLimitSetRoleHolder: alice
-                    })
-                ),
+                vaultParams: vaultParams,
                 delegatorIndex: 1,
                 delegatorParams: abi.encode(
                     INetworkRestakeDelegator.InitParams({
@@ -2913,14 +3024,52 @@ contract VaultV2Test is Test {
                     })
                 ),
                 withSlasher: true,
-                slasherIndex: 0,
-                slasherParams: abi.encode(
-                    ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})})
-                )
+                slasherIndex: slasherIndex,
+                slasherParams: slasherParams
             })
         );
 
         return (IVaultV2(vault_), address(delegator_), address(slasher_));
+    }
+
+    function _buildMigrateParams(uint48 epochDuration) internal view returns (IVaultV2.MigrateParams memory) {
+        uint48 vetoDuration = epochDuration > 1 ? 1 : 0;
+        IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
+            baseParams: IBaseDelegator.BaseParams({
+                defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
+            }),
+            createSlotRoleHolder: alice,
+            setIsSharedRoleHolder: alice,
+            setSizeRoleHolder: alice,
+            setShareRoleHolder: alice,
+            swapSlotsRoleHolder: alice,
+            assignNetworkRoleHolder: alice,
+            unassignNetworkRoleHolder: alice,
+            assignOperatorRoleHolder: alice,
+            unassignOperatorRoleHolder: alice
+        });
+        IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
+            baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+            vetoDuration: vetoDuration,
+            resolverSetEpochsDelay: 3
+        });
+        return IVaultV2.MigrateParams({
+            name: VAULT_NAME,
+            symbol: VAULT_SYMBOL,
+            delegatorParams: abi.encode(delegatorParams),
+            slasherParams: abi.encode(slasherParams)
+        });
+    }
+
+    function _assertMigrationState(IVaultV2 vaultV2, address oldSlasher) internal view {
+        assertEq(IEntity(vaultV2.delegator()).TYPE(), delegatorFactory.totalTypes() - 1);
+        assertEq(IEntity(vaultV2.slasher()).TYPE(), slasherFactory.totalTypes() - 1);
+        assertEq(IUniversalDelegator(vaultV2.delegator()).getSlot(0).pendingFreeCumulative, type(uint256).max);
+        uint256 expectedSlashRequestsLength = 0;
+        if (oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == 1) {
+            expectedSlashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();
+        }
+        assertEq(IUniversalSlasher(vaultV2.slasher()).slashRequestsLength(), expectedSlashRequestsLength);
     }
 
     function _getEncodedVaultParams(IVaultV2.InitParams memory params) internal pure virtual returns (bytes memory) {

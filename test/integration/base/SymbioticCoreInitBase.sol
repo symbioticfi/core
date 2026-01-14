@@ -236,6 +236,8 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             .whitelist(
                 _deployCreate2(bytes32("vaultTokenized"), SymbioticCoreBytecode.vaultTokenized(), constructorArgs)
             );
+        symbioticCore.vaultFactory
+            .whitelist(_deployCreate2(bytes32("vaultV2"), SymbioticCoreBytecode.vaultV2(), constructorArgs));
     }
 
     function _whitelistDelegatorImplementations() internal virtual {
@@ -309,6 +311,19 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             constructorArgs
         );
         factory.whitelist(implementation);
+
+        typeIndex = factory.totalTypes();
+        constructorArgs = abi.encode(
+            networkRegistry,
+            vaultFactory,
+            operatorVaultOptInService,
+            operatorNetworkOptInService,
+            factoryAddress,
+            typeIndex
+        );
+        implementation =
+            _deployCreate2(bytes32("universalDelegator"), SymbioticCoreBytecode.universalDelegator(), constructorArgs);
+        factory.whitelist(implementation);
     }
 
     function _whitelistSlasherImplementations() internal virtual {
@@ -329,6 +344,12 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         typeIndex = factory.totalTypes();
         constructorArgs = abi.encode(vaultFactory, networkMiddlewareService, networkRegistry, factoryAddress, typeIndex);
         implementation = _deployCreate2(bytes32("vetoSlasher"), SymbioticCoreBytecode.vetoSlasher(), constructorArgs);
+        factory.whitelist(implementation);
+
+        typeIndex = factory.totalTypes();
+        constructorArgs = abi.encode(vaultFactory, networkMiddlewareService, networkRegistry, factoryAddress, typeIndex);
+        implementation =
+            _deployCreate2(bytes32("universalSlasher"), SymbioticCoreBytecode.universalSlasher(), constructorArgs);
         factory.whitelist(implementation);
     }
 

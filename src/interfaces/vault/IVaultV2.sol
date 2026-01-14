@@ -73,10 +73,14 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Initial parameters needed for a vault migration.
      * @param name name of the vault
      * @param symbol symbol of the vault
+     * @param delegatorParams parameters for the delegator migration
+     * @param slasherParams parameters for the slasher migration
      */
     struct MigrateParams {
         string name;
         string symbol;
+        bytes delegatorParams;
+        bytes slasherParams;
     }
 
     /**

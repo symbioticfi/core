@@ -3,6 +3,10 @@ pragma solidity 0.8.25;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
+import {DelegatorFactory} from "../DelegatorFactory.sol";
+import {SlasherFactory} from "../SlasherFactory.sol";
+import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
@@ -46,8 +50,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
         return activeStake()
             + (lastWithdrawalShares > 0
-                    ? (_withdrawalSharesPrefixes.latest()
-                        - _withdrawalSharesPrefixes.upperLookupRecent(uint48(block.timestamp)))
+                    ? (_withdrawalSharesCumulative.latest()
+                        - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)))
                     .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
                     : 0);
     }
@@ -114,11 +118,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         nonReentrant
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
-        if (onBehalfOf == address(0)) {
-            revert InvalidOnBehalfOf();
-        }
-
-        if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
+        if (onBehalfOf != address(0) && depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             revert NotWhitelistedDepositor();
         }
 
@@ -128,6 +128,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         if (depositedAmount == 0) {
             revert InsufficientDeposit();
+        }
+
+        if (onBehalfOf == address(0)) {
+            _activeStake.push(uint48(block.timestamp), activeStake() + depositedAmount);
+            emit Deposit(msg.sender, address(0), depositedAmount, 0);
+            return (depositedAmount, 0);
         }
 
         if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
@@ -247,8 +253,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint208 lastBucket = _timeToBucket.latest();
         uint256 lastWithdrawals = withdrawals[lastBucket];
         uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
-        uint256 unmaturedWithdrawalShares =
-            _withdrawalSharesPrefixes.latest() - _withdrawalSharesPrefixes.upperLookupRecent(uint48(block.timestamp));
+        uint256 unmaturedWithdrawalShares = _withdrawalSharesCumulative.latest()
+            - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp));
         uint256 unmaturedWithdrawals =
             lastWithdrawalShares > 0 ? unmaturedWithdrawalShares.mulDiv(lastWithdrawals, lastWithdrawalShares) : 0;
 
@@ -390,7 +396,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         uint48 unlockAt = uint48(block.timestamp) + epochDuration;
         _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
-        _withdrawalSharesPrefixes.push(unlockAt, _withdrawalSharesPrefixes.latest() + mintedShares);
+        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
         emit Transfer(msg.sender, address(0), burnedShares);
@@ -505,7 +511,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
         uint256 shares = _epochWithdrawalSharesOf[epoch][account];
         uint48 unlockAt = _epochDurationInit + (epoch + 1) * epochDuration;
-        if (unlockAt >= _withdrawalSharesPrefixes.at(0)._key) {
+        if (unlockAt >= _withdrawalSharesCumulative.at(0)._key) {
             shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
         } else if (withdrawalShares[epoch] == 0) {
             withdrawals[epoch] = _epochWithdrawals[epoch];
@@ -526,21 +532,32 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         internal
         override
     {
+        (MigrateParams memory params) = abi.decode(data, (IVaultV2.MigrateParams));
         if (oldVersion == 1) {
-            (MigrateParams memory params) = abi.decode(data, (IVaultV2.MigrateParams));
             __ERC20_init(params.name, params.symbol);
         }
         uint48 epoch = (block.timestamp - _epochDurationInit).toUint48() / epochDuration;
         uint256 epochWithdrawals = _epochWithdrawals[epoch];
         uint48 nextEpochStart = _epochDurationInit + (epoch + 1) * epochDuration;
-        _withdrawalSharesPrefixes.push(nextEpochStart, epochWithdrawals);
+        _withdrawalSharesCumulative.push(nextEpochStart, epochWithdrawals);
         epochWithdrawals += _epochWithdrawals[epoch + 1];
-        _withdrawalSharesPrefixes.push(nextEpochStart + epochDuration, epochWithdrawals);
+        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, epochWithdrawals);
         assembly ("memory-safe") {
             sstore(_timeToBucket.slot, epoch)
         }
         _timeToBucket.push(nextEpochStart, epoch);
         withdrawals[epoch] = epochWithdrawals;
         withdrawalShares[epoch] = epochWithdrawals;
+
+        address newDelegator =
+            DelegatorFactory(DELEGATOR_FACTORY).create(4, abi.encode(address(this), params.delegatorParams));
+        UniversalDelegator(newDelegator).migrate();
+        delegator = newDelegator;
+        if (slasher != address(0)) {
+            address newSlasher =
+                SlasherFactory(SLASHER_FACTORY).create(2, abi.encode(address(this), params.slasherParams));
+            UniversalSlasher(newSlasher).migrate();
+            slasher = newSlasher;
+        }
     }
 }

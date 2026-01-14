@@ -18,6 +18,9 @@ interface IUniversalSlasher is IBaseSlasher {
     error VetoPeriodEnded();
     error VetoPeriodNotEnded();
     error OldVault();
+    error NotMigrating();
+    error NotVetoSlasher();
+    error WrongMigrate();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.

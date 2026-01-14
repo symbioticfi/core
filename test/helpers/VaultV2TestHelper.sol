@@ -24,26 +24,31 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         return _timeToBucket.length();
     }
 
-    function _withdrawalSharesPrefixesLatestInternal() external view internalFunction returns (uint256) {
-        return _withdrawalSharesPrefixes.latest();
+    function _withdrawalSharesCumulativeLatestInternal() external view internalFunction returns (uint256) {
+        return _withdrawalSharesCumulative.latest();
     }
 
-    function _withdrawalSharesPrefixesUpperLookupRecentInternal(uint48 timestamp)
+    function _withdrawalSharesCumulativeUpperLookupRecentInternal(uint48 timestamp)
         external
         view
         internalFunction
         returns (uint256)
     {
-        return _withdrawalSharesPrefixes.upperLookupRecent(timestamp);
+        return _withdrawalSharesCumulative.upperLookupRecent(timestamp);
     }
 
-    function _withdrawalSharesPrefixesAtInternal(uint32 pos) external view internalFunction returns (uint48, uint256) {
-        Checkpoints.Checkpoint256 memory checkpoint = _withdrawalSharesPrefixes.at(pos);
+    function _withdrawalSharesCumulativeAtInternal(uint32 pos)
+        external
+        view
+        internalFunction
+        returns (uint48, uint256)
+    {
+        Checkpoints.Checkpoint256 memory checkpoint = _withdrawalSharesCumulative.at(pos);
         return (checkpoint._key, checkpoint._value);
     }
 
-    function _withdrawalSharesPrefixesLengthInternal() external view internalFunction returns (uint256) {
-        return _withdrawalSharesPrefixes.length();
+    function _withdrawalSharesCumulativeLengthInternal() external view internalFunction returns (uint256) {
+        return _withdrawalSharesCumulative.length();
     }
 
     function timeToBucketLatest(address vault) external view returns (uint208) {
@@ -65,41 +70,42 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         );
     }
 
-    function withdrawalSharesPrefixesLatest(address vault) external view returns (uint256) {
+    function withdrawalSharesCumulativeLatest(address vault) external view returns (uint256) {
         return abi.decode(
             _selfStaticDelegateCall(
-                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesLatestInternal, ())
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeLatestInternal, ())
             ),
             (uint256)
         );
     }
 
-    function withdrawalSharesPrefixesUpperLookupRecent(address vault, uint48 timestamp)
+    function withdrawalSharesCumulativeUpperLookupRecent(address vault, uint48 timestamp)
         external
         view
         returns (uint256)
     {
         return abi.decode(
             _selfStaticDelegateCall(
-                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesUpperLookupRecentInternal, (timestamp))
+                vault,
+                abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeUpperLookupRecentInternal, (timestamp))
             ),
             (uint256)
         );
     }
 
-    function withdrawalSharesPrefixesAt(address vault, uint32 pos) external view returns (uint48, uint256) {
+    function withdrawalSharesCumulativeAt(address vault, uint32 pos) external view returns (uint48, uint256) {
         return abi.decode(
             _selfStaticDelegateCall(
-                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesAtInternal, (pos))
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeAtInternal, (pos))
             ),
             (uint48, uint256)
         );
     }
 
-    function withdrawalSharesPrefixesLength(address vault) external view returns (uint256) {
+    function withdrawalSharesCumulativeLength(address vault) external view returns (uint256) {
         return abi.decode(
             _selfStaticDelegateCall(
-                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesPrefixesLengthInternal, ())
+                vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeLengthInternal, ())
             ),
             (uint256)
         );

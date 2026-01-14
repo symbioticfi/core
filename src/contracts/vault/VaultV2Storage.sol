@@ -142,7 +142,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(uint256 bucketIndex => uint256 value) public withdrawals;
 
-    Checkpoints.Trace256 internal _withdrawalSharesPrefixes;
+    Checkpoints.Trace256 internal _withdrawalSharesCumulative;
 
     Checkpoints.Trace208 internal _timeToBucket;
 

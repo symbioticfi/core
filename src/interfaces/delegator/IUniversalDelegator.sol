@@ -23,6 +23,8 @@ interface IUniversalDelegator is IBaseDelegator {
     error IsShared();
     error SlotNotCreated();
     error OldVault();
+    error NotMigrating();
+    error WrongMigrate();
 
     struct InitParams {
         BaseParams baseParams;

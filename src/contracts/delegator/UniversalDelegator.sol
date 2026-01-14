@@ -10,6 +10,8 @@ import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IEntity} from "../../interfaces/common/IEntity.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
@@ -634,7 +636,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         override
         returns (IBaseDelegator.BaseParams memory)
     {
-        if (IMigratableEntity(vault_).version() == 1) {
+        if (IMigratableEntity(vault_).version() < 3) {
             revert OldVault();
         }
 
@@ -673,5 +675,18 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
 
         return params.baseParams;
+    }
+
+    function migrate() public {
+        if (IMigratableEntity(vault).version() != 3) {
+            revert WrongMigrate();
+        }
+        address oldDelegator = IVaultV2(vault).delegator();
+        uint64 oldDelegatorType = IEntity(oldDelegator).TYPE();
+        if (oldDelegatorType == TYPE) {
+            revert NotMigrating();
+        }
+        // TODO: set type(uin256).max but also add "clearing" of matured pendings
+        slots[0].pendingFreeCumulative.push(uint48(block.timestamp), type(uint256).max);
     }
 }

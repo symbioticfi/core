@@ -231,6 +231,9 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit VetoSlash(slashIndex, msg.sender);
     }
 
+    /**
+     * @inheritdoc IVetoSlasher
+     */
     function setResolver(uint96 identifier, address resolver_, bytes calldata hints) external nonReentrant {
         SetResolverHints memory setResolverHints;
         if (hints.length > 0) {

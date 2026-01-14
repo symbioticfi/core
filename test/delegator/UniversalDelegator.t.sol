@@ -14,7 +14,9 @@ import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
-import {Vault} from "../../src/contracts/vault/Vault.sol";
+import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
+import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
 
@@ -25,7 +27,7 @@ import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol"
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
-import {IVault} from "../../src/interfaces/vault/IVault.sol";
+import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -36,6 +38,8 @@ contract UniversalDelegatorTest is Test {
 
     uint48 internal constant EPOCH_DURATION = 3;
     uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
+    string internal constant VAULT_NAME = "Test";
+    string internal constant VAULT_SYMBOL = "TEST";
 
     address internal owner;
     address internal alice;
@@ -52,7 +56,7 @@ contract UniversalDelegatorTest is Test {
     VaultConfigurator internal vaultConfigurator;
 
     Token internal collateral;
-    Vault internal vault;
+    IVaultV2 internal vault;
     UniversalDelegator internal delegator;
     IUniversalSlasher internal slasher;
 
@@ -74,8 +78,16 @@ contract UniversalDelegatorTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
+        address vaultImplV1 =
+            address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImplV1);
+
+        address vaultImplTokenized =
+            address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImplTokenized);
+
         address vaultImpl =
-            address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+            address(new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImpl);
 
         address delegatorImpl = address(
@@ -110,7 +122,9 @@ contract UniversalDelegatorTest is Test {
                 version: vaultFactory.lastVersion(),
                 owner: owner,
                 vaultParams: abi.encode(
-                    IVault.InitParams({
+                    IVaultV2.InitParams({
+                        name: VAULT_NAME,
+                        symbol: VAULT_SYMBOL,
                         collateral: address(collateral),
                         burner: address(0xdEaD),
                         epochDuration: EPOCH_DURATION,
@@ -153,7 +167,7 @@ contract UniversalDelegatorTest is Test {
             })
         );
 
-        vault = Vault(vault_);
+        vault = IVaultV2(vault_);
         delegator = UniversalDelegator(delegator_);
         slasher = IUniversalSlasher(slasher_);
     }
@@ -703,8 +717,7 @@ contract UniversalDelegatorTest is Test {
         vm.warp(4);
         vm.startPrank(middleware);
         assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, 2), 60);
-        vm.expectRevert();
-        _requestAndExecuteSlash(subnetwork2, operator2, 60, 2);
+        assertEq(_requestAndExecuteSlash(subnetwork2, operator2, 60, 2), 40);
         vm.stopPrank();
 
         vm.warp(6);
