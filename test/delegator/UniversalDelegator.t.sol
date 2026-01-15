@@ -17,16 +17,30 @@ import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
+import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
+import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
+import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 
 import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
+import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
+import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
+import {IEntity} from "../../src/interfaces/common/IEntity.sol";
+import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
@@ -1455,5 +1469,305 @@ contract UniversalDelegatorTest is Test {
         vm.startPrank(user);
         vault.withdraw(user, amount);
         vm.stopPrank();
+    }
+}
+
+contract UniversalDelegatorMigrationTest is Test {
+    uint48 internal constant EPOCH_DURATION = 7 days;
+    string internal constant VAULT_NAME = "Test";
+    string internal constant VAULT_SYMBOL = "TEST";
+
+    address internal owner;
+    address internal operator;
+    address internal network;
+
+    VaultFactory internal vaultFactory;
+    DelegatorFactory internal delegatorFactory;
+    SlasherFactory internal slasherFactory;
+    NetworkRegistry internal networkRegistry;
+    OperatorRegistry internal operatorRegistry;
+    NetworkMiddlewareService internal networkMiddlewareService;
+    OptInService internal operatorVaultOptInService;
+    OptInService internal operatorNetworkOptInService;
+    VaultConfigurator internal vaultConfigurator;
+
+    Token internal collateral;
+
+    function setUp() public {
+        owner = address(this);
+        operator = makeAddr("operator");
+        network = makeAddr("network");
+
+        vaultFactory = new VaultFactory(owner);
+        delegatorFactory = new DelegatorFactory(owner);
+        slasherFactory = new SlasherFactory(owner);
+        networkRegistry = new NetworkRegistry();
+        operatorRegistry = new OperatorRegistry();
+        networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
+        operatorVaultOptInService =
+            new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
+        operatorNetworkOptInService =
+            new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        address vaultImplV1 =
+            address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImplV1);
+
+        address vaultImplTokenized =
+            address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImplTokenized);
+
+        address vaultImpl =
+            address(new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImpl);
+
+        address networkRestakeDelegatorImpl = address(
+            new NetworkRestakeDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(networkRestakeDelegatorImpl);
+
+        address fullRestakeDelegatorImpl = address(
+            new FullRestakeDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+
+        address operatorSpecificDelegatorImpl = address(
+            new OperatorSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+
+        address operatorNetworkSpecificDelegatorImpl = address(
+            new OperatorNetworkSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
+        address universalDelegatorImpl = address(
+            new UniversalDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(universalDelegatorImpl);
+
+        address slasherImpl = address(
+            new Slasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(slasherImpl);
+
+        address vetoSlasherImpl = address(
+            new VetoSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkRegistry),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(vetoSlasherImpl);
+
+        address universalSlasherImpl = address(
+            new UniversalSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkRegistry),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(universalSlasherImpl);
+
+        vm.prank(network);
+        networkRegistry.registerNetwork();
+        vm.prank(operator);
+        operatorRegistry.registerOperator();
+
+        collateral = new Token("Token");
+        vaultConfigurator =
+            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+    }
+
+    function test_MigrateLegacyDelegators_ToUniversal() public {
+        uint64[] memory delegatorIndices = new uint64[](4);
+        delegatorIndices[0] = 0;
+        delegatorIndices[1] = 1;
+        delegatorIndices[2] = 2;
+        delegatorIndices[3] = 3;
+
+        for (uint256 i = 0; i < delegatorIndices.length; ++i) {
+            (IVaultV2 vault_, address oldDelegator,) = _createLegacyVault(delegatorIndices[i]);
+            bytes memory migrateData = abi.encode(_buildMigrateParams());
+            vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
+            _assertDelegatorMigration(vault_, oldDelegator, delegatorIndices[i]);
+        }
+    }
+
+    function _createLegacyVault(uint64 delegatorIndex)
+        internal
+        returns (IVaultV2 vault_, address oldDelegator, address oldSlasher)
+    {
+        IVault.InitParams memory baseParams = IVault.InitParams({
+            collateral: address(collateral),
+            burner: address(0xdEaD),
+            epochDuration: EPOCH_DURATION,
+            depositWhitelist: false,
+            isDepositLimit: false,
+            depositLimit: 0,
+            defaultAdminRoleHolder: owner,
+            depositWhitelistSetRoleHolder: owner,
+            depositorWhitelistRoleHolder: owner,
+            isDepositLimitSetRoleHolder: owner,
+            depositLimitSetRoleHolder: owner
+        });
+
+        bytes memory slasherParams =
+            abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}));
+
+        (address vaultAddress, address delegatorAddress, address slasherAddress) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: owner,
+                vaultParams: abi.encode(baseParams),
+                delegatorIndex: delegatorIndex,
+                delegatorParams: _legacyDelegatorParams(delegatorIndex),
+                withSlasher: true,
+                slasherIndex: 0,
+                slasherParams: slasherParams
+            })
+        );
+
+        return (IVaultV2(vaultAddress), delegatorAddress, slasherAddress);
+    }
+
+    function _legacyDelegatorParams(uint64 delegatorIndex) internal view returns (bytes memory) {
+        IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
+            defaultAdminRoleHolder: owner,
+            hook: address(0),
+            hookSetRoleHolder: address(0)
+        });
+        address[] memory roleHolders = new address[](1);
+        roleHolders[0] = owner;
+
+        if (delegatorIndex == 0) {
+            return abi.encode(
+                INetworkRestakeDelegator.InitParams({
+                    baseParams: baseParams,
+                    networkLimitSetRoleHolders: roleHolders,
+                    operatorNetworkSharesSetRoleHolders: roleHolders
+                })
+            );
+        }
+
+        if (delegatorIndex == 1) {
+            return abi.encode(
+                IFullRestakeDelegator.InitParams({
+                    baseParams: baseParams,
+                    networkLimitSetRoleHolders: roleHolders,
+                    operatorNetworkLimitSetRoleHolders: roleHolders
+                })
+            );
+        }
+
+        if (delegatorIndex == 2) {
+            return abi.encode(
+                IOperatorSpecificDelegator.InitParams({
+                    baseParams: baseParams,
+                    networkLimitSetRoleHolders: roleHolders,
+                    operator: operator
+                })
+            );
+        }
+
+        if (delegatorIndex == 3) {
+            return abi.encode(
+                IOperatorNetworkSpecificDelegator.InitParams({
+                    baseParams: baseParams,
+                    network: network,
+                    operator: operator
+                })
+            );
+        }
+
+        revert("UnknownDelegatorIndex");
+    }
+
+    function _buildMigrateParams() internal view returns (IVaultV2.MigrateParams memory) {
+        uint48 vetoDuration = EPOCH_DURATION > 1 ? 1 : 0;
+        IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
+            baseParams: IBaseDelegator.BaseParams({
+                defaultAdminRoleHolder: owner, hook: address(0), hookSetRoleHolder: owner
+            }),
+            createSlotRoleHolder: owner,
+            setIsSharedRoleHolder: owner,
+            setSizeRoleHolder: owner,
+            setShareRoleHolder: owner,
+            swapSlotsRoleHolder: owner,
+            assignNetworkRoleHolder: owner,
+            unassignNetworkRoleHolder: owner,
+            assignOperatorRoleHolder: owner,
+            unassignOperatorRoleHolder: owner
+        });
+        IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
+            baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+            vetoDuration: vetoDuration,
+            resolverSetEpochsDelay: 3
+        });
+        return IVaultV2.MigrateParams({
+            name: VAULT_NAME,
+            symbol: VAULT_SYMBOL,
+            delegatorParams: abi.encode(delegatorParams),
+            slasherParams: abi.encode(slasherParams)
+        });
+    }
+
+    function _assertDelegatorMigration(IVaultV2 vault_, address oldDelegator, uint64 legacyType) internal view {
+        assertEq(IMigratableEntity(address(vault_)).version(), vaultFactory.lastVersion());
+        assertEq(IEntity(oldDelegator).TYPE(), legacyType);
+
+        address newDelegator = vault_.delegator();
+        assertTrue(newDelegator != oldDelegator);
+        assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
+
+        uint256[2] memory pendingFree = IUniversalDelegator(newDelegator).getSlot(0).pendingFreeCumulative;
+        assertEq(pendingFree[0], 0);
+        assertEq(pendingFree[1], type(uint256).max);
     }
 }

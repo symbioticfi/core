@@ -12,6 +12,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
+    using Checkpoints for Checkpoints.Trace512;
     using SafeCast for uint256;
 
     /**
@@ -142,7 +143,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(uint256 bucketIndex => uint256 value) public withdrawals;
 
-    Checkpoints.Trace256 internal _withdrawalSharesCumulative;
+    Checkpoints.Trace512 internal _withdrawalSharesCumulative;
 
     Checkpoints.Trace208 internal _timeToBucket;
 

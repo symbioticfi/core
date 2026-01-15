@@ -10,6 +10,7 @@ import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
+import {Math512} from "../libraries/Math512.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
@@ -26,9 +27,11 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
+    using Checkpoints for Checkpoints.Trace512;
     using Math for uint256;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
+    using Math512 for uint256[2];
 
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         VaultV2Storage(delegatorFactory, slasherFactory)
@@ -50,9 +53,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
         return activeStake()
             + (lastWithdrawalShares > 0
-                    ? (_withdrawalSharesCumulative.latest()
-                        - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)))
-                    .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
+                    ? _withdrawalSharesCumulative.latest()
+                        .sub(_withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)))
+                        .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
                     : 0);
     }
 
@@ -254,7 +257,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint256 lastWithdrawals = withdrawals[lastBucket];
         uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
         uint256 unmaturedWithdrawalShares = _withdrawalSharesCumulative.latest()
-            - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp));
+            .sub(_withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)));
         uint256 unmaturedWithdrawals =
             lastWithdrawalShares > 0 ? unmaturedWithdrawalShares.mulDiv(lastWithdrawals, lastWithdrawalShares) : 0;
 
@@ -396,7 +399,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         uint48 unlockAt = uint48(block.timestamp) + epochDuration;
         _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
-        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
+        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest().add(mintedShares));
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
         emit Transfer(msg.sender, address(0), burnedShares);
@@ -539,9 +542,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint48 epoch = (block.timestamp - _epochDurationInit).toUint48() / epochDuration;
         uint256 epochWithdrawals = _epochWithdrawals[epoch];
         uint48 nextEpochStart = _epochDurationInit + (epoch + 1) * epochDuration;
-        _withdrawalSharesCumulative.push(nextEpochStart, epochWithdrawals);
+        _withdrawalSharesCumulative.push(nextEpochStart, [0, epochWithdrawals]);
         epochWithdrawals += _epochWithdrawals[epoch + 1];
-        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, epochWithdrawals);
+        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, [0, epochWithdrawals]);
         assembly ("memory-safe") {
             sstore(_timeToBucket.slot, epoch)
         }

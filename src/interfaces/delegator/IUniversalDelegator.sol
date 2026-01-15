@@ -47,7 +47,7 @@ interface IUniversalDelegator is IBaseDelegator {
         Checkpoints.Trace256 prevSum;
         Checkpoints.Trace208 isShared;
         Checkpoints.Trace256 totalChildrenSize;
-        Checkpoints.Trace256 pendingFreeCumulative;
+        Checkpoints.Trace512 pendingFreeCumulative;
         mapping(uint96 => uint32) childToLocalIndex;
     }
 
@@ -59,7 +59,7 @@ interface IUniversalDelegator is IBaseDelegator {
         uint256 prevSum;
         uint256 isShared;
         uint256 totalChildrenSize;
-        uint256 pendingFreeCumulative;
+        uint256[2] pendingFreeCumulative;
     }
 
     /**
