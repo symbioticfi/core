@@ -45,6 +45,18 @@ interface IVaultV2Storage {
     function DEPOSIT_LIMIT_SET_ROLE() external view returns (bytes32);
 
     /**
+     * @notice Get a plugin adder's role.
+     * @return identifier of the plugin adder role
+     */
+    function ADD_PLUGIN_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get a plugin remover's role.
+     * @return identifier of the plugin remover role
+     */
+    function REMOVE_PLUGIN_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Get the delegator factory's address.
      * @return address of the delegator factory
      */
@@ -55,6 +67,12 @@ interface IVaultV2Storage {
      * @return address of the slasher factory
      */
     function SLASHER_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get the plugin registry's address.
+     * @return address of the plugin registry
+     */
+    function PLUGIN_REGISTRY() external view returns (address);
 
     /**
      * @notice Get a vault collateral.
@@ -218,4 +236,19 @@ interface IVaultV2Storage {
      * @return the number of withdrawals requested by the account
      */
     function withdrawalsLength(address account) external view returns (uint256);
+
+    /**
+     * @notice Get when the plugin became active.
+     * @param plugin address of the plugin
+     * @return when the plugin became active
+     */
+    function pluginActiveSince(address plugin) external view returns (uint48);
+
+    function plugins(uint256 index) external view returns (address);
+
+    function pluginsLength() external view returns (uint256);
+
+    function pluginsOwe() external view returns (uint256);
+
+    function pluginOwe(address plugin) external view returns (uint256);
 }

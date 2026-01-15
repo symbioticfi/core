@@ -11,6 +11,7 @@ import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
 import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
+import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
@@ -55,6 +56,7 @@ contract UniversalSlasherMigrationTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
+    PluginRegistry internal pluginRegistry;
 
     Token internal collateral;
 
@@ -71,6 +73,7 @@ contract UniversalSlasherMigrationTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+        pluginRegistry = new PluginRegistry(owner);
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -80,8 +83,9 @@ contract UniversalSlasherMigrationTest is Test {
             address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImplTokenized);
 
-        address vaultImpl =
-            address(new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        address vaultImpl = address(
+            new VaultV2(address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory))
+        );
         vaultFactory.whitelist(vaultImpl);
 
         address networkRestakeDelegatorImpl = address(
@@ -211,9 +215,7 @@ contract UniversalSlasherMigrationTest is Test {
     function test_MigrateFromVetoSlasher_ToUniversalSlasher() public {
         bytes memory slasherParams = abi.encode(
             IVetoSlasher.InitParams({
-                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
-                vetoDuration: 1,
-                resolverSetEpochsDelay: 3
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}), vetoDuration: 1, resolverSetEpochsDelay: 3
             })
         );
         (IVaultV2 vault_, address oldSlasher) = _createLegacyVault(true, 1, slasherParams);
@@ -264,11 +266,8 @@ contract UniversalSlasherMigrationTest is Test {
     }
 
     function _legacyDelegatorParams() internal view returns (bytes memory) {
-        IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
-            defaultAdminRoleHolder: owner,
-            hook: address(0),
-            hookSetRoleHolder: address(0)
-        });
+        IBaseDelegator.BaseParams memory baseParams =
+            IBaseDelegator.BaseParams({defaultAdminRoleHolder: owner, hook: address(0), hookSetRoleHolder: address(0)});
         address[] memory roleHolders = new address[](1);
         roleHolders[0] = owner;
 

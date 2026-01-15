@@ -21,6 +21,7 @@ interface IUniversalSlasher is IBaseSlasher {
     error NotMigrating();
     error NotVetoSlasher();
     error WrongMigrate();
+    error NoOwed();
 
     /**
      * @notice Initial parameters needed for a slasher deployment.

@@ -6,6 +6,7 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
+import {VaultV2} from "../vault/VaultV2.sol";
 
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
@@ -42,6 +43,8 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
      * @inheritdoc IUniversalSlasher
      */
     uint256 public resolverSetEpochsDelay;
+
+    mapping(bytes32 subnetwork => mapping(address operator => uint256 amount)) public owed;
 
     SlashRequest[] internal _slashRequests;
 
@@ -87,6 +90,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             bool completed
         )
     {
+        // TODO - change interface to return struct?
         SlashRequest storage request = _slashRequests[slashIndex];
         (subnetwork, operator, amount, captureTimestamp, vetoDeadline, completed) =
         (
@@ -249,7 +253,10 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             )
         );
 
-        _vaultOnSlash(slashedAmount, request.captureTimestamp);
+        (, uint256 owed_) = VaultV2(vault).onSlash(slashedAmount, request.captureTimestamp);
+        if (owed_ > 0) {
+            owed[request.subnetwork][request.operator] += owed_;
+        }
 
         _burnerOnSlash(request.subnetwork, request.operator, slashedAmount, request.captureTimestamp);
 
@@ -337,6 +344,10 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         }
 
         emit SetResolver(subnetwork, resolver_);
+    }
+
+    function syncOwedSlash(bytes32 subnetwork, address operator) public {
+        owed[subnetwork][operator] = VaultV2(vault).syncOwedSlash(owed[subnetwork][operator]);
     }
 
     function _updateGroupCumulativeSlash(

@@ -8,6 +8,10 @@ import {IVaultV2Storage} from "./IVaultV2Storage.sol";
  * @title IVault
  * @dev Deprecated signatures:
  *      slashableBalanceOf()
+ * @dev Removed signatures (due to internal-only usage):
+ *      setDelegator()
+ *      setSlasher()
+ *      onSlash()
  */
 interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error AlreadyClaimed();
@@ -15,7 +19,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error DelegatorAlreadyInitialized();
     error DepositLimitReached();
     error InsufficientClaim();
-    error InsufficientDeposit();
+    error InsufficientAmount();
     error InsufficientRedemption();
     error InsufficientWithdrawal();
     error InvalidAccount();
@@ -36,6 +40,10 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooMuchRedeem();
     error TooMuchWithdraw();
     error WithdrawalNotMatured();
+    error PluginNotActive();
+    error FeeOnTransferNotSupported();
+    error NotPlugin();
+    error PluginOwe();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -168,6 +176,32 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     event SetDepositLimit(uint256 limit);
 
     /**
+     * @notice Emitted when a plugin is added.
+     * @param plugin address of the plugin
+     */
+    event AddPlugin(address indexed plugin);
+
+    /**
+     * @notice Emitted when a plugin is removed.
+     * @param plugin address of the plugin
+     */
+    event RemovePlugin(address indexed plugin);
+
+    /**
+     * @notice Emitted when collateral is pulled from the vault.
+     * @param plugin address of the plugin
+     * @param amount amount of the collateral pulled
+     */
+    event Pull(address indexed plugin, uint256 amount);
+
+    /**
+     * @notice Emitted when collateral is pushed to the vault.
+     * @param plugin address of the plugin
+     * @param amount amount of the collateral pushed
+     */
+    event Push(address indexed plugin, uint256 amount);
+
+    /**
      * @notice Emitted when a delegator is set.
      * @param delegator vault's delegator to delegate the stake to networks and operators
      * @dev Can be set only once.
@@ -263,15 +297,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
 
     /**
-     * @notice Slash callback for burning collateral.
-     * @param amount amount to slash
-     * @param captureTimestamp time point when the stake was captured
-     * @return slashedAmount real amount of the collateral slashed
-     * @dev Only the slasher can call this function.
-     */
-    function onSlash(uint256 amount, uint48 captureTimestamp) external returns (uint256 slashedAmount);
-
-    /**
      * @notice Enable/disable deposit whitelist.
      * @param status if enabling deposit whitelist
      * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
@@ -301,18 +326,32 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function setDepositLimit(uint256 limit) external;
 
     /**
-     * @notice Set a delegator.
-     * @param delegator vault's delegator to delegate the stake to networks and operators
-     * @dev Can be set only once.
+     * @notice Add a plugin.
+     * @param plugin address of the plugin
+     * @dev Only a ADD_PLUGIN_ROLE holder can call this function.
      */
-    function setDelegator(address delegator) external;
+    function addPlugin(address plugin) external;
 
     /**
-     * @notice Set a slasher.
-     * @param slasher vault's slasher to provide a slashing mechanism to networks
-     * @dev Can be set only once.
+     * @notice Remove a plugin.
+     * @param plugin address of the plugin
+     * @dev Only a REMOVE_PLUGIN_ROLE holder can call this function.
      */
-    function setSlasher(address slasher) external;
+    function removePlugin(address plugin) external;
+
+    /**
+     * @notice Pull collateral from the vault.
+     * @param amount amount of the collateral to pull
+     * @dev Only a plugin can call this function.
+     */
+    function pull(uint256 amount) external returns (uint256 pulled);
+
+    /**
+     * @notice Push collateral to the vault.
+     * @param amount amount of the collateral to push
+     * @dev Only a plugin can call this function.
+     */
+    function push(uint256 amount) external;
 
     /**
      * @dev Migrates a epoch-based withdawal to the fixed-delay-based one.

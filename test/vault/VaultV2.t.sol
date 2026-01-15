@@ -13,6 +13,7 @@ import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddl
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 import {Math512} from "../../src/contracts/libraries/Math512.sol";
+import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
@@ -50,6 +51,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 import {VaultV2TestHelper} from "../helpers/VaultV2TestHelper.sol";
+import {MockPlugin} from "../mocks/MockPlugin.sol";
 
 contract VaultV2Test is Test {
     using Math for uint256;
@@ -78,6 +80,7 @@ contract VaultV2Test is Test {
     FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
     VaultV2TestHelper vaultTestHelper;
+    PluginRegistry pluginRegistry;
 
     IVaultV2 vault;
     FullRestakeDelegator delegator;
@@ -103,6 +106,8 @@ contract VaultV2Test is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+
+        pluginRegistry = new PluginRegistry(owner);
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -532,7 +537,7 @@ contract VaultV2Test is Test {
             )
         );
 
-        vault.setDelegator(address(delegator));
+        VaultV2(address(vault)).setDelegator(address(delegator));
 
         assertEq(vault.delegator(), address(delegator));
         assertEq(vault.isDelegatorInitialized(), true);
@@ -588,10 +593,10 @@ contract VaultV2Test is Test {
             )
         );
 
-        vault.setDelegator(address(delegator));
+        VaultV2(address(vault)).setDelegator(address(delegator));
 
         vm.expectRevert(IVaultV2.DelegatorAlreadyInitialized.selector);
-        vault.setDelegator(address(delegator));
+        VaultV2(address(vault)).setDelegator(address(delegator));
     }
 
     function test_SetDelegatorRevertNotDelegator() public {
@@ -622,7 +627,7 @@ contract VaultV2Test is Test {
         );
 
         vm.expectRevert(IVaultV2.NotDelegator.selector);
-        vault.setDelegator(address(1));
+        VaultV2(address(vault)).setDelegator(address(1));
     }
 
     function test_SetDelegatorRevertInvalidDelegator() public {
@@ -697,7 +702,7 @@ contract VaultV2Test is Test {
         );
 
         vm.expectRevert(IVaultV2.InvalidDelegator.selector);
-        vault.setDelegator(address(delegator));
+        VaultV2(address(vault)).setDelegator(address(delegator));
     }
 
     function test_SetSlasher() public {
@@ -739,7 +744,7 @@ contract VaultV2Test is Test {
             )
         );
 
-        vault.setSlasher(address(slasher));
+        VaultV2(address(vault)).setSlasher(address(slasher));
 
         assertEq(vault.slasher(), address(slasher));
         assertEq(vault.isSlasherInitialized(), true);
@@ -783,10 +788,10 @@ contract VaultV2Test is Test {
             )
         );
 
-        vault.setSlasher(address(slasher));
+        VaultV2(address(vault)).setSlasher(address(slasher));
 
         vm.expectRevert(IVaultV2.SlasherAlreadyInitialized.selector);
-        vault.setSlasher(address(slasher));
+        VaultV2(address(vault)).setSlasher(address(slasher));
     }
 
     function test_SetSlasherRevertNotSlasher() public {
@@ -827,7 +832,7 @@ contract VaultV2Test is Test {
         );
 
         vm.expectRevert(IVaultV2.NotSlasher.selector);
-        vault.setSlasher(address(1));
+        VaultV2(address(vault)).setSlasher(address(1));
     }
 
     function test_SetSlasherRevertInvalidSlasher() public {
@@ -890,7 +895,7 @@ contract VaultV2Test is Test {
         );
 
         vm.expectRevert(IVaultV2.InvalidSlasher.selector);
-        vault.setSlasher(address(slasher));
+        VaultV2(address(vault)).setSlasher(address(slasher));
     }
 
     function test_SetSlasherZeroAddress() public {
@@ -920,7 +925,7 @@ contract VaultV2Test is Test {
             )
         );
 
-        vault.setSlasher(address(0));
+        VaultV2(address(vault)).setSlasher(address(0));
     }
 
     function test_DepositTwice(uint256 amount1, uint256 amount2) public virtual {
@@ -1333,7 +1338,7 @@ contract VaultV2Test is Test {
         vault = _getVault(epochDuration);
 
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.InsufficientDeposit.selector);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         vault.deposit(alice, 0);
         vm.stopPrank();
     }
@@ -2431,7 +2436,7 @@ contract VaultV2Test is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.NotSlasher.selector);
-        vault.onSlash(0, 0);
+        VaultV2(address(vault)).onSlash(0, 0);
         vm.stopPrank();
     }
 
@@ -2659,6 +2664,133 @@ contract VaultV2Test is Test {
         assertApproxEqAbs(vault.withdrawals(lastBucket2 + 1), withdrawalsAfter, 10);
     }
 
+    function test_AddPlugin_revertsWhenNotWhitelisted() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin = _createPlugin();
+
+        _grantAddPluginRole(alice, alice);
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.NotPlugin.selector);
+        VaultV2(address(vault)).addPlugin(address(plugin));
+        vm.stopPrank();
+    }
+
+    function test_AddRemovePlugin() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin = _createPlugin();
+
+        _addPlugin(plugin);
+
+        assertEq(vault.pluginsLength(), 1);
+        assertEq(vault.plugins(0), address(plugin));
+        assertEq(vault.pluginActiveSince(address(plugin)), uint48(block.timestamp));
+
+        _grantRemovePluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).removePlugin(address(plugin));
+
+        assertEq(vault.pluginsLength(), 0);
+        assertEq(vault.pluginActiveSince(address(plugin)), 0);
+    }
+
+    function test_Pull_revertsWhenNotActive() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin = _createPlugin();
+
+        vm.prank(address(plugin));
+        vm.expectRevert(IVaultV2.PluginNotActive.selector);
+        vault.pull(1);
+    }
+
+    function test_RemovePlugin_revertsWhenOwed() public {
+        vault = _getVault(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(address(plugin));
+        vault.pull(40);
+
+        _grantRemovePluginRole(alice, alice);
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.PluginOwe.selector);
+        VaultV2(address(vault)).removePlugin(address(plugin));
+        vm.stopPrank();
+    }
+
+    function test_PullPush_tracksOwed() public {
+        vault = _getVault(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(address(plugin));
+        uint256 pulled = vault.pull(80);
+        assertEq(pulled, 80);
+        assertEq(vault.pluginsOwe(), 80);
+        assertEq(vault.pluginOwe(address(plugin)), 80);
+
+        vm.prank(address(plugin));
+        pulled = vault.pull(50);
+        assertEq(pulled, 20);
+        assertEq(vault.pluginsOwe(), 100);
+        assertEq(vault.pluginOwe(address(plugin)), 100);
+
+        vm.startPrank(address(plugin));
+        collateral.approve(address(vault), 30);
+        vault.push(30);
+        vm.stopPrank();
+
+        assertEq(vault.pluginsOwe(), 70);
+        assertEq(vault.pluginOwe(address(plugin)), 70);
+    }
+
+    function test_PullPlugins_duringWithdrawUpdatesOwed() public {
+        vault = _getVault(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(address(plugin));
+        vault.pull(50);
+
+        _withdraw(alice, 10);
+
+        assertEq(vault.pluginOwe(address(plugin)), 10);
+        assertEq(vault.pluginsOwe(), 10);
+    }
+
+    function test_OnSlash_returnsOwedWhenPluginsShort() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        if (blockTimestamp == 0) {
+            vm.warp(1_720_700_948);
+        }
+
+        (vault,, slasher) = _getVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        plugin.setShouldFail(true);
+
+        vm.prank(address(plugin));
+        vault.pull(80);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint48 captureTimestamp = uint48(block.timestamp - 1);
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, captureTimestamp);
+
+        assertEq(slashedAmount, 60);
+        assertEq(owed, 40);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(vault.pluginOwe(address(plugin)), 80);
+    }
+
     function _latestWithdrawalBucket() internal view returns (uint256) {
         return vaultTestHelper.timeToBucketLatest(address(vault));
     }
@@ -2777,6 +2909,29 @@ contract VaultV2Test is Test {
         vm.stopPrank();
     }
 
+    function _grantAddPluginRole(address user, address account) internal virtual {
+        vm.startPrank(user);
+        VaultV2(address(vault)).grantRole(vault.ADD_PLUGIN_ROLE(), account);
+        vm.stopPrank();
+    }
+
+    function _grantRemovePluginRole(address user, address account) internal virtual {
+        vm.startPrank(user);
+        VaultV2(address(vault)).grantRole(vault.REMOVE_PLUGIN_ROLE(), account);
+        vm.stopPrank();
+    }
+
+    function _createPlugin() internal returns (MockPlugin) {
+        return new MockPlugin(address(vault), address(collateral));
+    }
+
+    function _addPlugin(MockPlugin plugin) internal {
+        pluginRegistry.whitelistPlugin(address(plugin));
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).addPlugin(address(plugin));
+    }
+
     function _deposit(address user, uint256 amount) internal returns (uint256 depositedAmount, uint256 mintedShares) {
         collateral.transfer(user, amount);
         vm.startPrank(user);
@@ -2893,7 +3048,7 @@ contract VaultV2Test is Test {
         virtual
         returns (address)
     {
-        return address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory));
+        return address(new VaultV2(delegatorFactory, slasherFactory, address(pluginRegistry), vaultFactory));
     }
 
     function _createVaultV1Impl(address delegatorFactory, address slasherFactory, address vaultFactory)

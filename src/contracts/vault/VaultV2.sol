@@ -16,6 +16,7 @@ import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IBasePlugin} from "../../interfaces/vault/IBasePlugin.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -23,8 +24,11 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {
+    ERC20PermitUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 
-contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
+contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20PermitUpgradeable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace512;
@@ -33,8 +37,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     using SafeERC20 for IERC20;
     using Math512 for uint256[2];
 
-    constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
-        VaultV2Storage(delegatorFactory, slasherFactory)
+    /* CONSTRUCTOR */
+
+    constructor(address delegatorFactory, address slasherFactory, address pluginRegistry, address vaultFactory)
+        VaultV2Storage(delegatorFactory, slasherFactory, pluginRegistry)
         MigratableEntity(vaultFactory)
     {}
 
@@ -44,6 +50,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function isInitialized() external view returns (bool) {
         return isDelegatorInitialized && isSlasherInitialized;
     }
+
+    /* ACCOUNTING FUNCTIONS */
+
+    /* * PUBLIC FUNCTIONS * */
 
     /**
      * @inheritdoc IVaultV2
@@ -130,7 +140,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
 
         if (depositedAmount == 0) {
-            revert InsufficientDeposit();
+            revert InsufficientAmount();
         }
 
         if (onBehalfOf == address(0)) {
@@ -243,10 +253,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit ClaimBatch(msg.sender, recipient, indexes, amount);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
-    function onSlash(uint256 amount, uint48 captureTimestamp) external nonReentrant returns (uint256 slashedAmount) {
+    // @dev Internal dev function to handle slashing.
+    function onSlash(uint256 amount, uint48 captureTimestamp)
+        external
+        nonReentrant
+        returns (uint256 slashedAmount, uint256 owed)
+    {
         if (msg.sender != slasher) {
             revert NotSlasher();
         }
@@ -274,11 +286,65 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _activeStake.push(uint48(block.timestamp), activeStake_ - activeSlashed);
             withdrawals[lastBucket + 1] = unmaturedWithdrawals - (slashedAmount - activeSlashed);
 
-            IERC20(collateral).safeTransfer(burner, slashedAmount);
+            _pullPlugins();
+
+            uint256 instantSlashableStake = IERC20(collateral).balanceOf(address(this)).saturatingSub(_unclaimed);
+            owed = slashedAmount.saturatingSub(instantSlashableStake);
+            if (owed < slashedAmount) {
+                IERC20(collateral).safeTransfer(burner, slashedAmount - owed);
+            }
         }
 
         emit OnSlash(amount, captureTimestamp, slashedAmount);
     }
+
+    /* * INTERNAL FUNCTIONS * */
+
+    function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
+        internal
+        virtual
+        returns (uint256 mintedShares)
+    {
+        _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf(msg.sender) - burnedShares);
+        _activeShares.push(uint48(block.timestamp), activeShares() - burnedShares);
+        _activeStake.push(uint48(block.timestamp), activeStake() - withdrawnAssets);
+
+        uint256 lastBucket = _timeToBucket.latest();
+        mintedShares =
+            ERC4626Math.previewDeposit(withdrawnAssets, withdrawalShares[lastBucket], withdrawals[lastBucket]);
+        withdrawals[lastBucket] += withdrawnAssets;
+        withdrawalShares[lastBucket] += mintedShares;
+
+        uint48 unlockAt = uint48(block.timestamp) + epochDuration;
+        _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
+        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest().add(mintedShares));
+
+        _pullPlugins();
+
+        emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
+        emit Transfer(msg.sender, address(0), burnedShares);
+    }
+
+    function _claim(uint256 index) internal returns (uint256 amount) {
+        _pullPlugins();
+
+        Withdrawal storage withdrawal = _withdrawalsOf[msg.sender][index];
+        if (withdrawal.claimed) {
+            revert AlreadyClaimed();
+        }
+        if (withdrawal.unlockAt >= block.timestamp) {
+            revert WithdrawalNotMatured();
+        }
+        amount = withdrawalsOf(index, msg.sender);
+        if (amount == 0) {
+            revert InsufficientClaim();
+        }
+        withdrawal.claimed = true;
+    }
+
+    /* OWNER FUNCTIONS */
+
+    /* * PUBLIC FUNCTIONS * */
 
     /**
      * @inheritdoc IVaultV2
@@ -340,85 +406,125 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit SetDepositLimit(limit);
     }
 
-    function setDelegator(address delegator_) external nonReentrant {
-        if (isDelegatorInitialized) {
-            revert DelegatorAlreadyInitialized();
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function addPlugin(address plugin) external nonReentrant onlyRole(ADD_PLUGIN_ROLE) {
+        if (!IRegistry(PLUGIN_REGISTRY).isEntity(plugin)) {
+            revert NotPlugin();
         }
-
-        if (!IRegistry(DELEGATOR_FACTORY).isEntity(delegator_)) {
-            revert NotDelegator();
+        if (pluginActiveSince[plugin] > 0) {
+            revert AlreadySet();
         }
+        plugins.push(plugin);
+        pluginActiveSince[plugin] = uint48(block.timestamp);
 
-        if (IBaseDelegator(delegator_).vault() != address(this)) {
-            revert InvalidDelegator();
-        }
-
-        delegator = delegator_;
-
-        isDelegatorInitialized = true;
-
-        emit SetDelegator(delegator_);
+        emit AddPlugin(plugin);
     }
 
-    function setSlasher(address slasher_) external nonReentrant {
-        if (isSlasherInitialized) {
-            revert SlasherAlreadyInitialized();
-        }
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function removePlugin(address plugin) external nonReentrant onlyRole(REMOVE_PLUGIN_ROLE) {
+        for (uint256 i; i < plugins.length; ++i) {
+            if (plugins[i] == plugin) {
+                if (pluginOwe[plugin] > 0) {
+                    revert PluginOwe();
+                }
 
-        if (slasher_ != address(0)) {
-            if (!IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
-                revert NotSlasher();
+                plugins[i] = plugins[plugins.length - 1];
+                plugins.pop();
+                pluginActiveSince[plugin] = 0;
+
+                emit RemovePlugin(plugin);
+
+                return;
             }
-
-            if (IBaseSlasher(slasher_).vault() != address(this)) {
-                revert InvalidSlasher();
-            }
-
-            slasher = slasher_;
         }
-
-        isSlasherInitialized = true;
-
-        emit SetSlasher(slasher_);
+        revert AlreadySet();
     }
 
-    function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
-        internal
-        virtual
-        returns (uint256 mintedShares)
-    {
-        _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf(msg.sender) - burnedShares);
-        _activeShares.push(uint48(block.timestamp), activeShares() - burnedShares);
-        _activeStake.push(uint48(block.timestamp), activeStake() - withdrawnAssets);
+    /* EXTERNAL LIQUIDITY FUNCTIONS */
 
-        uint256 lastBucket = _timeToBucket.latest();
-        mintedShares =
-            ERC4626Math.previewDeposit(withdrawnAssets, withdrawalShares[lastBucket], withdrawals[lastBucket]);
-        withdrawals[lastBucket] += withdrawnAssets;
-        withdrawalShares[lastBucket] += mintedShares;
+    /* * PUBLIC FUNCTIONS * */
 
-        uint48 unlockAt = uint48(block.timestamp) + epochDuration;
-        _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
-        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest().add(mintedShares));
-
-        emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
-        emit Transfer(msg.sender, address(0), burnedShares);
-    }
-
-    function _claim(uint256 index) internal returns (uint256 amount) {
-        Withdrawal storage withdrawal = _withdrawalsOf[msg.sender][index];
-        if (withdrawal.claimed) {
-            revert AlreadyClaimed();
-        }
-        if (withdrawal.unlockAt >= block.timestamp) {
-            revert WithdrawalNotMatured();
-        }
-        amount = withdrawalsOf(index, msg.sender);
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function pull(uint256 amount) external nonReentrant returns (uint256 pulled) {
         if (amount == 0) {
-            revert InsufficientClaim();
+            revert InsufficientAmount();
         }
-        withdrawal.claimed = true;
+        if (pluginActiveSince[msg.sender] < block.timestamp) {
+            revert PluginNotActive();
+        }
+        pulled = Math.min(amount, activeStake().saturatingSub(pluginsOwe));
+
+        uint256 balanceBefore = IERC20(collateral).balanceOf(msg.sender);
+        IERC20(collateral).safeTransfer(msg.sender, pulled);
+        if (IERC20(collateral).balanceOf(msg.sender) - balanceBefore < pulled) {
+            revert FeeOnTransferNotSupported();
+        }
+
+        pluginsOwe += pulled;
+        pluginOwe[msg.sender] += pulled;
+
+        emit Pull(msg.sender, pulled);
     }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function push(uint256 amount) external nonReentrant {
+        if (amount == 0) {
+            revert InsufficientAmount();
+        }
+        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
+
+        pluginsOwe -= amount;
+        pluginOwe[msg.sender] -= amount;
+
+        emit Push(msg.sender, amount);
+    }
+
+    // @dev Internal dev function to handle owed slashing.
+    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 owed) {
+        _pullPlugins();
+
+        uint256 instantSlashableStake = IERC20(collateral).balanceOf(address(this)).saturatingSub(_unclaimed);
+        owed = amount.saturatingSub(instantSlashableStake);
+        if (owed == amount) {
+            revert InsufficientAmount();
+        }
+        IERC20(collateral).safeTransfer(burner, amount - owed);
+    }
+
+    /* * INTERNAL FUNCTIONS * */
+
+    function _pullPlugins() internal {
+        uint256 amount = activeStake().saturatingSub(pluginsOwe);
+        if (amount > 0) {
+            for (uint256 i; i < plugins.length; ++i) {
+                address plugin = plugins[i];
+                if (pluginOwe[plugin] > 0) {
+                    uint256 pullAmount = Math.min(pluginOwe[plugin], amount);
+                    bool success = IBasePlugin(plugin).triggerPush(pullAmount);
+                    if (success) {
+                        pluginOwe[plugin] -= pullAmount;
+                        pluginsOwe -= pullAmount;
+                        amount -= pullAmount;
+                        if (amount == 0) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* ERC20 FUNCTIONS */
+
+    /* * INTERNAL FUNCTIONS * */
 
     /**
      * @inheritdoc ERC20Upgradeable
@@ -441,6 +547,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         emit Transfer(from, to, value);
     }
+
+    /* * INITIALIZE/MIGRATE FUNCTIONS * */
 
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         (InitParams memory params) = abi.decode(data, (InitParams));
@@ -476,6 +584,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         __ERC20_init(params.name, params.symbol);
+        __ERC20Permit_init(params.name);
 
         collateral = params.collateral;
 
@@ -562,5 +671,49 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             UniversalSlasher(newSlasher).migrate();
             slasher = newSlasher;
         }
+    }
+
+    /* INTERNAL DEV FUNCTIONS */
+
+    function setDelegator(address delegator_) external nonReentrant {
+        if (isDelegatorInitialized) {
+            revert DelegatorAlreadyInitialized();
+        }
+
+        if (!IRegistry(DELEGATOR_FACTORY).isEntity(delegator_)) {
+            revert NotDelegator();
+        }
+
+        if (IBaseDelegator(delegator_).vault() != address(this)) {
+            revert InvalidDelegator();
+        }
+
+        delegator = delegator_;
+
+        isDelegatorInitialized = true;
+
+        emit SetDelegator(delegator_);
+    }
+
+    function setSlasher(address slasher_) external nonReentrant {
+        if (isSlasherInitialized) {
+            revert SlasherAlreadyInitialized();
+        }
+
+        if (slasher_ != address(0)) {
+            if (!IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
+                revert NotSlasher();
+            }
+
+            if (IBaseSlasher(slasher_).vault() != address(this)) {
+                revert InvalidSlasher();
+            }
+
+            slasher = slasher_;
+        }
+
+        isSlasherInitialized = true;
+
+        emit SetSlasher(slasher_);
     }
 }

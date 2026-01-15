@@ -175,7 +175,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             );
     }
 
-    function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal {
+    function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal virtual {
         IVault(vault).onSlash(amount, captureTimestamp);
     }
 

@@ -42,6 +42,12 @@ abstract contract Registry is IRegistry {
         emit AddEntity(entity_);
     }
 
+    function _removeEntity(address entity_) internal {
+        _entities.remove(entity_);
+
+        emit RemoveEntity(entity_);
+    }
+
     function _checkEntity(address account) internal view {
         if (!isEntity(account)) {
             revert EntityNotExist();

@@ -38,12 +38,27 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
+    bytes32 public constant ADD_PLUGIN_ROLE = keccak256("ADD_PLUGIN_ROLE");
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    bytes32 public constant REMOVE_PLUGIN_ROLE = keccak256("REMOVE_PLUGIN_ROLE");
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
     address public immutable DELEGATOR_FACTORY;
 
     /**
      * @inheritdoc IVaultV2Storage
      */
     address public immutable SLASHER_FACTORY;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    address public immutable PLUGIN_REGISTRY;
 
     /**
      * @inheritdoc IVaultV2Storage
@@ -147,9 +162,32 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     Checkpoints.Trace208 internal _timeToBucket;
 
-    constructor(address delegatorFactory, address slasherFactory) {
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    mapping(address plugin => uint48 value) public pluginActiveSince;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    address[] public plugins;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    uint256 public pluginsOwe;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    mapping(address plugin => uint256 amount) public pluginOwe;
+
+    uint256 internal _unclaimed;
+
+    constructor(address delegatorFactory, address slasherFactory, address pluginRegistry) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
+        PLUGIN_REGISTRY = pluginRegistry;
     }
 
     /**
@@ -229,5 +267,9 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
         return _withdrawalsOf[account].length;
     }
 
-    uint256[45] private __gap;
+    function pluginsLength() public view returns (uint256) {
+        return plugins.length;
+    }
+
+    uint256[40] private __gap;
 }
