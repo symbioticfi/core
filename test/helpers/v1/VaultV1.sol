@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {MigratableEntity} from "../../../src/contracts/common/MigratableEntity.sol";
 import {VaultStorageV1} from "./VaultStorageV1.sol";

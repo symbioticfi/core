@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import "./VaultV2.t.sol";

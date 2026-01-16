@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Hints} from "./Hints.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";

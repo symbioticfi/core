@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+pragma solidity ^0.8.28;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
@@ -21,8 +21,9 @@ import {IBasePlugin} from "../../interfaces/vault/IBasePlugin.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCastLib} from "@solady/src/utils/SafeCastLib.sol";
+import {SafeTransferLib} from "@solady/src/utils/SafeTransferLib.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {
     ERC20PermitUpgradeable
@@ -33,8 +34,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace512;
     using Math for uint256;
-    using SafeCast for uint256;
-    using SafeERC20 for IERC20;
+    using SafeCastLib for uint256;
+    using SafeTransferLib for address;
     using Math512 for uint256[2];
 
     /* CONSTRUCTOR */
@@ -142,7 +143,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
-        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
+        collateral.safeTransferFrom(msg.sender, address(this), amount);
         depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
 
         if (depositedAmount == 0) {
@@ -232,7 +233,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         amount = _claim(index);
 
-        IERC20(collateral).safeTransfer(recipient, amount);
+        collateral.safeTransfer(recipient, amount);
 
         emit Claim(msg.sender, recipient, index, amount);
     }
@@ -254,7 +255,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             amount += _claim(indexes[i]);
         }
 
-        IERC20(collateral).safeTransfer(recipient, amount);
+        collateral.safeTransfer(recipient, amount);
 
         emit ClaimBatch(msg.sender, recipient, indexes, amount);
     }
@@ -300,7 +301,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(_unclaimedRaw));
             owed = slashedAmount.saturatingSub(instantSlashableStake);
             if (owed < slashedAmount) {
-                IERC20(collateral).safeTransfer(burner, slashedAmount - owed);
+                collateral.safeTransfer(burner, slashedAmount - owed);
             }
         }
 
@@ -471,7 +472,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         pulled = Math.min(amount, activeStake().saturatingSub(pluginsOwe));
 
         uint256 balanceBefore = IERC20(collateral).balanceOf(msg.sender);
-        IERC20(collateral).safeTransfer(msg.sender, pulled);
+        collateral.safeTransfer(msg.sender, pulled);
         if (IERC20(collateral).balanceOf(msg.sender) - balanceBefore < pulled) {
             revert FeeOnTransferNotSupported();
         }
@@ -489,7 +490,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (amount == 0) {
             revert InsufficientAmount();
         }
-        IERC20(collateral).safeTransferFrom(msg.sender, address(this), amount);
+        collateral.safeTransferFrom(msg.sender, address(this), amount);
 
         pluginsOwe -= amount;
         pluginOwe[msg.sender] -= amount;
@@ -510,7 +511,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (owed == amount) {
             revert InsufficientAmount();
         }
-        IERC20(collateral).safeTransfer(burner, amount - owed);
+        collateral.safeTransfer(burner, amount - owed);
     }
 
     /* * INTERNAL FUNCTIONS * */
