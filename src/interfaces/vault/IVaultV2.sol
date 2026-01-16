@@ -228,6 +228,12 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function totalStake() external view returns (uint256);
 
     /**
+     * @notice Get a total amount of the withdrawals.
+     * @return total amount of the withdrawals
+     */
+    function activeWithdrawals() external view returns (uint256);
+
+    /**
      * @notice Get an active balance for a particular account at a given timestamp using hints.
      * @param account account to get the active balance for
      * @param timestamp time point to get the active balance for the account at

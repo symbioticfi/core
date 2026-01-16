@@ -84,7 +84,9 @@ contract UniversalSlasherMigrationTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory))
+            new VaultV2(
+                address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+            )
         );
         vaultFactory.whitelist(vaultImpl);
 

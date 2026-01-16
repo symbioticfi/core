@@ -59,14 +59,20 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function totalStake() public view returns (uint256) {
+        return activeStake() + activeWithdrawals();
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function activeWithdrawals() public view returns (uint256) {
         uint208 lastBucket = _timeToBucket.latest();
         uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
-        return activeStake()
-            + (lastWithdrawalShares > 0
-                    ? _withdrawalSharesCumulative.latest()
-                        .sub(_withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)))
-                        .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
-                    : 0);
+        return lastWithdrawalShares > 0
+            ? _withdrawalSharesCumulative.latest()
+                .sub(_withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)))
+                .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
+            : 0;
     }
 
     /**
@@ -272,15 +278,17 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             .sub(_withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)));
         uint256 unmaturedWithdrawals =
             lastWithdrawalShares > 0 ? unmaturedWithdrawalShares.mulDiv(lastWithdrawals, lastWithdrawalShares) : 0;
+        uint256 maturedWithdrawals = lastWithdrawals - unmaturedWithdrawals;
 
         uint256 activeStake_ = activeStake();
         uint256 slashableStake = activeStake_ + unmaturedWithdrawals;
         slashedAmount = Math.min(amount, slashableStake);
         if (slashedAmount > 0) {
             _timeToBucket.push(uint48(block.timestamp), lastBucket + 1);
-            withdrawals[lastBucket] = lastWithdrawals - unmaturedWithdrawals;
+            withdrawals[lastBucket] = maturedWithdrawals;
             withdrawalShares[lastBucket] = lastWithdrawalShares - unmaturedWithdrawalShares;
             withdrawalShares[lastBucket + 1] = unmaturedWithdrawalShares;
+            _unclaimedRaw += maturedWithdrawals.toInt256();
 
             uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
             _activeStake.push(uint48(block.timestamp), activeStake_ - activeSlashed);
@@ -288,7 +296,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             _pullPlugins();
 
-            uint256 instantSlashableStake = IERC20(collateral).balanceOf(address(this)).saturatingSub(_unclaimed);
+            uint256 instantSlashableStake =
+                IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(_unclaimedRaw));
             owed = slashedAmount.saturatingSub(instantSlashableStake);
             if (owed < slashedAmount) {
                 IERC20(collateral).safeTransfer(burner, slashedAmount - owed);
@@ -340,6 +349,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert InsufficientClaim();
         }
         withdrawal.claimed = true;
+        _unclaimedRaw -= amount.toInt256();
     }
 
     /* OWNER FUNCTIONS */
@@ -491,8 +501,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 owed) {
         _pullPlugins();
 
-        uint256 instantSlashableStake = IERC20(collateral).balanceOf(address(this)).saturatingSub(_unclaimed);
-        owed = amount.saturatingSub(instantSlashableStake);
+        owed = amount.saturatingSub(
+            IERC20(collateral).balanceOf(address(this))
+                .saturatingSub(
+                    uint256(_unclaimedRaw + (withdrawals[_timeToBucket.latest()] - activeWithdrawals()).toInt256())
+                )
+        );
         if (owed == amount) {
             revert InsufficientAmount();
         }
@@ -671,6 +685,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             UniversalSlasher(newSlasher).migrate();
             slasher = newSlasher;
         }
+
+        _unclaimedRaw = (IERC20(collateral).balanceOf(address(this)) - activeStake() - epochWithdrawals).toInt256();
     }
 
     /* INTERNAL DEV FUNCTIONS */

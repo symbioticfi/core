@@ -182,7 +182,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(address plugin => uint256 amount) public pluginOwe;
 
-    uint256 internal _unclaimed;
+    int256 internal _unclaimedRaw;
 
     constructor(address delegatorFactory, address slasherFactory, address pluginRegistry) {
         DELEGATOR_FACTORY = delegatorFactory;

@@ -2791,6 +2791,82 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginOwe(address(plugin)), 80);
     }
 
+    function test_SyncOwedSlash_respectsUnclaimed() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        if (blockTimestamp == 0) {
+            vm.warp(1_720_700_948);
+            blockTimestamp = vm.getBlockTimestamp();
+        }
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, 100);
+        _withdraw(alice, 60);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 owed = VaultV2(address(vault)).syncOwedSlash(80);
+
+        assertEq(owed, 40);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 40);
+    }
+
+    function test_SyncOwedSlash_revertsWhenOnlyUnclaimed() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        if (blockTimestamp == 0) {
+            vm.warp(1_720_700_948);
+            blockTimestamp = vm.getBlockTimestamp();
+        }
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, 100);
+        _withdraw(alice, 100);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).syncOwedSlash(1);
+    }
+
+    function test_OnSlash_accountsForUnclaimedWithPlugin() public {
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        if (blockTimestamp == 0) {
+            vm.warp(1_720_700_948);
+            blockTimestamp = vm.getBlockTimestamp();
+        }
+
+        uint48 epochDuration = 1;
+        (vault,, slasher) = _getVaultAndDelegatorAndSlasher(epochDuration);
+
+        _deposit(alice, 100);
+        _withdraw(alice, 30);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(address(plugin));
+        vault.pull(40);
+
+        plugin.setShouldFail(true);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint48 captureTimestamp = uint48(block.timestamp - 1);
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, captureTimestamp);
+
+        assertEq(slashedAmount, 60);
+        assertEq(owed, 30);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 30);
+        assertEq(vault.pluginOwe(address(plugin)), 40);
+    }
+
     function _latestWithdrawalBucket() internal view returns (uint256) {
         return vaultTestHelper.timeToBucketLatest(address(vault));
     }

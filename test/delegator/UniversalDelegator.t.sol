@@ -104,7 +104,9 @@ contract UniversalDelegatorTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory))
+            new VaultV2(
+                address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+            )
         );
         vaultFactory.whitelist(vaultImpl);
 
@@ -641,8 +643,8 @@ contract UniversalDelegatorTest is Test {
 
         vm.startPrank(middleware);
         assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, captureTimestamp), 60);
-        vm.expectRevert();
-        _requestAndExecuteSlash(subnetwork2, operator2, 60, captureTimestamp);
+        vm.expectRevert(ISlasher.InsufficientSlash.selector);
+        slasher.requestSlash(subnetwork2, operator2, 60, captureTimestamp, "");
         assertEq(_requestAndExecuteSlash(subnetwork3, operator3, 40, captureTimestamp), 40);
         vm.stopPrank();
     }
@@ -689,8 +691,8 @@ contract UniversalDelegatorTest is Test {
 
         vm.startPrank(middleware);
         assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, 3), 60);
-        vm.expectRevert();
-        _requestAndExecuteSlash(subnetwork2, operator2, 60, 4);
+        vm.expectRevert(ISlasher.InsufficientSlash.selector);
+        slasher.requestSlash(subnetwork2, operator2, 60, 4, "");
         vm.stopPrank();
     }
 
@@ -930,7 +932,8 @@ contract UniversalDelegatorTest is Test {
         uint256 cap2 = bound(size2, 0, maxSize);
         uint256 totalSize = cap1 + cap2;
         uint256 amount = bound(depositAmount, totalSize + minUnallocated, MAX_AMOUNT);
-        uint256 minShare = delegator.MAX_SHARES() / minUnallocated;
+        uint256 unallocated = amount - totalSize;
+        uint256 minShare = (delegator.MAX_SHARES() + unallocated - 1) / unallocated;
         uint256 share1 = bound(share1Seed, minShare, delegator.MAX_SHARES());
         uint256 share2 = bound(share2Seed, 0, delegator.MAX_SHARES() - share1);
 
@@ -965,11 +968,10 @@ contract UniversalDelegatorTest is Test {
 
         vm.warp(EPOCH_DURATION + 1);
         _deposit(alice, amount);
-        uint48 captureTimestamp = uint48(block.timestamp);
+        uint48 captureTimestamp = uint48(EPOCH_DURATION + 1);
 
         vm.warp(captureTimestamp + 1);
         uint256 slashableBefore = slasher.slashableStake(subnetwork1, operator1, captureTimestamp, "");
-        vm.assume(slashableBefore > 0);
 
         uint256 shifted = share1 + share2;
         delegator.setShare(netSlot1, 0);
@@ -1012,7 +1014,8 @@ contract UniversalDelegatorTest is Test {
         uint256 totalSize = cap1 + cap2;
         uint256 networkSize = totalSize + minUnallocated;
         uint256 amount = bound(depositAmount, networkSize, MAX_AMOUNT);
-        uint256 minShare = delegator.MAX_SHARES() / minUnallocated;
+        uint256 unallocated = networkSize - totalSize;
+        uint256 minShare = (delegator.MAX_SHARES() + unallocated - 1) / unallocated;
         uint256 share1 = bound(share1Seed, minShare, delegator.MAX_SHARES());
         uint256 share2 = bound(share2Seed, 0, delegator.MAX_SHARES() - share1);
 
@@ -1039,11 +1042,10 @@ contract UniversalDelegatorTest is Test {
 
         vm.warp(EPOCH_DURATION + 1);
         _deposit(alice, amount);
-        uint48 captureTimestamp = uint48(block.timestamp);
+        uint48 captureTimestamp = uint48(EPOCH_DURATION + 1);
 
         vm.warp(captureTimestamp + 1);
         uint256 slashableBefore = slasher.slashableStake(subnetwork, operator1, captureTimestamp, "");
-        vm.assume(slashableBefore > 0);
 
         uint256 shifted = share1 + share2;
         delegator.setShare(opSlot1, 0);
@@ -1524,7 +1526,9 @@ contract UniversalDelegatorMigrationTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory))
+            new VaultV2(
+                address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+            )
         );
         vaultFactory.whitelist(vaultImpl);
 
