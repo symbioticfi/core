@@ -25,12 +25,10 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     using Math for uint256;
     using Math512 for uint256[2];
 
-    uint256 public constant MAX_SHARES = 1e27;
     bytes32 public constant CREATE_SLOT_ROLE = keccak256("CREATE_SLOT_ROLE");
-    bytes32 public constant SET_IS_SHARED_ROLE = keccak256("SET_IS_SHARED_ROLE");
     bytes32 public constant SET_SIZE_ROLE = keccak256("SET_SIZE_ROLE");
-    bytes32 public constant SET_SHARE_ROLE = keccak256("SET_SHARE_ROLE");
     bytes32 public constant SWAP_SLOTS_ROLE = keccak256("SWAP_SLOTS_ROLE");
+    bytes32 public constant REMOVE_SLOT_ROLE = keccak256("REMOVE_SLOT_ROLE");
     bytes32 public constant ASSIGN_NETWORK_ROLE = keccak256("ASSIGN_NETWORK_ROLE");
     bytes32 public constant UNASSIGN_NETWORK_ROLE = keccak256("UNASSIGN_NETWORK_ROLE");
     bytes32 public constant ASSIGN_OPERATOR_ROLE = keccak256("ASSIGN_OPERATOR_ROLE");
@@ -44,8 +42,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     mapping(uint96 index => address operator) internal _slotToOperator;
     mapping(uint96 index => Checkpoints.Trace256 amount) internal _cumulativeSlash;
 
-    modifier slotCreated(uint96 index) {
-        if (index > 0 && index.getChildIndex() > slots[index.getParentIndex()].children.length) {
+    modifier slotExists(uint96 index) {
+        if (index > 0 && !slots[index].exists) {
             revert SlotNotCreated();
         }
         _;
@@ -74,12 +72,15 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
      */
     function getSlot(uint96 index) public view returns (Slot memory) {
         return Slot({
-            children: slots[index].children,
+            exists: slots[index].exists,
+            nextSlot: slots[index].nextSlot,
+            prevSlot: slots[index].prevSlot,
+            totalChildren: slots[index].totalChildren,
+            firstChild: slots[index].firstChild,
+            lastChild: slots[index].lastChild,
+            isShared: slots[index].isShared,
             size: slots[index].size.latest(),
-            share: slots[index].share.latest(),
-            totalChildrenShares: slots[index].totalChildrenShares,
             prevSum: slots[index].prevSum.latest(),
-            isShared: slots[index].isShared.latest(),
             totalChildrenSize: slots[index].totalChildrenSize.latest(),
             pendingFreeCumulative: slots[index].pendingFreeCumulative.latest()
         });
@@ -151,22 +152,14 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (hints.length > 0) {
             baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
         }
-        uint256 size = slots[index].size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint);
-        uint256 unallocatedBySizes =
-            _getParentUnallocatedBySizesAt(index, timestamp, baseAllocatedHints.unallocatedHints);
-        if (unallocatedBySizes > 0) {
-            return size
-                + uint256(slots[index].share.upperLookupRecent(timestamp, baseAllocatedHints.shareOrAvailableHints))
-                    .mulDiv(unallocatedBySizes, MAX_SHARES);
-        }
-        uint256 available = getAvailableAt(index.getParentIndex(), timestamp, baseAllocatedHints.shareOrAvailableHints);
+        uint256 available = getAvailableAt(index.getParentIndex(), timestamp, baseAllocatedHints.availableHints);
         return Math.min(
-            slots[index.getParentIndex()].isShared.upperLookupRecent(timestamp, baseAllocatedHints.isSharedHint) == 0
-                ? available.saturatingSub(
+            slots[index.getParentIndex()].isShared
+                ? available
+                : available.saturatingSub(
                     slots[index].prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint)
-                )
-                : available,
-            size
+                ),
+            slots[index].size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
         );
     }
 
@@ -174,17 +167,10 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
      * @inheritdoc IUniversalDelegator
      */
     function getAllocated(uint96 index) public view returns (uint256) {
-        uint256 size = slots[index].size.latest();
-        uint256 unallocatedBySizes = _getParentUnallocatedBySizes(index);
-        if (unallocatedBySizes > 0) {
-            return size + uint256(slots[index].share.latest()).mulDiv(unallocatedBySizes, MAX_SHARES);
-        }
         uint256 available = getAvailable(index.getParentIndex());
         return Math.min(
-            slots[index.getParentIndex()].isShared.latest() == 0
-                ? available.saturatingSub(slots[index].prevSum.latest())
-                : available,
-            size
+            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(slots[index].prevSum.latest()),
+            slots[index].size.latest()
         );
     }
 
@@ -274,97 +260,56 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function isSharedAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
-        public
-        view
-        returns (bool)
-    {
-        IsSharedHints memory isSharedHints;
-        if (hints.length > 0) {
-            isSharedHints = abi.decode(hints, (IsSharedHints));
-        }
-        uint96 index = getSlotOfAt(subnetwork, operator, timestamp, isSharedHints.slotOfHints);
-        if (index == 0) {
-            return false;
-        }
-        return slots[index.getParentIndex().getParentIndex()].isShared
-                .upperLookupRecent(timestamp, isSharedHints.isSharedHint) > 0;
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function isShared(bytes32 subnetwork, address operator) public view returns (bool) {
+    function getIsShared(bytes32 subnetwork, address operator) public view returns (bool) {
         uint96 index = getSlotOf(subnetwork, operator);
         if (index == 0) {
             return false;
         }
-        return slots[index.getParentIndex().getParentIndex()].isShared.latest() > 0;
+        return slots[index.getParentIndex().getParentIndex()].isShared;
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function createSlot(uint96 parentIndex, bool isShared, uint256 size, uint208 share)
+    function createSlot(uint96 parentIndex, bool isShared, uint256 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
-        slotCreated(parentIndex)
+        slotExists(parentIndex)
     {
         if (isShared && parentIndex.getDepth() > 0) {
             revert WrongDepth();
         }
         SlotStorage storage parent = slots[parentIndex];
-        if (share > MAX_SHARES || (!isShared && parent.totalChildrenShares + share > MAX_SHARES)) {
-            revert TooManyShares();
-        }
-        uint256 numChildren = parent.children.length;
-        uint32 childIndex = uint32(numChildren) + 1;
+        uint32 childIndex = parent.totalChildren + 1;
         uint96 index = parentIndex.createIndex(childIndex);
         SlotStorage storage slot = slots[index];
         uint256 totalChildrenSize = parent.totalChildrenSize.latest();
+        slot.exists = true;
+        parent.totalChildren = childIndex;
+        if (childIndex == 1) {
+            parent.firstChild = 1;
+        } else {
+            slot.prevSlot = parent.lastChild;
+            slots[parentIndex.createIndex(slot.prevSlot)].nextSlot = childIndex;
+        }
+        parent.lastChild = childIndex;
         slot.prevSum.push(uint48(block.timestamp), totalChildrenSize);
-        slot.isShared.push(uint48(block.timestamp), isShared ? 1 : 0);
+        slot.isShared = isShared;
         slot.size.push(uint48(block.timestamp), size);
         parent.totalChildrenSize.push(uint48(block.timestamp), totalChildrenSize + size);
-        slot.share.push(uint48(block.timestamp), share);
-        parent.totalChildrenShares += share;
-        parent.children.push(childIndex);
-        parent.childToLocalIndex[index] = uint32(numChildren);
 
         emit CreateSlot(index, size);
     }
 
     /**
      * @inheritdoc IUniversalDelegator
-     */
-    function setIsShared(uint96 index, bool isShared) public onlyRole(SET_IS_SHARED_ROLE) slotCreated(index) {
-        if (index.getDepth() != 1) {
-            revert WrongDepth();
-        }
-        SlotStorage storage slot = slots[index];
-        if (slot.isShared.latest() == (isShared ? 1 : 0)) {
-            revert IsSharedNotChanged();
-        }
-        if (getAllocated(index) > 0) {
-            revert SlotAllocated();
-        }
-        if (!isShared && slot.totalChildrenShares > MAX_SHARES) {
-            revert TooManyShares();
-        }
-        slot.isShared.push(uint48(block.timestamp), isShared ? 1 : 0);
-
-        emit SetIsShared(index, isShared);
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     * @dev if size increase: just change the size if slot is shared or out of available liquidity, otherwise use unallocated funds with dependency of shares
-     *      if size decrease: just change the size if slot is isolated and out of available liquidity, otherwise increase pending
+     * @dev if size increase: just change the size if slot not fully allocated or last child, otherwise use unallocated funds
+     *      if size decrease: just change the size if slot not allocated, otherwise increase pending free
      */
     function setSize(uint96 index, uint256 size)
         public
         onlyRole(SET_SIZE_ROLE)
-        slotCreated(index)
+        slotExists(index)
         returns (uint256 pending)
     {
         SlotStorage storage slot = slots[index];
@@ -376,98 +321,29 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         SlotStorage storage parent = slots[parentIndex];
         uint256 prevSum = slot.prevSum.latest();
         uint256 available = getAvailable(parentIndex);
-        uint256 unallocatedBySizes = _getParentUnallocatedBySizes(index);
+        uint256 totalChildrenSize = parent.totalChildrenSize.latest();
+        uint256 unallocated = available.saturatingSub(totalChildrenSize);
         if (size > currentSize) {
-            if (parent.isShared.latest() == 0) {
-                if (unallocatedBySizes == 0) {
-                    if (
-                        prevSum + currentSize < available
-                            && parent.childToLocalIndex[index] < parent.children.length - 1
-                    ) {
-                        revert NotEnoughAvailable();
-                    }
-                } else {
-                    // derive by knowing that "pending" must be accounted on size increase for neighbor slots with shares
-                    // and "available" decrease by "pending" affects all slots
-                    uint256 neighborShares = parent.totalChildrenShares - slot.share.latest();
-                    if (neighborShares == MAX_SHARES) {
-                        revert NotEnoughAvailable();
-                    }
-                    uint256 delta = size - currentSize;
-                    pending = neighborShares.mulDiv(delta, MAX_SHARES - neighborShares, Math.Rounding.Ceil);
-                    // TODO: also allow not just last child, but last child with size?
-                    if (
-                        parent.childToLocalIndex[index] < parent.children.length - 1
-                            && delta > unallocatedBySizes.saturatingSub(pending)
-                    ) {
-                        revert NotEnoughAvailable();
-                    }
+            if (
+                !parent.isShared && prevSum + currentSize < available && slot.nextSlot > 0
+                    && size - currentSize > unallocated
+            ) {
+                revert NotEnoughAvailable();
+            }
+        } else {
+            if (!parent.isShared && prevSum < available) {
+                pending = getAllocated(index).saturatingSub(size);
+                if (pending > 0) {
+                    parent.pendingFreeCumulative
+                        .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest().add(pending));
                 }
             }
-        } else {
-            // derive by knowing that "pending" must be accounted on size decrease for original slot
-            // and, potentially, for neighbor slots with shares
-            // and "available" decrease by "pending" affects all slots
-            if (parent.isShared.latest() > 0) {
-                pending = currentSize < available ? currentSize - size : available.saturatingSub(size);
-            } else if (unallocatedBySizes > 0 || prevSum < available) {
-                pending =
-                    prevSum + currentSize < available ? currentSize - size : available.saturatingSub(prevSum + size);
-            }
         }
-        if (pending > 0) {
-            parent.pendingFreeCumulative
-                .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest().add(pending));
-        }
-
         slot.size.push(uint48(block.timestamp), size);
-        parent.totalChildrenSize.push(uint48(block.timestamp), parent.totalChildrenSize.latest() - currentSize + size);
-        _syncPrevSums(index);
+        parent.totalChildrenSize.push(uint48(block.timestamp), totalChildrenSize - currentSize + size);
+        _syncPrevSums(parentIndex);
 
         emit SetSize(index, size);
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     * @dev if share increase: just change the share if enough shares available for isolated slots, otherwise revert
-     *      if share decrease: just change the share if no unallocated funds for sizes, otherwise increase pending
-     */
-    function setShare(uint96 index, uint208 share)
-        public
-        onlyRole(SET_SHARE_ROLE)
-        slotCreated(index)
-        returns (uint256 pending)
-    {
-        SlotStorage storage slot = slots[index];
-        uint256 currentShare = slot.share.latest();
-        if (currentShare == share) {
-            revert AlreadySet();
-        }
-        uint96 parentIndex = index.getParentIndex();
-        SlotStorage storage parent = slots[parentIndex];
-        if (share > currentShare) {
-            if (
-                share > MAX_SHARES
-                    || (parent.isShared.latest() == 0 && parent.totalChildrenShares - currentShare + share > MAX_SHARES)
-            ) {
-                revert TooManyShares();
-            }
-        } else {
-            uint256 unallocatedBySizes = _getParentUnallocatedBySizes(index);
-            if (unallocatedBySizes > 0) {
-                // derive by knowing that "pending" must be accounted on share decrease for original slot
-                // and "available" decrease by "pending" affects all slots
-                pending = unallocatedBySizes.mulDiv(currentShare - share, MAX_SHARES - share, Math.Rounding.Ceil);
-            }
-        }
-        if (pending > 0) {
-            parent.pendingFreeCumulative
-                .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest().add(pending));
-        }
-        slot.share.push(uint48(block.timestamp), share);
-        parent.totalChildrenShares = parent.totalChildrenShares - currentShare + share;
-
-        emit SetShare(index, share);
     }
 
     /**
@@ -476,8 +352,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     function swapSlots(uint96 index1, uint96 index2)
         public
         onlyRole(SWAP_SLOTS_ROLE)
-        slotCreated(index1)
-        slotCreated(index2)
+        slotExists(index1)
+        slotExists(index2)
     {
         SlotStorage storage slot1 = slots[index1];
         SlotStorage storage slot2 = slots[index2];
@@ -486,12 +362,18 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             revert NotSameParent();
         }
         SlotStorage storage parent = slots[parentIndex];
-        if (parent.isShared.latest() > 0) {
+        if (parent.isShared) {
             revert IsShared();
         }
-        (uint32 localIndex1, uint32 localIndex2) = (parent.childToLocalIndex[index1], parent.childToLocalIndex[index2]);
-        if (localIndex1 >= localIndex2) {
-            revert WrongOrder();
+        uint32 childIndex2 = index2.getChildIndex();
+        for (uint32 childIndex = slot1.nextSlot; true;) {
+            if (childIndex == childIndex2) {
+                break;
+            }
+            childIndex = slots[parentIndex.createIndex(childIndex)].nextSlot;
+            if (childIndex == 0) {
+                revert WrongOrder();
+            }
         }
         uint256 available = getAvailable(parentIndex);
         bool isAllocated = slot1.prevSum.latest() < available;
@@ -501,20 +383,51 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (isAllocated && slot2.prevSum.latest() + slot2.size.latest() > available) {
             revert PartiallyAllocated();
         }
-        (parent.children[localIndex1], parent.children[localIndex2]) =
-        (parent.children[localIndex2], parent.children[localIndex1]);
-        (parent.childToLocalIndex[index1], parent.childToLocalIndex[index2]) = (localIndex2, localIndex1);
+        (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
+        (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
 
-        slot2.prevSum.push(uint48(block.timestamp), slot1.prevSum.latest());
-        _syncPrevSums(index2);
+        _syncPrevSums(parentIndex);
 
         emit SwapSlots(index1, index2);
+    }
+
+    function removeSlot(uint96 index) public onlyRole(REMOVE_SLOT_ROLE) slotExists(index) {
+        if (getAllocated(index) > 0) {
+            revert SlotAllocated();
+        }
+
+        bytes32 subnetwork = _slotToNetwork[index];
+        if (subnetwork != bytes32(0)) {
+            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+        }
+
+        SlotStorage storage slot = slots[index];
+        uint256 childIndex = index.getChildIndex();
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
+        slot.exists = false;
+        if (childIndex == parent.lastChild) {
+            parent.lastChild = slot.prevSlot;
+            slots[parentIndex.createIndex(slot.prevSlot)].nextSlot = 0;
+        } else {
+            slots[parentIndex.createIndex(slot.prevSlot)].nextSlot = slot.nextSlot;
+        }
+        if (childIndex == parent.firstChild) {
+            parent.firstChild = slot.nextSlot;
+            slots[parentIndex.createIndex(slot.nextSlot)].prevSlot = 0;
+        } else {
+            slots[parentIndex.createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
+        }
+
+        _syncPrevSums(parentIndex);
+
+        emit RemoveSlot(index);
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function assignNetwork(uint96 index, bytes32 subnetwork) public onlyRole(ASSIGN_NETWORK_ROLE) slotCreated(index) {
+    function assignNetwork(uint96 index, bytes32 subnetwork) public onlyRole(ASSIGN_NETWORK_ROLE) slotExists(index) {
         if (index.getDepth() != 2) {
             revert WrongDepth();
         }
@@ -547,7 +460,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function assignOperator(uint96 index, address operator) public onlyRole(ASSIGN_OPERATOR_ROLE) slotCreated(index) {
+    function assignOperator(uint96 index, address operator) public onlyRole(ASSIGN_OPERATOR_ROLE) slotExists(index) {
         if (index.getDepth() != 3) {
             revert WrongDepth();
         }
@@ -578,46 +491,16 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         emit UnassignOperator(index, operator);
     }
 
-    function _getParentUnallocatedBySizesAt(uint96 index, uint48 timestamp, bytes memory hints)
-        internal
-        view
-        returns (uint256)
-    {
-        UnallocatedBySizesHints memory unallocatedBySizesHints;
-        if (hints.length > 0) {
-            unallocatedBySizesHints = abi.decode(hints, (UnallocatedBySizesHints));
-        }
-        uint96 parentIndex = index.getParentIndex();
+    function _syncPrevSums(uint96 parentIndex) internal {
         SlotStorage storage parent = slots[parentIndex];
-        return getAvailableAt(parentIndex, timestamp, unallocatedBySizesHints.availableHints)
-            .saturatingSub(
-                parent.isShared.upperLookupRecent(timestamp, unallocatedBySizesHints.isSharedHint) == 0
-                    ? parent.totalChildrenSize
-                        .upperLookupRecent(timestamp, unallocatedBySizesHints.totalChildrenSizeOrSizeHint)
-                    : slots[index].size
-                        .upperLookupRecent(timestamp, unallocatedBySizesHints.totalChildrenSizeOrSizeHint)
-            );
-    }
-
-    function _getParentUnallocatedBySizes(uint96 index) internal view returns (uint256) {
-        uint96 parentIndex = index.getParentIndex();
-        SlotStorage storage parent = slots[parentIndex];
-        return getAvailable(parentIndex)
-            .saturatingSub(
-                parent.isShared.latest() == 0 ? parent.totalChildrenSize.latest() : slots[index].size.latest()
-            );
-    }
-
-    function _syncPrevSums(uint96 startIndex) internal {
-        SlotStorage storage slot = slots[startIndex];
-        uint96 parentIndex = startIndex.getParentIndex();
-        SlotStorage storage parent = slots[parentIndex];
-        uint256 prevSum = slot.prevSum.latest() + slot.size.latest();
-        uint256 numChildren = parent.children.length;
-        for (uint32 i = parent.childToLocalIndex[startIndex] + 1; i < numChildren; ++i) {
-            SlotStorage storage child = slots[parentIndex.createIndex(parent.children[i])];
-            child.prevSum.push(uint48(block.timestamp), prevSum);
+        uint256 prevSum;
+        for (uint32 childIndex = parent.firstChild; childIndex > 0;) {
+            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
+            if (child.prevSum.latest() != prevSum) {
+                child.prevSum.push(uint48(block.timestamp), prevSum);
+            }
             prevSum += child.size.latest();
+            childIndex = child.nextSlot;
         }
     }
 
@@ -658,14 +541,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (params.createSlotRoleHolder != address(0)) {
             _grantRole(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
         }
-        if (params.setIsSharedRoleHolder != address(0)) {
-            _grantRole(SET_IS_SHARED_ROLE, params.setIsSharedRoleHolder);
-        }
         if (params.setSizeRoleHolder != address(0)) {
             _grantRole(SET_SIZE_ROLE, params.setSizeRoleHolder);
-        }
-        if (params.setShareRoleHolder != address(0)) {
-            _grantRole(SET_SHARE_ROLE, params.setShareRoleHolder);
         }
         if (params.swapSlotsRoleHolder != address(0)) {
             _grantRole(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);

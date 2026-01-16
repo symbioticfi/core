@@ -40,24 +40,30 @@ interface IUniversalDelegator is IBaseDelegator {
     }
 
     struct SlotStorage {
+        bool exists;
+        uint32 nextSlot;
+        uint32 prevSlot;
+        uint32 totalChildren;
+        uint32 firstChild;
+        uint32 lastChild;
+        bool isShared;
         uint32[] children;
         Checkpoints.Trace256 size;
-        Checkpoints.Trace208 share;
-        uint256 totalChildrenShares;
         Checkpoints.Trace256 prevSum;
-        Checkpoints.Trace208 isShared;
         Checkpoints.Trace256 totalChildrenSize;
         Checkpoints.Trace512 pendingFreeCumulative;
-        mapping(uint96 => uint32) childToLocalIndex;
     }
 
     struct Slot {
-        uint32[] children;
+        bool exists;
+        uint32 nextSlot;
+        uint32 prevSlot;
+        uint32 totalChildren;
+        uint32 firstChild;
+        uint32 lastChild;
+        bool isShared;
         uint256 size;
-        uint256 share;
-        uint256 totalChildrenShares;
         uint256 prevSum;
-        uint256 isShared;
         uint256 totalChildrenSize;
         uint256[2] pendingFreeCumulative;
     }
@@ -77,15 +83,13 @@ interface IUniversalDelegator is IBaseDelegator {
     /**
      * @notice Hints for an allocation lookup by slot index.
      * @param sizeHint hint for the size checkpoint
-     * @param unallocatedHints hints forwarded to _getParentUnallocatedBySizesAt(index, timestamp, ...)
-     * @param shareOrAvailableHints hints forwarded to getAvailableAt(parentIndex,...)
+     * @param availableHints hints forwarded to getAvailableAt(parentIndex,...)
      * @param isSharedHint hint for isShared
      * @param prevSumHint hint for the prevSum checkpoint
      */
     struct BaseAllocatedHints {
         bytes sizeHint;
-        bytes unallocatedHints;
-        bytes shareOrAvailableHints;
+        bytes availableHints;
         bytes isSharedHint;
         bytes prevSumHint;
     }
@@ -147,6 +151,8 @@ interface IUniversalDelegator is IBaseDelegator {
 
     event SwapSlots(uint96 indexed index1, uint96 indexed index2);
 
+    event RemoveSlot(uint96 indexed index);
+
     event AssignNetwork(uint96 indexed index, bytes32 indexed subnetwork);
 
     event UnassignNetwork(bytes32 indexed subnetwork);
@@ -194,22 +200,15 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint96);
 
-    function isSharedAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
-        external
-        view
-        returns (bool);
+    function getIsShared(bytes32 subnetwork, address operator) external view returns (bool);
 
-    function isShared(bytes32 subnetwork, address operator) external view returns (bool);
-
-    function createSlot(uint96 parentIndex, bool isShared, uint256 size, uint208 share) external;
-
-    function setIsShared(uint96 index, bool isShared) external;
+    function createSlot(uint96 parentIndex, bool isShared, uint256 size) external;
 
     function setSize(uint96 index, uint256 size) external returns (uint256 pending);
 
-    function setShare(uint96 index, uint208 share) external returns (uint256 pending);
-
     function swapSlots(uint96 index1, uint96 index2) external;
+
+    function removeSlot(uint96 index) external;
 
     function assignNetwork(uint96 index, bytes32 subnetwork) external;
 
