@@ -41,7 +41,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     /**
      * @inheritdoc IUniversalSlasher
      */
-    uint256 public resolverSetEpochsDelay;
+    uint48 public resolverSetDelay;
 
     mapping(bytes32 subnetwork => mapping(address operator => mapping(uint48 captureTimestamp => uint256 amount)))
         public owed;
@@ -329,10 +329,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             }
 
             if (resolver_ != address(uint160(_resolver[subnetwork].latest()))) {
-                _resolver[subnetwork].push(
-                    (block.timestamp + resolverSetEpochsDelay * IVaultV2(vault_).epochDuration()).toUint48(),
-                    uint160(resolver_)
-                );
+                _resolver[subnetwork].push((block.timestamp + resolverSetDelay).toUint48(), uint160(resolver_));
             }
         } else {
             if (resolver_ == address(0)) {
@@ -375,13 +372,13 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert InvalidVetoDuration();
         }
 
-        if (params.resolverSetEpochsDelay < 3) {
+        if (params.resolverSetDelay <= IVaultV2(vault_).epochDuration()) {
             revert InvalidResolverSetEpochsDelay();
         }
 
         vetoDuration = params.vetoDuration;
 
-        resolverSetEpochsDelay = params.resolverSetEpochsDelay;
+        resolverSetDelay = params.resolverSetDelay;
 
         return params.baseParams;
     }

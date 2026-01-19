@@ -27,12 +27,12 @@ interface IUniversalSlasher is IBaseSlasher {
      * @notice Initial parameters needed for a slasher deployment.
      * @param baseParams base parameters for slashers' deployment
      * @param vetoDuration duration of the veto period for a slash request
-     * @param resolverSetEpochsDelay delay in epochs for a network to update a resolver
+     * @param resolverSetDelay delay in seconds for a network to update a resolver
      */
     struct InitParams {
         IBaseSlasher.BaseParams baseParams;
         uint48 vetoDuration;
-        uint256 resolverSetEpochsDelay;
+        uint48 resolverSetDelay;
     }
 
     /**
@@ -199,10 +199,10 @@ interface IUniversalSlasher is IBaseSlasher {
         );
 
     /**
-     * @notice Get a delay for networks in epochs to update a resolver.
-     * @return updating resolver delay in epochs
+     * @notice Get a delay for networks in seconds to update a resolver.
+     * @return updating resolver delay in seconds
      */
-    function resolverSetEpochsDelay() external view returns (uint256);
+    function resolverSetDelay() external view returns (uint48);
 
     /**
      * @notice Get a resolver for a given subnetwork at a particular timestamp using a hint.
