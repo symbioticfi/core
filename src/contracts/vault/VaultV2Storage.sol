@@ -58,11 +58,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
-    address public immutable PLUGIN_REGISTRY;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
     bool public depositWhitelist;
 
     /**
@@ -189,10 +184,9 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     int256 internal _unclaimedRaw;
 
-    constructor(address delegatorFactory, address slasherFactory, address pluginRegistry) {
+    constructor(address delegatorFactory, address slasherFactory) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
-        PLUGIN_REGISTRY = pluginRegistry;
     }
 
     /**

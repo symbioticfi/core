@@ -70,12 +70,6 @@ interface IVaultV2Storage {
     function SLASHER_FACTORY() external view returns (address);
 
     /**
-     * @notice Get the plugin registry's address.
-     * @return address of the plugin registry
-     */
-    function PLUGIN_REGISTRY() external view returns (address);
-
-    /**
      * @notice Get a vault collateral.
      * @return address of the underlying collateral
      */

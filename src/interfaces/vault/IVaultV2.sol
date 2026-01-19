@@ -43,7 +43,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error WithdrawalNotMatured();
     error PluginNotActive();
     error FeeOnTransferNotSupported();
-    error NotPlugin();
     error PluginAlreadyAdded();
     error PluginOwe();
 

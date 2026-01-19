@@ -13,7 +13,6 @@ import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddl
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 import {Math512} from "../../src/contracts/libraries/Math512.sol";
-import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
@@ -81,7 +80,6 @@ contract VaultV2Test is Test {
     FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
     VaultV2TestHelper vaultTestHelper;
-    PluginRegistry pluginRegistry;
     MigratorV1V2 migratorV1V2;
 
     IVaultV2 vault;
@@ -172,10 +170,7 @@ contract VaultV2Test is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
-        pluginRegistry = new PluginRegistry(owner);
-        migratorV1V2 = new MigratorV1V2(
-            address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
-        );
+        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -2357,7 +2352,7 @@ contract VaultV2Test is Test {
             IVetoSlasher.InitParams({
                 baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
                 vetoDuration: vetoDuration,
-                resolverSetEpochsDelay: 3
+                resolverSetEpochsDelay: uint48(epochDuration * 3)
             })
         );
         (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
@@ -2807,17 +2802,6 @@ contract VaultV2Test is Test {
         assertApproxEqAbs(vault.withdrawals(lastBucket2 + 1), withdrawalsAfter, 10);
     }
 
-    function test_AddPlugin_revertsWhenNotWhitelisted() public {
-        vault = _getVault(7 days);
-        MockPlugin plugin = _createPlugin();
-
-        _grantAddPluginRole(alice, alice);
-        vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.NotPlugin.selector);
-        VaultV2(address(vault)).addPlugin(address(plugin));
-        vm.stopPrank();
-    }
-
     function test_AddRemovePlugin() public {
         vault = _getVault(7 days);
         MockPlugin plugin = _createPlugin();
@@ -3147,7 +3131,6 @@ contract VaultV2Test is Test {
     }
 
     function _addPlugin(MockPlugin plugin) internal {
-        pluginRegistry.whitelistPlugin(address(plugin));
         _grantAddPluginRole(alice, alice);
         vm.prank(alice);
         VaultV2(address(vault)).addPlugin(address(plugin));
@@ -3269,9 +3252,7 @@ contract VaultV2Test is Test {
         virtual
         returns (address)
     {
-        return address(
-            new VaultV2(delegatorFactory, slasherFactory, address(pluginRegistry), vaultFactory, address(migratorV1V2))
-        );
+        return address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(migratorV1V2)));
     }
 
     function _createVaultV1Impl(address delegatorFactory, address slasherFactory, address vaultFactory)
@@ -3462,7 +3443,7 @@ contract VaultV2Test is Test {
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
             vetoDuration: vetoDuration,
-            resolverSetEpochsDelay: 3
+            resolverSetDelay: uint48(epochDuration * 3)
         });
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,

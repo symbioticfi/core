@@ -25,8 +25,8 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
 
     /* CONSTRUCTOR */
 
-    constructor(address delegatorFactory, address slasherFactory, address pluginRegistry, address vaultFactory)
-        VaultV2Storage(delegatorFactory, slasherFactory, pluginRegistry)
+    constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
+        VaultV2Storage(delegatorFactory, slasherFactory)
     {}
 
     function migrateWithdrawalsOf(address account, uint48 epoch) public {

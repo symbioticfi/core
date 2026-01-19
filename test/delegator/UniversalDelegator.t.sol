@@ -13,7 +13,6 @@ import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
 import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
-import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
@@ -70,7 +69,6 @@ contract UniversalDelegatorTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
-    PluginRegistry internal pluginRegistry;
     MigratorV1V2 internal migratorV1V2;
 
     Token internal collateral;
@@ -95,10 +93,7 @@ contract UniversalDelegatorTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        pluginRegistry = new PluginRegistry(owner);
-        migratorV1V2 = new MigratorV1V2(
-            address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
-        );
+        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -110,11 +105,7 @@ contract UniversalDelegatorTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory),
-                address(slasherFactory),
-                address(pluginRegistry),
-                address(vaultFactory),
-                address(migratorV1V2)
+                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(migratorV1V2)
             )
         );
         vaultFactory.whitelist(vaultImpl);
@@ -194,7 +185,7 @@ contract UniversalDelegatorTest is Test {
                     IUniversalSlasher.InitParams({
                         baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
                         vetoDuration: 1,
-                        resolverSetEpochsDelay: 3
+                        resolverSetDelay: EPOCH_DURATION * 3
                     })
                 )
             })
@@ -1453,7 +1444,6 @@ contract UniversalDelegatorMigrationTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
-    PluginRegistry internal pluginRegistry;
     MigratorV1V2 internal migratorV1V2;
 
     Token internal collateral;
@@ -1473,10 +1463,7 @@ contract UniversalDelegatorMigrationTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        pluginRegistry = new PluginRegistry(owner);
-        migratorV1V2 = new MigratorV1V2(
-            address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
-        );
+        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -1488,11 +1475,7 @@ contract UniversalDelegatorMigrationTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory),
-                address(slasherFactory),
-                address(pluginRegistry),
-                address(vaultFactory),
-                address(migratorV1V2)
+                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(migratorV1V2)
             )
         );
         vaultFactory.whitelist(vaultImpl);
@@ -1717,7 +1700,7 @@ contract UniversalDelegatorMigrationTest is Test {
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
             vetoDuration: vetoDuration,
-            resolverSetEpochsDelay: 3
+            resolverSetDelay: EPOCH_DURATION * 3
         });
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,
