@@ -18,6 +18,7 @@ import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
+import {MigratorV1V2} from "../../src/contracts/vault/MigratorV1V2.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
@@ -70,6 +71,7 @@ contract UniversalDelegatorTest is Test {
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
     PluginRegistry internal pluginRegistry;
+    MigratorV1V2 internal migratorV1V2;
 
     Token internal collateral;
     IVaultV2 internal vault;
@@ -94,6 +96,9 @@ contract UniversalDelegatorTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         pluginRegistry = new PluginRegistry(owner);
+        migratorV1V2 = new MigratorV1V2(
+            address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+        );
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -105,7 +110,11 @@ contract UniversalDelegatorTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(pluginRegistry),
+                address(vaultFactory),
+                address(migratorV1V2)
             )
         );
         vaultFactory.whitelist(vaultImpl);
@@ -155,7 +164,9 @@ contract UniversalDelegatorTest is Test {
                         depositWhitelistSetRoleHolder: address(0),
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
-                        depositLimitSetRoleHolder: address(0)
+                        depositLimitSetRoleHolder: address(0),
+                        addPluginRoleHolder: address(0),
+                        removePluginRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: 0,
@@ -221,20 +232,6 @@ contract UniversalDelegatorTest is Test {
 
         delegator.setSize(slot1, 20);
         assertEq(delegator.getAllocated(slot1), 0);
-    }
-
-    function test_setShare_preservesParentTotals() public {
-        _createSlot(0, false, 1);
-        _createSlot(0, false, 1);
-        uint96 slot1 = uint96(0).createIndex(uint32(1));
-        uint96 slot2 = uint96(0).createIndex(uint32(2));
-
-        uint208 halfShares = uint208(delegator.MAX_SHARES() / 2);
-        delegator.setShare(slot1, halfShares);
-        delegator.setShare(slot2, halfShares);
-
-        vm.expectRevert(IUniversalDelegator.TooManyShares.selector);
-        delegator.setShare(slot1, uint208(halfShares + 1));
     }
 
     function test_slotAllocation_partialFill() public {
@@ -584,68 +581,96 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(slot2), 70);
     }
 
+    struct Test_SharedGroupSlashCappedAcrossNetworksSameCaptureTimestampStruct {
+        address network1;
+        address network2;
+        address network3;
+        address middleware;
+        address operator1;
+        address operator2;
+        address operator3;
+        bytes32 subnetwork1;
+        bytes32 subnetwork2;
+        bytes32 subnetwork3;
+        uint96 group1;
+        uint96 group2;
+        uint96 netSlot1;
+        uint96 netSlot2;
+        uint96 netSlot3;
+        uint96 opSlot1;
+        uint96 opSlot2;
+        uint96 opSlot3;
+        uint48 captureTimestamp;
+    }
+
     function test_sharedGroup_slashCappedAcrossNetworks_sameCaptureTimestamp() public {
-        address network1 = makeAddr("network1");
-        address network2 = makeAddr("network2");
-        address network3 = makeAddr("network3");
-        address middleware = makeAddr("middleware");
-        address operator1 = alice;
-        address operator2 = bob;
-        address operator3 = makeAddr("charlie");
+        Test_SharedGroupSlashCappedAcrossNetworksSameCaptureTimestampStruct memory testStruct;
 
-        _registerNetwork(network1, middleware);
-        _registerNetwork(network2, middleware);
-        _registerNetwork(network3, middleware);
-        _registerOperator(operator1);
-        _registerOperator(operator2);
-        _registerOperator(operator3);
-        _optIn(operator1, network1);
-        _optIn(operator2, network2);
-        _optIn(operator3, network3);
+        testStruct.network1 = makeAddr("network1");
+        testStruct.network2 = makeAddr("network2");
+        testStruct.network3 = makeAddr("network3");
+        testStruct.middleware = makeAddr("middleware");
+        testStruct.operator1 = alice;
+        testStruct.operator2 = bob;
+        testStruct.operator3 = makeAddr("charlie");
 
-        bytes32 subnetwork1 = network1.subnetwork(0);
-        bytes32 subnetwork2 = network2.subnetwork(0);
-        bytes32 subnetwork3 = network3.subnetwork(0);
+        _registerNetwork(testStruct.network1, testStruct.middleware);
+        _registerNetwork(testStruct.network2, testStruct.middleware);
+        _registerNetwork(testStruct.network3, testStruct.middleware);
+        _registerOperator(testStruct.operator1);
+        _registerOperator(testStruct.operator2);
+        _registerOperator(testStruct.operator3);
+        _optIn(testStruct.operator1, testStruct.network1);
+        _optIn(testStruct.operator2, testStruct.network2);
+        _optIn(testStruct.operator3, testStruct.network3);
+
+        testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
+        testStruct.subnetwork2 = testStruct.network2.subnetwork(0);
+        testStruct.subnetwork3 = testStruct.network3.subnetwork(0);
 
         _createSlot(0, true, 60);
         _createSlot(0, false, 40);
-        uint96 group1 = uint96(0).createIndex(uint32(1));
-        uint96 group2 = uint96(0).createIndex(uint32(2));
+        testStruct.group1 = uint96(0).createIndex(uint32(1));
+        testStruct.group2 = uint96(0).createIndex(uint32(2));
 
-        _createSlot(group1, false, 60);
-        _createSlot(group1, false, 60);
-        uint96 netSlot1 = group1.createIndex(uint32(1));
-        uint96 netSlot2 = group1.createIndex(uint32(2));
-        delegator.assignNetwork(netSlot1, subnetwork1);
-        delegator.assignNetwork(netSlot2, subnetwork2);
+        _createSlot(testStruct.group1, false, 60);
+        _createSlot(testStruct.group1, false, 60);
+        testStruct.netSlot1 = testStruct.group1.createIndex(uint32(1));
+        testStruct.netSlot2 = testStruct.group1.createIndex(uint32(2));
+        delegator.assignNetwork(testStruct.netSlot1, testStruct.subnetwork1);
+        delegator.assignNetwork(testStruct.netSlot2, testStruct.subnetwork2);
 
-        _createSlot(netSlot1, false, 60);
-        uint96 opSlot1 = netSlot1.createIndex(uint32(1));
-        delegator.assignOperator(opSlot1, operator1);
+        _createSlot(testStruct.netSlot1, false, 60);
+        testStruct.opSlot1 = testStruct.netSlot1.createIndex(uint32(1));
+        delegator.assignOperator(testStruct.opSlot1, testStruct.operator1);
 
-        _createSlot(netSlot2, false, 60);
-        uint96 opSlot2 = netSlot2.createIndex(uint32(1));
-        delegator.assignOperator(opSlot2, operator2);
+        _createSlot(testStruct.netSlot2, false, 60);
+        testStruct.opSlot2 = testStruct.netSlot2.createIndex(uint32(1));
+        delegator.assignOperator(testStruct.opSlot2, testStruct.operator2);
 
-        _createSlot(group2, false, 40);
-        uint96 netSlot3 = group2.createIndex(uint32(1));
-        delegator.assignNetwork(netSlot3, subnetwork3);
+        _createSlot(testStruct.group2, false, 40);
+        testStruct.netSlot3 = testStruct.group2.createIndex(uint32(1));
+        delegator.assignNetwork(testStruct.netSlot3, testStruct.subnetwork3);
 
-        _createSlot(netSlot3, false, 40);
-        uint96 opSlot3 = netSlot3.createIndex(uint32(1));
-        delegator.assignOperator(opSlot3, operator3);
+        _createSlot(testStruct.netSlot3, false, 40);
+        testStruct.opSlot3 = testStruct.netSlot3.createIndex(uint32(1));
+        delegator.assignOperator(testStruct.opSlot3, testStruct.operator3);
 
         vm.warp(18);
-        _deposit(alice, 100);
+        _deposit(testStruct.operator1, 100);
 
-        uint48 captureTimestamp = 18;
+        testStruct.captureTimestamp = 18;
         vm.warp(20);
 
-        vm.startPrank(middleware);
-        assertEq(_requestAndExecuteSlash(subnetwork1, operator1, 60, captureTimestamp), 60);
+        vm.startPrank(testStruct.middleware);
+        assertEq(
+            _requestAndExecuteSlash(testStruct.subnetwork1, testStruct.operator1, 60, testStruct.captureTimestamp), 60
+        );
         vm.expectRevert(ISlasher.InsufficientSlash.selector);
-        slasher.requestSlash(subnetwork2, operator2, 60, captureTimestamp, "");
-        assertEq(_requestAndExecuteSlash(subnetwork3, operator3, 40, captureTimestamp), 40);
+        slasher.requestSlash(testStruct.subnetwork2, testStruct.operator2, 60, testStruct.captureTimestamp, "");
+        assertEq(
+            _requestAndExecuteSlash(testStruct.subnetwork3, testStruct.operator3, 40, testStruct.captureTimestamp), 40
+        );
         vm.stopPrank();
     }
 
@@ -829,57 +854,33 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(slot2), expected2);
     }
 
-    function testFuzz_isolatedShares_doNotOverlapAtRoot(
-        uint256 depositAmount,
-        uint256 size1,
-        uint256 size2,
-        uint256 share1Seed,
-        uint256 share2Seed
-    ) public {
-        uint256 maxSize = (MAX_AMOUNT - 1) / 2;
-        uint256 cap1 = bound(size1, 0, maxSize);
-        uint256 cap2 = bound(size2, 0, maxSize);
-        uint256 totalSize = cap1 + cap2;
-        uint256 amount = bound(depositAmount, totalSize + 1, MAX_AMOUNT);
-        uint256 share1 = bound(share1Seed, 1, delegator.MAX_SHARES() - 1);
-        uint256 share2 = bound(share2Seed, 1, delegator.MAX_SHARES() - share1);
+    function testFuzz_isolatedShares_doNotOverlapAtRoot(uint256 depositAmount, uint256 size1, uint256 size2) public {
+        uint256 cap1 = bound(size1, 0, MAX_AMOUNT);
+        uint256 cap2 = bound(size2, 0, MAX_AMOUNT);
+        uint256 amount = bound(depositAmount, 1, MAX_AMOUNT);
 
         _createSlot(0, false, cap1);
         _createSlot(0, false, cap2);
         uint96 slot1 = uint96(0).createIndex(uint32(1));
         uint96 slot2 = uint96(0).createIndex(uint32(2));
 
-        delegator.setShare(slot1, uint208(share1));
-        delegator.setShare(slot2, uint208(share2));
-
         _deposit(alice, amount);
 
         uint256 available = delegator.getAvailable(0);
-        uint256 allocated1 = delegator.getAllocated(slot1);
-        uint256 allocated2 = delegator.getAllocated(slot2);
-        uint256 unallocated = available - totalSize;
-        uint256 upper = totalSize + (unallocated * (share1 + share2)) / delegator.MAX_SHARES();
+        uint256 expected1 = available < cap1 ? available : cap1;
+        uint256 remaining = available > expected1 ? available - expected1 : 0;
+        uint256 expected2 = remaining < cap2 ? remaining : cap2;
+        uint256 totalSize = cap1 + cap2;
 
-        assertGe(allocated1, cap1);
-        assertGe(allocated2, cap2);
-        assertLe(allocated1 + allocated2, available);
-        assertLe(allocated1 + allocated2, upper);
+        assertEq(delegator.getAllocated(slot1), expected1);
+        assertEq(delegator.getAllocated(slot2), expected2);
+        assertEq(expected1 + expected2, available < totalSize ? available : totalSize);
     }
 
-    function testFuzz_isolatedShares_doNotOverlapInGroup(
-        uint256 depositAmount,
-        uint256 size1,
-        uint256 size2,
-        uint256 share1Seed,
-        uint256 share2Seed
-    ) public {
-        uint256 maxSize = (MAX_AMOUNT - 1) / 2;
-        uint256 cap1 = bound(size1, 0, maxSize);
-        uint256 cap2 = bound(size2, 0, maxSize);
-        uint256 totalSize = cap1 + cap2;
-        uint256 amount = bound(depositAmount, totalSize + 1, MAX_AMOUNT);
-        uint256 share1 = bound(share1Seed, 1, delegator.MAX_SHARES() - 1);
-        uint256 share2 = bound(share2Seed, 1, delegator.MAX_SHARES() - share1);
+    function testFuzz_isolatedShares_doNotOverlapInGroup(uint256 depositAmount, uint256 size1, uint256 size2) public {
+        uint256 cap1 = bound(size1, 0, MAX_AMOUNT);
+        uint256 cap2 = bound(size2, 0, MAX_AMOUNT);
+        uint256 amount = bound(depositAmount, 1, MAX_AMOUNT);
 
         _createSlot(0, false, MAX_AMOUNT);
         uint96 group = uint96(0).createIndex(uint32(1));
@@ -889,175 +890,182 @@ contract UniversalDelegatorTest is Test {
         uint96 slot1 = group.createIndex(uint32(1));
         uint96 slot2 = group.createIndex(uint32(2));
 
-        delegator.setShare(slot1, uint208(share1));
-        delegator.setShare(slot2, uint208(share2));
-
         _deposit(alice, amount);
 
         uint256 available = delegator.getAvailable(group);
-        uint256 allocated1 = delegator.getAllocated(slot1);
-        uint256 allocated2 = delegator.getAllocated(slot2);
-        uint256 unallocated = available - totalSize;
-        uint256 upper = totalSize + (unallocated * (share1 + share2)) / delegator.MAX_SHARES();
+        uint256 expected1 = available < cap1 ? available : cap1;
+        uint256 remaining = available > expected1 ? available - expected1 : 0;
+        uint256 expected2 = remaining < cap2 ? remaining : cap2;
+        uint256 totalSize = cap1 + cap2;
 
-        assertGe(allocated1, cap1);
-        assertGe(allocated2, cap2);
-        assertLe(allocated1 + allocated2, available);
-        assertLe(allocated1 + allocated2, upper);
+        assertEq(delegator.getAllocated(slot1), expected1);
+        assertEq(delegator.getAllocated(slot2), expected2);
+        assertEq(expected1 + expected2, available < totalSize ? available : totalSize);
     }
 
-    function testFuzz_isolatedShares_captureInvariantAcrossNetworks(
-        uint256 depositAmount,
-        uint256 size1,
-        uint256 size2,
-        uint256 share1Seed,
-        uint256 share2Seed
-    ) public {
-        address network1 = makeAddr("network1");
-        address network2 = makeAddr("network2");
-        address middleware = makeAddr("middleware");
-        address operator1 = alice;
-        address operator2 = bob;
+    struct Test_CaptureInvariantAcrossNetworksStruct {
+        address network1;
+        address network2;
+        address middleware;
+        address operator1;
+        address operator2;
+        uint256 cap1;
+        uint256 cap2;
+        uint256 amount;
+        uint96 group;
+        uint96 networkSlot1;
+        uint96 networkSlot2;
+        bytes32 subnetwork1;
+        bytes32 subnetwork2;
+        uint96 opSlot1;
+        uint96 opSlot2;
+        uint48 captureTimestamp;
+        uint256 slashableBefore;
+        uint256 slashableAfter;
+    }
 
-        _registerNetwork(network1, middleware);
-        _registerNetwork(network2, middleware);
-        _registerOperator(operator1);
-        _registerOperator(operator2);
-        _optIn(operator1, network1);
-        _optIn(operator2, network2);
+    function testFuzz_isolatedShares_captureInvariantAcrossNetworks(uint256 depositAmount, uint256 size1, uint256 size2)
+        public
+    {
+        Test_CaptureInvariantAcrossNetworksStruct memory testStruct;
 
-        uint256 minUnallocated = 1000;
-        uint256 maxSize = (MAX_AMOUNT - minUnallocated) / 2;
-        uint256 cap1 = bound(size1, 1, maxSize);
-        uint256 cap2 = bound(size2, 0, maxSize);
-        uint256 totalSize = cap1 + cap2;
-        uint256 amount = bound(depositAmount, totalSize + minUnallocated, MAX_AMOUNT);
-        uint256 unallocated = amount - totalSize;
-        uint256 minShare = (delegator.MAX_SHARES() + unallocated - 1) / unallocated;
-        uint256 share1 = bound(share1Seed, minShare, delegator.MAX_SHARES());
-        uint256 share2 = bound(share2Seed, 0, delegator.MAX_SHARES() - share1);
+        testStruct.network1 = makeAddr("network1");
+        testStruct.network2 = makeAddr("network2");
+        testStruct.middleware = makeAddr("middleware");
+        testStruct.operator1 = alice;
+        testStruct.operator2 = bob;
+
+        _registerNetwork(testStruct.network1, testStruct.middleware);
+        _registerNetwork(testStruct.network2, testStruct.middleware);
+        _registerOperator(testStruct.operator1);
+        _registerOperator(testStruct.operator2);
+        _optIn(testStruct.operator1, testStruct.network1);
+        _optIn(testStruct.operator2, testStruct.network2);
+
+        testStruct.cap1 = bound(size1, 1, MAX_AMOUNT);
+        testStruct.cap2 = bound(size2, 0, MAX_AMOUNT);
+        testStruct.amount = bound(depositAmount, 1, MAX_AMOUNT);
 
         _createSlot(0, false, MAX_AMOUNT);
-        uint96 group = uint96(0).createIndex(uint32(1));
+        testStruct.group = uint96(0).createIndex(uint32(1));
 
-        _createSlot(group, false, cap1);
-        _createSlot(group, false, cap2);
-        uint96 netSlot1 = group.createIndex(uint32(1));
-        uint96 netSlot2 = group.createIndex(uint32(2));
+        _createSlot(testStruct.group, false, testStruct.cap1);
+        _createSlot(testStruct.group, false, testStruct.cap2);
+        testStruct.networkSlot1 = testStruct.group.createIndex(uint32(1));
+        testStruct.networkSlot2 = testStruct.group.createIndex(uint32(2));
 
-        bytes32 subnetwork1 = network1.subnetwork(0);
-        bytes32 subnetwork2 = network2.subnetwork(0);
-        delegator.assignNetwork(netSlot1, subnetwork1);
-        delegator.assignNetwork(netSlot2, subnetwork2);
+        bytes32 subnetwork1 = testStruct.network1.subnetwork(0);
+        testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
+        delegator.assignNetwork(testStruct.networkSlot1, testStruct.subnetwork1);
+        delegator.assignNetwork(testStruct.networkSlot2, testStruct.subnetwork2);
 
-        _createSlot(netSlot1, false, cap1);
-        uint96 opSlot1 = netSlot1.createIndex(uint32(1));
-        delegator.assignOperator(opSlot1, operator1);
+        _createSlot(testStruct.networkSlot1, false, testStruct.cap1);
+        testStruct.opSlot1 = testStruct.networkSlot1.createIndex(uint32(1));
+        delegator.assignOperator(testStruct.opSlot1, testStruct.operator1);
 
-        _createSlot(netSlot2, false, cap2);
-        uint96 opSlot2 = netSlot2.createIndex(uint32(1));
-        delegator.assignOperator(opSlot2, operator2);
-
-        vm.warp(1);
-        delegator.setShare(netSlot1, uint208(share1));
-        if (share2 != 0) {
-            delegator.setShare(netSlot2, uint208(share2));
-        }
-        delegator.setShare(opSlot1, uint208(delegator.MAX_SHARES()));
-        delegator.setShare(opSlot2, uint208(delegator.MAX_SHARES()));
+        _createSlot(testStruct.networkSlot2, false, testStruct.cap2);
+        testStruct.opSlot2 = testStruct.networkSlot2.createIndex(uint32(1));
+        delegator.assignOperator(testStruct.opSlot2, testStruct.operator2);
 
         vm.warp(EPOCH_DURATION + 1);
-        _deposit(alice, amount);
-        uint48 captureTimestamp = uint48(EPOCH_DURATION + 1);
+        _deposit(testStruct.operator1, testStruct.amount);
+        testStruct.captureTimestamp = uint48(EPOCH_DURATION + 1);
 
-        vm.warp(captureTimestamp + 1);
-        uint256 slashableBefore = slasher.slashableStake(subnetwork1, operator1, captureTimestamp, "");
+        vm.warp(testStruct.captureTimestamp + 1);
+        testStruct.slashableBefore =
+            slasher.slashableStake(testStruct.subnetwork1, testStruct.operator1, testStruct.captureTimestamp, "");
 
-        uint256 shifted = share1 + share2;
-        delegator.setShare(netSlot1, 0);
-        if (shifted != share2) {
-            delegator.setShare(netSlot2, uint208(shifted));
-        }
+        delegator.setSize(testStruct.networkSlot1, testStruct.cap1 - 1);
 
-        vm.warp(captureTimestamp + 1);
+        testStruct.slashableAfter =
+            slasher.slashableStake(testStruct.subnetwork1, testStruct.operator1, testStruct.captureTimestamp, "");
+        assertEq(testStruct.slashableAfter, testStruct.slashableBefore);
 
-        uint256 slashableAfter = slasher.slashableStake(subnetwork1, operator1, captureTimestamp, "");
-        assertEq(slashableAfter, slashableBefore);
-
-        vm.startPrank(middleware);
-        assertEq(_requestAndExecuteSlash(subnetwork1, operator1, slashableBefore, captureTimestamp), slashableBefore);
+        vm.startPrank(testStruct.middleware);
+        assertEq(
+            _requestAndExecuteSlash(
+                testStruct.subnetwork1, testStruct.operator1, testStruct.slashableBefore, testStruct.captureTimestamp
+            ),
+            testStruct.slashableBefore
+        );
         vm.stopPrank();
+    }
+
+    struct Test_CaptureInvariantAcrossOperatorsStruct {
+        address network;
+        address middleware;
+        address operator1;
+        address operator2;
+        uint256 cap1;
+        uint256 cap2;
+        uint256 networkSize;
+        uint256 amount;
+        uint96 group;
+        uint96 networkSlot;
+        bytes32 subnetwork;
+        uint96 opSlot1;
+        uint96 opSlot2;
+        uint256 slashableBefore;
+        uint256 slashableAfter;
     }
 
     function testFuzz_isolatedShares_captureInvariantAcrossOperators(
         uint256 depositAmount,
         uint256 size1,
-        uint256 size2,
-        uint256 share1Seed,
-        uint256 share2Seed
+        uint256 size2
     ) public {
-        address network = makeAddr("network");
-        address middleware = makeAddr("middleware");
-        address operator1 = alice;
-        address operator2 = bob;
+        Test_CaptureInvariantAcrossOperatorsStruct memory testStruct;
 
-        _registerNetwork(network, middleware);
-        _registerOperator(operator1);
-        _registerOperator(operator2);
-        _optIn(operator1, network);
-        _optIn(operator2, network);
+        testStruct.network = makeAddr("network");
+        testStruct.middleware = makeAddr("middleware");
+        testStruct.operator1 = alice;
+        testStruct.operator2 = bob;
 
-        uint256 minUnallocated = 1000;
-        uint256 maxSize = (MAX_AMOUNT - minUnallocated) / 2;
-        uint256 cap1 = bound(size1, 1, maxSize);
-        uint256 cap2 = bound(size2, 0, maxSize);
-        uint256 totalSize = cap1 + cap2;
-        uint256 networkSize = totalSize + minUnallocated;
-        uint256 amount = bound(depositAmount, networkSize, MAX_AMOUNT);
-        uint256 unallocated = networkSize - totalSize;
-        uint256 minShare = (delegator.MAX_SHARES() + unallocated - 1) / unallocated;
-        uint256 share1 = bound(share1Seed, minShare, delegator.MAX_SHARES());
-        uint256 share2 = bound(share2Seed, 0, delegator.MAX_SHARES() - share1);
+        _registerNetwork(testStruct.network, testStruct.middleware);
+        _registerOperator(testStruct.operator1);
+        _registerOperator(testStruct.operator2);
+        _optIn(testStruct.operator1, testStruct.network);
+        _optIn(testStruct.operator2, testStruct.network);
+
+        uint256 cap1 = bound(size1, 1, MAX_AMOUNT);
+        uint256 cap2 = bound(size2, 0, MAX_AMOUNT);
+        uint256 networkSize = cap1 + cap2;
+        uint256 amount = bound(depositAmount, 1, MAX_AMOUNT);
 
         _createSlot(0, false, MAX_AMOUNT);
         uint96 group = uint96(0).createIndex(uint32(1));
 
         _createSlot(group, false, networkSize);
         uint96 networkSlot = group.createIndex(uint32(1));
-        bytes32 subnetwork = network.subnetwork(0);
-        delegator.assignNetwork(networkSlot, subnetwork);
+        testStruct.subnetwork = testStruct.network.subnetwork(0);
+        delegator.assignNetwork(networkSlot, testStruct.subnetwork);
 
         _createSlot(networkSlot, false, cap1);
         _createSlot(networkSlot, false, cap2);
         uint96 opSlot1 = networkSlot.createIndex(uint32(1));
         uint96 opSlot2 = networkSlot.createIndex(uint32(2));
-        delegator.assignOperator(opSlot1, operator1);
-        delegator.assignOperator(opSlot2, operator2);
-
-        vm.warp(1);
-        delegator.setShare(opSlot1, uint208(share1));
-        if (share2 != 0) {
-            delegator.setShare(opSlot2, uint208(share2));
-        }
+        delegator.assignOperator(opSlot1, testStruct.operator1);
+        delegator.assignOperator(opSlot2, testStruct.operator2);
 
         vm.warp(EPOCH_DURATION + 1);
-        _deposit(alice, amount);
+        _deposit(testStruct.operator1, amount);
         uint48 captureTimestamp = uint48(EPOCH_DURATION + 1);
 
         vm.warp(captureTimestamp + 1);
-        uint256 slashableBefore = slasher.slashableStake(subnetwork, operator1, captureTimestamp, "");
+        uint256 slashableBefore =
+            slasher.slashableStake(testStruct.subnetwork, testStruct.operator1, captureTimestamp, "");
 
-        uint256 shifted = share1 + share2;
-        delegator.setShare(opSlot1, 0);
-        if (shifted != share2) {
-            delegator.setShare(opSlot2, uint208(shifted));
-        }
+        delegator.setSize(opSlot1, cap1 - 1);
 
-        uint256 slashableAfter = slasher.slashableStake(subnetwork, operator1, captureTimestamp, "");
+        uint256 slashableAfter =
+            slasher.slashableStake(testStruct.subnetwork, testStruct.operator1, captureTimestamp, "");
         assertEq(slashableAfter, slashableBefore);
 
-        vm.startPrank(middleware);
-        assertEq(_requestAndExecuteSlash(subnetwork, operator1, slashableBefore, captureTimestamp), slashableBefore);
+        vm.startPrank(testStruct.middleware);
+        assertEq(
+            _requestAndExecuteSlash(testStruct.subnetwork, testStruct.operator1, slashableBefore, captureTimestamp),
+            slashableBefore
+        );
         vm.stopPrank();
     }
 
@@ -1077,8 +1085,7 @@ contract UniversalDelegatorTest is Test {
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
         delegator.assignOperator(operatorSlot, alice);
 
-        assertTrue(delegator.isShared(subnetwork, alice));
-        assertTrue(delegator.isSharedAt(subnetwork, alice, uint48(block.timestamp), ""));
+        assertTrue(delegator.getIsShared(subnetwork, alice));
     }
 
     function test_isShared_falseWhenGroupNotShared() public {
@@ -1097,8 +1104,7 @@ contract UniversalDelegatorTest is Test {
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
         delegator.assignOperator(operatorSlot, alice);
 
-        assertFalse(delegator.isShared(subnetwork, alice));
-        assertFalse(delegator.isSharedAt(subnetwork, alice, uint48(block.timestamp), ""));
+        assertFalse(delegator.getIsShared(subnetwork, alice));
     }
 
     function test_onlyRoles_enforced() public {
@@ -1113,13 +1119,6 @@ contract UniversalDelegatorTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.SET_IS_SHARED_ROLE()
-            )
-        );
-        delegator.setIsShared(uint96(0).createIndex(uint32(1)), true);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.SET_SIZE_ROLE()
             )
         );
@@ -1127,17 +1126,17 @@ contract UniversalDelegatorTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.SET_SHARE_ROLE()
-            )
-        );
-        delegator.setShare(uint96(0).createIndex(uint32(1)), 1);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.SWAP_SLOTS_ROLE()
             )
         );
         delegator.swapSlots(uint96(0).createIndex(uint32(1)), uint96(0).createIndex(uint32(2)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.REMOVE_SLOT_ROLE()
+            )
+        );
+        delegator.removeSlot(uint96(0).createIndex(uint32(1)));
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1176,18 +1175,6 @@ contract UniversalDelegatorTest is Test {
 
         _createSlot(group, false, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
-
-        _createSlot(networkSlot, false, 100);
-        uint96 operatorSlot = networkSlot.createIndex(uint32(1));
-
-        vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
-        delegator.setIsShared(0, true);
-
-        vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
-        delegator.setIsShared(networkSlot, true);
-
-        vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
-        delegator.setIsShared(operatorSlot, true);
 
         vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
         delegator.assignNetwork(group, bytes32(uint256(1)));
@@ -1298,39 +1285,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getSlotOfOperator(networkSlot, bob), operatorSlot);
     }
 
-    function test_setIsShared_revertsWhenAllocated() public {
-        _deposit(alice, 1);
-
-        _createSlot(0, false, 1);
-        uint96 group = uint96(0).createIndex(uint32(1));
-
-        vm.expectRevert(IUniversalDelegator.SlotAllocated.selector);
-        delegator.setIsShared(group, true);
-    }
-
-    function test_setIsShared_togglesNetworkRestaking() public {
-        _createSlot(0, false, 100);
-        uint96 group = uint96(0).createIndex(uint32(1));
-
-        _createSlot(group, false, 80);
-        _createSlot(group, false, 80);
-        uint96 net1 = group.createIndex(uint32(1));
-        uint96 net2 = group.createIndex(uint32(2));
-
-        _deposit(alice, 100);
-        assertEq(delegator.getAllocated(net1), 80);
-        assertEq(delegator.getAllocated(net2), 20);
-
-        _withdraw(alice, 100);
-
-        delegator.setIsShared(group, true);
-
-        _deposit(alice, 100);
-        assertEq(delegator.getAllocated(net1), 80);
-        assertEq(delegator.getAllocated(net2), 80);
-    }
-
-    function test_swapSlots_changesAllocationAfterStakeDecrease() public {
+    function test_swapSlots_keepsAllocationAfterStakeDecrease() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 30);
@@ -1345,8 +1300,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(2);
         _withdraw(alice, 60);
 
-        assertEq(delegator.getAllocated(slot2), 40);
-        assertEq(delegator.getAllocated(slot1), 0);
+        assertEq(delegator.getAllocated(slot2), 10);
+        assertEq(delegator.getAllocated(slot1), 30);
     }
 
     function test_swapSlots_revertsWrongOrder() public {
@@ -1422,7 +1377,7 @@ contract UniversalDelegatorTest is Test {
     }
 
     function _createSlot(uint96 parentIndex, bool isShared, uint256 size) internal {
-        delegator.createSlot(parentIndex, isShared, size, 0);
+        delegator.createSlot(parentIndex, isShared, size);
     }
 
     function _unallocated2(uint96 parentIndex, uint96 slot1, uint96 slot2) internal view returns (uint256) {
@@ -1497,6 +1452,7 @@ contract UniversalDelegatorMigrationTest is Test {
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
     PluginRegistry internal pluginRegistry;
+    MigratorV1V2 internal migratorV1V2;
 
     Token internal collateral;
 
@@ -1516,6 +1472,9 @@ contract UniversalDelegatorMigrationTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         pluginRegistry = new PluginRegistry(owner);
+        migratorV1V2 = new MigratorV1V2(
+            address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+        );
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -1527,7 +1486,11 @@ contract UniversalDelegatorMigrationTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(pluginRegistry),
+                address(vaultFactory),
+                address(migratorV1V2)
             )
         );
         vaultFactory.whitelist(vaultImpl);

@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.28;
+
+import {VaultV2Storage} from "./VaultV2Storage.sol";
+import {DelegatorFactory} from "../DelegatorFactory.sol";
+import {SlasherFactory} from "../SlasherFactory.sol";
+import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
+
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {ERC4626Math} from "../libraries/ERC4626Math.sol";
+
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
+contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
+    using Checkpoints for Checkpoints.Trace208;
+    using Checkpoints for Checkpoints.Trace256;
+    using Checkpoints for Checkpoints.Trace512;
+    using SafeCast for uint256;
+
+    /* CONSTRUCTOR */
+
+    constructor(address delegatorFactory, address slasherFactory, address pluginRegistry, address vaultFactory)
+        VaultV2Storage(delegatorFactory, slasherFactory, pluginRegistry)
+    {}
+
+    function migrateWithdrawalsOf(address account, uint48 epoch) public {
+        if (_isEpochWithdrawalsClaimed[epoch][account]) {
+            revert();
+        }
+        uint256 shares = _epochWithdrawalSharesOf[epoch][account];
+        uint48 unlockAt = _epochDurationInit + (epoch + 1) * epochDuration;
+        if (unlockAt >= _withdrawalSharesCumulative.at(0)._key) {
+            shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
+        } else if (withdrawalShares[epoch] == 0) {
+            withdrawals[epoch] = _epochWithdrawals[epoch];
+            withdrawalShares[epoch] = _epochWithdrawalShares[epoch];
+            _timeToBucket._trace._checkpoints[epoch]._key = unlockAt;
+            _timeToBucket._trace._checkpoints[epoch]._value = epoch;
+        }
+        _withdrawalsOf[account].push(Withdrawal(false, unlockAt, shares));
+        _isEpochWithdrawalsClaimed[epoch][account] = true;
+    }
+
+    function migrate(uint64 oldVersion, bytes calldata data) public {
+        IVaultV2.MigrateParams memory params = abi.decode(data, (IVaultV2.MigrateParams));
+        if (oldVersion == 1) {
+            __ERC20_init(params.name, params.symbol);
+        }
+        uint48 epoch = (block.timestamp - _epochDurationInit).toUint48() / epochDuration;
+        uint256 epochWithdrawals = _epochWithdrawals[epoch];
+        uint48 nextEpochStart = _epochDurationInit + (epoch + 1) * epochDuration;
+        _withdrawalSharesCumulative.push(nextEpochStart, [0, epochWithdrawals]);
+        epochWithdrawals += _epochWithdrawals[epoch + 1];
+        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, [0, epochWithdrawals]);
+        assembly ("memory-safe") {
+            sstore(_timeToBucket.slot, epoch)
+        }
+        _timeToBucket.push(nextEpochStart, epoch);
+        withdrawals[epoch] = epochWithdrawals;
+        withdrawalShares[epoch] = epochWithdrawals;
+
+        address newDelegator =
+            DelegatorFactory(DELEGATOR_FACTORY).create(4, abi.encode(address(this), params.delegatorParams));
+        UniversalDelegator(newDelegator).migrate();
+        delegator = newDelegator;
+        if (slasher != address(0)) {
+            address newSlasher =
+                SlasherFactory(SLASHER_FACTORY).create(2, abi.encode(address(this), params.slasherParams));
+            UniversalSlasher(newSlasher).migrate();
+            slasher = newSlasher;
+        }
+
+        _unclaimedRaw = (IERC20(collateral).balanceOf(address(this)) - activeStake() - epochWithdrawals).toInt256();
+    }
+}

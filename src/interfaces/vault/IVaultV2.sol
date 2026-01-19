@@ -60,6 +60,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
      * @param isDepositLimitSetRoleHolder address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder
      * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
+     * @param addPluginRoleHolder address of the initial ADD_PLUGIN_ROLE holder
+     * @param removePluginRoleHolder address of the initial REMOVE_PLUGIN_ROLE holder
      */
     struct InitParams {
         string name;
@@ -75,6 +77,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
+        address addPluginRoleHolder;
+        address removePluginRoleHolder;
     }
 
     /**

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
@@ -271,5 +271,5 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
         return plugins.length;
     }
 
-    uint256[40] private __gap;
+    uint256[40] internal __gap;
 }

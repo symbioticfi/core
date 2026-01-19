@@ -14,13 +14,13 @@ import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddle
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
+    using Math for uint256;
 
     /**
      * @inheritdoc IBaseSlasher
@@ -122,8 +122,10 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
         }
 
+        // TODO: saturatingSub?
         if (
-            captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
+            captureTimestamp < uint256(uint48(block.timestamp)).saturatingSub(IVault(vault).epochDuration())
+                || captureTimestamp >= uint48(block.timestamp)
                 || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
         ) {
             return (0, 0);
@@ -155,7 +157,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     }
 
     function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
-        _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
+        _cumulativeSlash[subnetwork][operator].push(
+            uint48(block.timestamp), cumulativeSlash(subnetwork, operator) + amount
+        );
     }
 
     function _delegatorOnSlash(

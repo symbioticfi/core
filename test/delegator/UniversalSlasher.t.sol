@@ -16,6 +16,7 @@ import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
+import {MigratorV1V2} from "../../src/contracts/vault/MigratorV1V2.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
@@ -57,6 +58,7 @@ contract UniversalSlasherMigrationTest is Test {
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
     PluginRegistry internal pluginRegistry;
+    MigratorV1V2 internal migratorV1V2;
 
     Token internal collateral;
 
@@ -74,6 +76,9 @@ contract UniversalSlasherMigrationTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         pluginRegistry = new PluginRegistry(owner);
+        migratorV1V2 = new MigratorV1V2(
+            address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+        );
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -85,7 +90,11 @@ contract UniversalSlasherMigrationTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(pluginRegistry), address(vaultFactory)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(pluginRegistry),
+                address(vaultFactory),
+                address(migratorV1V2)
             )
         );
         vaultFactory.whitelist(vaultImpl);

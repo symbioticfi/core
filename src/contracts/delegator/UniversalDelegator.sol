@@ -14,8 +14,8 @@ import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
+import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
+import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicallable.sol";
 
 contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDelegator {
     using UniversalDelegatorIndex for uint96;
