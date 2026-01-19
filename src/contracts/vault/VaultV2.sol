@@ -68,7 +68,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function totalStake() public view returns (uint256) {
-        return activeStake() + activeWithdrawals();
+        unchecked {
+            return activeStake() + activeWithdrawals();
+        }
     }
 
     /**
@@ -146,39 +148,43 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         nonReentrant
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
-        if (onBehalfOf != address(0) && depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
-            revert NotWhitelistedDepositor();
+        unchecked {
+
+            if (onBehalfOf != address(0) && depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
+                revert NotWhitelistedDepositor();
+            }
+
+            uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+            collateral.safeTransferFrom(msg.sender, address(this), amount);
+            depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+
+            if (depositedAmount == 0) {
+                revert InsufficientAmount();
+            }
+
+            if (onBehalfOf == address(0)) {
+                _activeStake.push(uint48(block.timestamp), activeStake() + depositedAmount);
+                emit Deposit(msg.sender, address(0), depositedAmount, 0);
+                return (depositedAmount, 0);
+            }
+
+            if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
+                revert DepositLimitReached();
+            }
+
+            uint256 activeStake_ = activeStake();
+            uint256 activeShares_ = activeShares();
+
+            mintedShares = ERC4626Math.previewDeposit(depositedAmount, activeShares_, activeStake_);
+
+            _activeStake.push(uint48(block.timestamp), activeStake_ + depositedAmount);
+            _activeShares.push(uint48(block.timestamp), activeShares_ + mintedShares);
+            require(_activeShares.latest() >= mintedShares);
+            _activeSharesOf[onBehalfOf].push(uint48(block.timestamp), activeSharesOf(onBehalfOf) + mintedShares);
+
+            emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
+            emit Transfer(address(0), onBehalfOf, mintedShares);
         }
-
-        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
-        collateral.safeTransferFrom(msg.sender, address(this), amount);
-        depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
-
-        if (depositedAmount == 0) {
-            revert InsufficientAmount();
-        }
-
-        if (onBehalfOf == address(0)) {
-            _activeStake.push(uint48(block.timestamp), activeStake() + depositedAmount);
-            emit Deposit(msg.sender, address(0), depositedAmount, 0);
-            return (depositedAmount, 0);
-        }
-
-        if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
-            revert DepositLimitReached();
-        }
-
-        uint256 activeStake_ = activeStake();
-        uint256 activeShares_ = activeShares();
-
-        mintedShares = ERC4626Math.previewDeposit(depositedAmount, activeShares_, activeStake_);
-
-        _activeStake.push(uint48(block.timestamp), activeStake_ + depositedAmount);
-        _activeShares.push(uint48(block.timestamp), activeShares_ + mintedShares);
-        _activeSharesOf[onBehalfOf].push(uint48(block.timestamp), activeSharesOf(onBehalfOf) + mintedShares);
-
-        emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
-        emit Transfer(address(0), onBehalfOf, mintedShares);
     }
 
     /**
@@ -264,8 +270,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function claimBatch(address recipient, uint256[] calldata indexes) public returns (uint256 amount) {
-        for (uint256 i; i < indexes.length; ++i) {
-            amount += claim(recipient, indexes[i]);
+        unchecked {
+            for (uint256 i; i < indexes.length; ++i) {
+                amount += claim(recipient, indexes[i]);
+            }
         }
     }
 
@@ -275,10 +283,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         nonReentrant
         returns (uint256 slashedAmount, uint256 owed)
     {
-        if (slasher != msg.sender) {
-            revert NotSlasher();
-        }
         unchecked {
+            if (slasher != msg.sender) {
+                revert NotSlasher();
+            }
+
             uint208 lastBucket = _timeToBucket.latest();
             uint256 lastWithdrawals = withdrawals[lastBucket];
             uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
@@ -325,24 +334,28 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         virtual
         returns (uint256 mintedShares)
     {
-        _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf(msg.sender) - burnedShares);
-        _activeShares.push(uint48(block.timestamp), activeShares() - burnedShares);
-        _activeStake.push(uint48(block.timestamp), activeStake() - withdrawnAssets);
+        unchecked {
+            _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf(msg.sender) - burnedShares);
+            _activeShares.push(uint48(block.timestamp), activeShares() - burnedShares);
+            _activeStake.push(uint48(block.timestamp), activeStake() - withdrawnAssets);
 
-        uint256 lastBucket = _timeToBucket.latest();
-        mintedShares =
-            ERC4626Math.previewDeposit(withdrawnAssets, withdrawalShares[lastBucket], withdrawals[lastBucket]);
-        withdrawals[lastBucket] += withdrawnAssets;
-        withdrawalShares[lastBucket] += mintedShares;
+            uint256 lastBucket = _timeToBucket.latest();
+            mintedShares =
+                ERC4626Math.previewDeposit(withdrawnAssets, withdrawalShares[lastBucket], withdrawals[lastBucket]);
+            withdrawals[lastBucket] += withdrawnAssets;
+            withdrawalShares[lastBucket] += mintedShares;
+            require(withdrawalShares[lastBucket] >= mintedShares);
 
-        uint48 unlockAt = uint48(block.timestamp) + epochDuration;
-        _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
-        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest().add(mintedShares));
+            uint48 unlockAt = uint48(block.timestamp + epochDuration);
+            require(unlockAt >= block.timestamp);
+            _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
+            _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest().add(mintedShares));
 
-        _pullPlugins();
+            _pullPlugins();
 
-        emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
-        emit Transfer(msg.sender, address(0), burnedShares);
+            emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
+            emit Transfer(msg.sender, address(0), burnedShares);
+        }
     }
 
     /* OWNER FUNCTIONS */
@@ -399,8 +412,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert AlreadySet();
         }
         plugins.push(plugin);
-        // TODO add timelock
-        pluginActiveSince[plugin] = uint48(block.timestamp);
+        pluginActiveSince[plugin] = uint48(block.timestamp + pluginActiveDelay);
 
         emit AddPlugin(plugin);
     }
@@ -409,22 +421,24 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function removePlugin(address plugin) public nonReentrant onlyRole(REMOVE_PLUGIN_ROLE) {
-        for (uint256 i; i < plugins.length; ++i) {
-            if (plugins[i] == plugin) {
-                if (pluginOwe[plugin] > 0) {
-                    revert PluginOwe();
+        unchecked {
+            for (uint256 i; i < plugins.length; ++i) {
+                if (plugins[i] == plugin) {
+                    if (pluginOwe[plugin] > 0) {
+                        revert PluginOwe();
+                    }
+
+                    plugins[i] = plugins[plugins.length - 1];
+                    plugins.pop();
+                    pluginActiveSince[plugin] = 0;
+
+                    emit RemovePlugin(plugin);
+
+                    return;
                 }
-
-                plugins[i] = plugins[plugins.length - 1];
-                plugins.pop();
-                pluginActiveSince[plugin] = 0;
-
-                emit RemovePlugin(plugin);
-
-                return;
             }
+            revert AlreadySet();
         }
-        revert AlreadySet();
     }
 
     /* EXTERNAL LIQUIDITY FUNCTIONS */
@@ -435,24 +449,26 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function pull(uint256 amount) public nonReentrant returns (uint256 pulled) {
-        if (amount == 0) {
-            revert InsufficientAmount();
-        }
-        if (pluginActiveSince[msg.sender] < block.timestamp) {
-            revert PluginNotActive();
-        }
-        pulled = Math.min(amount, activeStake().saturatingSub(pluginsOwe));
+        unchecked {
+            if (amount == 0) {
+                revert InsufficientAmount();
+            }
+            if (pluginActiveSince[msg.sender] < block.timestamp) {
+                revert PluginNotActive();
+            }
+            pulled = Math.min(amount, activeStake().saturatingSub(pluginsOwe));
 
-        pluginsOwe += pulled;
-        pluginOwe[msg.sender] += pulled;
+            pluginsOwe += pulled;
+            pluginOwe[msg.sender] += pulled;
 
-        uint256 balanceBefore = IERC20(collateral).balanceOf(msg.sender);
-        collateral.safeTransfer(msg.sender, pulled);
-        if (IERC20(collateral).balanceOf(msg.sender) - balanceBefore < pulled) {
-            revert FeeOnTransferNotSupported();
+            uint256 balanceBefore = IERC20(collateral).balanceOf(msg.sender);
+            collateral.safeTransfer(msg.sender, pulled);
+            if (IERC20(collateral).balanceOf(msg.sender) - balanceBefore < pulled) {
+                revert FeeOnTransferNotSupported();
+            }
+
+            emit Pull(msg.sender, pulled);
         }
-
-        emit Pull(msg.sender, pulled);
     }
 
     /**
@@ -464,48 +480,56 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
         collateral.safeTransferFrom(msg.sender, address(this), amount);
 
-        pluginsOwe -= amount;
         pluginOwe[msg.sender] -= amount;
+        unchecked {
+            pluginsOwe -= amount;
+        }
 
         emit Push(msg.sender, amount);
     }
 
     // @dev Internal dev function to handle owed slashing.
     function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 owed) {
-        if (slasher != msg.sender) {
-            revert NotSlasher();
-        }
+        unchecked {
+            if (slasher != msg.sender) {
+                revert NotSlasher();
+            }
 
-        _pullPlugins();
+            _pullPlugins();
 
-        owed = amount.saturatingSub(
-            IERC20(collateral).balanceOf(address(this))
-                .saturatingSub(
-                    uint256(_unclaimedRaw + (withdrawals[_timeToBucket.latest()] - activeWithdrawals()).toInt256())
-                )
-        );
-        if (owed == amount) {
-            revert InsufficientAmount();
+            int256 actualUnclaimedRaw =
+                _unclaimedRaw + (withdrawals[_timeToBucket.latest()] - activeWithdrawals()).toInt256();
+            require(actualUnclaimedRaw >= _unclaimedRaw);
+
+            owed = amount.saturatingSub(
+                IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(actualUnclaimedRaw))
+            );
+            if (owed == amount) {
+                revert InsufficientAmount();
+            }
+            collateral.safeTransfer(burner, amount - owed);
         }
-        collateral.safeTransfer(burner, amount - owed);
     }
 
     /* * INTERNAL FUNCTIONS * */
 
     function _pullPlugins() internal {
-        uint256 amount = pluginsOwe.saturatingSub(activeStake());
-        if (amount > 0) {
-            for (uint256 i; i < plugins.length; ++i) {
-                address plugin = plugins[i];
-                uint256 pluginOwe_ = pluginOwe[plugin];
-                if (pluginOwe_ > 0) {
-                    uint256 pullAmount = Math.min(pluginOwe_, amount);
-                    if (IBasePlugin(plugin).triggerPush(pullAmount)) {
-                        pluginOwe[plugin] = pluginOwe_ - pullAmount;
-                        pluginsOwe -= pullAmount;
-                        amount -= pullAmount;
-                        if (amount == 0) {
-                            break;
+        unchecked {
+            // TODO: add hardcoded max plugins number
+            uint256 amount = pluginsOwe.saturatingSub(activeStake());
+            if (amount > 0) {
+                for (uint256 i; i < plugins.length; ++i) {
+                    address plugin = plugins[i];
+                    uint256 pluginOwe_ = pluginOwe[plugin];
+                    if (pluginOwe_ > 0) {
+                        uint256 pullAmount = Math.min(pluginOwe_, amount);
+                        if (IBasePlugin(plugin).triggerPush(pullAmount)) {
+                            pluginOwe[plugin] = pluginOwe_ - pullAmount;
+                            pluginsOwe -= pullAmount;
+                            amount -= pullAmount;
+                            if (amount == 0) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -521,22 +545,20 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc ERC20Upgradeable
      */
     function _update(address from, address to, uint256 value) internal override {
-        // _update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
-        uint256 fromBalance = balanceOf(from);
-        if (fromBalance < value) {
-            revert ERC20InsufficientBalance(from, fromBalance, value);
-        }
         unchecked {
+            // _update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
+            uint256 fromBalance = balanceOf(from);
+            if (fromBalance < value) {
+                revert ERC20InsufficientBalance(from, fromBalance, value);
+            }
             // Overflow not possible: value <= fromBalance <= totalSupply.
             _activeSharesOf[from].push(uint48(block.timestamp), fromBalance - value);
-        }
 
-        unchecked {
             // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
             _activeSharesOf[to].push(uint48(block.timestamp), balanceOf(to) + value);
-        }
 
-        emit Transfer(from, to, value);
+            emit Transfer(from, to, value);
+        }
     }
 
     /* * INITIALIZE FUNCTIONS * */
@@ -552,6 +574,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert InvalidEpochDuration();
         }
 
+        if (params.pluginActiveDelay <= params.epochDuration) {
+            revert InvalidPluginActiveDelay();
+        }
+
         __ERC20_init(params.name, params.symbol);
         __ERC20Permit_init(params.name);
 
@@ -565,6 +591,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
+
+        pluginActiveDelay = params.pluginActiveDelay;
 
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
@@ -586,6 +614,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
         if (params.removePluginRoleHolder != address(0)) {
             _grantRole(REMOVE_PLUGIN_ROLE, params.removePluginRoleHolder);
+        }
+
+        for (uint256 i; i < params.plugins.length; ++i) {
+            address plugin = params.plugins[i];
+            if (!IRegistry(PLUGIN_REGISTRY).isEntity(plugin)) {
+                revert NotPlugin();
+            }
+            if (pluginActiveSince[plugin] > 0) {
+                revert PluginAlreadyAdded();
+            }
+            plugins.push(plugin);
+            pluginActiveSince[plugin] = uint48(block.timestamp);
         }
     }
 

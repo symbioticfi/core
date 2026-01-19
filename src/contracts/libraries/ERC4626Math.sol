@@ -33,7 +33,7 @@ library ERC4626Math {
         pure
         returns (uint256)
     {
-        return assets.mulDiv(totalShares + 10 ** _decimalsOffset(), totalAssets + 1, rounding);
+        return assets.mulDiv(totalShares + 1, totalAssets + 1, rounding);
     }
 
     /**
@@ -44,10 +44,6 @@ library ERC4626Math {
         pure
         returns (uint256)
     {
-        return shares.mulDiv(totalAssets + 1, totalShares + 10 ** _decimalsOffset(), rounding);
-    }
-
-    function _decimalsOffset() private pure returns (uint8) {
-        return 0;
+        return shares.mulDiv(totalAssets + 1, totalShares + 1, rounding);
     }
 }

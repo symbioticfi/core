@@ -166,7 +166,9 @@ contract UniversalDelegatorTest is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0)
+                        removePluginRoleHolder: address(0),
+                        pluginActiveDelay: EPOCH_DURATION * 3,
+                        plugins: new address[](0)
                     })
                 ),
                 delegatorIndex: 0,

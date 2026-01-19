@@ -158,10 +158,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(uint256 bucketIndex => uint256 value) public withdrawals;
 
-    Checkpoints.Trace512 internal _withdrawalSharesCumulative;
-
-    Checkpoints.Trace208 internal _timeToBucket;
-
     /**
      * @inheritdoc IVaultV2Storage
      */
@@ -182,19 +178,21 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(address plugin => uint256 amount) public pluginOwe;
 
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    uint48 public pluginActiveDelay;
+
+    Checkpoints.Trace512 internal _withdrawalSharesCumulative;
+
+    Checkpoints.Trace208 internal _timeToBucket;
+
     int256 internal _unclaimedRaw;
 
     constructor(address delegatorFactory, address slasherFactory, address pluginRegistry) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
         PLUGIN_REGISTRY = pluginRegistry;
-    }
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    function currentEpochStart() public view returns (uint48) {
-        return uint48(block.timestamp);
     }
 
     /**
@@ -271,5 +269,5 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
         return plugins.length;
     }
 
-    uint256[40] internal __gap;
+    uint256[39] internal __gap;
 }

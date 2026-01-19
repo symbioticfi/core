@@ -288,7 +288,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert NoResolver();
         }
 
-        if (msg.sender != captureResolver) {
+        if (captureResolver != msg.sender) {
             revert NotResolver();
         }
 
@@ -330,8 +330,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
 
             if (resolver_ != address(uint160(_resolver[subnetwork].latest()))) {
                 _resolver[subnetwork].push(
-                    (IVaultV2(vault_).currentEpochStart() + resolverSetEpochsDelay * IVaultV2(vault_).epochDuration())
-                    .toUint48(),
+                    (block.timestamp + resolverSetEpochsDelay * IVaultV2(vault_).epochDuration()).toUint48(),
                     uint160(resolver_)
                 );
             }

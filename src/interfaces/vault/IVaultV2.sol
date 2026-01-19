@@ -28,6 +28,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidCollateral();
     error InvalidDelegator();
     error InvalidEpochDuration();
+    error InvalidPluginActiveDelay();
     error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
@@ -43,6 +44,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error PluginNotActive();
     error FeeOnTransferNotSupported();
     error NotPlugin();
+    error PluginAlreadyAdded();
     error PluginOwe();
 
     /**
@@ -62,6 +64,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
      * @param addPluginRoleHolder address of the initial ADD_PLUGIN_ROLE holder
      * @param removePluginRoleHolder address of the initial REMOVE_PLUGIN_ROLE holder
+     * @param pluginActiveDelay delay before a plugin becomes active
+     * @param plugins initial plugin list
      */
     struct InitParams {
         string name;
@@ -79,6 +83,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address depositLimitSetRoleHolder;
         address addPluginRoleHolder;
         address removePluginRoleHolder;
+        uint48 pluginActiveDelay;
+        address[] plugins;
     }
 
     /**

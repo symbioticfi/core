@@ -336,7 +336,6 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vault)).hasRole(VaultV2(address(vault)).DEFAULT_ADMIN_ROLE(), alice), true);
         assertEq(VaultV2(address(vault)).hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
         assertEq(vault.epochDuration(), epochDuration);
-        assertEq(vault.currentEpochStart(), blockTimestamp);
         assertEq(vault.totalStake(), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeShares(), 0);
@@ -424,7 +423,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0)
+                        removePluginRoleHolder: address(0),
+                        pluginActiveDelay: epochDuration * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -456,7 +457,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0)
+                        removePluginRoleHolder: address(0),
+                        pluginActiveDelay: epochDuration * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -488,7 +491,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0)
+                        removePluginRoleHolder: address(0),
+                        pluginActiveDelay: epochDuration * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -520,7 +525,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0)
+                        removePluginRoleHolder: address(0),
+                        pluginActiveDelay: epochDuration * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -552,7 +559,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0)
+                        removePluginRoleHolder: address(0),
+                        pluginActiveDelay: epochDuration * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -582,7 +591,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -642,7 +653,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -699,7 +712,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -732,7 +747,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -757,7 +774,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice
+                    removePluginRoleHolder: alice,
+                    pluginActiveDelay: 7 days * 3,
+                    plugins: new address[](0)
                 })
             )
         );
@@ -811,7 +830,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -859,7 +880,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -904,7 +927,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -947,7 +972,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -972,7 +999,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice
+                    removePluginRoleHolder: alice,
+                    pluginActiveDelay: 7 days * 3,
+                    plugins: new address[](0)
                 })
             )
         );
@@ -1014,7 +1043,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice
+                        removePluginRoleHolder: alice,
+                        pluginActiveDelay: 7 days * 3,
+                        plugins: new address[](0)
                     })
                 )
             )
@@ -2795,7 +2826,7 @@ contract VaultV2Test is Test {
 
         assertEq(vault.pluginsLength(), 1);
         assertEq(vault.plugins(0), address(plugin));
-        assertEq(vault.pluginActiveSince(address(plugin)), uint48(block.timestamp));
+        assertEq(vault.pluginActiveSince(address(plugin)), uint48(block.timestamp + vault.pluginActiveDelay()));
 
         _grantRemovePluginRole(alice, alice);
         vm.prank(alice);
@@ -3381,7 +3412,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice
+                    removePluginRoleHolder: alice,
+                    pluginActiveDelay: baseParams.epochDuration * 3,
+                    plugins: new address[](0)
                 })
             );
         }

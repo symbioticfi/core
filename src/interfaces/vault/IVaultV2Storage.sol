@@ -7,6 +7,7 @@ pragma solidity ^0.8.0;
  *      epochDurationInit()
  *      epochAt(uint48)
  *      currentEpoch()
+ *      currentEpochStart()
  *      previousEpochStart()
  *      nextEpochStart()
  */
@@ -117,11 +118,10 @@ interface IVaultV2Storage {
     function epochDuration() external view returns (uint48);
 
     /**
-     * @notice Get a start of the current vault epoch.
-     * @return start of the current epoch
-     * @dev DEPRECATED: Returns current timestamp.
+     * @notice Get a duration before a plugin becomes active.
+     * @return delay before a plugin becomes active
      */
-    function currentEpochStart() external view returns (uint48);
+    function pluginActiveDelay() external view returns (uint48);
 
     /**
      * @notice Get if the deposit whitelist is enabled.
