@@ -10,7 +10,11 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace512;
 
-    constructor() VaultV2Storage(address(0), address(0)) {}
+    constructor() VaultV2Storage(address(0), address(0)) {
+        REWARDS = address(0);
+        FEE_REGISTRY = address(0);
+        MIGRATOR_V1V2 = address(0);
+    }
 
     function _timeToBucketLatestInternal() external view internalFunction returns (uint208) {
         return _timeToBucket.latest();

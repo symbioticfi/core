@@ -45,6 +45,10 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     bytes32 public constant REMOVE_PLUGIN_ROLE = keccak256("REMOVE_PLUGIN_ROLE");
 
+    bytes32 internal constant ERC3156_ONFLASHLOAN_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
+
+    uint256 internal constant MAX_FEE = 1_000_000;
+
     /**
      * @inheritdoc IVaultV2Storage
      */
@@ -54,6 +58,18 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      * @inheritdoc IVaultV2Storage
      */
     address public immutable SLASHER_FACTORY;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    address public immutable REWARDS;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    address public immutable FEE_REGISTRY;
+
+    address internal immutable MIGRATOR_V1V2;
 
     /**
      * @inheritdoc IVaultV2Storage

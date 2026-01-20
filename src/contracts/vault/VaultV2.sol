@@ -16,6 +16,8 @@ import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IBasePlugin} from "../../interfaces/vault/IBasePlugin.sol";
+import {IRewards} from "../../interfaces/vault/IRewards.sol";
+import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -28,6 +30,8 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {
     ERC20PermitUpgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
+import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20PermitUpgradeable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace208;
@@ -39,14 +43,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     using SafeERC20 for address;
     using Math512 for uint256[2];
 
-    address internal immutable MIGRATOR_V1V2;
-
     /* CONSTRUCTOR */
 
-    constructor(address delegatorFactory, address slasherFactory, address vaultFactory, address migratorV1V2)
-        VaultV2Storage(delegatorFactory, slasherFactory)
-        MigratableEntity(vaultFactory)
-    {
+    constructor(
+        address delegatorFactory,
+        address slasherFactory,
+        address vaultFactory,
+        address rewards,
+        address feeRegistry,
+        address migratorV1V2
+    ) VaultV2Storage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
+        REWARDS = rewards;
+        FEE_REGISTRY = feeRegistry;
         MIGRATOR_V1V2 = migratorV1V2;
     }
 
@@ -137,6 +145,23 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function maxFlashLoan(address token) public view returns (uint256) {
+        return token == collateral ? IERC20(collateral).balanceOf(address(this)) : 0;
+    }
+
+    /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function flashFee(address token, uint256 amount) public view returns (uint256) {
+        if (token != collateral) {
+            revert UnsupportedToken();
+        }
+        return amount.mulDivUp(IFeeRegistry(FEE_REGISTRY).getFlashloanFee(address(this)), MAX_FEE);
+    }
+
+    /**
      * @inheritdoc IVaultV2
      */
     function deposit(address onBehalfOf, uint256 amount)
@@ -146,7 +171,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
-
             if (onBehalfOf != address(0) && depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
                 revert NotWhitelistedDepositor();
             }
@@ -433,6 +457,45 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             }
             revert AlreadySet();
         }
+    }
+
+    /**
+     * @inheritdoc IERC3156FlashLender
+     */
+    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data)
+        public
+        nonReentrant
+        returns (bool)
+    {
+        if (amount == 0) {
+            revert InsufficientAmount();
+        }
+        if (amount > maxFlashLoan(token)) {
+            revert MaxLoanExceeded();
+        }
+        uint256 fee = flashFee(token, amount);
+        address collateral_ = collateral;
+        uint256 balanceBefore = IERC20(collateral_).balanceOf(address(this));
+
+        collateral_.safeTransfer(address(receiver), amount);
+
+        if (receiver.onFlashLoan(msg.sender, token, amount, fee, data) != ERC3156_ONFLASHLOAN_SUCCESS) {
+            revert InvalidReceiver();
+        }
+
+        collateral_.safeTransferFrom(address(receiver), address(this), amount + fee);
+
+        uint256 actualFee = IERC20(collateral_).balanceOf(address(this)) - balanceBefore;
+        if (actualFee < fee) {
+            revert InvalidReturnAmount();
+        }
+
+        if (actualFee > 0) {
+            collateral.safeApproveWithRetry(REWARDS, actualFee);
+            IRewards(REWARDS).donate(address(this), actualFee);
+        }
+
+        return true;
     }
 
     /* EXTERNAL LIQUIDITY FUNCTIONS */

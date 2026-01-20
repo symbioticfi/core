@@ -39,6 +39,8 @@ import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
 import {Token} from "../mocks/Token.sol";
+import {MockRewards} from "../mocks/MockRewards.sol";
+import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 
 contract UniversalSlasherMigrationTest is Test {
     uint48 internal constant EPOCH_DURATION = 7 days;
@@ -57,6 +59,8 @@ contract UniversalSlasherMigrationTest is Test {
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
     MigratorV1V2 internal migratorV1V2;
+    MockRewards internal rewards;
+    MockFeeRegistry internal feeRegistry;
 
     Token internal collateral;
 
@@ -74,6 +78,8 @@ contract UniversalSlasherMigrationTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
+        rewards = new MockRewards();
+        feeRegistry = new MockFeeRegistry(0);
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -85,7 +91,12 @@ contract UniversalSlasherMigrationTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(migratorV1V2)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(vaultFactory),
+                address(rewards),
+                address(feeRegistry),
+                address(migratorV1V2)
             )
         );
         vaultFactory.whitelist(vaultImpl);

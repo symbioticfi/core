@@ -52,6 +52,8 @@ import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 import {VaultV2TestHelper} from "../helpers/VaultV2TestHelper.sol";
 import {MockPlugin} from "../mocks/MockPlugin.sol";
+import {MockRewards} from "../mocks/MockRewards.sol";
+import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 
 contract VaultV2Test is Test {
     using Math for uint256;
@@ -81,6 +83,8 @@ contract VaultV2Test is Test {
     VaultConfigurator vaultConfigurator;
     VaultV2TestHelper vaultTestHelper;
     MigratorV1V2 migratorV1V2;
+    MockRewards rewards;
+    MockFeeRegistry feeRegistry;
 
     IVaultV2 vault;
     FullRestakeDelegator delegator;
@@ -171,6 +175,8 @@ contract VaultV2Test is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
 
         migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
+        rewards = new MockRewards();
+        feeRegistry = new MockFeeRegistry(0);
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -3252,7 +3258,16 @@ contract VaultV2Test is Test {
         virtual
         returns (address)
     {
-        return address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(migratorV1V2)));
+        return address(
+            new VaultV2(
+                delegatorFactory,
+                slasherFactory,
+                vaultFactory,
+                address(rewards),
+                address(feeRegistry),
+                address(migratorV1V2)
+            )
+        );
     }
 
     function _createVaultV1Impl(address delegatorFactory, address slasherFactory, address vaultFactory)

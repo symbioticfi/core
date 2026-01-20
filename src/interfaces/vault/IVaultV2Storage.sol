@@ -70,6 +70,18 @@ interface IVaultV2Storage {
     function SLASHER_FACTORY() external view returns (address);
 
     /**
+     * @notice Get the rewards address.
+     * @return address of the rewards
+     */
+    function REWARDS() external view returns (address);
+
+    /**
+     * @notice Get the fee registry address.
+     * @return address of the fee registry
+     */
+    function FEE_REGISTRY() external view returns (address);
+
+    /**
      * @notice Get a vault collateral.
      * @return address of the underlying collateral
      */

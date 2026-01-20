@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultV2Storage} from "./IVaultV2Storage.sol";
 
+import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
+
 /**
  * @title IVault
  * @dev Deprecated signatures:
@@ -13,7 +15,7 @@ import {IVaultV2Storage} from "./IVaultV2Storage.sol";
  *      setSlasher()
  *      onSlash()
  */
-interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
+interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();
@@ -45,6 +47,10 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error FeeOnTransferNotSupported();
     error PluginAlreadyAdded();
     error PluginOwe();
+    error UnsupportedToken();
+    error MaxLoanExceeded();
+    error InvalidReceiver();
+    error InvalidReturnAmount();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
