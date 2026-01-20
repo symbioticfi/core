@@ -2,5 +2,5 @@
 pragma solidity ^0.8.0;
 
 interface IRewards {
-    function donate(address vault, uint256 amount) external;
+    function distributeDonationRewards(address vault, uint256 amount) external;
 }

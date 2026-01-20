@@ -490,7 +490,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         if (actualFee > 0) {
             collateral.safeApproveWithRetry(REWARDS, actualFee);
-            IRewards(REWARDS).donate(address(this), actualFee);
+            IRewards(REWARDS).distributeDonationRewards(address(this), actualFee);
         }
 
         return true;
