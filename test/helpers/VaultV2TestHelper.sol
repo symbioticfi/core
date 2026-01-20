@@ -8,7 +8,6 @@ import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 contract VaultV2TestHelper is VaultV2Storage, Hints {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
-    using Checkpoints for Checkpoints.Trace512;
 
     constructor() VaultV2Storage(address(0), address(0)) {
         REWARDS = address(0);
@@ -29,7 +28,7 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         return _timeToBucket.length();
     }
 
-    function _withdrawalSharesCumulativeLatestInternal() external view internalFunction returns (uint256[2] memory) {
+    function _withdrawalSharesCumulativeLatestInternal() external view internalFunction returns (uint256) {
         return _withdrawalSharesCumulative.latest();
     }
 
@@ -37,7 +36,7 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         external
         view
         internalFunction
-        returns (uint256[2] memory)
+        returns (uint256)
     {
         return _withdrawalSharesCumulative.upperLookupRecent(timestamp);
     }
@@ -46,9 +45,9 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         external
         view
         internalFunction
-        returns (uint48, uint256[2] memory)
+        returns (uint48, uint256)
     {
-        Checkpoints.Checkpoint512 memory checkpoint = _withdrawalSharesCumulative.at(pos);
+        Checkpoints.Checkpoint256 memory checkpoint = _withdrawalSharesCumulative.at(pos);
         return (checkpoint._key, checkpoint._value);
     }
 
@@ -75,35 +74,32 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         );
     }
 
-    function withdrawalSharesCumulativeLatest(address vault) external view returns (uint256[2] memory) {
+    function withdrawalSharesCumulativeLatest(address vault) external view returns (uint256) {
         return abi.decode(
             _selfStaticDelegateCall(
                 vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeLatestInternal, ())
             ),
-            (uint256[2])
+            (uint256)
         );
     }
 
-    function withdrawalSharesCumulativeUpperLookupRecent(address vault, uint48 timestamp)
-        external
-        view
-        returns (uint256[2] memory)
+    function withdrawalSharesCumulativeUpperLookupRecent(address vault, uint48 timestamp) external view returns (uint256)
     {
         return abi.decode(
             _selfStaticDelegateCall(
                 vault,
                 abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeUpperLookupRecentInternal, (timestamp))
             ),
-            (uint256[2])
+            (uint256)
         );
     }
 
-    function withdrawalSharesCumulativeAt(address vault, uint32 pos) external view returns (uint48, uint256[2] memory) {
+    function withdrawalSharesCumulativeAt(address vault, uint32 pos) external view returns (uint48, uint256) {
         return abi.decode(
             _selfStaticDelegateCall(
                 vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeAtInternal, (pos))
             ),
-            (uint48, uint256[2])
+            (uint48, uint256)
         );
     }
 

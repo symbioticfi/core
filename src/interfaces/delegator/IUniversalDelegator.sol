@@ -51,7 +51,7 @@ interface IUniversalDelegator is IBaseDelegator {
         Checkpoints.Trace256 size;
         Checkpoints.Trace256 prevSum;
         Checkpoints.Trace256 totalChildrenSize;
-        Checkpoints.Trace512 pendingFreeCumulative;
+        Checkpoints.Trace256 pendingFreeCumulative;
     }
 
     struct Slot {
@@ -65,7 +65,7 @@ interface IUniversalDelegator is IBaseDelegator {
         uint256 size;
         uint256 prevSum;
         uint256 totalChildrenSize;
-        uint256[2] pendingFreeCumulative;
+        uint256 pendingFreeCumulative;
     }
 
     /**

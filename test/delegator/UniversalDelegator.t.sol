@@ -1738,8 +1738,7 @@ contract UniversalDelegatorMigrationTest is Test {
         assertTrue(newDelegator != oldDelegator);
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
 
-        uint256[2] memory pendingFree = IUniversalDelegator(newDelegator).getSlot(0).pendingFreeCumulative;
-        assertEq(pendingFree[0], 0);
-        assertEq(pendingFree[1], type(uint256).max);
+        uint256 pendingFree = IUniversalDelegator(newDelegator).getSlot(0).pendingFreeCumulative;
+        assertEq(pendingFree, type(uint256).max);
     }
 }

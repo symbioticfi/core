@@ -4,7 +4,6 @@ pragma solidity ^0.8.28;
 import {BaseDelegator} from "./BaseDelegator.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
-import {Math512} from "../libraries/Math512.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
@@ -19,11 +18,9 @@ import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicall
 
 contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDelegator {
     using UniversalDelegatorIndex for uint96;
-    using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
-    using Checkpoints for Checkpoints.Trace512;
+    using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
-    using Math512 for uint256[2];
 
     bytes32 public constant CREATE_SLOT_ROLE = keccak256("CREATE_SLOT_ROLE");
     bytes32 public constant SET_SIZE_ROLE = keccak256("SET_SIZE_ROLE");
@@ -119,13 +116,11 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         return getBalanceAt(index, timestamp, availableHints.balanceHints)
             .saturatingSub(
                 slots[index].pendingFreeCumulative.upperLookupRecent(timestamp, availableHints.pendingFreeHint)
-                    .sub(
-                        slots[index].pendingFreeCumulative
-                            .upperLookupRecent(
-                                uint48(uint256(timestamp).saturatingSub(IVault(vault).epochDuration())),
-                                availableHints.pendingFreeEpochHint
-                            )
-                    )
+                    - slots[index].pendingFreeCumulative
+                        .upperLookupRecent(
+                            uint48(uint256(timestamp).saturatingSub(IVault(vault).epochDuration())),
+                            availableHints.pendingFreeEpochHint
+                        )
             );
     }
 
@@ -136,10 +131,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         return getBalance(index)
             .saturatingSub(
                 slots[index].pendingFreeCumulative.latest()
-                    .sub(
-                        slots[index].pendingFreeCumulative
-                            .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVault(vault).epochDuration())))
-                    )
+                    - slots[index].pendingFreeCumulative
+                        .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVault(vault).epochDuration())))
             );
     }
 
@@ -335,7 +328,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                 pending = getAllocated(index).saturatingSub(size);
                 if (pending > 0) {
                     parent.pendingFreeCumulative
-                        .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest().add(pending));
+                        .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest() + pending);
                 }
             }
         }
@@ -572,6 +565,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (oldDelegatorType == TYPE) {
             revert NotMigrating();
         }
-        slots[0].pendingFreeCumulative.push(uint48(block.timestamp), [0, type(uint256).max]);
+        // TODO: replace type(uint256).max with ?
+        slots[0].pendingFreeCumulative.push(uint48(block.timestamp), type(uint256).max);
     }
 }

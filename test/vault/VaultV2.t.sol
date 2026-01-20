@@ -12,7 +12,6 @@ import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
-import {Math512} from "../../src/contracts/libraries/Math512.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
@@ -2423,19 +2422,17 @@ contract VaultV2Test is Test {
         assertEq(vaultTestHelper.withdrawalSharesCumulativeLength(address(vaultV2)), 2);
 
         {
-            (uint48 prefixKey0, uint256[2] memory prefixVal0) =
+            (uint48 prefixKey0, uint256 prefixVal0) =
                 vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 0);
             assertEq(prefixKey0, state.nextEpochStart);
-            assertEq(prefixVal0[0], 0);
-            assertEq(prefixVal0[1], state.epoch2Withdrawals);
+            assertEq(prefixVal0, state.epoch2Withdrawals);
         }
 
         {
-            (uint48 prefixKey1, uint256[2] memory prefixVal1) =
+            (uint48 prefixKey1, uint256 prefixVal1) =
                 vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 1);
             assertEq(prefixKey1, uint48(state.nextEpochStart + epochDuration));
-            assertEq(prefixVal1[0], 0);
-            assertEq(prefixVal1[1], state.epoch2Withdrawals);
+            assertEq(prefixVal1, state.epoch2Withdrawals);
         }
 
         assertEq(vaultTestHelper.timeToBucketLength(address(vaultV2)), 3);
@@ -2785,10 +2782,8 @@ contract VaultV2Test is Test {
         uint256 lastBucket2 = _latestWithdrawalBucket();
         uint256 lastWithdrawals2 = vault.withdrawals(lastBucket2);
         uint256 lastWithdrawalShares2 = vault.withdrawalShares(lastBucket2);
-        uint256 unmaturedWithdrawalShares2 = Math512.sub(
-            vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault)),
-            vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), uint48(blockTimestamp))
-        );
+        uint256 unmaturedWithdrawalShares2 = vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault))
+            - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), uint48(blockTimestamp));
         uint256 unmaturedWithdrawals2 =
             lastWithdrawalShares2 == 0 ? 0 : unmaturedWithdrawalShares2.mulDiv(lastWithdrawals2, lastWithdrawalShares2);
 
@@ -3007,10 +3002,8 @@ contract VaultV2Test is Test {
     }
 
     function _unmaturedWithdrawalShares(uint48 timestamp) internal view returns (uint256) {
-        return Math512.sub(
-            vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault)),
-            vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), timestamp)
-        );
+        return vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault))
+            - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), timestamp);
     }
 
     function _expectedTotalStake(uint48 timestamp) internal view returns (uint256) {
@@ -3471,9 +3464,8 @@ contract VaultV2Test is Test {
     function _assertMigrationState(IVaultV2 vaultV2, address oldSlasher) internal view {
         assertEq(IEntity(vaultV2.delegator()).TYPE(), delegatorFactory.totalTypes() - 1);
         assertEq(IEntity(vaultV2.slasher()).TYPE(), slasherFactory.totalTypes() - 1);
-        uint256[2] memory pendingFree = IUniversalDelegator(vaultV2.delegator()).getSlot(0).pendingFreeCumulative;
-        assertEq(pendingFree[0], 0);
-        assertEq(pendingFree[1], type(uint256).max);
+        uint256 pendingFree = IUniversalDelegator(vaultV2.delegator()).getSlot(0).pendingFreeCumulative;
+        assertEq(pendingFree, type(uint256).max);
         uint256 expectedSlashRequestsLength = 0;
         if (oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == 1) {
             expectedSlashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();

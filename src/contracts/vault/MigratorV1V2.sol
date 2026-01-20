@@ -20,7 +20,6 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
-    using Checkpoints for Checkpoints.Trace512;
     using SafeCast for uint256;
 
     /* CONSTRUCTOR */
@@ -53,9 +52,9 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
         uint48 epoch = (block.timestamp - _epochDurationInit).toUint48() / epochDuration;
         uint256 epochWithdrawals = _epochWithdrawals[epoch];
         uint48 nextEpochStart = _epochDurationInit + (epoch + 1) * epochDuration;
-        _withdrawalSharesCumulative.push(nextEpochStart, [0, epochWithdrawals]);
+        _withdrawalSharesCumulative.push(nextEpochStart, epochWithdrawals);
         epochWithdrawals += _epochWithdrawals[epoch + 1];
-        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, [0, epochWithdrawals]);
+        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, epochWithdrawals);
         assembly ("memory-safe") {
             sstore(_timeToBucket.slot, epoch)
         }
