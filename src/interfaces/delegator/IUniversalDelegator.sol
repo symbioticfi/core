@@ -47,10 +47,8 @@ interface IUniversalDelegator is IBaseDelegator {
         uint32 firstChild;
         uint32 lastChild;
         bool isShared;
-        uint32[] children;
         Checkpoints.Trace256 size;
         Checkpoints.Trace256 prevSum;
-        Checkpoints.Trace256 totalChildrenSize;
         Checkpoints.Trace256 pendingFreeCumulative;
     }
 
@@ -64,7 +62,6 @@ interface IUniversalDelegator is IBaseDelegator {
         bool isShared;
         uint256 size;
         uint256 prevSum;
-        uint256 totalChildrenSize;
         uint256 pendingFreeCumulative;
     }
 
@@ -112,22 +109,6 @@ interface IUniversalDelegator is IBaseDelegator {
     struct SlotOfHints {
         bytes slotOfNetworkHints;
         bytes slotOfOperatorHints;
-    }
-
-    /**
-     * @notice Hints for a restake lookup.
-     * @param slotOfHints hints forwarded to getSlotOfAt
-     * @param isSharedHint hint for isShared
-     */
-    struct IsSharedHints {
-        bytes slotOfHints;
-        bytes isSharedHint;
-    }
-
-    struct UnallocatedBySizesHints {
-        bytes availableHints;
-        bytes isSharedHint;
-        bytes totalChildrenSizeOrSizeHint;
     }
 
     /**

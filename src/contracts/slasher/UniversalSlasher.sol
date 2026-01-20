@@ -318,7 +318,6 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert NotNetwork();
         }
 
-        address vault_ = vault;
         bytes32 subnetwork = (msg.sender).subnetwork(identifier);
         (bool exists, uint48 latestTimestamp,) = _resolver[subnetwork].latestCheckpoint();
         if (exists) {

@@ -78,7 +78,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             isShared: slots[index].isShared,
             size: slots[index].size.latest(),
             prevSum: slots[index].prevSum.latest(),
-            totalChildrenSize: slots[index].totalChildrenSize.latest(),
             pendingFreeCumulative: slots[index].pendingFreeCumulative.latest()
         });
     }
@@ -276,20 +275,19 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         uint32 childIndex = parent.totalChildren + 1;
         uint96 index = parentIndex.createIndex(childIndex);
         SlotStorage storage slot = slots[index];
-        uint256 totalChildrenSize = parent.totalChildrenSize.latest();
+        SlotStorage storage lastChild = slots[parentIndex.createIndex(parent.lastChild)];
         slot.exists = true;
         parent.totalChildren = childIndex;
-        if (childIndex == 1) {
-            parent.firstChild = 1;
+        if (parent.firstChild == 0) {
+            parent.firstChild = childIndex;
         } else {
             slot.prevSlot = parent.lastChild;
-            slots[parentIndex.createIndex(slot.prevSlot)].nextSlot = childIndex;
+            lastChild.nextSlot = childIndex;
+            slot.prevSum.push(uint48(block.timestamp), lastChild.prevSum.latest() + lastChild.size.latest());
         }
         parent.lastChild = childIndex;
-        slot.prevSum.push(uint48(block.timestamp), totalChildrenSize);
         slot.isShared = isShared;
         slot.size.push(uint48(block.timestamp), size);
-        parent.totalChildrenSize.push(uint48(block.timestamp), totalChildrenSize + size);
 
         emit CreateSlot(index, size);
     }
@@ -314,14 +312,13 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         SlotStorage storage parent = slots[parentIndex];
         uint256 prevSum = slot.prevSum.latest();
         uint256 available = getAvailable(parentIndex);
-        uint256 totalChildrenSize = parent.totalChildrenSize.latest();
-        uint256 unallocated = available.saturatingSub(totalChildrenSize);
         if (size > currentSize) {
-            if (
-                !parent.isShared && prevSum + currentSize < available && slot.nextSlot > 0
-                    && size - currentSize > unallocated
-            ) {
-                revert NotEnoughAvailable();
+            if (!parent.isShared && prevSum + currentSize < available && slot.nextSlot > 0) {
+                SlotStorage storage lastChild = slots[parentIndex.createIndex(parent.lastChild)];
+                if (size - currentSize > available.saturatingSub(lastChild.prevSum.latest() + lastChild.size.latest()))
+                {
+                    revert NotEnoughAvailable();
+                }
             }
         } else {
             if (!parent.isShared && prevSum < available) {
@@ -333,7 +330,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             }
         }
         slot.size.push(uint48(block.timestamp), size);
-        parent.totalChildrenSize.push(uint48(block.timestamp), totalChildrenSize - currentSize + size);
         _syncPrevSums(parentIndex);
 
         emit SetSize(index, size);
@@ -395,21 +391,21 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
 
         SlotStorage storage slot = slots[index];
-        uint256 childIndex = index.getChildIndex();
+        uint32 childIndex = index.getChildIndex();
         uint96 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
         slot.exists = false;
-        if (childIndex == parent.lastChild) {
-            parent.lastChild = slot.prevSlot;
-            slots[parentIndex.createIndex(slot.prevSlot)].nextSlot = 0;
-        } else {
+        if (childIndex != parent.firstChild) {
             slots[parentIndex.createIndex(slot.prevSlot)].nextSlot = slot.nextSlot;
+        }
+        if (childIndex != parent.lastChild) {
+            slots[parentIndex.createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
         }
         if (childIndex == parent.firstChild) {
             parent.firstChild = slot.nextSlot;
-            slots[parentIndex.createIndex(slot.nextSlot)].prevSlot = 0;
-        } else {
-            slots[parentIndex.createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
+        }
+        if (childIndex == parent.lastChild) {
+            parent.lastChild = slot.prevSlot;
         }
 
         _syncPrevSums(parentIndex);
