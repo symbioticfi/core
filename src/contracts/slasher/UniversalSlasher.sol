@@ -2,20 +2,20 @@
 pragma solidity ^0.8.28;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
+import {VaultV2} from "../vault/VaultV2.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
-import {VaultV2} from "../vault/VaultV2.sol";
 
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
-import {IUniversalSlasher} from "../../interfaces/slasher/IUniversalSlasher.sol";
-import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
-import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
+import {IEntity} from "../../interfaces/common/IEntity.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalSlasher} from "../../interfaces/slasher/IUniversalSlasher.sol";
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {SafeCastLib as SafeCast} from "@solady/src/utils/SafeCastLib.sol";

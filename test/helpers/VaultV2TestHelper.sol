@@ -83,7 +83,10 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         );
     }
 
-    function withdrawalSharesCumulativeUpperLookupRecent(address vault, uint48 timestamp) external view returns (uint256)
+    function withdrawalSharesCumulativeUpperLookupRecent(address vault, uint48 timestamp)
+        external
+        view
+        returns (uint256)
     {
         return abi.decode(
             _selfStaticDelegateCall(

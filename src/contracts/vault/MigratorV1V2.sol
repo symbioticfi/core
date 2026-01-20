@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {VaultV2Storage} from "./VaultV2Storage.sol";
 import {DelegatorFactory} from "../DelegatorFactory.sol";
 import {SlasherFactory} from "../SlasherFactory.sol";
-import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
+import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
+import {VaultV2Storage} from "./VaultV2Storage.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {

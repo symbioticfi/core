@@ -1,36 +1,37 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {MigratableEntity} from "../common/MigratableEntity.sol";
-import {VaultV2Storage} from "./VaultV2Storage.sol";
 import {DelegatorFactory} from "../DelegatorFactory.sol";
-import {SlasherFactory} from "../SlasherFactory.sol";
+import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {MigratorV1V2} from "./MigratorV1V2.sol";
+import {SlasherFactory} from "../SlasherFactory.sol";
+import {VaultV2Storage} from "./VaultV2Storage.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IBasePlugin} from "../../interfaces/vault/IBasePlugin.sol";
-import {IRewards} from "../../interfaces/vault/IRewards.sol";
+import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IRewards} from "../../interfaces/vault/IRewards.sol";
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-import {SafeCastLib as SafeCast} from "@solady/src/utils/SafeCastLib.sol";
-import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {
     ERC20PermitUpgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
+
+import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
+import {SafeCastLib as SafeCast} from "@solady/src/utils/SafeCastLib.sol";
+import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20PermitUpgradeable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace208;

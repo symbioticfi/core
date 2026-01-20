@@ -7,11 +7,11 @@ import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
-import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicallable.sol";

@@ -89,7 +89,9 @@ export function MulticallPanel(props: MulticallPanelProps) {
           >
             Copy Calldata
           </button>
-          {props.multicallError ? <div className="ml-auto text-right text-xs text-error">{props.multicallError}</div> : null}
+          {props.multicallError ? (
+            <div className="ml-auto text-right text-xs text-error">{props.multicallError}</div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -1504,8 +1504,8 @@ export function describeNotEnoughAvailable(params: {
     parentDepth === 0
       ? "root"
       : parentDepth === 1
-      ? `Group #${getChildIndex(parentIndex)}`
-      : `Network #${getChildIndex(parentIndex)}`;
+        ? `Group #${getChildIndex(parentIndex)}`
+        : `Network #${getChildIndex(parentIndex)}`;
   const childLabel = childDepth === 1 ? "Group" : childDepth === 2 ? "Network" : "Operator";
 
   const children = before.children.get(parentIndex) ?? [];

@@ -938,10 +938,10 @@ export function UniversalDelegatorConfigurator() {
     needsNetworks && needsOperators
       ? Boolean(groupNetworksCount && groupOperatorsCount)
       : needsNetworks
-      ? Boolean(groupNetworksCount)
-      : needsOperators
-      ? Boolean(groupOperatorsCount)
-      : true;
+        ? Boolean(groupNetworksCount)
+        : needsOperators
+          ? Boolean(groupOperatorsCount)
+          : true;
 
   const swapScope = useMemo((): { label: string; items: Array<GroupSlot | NetworkSlot | OperatorSlot> } => {
     if (zoom.kind === "all") return { label: "Groups", items: model.groups };
@@ -1224,8 +1224,8 @@ export function UniversalDelegatorConfigurator() {
                     {!canReadBalances || !hasRootBalance
                       ? "—"
                       : pendingLoading
-                      ? "loading…"
-                      : (pendingByIndex.get("0") ?? 0n).toString()}
+                        ? "loading…"
+                        : (pendingByIndex.get("0") ?? 0n).toString()}
                   </div>
                 </div>
               </div>

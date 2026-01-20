@@ -1,5 +1,5 @@
-import { UniversalDelegatorConfigurator } from './pages/UniversalDelegatorConfigurator'
+import { UniversalDelegatorConfigurator } from "./pages/UniversalDelegatorConfigurator";
 
 export default function App() {
-  return <UniversalDelegatorConfigurator />
+  return <UniversalDelegatorConfigurator />;
 }

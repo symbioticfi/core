@@ -38,12 +38,6 @@ repos:
         files: '\.sol$'
         exclude: "^lib/"
         pass_filenames: true
-      - id: doc
-        name: Generate documentation
-        description: Generate docs with `forge doc`
-        language: system
-        entry: bash -lc 'forge build; rm -rf docs/autogen; forge doc -b -o docs/autogen'
-        pass_filenames: false
       - id: forge-snapshots
         name: Update forge snapshots
         language: system

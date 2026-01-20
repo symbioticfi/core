@@ -2422,15 +2422,13 @@ contract VaultV2Test is Test {
         assertEq(vaultTestHelper.withdrawalSharesCumulativeLength(address(vaultV2)), 2);
 
         {
-            (uint48 prefixKey0, uint256 prefixVal0) =
-                vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 0);
+            (uint48 prefixKey0, uint256 prefixVal0) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 0);
             assertEq(prefixKey0, state.nextEpochStart);
             assertEq(prefixVal0, state.epoch2Withdrawals);
         }
 
         {
-            (uint48 prefixKey1, uint256 prefixVal1) =
-                vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 1);
+            (uint48 prefixKey1, uint256 prefixVal1) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 1);
             assertEq(prefixKey1, uint48(state.nextEpochStart + epochDuration));
             assertEq(prefixVal1, state.epoch2Withdrawals);
         }
