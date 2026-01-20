@@ -77,7 +77,7 @@ contract UniversalSlasherMigrationTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory), address(vaultFactory));
+        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
         feeRegistry = new MockFeeRegistry(0);
 
