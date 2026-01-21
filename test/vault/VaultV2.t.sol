@@ -1446,8 +1446,8 @@ contract VaultV2Test is Test {
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
 
-        collateral.transfer(alice, amount1);
-        vm.startPrank(alice);
+        collateral.transfer(address(rewards), amount1);
+        vm.startPrank(address(rewards));
         collateral.approve(address(vault), amount1);
         (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(address(0), amount1);
         vm.stopPrank();

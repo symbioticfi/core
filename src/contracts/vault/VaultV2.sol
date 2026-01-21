@@ -169,6 +169,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
+            if (onBehalfOf == address(0) && REWARDS != msg.sender) {
+                revert InvalidOnBehalfOf();
+            }
+
             if (onBehalfOf != address(0) && depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
                 revert NotWhitelistedDepositor();
             }
