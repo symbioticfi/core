@@ -537,6 +537,21 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
 
     function _setMaxNetworkLimit(bytes32, uint256) internal override {}
 
+    function _onSlash(
+        bytes32 subnetwork,
+        address operator,
+        uint256 amount,
+        uint48,
+        /* captureTimestamp */
+        bytes memory /* data */
+    )
+        internal
+        override
+    {
+        SlotStorage storage slot = slots[getSlotOf(subnetwork, operator)];
+        slot.size.push(uint48(block.timestamp), slot.size.latest().saturatingSub(amount));
+    }
+
     function __initialize(address vault_, bytes memory data)
         internal
         override

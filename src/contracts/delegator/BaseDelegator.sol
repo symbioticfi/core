@@ -181,6 +181,8 @@ abstract contract BaseDelegator is
             revert NotSlasher();
         }
 
+        _onSlash(subnetwork, operator, amount, captureTimestamp, data);
+
         address hook_ = hook;
         if (hook_ != address(0)) {
             bytes memory calldata_ =
