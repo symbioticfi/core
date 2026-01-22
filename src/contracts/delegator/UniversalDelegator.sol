@@ -548,8 +548,10 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         internal
         override
     {
-        SlotStorage storage slot = slots[getSlotOf(subnetwork, operator)];
+        uint96 index = getSlotOf(subnetwork, operator);
+        SlotStorage storage slot = slots[index];
         slot.size.push(uint48(block.timestamp), slot.size.latest().saturatingSub(amount));
+        _syncPrevSums(index.getParentIndex());
     }
 
     function __initialize(address vault_, bytes memory data)
