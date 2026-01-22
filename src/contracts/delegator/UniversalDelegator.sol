@@ -30,6 +30,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     bytes32 public constant ASSIGN_OPERATOR_ROLE = keccak256("ASSIGN_OPERATOR_ROLE");
     bytes32 public constant UNASSIGN_OPERATOR_ROLE = keccak256("UNASSIGN_OPERATOR_ROLE");
 
+    uint256 public forbidPluginsSize;
+
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => SlotStorage slot) internal slots;
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
@@ -39,10 +41,14 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     mapping(uint96 index => Checkpoints.Trace256 amount) internal _cumulativeSlash;
 
     modifier slotExists(uint96 index) {
+        _slotExists(index);
+        _;
+    }
+
+    function _slotExists(uint96 index) internal view {
         if (index > 0 && !slots[index].exists) {
             revert SlotNotCreated();
         }
-        _;
     }
 
     constructor(
@@ -66,13 +72,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
-        return getAllocated(subnetwork, operator, duration);
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
     function getSlot(uint96 index) public view returns (Slot memory) {
         return Slot({
             exists: slots[index].exists,
@@ -82,6 +81,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             firstChild: slots[index].firstChild,
             lastChild: slots[index].lastChild,
             isShared: slots[index].isShared,
+            forbidPlugins: slots[index].forbidPlugins,
             size: slots[index].size.latest(),
             prevSum: slots[index].prevSum.latest(),
             pendingFreeCumulative: slots[index].pendingFreeCumulative.latest()
@@ -274,23 +274,34 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getIsShared(bytes32 subnetwork, address operator) public view returns (bool) {
-        uint96 index = getSlotOf(subnetwork, operator);
-        if (index == 0) {
-            return false;
-        }
-        return slots[index.getParentIndex().getParentIndex()].isShared;
+    function getIsShared(bytes32 subnetwork) public view returns (bool) {
+        uint96 index = getSlotOfNetwork(subnetwork);
+        _slotExists(index);
+        return slots[index.getParentIndex()].isShared;
+    }
+
+    function getForbidPlugins(bytes32 subnetwork) public view returns (bool) {
+        uint96 index = getSlotOfNetwork(subnetwork);
+        _slotExists(index);
+        return slots[index.getParentIndex()].isShared;
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function createSlot(uint96 parentIndex, bool isShared, uint256 size)
+    function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
+        return getAllocated(subnetwork, operator, duration);
+    }
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function createSlot(uint96 parentIndex, bool isShared, bool forbidPlugins, uint256 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
         slotExists(parentIndex)
     {
-        if (isShared && parentIndex.getDepth() > 0) {
+        if (parentIndex.getDepth() > 0 && (isShared || forbidPlugins)) {
             revert WrongDepth();
         }
         SlotStorage storage parent = slots[parentIndex];
@@ -298,8 +309,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         uint96 index = parentIndex.createIndex(childIndex);
         SlotStorage storage slot = slots[index];
         SlotStorage storage lastChild = slots[parentIndex.createIndex(parent.lastChild)];
+
         slot.exists = true;
-        parent.totalChildren = childIndex;
+
         if (parent.firstChild == 0) {
             parent.firstChild = childIndex;
         } else {
@@ -307,9 +319,15 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             lastChild.nextSlot = childIndex;
             slot.prevSum.push(uint48(block.timestamp), lastChild.prevSum.latest() + lastChild.size.latest());
         }
-        parent.lastChild = childIndex;
         slot.isShared = isShared;
+        slot.forbidPlugins = forbidPlugins;
+        if (forbidPlugins) {
+            forbidPluginsSize += size;
+        }
         slot.size.push(uint48(block.timestamp), size);
+
+        parent.totalChildren = childIndex;
+        parent.lastChild = childIndex;
 
         emit CreateSlot(index, size);
     }
@@ -352,6 +370,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             }
         }
         slot.size.push(uint48(block.timestamp), size);
+        if (slot.forbidPlugins) {
+            forbidPluginsSize = forbidPluginsSize - currentSize + size;
+        }
         _syncPrevSums(parentIndex);
 
         emit SetSize(index, size);
@@ -428,6 +449,10 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         if (childIndex == parent.lastChild) {
             parent.lastChild = slot.prevSlot;
+        }
+
+        if (slot.forbidPlugins) {
+            forbidPluginsSize = forbidPluginsSize - slot.size.latest();
         }
 
         _syncPrevSums(parentIndex);
@@ -551,6 +576,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         uint96 index = getSlotOf(subnetwork, operator);
         SlotStorage storage slot = slots[index];
         slot.size.push(uint48(block.timestamp), slot.size.latest().saturatingSub(amount));
+        // TODO: change prevSum logic or limit operators?
         _syncPrevSums(index.getParentIndex());
     }
 

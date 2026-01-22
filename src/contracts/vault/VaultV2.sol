@@ -17,6 +17,7 @@ import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IRewards} from "../../interfaces/vault/IRewards.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
@@ -541,7 +542,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             if (pluginActiveSince[msg.sender] < block.timestamp) {
                 revert PluginNotActive();
             }
-            pulled = Math.min(amount, activeStake().saturatingSub(pluginsOwe));
+            // TODO: include withdrawals?
+            pulled = Math.min(
+                amount,
+                activeStake().saturatingSub(IUniversalDelegator(delegator).forbidPluginsSize())
+                    .saturatingSub(pluginsOwe)
+            );
 
             pluginsOwe += pulled;
             pluginOwe[msg.sender] += pulled;
@@ -608,7 +614,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     uint256 pluginOwe_ = pluginOwe[plugin];
                     if (pluginOwe_ > 0) {
                         uint256 pullAmount = Math.min(pluginOwe_, amount);
-                        if (IBasePlugin(plugin).triggerPush(pullAmount)) {
+                        if (IBasePlugin(plugin).pull(pullAmount)) {
                             pluginOwe[plugin] = pluginOwe_ - pullAmount;
                             pluginsOwe -= pullAmount;
                             amount -= pullAmount;
