@@ -155,9 +155,10 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         }
 
         if (
-            captureTimestamp
-                    < uint256(uint48(block.timestamp) + vetoDuration).saturatingSub(IVaultV2(vault).epochDuration())
-                || captureTimestamp >= uint48(block.timestamp)
+            captureTimestamp > 0
+                && (captureTimestamp
+                        < uint256(uint48(block.timestamp) + vetoDuration).saturatingSub(IVaultV2(vault).epochDuration())
+                    || captureTimestamp >= uint48(block.timestamp))
         ) {
             revert InvalidCaptureTimestamp();
         }
@@ -424,16 +425,24 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         override
         returns (uint256 slashableStake_, uint256 stakeAmount)
     {
+        address delegator = IVaultV2(vault).delegator();
+        if (captureTimestamp == 0) {
+            slashableStake_ = IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0);
+            return (slashableStake_, slashableStake_);
+        }
+
         OuterSlashableStakeHints memory outerSlashableStakeHints;
         if (hints.length > 0) {
             outerSlashableStakeHints = abi.decode(hints, (OuterSlashableStakeHints));
         }
-        address delegator = IVaultV2(vault).delegator();
+
         uint96 groupIndex = IUniversalDelegator(delegator)
             .getSlotOfAt(subnetwork, operator, captureTimestamp, outerSlashableStakeHints.slotOfHints).getParentIndex()
             .getParentIndex();
         uint256 groupAllocatedAmount = IUniversalDelegator(delegator)
-            .getAllocatedAt(groupIndex, captureTimestamp, outerSlashableStakeHints.groupAllocatedHints);
+            .getAllocatedAt(
+                groupIndex, captureTimestamp, type(uint48).max, outerSlashableStakeHints.groupAllocatedHints
+            );
         (slashableStake_, stakeAmount) =
             super._slashableStake(subnetwork, operator, captureTimestamp, outerSlashableStakeHints.slashableStakeHints);
         slashableStake_ = Math.min(

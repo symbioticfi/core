@@ -157,6 +157,8 @@ interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
      */
     event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] indexes, uint256 amount);
 
+    event Donate(uint256 amount);
+
     /**
      * @notice Emitted when a slash happens.
      * @param amount amount of the collateral to slash
@@ -241,6 +243,8 @@ interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
      * @return total amount of the slashable collateral
      */
     function totalStake() external view returns (uint256);
+
+    function activeWithdrawalsFor(uint48 duration) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the withdrawals.

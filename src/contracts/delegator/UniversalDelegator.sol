@@ -11,7 +11,6 @@ import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicallable.sol";
@@ -67,6 +66,13 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
+    function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
+        return getAllocated(subnetwork, operator, duration);
+    }
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
     function getSlot(uint96 index) public view returns (Slot memory) {
         return Slot({
             exists: slots[index].exists,
@@ -86,38 +92,49 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
      * @inheritdoc IUniversalDelegator
      * @dev Returns the collateral balance of a given slot.
      */
-    function getBalanceAt(uint96 index, uint48 timestamp, bytes memory hints) public view returns (uint256) {
+    function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
         if (index == 0) {
-            return IVault(vault).activeStakeAt(timestamp, hints);
+            if (timestamp != block.timestamp && duration != IVaultV2(vault).epochDuration()) {
+                revert InvalidDuration();
+            }
+            return IVaultV2(vault).activeStakeAt(timestamp, hints) + IVaultV2(vault).activeWithdrawalsFor(duration);
         }
-        return getAllocatedAt(index, timestamp, hints);
+        return getAllocatedAt(index, timestamp, duration, hints);
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getBalance(uint96 index) public view returns (uint256) {
+    function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
         if (index == 0) {
-            return IVault(vault).activeStake();
+            return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration);
         }
-        return getAllocated(index);
+        return getAllocated(index, duration);
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      * @dev Returns the available to allocate balance in the given slot.
      */
-    function getAvailableAt(uint96 index, uint48 timestamp, bytes memory hints) public view returns (uint256) {
+    function getAvailableAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
         AvailableHints memory availableHints;
         if (hints.length > 0) {
             availableHints = abi.decode(hints, (AvailableHints));
         }
-        return getBalanceAt(index, timestamp, availableHints.balanceHints)
+        return getBalanceAt(index, timestamp, duration, availableHints.balanceHints)
             .saturatingSub(
                 slots[index].pendingFreeCumulative.upperLookupRecent(timestamp, availableHints.pendingFreeHint)
                     - slots[index].pendingFreeCumulative
                         .upperLookupRecent(
-                            uint48(uint256(timestamp).saturatingSub(IVault(vault).epochDuration())),
+                            uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())),
                             availableHints.pendingFreeEpochHint
                         )
             );
@@ -126,12 +143,12 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAvailable(uint96 index) public view returns (uint256) {
-        return getBalance(index)
+    function getAvailable(uint96 index, uint48 duration) public view returns (uint256) {
+        return getBalance(index, duration)
             .saturatingSub(
                 slots[index].pendingFreeCumulative.latest()
                     - slots[index].pendingFreeCumulative
-                        .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVault(vault).epochDuration())))
+                        .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration())))
             );
     }
 
@@ -139,12 +156,17 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
      * @inheritdoc IUniversalDelegator
      * @dev Returns the allocation of the given slot.
      */
-    function getAllocatedAt(uint96 index, uint48 timestamp, bytes memory hints) public view returns (uint256) {
+    function getAllocatedAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
         BaseAllocatedHints memory baseAllocatedHints;
         if (hints.length > 0) {
             baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
         }
-        uint256 available = getAvailableAt(index.getParentIndex(), timestamp, baseAllocatedHints.availableHints);
+        uint256 available =
+            getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
         return Math.min(
             slots[index.getParentIndex()].isShared
                 ? available
@@ -158,8 +180,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAllocated(uint96 index) public view returns (uint256) {
-        uint256 available = getAvailable(index.getParentIndex());
+    function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
+        uint256 available = getAvailable(index.getParentIndex(), duration);
         return Math.min(
             slots[index.getParentIndex()].isShared ? available : available.saturatingSub(slots[index].prevSum.latest()),
             slots[index].size.latest()
@@ -169,7 +191,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration, bytes memory hints)
         public
         view
         returns (uint256)
@@ -179,15 +201,15 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             allocatedHints = abi.decode(hints, (AllocatedHints));
         }
         uint96 index = getSlotOfAt(subnetwork, operator, timestamp, allocatedHints.slotOfHints);
-        return index > 0 ? getAllocatedAt(index, timestamp, allocatedHints.allocatedHints) : 0;
+        return index > 0 ? getAllocatedAt(index, timestamp, duration, allocatedHints.allocatedHints) : 0;
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAllocated(bytes32 subnetwork, address operator) public view returns (uint256) {
+    function getAllocated(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
         uint96 index = getSlotOf(subnetwork, operator);
-        return index > 0 ? getAllocated(index) : 0;
+        return index > 0 ? getAllocated(index, duration) : 0;
     }
 
     /**
@@ -311,7 +333,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         uint96 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
         uint256 prevSum = slot.prevSum.latest();
-        uint256 available = getAvailable(parentIndex);
+        uint256 available = getAvailable(parentIndex, 0);
         if (size > currentSize) {
             if (!parent.isShared && prevSum + currentSize < available && slot.nextSlot > 0) {
                 SlotStorage storage lastChild = slots[parentIndex.createIndex(parent.lastChild)];
@@ -322,7 +344,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             }
         } else {
             if (!parent.isShared && prevSum < available) {
-                pending = getAllocated(index).saturatingSub(size);
+                pending = getAllocated(index, 0).saturatingSub(size);
                 if (pending > 0) {
                     parent.pendingFreeCumulative
                         .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest() + pending);
@@ -364,7 +386,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                 revert WrongOrder();
             }
         }
-        uint256 available = getAvailable(parentIndex);
+        uint256 available = getAvailable(parentIndex, 0);
         bool isAllocated = slot1.prevSum.latest() < available;
         if (isAllocated != (slot2.prevSum.latest() < available)) {
             revert NotSameAllocated();
@@ -381,7 +403,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     }
 
     function removeSlot(uint96 index) public onlyRole(REMOVE_SLOT_ROLE) slotExists(index) {
-        if (getAllocated(index) > 0) {
+        if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
 
@@ -437,7 +459,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (index == 0) {
             revert NetworkNotAssigned();
         }
-        if (getAllocated(index) > 0) {
+        if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
         _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
@@ -471,7 +493,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (index == 0) {
             revert OperatorNotAssigned();
         }
-        if (getAllocated(index) > 0) {
+        if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
         _operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), 0);
@@ -503,11 +525,14 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (hints.length > 0) {
             stakeHints = abi.decode(hints, (StakeHints));
         }
-        return (getAllocatedAt(subnetwork, operator, timestamp, stakeHints.allocatedHints), stakeHints.baseHints);
+        return (
+            getAllocatedAt(subnetwork, operator, timestamp, type(uint48).max, stakeHints.allocatedHints),
+            stakeHints.baseHints
+        );
     }
 
     function _stake(bytes32 subnetwork, address operator) internal view override returns (uint256) {
-        return getAllocated(subnetwork, operator);
+        return getAllocated(subnetwork, operator, type(uint48).max);
     }
 
     function _setMaxNetworkLimit(bytes32, uint256) internal override {}
@@ -561,7 +586,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (oldDelegatorType == TYPE) {
             revert NotMigrating();
         }
-        // TODO: replace type(uint256).max with ?
-        slots[0].pendingFreeCumulative.push(uint48(block.timestamp), type(uint256).max);
+        // TODO: replace type(uint128).max with ?
+        slots[0].pendingFreeCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 }

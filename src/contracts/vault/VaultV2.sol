@@ -79,6 +79,19 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
+    function activeWithdrawalsFor(uint48 duration) public view returns (uint256) {
+        uint208 lastBucket = _timeToBucket.latest();
+        uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
+        return lastWithdrawalShares > 0
+            ? (_withdrawalSharesCumulative.latest()
+                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration))
+            .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
+            : 0;
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
     function activeWithdrawals() public view returns (uint256) {
         uint208 lastBucket = _timeToBucket.latest();
         uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
@@ -169,7 +182,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
-            if (onBehalfOf == address(0) && REWARDS != msg.sender) {
+            if (onBehalfOf == address(0)) {
                 revert InvalidOnBehalfOf();
             }
 
@@ -183,12 +196,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             if (depositedAmount == 0) {
                 revert InsufficientAmount();
-            }
-
-            if (onBehalfOf == address(0)) {
-                _activeStake.push(uint48(block.timestamp), activeStake() + depositedAmount);
-                emit Deposit(msg.sender, address(0), depositedAmount, 0);
-                return (depositedAmount, 0);
             }
 
             if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
@@ -298,6 +305,25 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 amount += claim(recipient, indexes[i]);
             }
         }
+    }
+
+    function donate(uint256 amount) public nonReentrant {
+        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+        collateral.safeTransferFrom(msg.sender, address(this), amount);
+        amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+
+        if (amount == 0) {
+            revert InsufficientAmount();
+        }
+
+        uint256 activeStake_ = activeStake();
+        uint256 withdrawals_ = activeWithdrawals();
+
+        uint256 withdrawalsAmount = amount.mulDiv(withdrawals_, activeStake_ + withdrawals_);
+        withdrawals[_timeToBucket.latest()] += withdrawalsAmount;
+        _activeStake.push(uint48(block.timestamp), amount - withdrawalsAmount + activeStake_);
+
+        emit Donate(amount);
     }
 
     // @dev Internal dev function to handle slashing.

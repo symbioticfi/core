@@ -25,6 +25,7 @@ interface IUniversalDelegator is IBaseDelegator {
     error OldVault();
     error NotMigrating();
     error WrongMigrate();
+    error InvalidDuration();
 
     struct InitParams {
         BaseParams baseParams;
@@ -144,24 +145,35 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getSlot(uint96 index) external view returns (Slot memory);
 
-    function getBalanceAt(uint96 index, uint48 timestamp, bytes memory hints) external view returns (uint256);
+    function stakeFor(bytes32 subnetwork, address operator, uint48 duration) external view returns (uint256);
 
-    function getBalance(uint96 index) external view returns (uint256);
-
-    function getAvailableAt(uint96 index, uint48 timestamp, bytes memory hints) external view returns (uint256);
-
-    function getAvailable(uint96 index) external view returns (uint256);
-
-    function getAllocatedAt(uint96 index, uint48 timestamp, bytes memory hints) external view returns (uint256);
-
-    function getAllocated(uint96 index) external view returns (uint256);
-
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+    function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
         external
         view
         returns (uint256);
 
-    function getAllocated(bytes32 subnetwork, address operator) external view returns (uint256);
+    function getBalance(uint96 index, uint48 duration) external view returns (uint256);
+
+    function getAvailableAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
+        external
+        view
+        returns (uint256);
+
+    function getAvailable(uint96 index, uint48 duration) external view returns (uint256);
+
+    function getAllocatedAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
+        external
+        view
+        returns (uint256);
+
+    function getAllocated(uint96 index, uint48 duration) external view returns (uint256);
+
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration, bytes memory hints)
+        external
+        view
+        returns (uint256);
+
+    function getAllocated(bytes32 subnetwork, address operator, uint48 duration) external view returns (uint256);
 
     function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) external view returns (uint96);
 
