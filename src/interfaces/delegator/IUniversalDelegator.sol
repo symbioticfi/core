@@ -5,6 +5,9 @@ import {IBaseDelegator} from "./IBaseDelegator.sol";
 
 import {Checkpoints} from "../../contracts/libraries/Checkpoints.sol";
 
+uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 1;
+uint96 constant WITHDRAWAL_BUFFER_INDEX = 0x10000000000000000;
+
 interface IUniversalDelegator is IBaseDelegator {
     error NotEnoughAvailable();
     error NotSameParent();
@@ -12,9 +15,8 @@ interface IUniversalDelegator is IBaseDelegator {
     error NotSameAllocated();
     error PartiallyAllocated();
     error NetworkAlreadyAssigned();
-    error NetworkNotAssigned();
     error OperatorAlreadyAssigned();
-    error OperatorNotAssigned();
+    error NotAssigned();
     error SlotAllocated();
     error MissingRoleHolders();
     error IsSharedNotChanged();
@@ -26,6 +28,8 @@ interface IUniversalDelegator is IBaseDelegator {
     error NotMigrating();
     error WrongMigrate();
     error InvalidDuration();
+    error IsWithdrawalBuffer();
+    error NotNetworkOrMiddleware();
 
     struct InitParams {
         BaseParams baseParams;
@@ -38,6 +42,7 @@ interface IUniversalDelegator is IBaseDelegator {
         address unassignNetworkRoleHolder;
         address assignOperatorRoleHolder;
         address unassignOperatorRoleHolder;
+        uint256 withdrawalBuffer;
     }
 
     struct SlotStorage {
@@ -47,6 +52,7 @@ interface IUniversalDelegator is IBaseDelegator {
         uint32 totalChildren;
         uint32 firstChild;
         uint32 lastChild;
+        uint32 numNetworks;
         bool isShared;
         bool forbidPlugins;
         Checkpoints.Trace256 size;
@@ -144,6 +150,10 @@ interface IUniversalDelegator is IBaseDelegator {
     event AssignOperator(uint96 indexed index, address indexed operator);
 
     event UnassignOperator(uint96 indexed index, address indexed operator);
+
+    event ResetAllocation(bytes32 indexed subnetwork);
+
+    function getWithdrawalBuffer() external view returns (uint256);
 
     function forbidPluginsSize() external view returns (uint256);
 

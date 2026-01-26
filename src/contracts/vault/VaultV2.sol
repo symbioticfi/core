@@ -268,6 +268,37 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         mintedShares = _withdraw(claimer, withdrawnAssets, shares);
     }
 
+    function instantWithdraw(address recipient, uint256 amount)
+        internal
+        returns (uint256 burnedShares, uint256 withdrawnAssets)
+    {
+        withdrawnAssets = Math.min(
+            Math.min(amount, IUniversalDelegator(delegator).getWithdrawalBuffer()),
+            IERC20(collateral).balanceOf(address(this))
+        );
+
+        if (withdrawnAssets == 0) {
+            revert InsufficientAmount();
+        }
+
+        uint256 activeStake_ = activeStake();
+        uint256 activeShares_ = activeShares();
+        uint256 activeSharesOf_ = activeSharesOf(msg.sender);
+
+        burnedShares = ERC4626Math.previewWithdraw(withdrawnAssets, activeShares_, activeStake_);
+        if (burnedShares > activeSharesOf_) {
+            revert TooMuchWithdraw();
+        }
+
+        _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf_ - burnedShares);
+        _activeShares.push(uint48(block.timestamp), activeShares_ - burnedShares);
+        _activeStake.push(uint48(block.timestamp), activeStake_ - withdrawnAssets);
+
+        collateral.safeTransfer(recipient, withdrawnAssets);
+
+        emit InstantWithdraw(recipient, withdrawnAssets);
+    }
+
     /**
      * @inheritdoc IVaultV2
      */
@@ -607,7 +638,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function _pullPlugins() internal {
         unchecked {
             // TODO: add hardcoded max plugins number
-            uint256 amount = pluginsOwe.saturatingSub(activeStake());
+            uint256 amount = pluginsOwe.saturatingSub(activeStake() + activeWithdrawals());
             if (amount > 0) {
                 for (uint256 i; i < plugins.length; ++i) {
                     address plugin = plugins[i];

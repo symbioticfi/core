@@ -233,6 +233,13 @@ interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
     event SetSlasher(address indexed slasher);
 
     /**
+     * @notice Emitted when a instant withdrawal is made.
+     * @param recipient account that received the collateral
+     * @param amount amount of the collateral withdrawn
+     */
+    event InstantWithdraw(address indexed recipient, uint256 amount);
+
+    /**
      * @notice Check if the vault is fully initialized (a delegator and a slasher are set).
      * @return if the vault is fully initialized
      */
