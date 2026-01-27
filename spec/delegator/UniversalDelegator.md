@@ -46,7 +46,7 @@ Each slot stores (all checkpointed unless stated):
 - `size`: per-slot cap (upper bound on allocation from its parent).
 - `prevSum`: prefix sum of _sizes_ of earlier siblings (used only when the parent is not shared).
 - `isShared`: if `1`, this slot’s **children** can overlap their allocation (restaking between siblings).
-- `pendingFreeCumulative`: cumulative “pending free” amount used to delay re-use of freed stake.
+- `pendingCumulative`: cumulative “pending free” amount used to delay re-use of freed stake.
 - `children[]`: ordered list of `uint32 localIndex` values.
 - `childToLocalIndex`: mapping `(childIndex => position in children[])`.
 
@@ -107,7 +107,7 @@ Updates a slot’s `size` cap.
   In that case, the increase (`size - currentSize`) must fit within the parent’s unallocated balance
   (`getUnallocated(parentIndex)`, i.e., `getAvailable(parentIndex)` minus the total size of its children), otherwise it reverts with `NotEnoughAvailable()`.
   For shared parents, or when the slot is not fully allocated / is the last child, increases are allowed.
-- Decreasing size below the slot’s current allocation schedules a “pending free” amount on the parent via `pendingFreeCumulative`.
+- Decreasing size below the slot’s current allocation schedules a “pending free” amount on the parent via `pendingCumulative`.
 - Updates `prevSum` checkpoints for following siblings using `_syncPrevSums(index)`.
 
 ### `swapSlots(index1, index2)`
@@ -206,7 +206,7 @@ IUniversalDelegator.StakeHints({
 Other `*At(...)` methods accept ABI-encoded hint structs defined in `IUniversalDelegator`, for example:
 
 - `BalanceAtHints` (`activeStakeHint`, `allocatedHints`)
-- `AvailableAtHints` (`balanceHints`, `pendingFreeHint`, `pendingFreeEpochHint`)
+- `AvailableAtHints` (`balanceHints`, `pendingHint`, `pendingEpochHint`)
 - `AllocatedAtHints` (`sizeHint`, `availableHints`, `prevSumHint`)
 - `AllocatedByOperatorAtHints` (`slotOfHints`, `allocatedHints`)
 - `SlotOfNetworkAtHints` (`networkSlotHint`)

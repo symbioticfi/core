@@ -57,7 +57,7 @@ interface IUniversalDelegator is IBaseDelegator {
         bool noPlugins;
         Checkpoints.Trace256 size;
         Checkpoints.Trace256 prevSum;
-        Checkpoints.Trace256 pendingFreeCumulative;
+        Checkpoints.Trace256 pendingCumulative;
     }
 
     struct Slot {
@@ -71,19 +71,19 @@ interface IUniversalDelegator is IBaseDelegator {
         bool noPlugins;
         uint256 size;
         uint256 prevSum;
-        uint256 pendingFreeCumulative;
+        uint256 pendingCumulative;
     }
 
     /**
      * @notice Hints for an available balance lookup.
      * @param balanceHints hints forwarded to getBalanceAt
-     * @param pendingFreeHint hint for pendingFreeCumulative at the requested timestamp
-     * @param pendingFreeEpochHint hint for pendingFreeCumulative at (timestamp - epochDuration)
+     * @param pendingHint hint for pendingCumulative at the requested timestamp
+     * @param pendingEpochHint hint for pendingCumulative at (timestamp - epochDuration)
      */
     struct AvailableHints {
         bytes balanceHints;
-        bytes pendingFreeHint;
-        bytes pendingFreeEpochHint;
+        bytes pendingHint;
+        bytes pendingEpochHint;
     }
 
     /**

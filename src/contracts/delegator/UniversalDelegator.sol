@@ -103,7 +103,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             noPlugins: slots[index].noPlugins,
             size: slots[index].size.latest(),
             prevSum: slots[index].prevSum.latest(),
-            pendingFreeCumulative: slots[index].pendingFreeCumulative.latest()
+            pendingCumulative: slots[index].pendingCumulative.latest()
         });
     }
 
@@ -151,11 +151,11 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         return getBalanceAt(index, timestamp, duration, availableHints.balanceHints)
             .saturatingSub(
-                slots[index].pendingFreeCumulative.upperLookupRecent(timestamp, availableHints.pendingFreeHint)
-                    - slots[index].pendingFreeCumulative
+                slots[index].pendingCumulative.upperLookupRecent(timestamp, availableHints.pendingHint)
+                    - slots[index].pendingCumulative
                         .upperLookupRecent(
                             uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())),
-                            availableHints.pendingFreeEpochHint
+                            availableHints.pendingEpochHint
                         )
             );
     }
@@ -166,8 +166,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     function getAvailable(uint96 index, uint48 duration) public view returns (uint256) {
         return getBalance(index, duration)
             .saturatingSub(
-                slots[index].pendingFreeCumulative.latest()
-                    - slots[index].pendingFreeCumulative
+                slots[index].pendingCumulative.latest()
+                    - slots[index].pendingCumulative
                         .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration())))
             );
     }
@@ -424,8 +424,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             if (!parent.isShared && slot.prevSum.latest() < available) {
                 pending = getAllocated(index, 0).saturatingSub(newSize);
                 if (pending > 0) {
-                    parent.pendingFreeCumulative
-                        .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest() + pending);
+                    parent.pendingCumulative.push(uint48(block.timestamp), parent.pendingCumulative.latest() + pending);
                     if (slot.noPlugins) {
                         _noPluginsPendingCumulative.push(
                             uint48(block.timestamp), _noPluginsPendingCumulative.latest() + pending
@@ -742,7 +741,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             revert NotMigrating();
         }
         // TODO: replace type(uint128).max with ?
-        slots[0].pendingFreeCumulative.push(uint48(block.timestamp), type(uint128).max);
+        slots[0].pendingCumulative.push(uint48(block.timestamp), type(uint128).max);
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 }

@@ -68,7 +68,7 @@ export const universalDelegatorAbi = [
         ],
       },
       {
-        name: "pendingFreeCumulative",
+        name: "pendingCumulative",
         type: "tuple",
         components: [
           {
