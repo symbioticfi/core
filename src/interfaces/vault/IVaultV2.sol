@@ -251,7 +251,11 @@ interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
      */
     function totalStake() external view returns (uint256);
 
+    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) external view returns (uint256);
+
     function activeWithdrawalsFor(uint48 duration) external view returns (uint256);
+
+    function activeWithdrawalsAt(uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the withdrawals.

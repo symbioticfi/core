@@ -80,27 +80,41 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsFor(uint48 duration) public view returns (uint256) {
-        uint208 lastBucket = _timeToBucket.latest();
-        uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
+    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
+        uint208 lastBucket = _unlockToBucket.upperLookupRecent(timestamp);
+        uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].upperLookupRecent(timestamp);
         return lastWithdrawalShares > 0
-            ? (_withdrawalSharesCumulative.latest()
-                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration))
-            .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
+            ? (_withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
+                    - _withdrawalSharesCumulative.upperLookupRecent(timestamp + duration))
+            .mulDiv(_withdrawals[lastBucket].upperLookupRecent(timestamp), lastWithdrawalShares)
             : 0;
     }
 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawals() public view returns (uint256) {
-        uint208 lastBucket = _timeToBucket.latest();
-        uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
+    function activeWithdrawalsFor(uint48 duration) public view returns (uint256) {
+        uint208 lastBucket = _unlockToBucket.latest();
+        uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].latest();
         return lastWithdrawalShares > 0
             ? (_withdrawalSharesCumulative.latest()
-                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp)))
-            .mulDiv(withdrawals[lastBucket], lastWithdrawalShares)
+                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration))
+            .mulDiv(_withdrawals[lastBucket].latest(), lastWithdrawalShares)
             : 0;
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
+        return activeWithdrawalsForAt(0, timestamp);
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function activeWithdrawals() public view returns (uint256) {
+        return activeWithdrawalsFor(0);
     }
 
     /**
@@ -129,9 +143,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function withdrawalsOf(uint256 index, address account) public view returns (uint256) {
-        uint256 bucketIndex = _timeToBucket.upperLookupRecent(withdrawalUnlockAt(index, account));
+        uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAt(index, account));
         return ERC4626Math.previewRedeem(
-            withdrawalSharesOf(index, account), withdrawals[bucketIndex], withdrawalShares[bucketIndex]
+            withdrawalSharesOf(index, account),
+            _withdrawals[bucketIndex].latest(),
+            _withdrawalShares[bucketIndex].latest()
         );
     }
 
@@ -352,7 +368,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint256 withdrawals_ = activeWithdrawals();
 
         uint256 withdrawalsAmount = amount.mulDiv(withdrawals_, activeStake_ + withdrawals_);
-        withdrawals[_timeToBucket.latest()] += withdrawalsAmount;
+        _withdrawals[_unlockToBucket.latest()].push(
+            uint48(block.timestamp), _withdrawals[_unlockToBucket.latest()].latest() + withdrawalsAmount
+        );
         _activeStake.push(uint48(block.timestamp), amount - withdrawalsAmount + activeStake_);
 
         emit Donate(amount);
@@ -369,9 +387,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert NotSlasher();
             }
 
-            uint208 lastBucket = _timeToBucket.latest();
-            uint256 lastWithdrawals = withdrawals[lastBucket];
-            uint256 lastWithdrawalShares = withdrawalShares[lastBucket];
+            uint208 lastBucket = _unlockToBucket.latest();
+            uint256 lastWithdrawals = _withdrawals[lastBucket].latest();
+            uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].latest();
             uint256 unmaturedWithdrawalShares = _withdrawalSharesCumulative.latest()
                 - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp));
             uint256 unmaturedWithdrawals =
@@ -383,16 +401,19 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             require(slashableStake >= activeStake_);
             slashedAmount = Math.min(amount, slashableStake);
             if (slashedAmount > 0) {
-                _timeToBucket.push(uint48(block.timestamp), lastBucket + 1);
-                withdrawals[lastBucket] = maturedWithdrawals;
-                withdrawalShares[lastBucket] = lastWithdrawalShares - unmaturedWithdrawalShares;
-                withdrawalShares[lastBucket + 1] = unmaturedWithdrawalShares;
+                _unlockToBucket.push(uint48(block.timestamp), lastBucket + 1);
+                _withdrawals[lastBucket].push(uint48(block.timestamp), maturedWithdrawals);
+                _withdrawalShares[lastBucket].push(
+                    uint48(block.timestamp), lastWithdrawalShares - unmaturedWithdrawalShares
+                );
+                _withdrawalShares[lastBucket + 1].push(uint48(block.timestamp), unmaturedWithdrawalShares);
                 _unclaimedRaw += maturedWithdrawals.toInt256();
                 require(_unclaimedRaw >= maturedWithdrawals.toInt256());
 
                 uint256 activeSlashed = slashedAmount.mulDiv(activeStake_, slashableStake);
                 _activeStake.push(uint48(block.timestamp), activeStake_ - activeSlashed);
-                withdrawals[lastBucket + 1] = unmaturedWithdrawals - (slashedAmount - activeSlashed);
+                _withdrawals[lastBucket
+                        + 1].push(uint48(block.timestamp), unmaturedWithdrawals - (slashedAmount - activeSlashed));
 
                 _pullPlugins();
 
@@ -420,12 +441,15 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _activeShares.push(uint48(block.timestamp), activeShares() - burnedShares);
             _activeStake.push(uint48(block.timestamp), activeStake() - withdrawnAssets);
 
-            uint256 lastBucket = _timeToBucket.latest();
-            mintedShares =
-                ERC4626Math.previewDeposit(withdrawnAssets, withdrawalShares[lastBucket], withdrawals[lastBucket]);
-            withdrawals[lastBucket] += withdrawnAssets;
-            withdrawalShares[lastBucket] += mintedShares;
-            require(withdrawalShares[lastBucket] >= mintedShares);
+            uint256 lastBucket = _unlockToBucket.latest();
+            mintedShares = ERC4626Math.previewDeposit(
+                withdrawnAssets, _withdrawalShares[lastBucket].latest(), _withdrawals[lastBucket].latest()
+            );
+            _withdrawals[lastBucket].push(uint48(block.timestamp), _withdrawals[lastBucket].latest() + withdrawnAssets);
+            _withdrawalShares[lastBucket].push(
+                uint48(block.timestamp), _withdrawalShares[lastBucket].latest() + mintedShares
+            );
+            require(_withdrawalShares[lastBucket].latest() >= mintedShares);
 
             uint48 unlockAt = uint48(block.timestamp + epochDuration);
             require(unlockAt >= block.timestamp);
@@ -619,7 +643,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _pullPlugins();
 
             int256 actualUnclaimedRaw =
-                _unclaimedRaw + (withdrawals[_timeToBucket.latest()] - activeWithdrawals()).toInt256();
+                _unclaimedRaw + (_withdrawals[_unlockToBucket.latest()].latest() - activeWithdrawals()).toInt256();
             require(actualUnclaimedRaw >= _unclaimedRaw);
 
             owed = amount.saturatingSub(

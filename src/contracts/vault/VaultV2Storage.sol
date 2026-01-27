@@ -158,15 +158,9 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     mapping(address account => Withdrawal[] withdrawals) internal _withdrawalsOf;
 
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    mapping(uint256 bucketIndex => uint256 value) public withdrawalShares;
+    mapping(uint256 bucketIndex => Checkpoints.Trace256 shares) internal _withdrawalShares;
 
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    mapping(uint256 bucketIndex => uint256 value) public withdrawals;
+    mapping(uint256 bucketIndex => Checkpoints.Trace256 withdrawals) internal _withdrawals;
 
     /**
      * @inheritdoc IVaultV2Storage
@@ -195,7 +189,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     Checkpoints.Trace256 internal _withdrawalSharesCumulative;
 
-    Checkpoints.Trace208 internal _timeToBucket;
+    Checkpoints.Trace208 internal _unlockToBucket;
 
     int256 internal _unclaimedRaw;
 
@@ -244,6 +238,20 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     function activeSharesOf(address account) public view returns (uint256) {
         return _activeSharesOf[account].latest();
+    }
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    function withdrawalShares(uint256 index) public view returns (uint256) {
+        return _withdrawalShares[index].latest();
+    }
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    function withdrawals(uint256 index) public view returns (uint256) {
+        return _withdrawals[index].latest();
     }
 
     /**

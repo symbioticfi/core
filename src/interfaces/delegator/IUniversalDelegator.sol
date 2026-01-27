@@ -159,6 +159,11 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getSlot(uint96 index) external view returns (Slot memory);
 
+    function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp, bytes memory hints)
+        external
+        view
+        returns (uint256);
+
     function stakeFor(bytes32 subnetwork, address operator, uint48 duration) external view returns (uint256);
 
     function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)

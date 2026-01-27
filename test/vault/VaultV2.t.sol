@@ -2433,9 +2433,9 @@ contract VaultV2Test is Test {
             assertEq(prefixVal1, state.epoch2Withdrawals);
         }
 
-        assertEq(vaultTestHelper.timeToBucketLength(address(vaultV2)), 3);
+        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 3);
         {
-            (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.timeToBucketAt(address(vaultV2), 2);
+            (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 2);
             assertEq(bucketKey, state.nextEpochStart);
             assertEq(bucketVal, 2);
         }
@@ -2454,7 +2454,7 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalUnlockAt(1, bob), state.nextEpochStart);
         assertEq(vaultV2.withdrawalUnlockAt(0, alice), state.nextEpochStart);
 
-        (uint48 bucketKeyPre, uint208 bucketValPre) = vaultTestHelper.timeToBucketAt(address(vaultV2), 1);
+        (uint48 bucketKeyPre, uint208 bucketValPre) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 1);
         assertEq(bucketKeyPre, uint48(state.epoch2Start));
         assertEq(bucketValPre, 1);
 
@@ -2996,7 +2996,7 @@ contract VaultV2Test is Test {
     }
 
     function _latestWithdrawalBucket() internal view returns (uint256) {
-        return vaultTestHelper.timeToBucketLatest(address(vault));
+        return vaultTestHelper.unlockToBucketLatest(address(vault));
     }
 
     function _unmaturedWithdrawalShares(uint48 timestamp) internal view returns (uint256) {

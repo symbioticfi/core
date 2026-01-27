@@ -120,7 +120,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             if (timestamp != block.timestamp && duration != IVaultV2(vault).epochDuration()) {
                 revert InvalidDuration();
             }
-            return IVaultV2(vault).activeStakeAt(timestamp, hints) + IVaultV2(vault).activeWithdrawalsFor(duration);
+            return IVaultV2(vault).activeStakeAt(timestamp, hints)
+                + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
         }
         return getAllocatedAt(index, timestamp, duration, hints);
     }
@@ -322,6 +323,17 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     }
 
     // TODO: add isFirst()?
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
+        return getAllocatedAt(subnetwork, operator, timestamp, duration, hints);
+    }
 
     /**
      * @inheritdoc IUniversalDelegator

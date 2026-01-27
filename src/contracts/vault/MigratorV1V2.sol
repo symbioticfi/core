@@ -33,11 +33,11 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
         uint48 unlockAt = _epochDurationInit + (epoch + 1) * epochDuration;
         if (unlockAt >= _withdrawalSharesCumulative.at(0)._key) {
             shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
-        } else if (withdrawalShares[epoch] == 0) {
-            withdrawals[epoch] = _epochWithdrawals[epoch];
-            withdrawalShares[epoch] = _epochWithdrawalShares[epoch];
-            _timeToBucket._trace._checkpoints[epoch]._key = unlockAt;
-            _timeToBucket._trace._checkpoints[epoch]._value = epoch;
+        } else if (_withdrawalShares[epoch].latest() == 0) {
+            _withdrawals[epoch].push(uint48(block.timestamp), _epochWithdrawals[epoch]);
+            _withdrawalShares[epoch].push(uint48(block.timestamp), _epochWithdrawalShares[epoch]);
+            _unlockToBucket._trace._checkpoints[epoch]._key = unlockAt;
+            _unlockToBucket._trace._checkpoints[epoch]._value = epoch;
         }
         _withdrawalsOf[account].push(Withdrawal(false, unlockAt, shares));
         _isEpochWithdrawalsClaimed[epoch][account] = true;
@@ -55,11 +55,12 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
         epochWithdrawals += _epochWithdrawals[epoch + 1];
         _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, epochWithdrawals);
         assembly ("memory-safe") {
-            sstore(_timeToBucket.slot, epoch)
+            sstore(_unlockToBucket.slot, epoch)
         }
-        _timeToBucket.push(nextEpochStart, epoch);
-        withdrawals[epoch] = epochWithdrawals;
-        withdrawalShares[epoch] = epochWithdrawals;
+        // TODO: recheck, seems wrong
+        _unlockToBucket.push(nextEpochStart, epoch);
+        _withdrawals[epoch].push(uint48(block.timestamp), epochWithdrawals);
+        _withdrawalShares[epoch].push(uint48(block.timestamp), epochWithdrawals);
 
         address newDelegator =
             DelegatorFactory(DELEGATOR_FACTORY).create(4, abi.encode(address(this), params.delegatorParams));

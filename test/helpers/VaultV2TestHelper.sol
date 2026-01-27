@@ -15,17 +15,17 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         MIGRATOR_V1V2 = address(0);
     }
 
-    function _timeToBucketLatestInternal() external view internalFunction returns (uint208) {
-        return _timeToBucket.latest();
+    function _unlockToBucketLatestInternal() external view internalFunction returns (uint208) {
+        return _unlockToBucket.latest();
     }
 
-    function _timeToBucketAtInternal(uint32 pos) external view internalFunction returns (uint48, uint208) {
-        Checkpoints.Checkpoint208 memory checkpoint = _timeToBucket.at(pos);
+    function _unlockToBucketAtInternal(uint32 pos) external view internalFunction returns (uint48, uint208) {
+        Checkpoints.Checkpoint208 memory checkpoint = _unlockToBucket.at(pos);
         return (checkpoint._key, checkpoint._value);
     }
 
-    function _timeToBucketLengthInternal() external view internalFunction returns (uint256) {
-        return _timeToBucket.length();
+    function _unlockToBucketLengthInternal() external view internalFunction returns (uint256) {
+        return _unlockToBucket.length();
     }
 
     function _withdrawalSharesCumulativeLatestInternal() external view internalFunction returns (uint256) {
@@ -55,22 +55,24 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         return _withdrawalSharesCumulative.length();
     }
 
-    function timeToBucketLatest(address vault) external view returns (uint208) {
+    function unlockToBucketLatest(address vault) external view returns (uint208) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._timeToBucketLatestInternal, ())), (uint208)
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._unlockToBucketLatestInternal, ())),
+            (uint208)
         );
     }
 
-    function timeToBucketAt(address vault, uint32 pos) external view returns (uint48, uint208) {
+    function unlockToBucketAt(address vault, uint32 pos) external view returns (uint48, uint208) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._timeToBucketAtInternal, (pos))),
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._unlockToBucketAtInternal, (pos))),
             (uint48, uint208)
         );
     }
 
-    function timeToBucketLength(address vault) external view returns (uint256) {
+    function unlockToBucketLength(address vault) external view returns (uint256) {
         return abi.decode(
-            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._timeToBucketLengthInternal, ())), (uint256)
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._unlockToBucketLengthInternal, ())),
+            (uint256)
         );
     }
 
