@@ -368,7 +368,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(_unallocated2(0, slot1, slot2), 30);
     }
 
-    function test_pending_respectsAllocationWhenResizingChildren() public {
+    function test_childrenPending_respectsAllocationWhenResizingChildren() public {
         _deposit(alice, 555);
 
         _createSlot(0, false, 555);
@@ -406,7 +406,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(operatorPending, 0);
     }
 
-    function test_pending_accumulatesOnRepeatedOperatorDecrease() public {
+    function test_childrenPending_accumulatesOnRepeatedOperatorDecrease() public {
         _deposit(alice, 555);
 
         _createSlot(0, false, 555);
@@ -537,7 +537,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(op2), 0);
     }
 
-    function test_isolatedSlots_pending_delaysReallocation() public {
+    function test_isolatedSlots_childrenPending_delaysReallocation() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 70);
@@ -1738,7 +1738,7 @@ contract UniversalDelegatorMigrationTest is Test {
         assertTrue(newDelegator != oldDelegator);
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
 
-        uint256 pending = IUniversalDelegator(newDelegator).getSlot(0).pendingCumulative;
+        uint256 pending = IUniversalDelegator(newDelegator).getSlot(0).childrenPendingCumulative;
         assertEq(pending, type(uint256).max);
     }
 }

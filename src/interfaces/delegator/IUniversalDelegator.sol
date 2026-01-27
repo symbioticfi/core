@@ -58,6 +58,7 @@ interface IUniversalDelegator is IBaseDelegator {
         Checkpoints.Trace256 size;
         Checkpoints.Trace256 prevSum;
         Checkpoints.Trace256 pendingCumulative;
+        Checkpoints.Trace256 childrenPendingCumulative;
     }
 
     struct Slot {
@@ -71,14 +72,14 @@ interface IUniversalDelegator is IBaseDelegator {
         bool noPlugins;
         uint256 size;
         uint256 prevSum;
-        uint256 pendingCumulative;
+        uint256 childrenPendingCumulative;
     }
 
     /**
      * @notice Hints for an available balance lookup.
      * @param balanceHints hints forwarded to getBalanceAt
-     * @param pendingHint hint for pendingCumulative at the requested timestamp
-     * @param pendingEpochHint hint for pendingCumulative at (timestamp - epochDuration)
+     * @param pendingHint hint for childrenPendingCumulative at the requested timestamp
+     * @param pendingEpochHint hint for childrenPendingCumulative at (timestamp - epochDuration)
      */
     struct AvailableHints {
         bytes balanceHints;

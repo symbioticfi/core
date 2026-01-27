@@ -163,6 +163,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert InvalidCaptureTimestamp();
         }
 
+        captureTimestamp = captureTimestamp == 0 ? uint48(block.timestamp) : captureTimestamp;
         amount = Math.min(
             amount, slashableStake(subnetwork, operator, captureTimestamp, requestSlashHints.slashableStakeHints)
         );

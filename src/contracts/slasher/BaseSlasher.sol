@@ -13,6 +13,7 @@ import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
@@ -109,7 +110,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         virtual
         returns (uint256)
     {
-        return IBaseDelegator(IVault(vault).delegator()).stakeAt(subnetwork, operator, captureTimestamp, hints);
+        return
+            IUniversalDelegator(IVault(vault).delegator()).stakeForAt(subnetwork, operator, 0, captureTimestamp, hints);
     }
 
     function _slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
@@ -123,7 +125,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             slashableStakeHints = abi.decode(hints, (SlashableStakeHints));
         }
 
-        // TODO: saturatingSub?
         if (
             captureTimestamp < uint256(uint48(block.timestamp)).saturatingSub(IVault(vault).epochDuration())
                 || captureTimestamp >= uint48(block.timestamp)

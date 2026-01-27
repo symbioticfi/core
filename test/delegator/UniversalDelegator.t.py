@@ -72,7 +72,7 @@ class DelegatorTests(unittest.TestCase):
         self.assertEqual(self.delegator.get_slot_allocation_by_owner(1, "alice"), 45)
         self.assertEqual(self.delegator.get_current_unallocated(), 5)
 
-    def test_decrease_limit_schedules_pending_free_until_delay_expires(self):
+    def test_decrease_limit_schedules_childrenPending_free_until_delay_expires(self):
         self.delegator.on_deposit(100)
         self.delegator.slot_add(60, "alice")
         self.delegator.slot_add(30, "bob")

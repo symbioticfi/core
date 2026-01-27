@@ -103,7 +103,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             noPlugins: slots[index].noPlugins,
             size: slots[index].size.latest(),
             prevSum: slots[index].prevSum.latest(),
-            pendingCumulative: slots[index].pendingCumulative.latest()
+            childrenPendingCumulative: slots[index].childrenPendingCumulative.latest()
         });
     }
 
@@ -151,8 +151,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         return getBalanceAt(index, timestamp, duration, availableHints.balanceHints)
             .saturatingSub(
-                slots[index].pendingCumulative.upperLookupRecent(timestamp, availableHints.pendingHint)
-                    - slots[index].pendingCumulative
+                slots[index].childrenPendingCumulative.upperLookupRecent(timestamp, availableHints.pendingHint)
+                    - slots[index].childrenPendingCumulative
                         .upperLookupRecent(
                             uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())),
                             availableHints.pendingEpochHint
@@ -166,8 +166,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     function getAvailable(uint96 index, uint48 duration) public view returns (uint256) {
         return getBalance(index, duration)
             .saturatingSub(
-                slots[index].pendingCumulative.latest()
-                    - slots[index].pendingCumulative
+                slots[index].childrenPendingCumulative.latest()
+                    - slots[index].childrenPendingCumulative
                         .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration())))
             );
     }
@@ -185,27 +185,41 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (hints.length > 0) {
             baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
         }
+        SlotStorage storage slot = slots[index];
         uint256 available =
             getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
         return Math.min(
             slots[index.getParentIndex()].isShared
                 ? available
-                : available.saturatingSub(
-                    slots[index].prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint)
-                ),
-            slots[index].size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
-        );
+                : available.saturatingSub(slot.prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint)),
+            slot.size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
+        )
+            + slot.pendingCumulative.upperLookupRecent(timestamp)
+                .saturatingSub(
+                slot.pendingCumulative
+                    .upperLookupRecent(
+                    uint48(uint256(timestamp + duration).saturatingSub(IVaultV2(vault).epochDuration()))
+                )
+            );
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
+        SlotStorage storage slot = slots[index];
         uint256 available = getAvailable(index.getParentIndex(), duration);
         return Math.min(
-            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(slots[index].prevSum.latest()),
-            slots[index].size.latest()
-        );
+            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(slot.prevSum.latest()),
+            slot.size.latest()
+        )
+            + slot.pendingCumulative.latest()
+                .saturatingSub(
+                slot.pendingCumulative
+                    .upperLookupRecent(
+                    uint48((block.timestamp + duration).saturatingSub(IVaultV2(vault).epochDuration()))
+                )
+            );
     }
 
     /**
@@ -424,7 +438,11 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             if (!parent.isShared && slot.prevSum.latest() < available) {
                 pending = getAllocated(index, 0).saturatingSub(newSize);
                 if (pending > 0) {
-                    parent.pendingCumulative.push(uint48(block.timestamp), parent.pendingCumulative.latest() + pending);
+                    parent.childrenPendingCumulative
+                        .push(uint48(block.timestamp), parent.childrenPendingCumulative.latest() + pending);
+                    if (index.getDepth() == 2) {
+                        slot.pendingCumulative.push(uint48(block.timestamp), pending);
+                    }
                     if (slot.noPlugins) {
                         _noPluginsPendingCumulative.push(
                             uint48(block.timestamp), _noPluginsPendingCumulative.latest() + pending
@@ -678,7 +696,21 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     {
         uint96 index = getSlotOf(subnetwork, operator);
         SlotStorage storage slot = slots[index];
-        slot.size.push(uint48(block.timestamp), slot.size.latest().saturatingSub(amount));
+
+        uint256 pending = slot.pendingCumulative.latest()
+            .saturatingSub(
+                slot.pendingCumulative.upperLookupRecent(uint48(block.timestamp) - IVaultV2(vault).epochDuration())
+            );
+        uint256 size = slot.size.latest();
+        uint256 pendingSlashed = Math.min(pending, amount);
+        uint256 sizeSlashed = Math.min(size, amount - pendingSlashed);
+        if (pendingSlashed > 0) {
+            slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() - pendingSlashed);
+        }
+        if (sizeSlashed > 0) {
+            slot.size.push(uint48(block.timestamp), size - sizeSlashed);
+        }
+
         // TODO: change prevSum logic or limit operators?
         _syncPrevSums(index.getParentIndex());
     }
@@ -741,7 +773,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             revert NotMigrating();
         }
         // TODO: replace type(uint128).max with ?
-        slots[0].pendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+        slots[0].childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 }
