@@ -47,8 +47,9 @@ interface IUniversalSlasher is IBaseSlasher {
     struct SlashRequest {
         bytes32 subnetwork;
         address operator;
-        uint256 amount;
         uint48 captureTimestamp;
+        uint256 amount;
+        address resolver;
         uint48 vetoDeadline;
         bool completed;
     }
@@ -183,6 +184,7 @@ interface IUniversalSlasher is IBaseSlasher {
      * @return operator operator that could be slashed (if the request is not vetoed)
      * @return amount maximum amount of the collateral to be slashed
      * @return captureTimestamp time point when the stake was captured
+     * @return resolver address of the resolver that requested the slash
      * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
      * @return completed if the slash was vetoed/executed
      */
@@ -194,6 +196,7 @@ interface IUniversalSlasher is IBaseSlasher {
             address operator,
             uint256 amount,
             uint48 captureTimestamp,
+            address resolver,
             uint48 vetoDeadline,
             bool completed
         );
