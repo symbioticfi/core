@@ -54,7 +54,7 @@ interface IUniversalDelegator is IBaseDelegator {
         uint32 lastChild;
         uint32 numNetworks;
         bool isShared;
-        bool forbidPlugins;
+        bool noPlugins;
         Checkpoints.Trace256 size;
         Checkpoints.Trace256 prevSum;
         Checkpoints.Trace256 pendingFreeCumulative;
@@ -68,7 +68,7 @@ interface IUniversalDelegator is IBaseDelegator {
         uint32 firstChild;
         uint32 lastChild;
         bool isShared;
-        bool forbidPlugins;
+        bool noPlugins;
         uint256 size;
         uint256 prevSum;
         uint256 pendingFreeCumulative;
@@ -209,7 +209,7 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getIsShared(bytes32 subnetwork, address operator) external view returns (bool);
 
-    function getForbidPlugins(bytes32 subnetwork) external view returns (bool);
+    function getIsNoPlugins(bytes32 subnetwork) external view returns (bool);
 
     function createSlot(uint96 parentIndex, bool isShared, uint256 size) external;
 
