@@ -155,7 +155,7 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getWithdrawalBuffer() external view returns (uint256);
 
-    function forbidPluginsSize() external view returns (uint256);
+    function getNoPluginsSize() external view returns (uint256);
 
     function getSlot(uint96 index) external view returns (Slot memory);
 

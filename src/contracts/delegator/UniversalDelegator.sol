@@ -41,8 +41,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
 
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
-    uint256 public forbidPluginsSize;
-
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => SlotStorage slot) internal slots;
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
@@ -50,6 +48,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
     mapping(uint96 index => address operator) internal _slotToOperator;
     mapping(uint96 index => Checkpoints.Trace256 amount) internal _cumulativeSlash;
+    Checkpoints.Trace256 internal _forbidPluginsPendingCumulative;
+    uint256 internal _forbidPluginsSize;
 
     modifier slotExists(uint96 index) {
         if (index > 0 && !slots[index].exists) {
@@ -309,6 +309,14 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         return slots[index.getParentIndex()].isShared;
     }
 
+    function getNoPluginsSize() public view returns (uint256) {
+        return _forbidPluginsSize
+            + (_forbidPluginsPendingCumulative.latest()
+                - _forbidPluginsPendingCumulative.upperLookupRecent(
+                uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration()))
+            ));
+    }
+
     function getWithdrawalBuffer() public view returns (uint256) {
         return getAllocated(WITHDRAWAL_BUFFER_INDEX, 0);
     }
@@ -359,8 +367,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             slot.isShared = isShared;
             if (forbidPlugins) {
                 slot.forbidPlugins = true;
-                // TODO
-                forbidPluginsSize += size;
+                _forbidPluginsSize += size;
             }
         }
         slot.size.push(uint48(block.timestamp), size);
@@ -407,13 +414,17 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                 if (pending > 0) {
                     parent.pendingFreeCumulative
                         .push(uint48(block.timestamp), parent.pendingFreeCumulative.latest() + pending);
+                    if (slot.forbidPlugins) {
+                        _forbidPluginsPendingCumulative.push(
+                            uint48(block.timestamp), _forbidPluginsPendingCumulative.latest() + pending
+                        );
+                    }
                 }
             }
         }
         slot.size.push(uint48(block.timestamp), newSize);
         if (slot.forbidPlugins) {
-            // TODO
-            forbidPluginsSize = forbidPluginsSize - currentSize + newSize;
+            _forbidPluginsSize = _forbidPluginsSize - currentSize + newSize;
         }
 
         _syncPrevSums(parentIndex);
@@ -496,8 +507,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         if (slot.forbidPlugins) {
             unchecked {
-                // TODO
-                forbidPluginsSize -= slot.size.latest();
+                _forbidPluginsSize -= slot.size.latest();
             }
         }
         slot.exists = false;
@@ -721,5 +731,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         // TODO: replace type(uint128).max with ?
         slots[0].pendingFreeCumulative.push(uint48(block.timestamp), type(uint128).max);
+        _forbidPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 }

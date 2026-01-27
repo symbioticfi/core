@@ -576,8 +576,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             // TODO: include withdrawals?
             pulled = Math.min(
                 amount,
-                activeStake().saturatingSub(IUniversalDelegator(delegator).forbidPluginsSize())
-                    .saturatingSub(pluginsOwe)
+                activeStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe)
             );
 
             pluginsOwe += pulled;
