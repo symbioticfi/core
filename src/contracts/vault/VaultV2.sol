@@ -573,10 +573,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             if (pluginActiveSince[msg.sender] < block.timestamp) {
                 revert PluginNotActive();
             }
-            // TODO: include withdrawals?
             pulled = Math.min(
                 amount,
-                activeStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe)
+                (activeStake() + activeWithdrawals()).saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize())
+                    .saturatingSub(pluginsOwe)
             );
 
             pluginsOwe += pulled;
