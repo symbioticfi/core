@@ -31,4 +31,17 @@ contract MockPlugin is IBasePlugin {
         collateral.transfer(vault, amount);
         return true;
     }
+
+    function pull(uint256 amount) external returns (bool) {
+        if (shouldFail) {
+            return false;
+        }
+
+        if (collateral.balanceOf(address(this)) < amount) {
+            return false;
+        }
+
+        collateral.transfer(vault, amount);
+        return true;
+    }
 }

@@ -72,7 +72,8 @@ contract UniversalDelegatorUiSetup is Script {
             operatorVaultOptInService: address(optInService),
             operatorNetworkOptInService: address(optInService),
             delegatorFactory: address(0),
-            entityType: 0
+            entityType: 0,
+            networkMiddlewareService: address(0)
         });
 
         IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
@@ -88,7 +89,8 @@ contract UniversalDelegatorUiSetup is Script {
             assignNetworkRoleHolder: broadcaster,
             unassignNetworkRoleHolder: broadcaster,
             assignOperatorRoleHolder: broadcaster,
-            unassignOperatorRoleHolder: broadcaster
+            unassignOperatorRoleHolder: broadcaster,
+            withdrawalBuffer: 0
         });
 
         bytes memory initCalldata =

@@ -271,8 +271,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
-    function withdrawalUnlockAt(uint256 index, address account) public view returns (uint48) {
-        return _withdrawalsOf[account][index].unlockAt;
+    function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48) {
+        return _withdrawalsOf[account][index].unlockAfter;
     }
 
     /**

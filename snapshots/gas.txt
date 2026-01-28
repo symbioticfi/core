@@ -451,7 +451,7 @@ Ran 72 tests for test/vault/VaultV2.t.sol:VaultV2Test
 [PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1872231, ~: 1871994)
 [PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1901142, ~: 1900957)
 [PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3967599, ~: 3967589)
-[PASS] test_WithdrawUnlockAtAndLength(uint256,uint256,uint256) (runs: 100, μ: 2705021, ~: 2705027)
+[PASS] test_WithdrawUnlockAfterAndLength(uint256,uint256,uint256) (runs: 100, μ: 2705021, ~: 2705027)
 Suite result: ok. 72 passed; 0 failed; 0 skipped; finished in 2.65s (6.94s CPU time)
 
 Ran 74 tests for test/vault/VaultV2Tokenized.t.sol:VaultV2TokenizedTest
@@ -528,7 +528,7 @@ Ran 74 tests for test/vault/VaultV2Tokenized.t.sol:VaultV2TokenizedTest
 [PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1872315, ~: 1872042)
 [PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1901109, ~: 1900879)
 [PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 4020539, ~: 4020492)
-[PASS] test_WithdrawUnlockAtAndLength(uint256,uint256,uint256) (runs: 100, μ: 2705066, ~: 2705053)
+[PASS] test_WithdrawUnlockAfterAndLength(uint256,uint256,uint256) (runs: 100, μ: 2705066, ~: 2705053)
 Suite result: ok. 74 passed; 0 failed; 0 skipped; finished in 2.66s (5.21s CPU time)
 
 Ran 12 tests for test/slasher/Slasher.t.sol:SlasherTest
@@ -1780,7 +1780,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 28.43s (41.72s CPU 
 |--------------------------------------------------+-----------------+---------+---------+---------+---------|
 | withdrawalSharesOf                               | 6125            | 6125    | 6125    | 6125    | 1006    |
 |--------------------------------------------------+-----------------+---------+---------+---------+---------|
-| withdrawalUnlockAt                               | 6812            | 6812    | 6812    | 6812    | 806     |
+| withdrawalUnlockAfter                               | 6812            | 6812    | 6812    | 6812    | 806     |
 |--------------------------------------------------+-----------------+---------+---------+---------+---------|
 | withdrawals                                      | 3161            | 3161    | 3161    | 3161    | 3400    |
 |--------------------------------------------------+-----------------+---------+---------+---------+---------|

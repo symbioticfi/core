@@ -128,7 +128,8 @@ contract UniversalDelegatorTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(delegatorFactory),
-                delegatorFactory.totalTypes()
+                delegatorFactory.totalTypes(),
+                address(networkMiddlewareService)
             )
         );
         delegatorFactory.whitelist(delegatorImpl);
@@ -187,7 +188,8 @@ contract UniversalDelegatorTest is Test {
                         assignNetworkRoleHolder: owner,
                         unassignNetworkRoleHolder: owner,
                         assignOperatorRoleHolder: owner,
-                        unassignOperatorRoleHolder: owner
+                        unassignOperatorRoleHolder: owner,
+                        withdrawalBuffer: 0
                     })
                 ),
                 withSlasher: true,
@@ -211,23 +213,23 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, false, 30);
         uint96 slot1 = uint96(0).createIndex(uint32(1));
 
-        assertEq(delegator.getAllocatedAt(slot1, 0, ""), 0);
+        assertEq(delegator.getAllocatedAt(slot1, 0, 0, ""), 0);
 
         vm.warp(5);
         _deposit(alice, 100);
-        assertEq(delegator.getAllocatedAt(slot1, 5, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot1, 5, 0, ""), 30);
 
         vm.warp(7);
         delegator.setSize(slot1, 20);
-        assertEq(delegator.getAllocatedAt(slot1, 7, ""), 20);
-        assertEq(delegator.getAllocatedAt(slot1, 9, ""), 20);
+        assertEq(delegator.getAllocatedAt(slot1, 7, 0, ""), 20);
+        assertEq(delegator.getAllocatedAt(slot1, 9, 0, ""), 20);
     }
 
     function test_createSlot_root_allowsDepth1() public {
         _createSlot(0, false, 10);
         uint96 slot1 = uint96(0).createIndex(uint32(1));
 
-        assertEq(delegator.getAllocated(slot1), 0);
+        assertEq(delegator.getAllocated(slot1, 0), 0);
     }
 
     function test_setSize_allowsNonZeroCurrentSize() public {
@@ -235,7 +237,7 @@ contract UniversalDelegatorTest is Test {
         uint96 slot1 = uint96(0).createIndex(uint32(1));
 
         delegator.setSize(slot1, 20);
-        assertEq(delegator.getAllocated(slot1), 0);
+        assertEq(delegator.getAllocated(slot1, 0), 0);
     }
 
     function test_slotAllocation_partialFill() public {
@@ -248,8 +250,8 @@ contract UniversalDelegatorTest is Test {
         uint96 slot2 = uint96(0).createIndex(uint32(2));
 
         assertEq(_unallocated2(0, slot1, slot2), 0);
-        assertEq(delegator.getAllocated(slot1), 30);
-        assertEq(delegator.getAllocated(slot2), 70);
+        assertEq(delegator.getAllocated(slot1, 0), 30);
+        assertEq(delegator.getAllocated(slot2, 0), 70);
     }
 
     function test_slotAllocation_partialFill_2() public {
@@ -262,8 +264,8 @@ contract UniversalDelegatorTest is Test {
         uint96 slot2 = uint96(0).createIndex(uint32(2));
 
         assertEq(_unallocated2(0, slot1, slot2), 0);
-        assertEq(delegator.getAllocated(slot1), 100);
-        assertEq(delegator.getAllocated(slot2), 0);
+        assertEq(delegator.getAllocated(slot1, 0), 100);
+        assertEq(delegator.getAllocated(slot2, 0), 0);
     }
 
     function test_slotAllocation_respectsOrderAndLimits() public {
@@ -276,8 +278,8 @@ contract UniversalDelegatorTest is Test {
         uint96 slot2 = uint96(0).createIndex(uint32(2));
 
         assertEq(_unallocated2(0, slot1, slot2), 20);
-        assertEq(delegator.getAllocated(slot1), 30);
-        assertEq(delegator.getAllocated(slot2), 50);
+        assertEq(delegator.getAllocated(slot1, 0), 30);
+        assertEq(delegator.getAllocated(slot2, 0), 50);
     }
 
     function test_increaseLimit_consumesUnallocated_andUpdatesPrevSums() public {
@@ -292,8 +294,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(slot1, 45);
 
-        assertEq(delegator.getAllocatedAt(slot1, 1, ""), 45);
-        assertEq(delegator.getAllocatedAt(slot2, 1, ""), 50);
+        assertEq(delegator.getAllocatedAt(slot1, 1, 0, ""), 45);
+        assertEq(delegator.getAllocatedAt(slot2, 1, 0, ""), 50);
         assertEq(_unallocated2(0, slot1, slot2), 5);
     }
 
@@ -322,8 +324,8 @@ contract UniversalDelegatorTest is Test {
 
         delegator.setSize(slot2, 80);
 
-        assertEq(delegator.getAllocated(slot2), 40);
-        assertEq(delegator.getAllocated(slot3), 0);
+        assertEq(delegator.getAllocated(slot2, 0), 40);
+        assertEq(delegator.getAllocated(slot3, 0), 0);
         assertEq(_unallocated3(0, slot1, slot2, slot3), 0);
     }
 
@@ -338,8 +340,8 @@ contract UniversalDelegatorTest is Test {
 
         delegator.setSize(slot2, 90);
 
-        assertEq(delegator.getAllocated(slot1), 30);
-        assertEq(delegator.getAllocated(slot2), 70);
+        assertEq(delegator.getAllocated(slot1, 0), 30);
+        assertEq(delegator.getAllocated(slot2, 0), 70);
         assertEq(_unallocated2(0, slot1, slot2), 0);
     }
 
@@ -356,15 +358,15 @@ contract UniversalDelegatorTest is Test {
         delegator.setSize(slot1, 40);
 
         vm.warp(2);
-        assertEq(delegator.getAvailable(0), 80);
-        assertEq(delegator.getAllocated(slot1), 40);
-        assertEq(delegator.getAllocated(slot2), 30);
+        assertEq(delegator.getAvailable(0, 0), 80);
+        assertEq(delegator.getAllocated(slot1, 0), 40);
+        assertEq(delegator.getAllocated(slot2, 0), 30);
         assertEq(_unallocated2(0, slot1, slot2), 10);
 
         vm.warp(4);
-        assertEq(delegator.getAvailable(0), 100);
-        assertEq(delegator.getAllocated(slot1), 40);
-        assertEq(delegator.getAllocated(slot2), 30);
+        assertEq(delegator.getAvailable(0, 0), 100);
+        assertEq(delegator.getAllocated(slot1, 0), 40);
+        assertEq(delegator.getAllocated(slot2, 0), 30);
         assertEq(_unallocated2(0, slot1, slot2), 30);
     }
 
@@ -380,26 +382,26 @@ contract UniversalDelegatorTest is Test {
         _createSlot(networkSlot, false, 444);
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
 
-        assertEq(delegator.getAllocated(group), 555);
-        assertEq(delegator.getAllocated(networkSlot), 444);
-        assertEq(delegator.getAllocated(operatorSlot), 444);
+        assertEq(delegator.getAllocated(group, 0), 555);
+        assertEq(delegator.getAllocated(networkSlot, 0), 444);
+        assertEq(delegator.getAllocated(operatorSlot, 0), 444);
 
         vm.warp(1);
         delegator.setSize(networkSlot, 222);
 
-        assertEq(delegator.getAvailable(group), 333);
-        assertEq(delegator.getAllocated(networkSlot), 222);
-        assertEq(delegator.getAllocated(operatorSlot), 222);
+        assertEq(delegator.getAvailable(group, 0), 333);
+        assertEq(delegator.getAllocated(networkSlot, 0), 222);
+        assertEq(delegator.getAllocated(operatorSlot, 0), 222);
 
         vm.warp(2);
         delegator.setSize(operatorSlot, 222);
 
-        assertEq(delegator.getAvailable(networkSlot), 222);
-        assertEq(delegator.getAllocated(operatorSlot), 222);
+        assertEq(delegator.getAvailable(networkSlot, 0), 222);
+        assertEq(delegator.getAllocated(operatorSlot, 0), 222);
 
-        uint256 groupPending = delegator.getBalance(group) - delegator.getAvailable(group);
-        uint256 networkPending = delegator.getBalance(networkSlot) - delegator.getAvailable(networkSlot);
-        uint256 operatorPending = delegator.getBalance(operatorSlot) - delegator.getAvailable(operatorSlot);
+        uint256 groupPending = delegator.getBalance(group, 0) - delegator.getAvailable(group, 0);
+        uint256 networkPending = delegator.getBalance(networkSlot, 0) - delegator.getAvailable(networkSlot, 0);
+        uint256 operatorPending = delegator.getBalance(operatorSlot, 0) - delegator.getAvailable(operatorSlot, 0);
 
         assertEq(groupPending, 222);
         assertEq(networkPending, 0);
@@ -421,19 +423,19 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(operatorSlot, 222);
 
-        uint256 pendingAfterFirst = delegator.getBalance(networkSlot) - delegator.getAvailable(networkSlot);
+        uint256 pendingAfterFirst = delegator.getBalance(networkSlot, 0) - delegator.getAvailable(networkSlot, 0);
         assertEq(pendingAfterFirst, 222);
-        assertEq(delegator.getAllocated(operatorSlot), 222);
+        assertEq(delegator.getAllocated(operatorSlot, 0), 222);
 
         vm.warp(2);
         delegator.setSize(operatorSlot, 0);
 
-        uint256 pendingAfterSecond = delegator.getBalance(networkSlot) - delegator.getAvailable(networkSlot);
+        uint256 pendingAfterSecond = delegator.getBalance(networkSlot, 0) - delegator.getAvailable(networkSlot, 0);
         assertEq(pendingAfterSecond, 444);
-        assertEq(delegator.getAllocated(networkSlot), 444);
-        assertEq(delegator.getAllocated(operatorSlot), 0);
+        assertEq(delegator.getAllocated(networkSlot, 0), 444);
+        assertEq(delegator.getAllocated(operatorSlot, 0), 0);
 
-        uint256 groupPending = delegator.getBalance(group) - delegator.getAvailable(group);
+        uint256 groupPending = delegator.getBalance(group, 0) - delegator.getAvailable(group, 0);
         assertEq(groupPending, 0);
     }
 
@@ -448,9 +450,9 @@ contract UniversalDelegatorTest is Test {
         uint96 net1 = group.createIndex(uint32(1));
         uint96 net2 = group.createIndex(uint32(2));
 
-        assertEq(delegator.getAllocated(group), 100);
-        assertEq(delegator.getAllocated(net1), 80);
-        assertEq(delegator.getAllocated(net2), 80);
+        assertEq(delegator.getAllocated(group, 0), 100);
+        assertEq(delegator.getAllocated(net1, 0), 80);
+        assertEq(delegator.getAllocated(net2, 0), 80);
     }
 
     function test_depth3Operators_areIsolatedWithinNetwork() public {
@@ -467,9 +469,9 @@ contract UniversalDelegatorTest is Test {
         uint96 op1 = net1.createIndex(uint32(1));
         uint96 op2 = net1.createIndex(uint32(2));
 
-        assertEq(delegator.getAllocated(net1), 80);
-        assertEq(delegator.getAllocated(op1), 50);
-        assertEq(delegator.getAllocated(op2), 30);
+        assertEq(delegator.getAllocated(net1, 0), 80);
+        assertEq(delegator.getAllocated(op1, 0), 50);
+        assertEq(delegator.getAllocated(op2, 0), 30);
     }
 
     function test_isolatedGroups_prioritizedOverTime() public {
@@ -484,16 +486,16 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         _deposit(alice, 60);
 
-        assertEq(delegator.getAllocatedAt(slot1, 1, ""), 30);
-        assertEq(delegator.getAllocatedAt(slot2, 1, ""), 30);
-        assertEq(delegator.getAllocatedAt(slot3, 1, ""), 0);
+        assertEq(delegator.getAllocatedAt(slot1, 1, 0, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot2, 1, 0, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot3, 1, 0, ""), 0);
 
         vm.warp(2);
         _deposit(alice, 60);
 
-        assertEq(delegator.getAllocatedAt(slot1, 2, ""), 30);
-        assertEq(delegator.getAllocatedAt(slot2, 2, ""), 50);
-        assertEq(delegator.getAllocatedAt(slot3, 2, ""), 40);
+        assertEq(delegator.getAllocatedAt(slot1, 2, 0, ""), 30);
+        assertEq(delegator.getAllocatedAt(slot2, 2, 0, ""), 50);
+        assertEq(delegator.getAllocatedAt(slot3, 2, 0, ""), 40);
     }
 
     function test_isolatedNetworks_followGroupPriority() public {
@@ -507,9 +509,9 @@ contract UniversalDelegatorTest is Test {
         uint96 net1 = group.createIndex(uint32(1));
         uint96 net2 = group.createIndex(uint32(2));
 
-        assertEq(delegator.getAllocated(group), 150);
-        assertEq(delegator.getAllocated(net1), 60);
-        assertEq(delegator.getAllocated(net2), 90);
+        assertEq(delegator.getAllocated(group, 0), 150);
+        assertEq(delegator.getAllocated(net1, 0), 60);
+        assertEq(delegator.getAllocated(net2, 0), 90);
     }
 
     function test_isolatedOperators_prioritizedAfterStakeDecrease() public {
@@ -527,14 +529,14 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         _deposit(alice, 100);
 
-        assertEq(delegator.getAllocated(op1), 70);
-        assertEq(delegator.getAllocated(op2), 30);
+        assertEq(delegator.getAllocated(op1, 0), 70);
+        assertEq(delegator.getAllocated(op2, 0), 30);
 
         vm.warp(2);
         _withdraw(alice, 40);
 
-        assertEq(delegator.getAllocated(op1), 60);
-        assertEq(delegator.getAllocated(op2), 0);
+        assertEq(delegator.getAllocated(op1, 0), 60);
+        assertEq(delegator.getAllocated(op2, 0), 0);
     }
 
     function test_isolatedSlots_childrenPending_delaysReallocation() public {
@@ -545,20 +547,20 @@ contract UniversalDelegatorTest is Test {
         uint96 slot1 = uint96(0).createIndex(uint32(1));
         uint96 slot2 = uint96(0).createIndex(uint32(2));
 
-        assertEq(delegator.getAllocated(slot1), 70);
-        assertEq(delegator.getAllocated(slot2), 30);
+        assertEq(delegator.getAllocated(slot1, 0), 70);
+        assertEq(delegator.getAllocated(slot2, 0), 30);
 
         vm.warp(1);
         delegator.setSize(slot1, 30);
 
-        assertEq(delegator.getAvailable(0), 60);
-        assertEq(delegator.getAllocated(slot1), 30);
-        assertEq(delegator.getAllocated(slot2), 30);
+        assertEq(delegator.getAvailable(0, 0), 60);
+        assertEq(delegator.getAllocated(slot1, 0), 30);
+        assertEq(delegator.getAllocated(slot2, 0), 30);
 
         vm.warp(1 + EPOCH_DURATION);
-        assertEq(delegator.getAvailable(0), 100);
-        assertEq(delegator.getAllocated(slot1), 30);
-        assertEq(delegator.getAllocated(slot2), 70);
+        assertEq(delegator.getAvailable(0, 0), 100);
+        assertEq(delegator.getAllocated(slot1, 0), 30);
+        assertEq(delegator.getAllocated(slot2, 0), 70);
     }
 
     function test_isolatedSlots_lateSizeIncrease_doesNotAffectEarlier() public {
@@ -569,20 +571,20 @@ contract UniversalDelegatorTest is Test {
         uint96 slot1 = uint96(0).createIndex(uint32(1));
         uint96 slot2 = uint96(0).createIndex(uint32(2));
 
-        assertEq(delegator.getAllocated(slot1), 50);
-        assertEq(delegator.getAllocated(slot2), 40);
+        assertEq(delegator.getAllocated(slot1, 0), 50);
+        assertEq(delegator.getAllocated(slot2, 0), 40);
 
         vm.warp(1);
         delegator.setSize(slot2, 100);
 
-        assertEq(delegator.getAllocated(slot1), 50);
-        assertEq(delegator.getAllocated(slot2), 40);
+        assertEq(delegator.getAllocated(slot1, 0), 50);
+        assertEq(delegator.getAllocated(slot2, 0), 40);
 
         vm.warp(2);
         _deposit(alice, 30);
 
-        assertEq(delegator.getAllocated(slot1), 50);
-        assertEq(delegator.getAllocated(slot2), 70);
+        assertEq(delegator.getAllocated(slot1, 0), 50);
+        assertEq(delegator.getAllocated(slot2, 0), 70);
     }
 
     struct Test_SharedGroupSlashCappedAcrossNetworksSameCaptureTimestampStruct {
@@ -794,9 +796,9 @@ contract UniversalDelegatorTest is Test {
         uint256 remaining = amount > expected1 ? amount - expected1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
 
-        assertEq(delegator.getAllocated(slot1), expected1);
-        assertEq(delegator.getAllocated(slot2), expected2);
-        assertLe(delegator.getAllocated(slot1) + delegator.getAllocated(slot2), delegator.getAvailable(0));
+        assertEq(delegator.getAllocated(slot1, 0), expected1);
+        assertEq(delegator.getAllocated(slot2, 0), expected2);
+        assertLe(delegator.getAllocated(slot1, 0) + delegator.getAllocated(slot2, 0), delegator.getAvailable(0, 0));
     }
 
     function testFuzz_isolatedOperators_followPriority(uint256 depositAmount, uint256 size1, uint256 size2) public {
@@ -821,8 +823,8 @@ contract UniversalDelegatorTest is Test {
         uint256 remaining = amount > expected1 ? amount - expected1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
 
-        assertEq(delegator.getAllocated(op1), expected1);
-        assertEq(delegator.getAllocated(op2), expected2);
+        assertEq(delegator.getAllocated(op1, 0), expected1);
+        assertEq(delegator.getAllocated(op2, 0), expected2);
     }
 
     function testFuzz_isolatedSlots_depositWithdraw_overTime(
@@ -854,8 +856,8 @@ contract UniversalDelegatorTest is Test {
         uint256 afterFirst = remaining > expected1 ? remaining - expected1 : 0;
         uint256 expected2 = afterFirst < cap2 ? afterFirst : cap2;
 
-        assertEq(delegator.getAllocated(slot1), expected1);
-        assertEq(delegator.getAllocated(slot2), expected2);
+        assertEq(delegator.getAllocated(slot1, 0), expected1);
+        assertEq(delegator.getAllocated(slot2, 0), expected2);
     }
 
     function testFuzz_isolatedShares_doNotOverlapAtRoot(uint256 depositAmount, uint256 size1, uint256 size2) public {
@@ -870,14 +872,14 @@ contract UniversalDelegatorTest is Test {
 
         _deposit(alice, amount);
 
-        uint256 available = delegator.getAvailable(0);
+        uint256 available = delegator.getAvailable(0, 0);
         uint256 expected1 = available < cap1 ? available : cap1;
         uint256 remaining = available > expected1 ? available - expected1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
         uint256 totalSize = cap1 + cap2;
 
-        assertEq(delegator.getAllocated(slot1), expected1);
-        assertEq(delegator.getAllocated(slot2), expected2);
+        assertEq(delegator.getAllocated(slot1, 0), expected1);
+        assertEq(delegator.getAllocated(slot2, 0), expected2);
         assertEq(expected1 + expected2, available < totalSize ? available : totalSize);
     }
 
@@ -896,14 +898,14 @@ contract UniversalDelegatorTest is Test {
 
         _deposit(alice, amount);
 
-        uint256 available = delegator.getAvailable(group);
+        uint256 available = delegator.getAvailable(group, 0);
         uint256 expected1 = available < cap1 ? available : cap1;
         uint256 remaining = available > expected1 ? available - expected1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
         uint256 totalSize = cap1 + cap2;
 
-        assertEq(delegator.getAllocated(slot1), expected1);
-        assertEq(delegator.getAllocated(slot2), expected2);
+        assertEq(delegator.getAllocated(slot1, 0), expected1);
+        assertEq(delegator.getAllocated(slot2, 0), expected2);
         assertEq(expected1 + expected2, available < totalSize ? available : totalSize);
     }
 
@@ -1193,7 +1195,7 @@ contract UniversalDelegatorTest is Test {
     function test_networkAssignment_duplicateAndUnassignChecks() public {
         bytes32 subnetwork = bytes32(uint256(1));
 
-        vm.expectRevert(IUniversalDelegator.NetworkNotAssigned.selector);
+        vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
         delegator.unassignNetwork(subnetwork);
 
         _deposit(alice, 100);
@@ -1253,7 +1255,7 @@ contract UniversalDelegatorTest is Test {
         uint96 operatorSlot1 = networkSlot.createIndex(uint32(1));
         uint96 operatorSlot2 = networkSlot.createIndex(uint32(2));
 
-        vm.expectRevert(IUniversalDelegator.OperatorNotAssigned.selector);
+        vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
         delegator.unassignOperator(networkSlot, alice);
 
         delegator.assignOperator(operatorSlot1, alice);
@@ -1304,8 +1306,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(2);
         _withdraw(alice, 60);
 
-        assertEq(delegator.getAllocated(slot2), 10);
-        assertEq(delegator.getAllocated(slot1), 30);
+        assertEq(delegator.getAllocated(slot2, 0), 10);
+        assertEq(delegator.getAllocated(slot1, 0), 30);
     }
 
     function test_swapSlots_revertsWrongOrder() public {
@@ -1368,8 +1370,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(slot1, 40);
 
-        assertEq(delegator.getAvailableAt(0, 2, ""), 80);
-        assertEq(delegator.getAvailableAt(0, 4, ""), 100);
+        assertEq(delegator.getAvailableAt(0, 2, 0, ""), 80);
+        assertEq(delegator.getAvailableAt(0, 4, 0, ""), 100);
     }
 
     function _requestAndExecuteSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp)
@@ -1385,8 +1387,8 @@ contract UniversalDelegatorTest is Test {
     }
 
     function _unallocated2(uint96 parentIndex, uint96 slot1, uint96 slot2) internal view returns (uint256) {
-        uint256 available = delegator.getAvailable(parentIndex);
-        uint256 allocated = delegator.getAllocated(slot1) + delegator.getAllocated(slot2);
+        uint256 available = delegator.getAvailable(parentIndex, 0);
+        uint256 allocated = delegator.getAllocated(slot1, 0) + delegator.getAllocated(slot2, 0);
         return available > allocated ? available - allocated : 0;
     }
 
@@ -1395,9 +1397,9 @@ contract UniversalDelegatorTest is Test {
         view
         returns (uint256)
     {
-        uint256 available = delegator.getAvailable(parentIndex);
+        uint256 available = delegator.getAvailable(parentIndex, 0);
         uint256 allocated =
-            delegator.getAllocated(slot1) + delegator.getAllocated(slot2) + delegator.getAllocated(slot3);
+            delegator.getAllocated(slot1, 0) + delegator.getAllocated(slot2, 0) + delegator.getAllocated(slot3, 0);
         return available > allocated ? available - allocated : 0;
     }
 
@@ -1557,7 +1559,8 @@ contract UniversalDelegatorMigrationTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(delegatorFactory),
-                delegatorFactory.totalTypes()
+                delegatorFactory.totalTypes(),
+                address(networkMiddlewareService)
             )
         );
         delegatorFactory.whitelist(universalDelegatorImpl);
@@ -1715,7 +1718,8 @@ contract UniversalDelegatorMigrationTest is Test {
             assignNetworkRoleHolder: owner,
             unassignNetworkRoleHolder: owner,
             assignOperatorRoleHolder: owner,
-            unassignOperatorRoleHolder: owner
+            unassignOperatorRoleHolder: owner,
+            withdrawalBuffer: 0
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
@@ -1739,6 +1743,6 @@ contract UniversalDelegatorMigrationTest is Test {
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
 
         uint256 pending = IUniversalDelegator(newDelegator).getSlot(0).childrenPendingCumulative;
-        assertEq(pending, type(uint256).max);
+        assertEq(pending, type(uint128).max);
     }
 }

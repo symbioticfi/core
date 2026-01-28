@@ -17,7 +17,7 @@ interface IVaultV2Storage {
 
     struct Withdrawal {
         bool claimed;
-        uint48 unlockAt;
+        uint48 unlockAfter;
         uint256 shares;
     }
 
@@ -234,7 +234,7 @@ interface IVaultV2Storage {
      * @param account account to check the withdrawal for
      * @return when the withdrawal is claimable for the account at the index
      */
-    function withdrawalUnlockAt(uint256 index, address account) external view returns (uint48);
+    function withdrawalUnlockAfter(uint256 index, address account) external view returns (uint48);
 
     /**
      * @notice Get how many withdrawals a particular account requested.

@@ -30,16 +30,20 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
             revert();
         }
         uint256 shares = _epochWithdrawalSharesOf[epoch][account];
-        uint48 unlockAt = _epochDurationInit + (epoch + 1) * epochDuration;
-        if (unlockAt >= _withdrawalSharesCumulative.at(0)._key) {
-            shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
-        } else if (_withdrawalShares[epoch].latest() == 0) {
-            _withdrawals[epoch].push(uint48(block.timestamp), _epochWithdrawals[epoch]);
-            _withdrawalShares[epoch].push(uint48(block.timestamp), _epochWithdrawalShares[epoch]);
-            _unlockToBucket._trace._checkpoints[epoch]._key = unlockAt;
-            _unlockToBucket._trace._checkpoints[epoch]._value = epoch;
+        if (shares == 0) {
+            revert();
         }
-        _withdrawalsOf[account].push(Withdrawal(false, unlockAt, shares));
+        uint208 bucketIndex = epoch - 1;
+        uint48 unlockAfter = _epochDurationInit - 1 + (epoch + 1) * epochDuration;
+        if (unlockAfter >= _withdrawalSharesCumulative.at(0)._key) {
+            shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
+        } else if (_withdrawalShares[bucketIndex].latest() == 0) {
+            _withdrawals[bucketIndex].push(uint48(block.timestamp), _epochWithdrawals[epoch]);
+            _withdrawalShares[bucketIndex].push(uint48(block.timestamp), _epochWithdrawalShares[epoch]);
+            _unlockToBucket._trace._checkpoints[bucketIndex]._key = unlockAfter;
+            _unlockToBucket._trace._checkpoints[bucketIndex]._value = bucketIndex;
+        }
+        _withdrawalsOf[account].push(Withdrawal(false, unlockAfter, shares));
         _isEpochWithdrawalsClaimed[epoch][account] = true;
     }
 
@@ -49,16 +53,20 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
             __ERC20_init(params.name, params.symbol);
         }
         uint48 epoch = (block.timestamp - _epochDurationInit).toUint48() / epochDuration;
-        uint256 epochWithdrawals = _epochWithdrawals[epoch];
         uint48 nextEpochStart = _epochDurationInit + (epoch + 1) * epochDuration;
-        _withdrawalSharesCumulative.push(nextEpochStart, epochWithdrawals);
+        uint256 epochWithdrawals;
+        uint208 bucketIndex;
+        if (epoch > 0) {
+            epochWithdrawals = _epochWithdrawals[epoch];
+            _withdrawalSharesCumulative.push(nextEpochStart, epochWithdrawals);
+            bucketIndex = epoch - 1;
+        }
         epochWithdrawals += _epochWithdrawals[epoch + 1];
         _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, epochWithdrawals);
         assembly ("memory-safe") {
-            sstore(_unlockToBucket.slot, epoch)
+            sstore(_unlockToBucket.slot, bucketIndex)
         }
-        // TODO: recheck, seems wrong
-        _unlockToBucket.push(nextEpochStart, epoch);
+        _unlockToBucket.push(uint48(block.timestamp), bucketIndex);
         _withdrawals[epoch].push(uint48(block.timestamp), epochWithdrawals);
         _withdrawalShares[epoch].push(uint48(block.timestamp), epochWithdrawals);
 

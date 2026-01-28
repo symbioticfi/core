@@ -143,7 +143,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function withdrawalsOf(uint256 index, address account) public view returns (uint256) {
-        uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAt(index, account));
+        uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAfter(index, account));
         return ERC4626Math.previewRedeem(
             withdrawalSharesOf(index, account),
             _withdrawals[bucketIndex].latest(),
@@ -329,7 +329,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (withdrawal.claimed) {
             revert AlreadyClaimed();
         }
-        if (withdrawal.unlockAt >= block.timestamp) {
+        if (withdrawal.unlockAfter >= block.timestamp) {
             revert WithdrawalNotMatured();
         }
         amount = withdrawalsOf(index, msg.sender);
@@ -451,10 +451,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             );
             require(_withdrawalShares[lastBucket].latest() >= mintedShares);
 
-            uint48 unlockAt = uint48(block.timestamp + epochDuration);
-            require(unlockAt >= block.timestamp);
-            _withdrawalsOf[claimer].push(Withdrawal(false, unlockAt, mintedShares));
-            _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
+            uint48 unlockAfter = uint48(block.timestamp + epochDuration);
+            require(unlockAfter >= block.timestamp);
+            _withdrawalsOf[claimer].push(Withdrawal(false, unlockAfter, mintedShares));
+            _withdrawalSharesCumulative.push(unlockAfter, _withdrawalSharesCumulative.latest() + mintedShares);
 
             _pullPlugins();
 

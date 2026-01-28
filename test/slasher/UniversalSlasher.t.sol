@@ -158,7 +158,8 @@ contract UniversalSlasherMigrationTest is Test {
                 address(operatorVaultOptInService),
                 address(operatorNetworkOptInService),
                 address(delegatorFactory),
-                delegatorFactory.totalTypes()
+                delegatorFactory.totalTypes(),
+                address(networkMiddlewareService)
             )
         );
         delegatorFactory.whitelist(universalDelegatorImpl);
@@ -307,7 +308,8 @@ contract UniversalSlasherMigrationTest is Test {
             assignNetworkRoleHolder: owner,
             unassignNetworkRoleHolder: owner,
             assignOperatorRoleHolder: owner,
-            unassignOperatorRoleHolder: owner
+            unassignOperatorRoleHolder: owner,
+            withdrawalBuffer: 0
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
