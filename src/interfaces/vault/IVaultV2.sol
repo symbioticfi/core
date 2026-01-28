@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultV2Storage} from "./IVaultV2Storage.sol";
 
-import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
-
 /**
  * @title IVault
  * @dev Deprecated signatures:
@@ -15,7 +13,7 @@ import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156Fl
  *      setSlasher()
  *      onSlash()
  */
-interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
+interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();
@@ -288,6 +286,14 @@ interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
     function withdrawalsOf(uint256 index, address account) external view returns (uint256);
 
     /**
+     * @notice Get the flash fee for a given token and amount.
+     * @param token address of the token
+     * @param amount amount of the token
+     * @return flash fee for the given token and amount
+     */
+    function flashFee(address token, uint256 amount) external view returns (uint256);
+
+    /**
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit
@@ -388,6 +394,14 @@ interface IVaultV2 is IMigratableEntity, IERC3156FlashLender, IVaultV2Storage {
      * @dev Only a plugin can call this function.
      */
     function push(uint256 amount) external;
+
+    /**
+     * @notice Flash loan collateral from the vault.
+     * @param token address of the token
+     * @param amount amount of the token
+     * @param data data for the flash loan
+     */
+    function flashLoan(address token, uint256 amount, bytes calldata data) external;
 
     /**
      * @dev Migrates a epoch-based withdawal to the fixed-delay-based one.
