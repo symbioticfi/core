@@ -374,7 +374,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
 
         SlotStorage storage parent = slots[parentIndex];
         uint96 index = parentIndex.createIndex(parent.numChildren + 1);
-        SlotStorage storage slot = slots[index];
 
         if (parentIndex.getDepth() == 1) {
             if (_networkToSlot[subnetworkOrOperator].latest() != 0) {
@@ -389,6 +388,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             _operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].push(uint48(block.timestamp), index);
             _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
         }
+
+        SlotStorage storage slot = slots[index];
 
         if (parentIndex.getDepth() > 0) {
             if (parent.firstChild == 0) {
