@@ -11,7 +11,7 @@ uint96 constant WITHDRAWAL_BUFFER_INDEX = 0x10000000000000000;
 interface IUniversalDelegator is IBaseDelegator {
     error NotEnoughAvailable();
     error NotSameParent();
-    error WrongOrder();
+    error SameSlot();
     error NotSameAllocated();
     error PartiallyAllocated();
     error NetworkAlreadyAssigned();
@@ -49,7 +49,7 @@ interface IUniversalDelegator is IBaseDelegator {
         bool exists;
         uint32 nextSlot;
         uint32 prevSlot;
-        uint32 totalChildren;
+        uint32 numChildren;
         uint32 firstChild;
         uint32 lastChild;
         uint32 numNetworks;
@@ -65,7 +65,7 @@ interface IUniversalDelegator is IBaseDelegator {
         bool exists;
         uint32 nextSlot;
         uint32 prevSlot;
-        uint32 totalChildren;
+        uint32 numChildren;
         uint32 firstChild;
         uint32 lastChild;
         bool isShared;
@@ -132,7 +132,7 @@ interface IUniversalDelegator is IBaseDelegator {
         bytes allocatedHints;
     }
 
-    event CreateSlot(uint96 indexed index, uint256 size);
+    event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint256 size);
 
     event SetIsShared(uint96 indexed index, bool isShared);
 
@@ -213,11 +213,11 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint96);
 
-    function getIsShared(bytes32 subnetwork, address operator) external view returns (bool);
+    function getIsShared(bytes32 subnetwork) external view returns (bool);
 
     function getIsNoPlugins(bytes32 subnetwork) external view returns (bool);
 
-    function createSlot(uint96 parentIndex, bool isShared, uint256 size) external;
+    function createSlot(uint96 parentIndex, bool isShared, bool noPlugins, uint256 size) external returns (uint96 index);
 
     function setSize(uint96 index, uint256 size) external returns (uint256 pending);
 

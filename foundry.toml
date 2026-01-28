@@ -1,5 +1,5 @@
 [profile.default]
-evm_version = "cancun"
+evm_version = "osaka"
 solc = "0.8.28"
 optimizer = true
 optimizer_runs = 6

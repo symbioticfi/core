@@ -80,39 +80,20 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     /**
      * @inheritdoc IUniversalSlasher
      */
-    function slashRequests(uint256 slashIndex)
-        public
-        view
-        returns (
-            bytes32 subnetwork,
-            address operator,
-            uint256 amount,
-            uint48 captureTimestamp,
-            address resolver,
-            uint48 vetoDeadline,
-            bool completed
-        )
-    {
-        // TODO - change interface to return struct?
-        SlashRequest storage request = _slashRequests[slashIndex];
+    function slashRequests(uint256 slashIndex) public view returns (SlashRequest memory request) {
+        request = _slashRequests[slashIndex];
 
-        (subnetwork, operator, amount, captureTimestamp, vetoDeadline, completed) =
-        (
-            request.subnetwork,
-            request.operator,
-            request.amount,
-            request.captureTimestamp,
-            request.vetoDeadline,
-            request.completed
-        );
-        resolver = IVetoSlasher(_oldSlasher).resolverAt(subnetwork, captureTimestamp, new bytes(0));
-        if (resolver != address(0)) {
-            // TODO: remove it, or add comment regarding block.timestamp versus slashIndex
-            resolver = IVetoSlasher(_oldSlasher).resolverAt(subnetwork, uint48(block.timestamp) - 1, new bytes(0));
-        }
-        if (amount == 0) {
-            (subnetwork, operator, amount, captureTimestamp, vetoDeadline,) =
+        if (request.amount == 0) {
+            (request.subnetwork, request.operator, request.amount, request.captureTimestamp, request.vetoDeadline,) =
                 IVetoSlasher(_oldSlasher).slashRequests(slashIndex);
+
+            request.resolver =
+                IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, request.captureTimestamp, new bytes(0));
+            if (request.resolver != address(0)) {
+                // TODO: remove it, or add comment regarding block.timestamp versus slashIndex
+                request.resolver =
+                    IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, new bytes(0));
+            }
         }
     }
 
@@ -209,49 +190,44 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert SlashRequestNotExist();
         }
 
-        (
-            bytes32 subnetwork,
-            address operator,
-            uint256 amount,
-            uint48 captureTimestamp,
-            address resolver,
-            uint48 vetoDeadline,
-            bool completed
-        ) = slashRequests(slashIndex);
+        SlashRequest memory request = slashRequests(slashIndex);
 
-        _checkNetworkMiddleware(subnetwork);
+        _checkNetworkMiddleware(request.subnetwork);
 
-        if (vetoDeadline > uint48(block.timestamp)) {
+        if (request.vetoDeadline > uint48(block.timestamp)) {
             revert VetoPeriodNotEnded();
         }
 
-        if (uint48(block.timestamp) - captureTimestamp > IVaultV2(vault).epochDuration()) {
+        if (uint48(block.timestamp) - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
-        (uint256 slashableStake_, uint256 stakeAt) =
-            _slashableStake(subnetwork, operator, captureTimestamp, executeSlashHints.slashableStakeHints);
-        slashedAmount = Math.min(amount, slashableStake_);
+        (uint256 slashableStake_, uint256 stakeAt) = _slashableStake(
+            request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
+        );
+        slashedAmount = Math.min(request.amount, slashableStake_);
         if (slashedAmount == 0) {
             revert InsufficientSlash();
         }
 
-        if (completed) {
+        if (request.completed) {
             revert SlashRequestCompleted();
         }
 
         _slashRequests[slashIndex].completed = true;
 
-        _updateLatestSlashedCaptureTimestamp(subnetwork, operator, captureTimestamp);
+        _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
 
-        _updateCumulativeSlash(subnetwork, operator, slashedAmount);
-        _updateGroupCumulativeSlash(subnetwork, operator, slashedAmount, captureTimestamp, executeSlashHints.slotOfHint);
+        _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
+        _updateGroupCumulativeSlash(
+            request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, executeSlashHints.slotOfHint
+        );
 
         _delegatorOnSlash(
-            subnetwork,
-            operator,
+            request.subnetwork,
+            request.operator,
             slashedAmount,
-            captureTimestamp,
+            request.captureTimestamp,
             abi.encode(
                 IUniversalSlasher.DelegatorData({
                     slashableStake: slashableStake_, stakeAt: stakeAt, slashIndex: slashIndex
@@ -259,12 +235,12 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             )
         );
 
-        (, uint256 owed_) = VaultV2(vault).onSlash(slashedAmount, captureTimestamp);
+        (, uint256 owed_) = VaultV2(vault).onSlash(slashedAmount, request.captureTimestamp);
         if (owed_ > 0) {
-            owed[subnetwork][operator][captureTimestamp] += owed_;
+            owed[request.subnetwork][request.operator][request.captureTimestamp] += owed_;
         }
 
-        _burnerOnSlash(subnetwork, operator, slashedAmount, captureTimestamp);
+        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount, request.captureTimestamp);
 
         emit ExecuteSlash(slashIndex, slashedAmount);
     }
@@ -282,25 +258,17 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert SlashRequestNotExist();
         }
 
-        (
-            bytes32 subnetwork,
-            address operator,
-            uint256 amount,
-            uint48 captureTimestamp,
-            address resolver,
-            uint48 vetoDeadline,
-            bool completed
-        ) = slashRequests(slashIndex);
+        SlashRequest memory request = slashRequests(slashIndex);
 
-        if (resolver != msg.sender) {
+        if (request.resolver != msg.sender) {
             revert NotResolver();
         }
 
-        if (vetoDeadline <= uint48(block.timestamp)) {
+        if (request.vetoDeadline <= uint48(block.timestamp)) {
             revert VetoPeriodEnded();
         }
 
-        if (completed) {
+        if (request.completed) {
             revert SlashRequestCompleted();
         }
 

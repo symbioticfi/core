@@ -180,26 +180,9 @@ interface IUniversalSlasher is IBaseSlasher {
     /**
      * @notice Get a particular slash request.
      * @param slashIndex index of the slash request
-     * @return subnetwork subnetwork that requested the slash
-     * @return operator operator that could be slashed (if the request is not vetoed)
-     * @return amount maximum amount of the collateral to be slashed
-     * @return captureTimestamp time point when the stake was captured
-     * @return resolver address of the resolver that requested the slash
-     * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
-     * @return completed if the slash was vetoed/executed
+     * @return request slash request
      */
-    function slashRequests(uint256 slashIndex)
-        external
-        view
-        returns (
-            bytes32 subnetwork,
-            address operator,
-            uint256 amount,
-            uint48 captureTimestamp,
-            address resolver,
-            uint48 vetoDeadline,
-            bool completed
-        );
+    function slashRequests(uint256 slashIndex) external view returns (SlashRequest memory request);
 
     /**
      * @notice Get a delay for networks in seconds to update a resolver.
@@ -208,21 +191,11 @@ interface IUniversalSlasher is IBaseSlasher {
     function resolverSetDelay() external view returns (uint48);
 
     /**
-     * @notice Get a resolver for a given subnetwork at a particular timestamp using a hint.
+     * @notice Get a resolver for a given subnetwork.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param timestamp timestamp to get the resolver at
-     * @param hint hint for the checkpoint index
      * @return address of the resolver
      */
-    function resolverAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) external view returns (address);
-
-    /**
-     * @notice Get a resolver for a given subnetwork using a hint.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param hint hint for the checkpoint index
-     * @return address of the resolver
-     */
-    function resolver(bytes32 subnetwork, bytes memory hint) external view returns (address);
+    function resolver(bytes32 subnetwork) external view returns (address);
 
     /**
      * @notice Get a group cumulative slash amount for a given group index at a particular timestamp using a hint.
