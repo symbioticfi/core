@@ -57,6 +57,8 @@ contract UniversalDelegatorTest is Test {
     uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
     string internal constant VAULT_NAME = "Test";
     string internal constant VAULT_SYMBOL = "TEST";
+    address internal constant DUMMY_NETWORK = address(0xdeAD00000000000000000000000000000000dEAd);
+    address internal constant DUMMY_OPERATOR_BASE = address(0xBEEF00000000000000000000000000000000BEEf);
 
     address internal owner;
     address internal alice;
@@ -79,6 +81,8 @@ contract UniversalDelegatorTest is Test {
     IVaultV2 internal vault;
     UniversalDelegator internal delegator;
     IUniversalSlasher internal slasher;
+    uint96 internal dummyNetworkId;
+    uint160 internal dummyOperatorId;
 
     function setUp() public {
         vm.warp(0);
@@ -642,28 +646,22 @@ contract UniversalDelegatorTest is Test {
         testStruct.group1 = _rootIndex(uint32(1));
         testStruct.group2 = _rootIndex(uint32(2));
 
-        _createSlot(testStruct.group1, false, 60);
-        _createSlot(testStruct.group1, false, 60);
+        _createNetworkSlot(testStruct.group1, testStruct.subnetwork1, 60);
+        _createNetworkSlot(testStruct.group1, testStruct.subnetwork2, 60);
         testStruct.netSlot1 = testStruct.group1.createIndex(uint32(1));
         testStruct.netSlot2 = testStruct.group1.createIndex(uint32(2));
-        delegator.assignNetwork(testStruct.netSlot1, testStruct.subnetwork1);
-        delegator.assignNetwork(testStruct.netSlot2, testStruct.subnetwork2);
 
-        _createSlot(testStruct.netSlot1, false, 60);
+        _createOperatorSlot(testStruct.netSlot1, testStruct.operator1, 60);
         testStruct.opSlot1 = testStruct.netSlot1.createIndex(uint32(1));
-        delegator.assignOperator(testStruct.opSlot1, testStruct.operator1);
 
-        _createSlot(testStruct.netSlot2, false, 60);
+        _createOperatorSlot(testStruct.netSlot2, testStruct.operator2, 60);
         testStruct.opSlot2 = testStruct.netSlot2.createIndex(uint32(1));
-        delegator.assignOperator(testStruct.opSlot2, testStruct.operator2);
 
-        _createSlot(testStruct.group2, false, 40);
+        _createNetworkSlot(testStruct.group2, testStruct.subnetwork3, 40);
         testStruct.netSlot3 = testStruct.group2.createIndex(uint32(1));
-        delegator.assignNetwork(testStruct.netSlot3, testStruct.subnetwork3);
 
-        _createSlot(testStruct.netSlot3, false, 40);
+        _createOperatorSlot(testStruct.netSlot3, testStruct.operator3, 40);
         testStruct.opSlot3 = testStruct.netSlot3.createIndex(uint32(1));
-        delegator.assignOperator(testStruct.opSlot3, testStruct.operator3);
 
         _deposit(testStruct.operator1, 100);
 
@@ -694,20 +692,16 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, true, 60);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 60);
-        _createSlot(group, false, 60);
+        _createNetworkSlot(group, subnetwork1, 60);
+        _createNetworkSlot(group, subnetwork2, 60);
         uint96 netSlot1 = group.createIndex(uint32(1));
         uint96 netSlot2 = group.createIndex(uint32(2));
-        delegator.assignNetwork(netSlot1, subnetwork1);
-        delegator.assignNetwork(netSlot2, subnetwork2);
 
-        _createSlot(netSlot1, false, 60);
+        _createOperatorSlot(netSlot1, operator1, 60);
         uint96 opSlot1 = netSlot1.createIndex(uint32(1));
-        delegator.assignOperator(opSlot1, operator1);
 
-        _createSlot(netSlot2, false, 60);
+        _createOperatorSlot(netSlot2, operator2, 60);
         uint96 opSlot2 = netSlot2.createIndex(uint32(1));
-        delegator.assignOperator(opSlot2, operator2);
 
         _deposit(alice, 60);
 
@@ -737,20 +731,16 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, true, 200);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 200);
-        _createSlot(group, false, 200);
+        _createNetworkSlot(group, subnetwork1, 200);
+        _createNetworkSlot(group, subnetwork2, 200);
         uint96 netSlot1 = group.createIndex(uint32(1));
         uint96 netSlot2 = group.createIndex(uint32(2));
-        delegator.assignNetwork(netSlot1, subnetwork1);
-        delegator.assignNetwork(netSlot2, subnetwork2);
 
-        _createSlot(netSlot1, false, 200);
+        _createOperatorSlot(netSlot1, operator1, 200);
         uint96 opSlot1 = netSlot1.createIndex(uint32(1));
-        delegator.assignOperator(opSlot1, operator1);
 
-        _createSlot(netSlot2, false, 200);
+        _createOperatorSlot(netSlot2, operator2, 200);
         uint96 opSlot2 = netSlot2.createIndex(uint32(1));
-        delegator.assignOperator(opSlot2, operator2);
 
         _deposit(alice, 100);
 
@@ -929,23 +919,18 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, false, MAX_AMOUNT);
         testStruct.group = _rootIndex(uint32(1));
 
-        _createSlot(testStruct.group, false, testStruct.cap1);
-        _createSlot(testStruct.group, false, testStruct.cap2);
+        testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
+        testStruct.subnetwork2 = testStruct.network2.subnetwork(0);
+        _createNetworkSlot(testStruct.group, testStruct.subnetwork1, testStruct.cap1);
+        _createNetworkSlot(testStruct.group, testStruct.subnetwork2, testStruct.cap2);
         testStruct.networkSlot1 = testStruct.group.createIndex(uint32(1));
         testStruct.networkSlot2 = testStruct.group.createIndex(uint32(2));
 
-        testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
-        testStruct.subnetwork2 = testStruct.network2.subnetwork(0);
-        delegator.assignNetwork(testStruct.networkSlot1, testStruct.subnetwork1);
-        delegator.assignNetwork(testStruct.networkSlot2, testStruct.subnetwork2);
-
-        _createSlot(testStruct.networkSlot1, false, testStruct.cap1);
+        _createOperatorSlot(testStruct.networkSlot1, testStruct.operator1, testStruct.cap1);
         testStruct.opSlot1 = testStruct.networkSlot1.createIndex(uint32(1));
-        delegator.assignOperator(testStruct.opSlot1, testStruct.operator1);
 
-        _createSlot(testStruct.networkSlot2, false, testStruct.cap2);
+        _createOperatorSlot(testStruct.networkSlot2, testStruct.operator2, testStruct.cap2);
         testStruct.opSlot2 = testStruct.networkSlot2.createIndex(uint32(1));
-        delegator.assignOperator(testStruct.opSlot2, testStruct.operator2);
 
         _deposit(testStruct.operator1, testStruct.amount);
         testStruct.captureTimestamp = 0;
@@ -957,7 +942,6 @@ contract UniversalDelegatorTest is Test {
         testStruct.slashableAfter =
             slasher.slashableStake(testStruct.subnetwork1, testStruct.operator1, testStruct.captureTimestamp, "");
         assertLe(testStruct.slashableAfter, testStruct.slashableBefore);
-
     }
 
     struct Test_CaptureInvariantAcrossOperatorsStruct {
@@ -1004,17 +988,14 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, false, MAX_AMOUNT);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, networkSize);
-        uint96 networkSlot = group.createIndex(uint32(1));
         testStruct.subnetwork = testStruct.network.subnetwork(0);
-        delegator.assignNetwork(networkSlot, testStruct.subnetwork);
+        _createNetworkSlot(group, testStruct.subnetwork, networkSize);
+        uint96 networkSlot = group.createIndex(uint32(1));
 
-        _createSlot(networkSlot, false, cap1);
-        _createSlot(networkSlot, false, cap2);
+        _createOperatorSlot(networkSlot, testStruct.operator1, cap1);
+        _createOperatorSlot(networkSlot, testStruct.operator2, cap2);
         uint96 opSlot1 = networkSlot.createIndex(uint32(1));
         uint96 opSlot2 = networkSlot.createIndex(uint32(2));
-        delegator.assignOperator(opSlot1, testStruct.operator1);
-        delegator.assignOperator(opSlot2, testStruct.operator2);
 
         _deposit(testStruct.operator1, amount);
         uint48 captureTimestamp = 0;
@@ -1027,7 +1008,6 @@ contract UniversalDelegatorTest is Test {
         uint256 slashableAfter =
             slasher.slashableStake(testStruct.subnetwork, testStruct.operator1, captureTimestamp, "");
         assertLe(slashableAfter, slashableBefore);
-
     }
 
     function test_isShared_trueWhenGroupIsShared() public {
@@ -1038,13 +1018,11 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, true, 100);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 100);
+        _createNetworkSlot(group, subnetwork, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
-        delegator.assignNetwork(networkSlot, subnetwork);
 
-        _createSlot(networkSlot, false, 100);
+        _createOperatorSlot(networkSlot, alice, 100);
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
-        delegator.assignOperator(operatorSlot, alice);
 
         assertTrue(delegator.getIsShared(subnetwork));
     }
@@ -1057,13 +1035,11 @@ contract UniversalDelegatorTest is Test {
         _createSlot(0, false, 100);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 100);
+        _createNetworkSlot(group, subnetwork, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
-        delegator.assignNetwork(networkSlot, subnetwork);
 
-        _createSlot(networkSlot, false, 100);
+        _createOperatorSlot(networkSlot, alice, 100);
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
-        delegator.assignOperator(operatorSlot, alice);
 
         assertFalse(delegator.getIsShared(subnetwork));
     }
@@ -1099,34 +1075,6 @@ contract UniversalDelegatorTest is Test {
         );
         delegator.removeSlot(_rootIndex(uint32(1)));
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.ASSIGN_NETWORK_ROLE()
-            )
-        );
-        delegator.assignNetwork(_rootIndex(uint32(1)), bytes32(uint256(1)));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.UNASSIGN_NETWORK_ROLE()
-            )
-        );
-        delegator.unassignNetwork(bytes32(uint256(1)));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.ASSIGN_OPERATOR_ROLE()
-            )
-        );
-        delegator.assignOperator(_rootIndex(uint32(1)), bob);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.UNASSIGN_OPERATOR_ROLE()
-            )
-        );
-        delegator.unassignOperator(_rootIndex(uint32(1)), bob);
-
         vm.stopPrank();
     }
 
@@ -1135,13 +1083,6 @@ contract UniversalDelegatorTest is Test {
         uint96 group = _rootIndex(uint32(1));
 
         _createSlot(group, false, 100);
-        uint96 networkSlot = group.createIndex(uint32(1));
-
-        vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
-        delegator.assignNetwork(group, bytes32(uint256(1)));
-
-        vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
-        delegator.assignOperator(networkSlot, alice);
 
         vm.expectRevert(IUniversalDelegator.WrongDepth.selector);
         _createSlot(group, true, 1);
@@ -1150,31 +1091,16 @@ contract UniversalDelegatorTest is Test {
     function test_networkAssignment_duplicateAndUnassignChecks() public {
         bytes32 subnetwork = bytes32(uint256(1));
 
-        vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
-        delegator.unassignNetwork(subnetwork);
-
-        _deposit(alice, 100);
-
         _createSlot(0, false, 100);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 100);
-        _createSlot(group, false, 100);
+        _createNetworkSlot(group, subnetwork, 100);
         uint96 net1 = group.createIndex(uint32(1));
-        uint96 net2 = group.createIndex(uint32(2));
 
-        delegator.assignNetwork(net1, subnetwork);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), net1);
 
-        vm.expectRevert(IUniversalDelegator.NetworkAlreadyAssigned.selector);
-        delegator.assignNetwork(net2, subnetwork);
-
-        vm.expectRevert(IUniversalDelegator.SlotAllocated.selector);
-        delegator.unassignNetwork(subnetwork);
-
-        _withdraw(alice, 100);
-        vm.warp(block.timestamp + EPOCH_DURATION);
-        delegator.unassignNetwork(subnetwork);
-        assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
+        vm.expectRevert(IUniversalDelegator.AlreadyAssigned.selector);
+        _createNetworkSlot(group, subnetwork, 100);
     }
 
     function test_networkAssignment_revertsWhenSlotAlreadyAssigned() public {
@@ -1182,70 +1108,56 @@ contract UniversalDelegatorTest is Test {
         bytes32 subnetwork2 = bytes32(uint256(2));
 
         _createSlot(0, false, 100);
-        uint96 group = _rootIndex(uint32(1));
+        uint96 group1 = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 100);
-        uint96 networkSlot = group.createIndex(uint32(1));
+        _createSlot(0, false, 100);
+        uint96 group2 = _rootIndex(uint32(2));
 
-        delegator.assignNetwork(networkSlot, subnetwork1);
+        _createNetworkSlot(group1, subnetwork1, 100);
+        uint96 networkSlot1 = group1.createIndex(uint32(1));
 
-        vm.expectRevert(IUniversalDelegator.NetworkAlreadyAssigned.selector);
-        delegator.assignNetwork(networkSlot, subnetwork2);
+        vm.expectRevert(IUniversalDelegator.AlreadyAssigned.selector);
+        _createNetworkSlot(group2, subnetwork1, 100);
 
-        delegator.unassignNetwork(subnetwork1);
-        delegator.assignNetwork(networkSlot, subnetwork2);
-        assertEq(delegator.getSlotOfNetwork(subnetwork2), networkSlot);
+        _createNetworkSlot(group2, subnetwork2, 100);
+        uint96 networkSlot2 = group2.createIndex(uint32(1));
+
+        assertEq(delegator.getSlotOfNetwork(subnetwork1), networkSlot1);
+        assertEq(delegator.getSlotOfNetwork(subnetwork2), networkSlot2);
     }
 
     function test_operatorAssignment_duplicateAndUnassignChecks() public {
-        _deposit(alice, 100);
-
         _createSlot(0, false, 100);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 100);
+        bytes32 subnetwork = bytes32(uint256(1));
+        _createNetworkSlot(group, subnetwork, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
 
-        _createSlot(networkSlot, false, 60);
-        _createSlot(networkSlot, false, 60);
+        _createOperatorSlot(networkSlot, alice, 60);
         uint96 operatorSlot1 = networkSlot.createIndex(uint32(1));
-        uint96 operatorSlot2 = networkSlot.createIndex(uint32(2));
 
-        vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
-        delegator.unassignOperator(networkSlot, alice);
+        assertEq(delegator.getSlotOfOperator(networkSlot, alice), operatorSlot1);
 
-        delegator.assignOperator(operatorSlot1, alice);
-
-        vm.expectRevert(IUniversalDelegator.OperatorAlreadyAssigned.selector);
-        delegator.assignOperator(operatorSlot2, alice);
-
-        vm.expectRevert(IUniversalDelegator.SlotAllocated.selector);
-        delegator.unassignOperator(networkSlot, alice);
-
-        _withdraw(alice, 100);
-        vm.warp(block.timestamp + EPOCH_DURATION);
-        delegator.unassignOperator(networkSlot, alice);
-        assertEq(delegator.getSlotOfOperator(networkSlot, alice), 0);
+        vm.expectRevert(IUniversalDelegator.AlreadyAssigned.selector);
+        _createOperatorSlot(networkSlot, alice, 60);
     }
 
     function test_operatorAssignment_revertsWhenSlotAlreadyAssigned() public {
         _createSlot(0, false, 100);
         uint96 group = _rootIndex(uint32(1));
 
-        _createSlot(group, false, 100);
+        bytes32 subnetwork = bytes32(uint256(1));
+        _createNetworkSlot(group, subnetwork, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
 
-        _createSlot(networkSlot, false, 100);
+        _createOperatorSlot(networkSlot, alice, 100);
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
 
-        delegator.assignOperator(operatorSlot, alice);
+        vm.expectRevert(IUniversalDelegator.AlreadyAssigned.selector);
+        _createOperatorSlot(networkSlot, alice, 100);
 
-        vm.expectRevert(IUniversalDelegator.OperatorAlreadyAssigned.selector);
-        delegator.assignOperator(operatorSlot, bob);
-
-        delegator.unassignOperator(networkSlot, alice);
-        delegator.assignOperator(operatorSlot, bob);
-        assertEq(delegator.getSlotOfOperator(networkSlot, bob), operatorSlot);
+        assertEq(delegator.getSlotOfOperator(networkSlot, alice), operatorSlot);
     }
 
     function test_swapSlots_keepsAllocationAfterStakeDecrease() public {
@@ -1354,7 +1266,29 @@ contract UniversalDelegatorTest is Test {
     }
 
     function _createSlot(uint96 parentIndex, bool isShared, uint256 size) internal {
-        delegator.createSlot(parentIndex, isShared, false, size);
+        bytes32 key;
+        uint256 depth = parentIndex.getDepth();
+        if (depth == 1) {
+            ++dummyNetworkId;
+            key = DUMMY_NETWORK.subnetwork(dummyNetworkId);
+        } else if (depth == 2) {
+            ++dummyOperatorId;
+            address dummyOperator = address(uint160(DUMMY_OPERATOR_BASE) + dummyOperatorId);
+            key = _operatorKey(dummyOperator);
+        }
+        delegator.createSlot(key, parentIndex, isShared, false, size);
+    }
+
+    function _createNetworkSlot(uint96 parentIndex, bytes32 subnetwork, uint256 size) internal {
+        delegator.createSlot(subnetwork, parentIndex, false, false, size);
+    }
+
+    function _createOperatorSlot(uint96 parentIndex, address operator, uint256 size) internal {
+        delegator.createSlot(_operatorKey(operator), parentIndex, false, false, size);
+    }
+
+    function _operatorKey(address operator) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(operator)));
     }
 
     function _rootIndex(uint32 localIndex) internal pure returns (uint96) {

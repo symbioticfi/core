@@ -361,7 +361,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function createSlot(uint96 parentIndex, bool isShared, bool noPlugins, uint256 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint256 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
         slotExists(parentIndex)
@@ -371,9 +371,24 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
             revert WrongDepth();
         }
+
         SlotStorage storage parent = slots[parentIndex];
         uint96 index = parentIndex.createIndex(parent.numChildren + 1);
         SlotStorage storage slot = slots[index];
+
+        if (parentIndex.getDepth() == 1) {
+            if (_networkToSlot[subnetworkOrOperator].latest() != 0) {
+                revert AlreadyAssigned();
+            }
+            _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
+            _slotToNetwork[index] = subnetworkOrOperator;
+        } else if (parentIndex.getDepth() == 2) {
+            if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() != 0) {
+                revert AlreadyAssigned();
+            }
+            _operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].push(uint48(block.timestamp), index);
+            _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
+        }
 
         if (parentIndex.getDepth() > 0) {
             if (parent.firstChild == 0) {
@@ -395,7 +410,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                 _noPluginsSize += size;
             }
         }
-        slot.size.push(uint48(block.timestamp), size);
+        if (size > 0) {
+            slot.size.push(uint48(block.timestamp), size);
+        }
         parent.numChildren = index.getChildIndex();
         slot.exists = true;
 
@@ -417,14 +434,14 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         slotExists(index)
         returns (uint256 pending)
     {
-        SlotStorage storage parent = slots[index.getParentIndex()];
         SlotStorage storage slot = slots[index];
         uint256 currentSize = slot.size.latest();
         if (currentSize == newSize) {
             return 0;
         }
-
+        SlotStorage storage parent = slots[index.getParentIndex()];
         uint256 available = getAvailable(index.getParentIndex(), 0);
+
         if (newSize > currentSize) {
             if (!parent.isShared && slot.prevSum.latest() + currentSize < available && slot.nextSlot > 0) {
                 SlotStorage storage lastChild = slots[index.getParentIndex().createIndex(parent.lastChild)];
@@ -442,7 +459,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                     parent.childrenPendingCumulative
                         .push(uint48(block.timestamp), parent.childrenPendingCumulative.latest() + pending);
                     if (index.getDepth() == 2) {
-                        slot.pendingCumulative.push(uint48(block.timestamp), pending);
+                        slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + pending);
                     }
                     if (slot.noPlugins) {
                         _noPluginsPendingCumulative.push(
@@ -473,20 +490,21 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         isNotWithdrawalBuffer(index1)
         isNotWithdrawalBuffer(index2)
     {
+        SlotStorage storage parent = slots[index1.getParentIndex()];
+        SlotStorage storage slot1 = slots[index1];
+        SlotStorage storage slot2 = slots[index2];
+        uint256 available = getAvailable(index1.getParentIndex(), 0);
+        bool isAllocated = slot1.prevSum.latest() < available;
+
         if (index1 == index2) {
             revert SameSlot();
         }
         if (index1.getParentIndex() != index2.getParentIndex()) {
             revert NotSameParent();
         }
-        SlotStorage storage parent = slots[index1.getParentIndex()];
         if (parent.isShared) {
             revert IsShared();
         }
-        SlotStorage storage slot1 = slots[index1];
-        SlotStorage storage slot2 = slots[index2];
-        uint256 available = getAvailable(index1.getParentIndex(), 0);
-        bool isAllocated = slot1.prevSum.latest() < available;
         if (isAllocated != (slot2.prevSum.latest() < available)) {
             revert NotSameAllocated();
         }
@@ -521,14 +539,16 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             revert SlotAllocated();
         }
 
-        bytes32 subnetwork = _slotToNetwork[index];
-        if (subnetwork != bytes32(0)) {
-            _slotToNetwork[index] = bytes32(0);
-            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-        }
-
         SlotStorage storage slot = slots[index];
         SlotStorage storage parent = slots[index.getParentIndex()];
+
+        if (_slotToNetwork[index] != bytes32(0)) {
+            _networkToSlot[_slotToNetwork[index]].push(uint48(block.timestamp), 0);
+            _slotToNetwork[index] = bytes32(0);
+        } else if (_slotToOperator[index] != address(0)) {
+            _operatorToSlot[index.getParentIndex()][_slotToOperator[index]].push(uint48(block.timestamp), 0);
+            _slotToOperator[index] = address(0);
+        }
 
         if (index.getChildIndex() == parent.firstChild) {
             parent.firstChild = slot.nextSlot;
@@ -553,79 +573,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         emit RemoveSlot(index);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function assignNetwork(uint96 index, bytes32 subnetwork) public onlyRole(ASSIGN_NETWORK_ROLE) slotExists(index) {
-        if (index.getDepth() != 2) {
-            revert WrongDepth();
-        }
-        if (_slotToNetwork[index] != bytes32(0) || getSlotOfNetwork(subnetwork) > 0) {
-            revert NetworkAlreadyAssigned();
-        }
-        _networkToSlot[subnetwork].push(uint48(block.timestamp), index);
-        _slotToNetwork[index] = subnetwork;
-        ++slots[index.getParentIndex()].numNetworks;
-
-        emit AssignNetwork(index, subnetwork);
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function unassignNetwork(bytes32 subnetwork) public onlyRole(UNASSIGN_NETWORK_ROLE) {
-        uint96 index = getSlotOfNetwork(subnetwork);
-        if (index == 0) {
-            revert NotAssigned();
-        }
-        if (getAllocated(index, 0) > 0) {
-            revert SlotAllocated();
-        }
-        _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-        _slotToNetwork[index] = bytes32(0);
-        --slots[index.getParentIndex()].numNetworks;
-
-        emit UnassignNetwork(subnetwork);
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function assignOperator(uint96 index, address operator) public onlyRole(ASSIGN_OPERATOR_ROLE) slotExists(index) {
-        if (index.getDepth() != 3) {
-            revert WrongDepth();
-        }
-        uint96 parentIndex = index.getParentIndex();
-        if (_slotToOperator[index] != address(0) || getSlotOfOperator(parentIndex, operator) != 0) {
-            revert OperatorAlreadyAssigned();
-        }
-        _operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), index);
-        _slotToOperator[index] = operator;
-
-        emit AssignOperator(index, operator);
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function unassignOperator(uint96 parentIndex, address operator) public onlyRole(UNASSIGN_OPERATOR_ROLE) {
-        uint96 index = getSlotOfOperator(parentIndex, operator);
-        if (index == 0) {
-            revert NotAssigned();
-        }
-        if (getAllocated(index, 0) > 0) {
-            revert SlotAllocated();
-        }
-        _operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), 0);
-        _slotToOperator[index] = address(0);
-
-        emit UnassignOperator(index, operator);
-    }
-
     function _syncPrevSums(uint96 parentIndex) internal {
-        SlotStorage storage parent = slots[parentIndex];
         uint256 prevSum;
-        for (uint32 childIndex = parent.firstChild; childIndex > 0;) {
+        for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
             SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
             if (child.prevSum.latest() != prevSum) {
                 child.prevSum.push(uint48(block.timestamp), prevSum);
@@ -651,15 +601,18 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (index == 0) {
             revert NotAssigned();
         }
-        _slotToNetwork[index] = bytes32(0);
-        _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
 
         // TODO: need not allow to slash
 
         if (--slots[index.getParentIndex()].numNetworks == 0) {
-            slots[WITHDRAWAL_BUFFER_INDEX].size
-                .push(uint48(block.timestamp), slots[WITHDRAWAL_BUFFER_INDEX].size.latest() + getAllocated(index, 0));
-            slots[index].size.push(uint48(block.timestamp), 0);
+            uint256 allocated = getAllocated(index, 0);
+            if (allocated > 0) {
+                slots[WITHDRAWAL_BUFFER_INDEX].size
+                    .push(uint48(block.timestamp), slots[WITHDRAWAL_BUFFER_INDEX].size.latest() + allocated);
+            }
+            if (slots[index].size.latest() > 0) {
+                slots[index].size.push(uint48(block.timestamp), 0);
+            }
         }
 
         _syncPrevSums(index.getParentIndex());
@@ -765,7 +718,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         parent.lastChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
         parent.firstChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
         SlotStorage storage slot = slots[WITHDRAWAL_BUFFER_INDEX];
-        slot.size.push(uint48(block.timestamp), params.withdrawalBuffer);
+        if (params.withdrawalBuffer > 0) {
+            slot.size.push(uint48(block.timestamp), params.withdrawalBuffer);
+        }
         slot.exists = true;
 
         return params.baseParams;

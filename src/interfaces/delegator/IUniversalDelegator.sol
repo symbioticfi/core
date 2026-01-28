@@ -14,8 +14,6 @@ interface IUniversalDelegator is IBaseDelegator {
     error SameSlot();
     error NotSameAllocated();
     error PartiallyAllocated();
-    error NetworkAlreadyAssigned();
-    error OperatorAlreadyAssigned();
     error NotAssigned();
     error SlotAllocated();
     error MissingRoleHolders();
@@ -30,6 +28,7 @@ interface IUniversalDelegator is IBaseDelegator {
     error InvalidDuration();
     error IsWithdrawalBuffer();
     error NotNetworkOrMiddleware();
+    error AlreadyAssigned();
 
     struct InitParams {
         BaseParams baseParams;
@@ -144,14 +143,6 @@ interface IUniversalDelegator is IBaseDelegator {
 
     event RemoveSlot(uint96 indexed index);
 
-    event AssignNetwork(uint96 indexed index, bytes32 indexed subnetwork);
-
-    event UnassignNetwork(bytes32 indexed subnetwork);
-
-    event AssignOperator(uint96 indexed index, address indexed operator);
-
-    event UnassignOperator(uint96 indexed index, address indexed operator);
-
     event ResetAllocation(bytes32 indexed subnetwork);
 
     function getWithdrawalBuffer() external view returns (uint256);
@@ -217,19 +208,13 @@ interface IUniversalDelegator is IBaseDelegator {
 
     function getIsNoPlugins(bytes32 subnetwork) external view returns (bool);
 
-    function createSlot(uint96 parentIndex, bool isShared, bool noPlugins, uint256 size) external returns (uint96 index);
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint256 size)
+        external
+        returns (uint96 index);
 
     function setSize(uint96 index, uint256 size) external returns (uint256 pending);
 
     function swapSlots(uint96 index1, uint96 index2) external;
 
     function removeSlot(uint96 index) external;
-
-    function assignNetwork(uint96 index, bytes32 subnetwork) external;
-
-    function unassignNetwork(bytes32 subnetwork) external;
-
-    function assignOperator(uint96 index, address operator) external;
-
-    function unassignOperator(uint96 index, address operator) external;
 }
