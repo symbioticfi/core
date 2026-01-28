@@ -28,7 +28,15 @@ import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol
 
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
-import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
+import {
+    IVaultV2,
+    DEPOSIT_WHITELIST_SET_ROLE,
+    DEPOSITOR_WHITELIST_ROLE,
+    IS_DEPOSIT_LIMIT_SET_ROLE,
+    DEPOSIT_LIMIT_SET_ROLE,
+    ADD_PLUGIN_ROLE,
+    REMOVE_PLUGIN_ROLE
+} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -323,8 +331,8 @@ contract VaultV2Test is Test {
         );
         vault = vault_;
 
-        assertEq(vault.DEPOSIT_WHITELIST_SET_ROLE(), keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
-        assertEq(vault.DEPOSITOR_WHITELIST_ROLE(), keccak256("DEPOSITOR_WHITELIST_ROLE"));
+        assertEq(DEPOSIT_WHITELIST_SET_ROLE, keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
+        assertEq(DEPOSITOR_WHITELIST_ROLE, keccak256("DEPOSITOR_WHITELIST_ROLE"));
         assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
         assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
 
@@ -336,7 +344,7 @@ contract VaultV2Test is Test {
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(VaultV2(address(vault)).hasRole(VaultV2(address(vault)).DEFAULT_ADMIN_ROLE(), alice), true);
-        assertEq(VaultV2(address(vault)).hasRole(vault.DEPOSITOR_WHITELIST_ROLE(), alice), true);
+        assertEq(VaultV2(address(vault)).hasRole(DEPOSITOR_WHITELIST_ROLE, alice), true);
         assertEq(vault.epochDuration(), epochDuration);
         assertEq(vault.totalStake(), 0);
         assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), 0);
@@ -3129,37 +3137,37 @@ contract VaultV2Test is Test {
 
     function _grantDepositorWhitelistRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(vault.DEPOSITOR_WHITELIST_ROLE(), account);
+        VaultV2(address(vault)).grantRole(DEPOSITOR_WHITELIST_ROLE, account);
         vm.stopPrank();
     }
 
     function _grantDepositWhitelistSetRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(vault.DEPOSIT_WHITELIST_SET_ROLE(), account);
+        VaultV2(address(vault)).grantRole(DEPOSIT_WHITELIST_SET_ROLE, account);
         vm.stopPrank();
     }
 
     function _grantIsDepositLimitSetRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(vault.IS_DEPOSIT_LIMIT_SET_ROLE(), account);
+        VaultV2(address(vault)).grantRole(IS_DEPOSIT_LIMIT_SET_ROLE, account);
         vm.stopPrank();
     }
 
     function _grantDepositLimitSetRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(vault.DEPOSIT_LIMIT_SET_ROLE(), account);
+        VaultV2(address(vault)).grantRole(DEPOSIT_LIMIT_SET_ROLE, account);
         vm.stopPrank();
     }
 
     function _grantAddPluginRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(vault.ADD_PLUGIN_ROLE(), account);
+        VaultV2(address(vault)).grantRole(ADD_PLUGIN_ROLE, account);
         vm.stopPrank();
     }
 
     function _grantRemovePluginRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(vault.REMOVE_PLUGIN_ROLE(), account);
+        VaultV2(address(vault)).grantRole(REMOVE_PLUGIN_ROLE, account);
         vm.stopPrank();
     }
 

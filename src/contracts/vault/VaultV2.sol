@@ -16,7 +16,15 @@ import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IRewards} from "../../interfaces/vault/IRewards.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {
+    IVaultV2,
+    DEPOSIT_WHITELIST_SET_ROLE,
+    DEPOSITOR_WHITELIST_ROLE,
+    IS_DEPOSIT_LIMIT_SET_ROLE,
+    DEPOSIT_LIMIT_SET_ROLE,
+    ADD_PLUGIN_ROLE,
+    REMOVE_PLUGIN_ROLE
+} from "../../interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";

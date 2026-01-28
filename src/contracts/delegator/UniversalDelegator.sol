@@ -11,6 +11,14 @@ import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {
     IUniversalDelegator,
+    CREATE_SLOT_ROLE,
+    SET_SIZE_ROLE,
+    SWAP_SLOTS_ROLE,
+    REMOVE_SLOT_ROLE,
+    ASSIGN_NETWORK_ROLE,
+    UNASSIGN_NETWORK_ROLE,
+    ASSIGN_OPERATOR_ROLE,
+    UNASSIGN_OPERATOR_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
     WITHDRAWAL_BUFFER_INDEX
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -29,15 +37,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using Subnetwork for bytes32;
-
-    bytes32 public constant CREATE_SLOT_ROLE = keccak256("CREATE_SLOT_ROLE");
-    bytes32 public constant SET_SIZE_ROLE = keccak256("SET_SIZE_ROLE");
-    bytes32 public constant SWAP_SLOTS_ROLE = keccak256("SWAP_SLOTS_ROLE");
-    bytes32 public constant REMOVE_SLOT_ROLE = keccak256("REMOVE_SLOT_ROLE");
-    bytes32 public constant ASSIGN_NETWORK_ROLE = keccak256("ASSIGN_NETWORK_ROLE");
-    bytes32 public constant UNASSIGN_NETWORK_ROLE = keccak256("UNASSIGN_NETWORK_ROLE");
-    bytes32 public constant ASSIGN_OPERATOR_ROLE = keccak256("ASSIGN_OPERATOR_ROLE");
-    bytes32 public constant UNASSIGN_OPERATOR_ROLE = keccak256("UNASSIGN_OPERATOR_ROLE");
 
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 

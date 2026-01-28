@@ -4,6 +4,19 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultV2Storage} from "./IVaultV2Storage.sol";
 
+// keccak256("DEPOSIT_WHITELIST_SET_ROLE")
+bytes32 constant DEPOSIT_WHITELIST_SET_ROLE = 0xbae4ee3de6c709ff9a002e774c5b78cb381560b219213c88ae0f1e207c03c023;
+// keccak256("DEPOSITOR_WHITELIST_ROLE")
+bytes32 constant DEPOSITOR_WHITELIST_ROLE = 0x9c56d972d63cbb4195b3c1484691dfc220fa96a4c47e7b6613bd82a022029e06;
+// keccak256("IS_DEPOSIT_LIMIT_SET_ROLE")
+bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573a3ba37167d03f4352c9ba5693678fac;
+// keccak256("DEPOSIT_LIMIT_SET_ROLE")
+bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
+// keccak256("ADD_PLUGIN_ROLE")
+bytes32 constant ADD_PLUGIN_ROLE = 0xe892b5eafc9a41e0778f661cf4043d6dd99f846b637fc10a9b9f8941ca8452b0;
+// keccak256("REMOVE_PLUGIN_ROLE")
+bytes32 constant REMOVE_PLUGIN_ROLE = 0x7c5f59c85a6ad767b49bc5c11743f68b11dd77e30a01804afdadaf2bda250e73;
+
 /**
  * @title IVault
  * @dev Deprecated signatures:

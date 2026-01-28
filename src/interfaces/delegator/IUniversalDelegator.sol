@@ -8,6 +8,23 @@ import {Checkpoints} from "../../contracts/libraries/Checkpoints.sol";
 uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 1;
 uint96 constant WITHDRAWAL_BUFFER_INDEX = 0x10000000000000000;
 
+// keccak256("CREATE_SLOT_ROLE")
+bytes32 constant CREATE_SLOT_ROLE = 0x8aef711962d032b5812b71f6f4353b179696ada38e16233a26a539c32c729007;
+// keccak256("SET_SIZE_ROLE")
+bytes32 constant SET_SIZE_ROLE = 0xc9c130a1412d72f4d79081ca47a83fb21e212d7ff57949aadd2c1356e17ee837;
+// keccak256("SWAP_SLOTS_ROLE")
+bytes32 constant SWAP_SLOTS_ROLE = 0xffd98ac79bb60993f79efa77ec34b3f446950a5c284ae3036fc0fb810a00af60;
+// keccak256("REMOVE_SLOT_ROLE")
+bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a0f7f47acb5d727ef90e6f4;
+// keccak256("ASSIGN_NETWORK_ROLE")
+bytes32 constant ASSIGN_NETWORK_ROLE = 0xf55c398918c241f325f49ce8f7f8165bf90006933f388a1b748feb897d782347;
+// keccak256("UNASSIGN_NETWORK_ROLE")
+bytes32 constant UNASSIGN_NETWORK_ROLE = 0xb063787125e25847638fc6632ad94e1e2618272f041e0de6f1ec2b537e045f5b;
+// keccak256("ASSIGN_OPERATOR_ROLE")
+bytes32 constant ASSIGN_OPERATOR_ROLE = 0xf4f0a490020aa1ae3e99ed08bac2ebf8235aa3df9cd9139a3250aba0d2cedad6;
+// keccak256("UNASSIGN_OPERATOR_ROLE")
+bytes32 constant UNASSIGN_OPERATOR_ROLE = 0xfed40468fe4bbf117bf8d4734f89d88eda47b42146db6ddbe1c2a17362b4c61e;
+
 interface IUniversalDelegator is IBaseDelegator {
     error NotEnoughAvailable();
     error NotSameParent();

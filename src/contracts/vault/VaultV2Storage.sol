@@ -14,36 +14,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     using Checkpoints for Checkpoints.Trace208;
     using SafeCast for uint256;
 
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bytes32 public constant DEPOSITOR_WHITELIST_ROLE = keccak256("DEPOSITOR_WHITELIST_ROLE");
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bytes32 public constant IS_DEPOSIT_LIMIT_SET_ROLE = keccak256("IS_DEPOSIT_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bytes32 public constant DEPOSIT_LIMIT_SET_ROLE = keccak256("DEPOSIT_LIMIT_SET_ROLE");
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bytes32 public constant ADD_PLUGIN_ROLE = keccak256("ADD_PLUGIN_ROLE");
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bytes32 public constant REMOVE_PLUGIN_ROLE = keccak256("REMOVE_PLUGIN_ROLE");
-
     bytes32 internal constant ERC3156_ONFLASHLOAN_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     uint256 internal constant MAX_FEE = 1_000_000;

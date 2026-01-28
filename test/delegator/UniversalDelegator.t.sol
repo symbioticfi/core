@@ -35,7 +35,17 @@ import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestake
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {
+    IUniversalDelegator,
+    CREATE_SLOT_ROLE,
+    SET_SIZE_ROLE,
+    SWAP_SLOTS_ROLE,
+    REMOVE_SLOT_ROLE,
+    ASSIGN_NETWORK_ROLE,
+    UNASSIGN_NETWORK_ROLE,
+    ASSIGN_OPERATOR_ROLE,
+    UNASSIGN_OPERATOR_ROLE
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
@@ -1049,28 +1059,28 @@ contract UniversalDelegatorTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.CREATE_SLOT_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, CREATE_SLOT_ROLE
             )
         );
         _createSlot(0, false, 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.SET_SIZE_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SET_SIZE_ROLE
             )
         );
         delegator.setSize(_rootIndex(uint32(1)), 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.SWAP_SLOTS_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SWAP_SLOTS_ROLE
             )
         );
         delegator.swapSlots(_rootIndex(uint32(1)), _rootIndex(uint32(2)));
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, delegator.REMOVE_SLOT_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, REMOVE_SLOT_ROLE
             )
         );
         delegator.removeSlot(_rootIndex(uint32(1)));

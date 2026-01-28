@@ -22,42 +22,6 @@ interface IVaultV2Storage {
     }
 
     /**
-     * @notice Get a deposit whitelist enabler/disabler's role.
-     * @return identifier of the whitelist enabler/disabler role
-     */
-    function DEPOSIT_WHITELIST_SET_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get a depositor whitelist status setter's role.
-     * @return identifier of the depositor whitelist status setter role
-     */
-    function DEPOSITOR_WHITELIST_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get a deposit limit enabler/disabler's role.
-     * @return identifier of the deposit limit enabler/disabler role
-     */
-    function IS_DEPOSIT_LIMIT_SET_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get a deposit limit setter's role.
-     * @return identifier of the deposit limit setter role
-     */
-    function DEPOSIT_LIMIT_SET_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get a plugin adder's role.
-     * @return identifier of the plugin adder role
-     */
-    function ADD_PLUGIN_ROLE() external view returns (bytes32);
-
-    /**
-     * @notice Get a plugin remover's role.
-     * @return identifier of the plugin remover role
-     */
-    function REMOVE_PLUGIN_ROLE() external view returns (bytes32);
-
-    /**
      * @notice Get the delegator factory's address.
      * @return address of the delegator factory
      */
