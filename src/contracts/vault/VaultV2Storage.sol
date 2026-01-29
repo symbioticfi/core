@@ -188,6 +188,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
+    // TODO: remove this func?
     function withdrawalShares(uint256 index) public view returns (uint256) {
         return _withdrawalShares[index].latest();
     }
@@ -195,6 +196,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
+    // TODO: remove this func?
     function withdrawals(uint256 index) public view returns (uint256) {
         return _withdrawals[index].latest();
     }

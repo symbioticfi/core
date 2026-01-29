@@ -29,9 +29,6 @@ import {
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {
-    ERC20PermitUpgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -44,7 +41,7 @@ import {LibCall as Address} from "@solady/src/utils/LibCall.sol";
 
 /// @dev total supply of `collateral()` must be <= 2^255 - 1 from the VaultV2 perspective
 /// @dev total supply of `collateral()` must be <= 2^128 - 1 from the UniversalDelegator perspective
-contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20PermitUpgradeable, IVaultV2 {
+contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Address for address;
@@ -714,7 +711,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         __ERC20_init(params.name, params.symbol);
-        __ERC20Permit_init(params.name);
 
         collateral = params.collateral;
 
