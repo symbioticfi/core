@@ -248,13 +248,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (amount == 0) {
             revert InsufficientWithdrawal();
         }
-
         burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
-
         if (burnedShares > activeSharesOf(msg.sender)) {
             revert TooMuchWithdraw();
         }
-
         mintedShares = _withdraw(claimer, amount, burnedShares);
     }
 
@@ -269,78 +266,73 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (claimer == address(0)) {
             revert InvalidClaimer();
         }
-
         if (shares > activeSharesOf(msg.sender)) {
             revert TooMuchRedeem();
         }
-
         withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
-
         if (withdrawnAssets == 0) {
             revert InsufficientRedemption();
         }
-
         mintedShares = _withdraw(claimer, withdrawnAssets, shares);
     }
 
-    function instantWithdraw(address recipient, uint256 amount)
-        public
-        returns (uint256 burnedShares, uint256 withdrawnAssets)
-    {
-        withdrawnAssets = Math.min(
-            Math.min(amount, IUniversalDelegator(delegator).getWithdrawalBuffer()),
-            IERC20(collateral).balanceOf(address(this))
-        );
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function instantWithdraw(address recipient, uint256 amount) public returns (uint256 burnedShares) {
+        unchecked {
+            if (amount == 0) {
+                revert InsufficientAmount();
+            }
 
-        if (withdrawnAssets == 0) {
-            revert InsufficientAmount();
+            uint256 activeStake_ = activeStake();
+            uint256 activeShares_ = activeShares();
+            uint256 activeSharesOf_ = activeSharesOf(msg.sender);
+
+            burnedShares = ERC4626Math.previewWithdraw(amount, activeShares_, activeStake_);
+            if (burnedShares > activeSharesOf_) {
+                revert TooMuchWithdraw();
+            }
+
+            _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf_ - burnedShares);
+            _activeShares.push(uint48(block.timestamp), activeShares_ - burnedShares);
+            _activeStake.push(uint48(block.timestamp), activeStake_ - amount);
+
+            collateral.safeTransfer(recipient, amount);
+
+            emit InstantWithdraw(msg.sender, amount);
         }
-
-        uint256 activeStake_ = activeStake();
-        uint256 activeShares_ = activeShares();
-        uint256 activeSharesOf_ = activeSharesOf(msg.sender);
-
-        burnedShares = ERC4626Math.previewWithdraw(withdrawnAssets, activeShares_, activeStake_);
-        if (burnedShares > activeSharesOf_) {
-            revert TooMuchWithdraw();
-        }
-
-        _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf_ - burnedShares);
-        _activeShares.push(uint48(block.timestamp), activeShares_ - burnedShares);
-        _activeStake.push(uint48(block.timestamp), activeStake_ - withdrawnAssets);
-
-        collateral.safeTransfer(recipient, withdrawnAssets);
-
-        emit InstantWithdraw(recipient, withdrawnAssets);
     }
 
     /**
      * @inheritdoc IVaultV2
      */
     function claim(address recipient, uint256 index) public nonReentrant returns (uint256 amount) {
-        if (recipient == address(0)) {
-            revert InvalidRecipient();
-        }
+        unchecked {
+            if (recipient == address(0)) {
+                revert InvalidRecipient();
+            }
 
-        _pullPlugins();
+            _pullPlugins();
 
-        Withdrawal storage withdrawal = _withdrawalsOf[msg.sender][index];
-        if (withdrawal.claimed) {
-            revert AlreadyClaimed();
-        }
-        if (withdrawal.unlockAfter >= block.timestamp) {
-            revert WithdrawalNotMatured();
-        }
-        amount = withdrawalsOf(index, msg.sender);
-        if (amount == 0) {
-            revert InsufficientClaim();
-        }
-        withdrawal.claimed = true;
-        _unclaimedRaw -= int256(amount);
+            Withdrawal storage withdrawal = _withdrawalsOf[msg.sender][index];
+            if (withdrawal.claimed) {
+                revert AlreadyClaimed();
+            }
+            if (withdrawal.unlockAfter >= block.timestamp) {
+                revert WithdrawalNotMatured();
+            }
+            amount = withdrawalsOf(index, msg.sender);
+            if (amount == 0) {
+                revert InsufficientClaim();
+            }
+            withdrawal.claimed = true;
+            _unclaimedRaw -= int256(amount);
 
-        collateral.safeTransfer(recipient, amount);
+            collateral.safeTransfer(recipient, amount);
 
-        emit Claim(msg.sender, recipient, index, amount);
+            emit Claim(msg.sender, recipient, index, amount);
+        }
     }
 
     /**
@@ -355,24 +347,26 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     function donate(uint256 amount) public nonReentrant {
-        uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
-        collateral.safeTransferFrom(msg.sender, address(this), amount);
-        amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+        unchecked {
+            uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+            collateral.safeTransferFrom(msg.sender, address(this), amount);
+            amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
 
-        if (amount == 0) {
-            revert InsufficientAmount();
+            if (amount == 0) {
+                revert InsufficientAmount();
+            }
+
+            uint256 activeStake_ = activeStake();
+            uint256 withdrawals_ = activeWithdrawals();
+
+            uint256 withdrawalsAmount = amount.mulDiv(withdrawals_, activeStake_ + withdrawals_);
+            _withdrawals[_unlockToBucket.latest()].push(
+                uint48(block.timestamp), _withdrawals[_unlockToBucket.latest()].latest() + withdrawalsAmount
+            );
+            _activeStake.push(uint48(block.timestamp), amount - withdrawalsAmount + activeStake_);
+
+            emit Donate(amount);
         }
-
-        uint256 activeStake_ = activeStake();
-        uint256 withdrawals_ = activeWithdrawals();
-
-        uint256 withdrawalsAmount = amount.mulDiv(withdrawals_, activeStake_ + withdrawals_);
-        _withdrawals[_unlockToBucket.latest()].push(
-            uint48(block.timestamp), _withdrawals[_unlockToBucket.latest()].latest() + withdrawalsAmount
-        );
-        _activeStake.push(uint48(block.timestamp), amount - withdrawalsAmount + activeStake_);
-
-        emit Donate(amount);
     }
 
     // @dev Internal dev function to handle slashing.
@@ -444,12 +438,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             mintedShares = ERC4626Math.previewDeposit(
                 withdrawnAssets, _withdrawalShares[lastBucket].latest(), _withdrawals[lastBucket].latest()
             );
+            
             _withdrawals[lastBucket].push(uint48(block.timestamp), _withdrawals[lastBucket].latest() + withdrawnAssets);
             _withdrawalShares[lastBucket].push(
                 uint48(block.timestamp), _withdrawalShares[lastBucket].latest() + mintedShares
             );
             require(_withdrawalShares[lastBucket].latest() >= mintedShares);
-
             uint48 unlockAfter = uint48(block.timestamp) + epochDuration;
             require(unlockAfter >= block.timestamp);
             _withdrawalsOf[claimer].push(Withdrawal(false, unlockAfter, mintedShares));

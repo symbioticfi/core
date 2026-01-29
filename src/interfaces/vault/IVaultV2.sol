@@ -339,6 +339,14 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares);
 
     /**
+     * @notice Instant withdraw collateral from the vault.
+     * @param recipient account that received the collateral
+     * @param amount amount of the collateral withdrawn
+     * @return burnedShares amount of the active shares burned
+     */
+    function instantWithdraw(address recipient, uint256 amount) external returns (uint256 burnedShares);
+
+    /**
      * @notice Claim collateral from the vault.
      * @param recipient account that receives the collateral
      * @param index index to claim the collateral for
