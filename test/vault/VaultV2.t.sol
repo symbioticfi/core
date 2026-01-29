@@ -358,8 +358,6 @@ contract VaultV2Test is Test {
         assertEq(vault.withdrawalShares(0), 0);
         assertEq(vault.depositWhitelist(), depositWhitelist);
         assertEq(vault.isDepositorWhitelisted(alice), false);
-        assertEq(vault.isDelegatorInitialized(), true);
-        assertEq(vault.isSlasherInitialized(), true);
         assertEq(vault.isInitialized(), true);
     }
 
@@ -607,8 +605,6 @@ contract VaultV2Test is Test {
             )
         );
 
-        assertEq(vault.isDelegatorInitialized(), false);
-
         address[] memory networkLimitSetRoleHolders = new address[](1);
         networkLimitSetRoleHolders[0] = alice;
         address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
@@ -634,7 +630,6 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).setDelegator(address(delegator));
 
         assertEq(vault.delegator(), address(delegator));
-        assertEq(vault.isDelegatorInitialized(), true);
         assertEq(vault.isInitialized(), false);
     }
 
@@ -846,8 +841,6 @@ contract VaultV2Test is Test {
             )
         );
 
-        assertEq(vault.isSlasherInitialized(), false);
-
         slasher = Slasher(
             slasherFactory.create(
                 0,
@@ -861,7 +854,6 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).setSlasher(address(slasher));
 
         assertEq(vault.slasher(), address(slasher));
-        assertEq(vault.isSlasherInitialized(), true);
         assertEq(vault.isInitialized(), false);
     }
 

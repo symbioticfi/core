@@ -10,6 +10,8 @@ pragma solidity ^0.8.0;
  *      currentEpochStart()
  *      previousEpochStart()
  *      nextEpochStart()
+ *      isDelegatorInitialized()
+ *      isSlasherInitialized()
  */
 interface IVaultV2Storage {
     error InvalidTimestamp();
@@ -40,22 +42,10 @@ interface IVaultV2Storage {
     function delegator() external view returns (address);
 
     /**
-     * @notice Get if the delegator is initialized.
-     * @return if the delegator is initialized
-     */
-    function isDelegatorInitialized() external view returns (bool);
-
-    /**
      * @notice Get a slasher (it provides networks a slashing mechanism).
      * @return address of the slasher
      */
     function slasher() external view returns (address);
-
-    /**
-     * @notice Get if the slasher is initialized.
-     * @return if the slasher is initialized
-     */
-    function isSlasherInitialized() external view returns (bool);
 
     /**
      * @notice Get a duration of the vault withdrawal delay.

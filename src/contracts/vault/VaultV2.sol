@@ -71,7 +71,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function isInitialized() public view returns (bool) {
-        return isDelegatorInitialized && isSlasherInitialized;
+        return _isDelegatorInitialized && _isSlasherInitialized;
     }
 
     /* ACCOUNTING FUNCTIONS */
@@ -764,7 +764,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /* INTERNAL DEV FUNCTIONS */
 
     function setDelegator(address delegator_) public nonReentrant {
-        if (isDelegatorInitialized) {
+        if (_isDelegatorInitialized) {
             revert DelegatorAlreadyInitialized();
         }
 
@@ -778,13 +778,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         delegator = delegator_;
 
-        isDelegatorInitialized = true;
+        _isDelegatorInitialized = true;
 
         emit SetDelegator(delegator_);
     }
 
     function setSlasher(address slasher_) public nonReentrant {
-        if (isSlasherInitialized) {
+        if (_isSlasherInitialized) {
             revert SlasherAlreadyInitialized();
         }
 
@@ -800,7 +800,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             slasher = slasher_;
         }
 
-        isSlasherInitialized = true;
+        _isSlasherInitialized = true;
 
         emit SetSlasher(slasher_);
     }

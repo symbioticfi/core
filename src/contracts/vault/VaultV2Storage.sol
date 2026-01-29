@@ -56,20 +56,14 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     address public delegator;
 
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bool public isDelegatorInitialized;
+    bool internal _isDelegatorInitialized;
 
     /**
      * @inheritdoc IVaultV2Storage
      */
     address public slasher;
 
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    bool public isSlasherInitialized;
+    bool internal _isSlasherInitialized;
 
     /**
      * @inheritdoc IVaultV2Storage
