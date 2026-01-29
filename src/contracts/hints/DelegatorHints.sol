@@ -24,17 +24,28 @@ contract BaseDelegatorHints is Hints {
     address public immutable OPERATOR_SPECIFIC_DELEGATOR_HINTS;
     address public immutable OPERATOR_NETWORK_SPECIFIC_DELEGATOR_HINTS;
 
+    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
+    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
+
     address public vault;
     address public hook;
     mapping(bytes32 subnetwork => uint256 value) public maxNetworkLimit;
 
-    constructor(address optInServiceHints, address vaultHints_) {
+    constructor(
+        address optInServiceHints,
+        address vaultHints_,
+        address operatorVaultOptInService,
+        address operatorNetworkOptInService
+    ) {
         OPT_IN_SERVICE_HINTS = optInServiceHints;
         NETWORK_RESTAKE_DELEGATOR_HINTS = address(new NetworkRestakeDelegatorHints(address(this), vaultHints_));
         FULL_RESTAKE_DELEGATOR_HINTS = address(new FullRestakeDelegatorHints(address(this), vaultHints_));
         OPERATOR_SPECIFIC_DELEGATOR_HINTS = address(new OperatorSpecificDelegatorHints(address(this), vaultHints_));
         OPERATOR_NETWORK_SPECIFIC_DELEGATOR_HINTS =
             address(new OperatorNetworkSpecificDelegatorHints(address(this), vaultHints_));
+
+        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
+        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
     function stakeHints(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
@@ -63,16 +74,9 @@ contract BaseDelegatorHints is Hints {
         returns (bytes memory baseHints)
     {
         bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS)
-            .optInHint(
-                IBaseDelegator(delegator).OPERATOR_VAULT_OPT_IN_SERVICE(),
-                operator,
-                IBaseDelegator(delegator).vault(),
-                timestamp
-            );
+            .optInHint(OPERATOR_VAULT_OPT_IN_SERVICE, operator, IBaseDelegator(delegator).vault(), timestamp);
         bytes memory operatorNetworkOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS)
-            .optInHint(
-                IBaseDelegator(delegator).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, subnetwork.network(), timestamp
-            );
+            .optInHint(OPERATOR_NETWORK_OPT_IN_SERVICE, operator, subnetwork.network(), timestamp);
 
         if (operatorVaultOptInHint.length != 0 || operatorNetworkOptInHint.length != 0) {
             baseHints = abi.encode(

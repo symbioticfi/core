@@ -629,10 +629,17 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             _pullPlugins();
 
-            uint256 actualUnclaimed =
-                uint256(_unclaimedRaw + int256(_withdrawals[_unlockToBucket.latest()].latest() - activeWithdrawals()));
-
-            slashed = Math.min(amount, IERC20(collateral).balanceOf(address(this)).saturatingSub(actualUnclaimed));
+            // use only unclaimable (either active stake or active withdrawals) funds for slashing
+            slashed = Math.min(
+                amount,
+                IERC20(collateral).balanceOf(address(this))
+                    .saturatingSub(
+                        uint256(
+                            _unclaimedRaw
+                                + int256(_withdrawals[_unlockToBucket.latest()].latest() - activeWithdrawals())
+                        )
+                    )
+            );
             if (slashed == 0) {
                 revert InsufficientAmount();
             }
@@ -803,15 +810,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.migrateWithdrawalsOf, (account, epoch)));
     }
 
-    function _migrate(
-        uint64 oldVersion,
-        uint64,
-        /* newVersion */
-        bytes calldata data
-    )
-        internal
-        override
-    {
+    function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {
         MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.migrate, (oldVersion, data)));
     }
 }
