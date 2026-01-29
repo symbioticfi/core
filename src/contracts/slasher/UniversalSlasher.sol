@@ -137,7 +137,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         }
 
         address resolver = resolver(subnetwork);
-        uint48 vetoDeadline = uint48(block.timestamp) + (resolver > address(0) ? vetoDuration : 0);
+        uint48 vetoDeadline = uint48(block.timestamp) + (resolver != address(0) ? vetoDuration : 0);
         if (
             captureTimestamp > 0
                 && (captureTimestamp < uint256(vetoDeadline).saturatingSub(IVaultV2(vault).epochDuration())
@@ -303,10 +303,12 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     }
 
     function syncOwedSlash(bytes32 subnetwork, address operator, uint48 captureTimestamp) public {
-        uint256 oldOwed = owed[subnetwork][operator][captureTimestamp];
-        uint256 newOwed = VaultV2(vault).syncOwedSlash(oldOwed);
-        owed[subnetwork][operator][captureTimestamp] = newOwed;
-        _burnerOnSlash(subnetwork, operator, oldOwed - newOwed, captureTimestamp);
+        uint256 owed_ = owed[subnetwork][operator][captureTimestamp];
+        uint256 slashed = VaultV2(vault).syncOwedSlash(owed_);
+        owed[subnetwork][operator][captureTimestamp] = owed_ - slashed;
+        _burnerOnSlash(subnetwork, operator, slashed, captureTimestamp);
+
+        // TODO: emit
     }
 
     function _updateGroupCumulativeSlash(

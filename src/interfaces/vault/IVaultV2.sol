@@ -64,6 +64,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error MaxLoanExceeded();
     error InvalidReceiver();
     error InvalidReturnAmount();
+    error InsufficientBalance();
 
     /**
      * @notice Initial parameters needed for a vault deployment.

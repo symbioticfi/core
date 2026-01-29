@@ -513,7 +513,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert AlreadySet();
         }
         plugins.push(plugin);
-        pluginActiveSince[plugin] = uint48(block.timestamp + pluginActiveDelay);
+        pluginActiveSince[plugin] = uint48(block.timestamp) + pluginActiveDelay;
 
         emit AddPlugin(plugin);
     }
@@ -587,8 +587,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             }
             pulled = Math.min(
                 amount,
-                (activeStake() + activeWithdrawals()).saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize())
-                    .saturatingSub(pluginsOwe)
+                totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe)
             );
 
             pluginsOwe += pulled;
@@ -622,7 +621,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle owed slashing.
-    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 owed) {
+    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 slashed) {
         unchecked {
             if (slasher != msg.sender) {
                 revert NotSlasher();
@@ -630,36 +629,37 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             _pullPlugins();
 
-            int256 actualUnclaimedRaw =
-                _unclaimedRaw + int256(_withdrawals[_unlockToBucket.latest()].latest() - activeWithdrawals());
+            uint256 actualUnclaimed =
+                uint256(_unclaimedRaw + int256(_withdrawals[_unlockToBucket.latest()].latest() - activeWithdrawals()));
 
-            owed = amount.saturatingSub(
-                IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(actualUnclaimedRaw))
-            );
-            if (owed == amount) {
+            slashed = Math.min(amount, IERC20(collateral).balanceOf(address(this)).saturatingSub(actualUnclaimed));
+            if (slashed == 0) {
                 revert InsufficientAmount();
             }
-            collateral.safeTransfer(burner, amount - owed);
+            collateral.safeTransfer(burner, slashed);
+
+            // TODO: emit
         }
     }
 
     /* * INTERNAL FUNCTIONS * */
 
+    /// @dev first plugins in the list are pulled first
     function _pullPlugins() internal {
         unchecked {
             // TODO: add hardcoded max plugins number
-            uint256 amount = pluginsOwe.saturatingSub(activeStake() + activeWithdrawals());
-            if (amount > 0) {
+            uint256 toPull = pluginsOwe.saturatingSub(totalStake());
+            if (toPull > 0) {
                 for (uint256 i; i < plugins.length; ++i) {
                     address plugin = plugins[i];
                     uint256 pluginOwe_ = pluginOwe[plugin];
                     if (pluginOwe_ > 0) {
-                        uint256 pullAmount = Math.min(pluginOwe_, amount);
-                        if (IBasePlugin(plugin).pull(pullAmount)) {
-                            pluginOwe[plugin] = pluginOwe_ - pullAmount;
-                            pluginsOwe -= pullAmount;
-                            amount -= pullAmount;
-                            if (amount == 0) {
+                        uint256 pulled = IBasePlugin(plugin).pull(Math.min(pluginOwe_, toPull));
+                        if (pulled > 0) {
+                            pluginOwe[plugin] = pluginOwe_ - pulled;
+                            pluginsOwe -= pulled;
+                            toPull -= pulled;
+                            if (toPull == 0) {
                                 break;
                             }
                         }
@@ -677,20 +677,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc ERC20Upgradeable
      */
     function _update(address from, address to, uint256 value) internal override {
+        // _update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
+        _activeSharesOf[from].push(uint48(block.timestamp), balanceOf(from) - value);
         unchecked {
-            // _update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
-            uint256 fromBalance = balanceOf(from);
-            if (fromBalance < value) {
-                revert ERC20InsufficientBalance(from, fromBalance, value);
-            }
-            // Overflow not possible: value <= fromBalance <= totalSupply.
-            _activeSharesOf[from].push(uint48(block.timestamp), fromBalance - value);
-
-            // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
             _activeSharesOf[to].push(uint48(block.timestamp), balanceOf(to) + value);
-
-            emit Transfer(from, to, value);
         }
+
+        emit Transfer(from, to, value);
     }
 
     /* * INITIALIZE FUNCTIONS * */
