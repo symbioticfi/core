@@ -185,8 +185,6 @@ contract SlasherTest is Test {
 
         slasher = _getSlasher(address(vault));
 
-        assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
-        assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
         assertEq(slasher.vault(), address(vault));
         assertEq(slasher.cumulativeSlashAt(alice.subnetwork(0), alice, 0, ""), 0);
         assertEq(slasher.cumulativeSlash(alice.subnetwork(0), alice), 0);

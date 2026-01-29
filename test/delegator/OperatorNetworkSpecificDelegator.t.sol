@@ -176,10 +176,6 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         assertEq(delegator.VERSION(), 1);
-        assertEq(delegator.NETWORK_REGISTRY(), address(networkRegistry));
-        assertEq(delegator.VAULT_FACTORY(), address(vaultFactory));
-        assertEq(delegator.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
-        assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.network(), bob);
         assertEq(delegator.operator(), alice);

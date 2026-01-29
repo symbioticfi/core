@@ -15,10 +15,6 @@ import {
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
     REMOVE_SLOT_ROLE,
-    ASSIGN_NETWORK_ROLE,
-    UNASSIGN_NETWORK_ROLE,
-    ASSIGN_OPERATOR_ROLE,
-    UNASSIGN_OPERATOR_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
     WITHDRAWAL_BUFFER_INDEX
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -38,7 +34,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
     using Math for uint256;
     using Subnetwork for bytes32;
 
-    address public immutable NETWORK_MIDDLEWARE_SERVICE;
+    address internal immutable NETWORK_MIDDLEWARE_SERVICE;
 
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => SlotStorage slot) internal slots;
@@ -699,18 +695,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         if (params.swapSlotsRoleHolder != address(0)) {
             _grantRole(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
-        }
-        if (params.assignNetworkRoleHolder != address(0)) {
-            _grantRole(ASSIGN_NETWORK_ROLE, params.assignNetworkRoleHolder);
-        }
-        if (params.unassignNetworkRoleHolder != address(0)) {
-            _grantRole(UNASSIGN_NETWORK_ROLE, params.unassignNetworkRoleHolder);
-        }
-        if (params.assignOperatorRoleHolder != address(0)) {
-            _grantRole(ASSIGN_OPERATOR_ROLE, params.assignOperatorRoleHolder);
-        }
-        if (params.unassignOperatorRoleHolder != address(0)) {
-            _grantRole(UNASSIGN_OPERATOR_ROLE, params.unassignOperatorRoleHolder);
         }
 
         SlotStorage storage parent = slots[0];

@@ -14,29 +14,10 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     using Checkpoints for Checkpoints.Trace208;
     using SafeCast for uint256;
 
-    bytes32 internal constant ERC3156_ONFLASHLOAN_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
-
-    uint256 internal constant MAX_FEE = 1_000_000;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    address public immutable DELEGATOR_FACTORY;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    address public immutable SLASHER_FACTORY;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    address public immutable REWARDS;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    address public immutable FEE_REGISTRY;
+    address internal immutable DELEGATOR_FACTORY;
+    address internal immutable SLASHER_FACTORY;
+    address internal immutable REWARDS;
+    address internal immutable FEE_REGISTRY;
 
     address internal immutable MIGRATOR_V1V2;
 

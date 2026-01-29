@@ -34,15 +34,8 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
      */
     uint256 public constant BURNER_RESERVE = 20_000;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
-    address public immutable VAULT_FACTORY;
-
-    /**
-     * @inheritdoc IBaseSlasher
-     */
-    address public immutable NETWORK_MIDDLEWARE_SERVICE;
+    address internal immutable VAULT_FACTORY;
+    address internal immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
      * @inheritdoc IBaseSlasher

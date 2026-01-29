@@ -40,11 +40,7 @@ import {
     CREATE_SLOT_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
-    REMOVE_SLOT_ROLE,
-    ASSIGN_NETWORK_ROLE,
-    UNASSIGN_NETWORK_ROLE,
-    ASSIGN_OPERATOR_ROLE,
-    UNASSIGN_OPERATOR_ROLE
+    REMOVE_SLOT_ROLE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
@@ -199,10 +195,6 @@ contract UniversalDelegatorTest is Test {
                         setSizeRoleHolder: owner,
                         setShareRoleHolder: owner,
                         swapSlotsRoleHolder: owner,
-                        assignNetworkRoleHolder: owner,
-                        unassignNetworkRoleHolder: owner,
-                        assignOperatorRoleHolder: owner,
-                        unassignOperatorRoleHolder: owner,
                         withdrawalBuffer: 0
                     })
                 ),
@@ -1058,30 +1050,22 @@ contract UniversalDelegatorTest is Test {
         vm.startPrank(bob);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, CREATE_SLOT_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, bob, CREATE_SLOT_ROLE)
         );
         _createSlot(0, false, 1);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SET_SIZE_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SET_SIZE_ROLE)
         );
         delegator.setSize(_rootIndex(uint32(1)), 1);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SWAP_SLOTS_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SWAP_SLOTS_ROLE)
         );
         delegator.swapSlots(_rootIndex(uint32(1)), _rootIndex(uint32(2)));
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, REMOVE_SLOT_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, bob, REMOVE_SLOT_ROLE)
         );
         delegator.removeSlot(_rootIndex(uint32(1)));
 
@@ -1634,10 +1618,6 @@ contract UniversalDelegatorMigrationTest is Test {
             setSizeRoleHolder: owner,
             setShareRoleHolder: owner,
             swapSlotsRoleHolder: owner,
-            assignNetworkRoleHolder: owner,
-            unassignNetworkRoleHolder: owner,
-            assignOperatorRoleHolder: owner,
-            unassignOperatorRoleHolder: owner,
             withdrawalBuffer: 0
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({

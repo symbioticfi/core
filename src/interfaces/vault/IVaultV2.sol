@@ -17,6 +17,8 @@ bytes32 constant ADD_PLUGIN_ROLE = 0xe892b5eafc9a41e0778f661cf4043d6dd99f846b637
 // keccak256("REMOVE_PLUGIN_ROLE")
 bytes32 constant REMOVE_PLUGIN_ROLE = 0x7c5f59c85a6ad767b49bc5c11743f68b11dd77e30a01804afdadaf2bda250e73;
 
+uint256 constant MAX_FEE = 1_000_000;
+
 /**
  * @title IVault
  * @dev Deprecated signatures:

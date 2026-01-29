@@ -23,7 +23,8 @@ import {
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
     ADD_PLUGIN_ROLE,
-    REMOVE_PLUGIN_ROLE
+    REMOVE_PLUGIN_ROLE,
+    MAX_FEE
 } from "../../interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 

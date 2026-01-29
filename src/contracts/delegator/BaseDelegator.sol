@@ -40,25 +40,10 @@ abstract contract BaseDelegator is
      */
     bytes32 public constant HOOK_SET_ROLE = keccak256("HOOK_SET_ROLE");
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    address public immutable NETWORK_REGISTRY;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    address public immutable VAULT_FACTORY;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
-
-    /**
-     * @inheritdoc IBaseDelegator
-     */
-    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
+    address internal immutable NETWORK_REGISTRY;
+    address internal immutable VAULT_FACTORY;
+    address internal immutable OPERATOR_VAULT_OPT_IN_SERVICE;
+    address internal immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
      * @inheritdoc IBaseDelegator

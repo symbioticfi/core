@@ -333,8 +333,6 @@ contract VaultV2Test is Test {
 
         assertEq(DEPOSIT_WHITELIST_SET_ROLE, keccak256("DEPOSIT_WHITELIST_SET_ROLE"));
         assertEq(DEPOSITOR_WHITELIST_ROLE, keccak256("DEPOSITOR_WHITELIST_ROLE"));
-        assertEq(vault.DELEGATOR_FACTORY(), address(delegatorFactory));
-        assertEq(vault.SLASHER_FACTORY(), address(slasherFactory));
 
         assertEq(VaultV2(address(vault)).owner(), address(0));
         assertEq(vault.collateral(), address(collateral));
@@ -3565,10 +3563,6 @@ contract VaultV2Test is Test {
             setSizeRoleHolder: alice,
             setShareRoleHolder: alice,
             swapSlotsRoleHolder: alice,
-            assignNetworkRoleHolder: alice,
-            unassignNetworkRoleHolder: alice,
-            assignOperatorRoleHolder: alice,
-            unassignOperatorRoleHolder: alice,
             withdrawalBuffer: 0
         });
 
@@ -3599,10 +3593,6 @@ contract VaultV2Test is Test {
             setSizeRoleHolder: alice,
             setShareRoleHolder: alice,
             swapSlotsRoleHolder: alice,
-            assignNetworkRoleHolder: alice,
-            unassignNetworkRoleHolder: alice,
-            assignOperatorRoleHolder: alice,
-            unassignOperatorRoleHolder: alice,
             withdrawalBuffer: 0
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({

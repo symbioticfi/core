@@ -28,10 +28,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     using Subnetwork for address;
     using UniversalDelegatorIndex for uint96;
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
-    address public immutable NETWORK_REGISTRY;
+    address internal immutable NETWORK_REGISTRY;
 
     /**
      * @inheritdoc IUniversalSlasher

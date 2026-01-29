@@ -175,10 +175,6 @@ contract FullRestakeDelegatorTest is Test {
         (vault, delegator) = _getVaultAndDelegator(epochDuration);
 
         assertEq(delegator.VERSION(), 1);
-        assertEq(delegator.NETWORK_REGISTRY(), address(networkRegistry));
-        assertEq(delegator.VAULT_FACTORY(), address(vaultFactory));
-        assertEq(delegator.OPERATOR_VAULT_OPT_IN_SERVICE(), address(operatorVaultOptInService));
-        assertEq(delegator.OPERATOR_NETWORK_OPT_IN_SERVICE(), address(operatorNetworkOptInService));
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.maxNetworkLimit(alice.subnetwork(0)), 0);
         assertEq(delegator.stakeAt(alice.subnetwork(0), alice, 0, ""), 0);

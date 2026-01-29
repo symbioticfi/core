@@ -163,8 +163,6 @@ interface IUniversalSlasher is IBaseSlasher {
      * @notice Get the network registry's address.
      * @return address of the network registry
      */
-    function NETWORK_REGISTRY() external view returns (address);
-
     /**
      * @notice Get a duration during which resolvers can veto slash requests.
      * @return duration of the veto period

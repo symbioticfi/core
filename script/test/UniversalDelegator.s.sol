@@ -86,10 +86,6 @@ contract UniversalDelegatorUiSetup is Script {
             setSizeRoleHolder: broadcaster,
             setShareRoleHolder: broadcaster,
             swapSlotsRoleHolder: broadcaster,
-            assignNetworkRoleHolder: broadcaster,
-            unassignNetworkRoleHolder: broadcaster,
-            assignOperatorRoleHolder: broadcaster,
-            unassignOperatorRoleHolder: broadcaster,
             withdrawalBuffer: 0
         });
 

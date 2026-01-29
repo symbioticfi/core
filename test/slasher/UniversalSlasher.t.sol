@@ -305,10 +305,6 @@ contract UniversalSlasherMigrationTest is Test {
             setSizeRoleHolder: owner,
             setShareRoleHolder: owner,
             swapSlotsRoleHolder: owner,
-            assignNetworkRoleHolder: owner,
-            unassignNetworkRoleHolder: owner,
-            assignOperatorRoleHolder: owner,
-            unassignOperatorRoleHolder: owner,
             withdrawalBuffer: 0
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
