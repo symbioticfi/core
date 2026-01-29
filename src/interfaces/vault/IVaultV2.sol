@@ -432,5 +432,5 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param epoch An epoch to migrate the withdrawal for.
      * @param account An account to migrate the withdrawal of.
      */
-    function migrateWithdrawalsOf(address account, uint48 epoch) external;
+    function migrateWithdrawalOf(address account, uint48 epoch) external;
 }

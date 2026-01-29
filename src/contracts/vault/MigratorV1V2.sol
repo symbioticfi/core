@@ -21,20 +21,29 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
     using Checkpoints for Checkpoints.Trace256;
     using SafeCast for uint256;
 
+    /* ERRORS */
+
+    error AlreadyClaimed();
+    error InsufficientWithdrawal();
+
+    /* EVENTS */
+
+    event MigrateWithdrawalOf(address indexed account, uint48 indexed epoch, uint256 shares);
+
     /* CONSTRUCTOR */
 
     constructor(address delegatorFactory, address slasherFactory) VaultV2Storage(delegatorFactory, slasherFactory) {}
 
-    function migrateWithdrawalsOf(address account, uint48 epoch) public {
+    function migrateWithdrawalOf(address account, uint48 epoch) public {
         if (_isEpochWithdrawalsClaimed[epoch][account]) {
-            revert();
+            revert AlreadyClaimed();
         }
         uint256 shares = _epochWithdrawalSharesOf[epoch][account];
         if (shares == 0) {
-            revert();
+            revert InsufficientWithdrawal();
         }
         uint208 bucketIndex = epoch - 1;
-        uint48 unlockAfter = _epochDurationInit - 1 + (epoch + 1) * epochDuration;
+        uint48 unlockAfter = uint48(block.timestamp) + epochDuration;
         if (unlockAfter >= _withdrawalSharesCumulative.at(0)._key) {
             shares = ERC4626Math.previewRedeem(shares, _epochWithdrawals[epoch], _epochWithdrawalShares[epoch]);
         } else if (_withdrawalShares[bucketIndex].latest() == 0) {
@@ -45,6 +54,8 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
         }
         _withdrawalsOf[account].push(Withdrawal(false, unlockAfter, shares));
         _isEpochWithdrawalsClaimed[epoch][account] = true;
+
+        emit MigrateWithdrawalOf(account, epoch, shares);
     }
 
     function migrate(uint64 oldVersion, bytes calldata data) public {
@@ -52,7 +63,7 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
         if (oldVersion == 1) {
             __ERC20_init(params.name, params.symbol);
         }
-        uint48 epoch = (block.timestamp - _epochDurationInit).toUint48() / epochDuration;
+        uint48 epoch = uint48((block.timestamp - _epochDurationInit) / epochDuration);
         uint48 nextEpochStart = _epochDurationInit + (epoch + 1) * epochDuration;
         uint256 epochWithdrawals;
         uint208 bucketIndex;
@@ -62,7 +73,7 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
             bucketIndex = epoch - 1;
         }
         epochWithdrawals += _epochWithdrawals[epoch + 1];
-        _withdrawalSharesCumulative.push(nextEpochStart + epochDuration, epochWithdrawals);
+        _withdrawalSharesCumulative.push(uint48(block.timestamp) + epochDuration, epochWithdrawals);
         assembly ("memory-safe") {
             sstore(_unlockToBucket.slot, bucketIndex)
         }
@@ -81,6 +92,8 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
             slasher = newSlasher;
         }
 
-        _unclaimedRaw = (IERC20(collateral).balanceOf(address(this)) - activeStake() - epochWithdrawals).toInt256();
+        _unclaimedRaw = int256(IERC20(collateral).balanceOf(address(this)) - activeStake() - epochWithdrawals);
+
+        // TODO: emit data
     }
 }

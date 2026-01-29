@@ -438,7 +438,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             mintedShares = ERC4626Math.previewDeposit(
                 withdrawnAssets, _withdrawalShares[lastBucket].latest(), _withdrawals[lastBucket].latest()
             );
-            
+
             _withdrawals[lastBucket].push(uint48(block.timestamp), _withdrawals[lastBucket].latest() + withdrawnAssets);
             _withdrawalShares[lastBucket].push(
                 uint48(block.timestamp), _withdrawalShares[lastBucket].latest() + mintedShares
@@ -749,6 +749,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             plugins.push(plugin);
             pluginActiveSince[plugin] = uint48(block.timestamp);
         }
+
+        // TODO: emit data
     }
 
     /* INTERNAL DEV FUNCTIONS */
@@ -800,8 +802,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function migrateWithdrawalsOf(address account, uint48 epoch) public {
-        MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.migrateWithdrawalsOf, (account, epoch)));
+    function migrateWithdrawalOf(address account, uint48 epoch) public {
+        MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.migrateWithdrawalOf, (account, epoch)));
     }
 
     function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {

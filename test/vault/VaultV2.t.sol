@@ -2460,11 +2460,11 @@ contract VaultV2Test is Test {
         }
 
         vm.expectRevert();
-        vaultV2.migrateWithdrawalsOf(alice, 1);
+        vaultV2.migrateWithdrawalOf(alice, 1);
 
-        vaultV2.migrateWithdrawalsOf(bob, 1);
-        vaultV2.migrateWithdrawalsOf(alice, 2);
-        vaultV2.migrateWithdrawalsOf(bob, 2);
+        vaultV2.migrateWithdrawalOf(bob, 1);
+        vaultV2.migrateWithdrawalOf(alice, 2);
+        vaultV2.migrateWithdrawalOf(bob, 2);
 
         assertEq(vaultV2.withdrawalsLength(bob), 2);
         assertEq(vaultV2.withdrawalsLength(alice), 1);
@@ -2560,8 +2560,8 @@ contract VaultV2Test is Test {
 
         IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
         _assertMigrationState(vaultV2, oldSlasher);
-        vaultV2.migrateWithdrawalsOf(alice, 1);
-        vaultV2.migrateWithdrawalsOf(alice, 2);
+        vaultV2.migrateWithdrawalOf(alice, 1);
+        vaultV2.migrateWithdrawalOf(alice, 2);
 
         state.expectedEpoch1 = Math.mulDiv(state.withdrawEpoch0, state.withdrawEpoch0 + 1, state.withdrawEpoch0 + 1);
         state.expectedEpoch2 = Math.mulDiv(state.withdrawEpoch1, state.withdrawEpoch1 + 1, state.withdrawEpoch1 + 1);
