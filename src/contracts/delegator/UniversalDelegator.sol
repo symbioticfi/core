@@ -24,6 +24,8 @@ import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddle
 
 import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 
+import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
+
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicallable.sol";
 
@@ -116,7 +118,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                 revert InvalidDuration();
             }
             return IVaultV2(vault).activeStakeAt(timestamp, hints)
-                + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
+                + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp, "");
         }
         return getAllocatedAt(index, timestamp, duration, hints);
     }
@@ -126,7 +128,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
      */
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
         if (index == 0) {
-            return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration);
+            return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration, Calldata.emptyBytes());
         }
         return getAllocated(index, duration);
     }

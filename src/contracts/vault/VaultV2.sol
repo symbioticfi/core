@@ -87,25 +87,41 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
-        uint208 lastBucket = _unlockToBucket.upperLookupRecent(timestamp);
-        uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].upperLookupRecent(timestamp);
+    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
+        ActiveWithdrawalsHints memory activeWithdrawalsHints;
+        if (hints.length > 0) {
+            activeWithdrawalsHints = abi.decode(hints, (ActiveWithdrawalsHints));
+        }
+        uint208 lastBucket = _unlockToBucket.upperLookupRecent(timestamp, activeWithdrawalsHints.unlockToBucketHint);
+        uint256 lastWithdrawalShares =
+            _withdrawalShares[lastBucket].upperLookupRecent(timestamp, activeWithdrawalsHints.withdrawalSharesHint);
         return lastWithdrawalShares > 0
-            ? (_withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
-                    - _withdrawalSharesCumulative.upperLookupRecent(timestamp + duration))
-            .fullMulDivUnchecked(_withdrawals[lastBucket].upperLookupRecent(timestamp), lastWithdrawalShares)
+            ? (_withdrawalSharesCumulative.upperLookupRecent(
+                        timestamp + epochDuration, activeWithdrawalsHints.withdrawalSharesCumulativeHint1
+                    )
+                    - _withdrawalSharesCumulative.upperLookupRecent(
+                        timestamp + duration, activeWithdrawalsHints.withdrawalSharesCumulativeHint2
+                    ))
+            .fullMulDivUnchecked(
+                _withdrawals[lastBucket].upperLookupRecent(timestamp, activeWithdrawalsHints.withdrawalsHint),
+                lastWithdrawalShares
+            )
             : 0;
     }
 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsFor(uint48 duration) public view returns (uint256) {
+    function activeWithdrawalsFor(uint48 duration, bytes memory hint) public view returns (uint256) {
         uint208 lastBucket = _unlockToBucket.latest();
         uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].latest();
         return lastWithdrawalShares > 0
             ? (_withdrawalSharesCumulative.latest()
-                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration))
+                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration, hint))
             .fullMulDivUnchecked(_withdrawals[lastBucket].latest(), lastWithdrawalShares)
             : 0;
     }
@@ -113,21 +129,21 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
-        return activeWithdrawalsForAt(0, timestamp);
+    function activeWithdrawalsAt(uint48 timestamp, bytes memory hints) public view returns (uint256) {
+        return activeWithdrawalsForAt(0, timestamp, hints);
     }
 
     /**
      * @inheritdoc IVaultV2
      */
     function activeWithdrawals() public view returns (uint256) {
-        return activeWithdrawalsFor(0);
+        return activeWithdrawalsFor(0, "");
     }
 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata hints) public view returns (uint256) {
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
         ActiveBalanceOfHints memory activeBalanceOfHints;
         if (hints.length > 0) {
             activeBalanceOfHints = abi.decode(hints, (ActiveBalanceOfHints));
@@ -211,9 +227,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             collateral.safeTransferFrom(msg.sender, address(this), amount);
             depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
 
-            if (depositedAmount == 0) {
-                revert InsufficientAmount();
-            }
+            _revertIfZero(depositedAmount);
 
             if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
                 revert DepositLimitReached();
@@ -281,9 +295,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function instantWithdraw(address recipient, uint256 amount) public returns (uint256 burnedShares) {
         unchecked {
-            if (amount == 0) {
-                revert InsufficientAmount();
-            }
+            _revertIfZero(amount);
 
             uint256 activeStake_ = activeStake();
             uint256 activeShares_ = activeShares();
@@ -352,9 +364,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             collateral.safeTransferFrom(msg.sender, address(this), amount);
             amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
 
-            if (amount == 0) {
-                revert InsufficientAmount();
-            }
+            _revertIfZero(amount);
 
             uint256 activeStake_ = activeStake();
             uint256 withdrawals_ = activeWithdrawals();
@@ -539,10 +549,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function flashLoan(address token, uint256 amount, bytes calldata data) external nonReentrant {
-        if (amount == 0) {
-            revert InsufficientAmount();
-        }
+    function flashLoan(address token, uint256 amount, bytes memory data) external nonReentrant {
+        _revertIfZero(amount);
         uint256 fee = flashFee(token, amount);
         address collateral_ = collateral;
         uint256 balanceBefore = IERC20(collateral_).balanceOf(address(this));
@@ -573,9 +581,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function pull(uint256 amount) public nonReentrant returns (uint256 pulled) {
         unchecked {
-            if (amount == 0) {
-                revert InsufficientAmount();
-            }
+            _revertIfZero(amount);
             if (pluginActiveSince[msg.sender] < block.timestamp) {
                 revert PluginNotActive();
             }
@@ -601,9 +607,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function push(uint256 amount) public nonReentrant {
-        if (amount == 0) {
-            revert InsufficientAmount();
-        }
+        _revertIfZero(amount);
         collateral.safeTransferFrom(msg.sender, address(this), amount);
 
         pluginOwe[msg.sender] -= amount;
@@ -634,9 +638,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                         )
                     )
             );
-            if (slashed == 0) {
-                revert InsufficientAmount();
-            }
+            _revertIfZero(slashed);
             collateral.safeTransfer(burner, slashed);
 
             // TODO: emit
@@ -719,27 +721,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         pluginActiveDelay = params.pluginActiveDelay;
 
-        if (params.defaultAdminRoleHolder != address(0)) {
-            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-        if (params.depositWhitelistSetRoleHolder != address(0)) {
-            _grantRole(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
-        }
-        if (params.depositorWhitelistRoleHolder != address(0)) {
-            _grantRole(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
-        }
-        if (params.isDepositLimitSetRoleHolder != address(0)) {
-            _grantRole(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
-        }
-        if (params.depositLimitSetRoleHolder != address(0)) {
-            _grantRole(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-        }
-        if (params.addPluginRoleHolder != address(0)) {
-            _grantRole(ADD_PLUGIN_ROLE, params.addPluginRoleHolder);
-        }
-        if (params.removePluginRoleHolder != address(0)) {
-            _grantRole(REMOVE_PLUGIN_ROLE, params.removePluginRoleHolder);
-        }
+        _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        _grantRoleIfNotZero(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
+        _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
+        _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
+        _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
+        _grantRoleIfNotZero(ADD_PLUGIN_ROLE, params.addPluginRoleHolder);
+        _grantRoleIfNotZero(REMOVE_PLUGIN_ROLE, params.removePluginRoleHolder);
 
         for (uint256 i; i < params.plugins.length; ++i) {
             address plugin = params.plugins[i];
@@ -751,6 +739,22 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         // TODO: emit data
+    }
+
+    /* INTERNAL HELPERS */
+
+    // TODO: remove second if enough bytecode
+    function _revertIfZero(uint256 amount) internal pure {
+        if (amount == 0) {
+            revert InsufficientAmount();
+        }
+    }
+
+    // TODO: remove first if enough bytecode
+    function _grantRoleIfNotZero(bytes32 role, address holder) internal {
+        if (holder != address(0)) {
+            _grantRole(role, holder);
+        }
     }
 
     /* INTERNAL DEV FUNCTIONS */

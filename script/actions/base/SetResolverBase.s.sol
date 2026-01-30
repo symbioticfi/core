@@ -13,7 +13,7 @@ contract SetResolverBaseScript is ScriptBase {
         returns (bytes memory data, address target)
     {
         target = IVault(vault).slasher();
-        data = abi.encodeCall(IVetoSlasher.setResolver, (identifier, resolver, new bytes(0)));
+        data = abi.encodeCall(IVetoSlasher.setResolver, (identifier, resolver, ""));
         sendTransaction(target, data);
 
         Logs.log(

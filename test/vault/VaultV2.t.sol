@@ -2490,9 +2490,9 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalSharesOf(1, bob), state.expectedBobEpoch2);
         assertEq(vaultV2.withdrawalSharesOf(0, alice), state.expectedAliceEpoch2);
 
-        assertEq(vaultV2.withdrawalsOf(0, bob), state.expectedBobEpoch1);
-        assertEq(vaultV2.withdrawalsOf(1, bob), state.expectedBobEpoch2);
-        assertEq(vaultV2.withdrawalsOf(0, alice), state.expectedAliceEpoch2);
+        assertEq(vaultV2.withdrawalsOf(0, bob, ""), state.expectedBobEpoch1);
+        assertEq(vaultV2.withdrawalsOf(1, bob, ""), state.expectedBobEpoch2);
+        assertEq(vaultV2.withdrawalsOf(0, alice, ""), state.expectedAliceEpoch2);
 
         uint256 bobBalanceBefore = collateral.balanceOf(bob);
         vm.startPrank(bob);

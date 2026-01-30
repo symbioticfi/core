@@ -84,12 +84,11 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             (request.subnetwork, request.operator, request.amount, request.captureTimestamp, request.vetoDeadline,) =
                 IVetoSlasher(_oldSlasher).slashRequests(slashIndex);
 
-            request.resolver =
-                IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, request.captureTimestamp, new bytes(0));
+            request.resolver = IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, request.captureTimestamp, "");
             if (request.resolver != address(0)) {
                 // TODO: remove it, or add comment regarding block.timestamp versus slashIndex
                 request.resolver =
-                    IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, new bytes(0));
+                    IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "");
             }
         }
     }

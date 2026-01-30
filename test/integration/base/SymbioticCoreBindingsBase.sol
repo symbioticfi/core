@@ -358,7 +358,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         uint48 captureTimestamp
     ) internal virtual broadcast(who) returns (uint256 slashedAmount) {
         slashedAmount = ISymbioticSlasher(ISymbioticVault(vault).slasher())
-            .slash(subnetwork, operator, amount, captureTimestamp, new bytes(0));
+            .slash(subnetwork, operator, amount, captureTimestamp, "");
     }
 
     function _requestSlash_SymbioticCore(
@@ -370,7 +370,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         uint48 captureTimestamp
     ) internal virtual broadcast(who) returns (uint256 slashIndex) {
         slashIndex = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher())
-            .requestSlash(subnetwork, operator, amount, captureTimestamp, new bytes(0));
+            .requestSlash(subnetwork, operator, amount, captureTimestamp, "");
     }
 
     function _executeSlash_SymbioticCore(address who, address vault, uint256 slashIndex)
@@ -379,11 +379,11 @@ abstract contract SymbioticCoreBindingsBase is Test {
         broadcast(who)
         returns (uint256 slashedAmount)
     {
-        slashedAmount = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, new bytes(0));
+        slashedAmount = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, "");
     }
 
     function _vetoSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal virtual broadcast(who) {
-        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).vetoSlash(slashIndex, new bytes(0));
+        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).vetoSlash(slashIndex, "");
     }
 
     function _setResolver_SymbioticCore(address who, address vault, uint96 identifier, address resolver)
@@ -391,7 +391,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         virtual
         broadcast(who)
     {
-        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).setResolver(identifier, resolver, new bytes(0));
+        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).setResolver(identifier, resolver, "");
     }
 
     function _grantRole_SymbioticCore(address who, address where, bytes32 role, address account)

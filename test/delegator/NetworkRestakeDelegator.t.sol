@@ -1537,7 +1537,7 @@ contract NetworkRestakeDelegatorTest is Test {
     //     bytes memory hint = networkRestakeDelegatorHints.networkLimitHint(address(delegator), network, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     delegator.networkLimitAt(network, timestamp, new bytes(0));
+    //     delegator.networkLimitAt(network, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     delegator.networkLimitAt(network, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -1581,7 +1581,7 @@ contract NetworkRestakeDelegatorTest is Test {
     //         networkRestakeDelegatorHints.operatorNetworkSharesHint(address(delegator), network, alice, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     delegator.operatorNetworkSharesAt(network, alice, timestamp, new bytes(0));
+    //     delegator.operatorNetworkSharesAt(network, alice, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     delegator.operatorNetworkSharesAt(network, alice, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -1625,7 +1625,7 @@ contract NetworkRestakeDelegatorTest is Test {
     //         networkRestakeDelegatorHints.totalOperatorNetworkSharesHint(address(delegator), network, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     delegator.totalOperatorNetworkSharesAt(network, timestamp, new bytes(0));
+    //     delegator.totalOperatorNetworkSharesAt(network, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     delegator.totalOperatorNetworkSharesAt(network, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -1715,16 +1715,16 @@ contract NetworkRestakeDelegatorTest is Test {
     //         IBaseDelegator.StakeBaseHints({
     //             operatorVaultOptInHint: stakeBaseHintsUint32.withOperatorVaultOptInHint
     //                 ? abi.encode(stakeBaseHintsUint32.operatorVaultOptInHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             operatorNetworkOptInHint: stakeBaseHintsUint32.withOperatorNetworkOptInHint
     //                 ? abi.encode(stakeBaseHintsUint32.operatorNetworkOptInHint)
-    //                 : new bytes(0)
+    //                 : ""
     //         })
     //     );
     //     try baseDelegatorHints._stakeBaseHints(address(delegator), network, alice, timestamp, stakeBaseHints) {
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     } catch {
-    //         baseDelegatorHints._stakeBaseHints(address(delegator), network, alice, timestamp, new bytes(0));
+    //         baseDelegatorHints._stakeBaseHints(address(delegator), network, alice, timestamp, "");
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     }
 
@@ -1840,10 +1840,10 @@ contract NetworkRestakeDelegatorTest is Test {
     //             IBaseDelegator.StakeBaseHints({
     //                 operatorVaultOptInHint: stakeHintsUint32.baseHints.withOperatorVaultOptInHint
     //                     ? abi.encode(stakeHintsUint32.baseHints.operatorVaultOptInHint)
-    //                     : new bytes(0),
+    //                     : "",
     //                 operatorNetworkOptInHint: stakeHintsUint32.baseHints.withOperatorNetworkOptInHint
     //                     ? abi.encode(stakeHintsUint32.baseHints.operatorNetworkOptInHint)
-    //                     : new bytes(0)
+    //                     : ""
     //             })
     //         );
     //     }
@@ -1853,23 +1853,23 @@ contract NetworkRestakeDelegatorTest is Test {
     //             baseHints: stakeBaseHints,
     //             activeStakeHint: stakeHintsUint32.withActiveStakeHint
     //                 ? abi.encode(stakeHintsUint32.activeStakeHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             networkLimitHint: stakeHintsUint32.withNetworkLimitHint
     //                 ? abi.encode(stakeHintsUint32.networkLimitHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             operatorNetworkSharesHint: stakeHintsUint32.withOperatorNetworkSharesHint
     //                 ? abi.encode(stakeHintsUint32.operatorNetworkSharesHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             totalOperatorNetworkSharesHint: stakeHintsUint32.withTotalOperatorNetworkSharesHint
     //                 ? abi.encode(stakeHintsUint32.totalOperatorNetworkSharesHint)
-    //                 : new bytes(0)
+    //                 : ""
     //         })
     //     );
 
     //     try delegator.stakeAt(network, alice, timestamp, stakeHints) {
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     } catch {
-    //         delegator.stakeAt(network, alice, timestamp, new bytes(0));
+    //         delegator.stakeAt(network, alice, timestamp, "");
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     }
 
@@ -1972,10 +1972,10 @@ contract NetworkRestakeDelegatorTest is Test {
     //             IBaseDelegator.StakeBaseHints({
     //                 operatorVaultOptInHint: stakeHintsUint32.baseHints.withOperatorVaultOptInHint
     //                     ? abi.encode(stakeHintsUint32.baseHints.operatorVaultOptInHint)
-    //                     : new bytes(0),
+    //                     : "",
     //                 operatorNetworkOptInHint: stakeHintsUint32.baseHints.withOperatorNetworkOptInHint
     //                     ? abi.encode(stakeHintsUint32.baseHints.operatorNetworkOptInHint)
-    //                     : new bytes(0)
+    //                     : ""
     //             })
     //         );
     //     }
@@ -1985,23 +1985,23 @@ contract NetworkRestakeDelegatorTest is Test {
     //             baseHints: stakeBaseHints,
     //             activeStakeHint: stakeHintsUint32.withActiveStakeHint
     //                 ? abi.encode(stakeHintsUint32.activeStakeHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             networkLimitHint: stakeHintsUint32.withNetworkLimitHint
     //                 ? abi.encode(stakeHintsUint32.networkLimitHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             operatorNetworkSharesHint: stakeHintsUint32.withOperatorNetworkSharesHint
     //                 ? abi.encode(stakeHintsUint32.operatorNetworkSharesHint)
-    //                 : new bytes(0),
+    //                 : "",
     //             totalOperatorNetworkSharesHint: stakeHintsUint32.withTotalOperatorNetworkSharesHint
     //                 ? abi.encode(stakeHintsUint32.totalOperatorNetworkSharesHint)
-    //                 : new bytes(0)
+    //                 : ""
     //         })
     //     );
 
     //     try delegator.stakeAt(network, alice, timestamp, stakeHints) {
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     } catch {
-    //         delegator.stakeAt(network, alice, timestamp, new bytes(0));
+    //         delegator.stakeAt(network, alice, timestamp, "");
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     }
 
@@ -2110,25 +2110,25 @@ contract NetworkRestakeDelegatorTest is Test {
     //                         IBaseDelegator.StakeBaseHints({
     //                             operatorVaultOptInHint: onSlashHintsUint32.hints.baseHints.withOperatorVaultOptInHint
     //                                 ? abi.encode(onSlashHintsUint32.hints.baseHints.operatorVaultOptInHint)
-    //                                 : new bytes(0),
+    //                                 : "",
     //                             operatorNetworkOptInHint: onSlashHintsUint32.hints.baseHints.withOperatorNetworkOptInHint
     //                                 ? abi.encode(onSlashHintsUint32.hints.baseHints.operatorNetworkOptInHint)
-    //                                 : new bytes(0)
+    //                                 : ""
     //                         })
     //                     )
-    //                     : new bytes(0),
+    //                     : "",
     //                 activeStakeHint: onSlashHintsUint32.hints.withActiveStakeHint
     //                     ? abi.encode(onSlashHintsUint32.hints.activeStakeHint)
-    //                     : new bytes(0),
+    //                     : "",
     //                 networkLimitHint: onSlashHintsUint32.hints.withNetworkLimitHint
     //                     ? abi.encode(onSlashHintsUint32.hints.networkLimitHint)
-    //                     : new bytes(0),
+    //                     : "",
     //                 operatorNetworkSharesHint: onSlashHintsUint32.hints.withOperatorNetworkSharesHint
     //                     ? abi.encode(onSlashHintsUint32.hints.operatorNetworkSharesHint)
-    //                     : new bytes(0),
+    //                     : "",
     //                 totalOperatorNetworkSharesHint: onSlashHintsUint32.hints.withTotalOperatorNetworkSharesHint
     //                     ? abi.encode(onSlashHintsUint32.hints.totalOperatorNetworkSharesHint)
-    //                     : new bytes(0)
+    //                     : ""
     //             })
     //         );
     //     }
@@ -2143,7 +2143,7 @@ contract NetworkRestakeDelegatorTest is Test {
     //     ) {
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     } catch {
-    //         baseDelegatorHints._onSlash(address(delegator), network, alice, amount1, timestamp, new bytes(0));
+    //         baseDelegatorHints._onSlash(address(delegator), network, alice, amount1, timestamp, "");
     //         gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     }
 

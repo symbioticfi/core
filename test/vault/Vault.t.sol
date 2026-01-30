@@ -2486,7 +2486,7 @@ contract VaultTest is Test {
     //     bytes memory hint = vaultHints.activeSharesHint(address(vault), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeSharesAt(timestamp, new bytes(0));
+    //     vault.activeSharesAt(timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -2519,7 +2519,7 @@ contract VaultTest is Test {
     //     bytes memory hint = vaultHints.activeStakeHint(address(vault), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeStakeAt(timestamp, new bytes(0));
+    //     vault.activeStakeAt(timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeStakeAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -2552,7 +2552,7 @@ contract VaultTest is Test {
     //     bytes memory hint = vaultHints.activeSharesOfHint(address(vault), alice, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeSharesOfAt(alice, timestamp, new bytes(0));
+    //     vault.activeSharesOfAt(alice, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesOfAt(alice, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;

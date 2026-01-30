@@ -1400,7 +1400,7 @@ contract SlasherTest is Test {
     //     bytes memory hint = baseSlasherHints.cumulativeSlashHint(address(slasher), network, alice, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     slasher.cumulativeSlashAt(network, alice, timestamp, new bytes(0));
+    //     slasher.cumulativeSlashAt(network, alice, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     slasher.cumulativeSlashAt(network, alice, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -1532,7 +1532,7 @@ contract SlasherTest is Test {
     //     bytes memory hint = baseSlasherHints.slashableStakeHints(address(slasher), network, alice, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     slasher.slashableStake(network, alice, timestamp, new bytes(0));
+    //     slasher.slashableStake(network, alice, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     slasher.slashableStake(network, alice, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;

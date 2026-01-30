@@ -133,6 +133,30 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     }
 
     /**
+     * @notice Hints for active withdrawals lookup.
+     * @param unlockToBucketHint hint for the unlock to bucket checkpoint
+     * @param withdrawalSharesHint hint for the withdrawal shares checkpoint
+     * @param withdrawalSharesCumulativeHint1 hint for the first withdrawal shares cumulative checkpoint
+     * @param withdrawalSharesCumulativeHint2 hint for the second withdrawal shares cumulative checkpoint
+     * @param withdrawalsHint hint for the withdrawals checkpoint
+     */
+    struct ActiveWithdrawalsHints {
+        bytes unlockToBucketHint;
+        bytes withdrawalSharesHint;
+        bytes withdrawalSharesCumulativeHint1;
+        bytes withdrawalSharesCumulativeHint2;
+        bytes withdrawalsHint;
+    }
+
+    /**
+     * @notice Hints for withdrawals of lookup.
+     * @param unlockToBucketHint hint for the unlock to bucket checkpoint
+     */
+    struct WithdrawalsOfHints {
+        bytes unlockToBucketHint;
+    }
+
+    /**
      * @notice Emitted when a deposit is made.
      * @param depositor account that made the deposit
      * @param onBehalfOf account the deposit was made on behalf of
@@ -265,11 +289,32 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     function totalStake() external view returns (uint256);
 
-    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) external view returns (uint256);
+    /**
+     * @notice Get a total amount of the active withdrawals for a given duration at a given timestamp using hints.
+     * @param duration duration to get the active withdrawals for
+     * @param timestamp time point to get the active withdrawals at
+     * @param hints hints for checkpoints' indexes
+     * @return total amount of the active withdrawals
+     */
+    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp, bytes memory hints)
+        external
+        view
+        returns (uint256);
 
-    function activeWithdrawalsFor(uint48 duration) external view returns (uint256);
+    /**
+     * @notice Get a total amount of the active withdrawals for a given duration.
+     * @param duration duration to get the active withdrawals for
+     * @return total amount of the active withdrawals
+     */
+    function activeWithdrawalsFor(uint48 duration, bytes memory hint) external view returns (uint256);
 
-    function activeWithdrawalsAt(uint48 timestamp) external view returns (uint256);
+    /**
+     * @notice Get a total amount of the active withdrawals at a given timestamp.
+     * @param timestamp time point to get the active withdrawals at
+     * @param hints hints for checkpoints' indexes
+     * @return total amount of the active withdrawals
+     */
+    function activeWithdrawalsAt(uint48 timestamp, bytes memory hints) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the withdrawals.
@@ -284,7 +329,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param hints hints for checkpoints' indexes
      * @return active balance for the account at the timestamp
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata hints) external view returns (uint256);
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.
@@ -294,7 +339,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get withdrawals for a particular account at a given index (zero if claimed).
+     * @notice Get withdrawals for a particular account at a given index (zero if claimed) using hints.
      * @param index index to get the withdrawals for the account at
      * @param account account to get the withdrawals for
      * @return withdrawals for the account at the index
@@ -425,7 +470,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param amount amount of the token
      * @param data data for the flash loan
      */
-    function flashLoan(address token, uint256 amount, bytes calldata data) external;
+    function flashLoan(address token, uint256 amount, bytes memory data) external;
 
     /**
      * @dev Migrates a epoch-based withdawal to the fixed-delay-based one.

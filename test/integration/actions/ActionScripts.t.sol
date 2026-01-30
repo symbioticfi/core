@@ -384,8 +384,7 @@ contract ActionScriptsTest is SymbioticCoreInit {
         script.runBase(vaultNetworkRestakeVeto, SUBNETWORK_ID, resolver.addr);
 
         bytes32 subnetwork = _subnetwork();
-        address currentResolver =
-            IVetoSlasher(IVault(vaultNetworkRestakeVeto).slasher()).resolver(subnetwork, new bytes(0));
+        address currentResolver = IVetoSlasher(IVault(vaultNetworkRestakeVeto).slasher()).resolver(subnetwork, "");
         assertEq(currentResolver, resolver.addr, "resolver mismatch");
     }
 
