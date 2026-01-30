@@ -92,23 +92,30 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         view
         returns (uint256)
     {
-        ActiveWithdrawalsHints memory activeWithdrawalsHints;
+        // TODO: vars is cheaper both bytecode and gas, but more lines. replace?
+        bytes memory unlockToBucketHint;
+        bytes memory withdrawalSharesHint;
+        bytes memory withdrawalSharesCumulativeHint1;
+        bytes memory withdrawalSharesCumulativeHint2;
+        bytes memory withdrawalsHint;
         if (hints.length > 0) {
-            activeWithdrawalsHints = abi.decode(hints, (ActiveWithdrawalsHints));
+            (
+                unlockToBucketHint,
+                withdrawalSharesHint,
+                withdrawalSharesCumulativeHint1,
+                withdrawalSharesCumulativeHint2,
+                withdrawalsHint
+            ) = abi.decode(hints, (bytes, bytes, bytes, bytes, bytes));
         }
-        uint208 lastBucket = _unlockToBucket.upperLookupRecent(timestamp, activeWithdrawalsHints.unlockToBucketHint);
-        uint256 lastWithdrawalShares =
-            _withdrawalShares[lastBucket].upperLookupRecent(timestamp, activeWithdrawalsHints.withdrawalSharesHint);
+        uint208 lastBucket = _unlockToBucket.upperLookupRecent(timestamp, unlockToBucketHint);
+        uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].upperLookupRecent(timestamp, withdrawalSharesHint);
         return lastWithdrawalShares > 0
-            ? (_withdrawalSharesCumulative.upperLookupRecent(
-                        timestamp + epochDuration, activeWithdrawalsHints.withdrawalSharesCumulativeHint1
-                    )
+            ? (_withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration, withdrawalSharesCumulativeHint1)
                     - _withdrawalSharesCumulative.upperLookupRecent(
-                        timestamp + duration, activeWithdrawalsHints.withdrawalSharesCumulativeHint2
+                        timestamp + duration, withdrawalSharesCumulativeHint2
                     ))
             .fullMulDivUnchecked(
-                _withdrawals[lastBucket].upperLookupRecent(timestamp, activeWithdrawalsHints.withdrawalsHint),
-                lastWithdrawalShares
+                _withdrawals[lastBucket].upperLookupRecent(timestamp, withdrawalsHint), lastWithdrawalShares
             )
             : 0;
     }

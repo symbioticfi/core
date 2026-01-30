@@ -1217,6 +1217,51 @@ contract VaultV2Test is Test {
         assertGt(gasSpent, gasLeft - gasleft());
     }
 
+    function test_ActiveWithdrawalsForAt_withoutHints_matchesWithHints() public {
+        uint48 epochDuration = 7 days;
+        vault = _getVault(epochDuration);
+
+        uint256 depositAmount = 100 ether;
+        uint256 withdrawAmount = 40 ether;
+
+        collateral.transfer(alice, depositAmount);
+        vm.startPrank(alice);
+        collateral.approve(address(vault), type(uint256).max);
+        vault.deposit(alice, depositAmount);
+        vault.withdraw(alice, withdrawAmount);
+        vm.stopPrank();
+
+        uint48 timestamp = uint48(block.timestamp);
+        uint256 withoutHints = VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp, "");
+        bytes memory hints = vaultTestHelper.activeWithdrawalsHints(address(vault), 0, timestamp);
+        uint256 withHints = VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp, hints);
+
+        assertEq(withoutHints, withHints);
+    }
+
+    function test_ActiveWithdrawalsForAt_withHints_matchesWithoutHints() public {
+        uint48 epochDuration = 7 days;
+        vault = _getVault(epochDuration);
+
+        uint256 depositAmount = 100 ether;
+        uint256 withdrawAmount = 40 ether;
+
+        collateral.transfer(alice, depositAmount);
+        vm.startPrank(alice);
+        collateral.approve(address(vault), type(uint256).max);
+        vault.deposit(alice, depositAmount);
+        vault.withdraw(alice, withdrawAmount);
+        vm.stopPrank();
+
+        uint48 timestamp = uint48(block.timestamp);
+        uint48 duration = epochDuration / 2;
+        bytes memory hints = vaultTestHelper.activeWithdrawalsHints(address(vault), duration, timestamp);
+        uint256 withHints = VaultV2(address(vault)).activeWithdrawalsForAt(duration, timestamp, hints);
+        uint256 withoutHints = VaultV2(address(vault)).activeWithdrawalsForAt(duration, timestamp, "");
+
+        assertEq(withHints, withoutHints);
+    }
+
     function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 2, 100 * 10 ** 18);
         amount2 = bound(amount2, 2, 100 * 10 ** 18);
@@ -2490,9 +2535,9 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalSharesOf(1, bob), state.expectedBobEpoch2);
         assertEq(vaultV2.withdrawalSharesOf(0, alice), state.expectedAliceEpoch2);
 
-        assertEq(vaultV2.withdrawalsOf(0, bob, ""), state.expectedBobEpoch1);
-        assertEq(vaultV2.withdrawalsOf(1, bob, ""), state.expectedBobEpoch2);
-        assertEq(vaultV2.withdrawalsOf(0, alice, ""), state.expectedAliceEpoch2);
+        assertEq(vaultV2.withdrawalsOf(0, bob), state.expectedBobEpoch1);
+        assertEq(vaultV2.withdrawalsOf(1, bob), state.expectedBobEpoch2);
+        assertEq(vaultV2.withdrawalsOf(0, alice), state.expectedAliceEpoch2);
 
         uint256 bobBalanceBefore = collateral.balanceOf(bob);
         vm.startPrank(bob);
