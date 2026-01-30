@@ -38,6 +38,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
 
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
 
+    mapping(bytes32 subnetwork => uint48 timestamp) public resetAllocationAt;
+
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => SlotStorage slot) internal slots;
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
@@ -343,7 +345,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         view
         returns (uint256)
     {
-        return getAllocatedAt(subnetwork, operator, timestamp, duration, hints);
+        return IVaultV2(vault).slasher() != msg.sender || timestamp >= resetAllocationAt[subnetwork]
+            ? getAllocatedAt(subnetwork, operator, timestamp, duration, hints)
+            : 0;
     }
 
     /**
@@ -600,8 +604,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             revert NotAssigned();
         }
 
-        // TODO: need not allow to slash
-
         if (--slots[index.getParentIndex()].numNetworks == 0) {
             uint256 allocated = getAllocated(index, 0);
             if (allocated > 0) {
@@ -609,9 +611,11 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
                     .push(uint48(block.timestamp), slots[WITHDRAWAL_BUFFER_INDEX].size.latest() + allocated);
             }
             if (slots[index].size.latest() > 0) {
+                // TODO: ideally also update pending for this slot
                 slots[index].size.push(uint48(block.timestamp), 0);
             }
         }
+        resetAllocationAt[subnetwork] = uint48(block.timestamp);
 
         _syncPrevSums(index.getParentIndex());
 
@@ -631,7 +635,9 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             stakeHints = abi.decode(hints, (StakeHints));
         }
         return (
-            getAllocatedAt(subnetwork, operator, timestamp, type(uint48).max, stakeHints.allocatedHints),
+            IVaultV2(vault).slasher() != msg.sender || timestamp >= resetAllocationAt[subnetwork]
+                ? getAllocatedAt(subnetwork, operator, timestamp, type(uint48).max, stakeHints.allocatedHints)
+                : 0,
             stakeHints.baseHints
         );
     }
