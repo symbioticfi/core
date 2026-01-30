@@ -30,7 +30,6 @@ import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 
-import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
@@ -198,7 +197,7 @@ contract UniversalDelegator is
      */
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
         if (index == 0) {
-            return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration, Calldata.emptyBytes());
+            return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration, "");
         }
         return getAllocated(index, duration);
     }
