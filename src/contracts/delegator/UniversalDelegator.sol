@@ -1,42 +1,77 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {BaseDelegator} from "./BaseDelegator.sol";
+import {Entity} from "../common/Entity.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
 import {
     IUniversalDelegator,
     CREATE_SLOT_ROLE,
+    HOOK_GAS_LIMIT,
+    HOOK_RESERVE,
+    HOOK_SET_ROLE,
+    REMOVE_SLOT_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
-    REMOVE_SLOT_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
     WITHDRAWAL_BUFFER_INDEX
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IOptInService} from "../../interfaces/service/IOptInService.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 
 import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicallable.sol";
 
-contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDelegator {
+contract UniversalDelegator is
+    Entity,
+    StaticDelegateCallable,
+    AccessControlUpgradeable,
+    ReentrancyGuardUpgradeable,
+    MulticallUpgradeable,
+    IUniversalDelegator
+{
     using UniversalDelegatorIndex for uint96;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using Subnetwork for bytes32;
+    using Subnetwork for address;
 
+    address internal immutable NETWORK_REGISTRY;
+    address internal immutable VAULT_FACTORY;
+    address internal immutable OPERATOR_VAULT_OPT_IN_SERVICE;
+    address internal immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    address public vault;
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    address public hook;
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    mapping(bytes32 subnetwork => uint256 value) public maxNetworkLimit;
 
     mapping(bytes32 subnetwork => uint48 timestamp) public resetAllocationAt;
 
@@ -72,20 +107,56 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         address delegatorFactory,
         uint64 entityType,
         address networkMiddlewareService
-    )
-        BaseDelegator(
-            networkRegistry,
-            vaultFactory,
-            operatorVaultOptInService,
-            operatorNetworkOptInService,
-            delegatorFactory,
-            entityType
-        )
-    {
+    ) Entity(delegatorFactory, entityType) {
+        NETWORK_REGISTRY = networkRegistry;
+        VAULT_FACTORY = vaultFactory;
+        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
+        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function VERSION() public pure returns (uint64) {
+        return 2;
+    }
+
     /* VIEW FUNCTIONS */
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
+        StakeHints memory stakeHints;
+        if (hints.length > 0) {
+            stakeHints = abi.decode(hints, (StakeHints));
+        }
+
+        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE)
+                .isOptedInAt(operator, vault, timestamp, stakeHints.operatorVaultOptInHint)) {
+            return 0;
+        }
+
+        return IVaultV2(vault).slasher() != msg.sender || timestamp >= resetAllocationAt[subnetwork]
+            ? getAllocatedAt(subnetwork, operator, timestamp, type(uint48).max, stakeHints.allocatedHints)
+            : 0;
+    }
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
+        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)) {
+            return 0;
+        }
+
+        return getAllocated(subnetwork, operator, type(uint48).max);
+    }
 
     /**
      * @inheritdoc IUniversalDelegator
@@ -116,9 +187,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         returns (uint256)
     {
         if (index == 0) {
-            if (timestamp != block.timestamp && duration != IVaultV2(vault).epochDuration()) {
-                revert InvalidDuration();
-            }
             return IVaultV2(vault).activeStakeAt(timestamp, hints)
                 + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp, "");
         }
@@ -187,6 +255,7 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         SlotStorage storage slot = slots[index];
         uint256 available =
             getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
+        // TODO: add comment
         return Math.min(
             slots[index.getParentIndex()].isShared
                 ? available
@@ -401,10 +470,10 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             }
             parent.lastChild = index.getChildIndex();
         } else {
-            slots[parentIndex.createIndex(slots[WITHDRAWAL_BUFFER_INDEX].prevSlot)].nextSlot = index.getChildIndex();
-            slot.prevSlot = slots[WITHDRAWAL_BUFFER_INDEX].prevSlot;
+            slots[parentIndex.createIndex(_withdrawalBufferSlot().prevSlot)].nextSlot = index.getChildIndex();
+            slot.prevSlot = _withdrawalBufferSlot().prevSlot;
             slot.nextSlot = WITHDRAWAL_BUFFER_CHILD_INDEX;
-            slots[WITHDRAWAL_BUFFER_INDEX].prevSlot = index.getChildIndex();
+            _withdrawalBufferSlot().prevSlot = index.getChildIndex();
             slot.isShared = isShared;
             if (noPlugins) {
                 slot.noPlugins = true;
@@ -575,18 +644,6 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         emit RemoveSlot(index);
     }
 
-    function _syncPrevSums(uint96 parentIndex) internal {
-        uint256 prevSum;
-        for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
-            if (child.prevSum.latest() != prevSum) {
-                child.prevSum.push(uint48(block.timestamp), prevSum);
-            }
-            prevSum += child.size.latest();
-            childIndex = child.nextSlot;
-        }
-    }
-
     /* NETWORK FUNCTIONS */
 
     function resetAllocation(bytes32 subnetwork) public {
@@ -607,8 +664,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         if (--slots[index.getParentIndex()].numNetworks == 0) {
             uint256 allocated = getAllocated(index, 0);
             if (allocated > 0) {
-                slots[WITHDRAWAL_BUFFER_INDEX].size
-                    .push(uint48(block.timestamp), slots[WITHDRAWAL_BUFFER_INDEX].size.latest() + allocated);
+                _withdrawalBufferSlot().size
+                    .push(uint48(block.timestamp), _withdrawalBufferSlot().size.latest() + allocated);
             }
             if (slots[index].size.latest() > 0) {
                 // TODO: ideally also update pending for this slot
@@ -622,43 +679,50 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         emit ResetAllocation(subnetwork);
     }
 
-    /* OVERRIDE FUNCTIONS */
+    /* BASE DELEGATOR FUNCTIONS */
 
-    function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
-        internal
-        view
-        override
-        returns (uint256, bytes memory)
-    {
-        StakeHints memory stakeHints;
-        if (hints.length > 0) {
-            stakeHints = abi.decode(hints, (StakeHints));
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) public nonReentrant {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
         }
-        return (
-            IVaultV2(vault).slasher() != msg.sender || timestamp >= resetAllocationAt[subnetwork]
-                ? getAllocatedAt(subnetwork, operator, timestamp, type(uint48).max, stakeHints.allocatedHints)
-                : 0,
-            stakeHints.baseHints
-        );
+
+        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
+        if (maxNetworkLimit[subnetwork] == amount) {
+            revert AlreadySet();
+        }
+
+        maxNetworkLimit[subnetwork] = amount;
+
+        emit SetMaxNetworkLimit(subnetwork, amount);
     }
 
-    function _stake(bytes32 subnetwork, address operator) internal view override returns (uint256) {
-        return getAllocated(subnetwork, operator, type(uint48).max);
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function setHook(address hook_) public nonReentrant onlyRole(HOOK_SET_ROLE) {
+        if (hook == hook_) {
+            revert AlreadySet();
+        }
+
+        hook = hook_;
+
+        emit SetHook(hook_);
     }
 
-    function _setMaxNetworkLimit(bytes32, uint256) internal override {}
-
-    function _onSlash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48,
-        /* captureTimestamp */
-        bytes memory /* data */
-    )
-        internal
-        override
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
+        public
+        nonReentrant
     {
+        if (msg.sender != IVault(vault).slasher()) {
+            revert NotSlasher();
+        }
+
         uint96 index = getSlotOf(subnetwork, operator);
         SlotStorage storage slot = slots[index];
 
@@ -678,21 +742,52 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
 
         // TODO: change prevSum logic or limit operators?
         _syncPrevSums(index.getParentIndex());
+
+        address hook_ = hook;
+        if (hook_ != address(0)) {
+            bytes memory calldata_ =
+                abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, captureTimestamp, data));
+
+            if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
+                revert InsufficientHookGas();
+            }
+
+            assembly ("memory-safe") {
+                pop(call(HOOK_GAS_LIMIT, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+            }
+        }
+
+        emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
-    function __initialize(address vault_, bytes memory data)
-        internal
-        override
-        returns (IBaseDelegator.BaseParams memory)
-    {
+    function _initialize(bytes calldata data) internal override {
+        (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
+
+        if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
+            revert NotVault();
+        }
+
         if (IMigratableEntity(vault_).version() < 3) {
             revert OldVault();
         }
 
-        InitParams memory params = abi.decode(data, (InitParams));
+        InitParams memory params = abi.decode(data_, (InitParams));
 
-        if (params.baseParams.defaultAdminRoleHolder == address(0) && params.createSlotRoleHolder == address(0)) {
+        if (params.defaultAdminRoleHolder == address(0) && params.createSlotRoleHolder == address(0)) {
             revert MissingRoleHolders();
+        }
+
+        __ReentrancyGuard_init();
+
+        vault = vault_;
+
+        hook = params.hook;
+
+        if (params.defaultAdminRoleHolder != address(0)) {
+            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        }
+        if (params.hookSetRoleHolder != address(0)) {
+            _grantRole(HOOK_SET_ROLE, params.hookSetRoleHolder);
         }
 
         if (params.createSlotRoleHolder != address(0)) {
@@ -705,32 +800,46 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
             _grantRole(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
         }
 
-        SlotStorage storage parent = slots[0];
-        parent.numChildren = 1;
-        parent.lastChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
-        parent.firstChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
-        SlotStorage storage slot = slots[WITHDRAWAL_BUFFER_INDEX];
+        _rootSlot().numChildren = 1;
+        _rootSlot().lastChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
+        _rootSlot().firstChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
         if (params.withdrawalBuffer > 0) {
-            slot.size.push(uint48(block.timestamp), params.withdrawalBuffer);
+            _withdrawalBufferSlot().size.push(uint48(block.timestamp), params.withdrawalBuffer);
         }
-        slot.exists = true;
+        _withdrawalBufferSlot().exists = true;
 
         emit Initialize(params);
-
-        return params.baseParams;
     }
 
     function migrate() public {
         if (IMigratableEntity(vault).version() != 3) {
             revert WrongMigrate();
         }
-        address oldDelegator = IVaultV2(vault).delegator();
-        uint64 oldDelegatorType = IEntity(oldDelegator).TYPE();
-        if (oldDelegatorType == TYPE) {
+        if (IEntity(IVaultV2(vault).delegator()).TYPE() == TYPE) {
             revert NotMigrating();
         }
         // TODO: replace type(uint128).max with ?
-        slots[0].childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+        _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+    }
+
+    function _rootSlot() internal view returns (SlotStorage storage) {
+        return slots[0];
+    }
+
+    function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
+        return slots[WITHDRAWAL_BUFFER_INDEX];
+    }
+
+    function _syncPrevSums(uint96 parentIndex) internal {
+        uint256 prevSum;
+        for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
+            if (child.prevSum.latest() != prevSum) {
+                child.prevSum.push(uint48(block.timestamp), prevSum);
+            }
+            prevSum += child.size.latest();
+            childIndex = child.nextSlot;
+        }
     }
 }

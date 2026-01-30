@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IBaseSlasher} from "./IBaseSlasher.sol";
-
-interface IUniversalSlasher is IBaseSlasher {
+interface IUniversalSlasher {
     error AlreadySet();
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
@@ -22,6 +20,44 @@ interface IUniversalSlasher is IBaseSlasher {
     error NotVetoSlasher();
     error WrongMigrate();
     error NoOwed();
+    error NoBurner();
+    error InsufficientBurnerGas();
+    error NotNetworkMiddleware();
+    error NotVault();
+
+    /**
+     * @notice Base parameters needed for slashers' deployment.
+     * @param isBurnerHook if the burner is needed to be called on a slashing
+     */
+    struct BaseParams {
+        bool isBurnerHook;
+    }
+
+    /**
+     * @notice Hints for a slashable stake.
+     * @param stakeHints hints for the stake checkpoints
+     * @param cumulativeSlashFromHint hint for the cumulative slash amount at a capture timestamp
+     * @param slotOfHints hints for the slot lookup
+     * @param groupAllocatedHints hints for the group allocation lookup
+     * @param groupCumulativeSlashFromHint hint for the group cumulative slash amount at a capture timestamp
+     */
+    struct SlashableStakeHints {
+        bytes stakeHints;
+        bytes cumulativeSlashFromHint;
+        bytes slotOfHints;
+        bytes groupAllocatedHints;
+        bytes groupCumulativeSlashFromHint;
+    }
+
+    /**
+     * @notice General data for the delegator.
+     * @param slasherType type of the slasher
+     * @param data slasher-dependent data for the delegator
+     */
+    struct GeneralDelegatorData {
+        uint64 slasherType;
+        bytes data;
+    }
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
@@ -30,7 +66,7 @@ interface IUniversalSlasher is IBaseSlasher {
      * @param resolverSetDelay delay in seconds for a network to update a resolver
      */
     struct InitParams {
-        IBaseSlasher.BaseParams baseParams;
+        bool isBurnerHook;
         uint48 vetoDuration;
         uint48 resolverSetDelay;
     }
@@ -54,19 +90,7 @@ interface IUniversalSlasher is IBaseSlasher {
         bool completed;
     }
 
-    /**
-     * @notice Hints for a slashable stake.
-     * @param slashableStakeHints hints for the slashable stake checkpoints
-     * @param slotOfHints hints for the slot lookup
-     * @param groupAllocatedHints hints for the group allocation lookup
-     * @param groupCumulativeSlashFromHint hint for the group cumulative slash amount at a capture timestamp
-     */
-    struct OuterSlashableStakeHints {
-        bytes slashableStakeHints;
-        bytes slotOfHints;
-        bytes groupAllocatedHints;
-        bytes groupCumulativeSlashFromHint;
-    }
+    // OuterSlashableStakeHints removed; use SlashableStakeHints directly.
 
     /**
      * @notice Hints for a slash request.
@@ -90,33 +114,15 @@ interface IUniversalSlasher is IBaseSlasher {
         bytes slotOfHint;
     }
 
-    /**
-     * @notice Hints for a slash veto.
-     * @param captureResolverHint hint for the resolver checkpoint at the capture time
-     * @param currentResolverHint hint for the resolver checkpoint at the current time
-     */
-    struct VetoSlashHints {
-        bytes captureResolverHint;
-        bytes currentResolverHint;
-    }
-
-    /**
-     * @notice Hints for a resolver set.
-     * @param resolverHint hint for the resolver checkpoint
-     */
-    struct SetResolverHints {
-        bytes resolverHint;
-    }
+    // VetoSlashHints and SetResolverHints removed; no hints are needed.
 
     /**
      * @notice Extra data for the delegator.
      * @param slashableStake amount of the slashable stake before the slash (cache)
-     * @param stakeAt amount of the stake at the capture time (cache)
      * @param slashIndex index of the slash request
      */
     struct DelegatorData {
         uint256 slashableStake;
-        uint256 stakeAt;
         uint256 slashIndex;
     }
 
@@ -166,6 +172,72 @@ interface IUniversalSlasher is IBaseSlasher {
      * @param params initial parameters for the slasher
      */
     event Initialize(InitParams params);
+
+    /**
+     * @notice Get a gas limit for the burner.
+     * @return value of the burner gas limit
+     */
+    function BURNER_GAS_LIMIT() external view returns (uint256);
+
+    /**
+     * @notice Get a reserve gas between the gas limit check and the burner's execution.
+     * @return value of the reserve gas
+     */
+    function BURNER_RESERVE() external view returns (uint256);
+
+    /**
+     * @notice Get the vault's address.
+     * @return address of the vault to perform slashings on
+     */
+    function vault() external view returns (address);
+
+    /**
+     * @notice Get if the burner is needed to be called on a slashing.
+     * @return if the burner is a hook
+     */
+    function isBurnerHook() external view returns (bool);
+
+    /**
+     * @notice Get the latest capture timestamp that was slashed on a subnetwork.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param operator address of the operator
+     * @return latest capture timestamp that was slashed
+     */
+    function latestSlashedCaptureTimestamp(bytes32 subnetwork, address operator) external view returns (uint48);
+
+    /**
+     * @notice Get a cumulative slash amount for an operator on a subnetwork until a given timestamp (inclusively) using a hint.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param operator address of the operator
+     * @param timestamp time point to get the cumulative slash amount until (inclusively)
+     * @param hint hint for the checkpoint index
+     * @return cumulative slash amount until the given timestamp (inclusively)
+     */
+    function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        external
+        view
+        returns (uint256);
+
+    /**
+     * @notice Get a cumulative slash amount for an operator on a subnetwork.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param operator address of the operator
+     * @return cumulative slash amount
+     */
+    function cumulativeSlash(bytes32 subnetwork, address operator) external view returns (uint256);
+
+    /**
+     * @notice Get a slashable amount of a stake got at a given capture timestamp using hints.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param operator address of the operator
+     * @param captureTimestamp time point to get the stake amount at
+     * @param hints hints for the checkpoints' indexes
+     * @return slashable amount of the stake
+     */
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
+        external
+        view
+        returns (uint256);
 
     /**
      * @notice Get the network registry's address.
@@ -250,19 +322,28 @@ interface IUniversalSlasher is IBaseSlasher {
     function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);
 
     /**
-     * @notice Veto a slash with a given slash index using hints.
+     * @notice Veto a slash with a given slash index.
      * @param slashIndex index of the slash request
-     * @param hints hints for checkpoints' indexes
      * @dev Only a resolver can call this function.
      */
-    function vetoSlash(uint256 slashIndex, bytes calldata hints) external;
+    function vetoSlash(uint256 slashIndex) external;
 
     /**
-     * @notice Set a resolver for a subnetwork using hints.
+     * @notice Set a resolver for a subnetwork.
      * identifier identifier of the subnetwork
      * @param resolver address of the resolver
-     * @param hints hints for checkpoints' indexes
      * @dev Only a network can call this function.
      */
-    function setResolver(uint96 identifier, address resolver, bytes calldata hints) external;
+    function setResolver(uint96 identifier, address resolver) external;
+
+    /**
+     * @notice Sync owed slashing.
+     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
+     * @param operator address of the operator
+     * @param captureTimestamp time point when the stake was captured
+     * @return slashed amount of the collateral slashed
+     */
+    function syncOwedSlash(bytes32 subnetwork, address operator, uint48 captureTimestamp)
+        external
+        returns (uint256 slashed);
 }

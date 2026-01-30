@@ -297,9 +297,9 @@ contract UniversalSlasherMigrationTest is Test {
     function _buildMigrateParams() internal view returns (IVaultV2.MigrateParams memory) {
         uint48 vetoDuration = EPOCH_DURATION > 1 ? 1 : 0;
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
-            baseParams: IBaseDelegator.BaseParams({
-                defaultAdminRoleHolder: owner, hook: address(0), hookSetRoleHolder: owner
-            }),
+            defaultAdminRoleHolder: owner,
+            hook: address(0),
+            hookSetRoleHolder: owner,
             createSlotRoleHolder: owner,
             setIsSharedRoleHolder: owner,
             setSizeRoleHolder: owner,
@@ -308,9 +308,7 @@ contract UniversalSlasherMigrationTest is Test {
             withdrawalBuffer: 0
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
-            baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
-            vetoDuration: vetoDuration,
-            resolverSetDelay: EPOCH_DURATION * 3
+            isBurnerHook: false, vetoDuration: vetoDuration, resolverSetDelay: EPOCH_DURATION * 3
         });
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,

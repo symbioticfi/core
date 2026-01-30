@@ -1,34 +1,71 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {BaseSlasher} from "./BaseSlasher.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
+import {Entity} from "../common/Entity.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
+import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../interfaces/slasher/IUniversalSlasher.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
+
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {SafeCastLib as SafeCast} from "@solady/src/utils/SafeCastLib.sol";
 
-contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
+contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IUniversalSlasher {
     using Math for uint256;
     using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
+    using Subnetwork for bytes32;
     using Subnetwork for address;
     using UniversalDelegatorIndex for uint96;
 
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    uint256 public constant BURNER_GAS_LIMIT = 150_000;
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    uint256 public constant BURNER_RESERVE = 20_000;
+
+    address internal immutable VAULT_FACTORY;
+    address internal immutable NETWORK_MIDDLEWARE_SERVICE;
     address internal immutable NETWORK_REGISTRY;
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    address public vault;
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    bool public isBurnerHook;
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
+
+    mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
 
     /**
      * @inheritdoc IUniversalSlasher
@@ -63,7 +100,9 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         address networkRegistry,
         address slasherFactory,
         uint64 entityType
-    ) BaseSlasher(vaultFactory, networkMiddlewareService, slasherFactory, entityType) {
+    ) Entity(slasherFactory, entityType) {
+        VAULT_FACTORY = vaultFactory;
+        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
         NETWORK_REGISTRY = networkRegistry;
     }
 
@@ -105,6 +144,30 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     /**
      * @inheritdoc IUniversalSlasher
      */
+    function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
+        public
+        view
+        returns (uint256)
+    {
+        if (timestamp >= _migrateTimestamp) {
+            return _cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp, hint);
+        }
+        return IBaseSlasher(_oldSlasher).cumulativeSlashAt(subnetwork, operator, timestamp, hint);
+    }
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    function cumulativeSlash(bytes32 subnetwork, address operator) public view returns (uint256) {
+        if (_oldSlasher == address(0) || _cumulativeSlash[subnetwork][operator].length() > 0) {
+            return _cumulativeSlash[subnetwork][operator].latest();
+        }
+        return IBaseSlasher(_oldSlasher).cumulativeSlash(subnetwork, operator);
+    }
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
     function groupCumulativeSlashAt(uint96 groupIndex, uint48 timestamp, bytes memory hint)
         public
         view
@@ -123,17 +186,71 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     /**
      * @inheritdoc IUniversalSlasher
      */
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
+        public
+        view
+        returns (uint256)
+    {
+        address delegator = IVaultV2(vault).delegator();
+        if (captureTimestamp == 0) {
+            return IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0);
+        }
+
+        IUniversalSlasher.SlashableStakeHints memory slashableStakeHints;
+        if (hints.length > 0) {
+            slashableStakeHints = abi.decode(hints, (IUniversalSlasher.SlashableStakeHints));
+        }
+
+        uint96 groupIndex = IUniversalDelegator(delegator)
+            .getSlotOfAt(subnetwork, operator, captureTimestamp, slashableStakeHints.slotOfHints).getParentIndex()
+            .getParentIndex();
+        uint256 groupAllocatedAmount = IUniversalDelegator(delegator)
+            .getAllocatedAt(groupIndex, captureTimestamp, type(uint48).max, slashableStakeHints.groupAllocatedHints);
+
+        if (
+            captureTimestamp < uint256(uint48(block.timestamp)).saturatingSub(IVault(vault).epochDuration())
+                || captureTimestamp >= uint48(block.timestamp)
+                || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
+        ) {
+            return 0;
+        }
+
+        uint256 stake = captureTimestamp >= _migrateTimestamp
+            ? IUniversalDelegator(IVault(vault).delegator())
+                .stakeForAt(subnetwork, operator, 0, captureTimestamp, slashableStakeHints.stakeHints)
+            : IBaseDelegator(_oldDelegator).stakeAt(subnetwork, operator, captureTimestamp, "");
+
+        return Math.min(
+            stake
+                - Math.min(
+                    cumulativeSlash(subnetwork, operator)
+                        - cumulativeSlashAt(
+                            subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint
+                        ),
+                    stake
+                ),
+            groupAllocatedAmount
+                - Math.min(
+                    groupCumulativeSlash(groupIndex)
+                        - groupCumulativeSlashAt(
+                            groupIndex, captureTimestamp, slashableStakeHints.groupCumulativeSlashFromHint
+                        ),
+                    groupAllocatedAmount
+                )
+        );
+    }
+
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
     function requestSlash(
         bytes32 subnetwork,
         address operator,
         uint256 amount,
         uint48 captureTimestamp,
         bytes calldata hints
-    ) public nonReentrant onlyNetworkMiddleware(subnetwork) returns (uint256 slashIndex) {
-        RequestSlashHints memory requestSlashHints;
-        if (hints.length > 0) {
-            requestSlashHints = abi.decode(hints, (RequestSlashHints));
-        }
+    ) public nonReentrant returns (uint256 slashIndex) {
+        _checkNetworkMiddleware(subnetwork);
 
         address resolver = resolver(subnetwork);
         uint48 vetoDeadline = uint48(block.timestamp) + (resolver != address(0) ? vetoDuration : 0);
@@ -143,6 +260,11 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
                     || captureTimestamp >= uint48(block.timestamp))
         ) {
             revert InvalidCaptureTimestamp();
+        }
+
+        RequestSlashHints memory requestSlashHints;
+        if (hints.length > 0) {
+            requestSlashHints = abi.decode(hints, (RequestSlashHints));
         }
 
         captureTimestamp = captureTimestamp == 0 ? uint48(block.timestamp) : captureTimestamp;
@@ -177,11 +299,6 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         nonReentrant
         returns (uint256 slashedAmount)
     {
-        ExecuteSlashHints memory executeSlashHints;
-        if (hints.length > 0) {
-            executeSlashHints = abi.decode(hints, (ExecuteSlashHints));
-        }
-
         if (slashIndex >= _slashRequests.length) {
             revert SlashRequestNotExist();
         }
@@ -190,15 +307,20 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
 
         _checkNetworkMiddleware(request.subnetwork);
 
-        if (request.vetoDeadline > uint48(block.timestamp)) {
+        if (request.vetoDeadline > block.timestamp) {
             revert VetoPeriodNotEnded();
         }
 
-        if (uint48(block.timestamp) - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
+        if (block.timestamp - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
-        (uint256 slashableStake_, uint256 stakeAt) = _slashableStake(
+        ExecuteSlashHints memory executeSlashHints;
+        if (hints.length > 0) {
+            executeSlashHints = abi.decode(hints, (ExecuteSlashHints));
+        }
+
+        uint256 slashableStake_ = slashableStake(
             request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slashableStakeHints
         );
         slashedAmount = Math.min(request.amount, slashableStake_);
@@ -212,24 +334,28 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
 
         _slashRequests[slashIndex].completed = true;
 
-        _updateLatestSlashedCaptureTimestamp(request.subnetwork, request.operator, request.captureTimestamp);
+        if (latestSlashedCaptureTimestamp[request.subnetwork][request.operator] < request.captureTimestamp) {
+            latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.captureTimestamp;
+        }
 
-        _updateCumulativeSlash(request.subnetwork, request.operator, slashedAmount);
-        _updateGroupCumulativeSlash(
-            request.subnetwork, request.operator, slashedAmount, request.captureTimestamp, executeSlashHints.slotOfHint
+        _cumulativeSlash[request.subnetwork][request.operator].push(
+            uint48(block.timestamp), cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
+        );
+        uint96 groupIndex = IUniversalDelegator(IVaultV2(vault).delegator())
+            .getSlotOfAt(request.subnetwork, request.operator, request.captureTimestamp, executeSlashHints.slotOfHint)
+            .getParentIndex().getParentIndex();
+        _groupCumulativeSlash[groupIndex].push(
+            uint48(block.timestamp), groupCumulativeSlash(groupIndex) + slashedAmount
         );
 
-        _delegatorOnSlash(
-            request.subnetwork,
-            request.operator,
-            slashedAmount,
-            request.captureTimestamp,
-            abi.encode(
-                IUniversalSlasher.DelegatorData({
-                    slashableStake: slashableStake_, stakeAt: stakeAt, slashIndex: slashIndex
-                })
-            )
-        );
+        IBaseDelegator(IVault(vault).delegator())
+            .onSlash(
+                request.subnetwork,
+                request.operator,
+                slashedAmount,
+                request.captureTimestamp,
+                abi.encode(IUniversalSlasher.DelegatorData({slashableStake: slashableStake_, slashIndex: slashIndex}))
+            );
 
         (, uint256 owed_) = VaultV2(vault).onSlash(slashedAmount, request.captureTimestamp);
         if (owed_ > 0) {
@@ -244,12 +370,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     /**
      * @inheritdoc IUniversalSlasher
      */
-    function vetoSlash(uint256 slashIndex, bytes calldata hints) public nonReentrant {
-        VetoSlashHints memory vetoSlashHints;
-        if (hints.length > 0) {
-            vetoSlashHints = abi.decode(hints, (VetoSlashHints));
-        }
-
+    function vetoSlash(uint256 slashIndex) public nonReentrant {
         if (slashIndex >= _slashRequests.length) {
             revert SlashRequestNotExist();
         }
@@ -276,12 +397,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
     /**
      * @inheritdoc IUniversalSlasher
      */
-    function setResolver(uint96 identifier, address newResolver, bytes calldata hints) public nonReentrant {
-        SetResolverHints memory setResolverHints;
-        if (hints.length > 0) {
-            setResolverHints = abi.decode(hints, (SetResolverHints));
-        }
-
+    function setResolver(uint96 identifier, address newResolver) public nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -301,33 +417,33 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         emit SetResolver(subnetwork, newResolver);
     }
 
-    function syncOwedSlash(bytes32 subnetwork, address operator, uint48 captureTimestamp) public {
+    /**
+     * @inheritdoc IUniversalSlasher
+     */
+    function syncOwedSlash(bytes32 subnetwork, address operator, uint48 captureTimestamp)
+        public
+        returns (uint256 slashed)
+    {
         uint256 owed_ = owed[subnetwork][operator][captureTimestamp];
-        uint256 slashed = VaultV2(vault).syncOwedSlash(owed_);
+        slashed = VaultV2(vault).syncOwedSlash(owed_);
         owed[subnetwork][operator][captureTimestamp] = owed_ - slashed;
         _burnerOnSlash(subnetwork, operator, slashed, captureTimestamp);
 
         emit SyncOwedSlash(subnetwork, operator, captureTimestamp, slashed);
     }
 
-    function _updateGroupCumulativeSlash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes memory hint
-    ) internal {
-        uint96 groupIndex = IUniversalDelegator(IVaultV2(vault).delegator())
-            .getSlotOfAt(subnetwork, operator, captureTimestamp, hint).getParentIndex().getParentIndex();
-        _groupCumulativeSlash[groupIndex].push(uint48(block.timestamp), groupCumulativeSlash(groupIndex) + amount);
-    }
+    function _initialize(bytes calldata data) internal override {
+        (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
-    function __initialize(address vault_, bytes memory data) internal override returns (BaseParams memory) {
+        if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
+            revert NotVault();
+        }
+
         if (IMigratableEntity(vault_).version() < 3) {
             revert OldVault();
         }
 
-        (InitParams memory params) = abi.decode(data, (InitParams));
+        InitParams memory params = abi.decode(data_, (InitParams));
 
         if (params.vetoDuration >= IVaultV2(vault_).epochDuration()) {
             revert InvalidVetoDuration();
@@ -337,88 +453,40 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
             revert InvalidResolverSetEpochsDelay();
         }
 
-        vetoDuration = params.vetoDuration;
+        if (IVault(vault_).burner() == address(0) && params.isBurnerHook) {
+            revert NoBurner();
+        }
 
+        __ReentrancyGuard_init();
+
+        vault = vault_;
+
+        isBurnerHook = params.isBurnerHook;
+        vetoDuration = params.vetoDuration;
         resolverSetDelay = params.resolverSetDelay;
 
         emit Initialize(params);
-
-        return params.baseParams;
     }
 
-    function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
-        public
-        view
-        override(BaseSlasher, IBaseSlasher)
-        returns (uint256)
-    {
-        if (timestamp >= _migrateTimestamp) {
-            return super.cumulativeSlashAt(subnetwork, operator, timestamp, hint);
+    function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
+            revert NotNetworkMiddleware();
         }
-        return IBaseSlasher(_oldSlasher).cumulativeSlashAt(subnetwork, operator, timestamp, hint);
     }
 
-    function cumulativeSlash(bytes32 subnetwork, address operator)
-        public
-        view
-        override(BaseSlasher, IBaseSlasher)
-        returns (uint256)
-    {
-        if (_oldSlasher == address(0) || _cumulativeSlash[subnetwork][operator].length() > 0) {
-            return super.cumulativeSlash(subnetwork, operator);
-        }
-        return IBaseSlasher(_oldSlasher).cumulativeSlash(subnetwork, operator);
-    }
+    function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) internal {
+        if (isBurnerHook) {
+            address burner = IVault(vault).burner();
+            bytes memory calldata_ = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, captureTimestamp));
 
-    function _stake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
-        internal
-        view
-        override
-        returns (uint256)
-    {
-        if (captureTimestamp >= _migrateTimestamp) {
-            return super._stake(subnetwork, operator, captureTimestamp, hints);
-        }
-        return IUniversalDelegator(_oldDelegator).stakeAt(subnetwork, operator, captureTimestamp, hints);
-    }
+            if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+                revert InsufficientBurnerGas();
+            }
 
-    function _slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
-        internal
-        view
-        override
-        returns (uint256 slashableStake_, uint256 stakeAmount)
-    {
-        address delegator = IVaultV2(vault).delegator();
-        if (captureTimestamp == 0) {
-            slashableStake_ = IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0);
-            return (slashableStake_, slashableStake_);
+            assembly ("memory-safe") {
+                pop(call(BURNER_GAS_LIMIT, burner, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+            }
         }
-
-        OuterSlashableStakeHints memory outerSlashableStakeHints;
-        if (hints.length > 0) {
-            outerSlashableStakeHints = abi.decode(hints, (OuterSlashableStakeHints));
-        }
-
-        uint96 groupIndex = IUniversalDelegator(delegator)
-            .getSlotOfAt(subnetwork, operator, captureTimestamp, outerSlashableStakeHints.slotOfHints).getParentIndex()
-            .getParentIndex();
-        uint256 groupAllocatedAmount = IUniversalDelegator(delegator)
-            .getAllocatedAt(
-                groupIndex, captureTimestamp, type(uint48).max, outerSlashableStakeHints.groupAllocatedHints
-            );
-        (slashableStake_, stakeAmount) =
-            super._slashableStake(subnetwork, operator, captureTimestamp, outerSlashableStakeHints.slashableStakeHints);
-        slashableStake_ = Math.min(
-            slashableStake_,
-            groupAllocatedAmount
-                - Math.min(
-                    groupCumulativeSlash(groupIndex)
-                        - groupCumulativeSlashAt(
-                            groupIndex, captureTimestamp, outerSlashableStakeHints.groupCumulativeSlashFromHint
-                        ),
-                    groupAllocatedAmount
-                )
-        );
     }
 
     function migrate() public {

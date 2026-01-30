@@ -9,7 +9,6 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {Registry} from "../../src/contracts/common/Registry.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 
-import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
@@ -76,11 +75,10 @@ contract UniversalDelegatorUiSetup is Script {
             networkMiddlewareService: address(0)
         });
 
-        IBaseDelegator.BaseParams memory baseParams = IBaseDelegator.BaseParams({
-            defaultAdminRoleHolder: broadcaster, hook: address(0), hookSetRoleHolder: broadcaster
-        });
         IUniversalDelegator.InitParams memory initParams = IUniversalDelegator.InitParams({
-            baseParams: baseParams,
+            defaultAdminRoleHolder: broadcaster,
+            hook: address(0),
+            hookSetRoleHolder: broadcaster,
             createSlotRoleHolder: broadcaster,
             setIsSharedRoleHolder: broadcaster,
             setSizeRoleHolder: broadcaster,
