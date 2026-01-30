@@ -307,7 +307,7 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         owed[subnetwork][operator][captureTimestamp] = owed_ - slashed;
         _burnerOnSlash(subnetwork, operator, slashed, captureTimestamp);
 
-        // TODO: emit
+        emit SyncOwedSlash(subnetwork, operator, captureTimestamp, slashed);
     }
 
     function _updateGroupCumulativeSlash(
@@ -340,6 +340,8 @@ contract UniversalSlasher is BaseSlasher, IUniversalSlasher {
         vetoDuration = params.vetoDuration;
 
         resolverSetDelay = params.resolverSetDelay;
+
+        emit Initialize(params);
 
         return params.baseParams;
     }

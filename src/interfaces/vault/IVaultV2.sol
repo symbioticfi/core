@@ -278,6 +278,26 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     event InstantWithdraw(address indexed recipient, uint256 amount);
 
     /**
+     * @notice Emitted when a slashing is synced.
+     * @param amount amount of the collateral to slash
+     */
+    event SyncOwedSlash(uint256 amount);
+
+    /**
+     * @notice Emitted when a vault is initialized.
+     * @param params initial parameters for the vault
+     */
+    event Initialize(InitParams params);
+
+    /**
+     * @notice Emitted when a vault is migrated.
+     * @param params initial parameters for the vault
+     * @param newDelegator address of the new delegator
+     * @param newSlasher address of the new slasher
+     */
+    event Migrate(MigrateParams params, address newDelegator, address newSlasher);
+
+    /**
      * @notice Check if the vault is fully initialized (a delegator and a slasher are set).
      * @return if the vault is fully initialized
      */

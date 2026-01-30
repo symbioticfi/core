@@ -94,6 +94,6 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
 
         _unclaimedRaw = int256(IERC20(collateral).balanceOf(address(this)) - activeStake() - epochWithdrawals);
 
-        // TODO: emit data
+        emit IVaultV2.Migrate(params, delegator, slasher);
     }
 }

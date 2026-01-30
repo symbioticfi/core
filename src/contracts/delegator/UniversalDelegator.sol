@@ -709,6 +709,8 @@ contract UniversalDelegator is BaseDelegator, MulticallUpgradeable, IUniversalDe
         }
         slot.exists = true;
 
+        emit Initialize(params);
+
         return params.baseParams;
     }
 

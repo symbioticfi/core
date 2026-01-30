@@ -159,6 +159,14 @@ interface IUniversalSlasher is IBaseSlasher {
      */
     event SetResolver(bytes32 indexed subnetwork, address resolver);
 
+    event SyncOwedSlash(bytes32 indexed subnetwork, address indexed operator, uint48 captureTimestamp, uint256 slashed);
+
+    /**
+     * @notice Emitted when a vault is initialized.
+     * @param params initial parameters for the slasher
+     */
+    event Initialize(InitParams params);
+
     /**
      * @notice Get the network registry's address.
      * @return address of the network registry

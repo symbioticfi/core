@@ -641,7 +641,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _revertIfZero(slashed);
             collateral.safeTransfer(burner, slashed);
 
-            // TODO: emit
+            emit SyncOwedSlash(slashed);
         }
     }
 
@@ -738,7 +738,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             pluginActiveSince[plugin] = uint48(block.timestamp);
         }
 
-        // TODO: emit data
+        emit Initialize(params);
     }
 
     /* INTERNAL HELPERS */

@@ -150,6 +150,8 @@ interface IUniversalDelegator is IBaseDelegator {
 
     event ResetAllocation(bytes32 indexed subnetwork);
 
+    event Initialize(InitParams params);
+
     function getWithdrawalBuffer() external view returns (uint256);
 
     function getNoPluginsSize() external view returns (uint256);
