@@ -209,7 +209,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             groupIndex = IUniversalDelegator(delegator)
                 .getSlotOfAt(subnetwork, operator, captureTimestamp, slashableStakeHints.slotOfHints).getParentIndex()
                 .getParentIndex();
-            return (IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0), 0);
+            slashableStake_ = IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0);
         }
 
         if (
