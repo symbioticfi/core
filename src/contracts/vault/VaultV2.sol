@@ -208,6 +208,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return amount.mulDivUp(IFeeRegistry(FEE_REGISTRY).getFlashloanFee(address(this)), MAX_FEE);
     }
 
+    function pullable() public view returns (uint256) {
+        return totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe);
+    }
+
     /**
      * @inheritdoc IVaultV2
      */
@@ -593,10 +597,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             if (pluginActiveSince[msg.sender] < block.timestamp) {
                 revert PluginNotActive();
             }
-            pulled = Math.min(
-                amount,
-                totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe)
-            );
+            pulled = Math.min(amount, pullable());
 
             pluginsOwe += pulled;
             pluginOwe[msg.sender] += pulled;

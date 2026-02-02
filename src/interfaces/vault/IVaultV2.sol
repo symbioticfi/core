@@ -378,6 +378,12 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function flashFee(address token, uint256 amount) external view returns (uint256);
 
     /**
+     * @notice Get a total amount of the collateral that can be pulled.
+     * @return total amount of the collateral that can be pulled
+     */
+    function pullable() external view returns (uint256);
+
+    /**
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
      * @param amount amount of the collateral to deposit

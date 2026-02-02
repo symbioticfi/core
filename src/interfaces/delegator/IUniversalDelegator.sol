@@ -50,6 +50,7 @@ interface IUniversalDelegator {
     error AlreadyAssigned();
     error InsufficientHookGas();
     error TooManyOperators();
+    error NotEnoughNoPlugins();
 
     /**
      * @notice Base parameters needed for delegators' deployment.

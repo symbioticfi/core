@@ -531,8 +531,10 @@ contract UniversalDelegator is
             _withdrawalBufferSlot().prevSlot = index.getChildIndex();
             slot.isShared = isShared;
             if (noPlugins) {
+                if (size > IVaultV2(vault).pullable()) {
+                    revert NotEnoughNoPlugins();
+                }
                 slot.noPlugins = true;
-                // TODO: need same restriction as for size increase
                 _noPluginsSize += size;
             }
         }
@@ -578,6 +580,9 @@ contract UniversalDelegator is
                 ) {
                     revert NotEnoughAvailable();
                 }
+            }
+            if (newSize - currentSize > IVaultV2(vault).pullable()) {
+                revert NotEnoughNoPlugins();
             }
         } else {
             if (!parent.isShared && slot.prevSum.latest() < available) {
