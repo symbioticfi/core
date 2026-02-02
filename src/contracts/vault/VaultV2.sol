@@ -24,7 +24,8 @@ import {
     DEPOSIT_LIMIT_SET_ROLE,
     ADD_PLUGIN_ROLE,
     REMOVE_PLUGIN_ROLE,
-    MAX_FEE
+    MAX_FEE,
+    MAX_PLUGINS
 } from "../../interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
@@ -517,6 +518,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function addPlugin(address plugin) public nonReentrant onlyRole(ADD_PLUGIN_ROLE) {
         if (pluginActiveSince[plugin] > 0) {
             revert AlreadySet();
+        }
+        unchecked {
+            if (plugins.length + 1 >= MAX_PLUGINS) {
+                revert TooManyPlugins();
+            }
         }
         plugins.push(plugin);
         pluginActiveSince[plugin] = uint48(block.timestamp) + pluginActiveDelay;

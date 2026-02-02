@@ -19,6 +19,8 @@ bytes32 constant REMOVE_PLUGIN_ROLE = 0x7c5f59c85a6ad767b49bc5c11743f68b11dd77e3
 
 uint256 constant MAX_FEE = 1_000_000;
 
+uint256 constant MAX_PLUGINS = 10;
+
 /**
  * @title IVault
  * @dev Deprecated signatures:
@@ -65,6 +67,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidReceiver();
     error InvalidReturnAmount();
     error InsufficientBalance();
+    error TooManyPlugins();
 
     /**
      * @notice Initial parameters needed for a vault deployment.

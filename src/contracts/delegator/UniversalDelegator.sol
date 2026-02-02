@@ -21,7 +21,8 @@ import {
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
-    WITHDRAWAL_BUFFER_INDEX
+    WITHDRAWAL_BUFFER_INDEX,
+    MAX_OPERATORS_PER_SUBNETWORK
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
@@ -99,7 +100,7 @@ contract UniversalDelegator is
     }
 
     modifier syncPrevSums(uint96 parentIndex) {
-        if (slots[parentIndex].needPrevSumsSync) {
+        if (parentIndex.getDepth() == 2 && slots[parentIndex].needPrevSumsSync) {
             _syncPrevSums(parentIndex);
             slots[parentIndex].needPrevSumsSync = false;
         }
@@ -505,6 +506,9 @@ contract UniversalDelegator is
             if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() != 0) {
                 revert AlreadyAssigned();
             }
+            if (parent.numChildren + 1 >= MAX_OPERATORS_PER_SUBNETWORK) {
+                revert TooManyOperators();
+            }
             _operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].push(uint48(block.timestamp), index);
             _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
         }
@@ -691,6 +695,7 @@ contract UniversalDelegator is
                 _noPluginsSize -= slot.size.latest();
             }
         }
+        --parent.numChildren;
         slot.exists = false;
 
         emit RemoveSlot(index);
