@@ -92,6 +92,7 @@ interface IUniversalDelegator {
         uint32 numNetworks;
         bool isShared;
         bool noPlugins;
+        bool needPrevSumsSync;
         Checkpoints.Trace256 size;
         Checkpoints.Trace256 prevSum;
         Checkpoints.Trace256 pendingCumulative;

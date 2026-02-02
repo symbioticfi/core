@@ -98,6 +98,27 @@ contract UniversalDelegator is
         _;
     }
 
+    modifier syncPrevSums(uint96 parentIndex) {
+        if (slots[parentIndex].needPrevSumsSync) {
+            _syncPrevSums(parentIndex);
+            slots[parentIndex].needPrevSumsSync = false;
+        }
+        _;
+        _syncPrevSums(parentIndex);
+    }
+
+    function _syncPrevSums(uint96 parentIndex) internal {
+        uint256 prevSum;
+        for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
+            if (child.prevSum.latest() != prevSum) {
+                child.prevSum.push(uint48(block.timestamp), prevSum);
+            }
+            prevSum += child.size.latest();
+            childIndex = child.nextSlot;
+        }
+    }
+
     constructor(
         address networkRegistry,
         address vaultFactory,
@@ -255,11 +276,25 @@ contract UniversalDelegator is
         SlotStorage storage slot = slots[index];
         uint256 available =
             getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
-        // TODO: add comment
+
+        uint256 prevSum;
+        uint96 parentIndex = index.getParentIndex();
+        if (slots[parentIndex].needPrevSumsSync) {
+            for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                uint96 currentIndex = parentIndex.createIndex(childIndex);
+                SlotStorage storage child = slots[currentIndex];
+                if (index == currentIndex) {
+                    break;
+                }
+                prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
+                childIndex = child.nextSlot;
+            }
+        } else {
+            prevSum = slot.prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint);
+        }
+        // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
         return Math.min(
-            slots[index.getParentIndex()].isShared
-                ? available
-                : available.saturatingSub(slot.prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint)),
+            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum),
             slot.size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
         )
             + slot.pendingCumulative.upperLookupRecent(timestamp)
@@ -277,9 +312,24 @@ contract UniversalDelegator is
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
         SlotStorage storage slot = slots[index];
         uint256 available = getAvailable(index.getParentIndex(), duration);
+
+        uint256 prevSum;
+        uint96 parentIndex = index.getParentIndex();
+        if (slots[parentIndex].needPrevSumsSync) {
+            for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                uint96 currentIndex = parentIndex.createIndex(childIndex);
+                SlotStorage storage child = slots[currentIndex];
+                if (index == currentIndex) {
+                    break;
+                }
+                prevSum += child.size.latest();
+                childIndex = child.nextSlot;
+            }
+        } else {
+            prevSum = slot.prevSum.latest();
+        }
         return Math.min(
-            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(slot.prevSum.latest()),
-            slot.size.latest()
+            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum), slot.size.latest()
         )
             + slot.pendingCumulative.latest()
                 .saturatingSub(
@@ -503,6 +553,7 @@ contract UniversalDelegator is
         public
         onlyRole(SET_SIZE_ROLE)
         slotExists(index)
+        syncPrevSums(index.getParentIndex())
         returns (uint256 pending)
     {
         SlotStorage storage slot = slots[index];
@@ -545,8 +596,6 @@ contract UniversalDelegator is
             _noPluginsSize = _noPluginsSize - currentSize + newSize;
         }
 
-        _syncPrevSums(index.getParentIndex());
-
         emit SetSize(index, newSize);
     }
 
@@ -560,6 +609,7 @@ contract UniversalDelegator is
         slotExists(index2)
         isNotWithdrawalBuffer(index1)
         isNotWithdrawalBuffer(index2)
+        syncPrevSums(index1.getParentIndex())
     {
         SlotStorage storage parent = slots[index1.getParentIndex()];
         SlotStorage storage slot1 = slots[index1];
@@ -600,12 +650,16 @@ contract UniversalDelegator is
         (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
         (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
 
-        _syncPrevSums(index1.getParentIndex());
-
         emit SwapSlots(index1, index2);
     }
 
-    function removeSlot(uint96 index) public onlyRole(REMOVE_SLOT_ROLE) slotExists(index) isNotWithdrawalBuffer(index) {
+    function removeSlot(uint96 index)
+        public
+        onlyRole(REMOVE_SLOT_ROLE)
+        slotExists(index)
+        isNotWithdrawalBuffer(index)
+        syncPrevSums(index.getParentIndex())
+    {
         if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
@@ -639,8 +693,6 @@ contract UniversalDelegator is
         }
         slot.exists = false;
 
-        _syncPrevSums(index.getParentIndex());
-
         emit RemoveSlot(index);
     }
 
@@ -667,14 +719,13 @@ contract UniversalDelegator is
                 _withdrawalBufferSlot().size
                     .push(uint48(block.timestamp), _withdrawalBufferSlot().size.latest() + allocated);
             }
-            if (slots[index].size.latest() > 0) {
+            if (slots[index.getParentIndex()].size.latest() > 0) {
                 // TODO: ideally also update pending for this slot
-                slots[index].size.push(uint48(block.timestamp), 0);
+                slots[index.getParentIndex()].size.push(uint48(block.timestamp), 0);
+                slots[index.getParentIndex()].needPrevSumsSync = true;
             }
         }
         resetAllocationAt[subnetwork] = uint48(block.timestamp);
-
-        _syncPrevSums(index.getParentIndex());
 
         emit ResetAllocation(subnetwork);
     }
@@ -684,20 +735,7 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) public nonReentrant {
-        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
-            revert NotNetwork();
-        }
-
-        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
-        if (maxNetworkLimit[subnetwork] == amount) {
-            revert AlreadySet();
-        }
-
-        maxNetworkLimit[subnetwork] = amount;
-
-        emit SetMaxNetworkLimit(subnetwork, amount);
-    }
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) public {}
 
     /**
      * @inheritdoc IUniversalDelegator
@@ -738,10 +776,8 @@ contract UniversalDelegator is
         }
         if (sizeSlashed > 0) {
             slot.size.push(uint48(block.timestamp), size - sizeSlashed);
+            slots[index.getParentIndex()].needPrevSumsSync = true;
         }
-
-        // TODO: change prevSum logic or limit operators?
-        _syncPrevSums(index.getParentIndex());
 
         address hook_ = hook;
         if (hook_ != address(0)) {
@@ -829,17 +865,5 @@ contract UniversalDelegator is
 
     function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
         return slots[WITHDRAWAL_BUFFER_INDEX];
-    }
-
-    function _syncPrevSums(uint96 parentIndex) internal {
-        uint256 prevSum;
-        for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
-            if (child.prevSum.latest() != prevSum) {
-                child.prevSum.push(uint48(block.timestamp), prevSum);
-            }
-            prevSum += child.size.latest();
-            childIndex = child.nextSlot;
-        }
     }
 }
