@@ -21,7 +21,7 @@ bytes32 constant SWAP_SLOTS_ROLE = 0xffd98ac79bb60993f79efa77ec34b3f446950a5c284
 // keccak256("REMOVE_SLOT_ROLE")
 bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a0f7f47acb5d727ef90e6f4;
 
-uint256 constant MAX_OPERATORS_PER_SUBNETWORK = 50;
+uint256 constant MAX_CHILDREN = 50;
 
 interface IUniversalDelegator {
     error AlreadySet();

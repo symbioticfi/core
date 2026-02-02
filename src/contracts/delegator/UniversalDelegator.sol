@@ -22,7 +22,7 @@ import {
     SWAP_SLOTS_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
     WITHDRAWAL_BUFFER_INDEX,
-    MAX_OPERATORS_PER_SUBNETWORK
+    MAX_CHILDREN
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
@@ -100,7 +100,7 @@ contract UniversalDelegator is
     }
 
     modifier syncPrevSums(uint96 parentIndex) {
-        if (parentIndex.getDepth() == 2 && slots[parentIndex].needPrevSumsSync) {
+        if (slots[parentIndex].needPrevSumsSync) {
             _syncPrevSums(parentIndex);
             slots[parentIndex].needPrevSumsSync = false;
         }
@@ -496,6 +496,10 @@ contract UniversalDelegator is
         SlotStorage storage parent = slots[parentIndex];
         uint96 index = parentIndex.createIndex(parent.numChildren + 1);
 
+        if (parent.numChildren + 1 >= MAX_CHILDREN) {
+            revert TooManyOperators();
+        }
+
         if (parentIndex.getDepth() == 1) {
             if (_networkToSlot[subnetworkOrOperator].latest() != 0) {
                 revert AlreadyAssigned();
@@ -505,9 +509,6 @@ contract UniversalDelegator is
         } else if (parentIndex.getDepth() == 2) {
             if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() != 0) {
                 revert AlreadyAssigned();
-            }
-            if (parent.numChildren + 1 >= MAX_OPERATORS_PER_SUBNETWORK) {
-                revert TooManyOperators();
             }
             _operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].push(uint48(block.timestamp), index);
             _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
@@ -584,9 +585,7 @@ contract UniversalDelegator is
                 if (pending > 0) {
                     parent.childrenPendingCumulative
                         .push(uint48(block.timestamp), parent.childrenPendingCumulative.latest() + pending);
-                    if (index.getDepth() == 2) {
-                        slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + pending);
-                    }
+                    slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + pending);
                     if (slot.noPlugins) {
                         _noPluginsPendingCumulative.push(
                             uint48(block.timestamp), _noPluginsPendingCumulative.latest() + pending
@@ -766,24 +765,27 @@ contract UniversalDelegator is
             revert NotSlasher();
         }
 
-        uint96 index = getSlotOf(subnetwork, operator);
-        SlotStorage storage slot = slots[index];
-
-        uint256 pending = slot.pendingCumulative.latest()
-            .saturatingSub(
-                slot.pendingCumulative.upperLookupRecent(uint48(block.timestamp) - IVaultV2(vault).epochDuration())
+        for (uint96 currentIndex = getSlotOf(subnetwork, operator); currentIndex > 0;) {
+            SlotStorage storage currentSlot = slots[currentIndex];
+            uint256 pendingSlashed = Math.min(
+                currentSlot.pendingCumulative.latest()
+                    .saturatingSub(
+                        currentSlot.pendingCumulative
+                            .upperLookupRecent(uint48(block.timestamp) - IVaultV2(vault).epochDuration())
+                    ),
+                amount
             );
-        uint256 size = slot.size.latest();
-        uint256 pendingSlashed = Math.min(pending, amount);
-        uint256 sizeSlashed = Math.min(size, amount - pendingSlashed);
-        if (pendingSlashed > 0) {
-            slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() - pendingSlashed);
+            if (pendingSlashed > 0) {
+                currentSlot.pendingCumulative
+                    .push(uint48(block.timestamp), currentSlot.pendingCumulative.latest() - pendingSlashed);
+            }
+            uint256 sizeSlashed = Math.min(currentSlot.size.latest(), amount - pendingSlashed);
+            if (sizeSlashed > 0) {
+                currentSlot.size.push(uint48(block.timestamp), currentSlot.size.latest() - sizeSlashed);
+                slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
+            }
+            currentIndex = currentSlot.nextSlot;
         }
-        if (sizeSlashed > 0) {
-            slot.size.push(uint48(block.timestamp), size - sizeSlashed);
-            slots[index.getParentIndex()].needPrevSumsSync = true;
-        }
-
         address hook_ = hook;
         if (hook_ != address(0)) {
             bytes memory calldata_ =
