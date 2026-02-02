@@ -92,27 +92,20 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         view
         returns (uint256)
     {
-        // TODO: vars is cheaper both bytecode and gas, but more lines. replace?
-        bytes memory unlockToBucketHint;
-        bytes memory withdrawalSharesHint;
-        bytes memory withdrawalSharesCumulativeHint1;
-        bytes memory withdrawalSharesCumulativeHint2;
-        bytes memory withdrawalsHint;
+        // forgefmt: disable-start 
+        bytes memory unlockToBucketHint; bytes memory withdrawalSharesHint; bytes memory withdrawalSharesCumulativeHintNew; bytes memory withdrawalSharesCumulativeHintOld; bytes memory withdrawalsHint;
         if (hints.length > 0) {
-            (
-                unlockToBucketHint,
-                withdrawalSharesHint,
-                withdrawalSharesCumulativeHint1,
-                withdrawalSharesCumulativeHint2,
-                withdrawalsHint
-            ) = abi.decode(hints, (bytes, bytes, bytes, bytes, bytes));
+            (unlockToBucketHint, withdrawalSharesHint, withdrawalSharesCumulativeHintNew, withdrawalSharesCumulativeHintOld, withdrawalsHint) = abi.decode(hints, (bytes, bytes, bytes, bytes, bytes));
         }
+        // forgefmt: disable-end 
         uint208 lastBucket = _unlockToBucket.upperLookupRecent(timestamp, unlockToBucketHint);
         uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].upperLookupRecent(timestamp, withdrawalSharesHint);
         return lastWithdrawalShares > 0
-            ? (_withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration, withdrawalSharesCumulativeHint1)
+            ? (_withdrawalSharesCumulative.upperLookupRecent(
+                        timestamp + epochDuration, withdrawalSharesCumulativeHintNew
+                    )
                     - _withdrawalSharesCumulative.upperLookupRecent(
-                        timestamp + duration, withdrawalSharesCumulativeHint2
+                        timestamp + duration, withdrawalSharesCumulativeHintOld
                     ))
             .fullMulDivUnchecked(
                 _withdrawals[lastBucket].upperLookupRecent(timestamp, withdrawalsHint), lastWithdrawalShares
@@ -151,14 +144,16 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
-        ActiveBalanceOfHints memory activeBalanceOfHints;
+        // forgefmt: disable-start 
+        bytes memory activeSharesOfHint; bytes memory activeStakeHint; bytes memory activeSharesHint;
         if (hints.length > 0) {
-            activeBalanceOfHints = abi.decode(hints, (ActiveBalanceOfHints));
+            (activeSharesOfHint, activeStakeHint, activeSharesHint) = abi.decode(hints, (bytes, bytes, bytes));
         }
+        // forgefmt: disable-end 
         return ERC4626Math.previewRedeem(
-            activeSharesOfAt(account, timestamp, activeBalanceOfHints.activeSharesOfHint),
-            activeStakeAt(timestamp, activeBalanceOfHints.activeStakeHint),
-            activeSharesAt(timestamp, activeBalanceOfHints.activeSharesHint)
+            activeSharesOfAt(account, timestamp, activeSharesOfHint),
+            activeStakeAt(timestamp, activeStakeHint),
+            activeSharesAt(timestamp, activeSharesHint)
         );
     }
 

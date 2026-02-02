@@ -211,17 +211,18 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        AvailableHints memory availableHints;
+        // forgefmt: disable-start 
+        bytes memory balanceHints; bytes memory pendingHint; bytes memory pendingEpochHint;
         if (hints.length > 0) {
-            availableHints = abi.decode(hints, (AvailableHints));
+            (balanceHints, pendingHint, pendingEpochHint) = abi.decode(hints, (bytes, bytes, bytes));
         }
-        return getBalanceAt(index, timestamp, duration, availableHints.balanceHints)
+        // forgefmt: disable-end
+        return getBalanceAt(index, timestamp, duration, balanceHints)
             .saturatingSub(
-                slots[index].childrenPendingCumulative.upperLookupRecent(timestamp, availableHints.pendingHint)
+                slots[index].childrenPendingCumulative.upperLookupRecent(timestamp, pendingHint)
                     - slots[index].childrenPendingCumulative
                         .upperLookupRecent(
-                            uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())),
-                            availableHints.pendingEpochHint
+                            uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())), pendingEpochHint
                         )
             );
     }
