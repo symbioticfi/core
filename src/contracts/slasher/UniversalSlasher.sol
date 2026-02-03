@@ -206,10 +206,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
 
         if (captureTimestamp == 0) {
-            groupIndex = IUniversalDelegator(delegator)
-                .getSlotOfAt(subnetwork, operator, captureTimestamp, slashableStakeHints.slotOfHints).getParentIndex()
-                .getParentIndex();
-            slashableStake_ = IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0);
+            return (
+                IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0),
+                IUniversalDelegator(delegator).getSlotOf(subnetwork, operator).getParentIndex().getParentIndex()
+            );
         }
 
         if (
@@ -276,7 +276,6 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             revert InvalidCaptureTimestamp();
         }
 
-        captureTimestamp = captureTimestamp == 0 ? uint48(block.timestamp) : captureTimestamp;
         amount = Math.min(amount, slashableStake(subnetwork, operator, captureTimestamp, hints));
         if (amount == 0) {
             revert InsufficientSlash();
@@ -314,7 +313,15 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             revert VetoPeriodNotEnded();
         }
 
-        if (block.timestamp - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
+        // TODO: rework with full slashing without capture timestamp
+        if (request.captureTimestamp == 0) {
+            if (
+                block.timestamp - (request.vetoDeadline - (request.resolver == address(0) ? 0 : vetoDuration))
+                    > IVaultV2(vault).epochDuration()
+            ) {
+                revert SlashPeriodEnded();
+            }
+        } else if (block.timestamp - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
             revert SlashPeriodEnded();
         }
 
@@ -338,6 +345,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         _slashRequests[slashIndex].completed = true;
 
+        if (request.captureTimestamp == 0) {
+            request.captureTimestamp = uint48(block.timestamp);
+        }
         latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.captureTimestamp;
         _cumulativeSlash[request.subnetwork][request.operator].push(
             uint48(block.timestamp), cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
