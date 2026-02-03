@@ -11,8 +11,8 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 | `stakeForAt` | yes | 132,364 ($0.03) |
 | `requestSlash` | no | 336,329 ($0.07) |
 | `requestSlash` | yes | 336,329 ($0.07) |
-| `executeSlash` | no | 787,178 ($0.17) |
-| `executeSlash` | yes | 787,178 ($0.17) |
+| `executeSlash` | no | 900,101 ($0.20) |
+| `executeSlash` | yes | 900,101 ($0.20) |
 
 Notes:
 - Worst-case operator/network/group position with 3 groups × 3 networks × 10 operators.
@@ -37,7 +37,7 @@ These are immediate child calls of `UniversalSlasher::executeSlash` from the tra
 | `Checkpoints::push` | 65,621 ($0.01) | group cumulative checkpoint write |
 | `VaultV2::onSlash` (via proxy) | 336,415 ($0.07) | vault accounting + burn |
 | `VaultV2::delegator` (via proxy) | 906 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 72,997 ($0.02) | delegator hook |
+| `UniversalDelegator::onSlash` | 185,920 ($0.04) | delegator hook |
 | `UniversalSlasher::_burnerOnSlash` | 167 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
@@ -58,7 +58,7 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 | `Checkpoints::push` | 65,621 ($0.01) | group cumulative checkpoint write |
 | `VaultV2::onSlash` (via proxy) | 336,415 ($0.07) | vault accounting + burn |
 | `VaultV2::delegator` (via proxy) | 906 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 72,997 ($0.02) | delegator hook |
+| `UniversalDelegator::onSlash` | 185,920 ($0.04) | delegator hook |
 | `UniversalSlasher::_burnerOnSlash` | 167 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 

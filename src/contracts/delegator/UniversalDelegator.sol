@@ -802,7 +802,7 @@ contract UniversalDelegator is
                 currentSlot.size.push(uint48(block.timestamp), currentSlot.size.latest() - sizeSlashed);
                 slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
             }
-            currentIndex = currentSlot.nextSlot;
+            currentIndex = currentIndex.getParentIndex();
         }
         address hook_ = hook;
         if (hook_ != address(0)) {

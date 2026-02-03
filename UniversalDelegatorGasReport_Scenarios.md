@@ -16,8 +16,8 @@ Notes:
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | 132,364 ($0.03) | 336,329 ($0.07) | 787,178 ($0.17) |
-| 2nd | 212,706 ($0.05) | 405,880 ($0.09) | 812,226 ($0.18) |
+| 1st | 132,364 ($0.03) | 336,329 ($0.07) | 900,101 ($0.20) |
+| 2nd | 233,233 ($0.05) | 427,517 ($0.09) | 936,169 ($0.20) |
 
 Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightly higher probably due to cumulative checkpoint growth
 
@@ -25,8 +25,8 @@ Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightl
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | 130,252 ($0.03) | 226,588 ($0.05) | 648,207 ($0.14) |
-| 2nd | 134,594 ($0.03) | 195,839 ($0.04) | 386,813 ($0.08) |
+| 1st | 130,252 ($0.03) | 226,588 ($0.05) | 761,130 ($0.17) |
+| 2nd | 159,121 ($0.03) | 201,476 ($0.04) | 394,582 ($0.09) |
 
 Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slots; execute cost drops due to warm slots.
 
@@ -38,8 +38,8 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | 29,652 ($0.01) | 283,680 ($0.06) | 746,284 ($0.16) |
-| 2nd | 29,637 ($0.01) | 341,891 ($0.07) | 755,992 ($0.16) |
+| 1st | 29,652 ($0.01) | 283,680 ($0.06) | 859,207 ($0.19) |
+| 2nd | 29,637 ($0.01) | 357,069 ($0.08) | 869,476 ($0.19) |
 
 Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightly higher probably due to cumulative checkpoint growth
 
@@ -47,8 +47,8 @@ Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightl
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | 27,539 ($0.01) | 243,963 ($0.05) | 619,313 ($0.13) |
-| 2nd | 7,524 ($0.00) | 221,874 ($0.05) | 346,578 ($0.08) |
+| 1st | 27,539 ($0.01) | 243,963 ($0.05) | 732,236 ($0.16) |
+| 2nd | 7,524 ($0.00) | 245,052 ($0.05) | 351,888 ($0.08) |
 
 Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slots; execute cost drops due to warm slots.
 
