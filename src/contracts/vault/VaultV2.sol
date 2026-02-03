@@ -7,7 +7,8 @@ import {MigratorV1V2} from "./MigratorV1V2.sol";
 import {SlasherFactory} from "../SlasherFactory.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
+import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
@@ -43,6 +44,8 @@ import {LibCall as Address} from "@solady/src/utils/LibCall.sol";
 /// @dev total supply of `collateral()` must be <= 2^255 - 1 from the VaultV2 perspective
 /// @dev total supply of `collateral()` must be <= 2^128 - 1 from the UniversalDelegator perspective
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
+    using CheckpointsLegacy for CheckpointsLegacy.Trace208;
+    using CheckpointsLegacy for CheckpointsLegacy.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Address for address;

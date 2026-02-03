@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
 import {IEntity} from "../../interfaces/common/IEntity.sol";

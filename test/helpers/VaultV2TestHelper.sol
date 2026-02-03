@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import {Hints} from "../../src/contracts/hints/Hints.sol";
 import {VaultV2Storage} from "../../src/contracts/vault/VaultV2Storage.sol";
-import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../../src/contracts/libraries/CheckpointsV2.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 
 contract VaultV2TestHelper is VaultV2Storage, Hints {

@@ -3,13 +3,16 @@ pragma solidity 0.8.28;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
+import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
 
 import {IVaultV2Storage} from "../../interfaces/vault/IVaultV2Storage.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
+    using CheckpointsLegacy for CheckpointsLegacy.Trace256;
+    using CheckpointsLegacy for CheckpointsLegacy.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using SafeCast for uint256;
@@ -95,11 +98,11 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(uint256 epoch => mapping(address account => bool value)) internal _isEpochWithdrawalsClaimed;
 
-    Checkpoints.Trace256 internal _activeShares;
+    CheckpointsLegacy.Trace256 internal _activeShares;
 
-    Checkpoints.Trace256 internal _activeStake;
+    CheckpointsLegacy.Trace256 internal _activeStake;
 
-    mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
+    mapping(address account => CheckpointsLegacy.Trace256 shares) internal _activeSharesOf;
 
     mapping(address account => Withdrawal[] withdrawals) internal _withdrawalsOf;
 

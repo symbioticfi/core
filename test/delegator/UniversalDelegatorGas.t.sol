@@ -313,9 +313,7 @@ contract UniversalDelegatorGasTest is Test {
     }
 
     function _allocatedHints() internal pure returns (bytes memory) {
-        return abi.encode(
-            IUniversalDelegator.AllocatedHints({slotOfHints: _slotOfHints(), allocatedHints: bytes("")})
-        );
+        return abi.encode(IUniversalDelegator.AllocatedHints({slotOfHints: _slotOfHints(), allocatedHints: bytes("")}));
     }
 
     function _groupAllocatedHints() internal pure returns (bytes memory) {

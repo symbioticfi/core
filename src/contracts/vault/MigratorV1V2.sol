@@ -7,7 +7,7 @@ import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";

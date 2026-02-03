@@ -5,7 +5,7 @@ import {VaultV2} from "../vault/VaultV2.sol";
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 

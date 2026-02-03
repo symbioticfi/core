@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Checkpoints} from "../../contracts/libraries/Checkpoints.sol";
+import {Checkpoints} from "../../contracts/libraries/CheckpointsV2.sol";
 
 uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 1;
 uint96 constant WITHDRAWAL_BUFFER_INDEX = 0x10000000000000000;
