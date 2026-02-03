@@ -730,11 +730,18 @@ contract UniversalDelegator is
             }
             if (slots[index.getParentIndex()].size.latest() > 0) {
                 // TODO: ideally also update pending for this slot
+                slots[index.getParentIndex().getParentIndex()].childrenPendingCumulative
+                    .push(uint48(block.timestamp), 0);
+                slots[index.getParentIndex()].pendingCumulative.push(uint48(block.timestamp), 0);
                 slots[index.getParentIndex()].size.push(uint48(block.timestamp), 0);
                 slots[index.getParentIndex()].needPrevSumsSync = true;
             }
         }
+        slots[index.getParentIndex()].childrenPendingCumulative.push(uint48(block.timestamp), 0);
+        slots[index].pendingCumulative.push(uint48(block.timestamp), 0);
         resetAllocationAt[subnetwork] = uint48(block.timestamp);
+        slots[index].size.push(uint48(block.timestamp), 0);
+        slots[index].needPrevSumsSync = true;
 
         emit ResetAllocation(subnetwork);
     }

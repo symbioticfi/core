@@ -208,6 +208,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return amount.mulDivUp(IFeeRegistry(FEE_REGISTRY).getFlashloanFee(address(this)), MAX_FEE);
     }
 
+    /**
+     * @inheritdoc IVaultV2
+     */
     function pullable() public view returns (uint256) {
         return totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe);
     }
@@ -659,7 +662,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @dev first plugins in the list are pulled first
     function _pullPlugins() internal {
         unchecked {
-            // TODO: add hardcoded max plugins number
             uint256 toPull = pluginsOwe.saturatingSub(totalStake());
             if (toPull > 0) {
                 for (uint256 i; i < plugins.length; ++i) {
