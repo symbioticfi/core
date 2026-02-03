@@ -2636,7 +2636,7 @@ contract VaultV2Test is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.NotSlasher.selector);
-        VaultV2(address(vault)).onSlash(0, 0);
+        VaultV2(address(vault)).onSlash(0, "");
         vm.stopPrank();
     }
 
@@ -2975,7 +2975,7 @@ contract VaultV2Test is Test {
         uint48 captureTimestamp = uint48(block.timestamp - 1);
 
         vm.prank(address(slasher));
-        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, captureTimestamp);
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, "");
 
         assertEq(slashedAmount, 60);
         assertEq(owed, 40);
@@ -3053,7 +3053,7 @@ contract VaultV2Test is Test {
         uint48 captureTimestamp = uint48(block.timestamp - 1);
 
         vm.prank(address(slasher));
-        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, captureTimestamp);
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, "");
 
         assertEq(slashedAmount, 60);
         assertEq(owed, 30);
@@ -3322,7 +3322,7 @@ contract VaultV2Test is Test {
         hints;
 
         vm.startPrank(address(slasher));
-        (slashAmount,) = VaultV2(address(vault)).onSlash(amount, captureTimestamp);
+        (slashAmount,) = VaultV2(address(vault)).onSlash(amount, "");
         vm.stopPrank();
     }
 

@@ -390,7 +390,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount, uint48 captureTimestamp)
+    function onSlash(uint256 amount, bytes calldata hints)
         public
         nonReentrant
         returns (uint256 slashedAmount, uint256 owed)
@@ -404,7 +404,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 lastWithdrawals = _withdrawals[lastBucket].latest();
             uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].latest();
             uint256 unmaturedWithdrawalShares = _withdrawalSharesCumulative.latest()
-                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp));
+                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp), hints);
             uint256 unmaturedWithdrawals = lastWithdrawalShares > 0
                 ? unmaturedWithdrawalShares.fullMulDivUnchecked(lastWithdrawals, lastWithdrawalShares)
                 : 0;
@@ -428,18 +428,20 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 _withdrawals[lastBucket
                         + 1].push(uint48(block.timestamp), unmaturedWithdrawals - (slashedAmount - activeSlashed));
 
-                _pullPlugins();
+                uint256 available = IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(_unclaimedRaw));
+                if (available < slashedAmount) {
+                    _pullPlugins();
+                    available = IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(_unclaimedRaw));
+                }
+                owed = slashedAmount.saturatingSub(available);
 
-                owed = slashedAmount.saturatingSub(
-                    IERC20(collateral).balanceOf(address(this)).saturatingSub(uint256(_unclaimedRaw))
-                );
                 if (owed < slashedAmount) {
                     collateral.safeTransfer(burner, slashedAmount - owed);
                 }
             }
         }
 
-        emit OnSlash(amount, captureTimestamp, slashedAmount);
+        emit OnSlash(amount, slashedAmount);
     }
 
     /* * INTERNAL FUNCTIONS * */

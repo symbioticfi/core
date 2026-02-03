@@ -203,10 +203,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     /**
      * @notice Emitted when a slash happens.
      * @param amount amount of the collateral to slash
-     * @param captureTimestamp time point when the stake was captured
      * @param slashedAmount real amount of the collateral slashed
      */
-    event OnSlash(uint256 amount, uint48 captureTimestamp, uint256 slashedAmount);
+    event OnSlash(uint256 amount, uint256 slashedAmount);
 
     /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.

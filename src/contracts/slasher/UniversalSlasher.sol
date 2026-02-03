@@ -235,9 +235,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                             )
                     ),
                 IUniversalDelegator(delegator)
-                    .getAllocatedAt(
-                        groupIndex, captureTimestamp, type(uint48).max, slashableStakeHints.groupAllocatedHints
-                    )
+                    .getAllocatedAt(groupIndex, captureTimestamp, 0, slashableStakeHints.groupAllocatedHints)
                     .saturatingSub(
                         groupCumulativeSlash(groupIndex)
                             - groupCumulativeSlashAt(
@@ -325,9 +323,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
 
         // forgefmt: disable-start 
-        bytes memory slashableStakeHints; bytes memory slotOfHint;
+        bytes memory slashableStakeHints; bytes memory vaultOnSlashHints;
         if (hints.length > 0) {
-            (slashableStakeHints, slotOfHint) = abi.decode(hints, (bytes, bytes));
+            (slashableStakeHints, vaultOnSlashHints) = abi.decode(hints, (bytes, bytes));
         }
         // forgefmt: disable-end
 
@@ -349,7 +347,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         );
 
         uint256 owed_;
-        (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, request.captureTimestamp);
+        (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, vaultOnSlashHints);
         if (owed_ > 0) {
             owed[request.subnetwork][request.operator][request.captureTimestamp] += owed_;
         }

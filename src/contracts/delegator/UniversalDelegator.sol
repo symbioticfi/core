@@ -164,7 +164,9 @@ contract UniversalDelegator is
         }
 
         return IVaultV2(vault).slasher() != msg.sender || timestamp >= resetAllocationAt[subnetwork]
-            ? getAllocatedAt(subnetwork, operator, timestamp, type(uint48).max, stakeHints.allocatedHints)
+            ? getAllocatedAt(
+                subnetwork, operator, timestamp, IVaultV2(vault).epochDuration(), stakeHints.allocatedHints
+            )
             : 0;
     }
 
@@ -176,7 +178,7 @@ contract UniversalDelegator is
             return 0;
         }
 
-        return getAllocated(subnetwork, operator, type(uint48).max);
+        return getAllocated(subnetwork, operator, IVaultV2(vault).epochDuration());
     }
 
     /**
@@ -270,6 +272,10 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
+        uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
+        if (duration > vaultEpochDuration) {
+            return 0;
+        }
         BaseAllocatedHints memory baseAllocatedHints;
         if (hints.length > 0) {
             baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
@@ -301,9 +307,7 @@ contract UniversalDelegator is
             + slot.pendingCumulative.upperLookupRecent(timestamp)
                 .saturatingSub(
                 slot.pendingCumulative
-                    .upperLookupRecent(
-                    uint48(uint256(timestamp + duration).saturatingSub(IVaultV2(vault).epochDuration()))
-                )
+                    .upperLookupRecent(uint48(uint256(timestamp).saturatingSub(vaultEpochDuration - duration)))
             );
     }
 
@@ -311,6 +315,10 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      */
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
+        uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
+        if (duration > vaultEpochDuration) {
+            return 0;
+        }
         SlotStorage storage slot = slots[index];
         uint256 available = getAvailable(index.getParentIndex(), duration);
 
@@ -335,9 +343,7 @@ contract UniversalDelegator is
             + slot.pendingCumulative.latest()
                 .saturatingSub(
                 slot.pendingCumulative
-                    .upperLookupRecent(
-                    uint48((block.timestamp + duration).saturatingSub(IVaultV2(vault).epochDuration()))
-                )
+                    .upperLookupRecent(uint48((block.timestamp).saturatingSub(vaultEpochDuration - duration)))
             );
     }
 
