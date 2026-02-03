@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
+import os
 import re
 import sys
-from datetime import datetime
+import time
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Callable
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,8 +19,136 @@ REPORT_2 = ROOT / "UniversalDelegatorGasReport_AfterFirstSlash.md"
 REPORT_SCENARIOS = ROOT / "UniversalDelegatorGasReport_Scenarios.md"
 
 
-def fmt(value: int) -> str:
-    return f"{value:,}"
+def fmt_usd(value: float) -> str:
+    return f"${value:,.2f}"
+
+
+def fmt_gas_with_usd(value: int, usd_per_gas_90d: float) -> str:
+    sign = "-" if value < 0 else ""
+    abs_value = abs(value)
+    usd_90d = abs_value * usd_per_gas_90d
+    return f"{sign}{abs_value:,} ({sign}{fmt_usd(usd_90d)})"
+
+
+def _fetch_json(url: str) -> dict[str, object]:
+    with urlopen(url, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+ETHERSCAN_BASE = "https://api.etherscan.io/v2/api"
+COINGECKO_BASE = "https://api.coingecko.com/api/v3/coins/ethereum/market_chart"
+
+
+def _etherscan_call(params: dict[str, str]) -> dict[str, object]:
+    url = f"{ETHERSCAN_BASE}?{urlencode(params)}"
+    payload = _fetch_json(url)
+    if "status" in payload and payload.get("status") != "1":
+        raise ValueError(f"Etherscan API error for {params.get('action')}: {payload.get('message')}")
+    if "error" in payload:
+        raise ValueError(f"Etherscan API error for {params.get('action')}: {payload.get('error')}")
+    return payload
+
+
+def get_block_number_by_time(timestamp: int, api_key: str) -> int:
+    payload = _etherscan_call(
+        {
+            "chainid": "1",
+            "module": "block",
+            "action": "getblocknobytime",
+            "timestamp": str(timestamp),
+            "closest": "before",
+            "apikey": api_key,
+        }
+    )
+    result = payload.get("result")
+    if result is None:
+        raise ValueError("Missing block number from Etherscan.")
+    return int(result)
+
+
+def get_block_base_fee(block_number: int, api_key: str) -> int:
+    payload = _etherscan_call(
+        {
+            "chainid": "1",
+            "module": "proxy",
+            "action": "eth_getBlockByNumber",
+            "tag": hex(block_number),
+            "boolean": "false",
+            "apikey": api_key,
+        }
+    )
+    result = payload.get("result")
+    if not isinstance(result, dict) or "baseFeePerGas" not in result:
+        raise ValueError("Missing baseFeePerGas from block response.")
+    return int(result["baseFeePerGas"], 16)
+
+
+def sample_base_fees(days: int, api_key: str, max_samples: int, pause_s: float = 0.12) -> list[int]:
+    end = date.today()
+    start = end - timedelta(days=days - 1)
+    base_fees: list[int] = []
+    step = max(1, days // max_samples)
+    offsets = list(range(0, days, step))
+    if offsets[-1] != days - 1:
+        offsets.append(days - 1)
+    for offset in offsets:
+        day = start + timedelta(days=offset)
+        timestamp = int(datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp())
+        block_number = get_block_number_by_time(timestamp, api_key)
+        time.sleep(pause_s)
+        base_fee = get_block_base_fee(block_number, api_key)
+        time.sleep(pause_s)
+        base_fees.append(base_fee)
+    return base_fees
+
+
+def fetch_eth_prices(days: int) -> list[float]:
+    url = f"{COINGECKO_BASE}?{urlencode({'vs_currency': 'usd', 'days': str(days), 'interval': 'daily'})}"
+    payload = _fetch_json(url)
+    prices = payload.get("prices")
+    if not isinstance(prices, list) or not prices:
+        raise ValueError("Missing ETH price data from CoinGecko.")
+    return [float(point[1]) for point in prices if len(point) > 1]
+
+
+def compute_usd_per_gas(api_key: str) -> float:
+    base_fees_90 = sample_base_fees(90, api_key, max_samples=30)
+    if not base_fees_90:
+        raise ValueError("Insufficient base fee samples.")
+    avg_base_fee_90 = sum(base_fees_90) / len(base_fees_90)
+
+    prices = fetch_eth_prices(90)
+    if not prices:
+        raise ValueError("Insufficient ETH price samples for 3-month average.")
+    avg_price_90 = sum(prices) / len(prices)
+
+    usd_per_gas_90d = avg_base_fee_90 / 1e18 * avg_price_90
+    return usd_per_gas_90d
+
+
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+def parse_float_env(name: str) -> float | None:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise SystemExit(f"{name} must be a number, got: {raw}") from exc
 
 
 def parse_logs(lines: list[str]) -> dict[str, int]:
@@ -155,7 +289,13 @@ def _norm_label(value: str) -> str:
     return normalized.replace("ReentrancyGuardUpgradeable", "ReentrancyGuard")
 
 
-def update_table(lines: list[str], heading: str, rows: list[tuple[tuple[str, ...], int]], gas_col: int) -> None:
+def update_table(
+    lines: list[str],
+    heading: str,
+    rows: list[tuple[tuple[str, ...], int]],
+    gas_col: int,
+    gas_formatter: Callable[[int], str],
+) -> None:
     heading_idx = None
     for i, line in enumerate(lines):
         if line.strip() == heading:
@@ -188,14 +328,15 @@ def update_table(lines: list[str], heading: str, rows: list[tuple[tuple[str, ...
             raise ValueError(
                 f"Row mismatch under {heading}: expected {expected_cols}, got {parts[:len(expected_cols)]}"
             )
-        parts[gas_col] = fmt(gas)
-        lines[idx] = f"| {parts[0]} | {parts[1]} | {parts[2]} |" if len(parts) == 3 else f"| {parts[0]} | {parts[1]} |"
+        parts[gas_col] = gas_formatter(gas)
+        lines[idx] = f"| {' | '.join(parts)} |"
         idx += 1
 
 
-def update_reports(log_path: Path) -> list[Path]:
+def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
     lines = log_path.read_text().splitlines()
     updated: list[Path] = []
+    gas_fmt = lambda value: fmt_gas_with_usd(value, usd_per_gas_90d)
 
     logs = parse_logs(lines)
     scenario_required = [
@@ -275,6 +416,7 @@ Notes:
 - “Fully isolated” runs two sequential slashes with a block time jump between them (intended to model separate txs).
 - “Single transaction” executes both slashes inside one middleware call.
 - “Without capture timestamp” passes `captureTimestamp = 0` into `requestSlash` (mapped to `block.timestamp - 4` for validity).
+- USD values show a 3-month average using baseFeePerGas samples (~30 samples over 90d) from Etherscan and ETH/USD from CoinGecko.
 
 ## With capture timestamp
 
@@ -282,8 +424,8 @@ Notes:
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | {fmt(logs["with_capture_isolated_block1_stake"])} | {fmt(logs["with_capture_isolated_block1_request"])} | {fmt(logs["with_capture_isolated_block1_execute"])} |
-| 2nd | {fmt(logs["with_capture_isolated_block2_stake"])} | {fmt(logs["with_capture_isolated_block2_request"])} | {fmt(logs["with_capture_isolated_block2_execute"])} |
+| 1st | {gas_fmt(logs["with_capture_isolated_block1_stake"])} | {gas_fmt(logs["with_capture_isolated_block1_request"])} | {gas_fmt(logs["with_capture_isolated_block1_execute"])} |
+| 2nd | {gas_fmt(logs["with_capture_isolated_block2_stake"])} | {gas_fmt(logs["with_capture_isolated_block2_request"])} | {gas_fmt(logs["with_capture_isolated_block2_execute"])} |
 
 Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightly higher probably due to cumulative checkpoint growth
 
@@ -291,8 +433,8 @@ Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightl
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | {fmt(logs["with_capture_single_block1_stake"])} | {fmt(logs["with_capture_single_block1_request"])} | {fmt(logs["with_capture_single_block1_execute"])} |
-| 2nd | {fmt(logs["with_capture_single_block2_stake"])} | {fmt(logs["with_capture_single_block2_request"])} | {fmt(logs["with_capture_single_block2_execute"])} |
+| 1st | {gas_fmt(logs["with_capture_single_block1_stake"])} | {gas_fmt(logs["with_capture_single_block1_request"])} | {gas_fmt(logs["with_capture_single_block1_execute"])} |
+| 2nd | {gas_fmt(logs["with_capture_single_block2_stake"])} | {gas_fmt(logs["with_capture_single_block2_request"])} | {gas_fmt(logs["with_capture_single_block2_execute"])} |
 
 Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slots; execute cost drops due to warm slots.
 
@@ -304,8 +446,8 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | {fmt(logs["no_capture_isolated_block1_stake"])} | {fmt(logs["no_capture_isolated_block1_request"])} | {fmt(logs["no_capture_isolated_block1_execute"])} |
-| 2nd | {fmt(logs["no_capture_isolated_block2_stake"])} | {fmt(logs["no_capture_isolated_block2_request"])} | {fmt(logs["no_capture_isolated_block2_execute"])} |
+| 1st | {gas_fmt(logs["no_capture_isolated_block1_stake"])} | {gas_fmt(logs["no_capture_isolated_block1_request"])} | {gas_fmt(logs["no_capture_isolated_block1_execute"])} |
+| 2nd | {gas_fmt(logs["no_capture_isolated_block2_stake"])} | {gas_fmt(logs["no_capture_isolated_block2_request"])} | {gas_fmt(logs["no_capture_isolated_block2_execute"])} |
 
 Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightly higher probably due to cumulative checkpoint growth
 
@@ -313,8 +455,8 @@ Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightl
 
 | Call | Stake gas | Request slash gas | Execute slash gas |
 | --- | ---: | ---: | ---: |
-| 1st | {fmt(logs["no_capture_single_block1_stake"])} | {fmt(logs["no_capture_single_block1_request"])} | {fmt(logs["no_capture_single_block1_execute"])} |
-| 2nd | {fmt(logs["no_capture_single_block2_stake"])} | {fmt(logs["no_capture_single_block2_request"])} | {fmt(logs["no_capture_single_block2_execute"])} |
+| 1st | {gas_fmt(logs["no_capture_single_block1_stake"])} | {gas_fmt(logs["no_capture_single_block1_request"])} | {gas_fmt(logs["no_capture_single_block1_execute"])} |
+| 2nd | {gas_fmt(logs["no_capture_single_block2_stake"])} | {gas_fmt(logs["no_capture_single_block2_request"])} | {gas_fmt(logs["no_capture_single_block2_execute"])} |
 
 Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slots; execute cost drops due to warm slots.
 
@@ -356,24 +498,28 @@ Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slot
                 (("`executeSlash`", "yes"), logs["executeSlash_with_hints"]),
             ],
             2,
+            gas_fmt,
         )
         update_table(
             report_1_lines,
             "## executeSlash components (no hints)",
             [((label,), gas) for label, gas in exec_1],
             1,
+            gas_fmt,
         )
         update_table(
             report_1_lines,
             "## executeSlash components (with hints)",
             [((label,), gas) for label, gas in exec_2],
             1,
+            gas_fmt,
         )
         update_table(
             report_1_lines,
             "## VaultV2::onSlash breakdown",
             [((label,), gas) for label, gas in vault_1],
             1,
+            gas_fmt,
         )
         update_table(
             report_1_lines,
@@ -383,6 +529,7 @@ Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slot
                 (("Total `executeSlash`",), logs["executeSlash_with_hints"] - logs["executeSlash_no_hints"]),
             ],
             1,
+            gas_fmt,
         )
         REPORT_1.write_text("\n".join(report_1_lines) + "\n")
         updated.append(REPORT_1)
@@ -401,24 +548,28 @@ Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slot
                 (("`executeSlash`", "yes"), logs["executeSlash2_with_hints"]),
             ],
             2,
+            gas_fmt,
         )
         update_table(
             report_2_lines,
             "## executeSlash components (no hints)",
             [((label,), gas) for label, gas in exec_3],
             1,
+            gas_fmt,
         )
         update_table(
             report_2_lines,
             "## executeSlash components (with hints)",
             [((label,), gas) for label, gas in exec_4],
             1,
+            gas_fmt,
         )
         update_table(
             report_2_lines,
             "## VaultV2::onSlash breakdown (after first slash)",
             [((label,), gas) for label, gas in vault_3],
             1,
+            gas_fmt,
         )
         update_table(
             report_2_lines,
@@ -428,6 +579,7 @@ Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slot
                 (("Total `executeSlash`",), logs["executeSlash2_with_hints"] - logs["executeSlash2_no_hints"]),
             ],
             1,
+            gas_fmt,
         )
         REPORT_2.write_text("\n".join(report_2_lines) + "\n")
         updated.append(REPORT_2)
@@ -441,7 +593,30 @@ def main() -> None:
     log_path = Path(sys.argv[1]).expanduser().resolve()
     if not log_path.exists():
         raise SystemExit(f"Log file not found: {log_path}")
-    updated = update_reports(log_path)
+    load_env_file(ROOT / ".env")
+    usd_override_90d = parse_float_env("USD_PER_GAS_90D")
+    if usd_override_90d is None:
+        usd_override_90d = parse_float_env("USD_PER_GAS")
+    api_key = os.getenv("ETHERSCAN_API_KEY")
+    if not api_key and usd_override_90d is None:
+        raise SystemExit(
+            "ETHERSCAN_API_KEY is required to compute USD averages. "
+            "Alternatively set USD_PER_GAS_90D (or USD_PER_GAS) to override."
+        )
+    try:
+        if usd_override_90d is not None:
+            usd_per_gas_90d = usd_override_90d
+        else:
+            usd_per_gas_90d = compute_usd_per_gas(api_key)
+    except Exception as exc:
+        if usd_override_90d is not None:
+            usd_per_gas_90d = usd_override_90d
+        else:
+            raise SystemExit(
+                f"Failed to fetch USD averages: {exc}. "
+                "Set USD_PER_GAS_90D (or USD_PER_GAS) to override."
+            ) from exc
+    updated = update_reports(log_path, usd_per_gas_90d)
     for path in updated:
         print(f"Updated: {path}")
 
