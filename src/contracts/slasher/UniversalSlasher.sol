@@ -125,9 +125,11 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
             request.resolver = IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, request.captureTimestamp, "");
             if (request.resolver != address(0)) {
-                // TODO: remove it, or add comment regarding block.timestamp versus slashIndex
-                request.resolver =
-                    IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "");
+                unchecked {
+                    // TODO: remove it, or add comment regarding block.timestamp versus slashIndex
+                    request.resolver =
+                        IVetoSlasher(_oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "");
+                }
             }
         }
     }
@@ -220,37 +222,40 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             return (0, 0);
         }
 
-        if (captureTimestamp >= _migrateTimestamp) {
-            groupIndex = IUniversalDelegator(delegator)
-                .getSlotOfAt(subnetwork, operator, captureTimestamp, slashableStakeHints.slotOfHints).getParentIndex()
-                .getParentIndex();
+        unchecked {
 
-            slashableStake_ = Math.min(
-                IUniversalDelegator(delegator)
-                    .stakeForAt(subnetwork, operator, 0, captureTimestamp, slashableStakeHints.stakeHints)
+            if (captureTimestamp >= _migrateTimestamp) {
+                groupIndex = IUniversalDelegator(delegator)
+                    .getSlotOfAt(subnetwork, operator, captureTimestamp, slashableStakeHints.slotOfHints)
+                    .getParentIndex().getParentIndex();
+
+                slashableStake_ = Math.min(
+                    IUniversalDelegator(delegator)
+                        .stakeForAt(subnetwork, operator, 0, captureTimestamp, slashableStakeHints.stakeHints)
+                        .saturatingSub(
+                            cumulativeSlash(subnetwork, operator)
+                                - cumulativeSlashAt(
+                                    subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint
+                                )
+                        ),
+                    IUniversalDelegator(delegator)
+                        .getAllocatedAt(groupIndex, captureTimestamp, 0, slashableStakeHints.groupAllocatedHints)
+                        .saturatingSub(
+                            groupCumulativeSlash(groupIndex)
+                                - groupCumulativeSlashAt(
+                                    groupIndex, captureTimestamp, slashableStakeHints.groupCumulativeSlashFromHint
+                                )
+                        )
+                );
+            } else {
+                slashableStake_ = IBaseDelegator(_oldDelegator).stakeAt(subnetwork, operator, captureTimestamp, "")
                     .saturatingSub(
                         cumulativeSlash(subnetwork, operator)
                             - cumulativeSlashAt(
                                 subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint
                             )
-                    ),
-                IUniversalDelegator(delegator)
-                    .getAllocatedAt(groupIndex, captureTimestamp, 0, slashableStakeHints.groupAllocatedHints)
-                    .saturatingSub(
-                        groupCumulativeSlash(groupIndex)
-                            - groupCumulativeSlashAt(
-                                groupIndex, captureTimestamp, slashableStakeHints.groupCumulativeSlashFromHint
-                            )
-                    )
-            );
-        } else {
-            slashableStake_ = IBaseDelegator(_oldDelegator).stakeAt(subnetwork, operator, captureTimestamp, "")
-                .saturatingSub(
-                    cumulativeSlash(subnetwork, operator)
-                        - cumulativeSlashAt(
-                            subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint
-                        )
-                );
+                    );
+            }
         }
     }
 
@@ -313,16 +318,18 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             revert VetoPeriodNotEnded();
         }
 
-        // TODO: rework with full slashing without capture timestamp
-        if (request.captureTimestamp == 0) {
-            if (
-                block.timestamp - (request.vetoDeadline - (request.resolver == address(0) ? 0 : vetoDuration))
-                    > IVaultV2(vault).epochDuration()
-            ) {
+        unchecked {
+            // TODO: rework with full slashing without capture timestamp
+            if (request.captureTimestamp == 0) {
+                if (
+                    block.timestamp - (request.vetoDeadline - (request.resolver == address(0) ? 0 : vetoDuration))
+                        > IVaultV2(vault).epochDuration()
+                ) {
+                    revert SlashPeriodEnded();
+                }
+            } else if (block.timestamp - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
                 revert SlashPeriodEnded();
             }
-        } else if (block.timestamp - request.captureTimestamp > IVaultV2(vault).epochDuration()) {
-            revert SlashPeriodEnded();
         }
 
         if (request.completed) {
@@ -356,10 +363,12 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             uint48(block.timestamp), groupCumulativeSlash(groupIndex) + slashedAmount
         );
 
-        uint256 owed_;
-        (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, vaultOnSlashHints);
-        if (owed_ > 0) {
-            owed[request.subnetwork][request.operator][request.captureTimestamp] += owed_;
+        unchecked {
+            uint256 owed_;
+            (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, vaultOnSlashHints);
+            if (owed_ > 0) {
+                owed[request.subnetwork][request.operator][request.captureTimestamp] += owed_;
+            }
         }
 
         // TODO: do hook for legacy
@@ -430,12 +439,14 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         public
         returns (uint256 slashed)
     {
-        uint256 owed_ = owed[subnetwork][operator][captureTimestamp];
-        slashed = VaultV2(vault).syncOwedSlash(owed_);
-        owed[subnetwork][operator][captureTimestamp] = owed_ - slashed;
-        _burnerOnSlash(subnetwork, operator, slashed, captureTimestamp);
+        unchecked {
+            uint256 owed_ = owed[subnetwork][operator][captureTimestamp];
+            slashed = VaultV2(vault).syncOwedSlash(owed_);
+            owed[subnetwork][operator][captureTimestamp] = owed_ - slashed;
+            _burnerOnSlash(subnetwork, operator, slashed, captureTimestamp);
 
-        emit SyncOwedSlash(subnetwork, operator, captureTimestamp, slashed);
+            emit SyncOwedSlash(subnetwork, operator, captureTimestamp, slashed);
+        }
     }
 
     function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
@@ -445,16 +456,19 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     }
 
     function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) internal {
-        if (isBurnerHook) {
-            address burner = IVault(vault).burner();
-            bytes memory calldata_ = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, captureTimestamp));
+        unchecked {
+            if (isBurnerHook) {
+                address burner = IVault(vault).burner();
+                bytes memory calldata_ =
+                    abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, captureTimestamp));
 
-            if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
-                revert InsufficientBurnerGas();
-            }
+                if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+                    revert InsufficientBurnerGas();
+                }
 
-            assembly ("memory-safe") {
-                pop(call(BURNER_GAS_LIMIT, burner, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+                assembly ("memory-safe") {
+                    pop(call(BURNER_GAS_LIMIT, burner, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+                }
             }
         }
     }

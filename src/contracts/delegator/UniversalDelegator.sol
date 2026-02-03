@@ -209,21 +209,25 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        if (index == 0) {
-            return IVaultV2(vault).activeStakeAt(timestamp, hints)
-                + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp, "");
+        unchecked {
+            if (index == 0) {
+                return IVaultV2(vault).activeStakeAt(timestamp, hints)
+                    + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp, "");
+            }
+            return getAllocatedAt(index, timestamp, duration, hints);
         }
-        return getAllocatedAt(index, timestamp, duration, hints);
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
-        if (index == 0) {
-            return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration, "");
+        unchecked {
+            if (index == 0) {
+                return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration, "");
+            }
+            return getAllocated(index, duration);
         }
-        return getAllocated(index, duration);
     }
 
     /**
@@ -235,32 +239,37 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        // forgefmt: disable-start 
+        unchecked {// forgefmt: disable-start 
         bytes memory balanceHints; bytes memory pendingHint; bytes memory pendingEpochHint;
         if (hints.length > 0) {
             (balanceHints, pendingHint, pendingEpochHint) = abi.decode(hints, (bytes, bytes, bytes));
         }
         // forgefmt: disable-end
-        return getBalanceAt(index, timestamp, duration, balanceHints)
-            .saturatingSub(
-                slots[index].childrenPendingCumulative.upperLookupRecent(timestamp, pendingHint)
-                    - slots[index].childrenPendingCumulative
-                        .upperLookupRecent(
-                            uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())), pendingEpochHint
-                        )
-            );
+            return getBalanceAt(index, timestamp, duration, balanceHints)
+                .saturatingSub(
+                    slots[index].childrenPendingCumulative.upperLookupRecent(timestamp, pendingHint)
+                        - slots[index].childrenPendingCumulative
+                            .upperLookupRecent(
+                                uint48(uint256(timestamp).saturatingSub(IVaultV2(vault).epochDuration())),
+                                pendingEpochHint
+                            )
+                );
+        }
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
     function getAvailable(uint96 index, uint48 duration) public view returns (uint256) {
-        return getBalance(index, duration)
-            .saturatingSub(
-                slots[index].childrenPendingCumulative.latest()
-                    - slots[index].childrenPendingCumulative
-                        .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration())))
-            );
+        unchecked {
+
+            return getBalance(index, duration)
+                .saturatingSub(
+                    slots[index].childrenPendingCumulative.latest()
+                        - slots[index].childrenPendingCumulative
+                            .upperLookupRecent(uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration())))
+                );
+        }
     }
 
     /**
@@ -272,79 +281,84 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
-        if (duration > vaultEpochDuration) {
-            return 0;
-        }
-        BaseAllocatedHints memory baseAllocatedHints;
-        if (hints.length > 0) {
-            baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
-        }
-        SlotStorage storage slot = slots[index];
-        uint256 available =
-            getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
-
-        uint256 prevSum;
-        uint96 parentIndex = index.getParentIndex();
-        if (slots[parentIndex].needPrevSumsSync) {
-            for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-                uint96 currentIndex = parentIndex.createIndex(childIndex);
-                SlotStorage storage child = slots[currentIndex];
-                if (index == currentIndex) {
-                    break;
-                }
-                prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
-                childIndex = child.nextSlot;
+        unchecked {
+            uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
+            if (duration > vaultEpochDuration) {
+                return 0;
             }
-        } else {
-            prevSum = slot.prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint);
+            BaseAllocatedHints memory baseAllocatedHints;
+            if (hints.length > 0) {
+                baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
+            }
+            SlotStorage storage slot = slots[index];
+            uint256 available =
+                getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
+
+            uint256 prevSum;
+            uint96 parentIndex = index.getParentIndex();
+            if (slots[parentIndex].needPrevSumsSync) {
+                for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                    uint96 currentIndex = parentIndex.createIndex(childIndex);
+                    SlotStorage storage child = slots[currentIndex];
+                    if (index == currentIndex) {
+                        break;
+                    }
+                    prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
+                    childIndex = child.nextSlot;
+                }
+            } else {
+                prevSum = slot.prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint);
+            }
+            // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
+            return Math.min(
+                slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum),
+                slot.size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
+            )
+                + slot.pendingCumulative.upperLookupRecent(timestamp)
+                    .saturatingSub(
+                    slot.pendingCumulative
+                        .upperLookupRecent(uint48(uint256(timestamp).saturatingSub(vaultEpochDuration - duration)))
+                );
         }
-        // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
-        return Math.min(
-            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum),
-            slot.size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
-        )
-            + slot.pendingCumulative.upperLookupRecent(timestamp)
-                .saturatingSub(
-                slot.pendingCumulative
-                    .upperLookupRecent(uint48(uint256(timestamp).saturatingSub(vaultEpochDuration - duration)))
-            );
     }
 
     /**
      * @inheritdoc IUniversalDelegator
      */
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
-        uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
-        if (duration > vaultEpochDuration) {
-            return 0;
-        }
-        SlotStorage storage slot = slots[index];
-        uint256 available = getAvailable(index.getParentIndex(), duration);
-
-        uint256 prevSum;
-        uint96 parentIndex = index.getParentIndex();
-        if (slots[parentIndex].needPrevSumsSync) {
-            for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-                uint96 currentIndex = parentIndex.createIndex(childIndex);
-                SlotStorage storage child = slots[currentIndex];
-                if (index == currentIndex) {
-                    break;
-                }
-                prevSum += child.size.latest();
-                childIndex = child.nextSlot;
+        unchecked {
+            uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
+            if (duration > vaultEpochDuration) {
+                return 0;
             }
-        } else {
-            prevSum = slot.prevSum.latest();
+            SlotStorage storage slot = slots[index];
+            uint256 available = getAvailable(index.getParentIndex(), duration);
+
+            uint256 prevSum;
+            uint96 parentIndex = index.getParentIndex();
+            if (slots[parentIndex].needPrevSumsSync) {
+                for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                    uint96 currentIndex = parentIndex.createIndex(childIndex);
+                    SlotStorage storage child = slots[currentIndex];
+                    if (index == currentIndex) {
+                        break;
+                    }
+                    prevSum += child.size.latest();
+                    childIndex = child.nextSlot;
+                }
+            } else {
+                prevSum = slot.prevSum.latest();
+            }
+            return Math.min(
+                slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum),
+                slot.size.latest()
+            )
+                + slot.pendingCumulative.latest()
+                    .saturatingSub(
+                    slot.pendingCumulative
+                        .upperLookupRecent(uint48((block.timestamp).saturatingSub(vaultEpochDuration - duration)))
+                );
         }
-        return Math.min(
-            slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum), slot.size.latest()
-        )
-            + slot.pendingCumulative.latest()
-                .saturatingSub(
-                slot.pendingCumulative
-                    .upperLookupRecent(uint48((block.timestamp).saturatingSub(vaultEpochDuration - duration)))
-            );
     }
 
     /**
@@ -779,46 +793,48 @@ contract UniversalDelegator is
         public
         nonReentrant
     {
-        if (msg.sender != IVault(vault).slasher()) {
-            revert NotSlasher();
+        unchecked {
+            if (msg.sender != IVault(vault).slasher()) {
+                revert NotSlasher();
+            }
+
+            for (uint96 currentIndex = getSlotOf(subnetwork, operator); currentIndex > 0;) {
+                SlotStorage storage currentSlot = slots[currentIndex];
+                uint256 pendingSlashed = Math.min(
+                    currentSlot.pendingCumulative.latest()
+                        .saturatingSub(
+                            currentSlot.pendingCumulative
+                                .upperLookupRecent(uint48(block.timestamp) - IVaultV2(vault).epochDuration())
+                        ),
+                    amount
+                );
+                if (pendingSlashed > 0) {
+                    currentSlot.pendingCumulative
+                        .push(uint48(block.timestamp), currentSlot.pendingCumulative.latest() - pendingSlashed);
+                }
+                uint256 sizeSlashed = Math.min(currentSlot.size.latest(), amount - pendingSlashed);
+                if (sizeSlashed > 0) {
+                    currentSlot.size.push(uint48(block.timestamp), currentSlot.size.latest() - sizeSlashed);
+                    slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
+                }
+                currentIndex = currentIndex.getParentIndex();
+            }
+            address hook_ = hook;
+            if (hook_ != address(0)) {
+                bytes memory calldata_ =
+                    abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, captureTimestamp, data));
+
+                if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
+                    revert InsufficientHookGas();
+                }
+
+                assembly ("memory-safe") {
+                    pop(call(HOOK_GAS_LIMIT, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
+                }
+            }
+
+            emit OnSlash(subnetwork, operator, amount, captureTimestamp);
         }
-
-        for (uint96 currentIndex = getSlotOf(subnetwork, operator); currentIndex > 0;) {
-            SlotStorage storage currentSlot = slots[currentIndex];
-            uint256 pendingSlashed = Math.min(
-                currentSlot.pendingCumulative.latest()
-                    .saturatingSub(
-                        currentSlot.pendingCumulative
-                            .upperLookupRecent(uint48(block.timestamp) - IVaultV2(vault).epochDuration())
-                    ),
-                amount
-            );
-            if (pendingSlashed > 0) {
-                currentSlot.pendingCumulative
-                    .push(uint48(block.timestamp), currentSlot.pendingCumulative.latest() - pendingSlashed);
-            }
-            uint256 sizeSlashed = Math.min(currentSlot.size.latest(), amount - pendingSlashed);
-            if (sizeSlashed > 0) {
-                currentSlot.size.push(uint48(block.timestamp), currentSlot.size.latest() - sizeSlashed);
-                slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
-            }
-            currentIndex = currentIndex.getParentIndex();
-        }
-        address hook_ = hook;
-        if (hook_ != address(0)) {
-            bytes memory calldata_ =
-                abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, captureTimestamp, data));
-
-            if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
-                revert InsufficientHookGas();
-            }
-
-            assembly ("memory-safe") {
-                pop(call(HOOK_GAS_LIMIT, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
-            }
-        }
-
-        emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
     function _initialize(bytes calldata data) internal override {
