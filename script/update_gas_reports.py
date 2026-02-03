@@ -411,11 +411,14 @@ def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
 Date: {today}
 Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-internal --isolate`
 
+3 groups, 3 networks in each, 10 operators in each
+Operators to be slashed are first and second to maximize gas costs for slashing call
+
 Notes:
 - Different operators, same group/network.
-- “Fully isolated” runs two sequential slashes with a block time jump between them (intended to model separate txs).
+- “Fully isolated” runs two sequential slashes with a block time jump between them (2 txns)
 - “Single transaction” executes both slashes inside one middleware call.
-- “Without capture timestamp” passes `captureTimestamp = 0` into `requestSlash` (mapped to `block.timestamp - 4` for validity).
+- “Without capture timestamp” passes captureTimestamp = 0 into requestSlash
 - USD values show a 3-month average using baseFeePerGas samples (~30 samples over 90d) from Etherscan and ETH/USD from CoinGecko.
 
 ## With capture timestamp
