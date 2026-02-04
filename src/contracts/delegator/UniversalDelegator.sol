@@ -139,7 +139,6 @@ contract UniversalDelegator is
     constructor(
         address networkRegistry,
         address vaultFactory,
-        address operatorNetworkOptInService,
         address delegatorFactory,
         uint64 entityType,
         address networkMiddlewareService
@@ -228,80 +227,90 @@ contract UniversalDelegator is
 
     // TODO: hints for pending, not for cleared
     function getChildrenPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
-        SlotStorage storage slot = slots[index];
-        uint48 fromTimestamp = uint48(
-            uint256(timestamp)
-                .saturatingSub(
-                    Math.max(
-                        uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
-                        index.getDepth() > 0 ? slot.allocationResetAfter.upperLookupRecent(timestamp) : 0
-                        // TODO: need same for group? need to think of slashing isolated and this "clearing"
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            uint48 fromTimestamp = uint48(
+                uint256(timestamp)
+                    .saturatingSub(
+                        Math.max(
+                            uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
+                            index.getDepth() > 0 ? slot.allocationResetAfter.upperLookupRecent(timestamp) : 0
+                            // TODO: need same for group? need to think of slashing isolated and this "clearing"
+                        )
                     )
-                )
-        );
-        return (slot.childrenPendingCumulative.upperLookupRecent(timestamp)
-                - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp))
-        .saturatingSub(
-            slot.clearedChildrenPendingCumulative.upperLookupRecent(timestamp)
-                - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
-        );
+            );
+            return (slot.childrenPendingCumulative.upperLookupRecent(timestamp)
+                    - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp))
+            .saturatingSub(
+                slot.clearedChildrenPendingCumulative.upperLookupRecent(timestamp)
+                    - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
+            );
+        }
     }
 
     function getChildrenPending(uint96 index, uint48 duration) public view returns (uint256) {
-        SlotStorage storage slot = slots[index];
-        uint48 fromTimestamp = uint48(
-            block.timestamp
-                .saturatingSub(
-                    Math.max(
-                        uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
-                        index.getDepth() > 0 ? slot.allocationResetAfter.latest() : 0
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            uint48 fromTimestamp = uint48(
+                block.timestamp
+                    .saturatingSub(
+                        Math.max(
+                            uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
+                            index.getDepth() > 0 ? slot.allocationResetAfter.latest() : 0
+                        )
                     )
-                )
-        );
-        return (slot.childrenPendingCumulative.latest()
-                - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp))
-        .saturatingSub(
-            slot.clearedChildrenPendingCumulative.latest()
-                - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
-        );
+            );
+            return (slot.childrenPendingCumulative.latest()
+                    - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp))
+            .saturatingSub(
+                slot.clearedChildrenPendingCumulative.latest()
+                    - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
+            );
+        }
     }
 
     function getPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
-        SlotStorage storage slot = slots[index];
-        uint48 fromTimestamp = uint48(
-            uint256(timestamp)
-                .saturatingSub(
-                    Math.max(
-                        uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
-                        index.getDepth() < 3
-                            ? slot.allocationResetAfter.upperLookupRecent(timestamp)
-                            : slots[index.getParentIndex()].allocationResetAfter.upperLookupRecent(timestamp)
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            uint48 fromTimestamp = uint48(
+                uint256(timestamp)
+                    .saturatingSub(
+                        Math.max(
+                            uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
+                            index.getDepth() < 3
+                                ? slot.allocationResetAfter.upperLookupRecent(timestamp)
+                                : slots[index.getParentIndex()].allocationResetAfter.upperLookupRecent(timestamp)
+                        )
                     )
-                )
-        );
-        return (slot.pendingCumulative.upperLookupRecent(timestamp)
-                - slot.pendingCumulative.upperLookupRecent(fromTimestamp))
-        .saturatingSub(
-            slot.clearedPendingCumulative.upperLookupRecent(timestamp)
-                - slot.pendingCumulative.upperLookupRecent(fromTimestamp)
-        );
+            );
+            return (slot.pendingCumulative.upperLookupRecent(timestamp)
+                    - slot.pendingCumulative.upperLookupRecent(fromTimestamp))
+            .saturatingSub(
+                slot.clearedPendingCumulative.upperLookupRecent(timestamp)
+                    - slot.pendingCumulative.upperLookupRecent(fromTimestamp)
+            );
+        }
     }
 
     function getPending(uint96 index, uint48 duration) public view returns (uint256) {
-        SlotStorage storage slot = slots[index];
-        uint48 fromTimestamp = uint48(
-            block.timestamp
-                .saturatingSub(
-                    Math.max(
-                        uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
-                        index.getDepth() < 3
-                            ? slot.allocationResetAfter.latest()
-                            : slots[index.getParentIndex()].allocationResetAfter.latest()
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            uint48 fromTimestamp = uint48(
+                block.timestamp
+                    .saturatingSub(
+                        Math.max(
+                            uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration),
+                            index.getDepth() < 3
+                                ? slot.allocationResetAfter.latest()
+                                : slots[index.getParentIndex()].allocationResetAfter.latest()
+                        )
                     )
-                )
-        );
-        return (slot.pendingCumulative.latest() - slot.pendingCumulative.upperLookupRecent(fromTimestamp))
-        .saturatingSub(slot.clearedPendingCumulative.latest() - slot.pendingCumulative.upperLookupRecent(fromTimestamp));
+            );
+            return (slot.pendingCumulative.latest() - slot.pendingCumulative.upperLookupRecent(fromTimestamp))
+            .saturatingSub(
+                slot.clearedPendingCumulative.latest() - slot.pendingCumulative.upperLookupRecent(fromTimestamp)
+            );
+        }
     }
 
     /**
@@ -370,8 +379,7 @@ contract UniversalDelegator is
         returns (uint256)
     {
         unchecked {
-            uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
-            if (duration > vaultEpochDuration) {
+            if (duration > IVaultV2(vault).epochDuration()) {
                 return 0;
             }
 
@@ -382,26 +390,25 @@ contract UniversalDelegator is
             }
             // forgefmt: disable-end
             SlotStorage storage slot = slots[index];
+            uint96 parentIndex = index.getParentIndex();
+            SlotStorage storage parent = slots[parentIndex];
             uint256 prevSum;
-            {
-                uint96 parentIndex = index.getParentIndex();
-                if (slots[parentIndex].needPrevSumsSync) {
-                    for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-                        uint96 currentIndex = parentIndex.createIndex(childIndex);
-                        SlotStorage storage child = slots[currentIndex];
-                        if (index == currentIndex) {
-                            break;
-                        }
-                        prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
-                        childIndex = child.nextSlot;
+            if (parent.needPrevSumsSync) {
+                for (uint32 childIndex = parent.firstChild; childIndex > 0;) {
+                    uint96 currentIndex = parentIndex.createIndex(childIndex);
+                    if (index == currentIndex) {
+                        break;
                     }
-                } else {
-                    prevSum = slot.prevSum.upperLookupRecent(timestamp, prevSumHint);
+                    SlotStorage storage child = slots[currentIndex];
+                    prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
+                    childIndex = child.nextSlot;
                 }
+            } else {
+                prevSum = slot.prevSum.upperLookupRecent(timestamp, prevSumHint);
             }
 
-            uint256 slotAvailable = getAvailableAt(index.getParentIndex(), timestamp, duration, availableHints);
-            if (!slots[index.getParentIndex()].isShared) {
+            uint256 slotAvailable = getAvailableAt(parentIndex, timestamp, duration, availableHints);
+            if (!parent.isShared) {
                 slotAvailable = slotAvailable.saturatingSub(prevSum);
             }
             // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
@@ -415,33 +422,30 @@ contract UniversalDelegator is
      */
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
-            uint48 vaultEpochDuration = IVaultV2(vault).epochDuration();
-            if (duration > vaultEpochDuration) {
+            if (duration > IVaultV2(vault).epochDuration()) {
                 return 0;
             }
 
             SlotStorage storage slot = slots[index];
-
+            uint96 parentIndex = index.getParentIndex();
+            SlotStorage storage parent = slots[parentIndex];
             uint256 prevSum;
-            {
-                uint96 parentIndex = index.getParentIndex();
-                if (slots[parentIndex].needPrevSumsSync) {
-                    for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-                        uint96 currentIndex = parentIndex.createIndex(childIndex);
-                        SlotStorage storage child = slots[currentIndex];
-                        if (index == currentIndex) {
-                            break;
-                        }
-                        prevSum += child.size.latest();
-                        childIndex = child.nextSlot;
+            if (parent.needPrevSumsSync) {
+                for (uint32 childIndex = parent.firstChild; childIndex > 0;) {
+                    uint96 currentIndex = parentIndex.createIndex(childIndex);
+                    SlotStorage storage child = slots[currentIndex];
+                    if (index == currentIndex) {
+                        break;
                     }
-                } else {
-                    prevSum = slot.prevSum.latest();
+                    prevSum += child.size.latest();
+                    childIndex = child.nextSlot;
                 }
+            } else {
+                prevSum = slot.prevSum.latest();
             }
 
-            uint256 slotAvailable = getAvailable(index.getParentIndex(), duration);
-            if (!slots[index.getParentIndex()].isShared) {
+            uint256 slotAvailable = getAvailable(parentIndex, duration);
+            if (!parent.isShared) {
                 slotAvailable = slotAvailable.saturatingSub(prevSum);
             }
             return Math.min(slotAvailable, slot.size.latest()) + getPending(index, duration);
