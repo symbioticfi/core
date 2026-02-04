@@ -254,8 +254,6 @@ contract VaultV2Test is Test {
             new UniversalDelegator(
                 address(networkRegistry),
                 address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(delegatorFactory),
                 delegatorFactory.totalTypes(),
                 address(networkMiddlewareService)

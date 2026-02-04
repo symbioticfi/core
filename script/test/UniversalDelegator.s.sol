@@ -68,8 +68,6 @@ contract UniversalDelegatorUiSetup is Script {
         UniversalDelegator implementation = new UniversalDelegator({
             networkRegistry: address(registry),
             vaultFactory: address(registry),
-            operatorVaultOptInService: address(optInService),
-            operatorNetworkOptInService: address(optInService),
             delegatorFactory: address(0),
             entityType: 0,
             networkMiddlewareService: address(0)

@@ -112,8 +112,6 @@ contract UniversalDelegatorGasTest is Test {
             new UniversalDelegator(
                 address(networkRegistry),
                 address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(delegatorFactory),
                 delegatorFactory.totalTypes(),
                 address(networkMiddlewareService)
@@ -247,12 +245,7 @@ contract UniversalDelegatorGasTest is Test {
     ) internal {
         _setMiddleware(targetSubnetwork, address(batchMiddleware));
         (uint256 slashIndex1, uint256 slashIndex2, uint256 request1, uint256 request2) = batchMiddleware.requestTwo(
-            targetSubnetwork,
-            targetOperator,
-            nextOperator,
-            OPERATOR_SIZE / 2,
-            captureTimestamp,
-            stakeHints
+            targetSubnetwork, targetOperator, nextOperator, OPERATOR_SIZE / 2, captureTimestamp, stakeHints
         );
         (uint256 execute1, uint256 execute2) = batchMiddleware.executeTwo(slashIndex1, slashIndex2, executeHints);
 

@@ -54,8 +54,6 @@ contract UniversalDelegator is
 
     address internal immutable NETWORK_REGISTRY;
     address internal immutable VAULT_FACTORY;
-    address internal immutable OPERATOR_VAULT_OPT_IN_SERVICE;
-    address internal immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
@@ -141,7 +139,6 @@ contract UniversalDelegator is
     constructor(
         address networkRegistry,
         address vaultFactory,
-        address operatorVaultOptInService,
         address operatorNetworkOptInService,
         address delegatorFactory,
         uint64 entityType,
@@ -149,8 +146,6 @@ contract UniversalDelegator is
     ) Entity(delegatorFactory, entityType) {
         NETWORK_REGISTRY = networkRegistry;
         VAULT_FACTORY = vaultFactory;
-        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
-        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
@@ -202,11 +197,6 @@ contract UniversalDelegator is
         }
         // forgefmt: disable-end
 
-        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE)
-                .isOptedInAt(operator, vault, timestamp, operatorVaultOptInHint)) {
-            return 0;
-        }
-
         return getAllocatedAt(subnetwork, operator, timestamp, IVaultV2(vault).epochDuration(), allocatedHints);
     }
 
@@ -214,10 +204,6 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      */
     function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
-        if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)) {
-            return 0;
-        }
-
         return getAllocated(subnetwork, operator, IVaultV2(vault).epochDuration());
     }
 

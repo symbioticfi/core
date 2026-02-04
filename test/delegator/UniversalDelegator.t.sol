@@ -135,8 +135,6 @@ contract UniversalDelegatorTest is Test {
             new UniversalDelegator(
                 address(networkRegistry),
                 address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(delegatorFactory),
                 delegatorFactory.totalTypes(),
                 address(networkMiddlewareService)
@@ -1457,8 +1455,6 @@ contract UniversalDelegatorMigrationTest is Test {
             new UniversalDelegator(
                 address(networkRegistry),
                 address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
                 address(delegatorFactory),
                 delegatorFactory.totalTypes(),
                 address(networkMiddlewareService)
