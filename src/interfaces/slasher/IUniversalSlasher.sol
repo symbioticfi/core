@@ -1,6 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+uint256 constant BURNER_GAS_LIMIT = 150_000;
+uint256 constant BURNER_RESERVE = 20_000;
+
+/**
+ * @title IUniversalSlasher
+ * @dev Deprecated signatures:
+ *      latestSlashedCaptureTimestamp()
+ *      resolverAt()
+ *      resolver() (renamed)
+ *      cumulativeSlashAt()
+ *      cumulativeSlash()
+ *      BURNER_GAS_LIMIT()
+ *      BURNER_RESERVE()
+ * @dev Removed signatures (due to internal-only usage):
+ *      setDelegator()
+ *      setSlasher()
+ *      onSlash()
+ */
 interface IUniversalSlasher {
     error AlreadySet();
     error InsufficientSlash();
@@ -76,54 +94,18 @@ interface IUniversalSlasher {
      * @param subnetwork subnetwork that requested the slash
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param amount maximum amount of the collateral to be slashed
-     * @param captureTimestamp time point when the stake was captured
+     * @param createdAt time point when the request was created (capture timestamp if legacy)
      * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
      * @param completed if the slash was vetoed/executed
      */
     struct SlashRequest {
         bytes32 subnetwork;
         address operator;
-        uint48 captureTimestamp;
+        uint48 createdAt;
         uint256 amount;
         address resolver;
         uint48 vetoDeadline;
         bool completed;
-    }
-
-    // OuterSlashableStakeHints removed; use SlashableStakeHints directly.
-
-    /**
-     * @notice Hints for a slash request.
-     * @param slashableStakeHints hints for the slashable stake checkpoints
-     */
-    struct RequestSlashHints {
-        bytes slashableStakeHints;
-    }
-
-    /**
-     * @notice Hints for a slash execute.
-     * @param captureResolverHint hint for the resolver checkpoint at the capture time
-     * @param currentResolverHint hint for the resolver checkpoint at the current time
-     * @param slashableStakeHints hints for the slashable stake checkpoints
-     * @param slotOfHint hint for the slot lookup
-     */
-    struct ExecuteSlashHints {
-        bytes captureResolverHint;
-        bytes currentResolverHint;
-        bytes slashableStakeHints;
-        bytes slotOfHint;
-    }
-
-    // VetoSlashHints and SetResolverHints removed; no hints are needed.
-
-    /**
-     * @notice Extra data for the delegator.
-     * @param slashableStake amount of the slashable stake before the slash (cache)
-     * @param slashIndex index of the slash request
-     */
-    struct DelegatorData {
-        uint256 slashableStake;
-        uint256 slashIndex;
     }
 
     /**
@@ -132,7 +114,6 @@ interface IUniversalSlasher {
      * @param subnetwork subnetwork that requested the slash
      * @param operator operator that could be slashed (if the request is not vetoed)
      * @param slashAmount maximum amount of the collateral to be slashed
-     * @param captureTimestamp time point when the stake was captured
      * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
      */
     event RequestSlash(
@@ -140,7 +121,6 @@ interface IUniversalSlasher {
         bytes32 indexed subnetwork,
         address indexed operator,
         uint256 slashAmount,
-        uint48 captureTimestamp,
         uint48 vetoDeadline
     );
 
@@ -165,25 +145,13 @@ interface IUniversalSlasher {
      */
     event SetResolver(bytes32 indexed subnetwork, address resolver);
 
-    event SyncOwedSlash(bytes32 indexed subnetwork, address indexed operator, uint48 captureTimestamp, uint256 slashed);
+    event SyncOwedSlash(bytes32 indexed subnetwork, address indexed operator, uint256 slashed);
 
     /**
      * @notice Emitted when a vault is initialized.
      * @param params initial parameters for the slasher
      */
     event Initialize(InitParams params);
-
-    /**
-     * @notice Get a gas limit for the burner.
-     * @return value of the burner gas limit
-     */
-    function BURNER_GAS_LIMIT() external view returns (uint256);
-
-    /**
-     * @notice Get a reserve gas between the gas limit check and the burner's execution.
-     * @return value of the reserve gas
-     */
-    function BURNER_RESERVE() external view returns (uint256);
 
     /**
      * @notice Get the vault's address.
@@ -196,35 +164,6 @@ interface IUniversalSlasher {
      * @return if the burner is a hook
      */
     function isBurnerHook() external view returns (bool);
-
-    /**
-     * @notice Get the latest capture timestamp that was slashed on a subnetwork.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param operator address of the operator
-     * @return latest capture timestamp that was slashed
-     */
-    function latestSlashedCaptureTimestamp(bytes32 subnetwork, address operator) external view returns (uint48);
-
-    /**
-     * @notice Get a cumulative slash amount for an operator on a subnetwork until a given timestamp (inclusively) using a hint.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param operator address of the operator
-     * @param timestamp time point to get the cumulative slash amount until (inclusively)
-     * @param hint hint for the checkpoint index
-     * @return cumulative slash amount until the given timestamp (inclusively)
-     */
-    function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
-        external
-        view
-        returns (uint256);
-
-    /**
-     * @notice Get a cumulative slash amount for an operator on a subnetwork.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param operator address of the operator
-     * @return cumulative slash amount
-     */
-    function cumulativeSlash(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
      * @notice Get a slashable amount of a stake got at a given capture timestamp using hints.
@@ -276,25 +215,6 @@ interface IUniversalSlasher {
     function resolver(bytes32 subnetwork) external view returns (address);
 
     /**
-     * @notice Get a group cumulative slash amount for a given group index at a particular timestamp using a hint.
-     * @param groupIndex index of the group
-     * @param timestamp timestamp to get the group cumulative slash amount at
-     * @param hint hint for the checkpoint index
-     * @return amount of the group cumulative slash
-     */
-    function groupCumulativeSlashAt(uint96 groupIndex, uint48 timestamp, bytes memory hint)
-        external
-        view
-        returns (uint256);
-
-    /**
-     * @notice Get a group cumulative slash amount for a given group index.
-     * @param groupIndex index of the group
-     * @return amount of the group cumulative slash
-     */
-    function groupCumulativeSlash(uint96 groupIndex) external view returns (uint256);
-
-    /**
      * @notice Request a slash using a subnetwork for a particular operator by a given amount using hints.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
@@ -340,10 +260,7 @@ interface IUniversalSlasher {
      * @notice Sync owed slashing.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
-     * @param captureTimestamp time point when the stake was captured
      * @return slashed amount of the collateral slashed
      */
-    function syncOwedSlash(bytes32 subnetwork, address operator, uint48 captureTimestamp)
-        external
-        returns (uint256 slashed);
+    function syncOwedSlash(bytes32 subnetwork, address operator) external returns (uint256 slashed);
 }

@@ -65,16 +65,6 @@ interface IUniversalDelegator {
         address hookSetRoleHolder;
     }
 
-    /**
-     * @notice Base hints for a stake.
-     * @param operatorVaultOptInHint hint for the operator-vault opt-in
-     * @param operatorNetworkOptInHint hint for the operator-network opt-in
-     */
-    struct StakeBaseHints {
-        bytes operatorVaultOptInHint;
-        bytes operatorNetworkOptInHint;
-    }
-
     struct InitParams {
         address defaultAdminRoleHolder;
         address hook;
@@ -101,64 +91,6 @@ interface IUniversalDelegator {
         uint256 childrenPendingCumulative;
     }
 
-    /**
-     * @notice Hints for an available balance lookup.
-     * @param balanceHints hints forwarded to getBalanceAt
-     * @param pendingHint hint for childrenPendingCumulative at the requested timestamp
-     * @param pendingEpochHint hint for childrenPendingCumulative at (timestamp - epochDuration)
-     */
-    struct AvailableHints {
-        bytes balanceHints;
-        bytes pendingHint;
-        bytes pendingEpochHint;
-    }
-
-    /**
-     * @notice Hints for an allocation lookup by slot index.
-     * @param sizeHint hint for the size checkpoint
-     * @param availableHints hints forwarded to getAvailableAt(parentIndex,...)
-     * @param isSharedHint hint for isShared
-     * @param prevSumHint hint for the prevSum checkpoint
-     */
-    struct BaseAllocatedHints {
-        bytes sizeHint;
-        bytes availableHints;
-        bytes isSharedHint;
-        bytes prevSumHint;
-    }
-
-    /**
-     * @notice Hints for an allocation lookup by subnetwork/operator.
-     * @param slotOfHints hints forwarded to getSlotOfAt
-     * @param allocatedHints hints forwarded to getAllocatedAt(uint96,...)
-     */
-    struct AllocatedHints {
-        bytes slotOfHints;
-        bytes allocatedHints;
-    }
-
-    /**
-     * @notice Hints for a combined subnetwork/operator slot lookup.
-     * @param slotOfNetworkHints hints forwarded to getSlotOfNetworkAt
-     * @param slotOfOperatorHints hints forwarded to getSlotOfOperatorAt
-     */
-    struct SlotOfHints {
-        bytes slotOfNetworkHints;
-        bytes slotOfOperatorHints;
-    }
-
-    /**
-     * @notice Hints for a stake.
-     * @param operatorVaultOptInHint hint for the operator-vault opt-in
-     * @param operatorNetworkOptInHint hint for the operator-network opt-in
-     * @param allocatedHints hints for getAllocatedAt(subnetwork, operator, timestamp, ...)
-     */
-    struct StakeHints {
-        bytes operatorVaultOptInHint;
-        bytes operatorNetworkOptInHint;
-        bytes allocatedHints;
-    }
-
     event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint256 size);
 
     /**
@@ -173,9 +105,8 @@ interface IUniversalDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @param operator address of the operator
      * @param amount amount of the collateral to be slashed
-     * @param captureTimestamp time point when the stake was captured
      */
-    event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount, uint48 captureTimestamp);
+    event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
 
     /**
      * @notice Emitted when a hook is set.

@@ -7,7 +7,7 @@ import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
+import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHookLegacy.sol";
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";

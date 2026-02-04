@@ -124,42 +124,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     }
 
     /**
-     * @notice Hints for an active balance.
-     * @param activeSharesOfHint hint for the active shares of checkpoint
-     * @param activeStakeHint hint for the active stake checkpoint
-     * @param activeSharesHint hint for the active shares checkpoint
-     */
-    struct ActiveBalanceOfHints {
-        bytes activeSharesOfHint;
-        bytes activeStakeHint;
-        bytes activeSharesHint;
-    }
-
-    /**
-     * @notice Hints for active withdrawals lookup.
-     * @param unlockToBucketHint hint for the unlock to bucket checkpoint
-     * @param withdrawalSharesHint hint for the withdrawal shares checkpoint
-     * @param withdrawalSharesCumulativeHint1 hint for the first withdrawal shares cumulative checkpoint
-     * @param withdrawalSharesCumulativeHint2 hint for the second withdrawal shares cumulative checkpoint
-     * @param withdrawalsHint hint for the withdrawals checkpoint
-     */
-    struct ActiveWithdrawalsHints {
-        bytes unlockToBucketHint;
-        bytes withdrawalSharesHint;
-        bytes withdrawalSharesCumulativeHint1;
-        bytes withdrawalSharesCumulativeHint2;
-        bytes withdrawalsHint;
-    }
-
-    /**
-     * @notice Hints for withdrawals of lookup.
-     * @param unlockToBucketHint hint for the unlock to bucket checkpoint
-     */
-    struct WithdrawalsOfHints {
-        bytes unlockToBucketHint;
-    }
-
-    /**
      * @notice Emitted when a deposit is made.
      * @param depositor account that made the deposit
      * @param onBehalfOf account the deposit was made on behalf of

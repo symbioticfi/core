@@ -775,11 +775,17 @@ contract UniversalDelegator is
         emit SwapSlots(index1, index2);
     }
 
-    function removeSlot(uint96 index) public onlyRole(REMOVE_SLOT_ROLE) slotExists(index) isNotWithdrawalBuffer(index) syncPrevSums(index.getParentIndex()) {
+    function removeSlot(uint96 index)
+        public
+        onlyRole(REMOVE_SLOT_ROLE)
+        slotExists(index)
+        isNotWithdrawalBuffer(index)
+        syncPrevSums(index.getParentIndex())
+    {
         _removeSlot(index);
     }
 
-    function _removeSlot(uint96 index) internal  {
+    function _removeSlot(uint96 index) internal {
         if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
@@ -924,8 +930,7 @@ contract UniversalDelegator is
             }
             address hook_ = hook;
             if (hook_ != address(0)) {
-                bytes memory calldata_ =
-                    abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, captureTimestamp, data));
+                bytes memory calldata_ = abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, data));
 
                 if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
                     revert InsufficientHookGas();
@@ -936,7 +941,7 @@ contract UniversalDelegator is
                 }
             }
 
-            emit OnSlash(subnetwork, operator, amount, captureTimestamp);
+            emit OnSlash(subnetwork, operator, amount);
         }
     }
 
