@@ -51,6 +51,7 @@ interface IUniversalDelegator {
     error InsufficientHookGas();
     error TooManyOperators();
     error NotEnoughNoPlugins();
+    error SlotNotAllocated();
 
     /**
      * @notice Base parameters needed for delegators' deployment.
@@ -84,23 +85,6 @@ interface IUniversalDelegator {
         address setShareRoleHolder;
         address swapSlotsRoleHolder;
         uint256 withdrawalBuffer;
-    }
-
-    struct SlotStorage {
-        bool exists;
-        uint32 nextSlot;
-        uint32 prevSlot;
-        uint32 numChildren;
-        uint32 firstChild;
-        uint32 lastChild;
-        uint32 numNetworks;
-        bool isShared;
-        bool noPlugins;
-        bool needPrevSumsSync;
-        Checkpoints.Trace256 size;
-        Checkpoints.Trace256 prevSum;
-        Checkpoints.Trace256 pendingCumulative;
-        Checkpoints.Trace256 childrenPendingCumulative;
     }
 
     struct Slot {
