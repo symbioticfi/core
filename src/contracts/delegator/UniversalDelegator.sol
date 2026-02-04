@@ -153,20 +153,20 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        StakeHints memory stakeHints;
+        // forgefmt: disable-start
+        bytes memory operatorVaultOptInHint; bytes memory allocatedHints;
         if (hints.length > 0) {
-            stakeHints = abi.decode(hints, (StakeHints));
+            (operatorVaultOptInHint, allocatedHints) = abi.decode(hints, (bytes, bytes));
         }
+        // forgefmt: disable-end
 
         if (!IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE)
-                .isOptedInAt(operator, vault, timestamp, stakeHints.operatorVaultOptInHint)) {
+                .isOptedInAt(operator, vault, timestamp, operatorVaultOptInHint)) {
             return 0;
         }
 
         return IVaultV2(vault).slasher() != msg.sender || timestamp >= resetAllocationAt[subnetwork]
-            ? getAllocatedAt(
-                subnetwork, operator, timestamp, IVaultV2(vault).epochDuration(), stakeHints.allocatedHints
-            )
+            ? getAllocatedAt(subnetwork, operator, timestamp, IVaultV2(vault).epochDuration(), allocatedHints)
             : 0;
     }
 
@@ -239,12 +239,13 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        unchecked {// forgefmt: disable-start 
+        // forgefmt: disable-start
         bytes memory balanceHints; bytes memory pendingHint; bytes memory pendingEpochHint;
         if (hints.length > 0) {
             (balanceHints, pendingHint, pendingEpochHint) = abi.decode(hints, (bytes, bytes, bytes));
         }
         // forgefmt: disable-end
+        unchecked {
             return getBalanceAt(index, timestamp, duration, balanceHints)
                 .saturatingSub(
                     slots[index].childrenPendingCumulative.upperLookupRecent(timestamp, pendingHint)
@@ -262,7 +263,6 @@ contract UniversalDelegator is
      */
     function getAvailable(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
-
             return getBalance(index, duration)
                 .saturatingSub(
                     slots[index].childrenPendingCumulative.latest()
@@ -286,34 +286,38 @@ contract UniversalDelegator is
             if (duration > vaultEpochDuration) {
                 return 0;
             }
-            BaseAllocatedHints memory baseAllocatedHints;
-            if (hints.length > 0) {
-                baseAllocatedHints = abi.decode(hints, (BaseAllocatedHints));
-            }
-            SlotStorage storage slot = slots[index];
-            uint256 available =
-                getAvailableAt(index.getParentIndex(), timestamp, duration, baseAllocatedHints.availableHints);
 
+            // forgefmt: disable-start
+            bytes memory prevSumHint; bytes memory availableHints; bytes memory sizeHint; 
+            if (hints.length > 0) {
+                (prevSumHint, availableHints, sizeHint) = abi.decode(hints, (bytes, bytes, bytes));
+            }
+            // forgefmt: disable-end
+            SlotStorage storage slot = slots[index];
             uint256 prevSum;
-            uint96 parentIndex = index.getParentIndex();
-            if (slots[parentIndex].needPrevSumsSync) {
-                for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-                    uint96 currentIndex = parentIndex.createIndex(childIndex);
-                    SlotStorage storage child = slots[currentIndex];
-                    if (index == currentIndex) {
-                        break;
+            {
+                uint96 parentIndex = index.getParentIndex();
+                if (slots[parentIndex].needPrevSumsSync) {
+                    for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                        uint96 currentIndex = parentIndex.createIndex(childIndex);
+                        SlotStorage storage child = slots[currentIndex];
+                        if (index == currentIndex) {
+                            break;
+                        }
+                        prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
+                        childIndex = child.nextSlot;
                     }
-                    prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
-                    childIndex = child.nextSlot;
+                } else {
+                    prevSum = slot.prevSum.upperLookupRecent(timestamp, prevSumHint);
                 }
-            } else {
-                prevSum = slot.prevSum.upperLookupRecent(timestamp, baseAllocatedHints.prevSumHint);
+            }
+
+            uint256 slotAvailable = getAvailableAt(index.getParentIndex(), timestamp, duration, availableHints);
+            if (!slots[index.getParentIndex()].isShared) {
+                slotAvailable = slotAvailable.saturatingSub(prevSum);
             }
             // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
-            return Math.min(
-                slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum),
-                slot.size.upperLookupRecent(timestamp, baseAllocatedHints.sizeHint)
-            )
+            return Math.min(slotAvailable, slot.size.upperLookupRecent(timestamp, sizeHint))
                 + slot.pendingCumulative.upperLookupRecent(timestamp)
                     .saturatingSub(
                     slot.pendingCumulative
@@ -331,28 +335,32 @@ contract UniversalDelegator is
             if (duration > vaultEpochDuration) {
                 return 0;
             }
+
             SlotStorage storage slot = slots[index];
-            uint256 available = getAvailable(index.getParentIndex(), duration);
 
             uint256 prevSum;
-            uint96 parentIndex = index.getParentIndex();
-            if (slots[parentIndex].needPrevSumsSync) {
-                for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-                    uint96 currentIndex = parentIndex.createIndex(childIndex);
-                    SlotStorage storage child = slots[currentIndex];
-                    if (index == currentIndex) {
-                        break;
+            {
+                uint96 parentIndex = index.getParentIndex();
+                if (slots[parentIndex].needPrevSumsSync) {
+                    for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                        uint96 currentIndex = parentIndex.createIndex(childIndex);
+                        SlotStorage storage child = slots[currentIndex];
+                        if (index == currentIndex) {
+                            break;
+                        }
+                        prevSum += child.size.latest();
+                        childIndex = child.nextSlot;
                     }
-                    prevSum += child.size.latest();
-                    childIndex = child.nextSlot;
+                } else {
+                    prevSum = slot.prevSum.latest();
                 }
-            } else {
-                prevSum = slot.prevSum.latest();
             }
-            return Math.min(
-                slots[index.getParentIndex()].isShared ? available : available.saturatingSub(prevSum),
-                slot.size.latest()
-            )
+
+            uint256 slotAvailable = getAvailable(index.getParentIndex(), duration);
+            if (!slots[index.getParentIndex()].isShared) {
+                slotAvailable = slotAvailable.saturatingSub(prevSum);
+            }
+            return Math.min(slotAvailable, slot.size.latest())
                 + slot.pendingCumulative.latest()
                     .saturatingSub(
                     slot.pendingCumulative
@@ -369,12 +377,14 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        AllocatedHints memory allocatedHints;
+        // forgefmt: disable-start
+        bytes memory slotOfHints; bytes memory allocatedHints;
         if (hints.length > 0) {
-            allocatedHints = abi.decode(hints, (AllocatedHints));
+            (slotOfHints, allocatedHints) = abi.decode(hints, (bytes, bytes));
         }
-        uint96 index = getSlotOfAt(subnetwork, operator, timestamp, allocatedHints.slotOfHints);
-        return index > 0 ? getAllocatedAt(index, timestamp, duration, allocatedHints.allocatedHints) : 0;
+        // forgefmt: disable-end
+        uint96 index = getSlotOfAt(subnetwork, operator, timestamp, slotOfHints);
+        return index > 0 ? getAllocatedAt(index, timestamp, duration, allocatedHints) : 0;
     }
 
     /**
@@ -425,15 +435,14 @@ contract UniversalDelegator is
         view
         returns (uint96)
     {
-        SlotOfHints memory slotOfHints;
+        // forgefmt: disable-start
+        bytes memory slotOfNetworkHints; bytes memory slotOfOperatorHints;
         if (hints.length > 0) {
-            slotOfHints = abi.decode(hints, (SlotOfHints));
+            (slotOfNetworkHints, slotOfOperatorHints) = abi.decode(hints, (bytes, bytes));
         }
+        // forgefmt: disable-end
         return getSlotOfOperatorAt(
-            getSlotOfNetworkAt(subnetwork, timestamp, slotOfHints.slotOfNetworkHints),
-            operator,
-            timestamp,
-            slotOfHints.slotOfOperatorHints
+            getSlotOfNetworkAt(subnetwork, timestamp, slotOfNetworkHints), operator, timestamp, slotOfOperatorHints
         );
     }
 
@@ -621,7 +630,9 @@ contract UniversalDelegator is
         }
         slot.size.push(uint48(block.timestamp), newSize);
         if (slot.noPlugins) {
-            _noPluginsSize = _noPluginsSize - currentSize + newSize;
+            unchecked {
+                _noPluginsSize = _noPluginsSize - currentSize + newSize;
+            }
         }
 
         emit SetSize(index, newSize);

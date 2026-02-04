@@ -201,12 +201,17 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         view
         returns (uint256 slashableStake_, uint96 groupIndex)
     {
-        address delegator = IVaultV2(vault).delegator();
-        IUniversalSlasher.SlashableStakeHints memory slashableStakeHints;
+        // forgefmt: disable-start
+        // TODO: after slash without capture timestamp
+        // bytes memory groupCumulativeSlashFromHint;
+        // bytes memory cumulativeSlashFromHint; 
+        bytes memory slotOfHints; bytes memory stakeHints; bytes memory groupAllocatedHints; 
         if (hints.length > 0) {
-            slashableStakeHints = abi.decode(hints, (IUniversalSlasher.SlashableStakeHints));
+            (slotOfHints, stakeHints, groupAllocatedHints) = abi.decode(hints, (bytes, bytes, bytes));
         }
+        // forgefmt: disable-end
 
+        address delegator = IVaultV2(vault).delegator();
         if (captureTimestamp == 0) {
             return (
                 IUniversalDelegator(delegator).stakeFor(subnetwork, operator, 0),
@@ -223,37 +228,26 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
 
         unchecked {
-
             if (captureTimestamp >= _migrateTimestamp) {
                 groupIndex = IUniversalDelegator(delegator)
-                    .getSlotOfAt(subnetwork, operator, captureTimestamp, slashableStakeHints.slotOfHints)
-                    .getParentIndex().getParentIndex();
+                    .getSlotOfAt(subnetwork, operator, captureTimestamp, slotOfHints).getParentIndex().getParentIndex();
 
                 slashableStake_ = Math.min(
-                    IUniversalDelegator(delegator)
-                        .stakeForAt(subnetwork, operator, 0, captureTimestamp, slashableStakeHints.stakeHints)
+                    IUniversalDelegator(delegator).stakeForAt(subnetwork, operator, 0, captureTimestamp, stakeHints)
                         .saturatingSub(
                             cumulativeSlash(subnetwork, operator)
-                                - cumulativeSlashAt(
-                                    subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint
-                                )
+                                - cumulativeSlashAt(subnetwork, operator, captureTimestamp, "")
                         ),
-                    IUniversalDelegator(delegator)
-                        .getAllocatedAt(groupIndex, captureTimestamp, 0, slashableStakeHints.groupAllocatedHints)
+                    IUniversalDelegator(delegator).getAllocatedAt(groupIndex, captureTimestamp, 0, groupAllocatedHints)
                         .saturatingSub(
-                            groupCumulativeSlash(groupIndex)
-                                - groupCumulativeSlashAt(
-                                    groupIndex, captureTimestamp, slashableStakeHints.groupCumulativeSlashFromHint
-                                )
+                            groupCumulativeSlash(groupIndex) - groupCumulativeSlashAt(groupIndex, captureTimestamp, "")
                         )
                 );
             } else {
                 slashableStake_ = IBaseDelegator(_oldDelegator).stakeAt(subnetwork, operator, captureTimestamp, "")
                     .saturatingSub(
                         cumulativeSlash(subnetwork, operator)
-                            - cumulativeSlashAt(
-                                subnetwork, operator, captureTimestamp, slashableStakeHints.cumulativeSlashFromHint
-                            )
+                            - cumulativeSlashAt(subnetwork, operator, captureTimestamp, "")
                     );
             }
         }
