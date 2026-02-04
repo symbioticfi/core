@@ -7,12 +7,12 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call | Hints | Gas |
 | --- | --- | ---: |
-| `stakeForAt` | no | 231,672 ($0.05) |
-| `stakeForAt` | yes | 231,672 ($0.05) |
-| `requestSlash` | no | 425,444 ($0.09) |
-| `requestSlash` | yes | 425,444 ($0.09) |
-| `executeSlash` | no | 933,367 ($0.20) |
-| `executeSlash` | yes | 933,367 ($0.20) |
+| `stakeForAt` | no | 269,274 ($0.06) |
+| `stakeForAt` | yes | 269,274 ($0.06) |
+| `requestSlash` | no | 294,395 ($0.06) |
+| `requestSlash` | yes | 294,395 ($0.06) |
+| `executeSlash` | no | 546,865 ($0.12) |
+| `executeSlash` | yes | 546,865 ($0.12) |
 
 Notes:
 - Scenario: slash operator A (worst-case slot), then slash operator B in the **same** group/network.
@@ -27,19 +27,15 @@ Immediate child calls of `UniversalSlasher::executeSlash` from the trace (inclus
 
 | Component | Gas | Notes |
 | --- | ---: | --- |
-| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,081 ($0.00) | entry guard |
+| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,089 ($0.00) | entry guard |
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
-| `UniversalSlasher::_checkNetworkMiddleware` | 5,569 ($0.00) | middleware check |
-| `VaultV2::epochDuration` (via proxy) | 7,400 ($0.00) | reads epoch duration |
-| `UniversalSlasher::_slashableStake` | 271,035 ($0.06) | heavy path (read-only) |
-| `UniversalSlasher::cumulativeSlash` | 635 ($0.00) | read checkpoint |
-| `Checkpoints::push` | 65,621 ($0.01) | cumulative slash checkpoint write |
-| `UniversalSlasher::groupCumulativeSlash` | 861 ($0.00) | read checkpoint |
-| `Checkpoints::push` | 49,708 ($0.01) | group cumulative checkpoint write |
-| `VaultV2::onSlash` (via proxy) | 284,022 ($0.06) | vault accounting + burn |
-| `VaultV2::delegator` (via proxy) | 906 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 180,863 ($0.04) | delegator hook |
-| `UniversalSlasher::_burnerOnSlash` | 167 ($0.00) | burner hook |
+| `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
+| `VaultV2::epochDuration` (via proxy) | 7,778 ($0.00) | reads epoch duration |
+| `UniversalSlasher::slashableStake` | 238,353 ($0.05) | heavy path (read-only) |
+| `VaultV2::delegator` (via proxy) | 2,233 ($0.00) | delegator address lookup |
+| `UniversalDelegator::onSlash` | 96,465 ($0.02) | delegator hook |
+| `VaultV2::onSlash` (via proxy) | 150,240 ($0.03) | vault accounting + burn |
+| `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
 ## executeSlash components (with hints)
@@ -48,19 +44,15 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 
 | Component | Gas | Notes |
 | --- | ---: | --- |
-| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,081 ($0.00) | entry guard |
+| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,089 ($0.00) | entry guard |
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
-| `UniversalSlasher::_checkNetworkMiddleware` | 5,569 ($0.00) | middleware check |
-| `VaultV2::epochDuration` (via proxy) | 7,400 ($0.00) | reads epoch duration |
-| `UniversalSlasher::_slashableStake` | 271,035 ($0.06) | higher due to hint decoding/usage |
-| `UniversalSlasher::cumulativeSlash` | 635 ($0.00) | read checkpoint |
-| `Checkpoints::push` | 65,621 ($0.01) | cumulative slash checkpoint write |
-| `UniversalSlasher::groupCumulativeSlash` | 861 ($0.00) | read checkpoint |
-| `Checkpoints::push` | 49,708 ($0.01) | group cumulative checkpoint write |
-| `VaultV2::onSlash` (via proxy) | 284,022 ($0.06) | vault accounting + burn |
-| `VaultV2::delegator` (via proxy) | 906 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 180,863 ($0.04) | delegator hook |
-| `UniversalSlasher::_burnerOnSlash` | 167 ($0.00) | burner hook |
+| `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
+| `VaultV2::epochDuration` (via proxy) | 7,778 ($0.00) | reads epoch duration |
+| `UniversalSlasher::slashableStake` | 238,353 ($0.05) | higher due to hint decoding/usage |
+| `VaultV2::delegator` (via proxy) | 2,233 ($0.00) | delegator address lookup |
+| `UniversalDelegator::onSlash` | 96,465 ($0.02) | delegator hook |
+| `VaultV2::onSlash` (via proxy) | 150,240 ($0.03) | vault accounting + burn |
+| `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
 ## VaultV2::onSlash breakdown (after first slash)
@@ -70,29 +62,29 @@ The breakdown is identical for the no-hints and with-hints runs in this test.
 
 | Component | Gas | Notes |
 | --- | ---: | --- |
-| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,052 ($0.00) | entry guard |
+| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,089 ($0.00) | entry guard |
 | `Checkpoints::latest` | 494 ($0.00) | read checkpoint |
 | `Checkpoints::latest` | 6,735 ($0.00) | read checkpoint |
-| `Checkpoints::latest` | 6,735 ($0.00) | read checkpoint |
+| `Checkpoints::latest` | 735 ($0.00) | read checkpoint |
 | `Checkpoints::upperLookupRecent` | 2,477 ($0.00) | read checkpoint |
 | `Checkpoints::latest` | 261 ($0.00) | read checkpoint |
-| `VaultV2Storage::activeStake` | 2,886 ($0.00) | read storage |
-| `Checkpoints::push` | 25,997 ($0.01) | write checkpoint |
-| `Checkpoints::push` | 29,812 ($0.01) | write checkpoint |
-| `Checkpoints::push` | 29,812 ($0.01) | write checkpoint |
-| `Checkpoints::push` | 47,725 ($0.01) | write checkpoint |
+| `VaultV2Storage::activeStake` | 886 ($0.00) | read storage |
+| `Checkpoints::push` | 3,734 ($0.00) | write checkpoint |
+| `Checkpoints::push` | 1,621 ($0.00) | write checkpoint |
+| `Checkpoints::push` | 1,621 ($0.00) | write checkpoint |
+| `Checkpoints::push` | 47,722 ($0.01) | write checkpoint |
 | `FixedPointMathLib::mulDiv` | 91 ($0.00) | math |
-| `Checkpoints::push` | 52,944 ($0.01) | write checkpoint |
+| `Checkpoints::push` | 4,949 ($0.00) | write checkpoint |
 | `Checkpoints::push` | 47,725 ($0.01) | write checkpoint |
-| `Token::balanceOf` | 2,559 ($0.00) | token read |
-| `SafeTransferLib::safeTransfer` | 11,095 ($0.00) | transfer to burner |
+| `Token::balanceOf` | 2,625 ($0.00) | token read |
+| `SafeTransferLib::safeTransfer` | 11,161 ($0.00) | transfer to burner |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
 ## Delta (with hints vs no hints)
 
 | Component | Δ Gas |
 | --- | ---: |
-| `UniversalSlasher::_slashableStake` | 0 ($0.00) |
+| `UniversalSlasher::slashableStake` | 0 ($0.00) |
 | Total `executeSlash` | 0 ($0.00) |
 
 ## Caveats

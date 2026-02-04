@@ -104,9 +104,19 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         request = _slashRequests[slashIndex];
 
         if (request.amount == 0) {
-            (request.subnetwork, request.operator, request.amount, request.createdAt, request.vetoDeadline,) =
-                IVetoSlasher(__oldSlasher).slashRequests(slashIndex);
+            bool oldCompleted;
+            (
+                request.subnetwork,
+                request.operator,
+                request.amount,
+                request.createdAt,
+                request.vetoDeadline,
+                oldCompleted
+            ) = IVetoSlasher(__oldSlasher).slashRequests(slashIndex);
 
+            if (oldCompleted) {
+                request.completed = true;
+            }
             request.resolver = IVetoSlasher(__oldSlasher).resolverAt(request.subnetwork, request.createdAt, "");
             if (request.resolver != address(0)) {
                 unchecked {
@@ -192,11 +202,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /**
      * @inheritdoc IUniversalSlasher
      */
-    function executeSlash(uint256 slashIndex, bytes calldata hints)
-        public
-        nonReentrant
-        returns (uint256 slashedAmount)
-    {
+    function executeSlash(uint256 slashIndex, bytes calldata hint) public nonReentrant returns (uint256 slashedAmount) {
         SlashRequest memory request = slashRequests(slashIndex);
 
         _checkNetworkMiddleware(request.subnetwork);
@@ -235,7 +241,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         unchecked {
             uint256 owed_;
-            (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, hints);
+            (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, hint);
             if (owed_ > 0) {
                 owed[request.subnetwork][request.operator] += owed_;
             }

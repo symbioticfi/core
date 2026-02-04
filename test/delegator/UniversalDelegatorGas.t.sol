@@ -188,7 +188,7 @@ contract UniversalDelegatorGasTest is Test {
         vault = IVaultV2(vault_);
         delegator = UniversalDelegator(delegator_);
         slasher = IUniversalSlasher(slasher_);
-        batchMiddleware = new SlashBatchMiddleware(slasher, IUniversalDelegator(delegator_));
+        batchMiddleware = new SlashBatchMiddleware(slasher);
 
         uint48 setupTimestamp = START_TIMESTAMP + EPOCH_DURATION;
         vm.warp(setupTimestamp);
@@ -202,42 +202,41 @@ contract UniversalDelegatorGasTest is Test {
         bytes memory noHints = "";
 
         uint256 snapshot = vm.snapshotState();
-        _measureIsolatedSequential("with_capture", timestamp, noHints, noHints);
+        _measureIsolatedSequential("with_capture", timestamp, noHints);
         vm.revertToState(snapshot);
 
         _measureSingleTx("with_capture", timestamp, noHints, noHints);
         vm.revertToState(snapshot);
 
-        _measureIsolatedSequential("no_capture", 0, noHints, noHints);
+        _measureStakeForTimestamp("with_capture", timestamp, noHints, noHints);
+        vm.revertToState(snapshot);
+
+        _measureIsolatedSequential("no_capture", 0, noHints);
         vm.revertToState(snapshot);
 
         _measureSingleTx("no_capture", 0, noHints, noHints);
+        vm.revertToState(snapshot);
+
+        _measureStakeForTimestamp("no_capture", 0, noHints, noHints);
     }
 
-    function _measureIsolatedSequential(
-        string memory labelPrefix,
-        uint48 captureTimestamp,
-        bytes memory stakeHints,
-        bytes memory executeHints
-    ) internal {
-        uint256 stake1 = _measureStakeForAtGas(targetSubnetwork, targetOperator, captureTimestamp, stakeHints);
+    function _measureIsolatedSequential(string memory labelPrefix, uint48 captureTimestamp, bytes memory executeHints)
+        internal
+    {
         (uint256 slashIndex1, uint256 request1) =
             _measureRequestSlashGas(targetSubnetwork, targetOperator, OPERATOR_SIZE / 2, captureTimestamp);
-        uint256 exec1 = _measureExecuteSlashGas(slashIndex1, executeHints);
+        (uint256 slashIndex2, uint256 request2) =
+            _measureRequestSlashGas(targetSubnetwork, nextOperator, OPERATOR_SIZE / 2, captureTimestamp);
 
         vm.warp(uint256(block.timestamp) + SECOND_CALL_WARP);
 
-        uint256 stake2 = _measureStakeForAtGas(targetSubnetwork, nextOperator, captureTimestamp, stakeHints);
-        (uint256 slashIndex2, uint256 request2) =
-            _measureRequestSlashGas(targetSubnetwork, nextOperator, OPERATOR_SIZE / 2, captureTimestamp);
+        uint256 exec1 = _measureExecuteSlashGas(slashIndex1, executeHints);
         uint256 exec2 = _measureExecuteSlashGas(slashIndex2, executeHints);
 
-        console2.log(string.concat(labelPrefix, "_isolated_block1_stake"), stake1);
-        console2.log(string.concat(labelPrefix, "_isolated_block1_request"), request1);
-        console2.log(string.concat(labelPrefix, "_isolated_block1_execute"), exec1);
-        console2.log(string.concat(labelPrefix, "_isolated_block2_stake"), stake2);
-        console2.log(string.concat(labelPrefix, "_isolated_block2_request"), request2);
-        console2.log(string.concat(labelPrefix, "_isolated_block2_execute"), exec2);
+        console2.log(string.concat(labelPrefix, "_isolated_request1"), request1);
+        console2.log(string.concat(labelPrefix, "_isolated_request2"), request2);
+        console2.log(string.concat(labelPrefix, "_isolated_execute1"), exec1);
+        console2.log(string.concat(labelPrefix, "_isolated_execute2"), exec2);
     }
 
     function _measureSingleTx(
@@ -247,22 +246,38 @@ contract UniversalDelegatorGasTest is Test {
         bytes memory executeHints
     ) internal {
         _setMiddleware(targetSubnetwork, address(batchMiddleware));
-        SlashBatchMiddleware.BatchGas memory result = batchMiddleware.slashTwo(
+        (uint256 slashIndex1, uint256 slashIndex2, uint256 request1, uint256 request2) = batchMiddleware.requestTwo(
             targetSubnetwork,
             targetOperator,
             nextOperator,
             OPERATOR_SIZE / 2,
             captureTimestamp,
-            stakeHints,
-            executeHints
+            stakeHints
         );
+        (uint256 execute1, uint256 execute2) = batchMiddleware.executeTwo(slashIndex1, slashIndex2, executeHints);
 
-        console2.log(string.concat(labelPrefix, "_single_block1_stake"), result.stake1);
-        console2.log(string.concat(labelPrefix, "_single_block1_request"), result.request1);
-        console2.log(string.concat(labelPrefix, "_single_block1_execute"), result.exec1);
-        console2.log(string.concat(labelPrefix, "_single_block2_stake"), result.stake2);
-        console2.log(string.concat(labelPrefix, "_single_block2_request"), result.request2);
-        console2.log(string.concat(labelPrefix, "_single_block2_execute"), result.exec2);
+        console2.log(string.concat(labelPrefix, "_single_request1"), request1);
+        console2.log(string.concat(labelPrefix, "_single_request2"), request2);
+        console2.log(string.concat(labelPrefix, "_single_execute1"), execute1);
+        console2.log(string.concat(labelPrefix, "_single_execute2"), execute2);
+    }
+
+    function _measureStakeForTimestamp(
+        string memory labelPrefix,
+        uint48 captureTimestamp,
+        bytes memory stakeHints,
+        bytes memory executeHints
+    ) internal {
+        uint256 stakeBefore = _measureStakeForAtGas(targetSubnetwork, targetOperator, captureTimestamp, stakeHints);
+
+        (uint256 slashIndex1,) =
+            _measureRequestSlashGas(targetSubnetwork, targetOperator, OPERATOR_SIZE / 2, captureTimestamp);
+        _measureExecuteSlashGas(slashIndex1, executeHints);
+
+        uint256 stakeAfter = _measureStakeForAtGas(targetSubnetwork, nextOperator, captureTimestamp, stakeHints);
+
+        console2.log(string.concat(labelPrefix, "_stake_before"), stakeBefore);
+        console2.log(string.concat(labelPrefix, "_stake_after"), stakeAfter);
     }
 
     function _setupTopology() internal {
@@ -321,7 +336,12 @@ contract UniversalDelegatorGasTest is Test {
         returns (uint256 gasUsed)
     {
         uint256 gasLeft = gasleft();
-        uint256 stake = delegator.stakeForAt(subnetwork, operator, 0, timestamp, hints);
+        uint256 stake;
+        if (timestamp == 0) {
+            stake = delegator.stakeFor(subnetwork, operator, 0);
+        } else {
+            stake = delegator.stakeForAt(subnetwork, operator, 0, timestamp, hints);
+        }
         gasUsed = gasLeft - gasleft();
         if (timestamp != 0) {
             assertEq(stake, OPERATOR_SIZE);
@@ -362,7 +382,7 @@ contract UniversalDelegatorGasTest is Test {
     }
 
     function _allocatedHints() internal pure returns (bytes memory) {
-        return abi.encode(IUniversalDelegator.AllocatedHints({slotOfHints: _slotOfHints(), allocatedHints: bytes("")}));
+        return abi.encode(_slotOfHints(), "");
     }
 
     function _groupAllocatedHints() internal pure returns (bytes memory) {
@@ -386,17 +406,11 @@ contract UniversalDelegatorGasTest is Test {
     }
 
     function _baseAllocatedHints(bytes memory availableHints) internal pure returns (bytes memory) {
-        return abi.encode(
-            IUniversalDelegator.BaseAllocatedHints({
-                sizeHint: _zeroHint(), availableHints: availableHints, isSharedHint: bytes(""), prevSumHint: bytes("")
-            })
-        );
+        return abi.encode(_zeroHint(), availableHints, bytes(""), bytes(""));
     }
 
     function _slotOfHints() internal pure returns (bytes memory) {
-        return abi.encode(
-            IUniversalDelegator.SlotOfHints({slotOfNetworkHints: _zeroHint(), slotOfOperatorHints: _zeroHint()})
-        );
+        return abi.encode(_zeroHint(), _zeroHint());
     }
 
     function _zeroHint() internal pure returns (bytes memory) {
@@ -425,68 +439,39 @@ contract UniversalDelegatorGasTest is Test {
 }
 
 contract SlashBatchMiddleware {
-    struct BatchGas {
-        uint256 stake1;
-        uint256 request1;
-        uint256 exec1;
-        uint256 stake2;
-        uint256 request2;
-        uint256 exec2;
-    }
-
-    uint48 internal constant CAPTURE_OFFSET = 4;
-
     IUniversalSlasher internal immutable _slasher;
-    IUniversalDelegator internal immutable _delegator;
 
-    constructor(IUniversalSlasher slasher_, IUniversalDelegator delegator_) {
+    constructor(IUniversalSlasher slasher_) {
         _slasher = slasher_;
-        _delegator = delegator_;
     }
 
-    function slashTwo(
+    function requestTwo(
         bytes32 subnetwork,
         address operator1,
         address operator2,
         uint256 amount,
         uint48 captureTimestamp,
-        bytes calldata stakeHints,
-        bytes calldata executeHints
-    ) external returns (BatchGas memory result) {
-        result.stake1 = _measureStakeForAt(subnetwork, operator1, captureTimestamp, stakeHints);
-        (uint256 slashIndex1, uint256 requestGas1) =
-            _measureRequestSlash(subnetwork, operator1, amount, captureTimestamp);
-        result.request1 = requestGas1;
-        result.exec1 = _measureExecuteSlash(slashIndex1, executeHints);
+        bytes calldata requestHints
+    ) external returns (uint256 slashIndex1, uint256 slashIndex2, uint256 gas1, uint256 gas2) {
+        uint256 gasLeft = gasleft();
+        slashIndex1 = _slasher.requestSlash(subnetwork, operator1, amount, captureTimestamp, requestHints);
+        gas1 = gasLeft - gasleft();
 
-        result.stake2 = _measureStakeForAt(subnetwork, operator2, captureTimestamp, stakeHints);
-        (uint256 slashIndex2, uint256 requestGas2) =
-            _measureRequestSlash(subnetwork, operator2, amount, captureTimestamp);
-        result.request2 = requestGas2;
-        result.exec2 = _measureExecuteSlash(slashIndex2, executeHints);
+        gasLeft = gasleft();
+        slashIndex2 = _slasher.requestSlash(subnetwork, operator2, amount, captureTimestamp, requestHints);
+        gas2 = gasLeft - gasleft();
     }
 
-    function _measureStakeForAt(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes calldata hints)
-        internal
-        returns (uint256 gasUsed)
+    function executeTwo(uint256 slashIndex1, uint256 slashIndex2, bytes calldata executeHints)
+        external
+        returns (uint256 gas1, uint256 gas2)
     {
         uint256 gasLeft = gasleft();
-        _delegator.stakeForAt(subnetwork, operator, 0, captureTimestamp, hints);
-        gasUsed = gasLeft - gasleft();
-    }
+        _slasher.executeSlash(slashIndex1, executeHints);
+        gas1 = gasLeft - gasleft();
 
-    function _measureExecuteSlash(uint256 slashIndex, bytes calldata hints) internal returns (uint256 gasUsed) {
-        uint256 gasLeft = gasleft();
-        _slasher.executeSlash(slashIndex, hints);
-        gasUsed = gasLeft - gasleft();
-    }
-
-    function _measureRequestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp)
-        internal
-        returns (uint256 slashIndex, uint256 gasUsed)
-    {
-        uint256 gasLeft = gasleft();
-        slashIndex = _slasher.requestSlash(subnetwork, operator, amount, captureTimestamp, "");
-        gasUsed = gasLeft - gasleft();
+        gasLeft = gasleft();
+        _slasher.executeSlash(slashIndex2, executeHints);
+        gas2 = gasLeft - gasleft();
     }
 }

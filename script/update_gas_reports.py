@@ -247,14 +247,10 @@ def map_execute(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
         ("UniversalSlasher::slashRequests", "UniversalSlasher::slashRequests", True),
         ("UniversalSlasher::_checkNetworkMiddleware", "UniversalSlasher::_checkNetworkMiddleware", True),
         ("MigratableEntityProxy::fallback", "VaultV2::epochDuration (via proxy)", True),
-        ("UniversalSlasher::_slashableStake", "UniversalSlasher::_slashableStake", True),
-        ("UniversalSlasher::cumulativeSlash", "UniversalSlasher::cumulativeSlash", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("UniversalSlasher::groupCumulativeSlash", "UniversalSlasher::groupCumulativeSlash", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("MigratableEntityProxy::fallback", "VaultV2::onSlash (via proxy)", True),
+        (("UniversalSlasher::slashableStake", "UniversalSlasher::_slashableStake"), "UniversalSlasher::slashableStake", True),
         ("MigratableEntityProxy::fallback", "VaultV2::delegator (via proxy)", True),
         (("onSlash", "UniversalDelegator::onSlash"), "UniversalDelegator::onSlash", True),
+        ("MigratableEntityProxy::fallback", "VaultV2::onSlash (via proxy)", True),
         ("UniversalSlasher::_burnerOnSlash", "UniversalSlasher::_burnerOnSlash", True),
         ("ReentrancyGuard::_nonReentrantAfter", "ReentrancyGuard::_nonReentrantAfter", False),
     ]
@@ -340,30 +336,26 @@ def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
 
     logs = parse_logs(lines)
     scenario_required = [
-        "with_capture_isolated_block1_stake",
-        "with_capture_isolated_block1_request",
-        "with_capture_isolated_block1_execute",
-        "with_capture_isolated_block2_stake",
-        "with_capture_isolated_block2_request",
-        "with_capture_isolated_block2_execute",
-        "with_capture_single_block1_stake",
-        "with_capture_single_block1_request",
-        "with_capture_single_block1_execute",
-        "with_capture_single_block2_stake",
-        "with_capture_single_block2_request",
-        "with_capture_single_block2_execute",
-        "no_capture_isolated_block1_stake",
-        "no_capture_isolated_block1_request",
-        "no_capture_isolated_block1_execute",
-        "no_capture_isolated_block2_stake",
-        "no_capture_isolated_block2_request",
-        "no_capture_isolated_block2_execute",
-        "no_capture_single_block1_stake",
-        "no_capture_single_block1_request",
-        "no_capture_single_block1_execute",
-        "no_capture_single_block2_stake",
-        "no_capture_single_block2_request",
-        "no_capture_single_block2_execute",
+        "with_capture_isolated_request1",
+        "with_capture_isolated_request2",
+        "with_capture_isolated_execute1",
+        "with_capture_isolated_execute2",
+        "with_capture_single_request1",
+        "with_capture_single_request2",
+        "with_capture_single_execute1",
+        "with_capture_single_execute2",
+        "with_capture_stake_before",
+        "with_capture_stake_after",
+        "no_capture_isolated_request1",
+        "no_capture_isolated_request2",
+        "no_capture_isolated_execute1",
+        "no_capture_isolated_execute2",
+        "no_capture_single_request1",
+        "no_capture_single_request2",
+        "no_capture_single_execute1",
+        "no_capture_single_execute2",
+        "no_capture_stake_before",
+        "no_capture_stake_after",
     ]
     legacy_required = [
         "stakeForAt_no_hints",
@@ -384,12 +376,12 @@ def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
 
     if not has_legacy and has_scenario:
         # Map scenario logs into legacy keys so legacy reports are refreshed.
-        logs["stakeForAt_no_hints"] = logs["with_capture_isolated_block1_stake"]
-        logs["executeSlash_no_hints"] = logs["with_capture_isolated_block1_execute"]
-        logs["requestSlash_no_hints"] = logs["with_capture_isolated_block1_request"]
-        logs["stakeForAt2_no_hints"] = logs["with_capture_isolated_block2_stake"]
-        logs["executeSlash2_no_hints"] = logs["with_capture_isolated_block2_execute"]
-        logs["requestSlash2_no_hints"] = logs["with_capture_isolated_block2_request"]
+        logs["stakeForAt_no_hints"] = logs["with_capture_stake_before"]
+        logs["executeSlash_no_hints"] = logs["with_capture_isolated_execute1"]
+        logs["requestSlash_no_hints"] = logs["with_capture_isolated_request1"]
+        logs["stakeForAt2_no_hints"] = logs["with_capture_stake_after"]
+        logs["executeSlash2_no_hints"] = logs["with_capture_isolated_execute2"]
+        logs["requestSlash2_no_hints"] = logs["with_capture_isolated_request2"]
         # No hints are measured in this run; mirror for the "with hints" columns.
         logs["stakeForAt_with_hints"] = logs["stakeForAt_no_hints"]
         logs["executeSlash_with_hints"] = logs["executeSlash_no_hints"]
@@ -416,30 +408,11 @@ Operators to be slashed are first and second to maximize gas costs for slashing 
 
 Notes:
 - Different operators, same group/network.
-- “Fully isolated” runs two sequential slashes with a block time jump between them (2 txns)
-- “Single transaction” executes both slashes inside one middleware call.
+- “Fully isolated” runs request1, request2, then execute1, execute2, with a block time jump between the phases.
+- “Single transaction” uses two transactions: batch two requests, then batch two executes.
+- “Stake For Timestamp” measures stakeForAt before any slashing and after the first slash (uses stakeFor when captureTimestamp = 0).
 - “Without capture timestamp” passes captureTimestamp = 0 into requestSlash
 - USD values show a 3-month average using baseFeePerGas samples (~30 samples over 90d) from Etherscan and ETH/USD from CoinGecko.
-
-## With capture timestamp
-
-### Fully isolated and in different blocks
-
-| Call | Stake gas | Request slash gas | Execute slash gas |
-| --- | ---: | ---: | ---: |
-| 1st | {gas_fmt(logs["with_capture_isolated_block1_stake"])} | {gas_fmt(logs["with_capture_isolated_block1_request"])} | {gas_fmt(logs["with_capture_isolated_block1_execute"])} |
-| 2nd | {gas_fmt(logs["with_capture_isolated_block2_stake"])} | {gas_fmt(logs["with_capture_isolated_block2_request"])} | {gas_fmt(logs["with_capture_isolated_block2_execute"])} |
-
-Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightly higher probably due to cumulative checkpoint growth
-
-### Single transaction (not isolated, same block)
-
-| Call | Stake gas | Request slash gas | Execute slash gas |
-| --- | ---: | ---: | ---: |
-| 1st | {gas_fmt(logs["with_capture_single_block1_stake"])} | {gas_fmt(logs["with_capture_single_block1_request"])} | {gas_fmt(logs["with_capture_single_block1_execute"])} |
-| 2nd | {gas_fmt(logs["with_capture_single_block2_stake"])} | {gas_fmt(logs["with_capture_single_block2_request"])} | {gas_fmt(logs["with_capture_single_block2_execute"])} |
-
-Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slots; execute cost drops due to warm slots.
 
 ## Without capture timestamp (captureTimestamp = 0)
 
@@ -447,21 +420,24 @@ Note: costs are lower because `latest()` state is used.
 
 ### Fully isolated and in different blocks
 
-| Call | Stake gas | Request slash gas | Execute slash gas |
-| --- | ---: | ---: | ---: |
-| 1st | {gas_fmt(logs["no_capture_isolated_block1_stake"])} | {gas_fmt(logs["no_capture_isolated_block1_request"])} | {gas_fmt(logs["no_capture_isolated_block1_execute"])} |
-| 2nd | {gas_fmt(logs["no_capture_isolated_block2_stake"])} | {gas_fmt(logs["no_capture_isolated_block2_request"])} | {gas_fmt(logs["no_capture_isolated_block2_execute"])} |
-
-Note: 2nd call stake grows due to `prevSum` O(n) sloads; execute cost is slightly higher probably due to cumulative checkpoint growth
+| Call | Request slash gas | Execute slash gas |
+| --- | ---: | ---: |
+| 1st | {gas_fmt(logs["no_capture_isolated_request1"])} | {gas_fmt(logs["no_capture_isolated_execute1"])} |
+| 2nd | {gas_fmt(logs["no_capture_isolated_request2"])} | {gas_fmt(logs["no_capture_isolated_execute2"])} |
 
 ### Single transaction (not isolated, same block)
 
-| Call | Stake gas | Request slash gas | Execute slash gas |
-| --- | ---: | ---: | ---: |
-| 1st | {gas_fmt(logs["no_capture_single_block1_stake"])} | {gas_fmt(logs["no_capture_single_block1_request"])} | {gas_fmt(logs["no_capture_single_block1_execute"])} |
-| 2nd | {gas_fmt(logs["no_capture_single_block2_stake"])} | {gas_fmt(logs["no_capture_single_block2_request"])} | {gas_fmt(logs["no_capture_single_block2_execute"])} |
+| Call | Request slash gas | Execute slash gas |
+| --- | ---: | ---: |
+| 1st | {gas_fmt(logs["no_capture_single_request1"])} | {gas_fmt(logs["no_capture_single_execute1"])} |
+| 2nd | {gas_fmt(logs["no_capture_single_request2"])} | {gas_fmt(logs["no_capture_single_execute2"])} |
 
-Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slots; execute cost drops due to warm slots.
+### Stake For Timestamp
+
+| Call | Stake gas |
+| --- | ---: |
+| Before slashing | {gas_fmt(logs["no_capture_stake_before"])} |
+| After slashing | {gas_fmt(logs["no_capture_stake_after"])} |
 
 """
         REPORT_SCENARIOS.write_text(report)
@@ -528,7 +504,7 @@ Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slot
             report_1_lines,
             "## Delta (with hints vs no hints)",
             [
-                (("`UniversalSlasher::_slashableStake`",), exec_2[4][1] - exec_1[4][1]),
+                (("`UniversalSlasher::slashableStake`",), exec_2[4][1] - exec_1[4][1]),
                 (("Total `executeSlash`",), logs["executeSlash_with_hints"] - logs["executeSlash_no_hints"]),
             ],
             1,
@@ -578,7 +554,7 @@ Note: 2nd call stake slightly grows due to `prevSum` O(n) sloads while warm slot
             report_2_lines,
             "## Delta (with hints vs no hints)",
             [
-                (("`UniversalSlasher::_slashableStake`",), exec_4[4][1] - exec_3[4][1]),
+                (("`UniversalSlasher::slashableStake`",), exec_4[4][1] - exec_3[4][1]),
                 (("Total `executeSlash`",), logs["executeSlash2_with_hints"] - logs["executeSlash2_no_hints"]),
             ],
             1,

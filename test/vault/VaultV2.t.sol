@@ -1154,15 +1154,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp - 1),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(1),
-                        activeStakeHint: abi.encode(1),
-                        activeSharesHint: abi.encode(1)
-                    })
-                )
+                alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1
         );
@@ -1170,15 +1162,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp - 1),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(0),
-                        activeStakeHint: abi.encode(0),
-                        activeSharesHint: abi.encode(0)
-                    })
-                )
+                alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1
         );
@@ -1186,15 +1170,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(0),
-                        activeStakeHint: abi.encode(0),
-                        activeSharesHint: abi.encode(0)
-                    })
-                )
+                alice, uint48(blockTimestamp), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1 + amount2
         );
@@ -1202,15 +1178,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(1),
-                        activeStakeHint: abi.encode(1),
-                        activeSharesHint: abi.encode(1)
-                    })
-                )
+                alice, uint48(blockTimestamp), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1 + amount2
         );
@@ -1386,15 +1354,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp - 1),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(1),
-                        activeStakeHint: abi.encode(1),
-                        activeSharesHint: abi.encode(1)
-                    })
-                )
+                alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1 - 1
         );
@@ -1402,15 +1362,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp - 1),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(0),
-                        activeStakeHint: abi.encode(0),
-                        activeSharesHint: abi.encode(0)
-                    })
-                )
+                alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1 - 1
         );
@@ -1418,15 +1370,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(0),
-                        activeStakeHint: abi.encode(0),
-                        activeSharesHint: abi.encode(0)
-                    })
-                )
+                alice, uint48(blockTimestamp), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1 - 1 + amount2 - 1
         );
@@ -1434,15 +1378,7 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
-                alice,
-                uint48(blockTimestamp),
-                abi.encode(
-                    IVaultV2.ActiveBalanceOfHints({
-                        activeSharesOfHint: abi.encode(1),
-                        activeStakeHint: abi.encode(1),
-                        activeSharesHint: abi.encode(1)
-                    })
-                )
+                alice, uint48(blockTimestamp), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1 - 1 + amount2 - 1
         );
