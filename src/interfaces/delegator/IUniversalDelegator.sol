@@ -124,7 +124,7 @@ interface IUniversalDelegator {
 
     event RemoveSlot(uint96 indexed index);
 
-    event ResetAllocation(bytes32 indexed subnetwork);
+    event ResetAllocation(uint96 indexed index, bytes32 indexed subnetwork);
 
     event Initialize(InitParams params);
 
