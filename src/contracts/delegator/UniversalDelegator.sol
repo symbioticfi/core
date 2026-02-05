@@ -716,14 +716,13 @@ contract UniversalDelegator is
         slotExists(index)
         syncPrevSums(index.getParentIndex())
     {
+        if (getAllocated(index, 0) > 0) {
+            revert SlotAllocated();
+        }
         _removeSlot(index);
     }
 
     function _removeSlot(uint96 index) internal {
-        if (getAllocated(index, 0) > 0) {
-            revert SlotAllocated();
-        }
-
         SlotStorage storage slot = slots[index];
         SlotStorage storage parent = slots[index.getParentIndex()];
 
@@ -744,12 +743,6 @@ contract UniversalDelegator is
             parent.lastChild = slot.prevSlot;
         } else {
             slots[index.getParentIndex().createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
-        }
-        if (slot.noPlugins) {
-            unchecked {
-                // TODO: ideally also update pending for this slot
-                _noPluginsSize -= slot.size.latest();
-            }
         }
         --parent.numChildren;
         slot.exists = false;
@@ -773,22 +766,28 @@ contract UniversalDelegator is
         if (index == 0) {
             revert NotAssigned();
         }
-
-        if (--slots[index.getParentIndex()].numChildren == 0) {
+        if (slots[index.getParentIndex()].numChildren == 1) {
             index = index.getParentIndex();
         }
+
+        SlotStorage storage slot = slots[index];
+        SlotStorage storage parent = slots[index.getParentIndex()];
         uint256 pending = getPending(index, 0);
         if (pending > 0) {
-            slots[index.getParentIndex()].clearedChildrenPendingCumulative
-                .push(
-                    uint48(block.timestamp),
-                    slots[index.getParentIndex()].clearedChildrenPendingCumulative.latest() + pending
-                );
+            parent.clearedChildrenPendingCumulative
+                .push(uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pending);
         }
-        if (slots[index].size.latest() > 0) {
-            slots[index].size.push(uint48(block.timestamp), 0);
-            slots[index.getParentIndex()].needPrevSumsSync = true;
+        if (slot.size.latest() > 0) {
+            slot.size.push(uint48(block.timestamp), 0);
+            parent.needPrevSumsSync = true;
+            if (slot.noPlugins) {
+                unchecked {
+                    // TODO: ideally also update pending for this slot
+                    _noPluginsSize -= slot.size.latest();
+                }
+            }
         }
+        _removeSlot(index);
 
         emit ResetAllocation(index, subnetwork);
     }
