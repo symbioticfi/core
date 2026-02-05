@@ -7,12 +7,12 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call | Hints | Gas |
 | --- | --- | ---: |
-| `stakeForAt` | no | 165,955 ($0.04) |
-| `stakeForAt` | yes | 165,955 ($0.04) |
-| `requestSlash` | no | 313,758 ($0.07) |
-| `requestSlash` | yes | 313,758 ($0.07) |
-| `executeSlash` | no | 740,273 ($0.16) |
-| `executeSlash` | yes | 740,273 ($0.16) |
+| `stakeForAt` | no | 158,679 ($0.03) |
+| `stakeForAt` | yes | 158,679 ($0.03) |
+| `requestSlash` | no | 311,310 ($0.07) |
+| `requestSlash` | yes | 311,310 ($0.07) |
+| `executeSlash` | no | 736,045 ($0.16) |
+| `executeSlash` | yes | 736,045 ($0.16) |
 
 Notes:
 - Worst-case operator/network/group position with 3 groups × 3 networks × 10 operators.
@@ -30,9 +30,9 @@ These are immediate child calls of `UniversalSlasher::executeSlash` from the tra
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 7,778 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 146,195 ($0.03) | heavy path (read-only) |
+| `UniversalSlasher::slashableStake` | 143,747 ($0.03) | heavy path (read-only) |
 | `VaultV2::delegator` (via proxy) | 2,233 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 195,007 ($0.04) | delegator hook |
+| `UniversalDelegator::onSlash` | 193,227 ($0.04) | delegator hook |
 | `VaultV2::onSlash` (via proxy) | 337,276 ($0.07) | vault accounting + burn |
 | `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
@@ -47,9 +47,9 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 7,778 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 146,195 ($0.03) | higher due to hint decoding/usage |
+| `UniversalSlasher::slashableStake` | 143,747 ($0.03) | higher due to hint decoding/usage |
 | `VaultV2::delegator` (via proxy) | 2,233 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 195,007 ($0.04) | delegator hook |
+| `UniversalDelegator::onSlash` | 193,227 ($0.04) | delegator hook |
 | `VaultV2::onSlash` (via proxy) | 337,276 ($0.07) | vault accounting + burn |
 | `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |

@@ -1,6 +1,6 @@
 # UniversalDelegator Gas Report (Scenarios)
 
-Date: 2026-02-04
+Date: 2026-02-05
 Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-internal --isolate`
 
 3 groups, 3 networks in each, 10 operators in each
@@ -22,20 +22,20 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Request slash gas | Execute slash gas |
 | --- | ---: | ---: |
-| 1st | 313,736 ($0.07) | 740,273 ($0.16) |
-| 2nd | 292,123 ($0.06) | 543,926 ($0.12) |
+| 1st | 311,288 ($0.07) | 736,045 ($0.16) |
+| 2nd | 289,675 ($0.06) | 549,169 ($0.12) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
 | --- | ---: | ---: |
-| 1st | 292,235 ($0.06) | 729,620 ($0.16) |
-| 2nd | 168,811 ($0.04) | 390,446 ($0.09) |
+| 1st | 289,787 ($0.06) | 725,392 ($0.16) |
+| 2nd | 166,363 ($0.04) | 399,689 ($0.09) |
 
 ### Stake For Timestamp
 
 | Call | Stake gas |
 | --- | ---: |
-| Before slashing | 150,319 ($0.03) |
-| After slashing | 239,959 ($0.05) |
+| Before slashing | 147,871 ($0.03) |
+| After slashing | 246,982 ($0.05) |
 
