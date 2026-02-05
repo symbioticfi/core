@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {Checkpoints} from "../../contracts/libraries/CheckpointsV2.sol";
 
-uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 1;
-uint96 constant WITHDRAWAL_BUFFER_INDEX = 0x10000000000000000;
+uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
+uint96 constant WITHDRAWAL_BUFFER_INDEX = 0xFFFFFFFF0000000000000000;
 
 // keccak256("HOOK_SET_ROLE")
 bytes32 constant HOOK_SET_ROLE = 0xd1c1f6fa6bf27d54c5e54c7c1dc6e5004d3c027ea1994fe68b29c1b51b69c36c;

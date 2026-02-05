@@ -107,13 +107,6 @@ contract UniversalDelegator is
         _;
     }
 
-    modifier isNotWithdrawalBuffer(uint96 index) {
-        if (index == WITHDRAWAL_BUFFER_INDEX) {
-            revert IsWithdrawalBuffer();
-        }
-        _;
-    }
-
     modifier syncPrevSums(uint96 parentIndex) {
         if (slots[parentIndex].needPrevSumsSync) {
             _syncPrevSums(parentIndex);
@@ -543,7 +536,6 @@ contract UniversalDelegator is
         public
         onlyRole(CREATE_SLOT_ROLE)
         slotExists(parentIndex)
-        isNotWithdrawalBuffer(parentIndex)
         returns (uint96)
     {
         if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
@@ -551,11 +543,10 @@ contract UniversalDelegator is
         }
 
         SlotStorage storage parent = slots[parentIndex];
-        uint96 index = parentIndex.createIndex(parent.numChildren + 1);
-
-        if (parent.numChildren + 1 >= MAX_CHILDREN) {
+        if (++parent.numChildren >= MAX_CHILDREN) {
             revert TooManyOperators();
         }
+        uint96 index = parentIndex.createIndex(parent.numChildren);
 
         if (parentIndex.getDepth() == 1) {
             if (_networkToSlot[subnetworkOrOperator].latest() != 0) {
@@ -573,19 +564,20 @@ contract UniversalDelegator is
 
         SlotStorage storage slot = slots[index];
 
-        if (parentIndex.getDepth() > 0) {
-            if (parent.firstChild == 0) {
-                parent.firstChild = index.getChildIndex();
-            } else {
-                slot.prevSlot = parent.lastChild;
-                slots[parentIndex.createIndex(parent.lastChild)].nextSlot = index.getChildIndex();
-            }
-            parent.lastChild = index.getChildIndex();
+        if (parent.firstChild == 0) {
+            parent.firstChild = index.getChildIndex();
         } else {
-            slots[parentIndex.createIndex(_withdrawalBufferSlot().prevSlot)].nextSlot = index.getChildIndex();
-            slot.prevSlot = _withdrawalBufferSlot().prevSlot;
-            slot.nextSlot = WITHDRAWAL_BUFFER_CHILD_INDEX;
-            _withdrawalBufferSlot().prevSlot = index.getChildIndex();
+            slot.prevSlot = parent.lastChild;
+            slots[parentIndex.createIndex(parent.lastChild)].nextSlot = index.getChildIndex();
+        }
+        parent.lastChild = index.getChildIndex();
+        if (size > 0) {
+            slot.size.push(uint48(block.timestamp), size);
+        }
+        slot.exists = true;
+
+        if (parentIndex.getDepth() == 0) {
+            slots[index].nextSlot = WITHDRAWAL_BUFFER_CHILD_INDEX;
             slot.isShared = isShared;
             if (noPlugins) {
                 if (size > IVaultV2(vault).pullable()) {
@@ -595,14 +587,9 @@ contract UniversalDelegator is
                 _noPluginsSize += size;
             }
         }
-        if (size > 0) {
-            slot.size.push(uint48(block.timestamp), size);
-        }
         if (parentIndex.getDepth() == 1) {
             ++parent.numNetworks;
         }
-        parent.numChildren = index.getChildIndex();
-        slot.exists = true;
 
         _syncPrevSums(parentIndex);
 
@@ -679,8 +666,6 @@ contract UniversalDelegator is
         onlyRole(SWAP_SLOTS_ROLE)
         slotExists(index1)
         slotExists(index2)
-        isNotWithdrawalBuffer(index1)
-        isNotWithdrawalBuffer(index2)
         syncPrevSums(index1.getParentIndex())
     {
         SlotStorage storage parent = slots[index1.getParentIndex()];
@@ -729,7 +714,6 @@ contract UniversalDelegator is
         public
         onlyRole(REMOVE_SLOT_ROLE)
         slotExists(index)
-        isNotWithdrawalBuffer(index)
         syncPrevSums(index.getParentIndex())
     {
         _removeSlot(index);
@@ -918,11 +902,7 @@ contract UniversalDelegator is
             _grantRole(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
         }
 
-        _rootSlot().numChildren = 1;
-        _rootSlot().lastChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
-        _rootSlot().firstChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
         _withdrawalBufferSlot().size.push(uint48(block.timestamp), type(uint128).max);
-        _withdrawalBufferSlot().exists = true;
 
         emit Initialize(params);
     }
