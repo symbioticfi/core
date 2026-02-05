@@ -921,9 +921,7 @@ contract UniversalDelegator is
         _rootSlot().numChildren = 1;
         _rootSlot().lastChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
         _rootSlot().firstChild = WITHDRAWAL_BUFFER_CHILD_INDEX;
-        if (params.withdrawalBuffer > 0) {
-            _withdrawalBufferSlot().size.push(uint48(block.timestamp), params.withdrawalBuffer);
-        }
+        _withdrawalBufferSlot().size.push(uint48(block.timestamp), type(uint128).max);
         _withdrawalBufferSlot().exists = true;
 
         emit Initialize(params);

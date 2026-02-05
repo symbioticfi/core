@@ -169,8 +169,7 @@ contract UniversalDelegatorGasTest is Test {
                         setIsSharedRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         setShareRoleHolder: owner,
-                        swapSlotsRoleHolder: owner,
-                        withdrawalBuffer: 0
+                        swapSlotsRoleHolder: owner
                     })
                 ),
                 withSlasher: true,

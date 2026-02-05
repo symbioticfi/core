@@ -74,7 +74,6 @@ interface IUniversalDelegator {
         address setSizeRoleHolder;
         address setShareRoleHolder;
         address swapSlotsRoleHolder;
-        uint256 withdrawalBuffer;
     }
 
     struct Slot {

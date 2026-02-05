@@ -3533,8 +3533,7 @@ contract VaultV2Test is Test {
             setIsSharedRoleHolder: alice,
             setSizeRoleHolder: alice,
             setShareRoleHolder: alice,
-            swapSlotsRoleHolder: alice,
-            withdrawalBuffer: 0
+            swapSlotsRoleHolder: alice
         });
 
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
@@ -3563,8 +3562,7 @@ contract VaultV2Test is Test {
             setIsSharedRoleHolder: alice,
             setSizeRoleHolder: alice,
             setShareRoleHolder: alice,
-            swapSlotsRoleHolder: alice,
-            withdrawalBuffer: 0
+            swapSlotsRoleHolder: alice
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             isBurnerHook: false, vetoDuration: vetoDuration, resolverSetDelay: uint48(epochDuration * 3)
