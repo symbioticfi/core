@@ -23,6 +23,14 @@ bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a
 
 uint256 constant MAX_CHILDREN = 50;
 
+/**
+ * @title IVault
+ * @dev Deprecated functions:
+ *      maxNetworkLimit()
+ *      setMaxNetworkLimit()
+ * @dev Removed functions (due to internal-only usage):
+ *      onSlash()
+ */
 interface IUniversalDelegator {
     error AlreadySet();
     error NotEnoughAvailable();
@@ -186,18 +194,6 @@ interface IUniversalDelegator {
      *      The hook can have arbitrary logic under certain functions, however, it doesn't affect the stake guarantees.
      */
     function setHook(address hook) external;
-
-    /**
-     * @notice Called when a slash happens.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param operator address of the operator
-     * @param amount amount of the collateral slashed
-     * @param captureTimestamp time point when the stake was captured
-     * @param data some additional data
-     * @dev Only the vault's slasher can call this function.
-     */
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata data)
-        external;
 
     function getWithdrawalBuffer() external view returns (uint256);
 

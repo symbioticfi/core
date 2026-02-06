@@ -6,7 +6,7 @@ uint256 constant BURNER_RESERVE = 20_000;
 
 /**
  * @title IUniversalSlasher
- * @dev Deprecated signatures:
+ * @dev Deprecated functions:
  *      latestSlashedCaptureTimestamp()
  *      resolverAt()
  *      resolver() (renamed)
@@ -14,7 +14,7 @@ uint256 constant BURNER_RESERVE = 20_000;
  *      cumulativeSlash()
  *      BURNER_GAS_LIMIT()
  *      BURNER_RESERVE()
- * @dev Removed signatures (due to internal-only usage):
+ * @dev Removed functions (due to internal-only usage):
  *      setDelegator()
  *      setSlasher()
  *      onSlash()

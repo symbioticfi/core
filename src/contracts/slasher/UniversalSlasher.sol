@@ -16,7 +16,7 @@ import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/slasher/IUniversalSlasher.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
@@ -147,7 +147,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     {
         unchecked {
             if (captureTimestamp == 0 || captureTimestamp >= __migrateTimestamp) {
-                return IUniversalDelegator(IVaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
+                return UniversalDelegator(IVaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
             } else {
                 if (
                     captureTimestamp < uint256(uint48(block.timestamp)).saturatingSub(IVault(vault).epochDuration())
@@ -235,8 +235,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                 uint48(block.timestamp), _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
             );
         } else {
-            IUniversalDelegator(IVault(vault).delegator())
-                .onSlash(request.subnetwork, request.operator, slashedAmount, request.createdAt, abi.encode(slashIndex));
+            UniversalDelegator(IVault(vault).delegator())
+                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
         }
 
         unchecked {

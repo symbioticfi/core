@@ -23,9 +23,9 @@ uint256 constant MAX_PLUGINS = 10;
 
 /**
  * @title IVault
- * @dev Deprecated signatures:
+ * @dev Deprecated functions:
  *      slashableBalanceOf()
- * @dev Removed signatures (due to internal-only usage):
+ * @dev Removed functions (due to internal-only usage):
  *      setDelegator()
  *      setSlasher()
  *      onSlash()
