@@ -637,7 +637,7 @@ contract UniversalDelegator is
                     revert NotEnoughAvailable();
                 }
             }
-            if (newSize - currentSize > IVaultV2(vault).pullable()) {
+            if (slot.noPlugins && newSize - currentSize > IVaultV2(vault).pullable()) {
                 revert NotEnoughNoPlugins();
             }
         } else {
@@ -828,13 +828,7 @@ contract UniversalDelegator is
         emit SetHook(hook_);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
-        public
-        nonReentrant
-    {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
         unchecked {
             if (msg.sender != IVault(vault).slasher()) {
                 revert NotSlasher();
