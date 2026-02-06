@@ -60,7 +60,7 @@ contract UniversalDelegatorTest is Test {
     using Subnetwork for address;
 
     uint48 internal constant EPOCH_DURATION = 3;
-    uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
+    uint128 internal constant MAX_AMOUNT = 1_000_000 ether;
     string internal constant VAULT_NAME = "Test";
     string internal constant VAULT_SYMBOL = "TEST";
     address internal constant DUMMY_NETWORK = address(0xdeAD00000000000000000000000000000000dEAd);
@@ -934,7 +934,7 @@ contract UniversalDelegatorTest is Test {
         testStruct.slashableBefore =
             slasher.slashableStake(testStruct.subnetwork1, testStruct.operator1, testStruct.captureTimestamp, "");
 
-        delegator.setSize(testStruct.networkSlot1, testStruct.cap1 - 1);
+        delegator.setSize(testStruct.networkSlot1, uint128(testStruct.cap1 - 1));
 
         testStruct.slashableAfter =
             slasher.slashableStake(testStruct.subnetwork1, testStruct.operator1, testStruct.captureTimestamp, "");
@@ -1000,7 +1000,7 @@ contract UniversalDelegatorTest is Test {
         uint256 slashableBefore =
             slasher.slashableStake(testStruct.subnetwork, testStruct.operator1, captureTimestamp, "");
 
-        delegator.setSize(opSlot1, cap1 - 1);
+        delegator.setSize(opSlot1, uint128(cap1 - 1));
 
         uint256 slashableAfter =
             slasher.slashableStake(testStruct.subnetwork, testStruct.operator1, captureTimestamp, "");
@@ -1265,15 +1265,15 @@ contract UniversalDelegatorTest is Test {
             address dummyOperator = address(uint160(DUMMY_OPERATOR_BASE) + dummyOperatorId);
             key = _operatorKey(dummyOperator);
         }
-        delegator.createSlot(key, parentIndex, isShared, false, size);
+        delegator.createSlot(key, parentIndex, isShared, false, uint128(size));
     }
 
     function _createNetworkSlot(uint96 parentIndex, bytes32 subnetwork, uint256 size) internal {
-        delegator.createSlot(subnetwork, parentIndex, false, false, size);
+        delegator.createSlot(subnetwork, parentIndex, false, false, uint128(size));
     }
 
     function _createOperatorSlot(uint96 parentIndex, address operator, uint256 size) internal {
-        delegator.createSlot(_operatorKey(operator), parentIndex, false, false, size);
+        delegator.createSlot(_operatorKey(operator), parentIndex, false, false, uint128(size));
     }
 
     function _operatorKey(address operator) internal pure returns (bytes32) {
@@ -1631,7 +1631,7 @@ contract UniversalDelegatorMigrationTest is Test {
         assertTrue(newDelegator != oldDelegator);
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
 
-        uint256 pending = IUniversalDelegator(newDelegator).getSlot(0).childrenPendingCumulative;
+        uint208 pending = IUniversalDelegator(newDelegator).getSlot(0).childrenPendingCumulative;
         assertEq(pending, type(uint128).max);
     }
 }

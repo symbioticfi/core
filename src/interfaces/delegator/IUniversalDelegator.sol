@@ -85,19 +85,12 @@ interface IUniversalDelegator {
         uint32 lastChild;
         bool isShared;
         bool noPlugins;
-        uint256 size;
-        uint256 prevSum;
-        uint256 childrenPendingCumulative;
+        uint128 size;
+        uint208 prevSum;
+        uint208 childrenPendingCumulative;
     }
 
-    event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint256 size);
-
-    /**
-     * @notice Emitted when a subnetwork's maximum limit is set.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param amount new maximum subnetwork's limit (how much stake the subnetwork is ready to get)
-     */
-    event SetMaxNetworkLimit(bytes32 indexed subnetwork, uint256 amount);
+    event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
 
     /**
      * @notice Emitted when a slash happens.
@@ -115,9 +108,7 @@ interface IUniversalDelegator {
 
     event SetIsShared(uint96 indexed index, bool isShared);
 
-    event SetSize(uint96 indexed index, uint256 size);
-
-    event SetShare(uint96 indexed index, uint256 share);
+    event SetSize(uint96 indexed index, uint128 size);
 
     event SwapSlots(uint96 indexed index1, uint96 indexed index2);
 
@@ -153,7 +144,7 @@ interface IUniversalDelegator {
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
      * @return maximum limit of the subnetwork
      */
-    function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256);
+    function maxNetworkLimit(bytes32 subnetwork) external pure returns (uint256);
 
     /**
      * @notice Get a stake that a given subnetwork could be able to slash for a certain operator at a given timestamp
@@ -210,7 +201,7 @@ interface IUniversalDelegator {
 
     function getWithdrawalBuffer() external view returns (uint256);
 
-    function getNoPluginsSize() external view returns (uint256);
+    function getNoPluginsSize() external view returns (uint208);
 
     function getSlot(uint96 index) external view returns (Slot memory);
 
@@ -271,11 +262,11 @@ interface IUniversalDelegator {
 
     function getIsNoPlugins(bytes32 subnetwork) external view returns (bool);
 
-    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint256 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
         external
         returns (uint96 index);
 
-    function setSize(uint96 index, uint256 size) external returns (uint256 pending);
+    function setSize(uint96 index, uint128 size) external returns (uint208 pending);
 
     function swapSlots(uint96 index1, uint96 index2) external;
 

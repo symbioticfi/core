@@ -37,9 +37,9 @@ contract UniversalDelegatorGasTest is Test {
     uint48 internal constant CAPTURE_OFFSET = 4;
     uint48 internal constant START_TIMESTAMP = 1000;
     uint256 internal constant SECOND_CALL_WARP = 12;
-    uint256 internal constant GROUP_SIZE = 3000 ether;
-    uint256 internal constant NETWORK_SIZE = 1000 ether;
-    uint256 internal constant OPERATOR_SIZE = 100 ether;
+    uint128 internal constant GROUP_SIZE = 3000 ether;
+    uint128 internal constant NETWORK_SIZE = 1000 ether;
+    uint128 internal constant OPERATOR_SIZE = 100 ether;
     uint256 internal constant DEPOSIT_AMOUNT = 9000 ether;
     string internal constant VAULT_NAME = "Test";
     string internal constant VAULT_SYMBOL = "TEST";
