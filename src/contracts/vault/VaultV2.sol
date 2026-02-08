@@ -23,9 +23,8 @@ import {
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    ADD_PLUGIN_ROLE,
-    REMOVE_PLUGIN_ROLE,
     SET_PLUGIN_LIMIT_ROLE,
+    ALLOCATE_PLUGIN_ROLE,
     MAX_FEE,
     MAX_PLUGINS
 } from "../../interfaces/vault/IVaultV2.sol";
@@ -593,6 +592,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     }
                     plugins.push(plugin);
                 }
+                _grantRole(ALLOCATE_PLUGIN_ROLE, plugin);
             }
             pendingPluginLimitData[plugin] = bytes32(uint256(newLimit) << 48 | (block.timestamp + pluginLimitSetDelay));
         } else {
@@ -624,7 +624,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function allocatePlugin(address plugin, uint256 amount) public nonReentrant returns (uint256 allocated) {
+    function allocatePlugin(address plugin, uint256 amount)
+        public
+        nonReentrant
+        onlyRole(ALLOCATE_PLUGIN_ROLE)
+        returns (uint256 allocated)
+    {
         unchecked {
             _revertIfZero(amount);
 
@@ -653,7 +658,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function deallocatePlugin(address plugin, uint256 amount) public nonReentrant returns (uint256 deallocated) {
+    function deallocatePlugin(address plugin, uint256 amount)
+        public
+        nonReentrant
+        onlyRole(ALLOCATE_PLUGIN_ROLE)
+        returns (uint256 deallocated)
+    {
         _revertIfZero(amount);
         deallocated = IPluginBase(plugin).deallocate(amount);
         collateral.safeTransferFrom(plugin, address(this), deallocated);
@@ -784,7 +794,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-        _grantRoleIfNotZero(ADD_PLUGIN_ROLE, params.setPluginLimitRoleHolder);
+        _grantRoleIfNotZero(SET_PLUGIN_LIMIT_ROLE, params.setPluginLimitRoleHolder);
+        _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, params.setPluginLimitRoleHolder);
 
         for (uint256 i; i < params.pluginsData.length; ++i) {
             address plugin = params.pluginsData[i].plugin;
