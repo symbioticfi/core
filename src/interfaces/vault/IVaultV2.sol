@@ -86,6 +86,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param isDepositLimitSetRoleHolder address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder
      * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
      * @param setPluginLimitRoleHolder address of the initial SET_PLUGIN_LIMIT_ROLE holder
+     * @param allocatePluginRoleHolder address of the initial ALLOCATE_PLUGIN_ROLE holder
      * @param pluginLimitSetDelay delay before a plugin becomes active
      * @param pluginsData initial plugin list
      */
@@ -104,6 +105,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
         address setPluginLimitRoleHolder;
+        address allocatePluginRoleHolder;
         uint48 pluginLimitSetDelay;
         PluginData[] pluginsData;
     }

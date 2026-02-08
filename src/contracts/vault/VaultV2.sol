@@ -795,7 +795,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
         _grantRoleIfNotZero(SET_PLUGIN_LIMIT_ROLE, params.setPluginLimitRoleHolder);
-        _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, params.setPluginLimitRoleHolder);
+        _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, params.allocatePluginRoleHolder);
 
         for (uint256 i; i < params.pluginsData.length; ++i) {
             address plugin = params.pluginsData[i].plugin;
