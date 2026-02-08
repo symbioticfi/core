@@ -113,27 +113,29 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
-    mapping(address plugin => uint48 value) public pluginActiveSince;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
     address[] public plugins;
 
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    uint256 public pluginsOwe;
+    mapping(address plugin => uint208 amount) internal _pluginLimit;
 
     /**
      * @inheritdoc IVaultV2Storage
      */
-    mapping(address plugin => uint256 amount) public pluginOwe;
+    mapping(address plugin => bytes32 value) public pendingPluginLimitData;
 
     /**
      * @inheritdoc IVaultV2Storage
      */
-    uint48 public pluginActiveDelay;
+    uint256 public pluginsAllocated;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    mapping(address plugin => uint256 amount) public pluginAllocated;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    uint48 public pluginLimitSetDelay;
 
     Checkpoints.Trace256 internal _withdrawalSharesCumulative;
 

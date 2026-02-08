@@ -12,7 +12,7 @@ import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IBasePlugin} from "../../interfaces/vault/IBasePlugin.sol";
+import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
@@ -25,6 +25,7 @@ import {
     DEPOSIT_LIMIT_SET_ROLE,
     ADD_PLUGIN_ROLE,
     REMOVE_PLUGIN_ROLE,
+    SET_PLUGIN_LIMIT_ROLE,
     MAX_FEE,
     MAX_PLUGINS
 } from "../../interfaces/vault/IVaultV2.sol";
@@ -214,8 +215,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function pullable() public view returns (uint256) {
-        return totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize()).saturatingSub(pluginsOwe);
+    function allocatable() public view returns (uint256) {
+        return
+            totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize())
+                .saturatingSub(pluginsAllocated);
     }
 
     /**
@@ -228,6 +231,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             if (onBehalfOf == address(0)) {
                 revert InvalidOnBehalfOf();
             }
@@ -269,17 +274,21 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         nonReentrant
         returns (uint256 burnedShares, uint256 mintedShares)
     {
-        if (claimer == address(0)) {
-            revert InvalidClaimer();
+        unchecked {
+            skimPlugins();
+
+            if (claimer == address(0)) {
+                revert InvalidClaimer();
+            }
+            if (amount == 0) {
+                revert InsufficientWithdrawal();
+            }
+            burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
+            if (burnedShares > activeSharesOf(msg.sender)) {
+                revert TooMuchWithdraw();
+            }
+            mintedShares = _withdraw(claimer, amount, burnedShares);
         }
-        if (amount == 0) {
-            revert InsufficientWithdrawal();
-        }
-        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
-        if (burnedShares > activeSharesOf(msg.sender)) {
-            revert TooMuchWithdraw();
-        }
-        mintedShares = _withdraw(claimer, amount, burnedShares);
     }
 
     /**
@@ -290,17 +299,22 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         nonReentrant
         returns (uint256 withdrawnAssets, uint256 mintedShares)
     {
-        if (claimer == address(0)) {
-            revert InvalidClaimer();
+        unchecked {
+
+            skimPlugins();
+
+            if (claimer == address(0)) {
+                revert InvalidClaimer();
+            }
+            if (shares > activeSharesOf(msg.sender)) {
+                revert TooMuchRedeem();
+            }
+            withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
+            if (withdrawnAssets == 0) {
+                revert InsufficientRedemption();
+            }
+            mintedShares = _withdraw(claimer, withdrawnAssets, shares);
         }
-        if (shares > activeSharesOf(msg.sender)) {
-            revert TooMuchRedeem();
-        }
-        withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
-        if (withdrawnAssets == 0) {
-            revert InsufficientRedemption();
-        }
-        mintedShares = _withdraw(claimer, withdrawnAssets, shares);
     }
 
     /**
@@ -393,7 +407,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount, bytes calldata hints)
+    function onSlash(uint256 amount, bytes calldata hint)
         public
         nonReentrant
         returns (uint256 slashedAmount, uint256 owed)
@@ -407,7 +421,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 lastWithdrawals = _withdrawals[lastBucket].latest();
             uint256 lastWithdrawalShares = _withdrawalShares[lastBucket].latest();
             uint256 unmaturedWithdrawalShares = _withdrawalSharesCumulative.latest()
-                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp), hints);
+                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp), hint);
             uint256 unmaturedWithdrawals = lastWithdrawalShares > 0
                 ? unmaturedWithdrawalShares.fullMulDivUnchecked(lastWithdrawals, lastWithdrawalShares)
                 : 0;
@@ -474,8 +488,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _withdrawalsOf[claimer].push(Withdrawal(false, unlockAfter, mintedShares));
             _withdrawalSharesCumulative.push(unlockAfter, _withdrawalSharesCumulative.latest() + mintedShares);
 
-            _pullPlugins();
-
             emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
             emit Transfer(msg.sender, address(0), burnedShares);
         }
@@ -527,48 +539,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function addPlugin(address plugin) public nonReentrant onlyRole(ADD_PLUGIN_ROLE) {
-        if (pluginActiveSince[plugin] > 0) {
-            revert AlreadySet();
-        }
-        unchecked {
-            if (plugins.length + 1 >= MAX_PLUGINS) {
-                revert TooManyPlugins();
-            }
-        }
-        plugins.push(plugin);
-        pluginActiveSince[plugin] = uint48(block.timestamp) + pluginActiveDelay;
-
-        emit AddPlugin(plugin);
-    }
-
-    /**
-     * @inheritdoc IVaultV2
-     */
-    function removePlugin(address plugin) public nonReentrant onlyRole(REMOVE_PLUGIN_ROLE) {
-        unchecked {
-            for (uint256 i; i < plugins.length; ++i) {
-                if (plugins[i] == plugin) {
-                    if (pluginOwe[plugin] > 0) {
-                        revert PluginOwe();
-                    }
-
-                    plugins[i] = plugins[plugins.length - 1];
-                    plugins.pop();
-                    pluginActiveSince[plugin] = 0;
-
-                    emit RemovePlugin(plugin);
-
-                    return;
-                }
-            }
-            revert AlreadySet();
-        }
-    }
-
-    /**
-     * @inheritdoc IVaultV2
-     */
     function flashLoan(address token, uint256 amount, bytes memory data) external nonReentrant {
         _revertIfZero(amount);
         uint256 fee = flashFee(token, amount);
@@ -599,40 +569,101 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function pull(uint256 amount) public nonReentrant returns (uint256 pulled) {
+    function pluginLimit(address plugin) public view returns (uint208) {
+        return uint48(uint256(pendingPluginLimitData[plugin])) == 0
+            || block.timestamp < uint48(uint256(pendingPluginLimitData[plugin]))
+            ? _pluginLimit[plugin]
+            : uint208(uint256(pendingPluginLimitData[plugin]) >> 48);
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
+        uint208 currentLimit = pluginLimit(plugin);
+        if (_pluginLimit[plugin] != currentLimit) {
+            _pluginLimit[plugin] = currentLimit;
+            pendingPluginLimitData[plugin] = 0;
+        }
+        if (newLimit > currentLimit) {
+            if (pendingPluginLimitData[plugin] == bytes32(0)) {
+                unchecked {
+                    if (plugins.length + 1 >= MAX_PLUGINS) {
+                        revert TooManyPlugins();
+                    }
+                    plugins.push(plugin);
+                }
+            }
+            pendingPluginLimitData[plugin] = bytes32(uint256(newLimit) << 48 | (block.timestamp + pluginLimitSetDelay));
+        } else {
+            if (pluginAllocated[plugin] > newLimit) {
+                revert PluginAllocated();
+            }
+            if (newLimit == 0) {
+                unchecked {
+                    uint256 nPlugins = plugins.length;
+                    for (uint256 i; i < nPlugins; ++i) {
+                        if (plugins[i] == plugin) {
+                            plugins[i] = plugins[nPlugins - 1];
+                            plugins.pop();
+                            break;
+                        }
+                        if (i == nPlugins - 1) {
+                            revert AlreadySet();
+                        }
+                    }
+                }
+            }
+            _pluginLimit[plugin] = newLimit;
+            pendingPluginLimitData[plugin] = 0;
+        }
+
+        emit SetPluginLimit(plugin, newLimit);
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function allocatePlugin(address plugin, uint256 amount) public nonReentrant returns (uint256 allocated) {
         unchecked {
             _revertIfZero(amount);
-            if (pluginActiveSince[msg.sender] < block.timestamp) {
-                revert PluginNotActive();
-            }
-            pulled = Math.min(amount, pullable());
 
-            pluginsOwe += pulled;
-            pluginOwe[msg.sender] += pulled;
+            allocated = Math.min(Math.min(amount, allocatable()), IPluginBase(plugin).allocatable());
 
-            uint256 balanceBefore = IERC20(collateral).balanceOf(msg.sender);
-            collateral.safeTransfer(msg.sender, pulled);
-            if (IERC20(collateral).balanceOf(msg.sender) - balanceBefore < pulled) {
-                revert FeeOnTransferNotSupported();
+            if (pluginAllocated[plugin] + allocated > pluginLimit(plugin)) {
+                revert LimitReached();
             }
 
-            emit Pull(msg.sender, pulled);
+            if (allocated > 0) {
+                pluginsAllocated += allocated;
+                pluginAllocated[msg.sender] += allocated;
+
+                uint256 balanceBefore = IERC20(collateral).balanceOf(msg.sender);
+                collateral.safeTransfer(msg.sender, allocated);
+                if (IERC20(collateral).balanceOf(msg.sender) - balanceBefore < allocated) {
+                    revert FeeOnTransferNotSupported();
+                }
+                IPluginBase(plugin).allocate(allocated);
+            }
+
+            emit Allocate(plugin, allocated);
         }
     }
 
     /**
      * @inheritdoc IVaultV2
      */
-    function push(uint256 amount) public nonReentrant {
+    function deallocatePlugin(address plugin, uint256 amount) public nonReentrant returns (uint256 deallocated) {
         _revertIfZero(amount);
-        collateral.safeTransferFrom(msg.sender, address(this), amount);
+        deallocated = IPluginBase(plugin).deallocate(amount);
+        collateral.safeTransferFrom(plugin, address(this), deallocated);
 
-        pluginOwe[msg.sender] -= amount;
+        pluginAllocated[plugin] -= deallocated;
         unchecked {
-            pluginsOwe -= amount;
+            pluginsAllocated -= deallocated;
         }
 
-        emit Push(msg.sender, amount);
+        emit Deallocate(plugin, deallocated);
     }
 
     // @dev Internal dev function to handle owed slashing.
@@ -664,19 +695,30 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* * INTERNAL FUNCTIONS * */
 
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function skimPlugins() public {
+        unchecked {
+            for (uint256 i; i < plugins.length; ++i) {
+                IPluginBase(plugins[i]).skim(address(this));
+            }
+        }
+    }
+
     /// @dev first plugins in the list are pulled first
     function _pullPlugins() internal {
         unchecked {
-            uint256 toPull = pluginsOwe.saturatingSub(totalStake());
+            uint256 toPull = pluginsAllocated.saturatingSub(totalStake());
             if (toPull > 0) {
                 for (uint256 i; i < plugins.length; ++i) {
                     address plugin = plugins[i];
-                    uint256 pluginOwe_ = pluginOwe[plugin];
-                    if (pluginOwe_ > 0) {
-                        uint256 pulled = IBasePlugin(plugin).pull(Math.min(pluginOwe_, toPull));
+                    uint256 pluginAllocated_ = pluginAllocated[plugin];
+                    if (pluginAllocated_ > 0) {
+                        uint256 pulled = IPluginBase(plugin).deallocate(Math.min(pluginAllocated_, toPull));
                         if (pulled > 0) {
-                            pluginOwe[plugin] = pluginOwe_ - pulled;
-                            pluginsOwe -= pulled;
+                            pluginAllocated[plugin] = pluginAllocated_ - pulled;
+                            pluginsAllocated -= pulled;
                             toPull -= pulled;
                             if (toPull == 0) {
                                 break;
@@ -718,7 +760,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert InvalidEpochDuration();
         }
 
-        if (params.pluginActiveDelay <= params.epochDuration) {
+        if (params.pluginLimitSetDelay <= params.epochDuration) {
             revert InvalidPluginActiveDelay();
         }
 
@@ -735,23 +777,23 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
 
-        pluginActiveDelay = params.pluginActiveDelay;
+        pluginLimitSetDelay = params.pluginLimitSetDelay;
 
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
         _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-        _grantRoleIfNotZero(ADD_PLUGIN_ROLE, params.addPluginRoleHolder);
-        _grantRoleIfNotZero(REMOVE_PLUGIN_ROLE, params.removePluginRoleHolder);
+        _grantRoleIfNotZero(ADD_PLUGIN_ROLE, params.setPluginLimitRoleHolder);
 
-        for (uint256 i; i < params.plugins.length; ++i) {
-            address plugin = params.plugins[i];
-            if (pluginActiveSince[plugin] > 0) {
-                revert PluginAlreadyAdded();
+        for (uint256 i; i < params.pluginsData.length; ++i) {
+            address plugin = params.pluginsData[i].plugin;
+            uint208 limit = params.pluginsData[i].limit;
+            if (limit == 0 || _pluginLimit[plugin] > 0) {
+                revert InvalidPlugin();
             }
             plugins.push(plugin);
-            pluginActiveSince[plugin] = uint48(block.timestamp);
+            _pluginLimit[plugin] = limit;
         }
 
         emit Initialize(params);

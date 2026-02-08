@@ -214,6 +214,8 @@ interface IUniversalSlasher {
      */
     function resolver(bytes32 subnetwork) external view returns (address);
 
+    // TODO: add pending
+
     /**
      * @notice Request a slash using a subnetwork for a particular operator by a given amount using hints.
      * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)

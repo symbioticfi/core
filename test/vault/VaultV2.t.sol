@@ -2840,7 +2840,7 @@ contract VaultV2Test is Test {
 
         _grantRemovePluginRole(alice, alice);
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.PluginOwe.selector);
+        vm.expectRevert(IVaultV2.PluginAllocated.selector);
         VaultV2(address(vault)).removePlugin(address(plugin));
         vm.stopPrank();
     }
@@ -2855,22 +2855,22 @@ contract VaultV2Test is Test {
         vm.prank(address(plugin));
         uint256 pulled = vault.pull(80);
         assertEq(pulled, 80);
-        assertEq(vault.pluginsOwe(), 80);
-        assertEq(vault.pluginOwe(address(plugin)), 80);
+        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
 
         vm.prank(address(plugin));
         pulled = vault.pull(50);
         assertEq(pulled, 20);
-        assertEq(vault.pluginsOwe(), 100);
-        assertEq(vault.pluginOwe(address(plugin)), 100);
+        assertEq(vault.pluginsAllocated(), 100);
+        assertEq(vault.pluginAllocated(address(plugin)), 100);
 
         vm.startPrank(address(plugin));
         collateral.approve(address(vault), 30);
         vault.push(30);
         vm.stopPrank();
 
-        assertEq(vault.pluginsOwe(), 70);
-        assertEq(vault.pluginOwe(address(plugin)), 70);
+        assertEq(vault.pluginsAllocated(), 70);
+        assertEq(vault.pluginAllocated(address(plugin)), 70);
     }
 
     function test_PullPlugins_duringWithdrawKeepsOwed() public {
@@ -2885,8 +2885,8 @@ contract VaultV2Test is Test {
 
         _withdraw(alice, 10);
 
-        assertEq(vault.pluginOwe(address(plugin)), 50);
-        assertEq(vault.pluginsOwe(), 50);
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.pluginsAllocated(), 50);
     }
 
     function test_OnSlash_returnsOwedWhenPluginsShort() public {
@@ -2914,7 +2914,7 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 40);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
-        assertEq(vault.pluginOwe(address(plugin)), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
     }
 
     function test_SyncOwedSlash_respectsUnclaimed() public {
@@ -2992,7 +2992,7 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 30);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 30);
-        assertEq(vault.pluginOwe(address(plugin)), 40);
+        assertEq(vault.pluginAllocated(address(plugin)), 40);
     }
 
     function _latestWithdrawalBucket() internal view returns (uint256) {

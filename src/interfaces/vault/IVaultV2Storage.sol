@@ -57,7 +57,7 @@ interface IVaultV2Storage {
      * @notice Get a duration before a plugin becomes active.
      * @return delay before a plugin becomes active
      */
-    function pluginActiveDelay() external view returns (uint48);
+    function pluginLimitSetDelay() external view returns (uint48);
 
     /**
      * @notice Get if the deposit whitelist is enabled.
@@ -173,18 +173,13 @@ interface IVaultV2Storage {
      */
     function withdrawalsLength(address account) external view returns (uint256);
 
-    /**
-     * @notice Get when the plugin became active.
-     * @param plugin address of the plugin
-     * @return when the plugin became active
-     */
-    function pluginActiveSince(address plugin) external view returns (uint48);
+    function pendingPluginLimitData(address plugin) external view returns (bytes32);
 
     function plugins(uint256 index) external view returns (address);
 
     function pluginsLength() external view returns (uint256);
 
-    function pluginsOwe() external view returns (uint256);
+    function pluginsAllocated() external view returns (uint256);
 
-    function pluginOwe(address plugin) external view returns (uint256);
+    function pluginAllocated(address plugin) external view returns (uint256);
 }

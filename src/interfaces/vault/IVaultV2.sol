@@ -16,6 +16,8 @@ bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f631
 bytes32 constant ADD_PLUGIN_ROLE = 0xe892b5eafc9a41e0778f661cf4043d6dd99f846b637fc10a9b9f8941ca8452b0;
 // keccak256("REMOVE_PLUGIN_ROLE")
 bytes32 constant REMOVE_PLUGIN_ROLE = 0x7c5f59c85a6ad767b49bc5c11743f68b11dd77e30a01804afdadaf2bda250e73;
+// keccak256("SET_PLUGIN_LIMIT_ROLE")
+bytes32 constant SET_PLUGIN_LIMIT_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
 
 uint256 constant MAX_FEE = 1_000_000;
 
@@ -60,14 +62,15 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error WithdrawalNotMatured();
     error PluginNotActive();
     error FeeOnTransferNotSupported();
-    error PluginAlreadyAdded();
-    error PluginOwe();
+    error InvalidPlugin();
+    error PluginAllocated();
     error UnsupportedToken();
     error MaxLoanExceeded();
     error InvalidReceiver();
     error InvalidReturnAmount();
     error InsufficientBalance();
     error TooManyPlugins();
+    error LimitReached();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -84,10 +87,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param depositorWhitelistRoleHolder address of the initial DEPOSITOR_WHITELIST_ROLE holder
      * @param isDepositLimitSetRoleHolder address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder
      * @param depositLimitSetRoleHolder address of the initial DEPOSIT_LIMIT_SET_ROLE holder
-     * @param addPluginRoleHolder address of the initial ADD_PLUGIN_ROLE holder
-     * @param removePluginRoleHolder address of the initial REMOVE_PLUGIN_ROLE holder
-     * @param pluginActiveDelay delay before a plugin becomes active
-     * @param plugins initial plugin list
+     * @param setPluginLimitRoleHolder address of the initial SET_PLUGIN_LIMIT_ROLE holder
+     * @param pluginLimitSetDelay delay before a plugin becomes active
+     * @param pluginsData initial plugin list
      */
     struct InitParams {
         string name;
@@ -103,10 +105,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
-        address addPluginRoleHolder;
-        address removePluginRoleHolder;
-        uint48 pluginActiveDelay;
-        address[] plugins;
+        address setPluginLimitRoleHolder;
+        uint48 pluginLimitSetDelay;
+        PluginData[] pluginsData;
     }
 
     /**
@@ -121,6 +122,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         string symbol;
         bytes delegatorParams;
         bytes slasherParams;
+    }
+
+    struct PluginData {
+        address plugin;
+        uint208 limit;
     }
 
     /**
@@ -197,30 +203,25 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     event SetDepositLimit(uint256 limit);
 
     /**
-     * @notice Emitted when a plugin is added.
-     * @param plugin address of the plugin
-     */
-    event AddPlugin(address indexed plugin);
-
-    /**
-     * @notice Emitted when a plugin is removed.
-     * @param plugin address of the plugin
-     */
-    event RemovePlugin(address indexed plugin);
-
-    /**
      * @notice Emitted when collateral is pulled from the vault.
      * @param plugin address of the plugin
      * @param amount amount of the collateral pulled
      */
-    event Pull(address indexed plugin, uint256 amount);
+    event Deallocate(address indexed plugin, uint256 amount);
 
     /**
      * @notice Emitted when collateral is pushed to the vault.
      * @param plugin address of the plugin
      * @param amount amount of the collateral pushed
      */
-    event Push(address indexed plugin, uint256 amount);
+    event Allocate(address indexed plugin, uint256 amount);
+
+    /**
+     * @notice Emitted when a limit is set.
+     * @param plugin address of the plugin
+     * @param limit limit of the plugin
+     */
+    event SetPluginLimit(address indexed plugin, uint208 limit);
 
     /**
      * @notice Emitted when a delegator is set.
@@ -344,7 +345,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Get a total amount of the collateral that can be pulled.
      * @return total amount of the collateral that can be pulled
      */
-    function pullable() external view returns (uint256);
+    function allocatable() external view returns (uint256);
+
+    function pluginLimit(address plugin) external view returns (uint208);
 
     /**
      * @notice Deposit collateral into the vault.
@@ -429,32 +432,28 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function setDepositLimit(uint256 limit) external;
 
     /**
-     * @notice Add a plugin.
+     * @notice Set a plugin limit.
      * @param plugin address of the plugin
-     * @dev Only a ADD_PLUGIN_ROLE holder can call this function.
+     * @param limit limit of the plugin
+     * @dev Only a SET_PLUGIN_LIMIT_ROLE holder can call this function.
      */
-    function addPlugin(address plugin) external;
+    function setPluginLimit(address plugin, uint208 limit) external;
 
     /**
-     * @notice Remove a plugin.
-     * @param plugin address of the plugin
-     * @dev Only a REMOVE_PLUGIN_ROLE holder can call this function.
-     */
-    function removePlugin(address plugin) external;
-
-    /**
-     * @notice Pull collateral from the vault.
-     * @param amount amount of the collateral to pull
+     * @notice Allocate collateral to the plugin.
+     * @param amount amount of the collateral to allocatePlugin
      * @dev Only a plugin can call this function.
      */
-    function pull(uint256 amount) external returns (uint256 pulled);
+    function allocatePlugin(address plugin, uint256 amount) external returns (uint256 allocated);
 
     /**
-     * @notice Push collateral to the vault.
-     * @param amount amount of the collateral to push
+     * @notice Deallocate collateral from the plugin.
+     * @param amount amount of the collateral to deallocatePlugin
      * @dev Only a plugin can call this function.
      */
-    function push(uint256 amount) external;
+    function deallocatePlugin(address plugin, uint256 amount) external returns (uint256 deallocated);
+
+    function skimPlugins() external;
 
     /**
      * @notice Flash loan collateral from the vault.

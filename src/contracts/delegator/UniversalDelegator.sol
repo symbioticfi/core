@@ -589,7 +589,7 @@ contract UniversalDelegator is
             slots[index].nextSlot = WITHDRAWAL_BUFFER_CHILD_INDEX;
             slot.isShared = isShared;
             if (noPlugins) {
-                if (size > IVaultV2(vault).pullable()) {
+                if (size > IVaultV2(vault).allocatable()) {
                     revert NotEnoughNoPlugins();
                 }
                 slot.noPlugins = true;
@@ -637,7 +637,7 @@ contract UniversalDelegator is
                     revert NotEnoughAvailable();
                 }
             }
-            if (slot.noPlugins && newSize - currentSize > IVaultV2(vault).pullable()) {
+            if (slot.noPlugins && newSize - currentSize > IVaultV2(vault).allocatable()) {
                 revert NotEnoughNoPlugins();
             }
         } else {

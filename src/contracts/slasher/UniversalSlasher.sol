@@ -66,7 +66,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     mapping(bytes32 subnetwork => address value) internal _resolver;
 
-    mapping(bytes32 subnetwork => uint256 value) public pendingResolverData;
+    mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
 
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) internal __latestSlashedCaptureTimestamp;
 
@@ -132,9 +132,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
      * @inheritdoc IUniversalSlasher
      */
     function resolver(bytes32 subnetwork) public view returns (address) {
-        return uint48(pendingResolverData[subnetwork]) == 0 || block.timestamp < uint48(pendingResolverData[subnetwork])
+        return uint48(uint256(pendingResolverData[subnetwork])) == 0
+            || block.timestamp < uint48(uint256(pendingResolverData[subnetwork]))
             ? _resolver[subnetwork]
-            : address(uint160(pendingResolverData[subnetwork] >> 48));
+            : address(uint160(uint256(pendingResolverData[subnetwork]) >> 48));
     }
 
     /**
@@ -229,14 +230,14 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         _slashRequests[slashIndex].completed = true;
 
-        if (request.createdAt < __migrateTimestamp) {
+        if (request.createdAt >= __migrateTimestamp) {
+            UniversalDelegator(IVault(vault).delegator())
+                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
+        } else {
             __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;
             __cumulativeSlash[request.subnetwork][request.operator].push(
                 uint48(block.timestamp), _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
             );
-        } else {
-            UniversalDelegator(IVault(vault).delegator())
-                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
         }
 
         unchecked {
@@ -296,7 +297,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         if (_resolver[subnetwork] == address(0)) {
             _resolver[subnetwork] = newResolver;
         } else {
-            pendingResolverData[subnetwork] = uint256(uint160(newResolver)) << 48 | (block.timestamp + resolverSetDelay);
+            pendingResolverData[subnetwork] =
+                bytes32(uint256(uint160(newResolver)) << 48 | (block.timestamp + resolverSetDelay));
         }
 
         emit SetResolver(subnetwork, newResolver);
