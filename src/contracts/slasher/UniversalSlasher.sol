@@ -240,15 +240,15 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             );
         }
 
+        uint256 owed_;
         unchecked {
-            uint256 owed_;
             (slashedAmount, owed_) = VaultV2(vault).onSlash(slashedAmount, hint);
             if (owed_ > 0) {
                 owed[request.subnetwork][request.operator] += owed_;
             }
         }
 
-        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount);
+        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount - owed_);
 
         emit ExecuteSlash(slashIndex, slashedAmount);
     }

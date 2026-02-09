@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 /**
  * @title IVaultStorage
- * @dev Deprecated signatures:
+ * @dev Removed signatures:
  *      epochDurationInit()
  *      epochAt(uint48)
  *      currentEpoch()
@@ -127,6 +127,12 @@ interface IVaultV2Storage {
      * @return number of active shares for the account
      */
     function activeSharesOf(address account) external view returns (uint256);
+
+    /**
+     * @notice Get a index of the last withdrawal bucket.
+     * @return index of the last withdrawal bucket
+     */
+    function withdrawalBucket() external view returns (uint208);
 
     /**
      * @notice Get a total amount of the withdrawals at a given bucket index.

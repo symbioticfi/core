@@ -110,6 +110,17 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     mapping(uint256 bucketIndex => Checkpoints.Trace256 withdrawals) internal _withdrawals;
 
+    Checkpoints.Trace208 internal _unlockToBucket;
+
+    Checkpoints.Trace256 internal _withdrawalSharesCumulative;
+
+    int256 internal _unclaimedRaw;
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
+    uint48 public pluginLimitSetDelay;
+
     /**
      * @inheritdoc IVaultV2Storage
      */
@@ -131,17 +142,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      * @inheritdoc IVaultV2Storage
      */
     mapping(address plugin => uint256 amount) public pluginAllocated;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    uint48 public pluginLimitSetDelay;
-
-    Checkpoints.Trace256 internal _withdrawalSharesCumulative;
-
-    Checkpoints.Trace208 internal _unlockToBucket;
-
-    int256 internal _unclaimedRaw;
 
     constructor(address delegatorFactory, address slasherFactory) {
         DELEGATOR_FACTORY = delegatorFactory;
@@ -193,7 +193,13 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
-    // TODO: remove this func?
+    function withdrawalBucket() public view returns (uint208) {
+        return _unlockToBucket.latest();
+    }
+
+    /**
+     * @inheritdoc IVaultV2Storage
+     */
     function withdrawalShares(uint256 index) public view returns (uint256) {
         return _withdrawalShares[index].latest();
     }
@@ -201,7 +207,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
-    // TODO: remove this func?
     function withdrawals(uint256 index) public view returns (uint256) {
         return _withdrawals[index].latest();
     }
@@ -238,5 +243,5 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
         return plugins.length;
     }
 
-    uint256[39] internal __gap;
+    uint256[38] internal __gap;
 }

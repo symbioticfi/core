@@ -16,6 +16,8 @@ bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f631
 bytes32 constant SET_PLUGIN_LIMIT_ROLE = 0xe0bdc9c1c8c2e75dc2012527eb0fa05a8dda38297bc81683ecb9055988877100;
 // keccak256("ALLOCATE_PLUGIN_ROLE")
 bytes32 constant ALLOCATE_PLUGIN_ROLE = 0x519cc70d51fcfd11b60dc29f6c85e08207d46a64951561c68760c7dbedf611dc;
+// keccak256("DEALLOCATE_PLUGIN_ROLE")
+bytes32 constant DEALLOCATE_PLUGIN_ROLE = 0x2228e59f6ee6ff4b08702cdeaa6118d05e883f4b7df19c7053169d4e74afd4be;
 
 uint256 constant MAX_FEE = 1_000_000;
 
@@ -39,7 +41,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InsufficientAmount();
     error InsufficientRedemption();
     error InsufficientWithdrawal();
-    error InvalidAccount();
+    error InvalidAddress();
     error InvalidCaptureEpoch();
     error InvalidClaimer();
     error InvalidCollateral();
@@ -60,7 +62,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error WithdrawalNotMatured();
     error PluginNotActive();
     error FeeOnTransferNotSupported();
-    error InvalidPlugin();
+    error DuplicatePlugin();
     error PluginAllocated();
     error UnsupportedToken();
     error MaxLoanExceeded();
@@ -382,9 +384,10 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Instant withdraw collateral from the vault.
      * @param recipient account that received the collateral
      * @param amount amount of the collateral withdrawn
-     * @return burnedShares amount of the active shares burned
      */
-    function instantWithdraw(address recipient, uint256 amount) external returns (uint256 burnedShares);
+    function instantWithdraw(address recipient, uint256 amount)
+        external
+        returns (uint256 withdrawnAssets, uint256 burnedShares);
 
     /**
      * @notice Claim collateral from the vault.
@@ -454,6 +457,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function deallocatePlugin(address plugin, uint256 amount) external returns (uint256 deallocated);
 
     function skimPlugins() external;
+
+    function deallocatePlugins() external;
 
     /**
      * @notice Flash loan collateral from the vault.
