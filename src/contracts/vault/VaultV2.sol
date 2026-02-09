@@ -252,6 +252,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
             emit Transfer(address(0), onBehalfOf, mintedShares);
+
+            // allocate only non-fee-on-transfer tokens
+            if (depositedAmount == amount && plugins.length > 0) {
+                _allocatePlugin(plugins[0], depositedAmount);
+            }
         }
     }
 
@@ -566,6 +571,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         onlyRole(ALLOCATE_PLUGIN_ROLE)
         returns (uint256 allocated)
     {
+        return _allocatePlugin(plugin, amount);
+    }
+
+    function _allocatePlugin(address plugin, uint256 amount) internal returns (uint256 allocated) {
         unchecked {
             allocated = Math.min(
                 Math.min(Math.min(amount, pluginLimit[plugin]), allocatable()), IPluginBase(plugin).allocatable()
@@ -592,13 +601,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function deallocatePlugin(address plugin, uint256 amount)
         public
+        nonReentrant
         onlyRole(DEALLOCATE_PLUGIN_ROLE)
         returns (uint256)
     {
         return _deallocatePlugin(plugin, amount);
     }
 
-    function _deallocatePlugin(address plugin, uint256 amount) internal nonReentrant returns (uint256 deallocated) {
+    function _deallocatePlugin(address plugin, uint256 amount) internal returns (uint256 deallocated) {
         deallocated = IPluginBase(plugin).deallocate(amount);
         if (deallocated > 0) {
             collateral.safeTransferFrom(plugin, address(this), deallocated);
@@ -649,7 +659,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function deallocatePlugins() public {
+    function deallocatePlugins() public nonReentrant {
         unchecked {
             uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
             if (toDeallocate > 0) {
