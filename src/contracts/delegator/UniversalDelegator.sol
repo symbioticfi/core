@@ -74,6 +74,7 @@ contract UniversalDelegator is
     mapping(uint96 index => address operator) internal _slotToOperator;
     mapping(uint96 index => Checkpoints.Trace208 amount) internal _cumulativeSlash;
     Checkpoints.Trace208 internal _noPluginsPendingCumulative;
+    Checkpoints.Trace208 internal _clearedNoPluginsPendingCumulative;
 
     uint48 internal __migrateTimestamp;
     address internal __oldDelegator;
@@ -279,6 +280,22 @@ contract UniversalDelegator is
                     .saturatingSub(
                         slot.clearedPendingCumulative.latest()
                             - slot.clearedPendingCumulative.upperLookupRecent(fromTimestamp)
+                    )
+            );
+        }
+    }
+
+    function _getNoPluginsPending() internal view returns (uint208) {
+        unchecked {
+            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
+            return uint208(
+                uint256(
+                        _noPluginsPendingCumulative.latest()
+                            - _noPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
+                    )
+                    .saturatingSub(
+                        _clearedNoPluginsPendingCumulative.latest()
+                            - _clearedNoPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
                     )
             );
         }
@@ -527,10 +544,7 @@ contract UniversalDelegator is
     }
 
     function getNoPluginsSize() public view returns (uint208) {
-        return _noPluginsSize + _noPluginsPendingCumulative.latest()
-            - _noPluginsPendingCumulative.upperLookupRecent(
-            uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration()))
-        );
+        return _noPluginsSize + _getNoPluginsPending();
     }
 
     function getWithdrawalBuffer() public view returns (uint256) {
@@ -665,8 +679,6 @@ contract UniversalDelegator is
             }
         }
 
-        // TODO: need to
-
         emit SetSize(index, newSize);
     }
 
@@ -778,43 +790,54 @@ contract UniversalDelegator is
     /* NETWORK FUNCTIONS */
 
     function resetAllocation(bytes32 subnetwork) public {
-        if (
-            !IRegistry(NETWORK_REGISTRY).isEntity(subnetwork.network())
-                || (subnetwork.network() != msg.sender
-                    && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network())
-                        != msg.sender)
-        ) {
-            revert NotNetworkOrMiddleware();
-        }
+        unchecked {
+            if (
+                !IRegistry(NETWORK_REGISTRY).isEntity(subnetwork.network())
+                    || (subnetwork.network() != msg.sender
+                        && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network())
+                            != msg.sender)
+            ) {
+                revert NotNetworkOrMiddleware();
+            }
 
-        uint96 index = getSlotOfNetwork(subnetwork);
-        if (index == 0) {
-            revert NotAssigned();
-        }
-        if (slots[index.getParentIndex()].numChildren == 1) {
-            index = index.getParentIndex();
-        }
+            uint96 index = getSlotOfNetwork(subnetwork);
+            if (index == 0) {
+                revert NotAssigned();
+            }
+            if (slots[index.getParentIndex()].numChildren == 1) {
+                index = index.getParentIndex();
+            }
+            SlotStorage storage slot = slots[index];
+            SlotStorage storage parent = slots[index.getParentIndex()];
 
-        SlotStorage storage slot = slots[index];
-        SlotStorage storage parent = slots[index.getParentIndex()];
-        uint208 pending = getPending(index, 0);
-        if (pending > 0) {
-            parent.clearedChildrenPendingCumulative
-                .push(uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pending);
-        }
-        if (slot.size.latest() > 0) {
-            slot.size.push(uint48(block.timestamp), 0);
-            parent.needPrevSumsSync = true;
+            // clear pending for slot
+            uint208 pending = getPending(index, 0);
+            if (pending > 0) {
+                parent.clearedChildrenPendingCumulative
+                    .push(uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pending);
+            }
+            // clear pending for plugins' utilization
             if (slot.noPlugins) {
-                unchecked {
-                    // TODO: ideally also update pending for this
+                uint208 noPluginsPending = _getNoPluginsPending();
+                if (noPluginsPending > 0) {
+                    _clearedNoPluginsPendingCumulative.push(
+                        uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + noPluginsPending
+                    );
+                }
+            }
+            // clear slot's size
+            if (slot.size.latest() > 0) {
+                slot.size.push(uint48(block.timestamp), 0);
+                parent.needPrevSumsSync = true;
+                if (slot.noPlugins) {
                     _noPluginsSize -= slot.size.latest();
                 }
             }
-        }
-        _removeSlot(index);
+            // remove slot to restrict from slashing
+            _removeSlot(index);
 
-        emit ResetAllocation(index, subnetwork);
+            emit ResetAllocation(index, subnetwork);
+        }
     }
 
     /* BASE DELEGATOR FUNCTIONS */
@@ -850,26 +873,34 @@ contract UniversalDelegator is
                 revert NotSlasher();
             }
 
+            // adjust slot's and its parents' allocations
             for (uint96 currentIndex = getSlotOf(subnetwork, operator); currentIndex > 0;) {
-                SlotStorage storage currentSlot = slots[currentIndex];
+                SlotStorage storage slot = slots[currentIndex];
                 uint208 pendingSlashed = uint208(Math.min(getPending(currentIndex, 0), amount));
                 if (pendingSlashed > 0) {
-                    currentSlot.clearedPendingCumulative
-                        .push(uint48(block.timestamp), currentSlot.clearedPendingCumulative.latest() + pendingSlashed);
+                    slot.clearedPendingCumulative
+                        .push(uint48(block.timestamp), slot.clearedPendingCumulative.latest() + pendingSlashed);
                     slots[currentIndex.getParentIndex()].clearedChildrenPendingCumulative
                         .push(
                             uint48(block.timestamp),
                             slots[currentIndex.getParentIndex()].clearedChildrenPendingCumulative.latest()
                                 + pendingSlashed
                         );
+                    if (slot.noPlugins) {
+                        _clearedNoPluginsPendingCumulative.push(
+                            uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pendingSlashed
+                        );
+                    }
                 }
-                uint128 sizeSlashed = uint128(Math.min(currentSlot.size.latest(), amount - pendingSlashed));
+                uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
                 if (sizeSlashed > 0) {
-                    currentSlot.size.push(uint48(block.timestamp), currentSlot.size.latest() - sizeSlashed);
+                    slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
                     slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
                 }
                 currentIndex = currentIndex.getParentIndex();
             }
+
+            // make a call to the custom hook
             address hook_ = hook;
             if (hook_ != address(0)) {
                 bytes memory calldata_ = abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, data));
