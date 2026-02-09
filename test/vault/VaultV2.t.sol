@@ -2575,6 +2575,65 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.isWithdrawalsClaimed(1, alice), true);
     }
 
+    function test_MigrateWithdrawals_LegacyBucketAndInsufficientWithdrawal() public {
+        uint48 epochDuration = 10;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVaultV2(address(vaultV1));
+
+        _deposit(bob, 500);
+        _withdraw(bob, 100);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+        _withdraw(bob, 60);
+
+        uint256 migrateTimestamp = blockTimestamp + 2 * epochDuration + epochDuration / 2;
+        vm.warp(migrateTimestamp);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+
+        vm.expectRevert(MigratorV1V2.InsufficientWithdrawal.selector);
+        vaultV2.migrateWithdrawalOf(alice, 77);
+
+        assertEq(vaultV2.withdrawals(0), 0);
+        assertEq(vaultV2.withdrawalShares(0), 0);
+
+        vm.warp(blockTimestamp + 1);
+        uint48 expectedUnlockAfter = uint48(blockTimestamp + 1 + epochDuration);
+        vaultV2.migrateWithdrawalOf(bob, 1);
+
+        assertEq(vaultV2.withdrawalsLength(bob), 1);
+        assertEq(vaultV2.withdrawalUnlockAfter(0, bob), expectedUnlockAfter);
+        assertGt(vaultV2.withdrawalSharesOf(0, bob), 0);
+        assertGt(vaultV2.withdrawals(0), 0);
+        assertGt(vaultV2.withdrawalShares(0), 0);
+
+        (uint48 bucketKey, uint208 bucketValue) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 0);
+        assertEq(bucketKey, expectedUnlockAfter);
+        assertEq(bucketValue, 0);
+    }
+
     function test_OnSlashRevertNotSlasher() public {
         uint48 epochDuration = 1;
 
