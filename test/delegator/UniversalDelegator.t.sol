@@ -45,7 +45,7 @@ import {
     SWAP_SLOTS_ROLE,
     REMOVE_SLOT_ROLE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHook.sol";
+import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookV2.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";

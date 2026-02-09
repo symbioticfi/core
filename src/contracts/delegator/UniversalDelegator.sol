@@ -9,7 +9,7 @@ import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
+import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHookV2.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";

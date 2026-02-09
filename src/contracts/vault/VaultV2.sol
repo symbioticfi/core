@@ -9,7 +9,7 @@ import {VaultV2Storage} from "./VaultV2Storage.sol";
 
 import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
 import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
-import {ERC4626Math} from "../libraries/ERC4626Math.sol";
+import {ERC4626Math} from "../libraries/ERC4626MathV2.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";

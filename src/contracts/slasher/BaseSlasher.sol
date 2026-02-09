@@ -12,17 +12,15 @@ import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-
-import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
-    using Math for uint256;
 
     /**
      * @inheritdoc IBaseSlasher
@@ -34,8 +32,15 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
      */
     uint256 public constant BURNER_RESERVE = 20_000;
 
-    address internal immutable VAULT_FACTORY;
-    address internal immutable NETWORK_MIDDLEWARE_SERVICE;
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    address public immutable VAULT_FACTORY;
+
+    /**
+     * @inheritdoc IBaseSlasher
+     */
+    address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
      * @inheritdoc IBaseSlasher
@@ -73,7 +78,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
         public
         view
-        virtual
         returns (uint256)
     {
         return _cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp, hint);
@@ -82,7 +86,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     /**
      * @inheritdoc IBaseSlasher
      */
-    function cumulativeSlash(bytes32 subnetwork, address operator) public view virtual returns (uint256) {
+    function cumulativeSlash(bytes32 subnetwork, address operator) public view returns (uint256) {
         return _cumulativeSlash[subnetwork][operator].latest();
     }
 
@@ -97,20 +101,9 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         (amount,) = _slashableStake(subnetwork, operator, captureTimestamp, hints);
     }
 
-    function _stake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
-        internal
-        view
-        virtual
-        returns (uint256)
-    {
-        return
-            IUniversalDelegator(IVault(vault).delegator()).stakeForAt(subnetwork, operator, 0, captureTimestamp, hints);
-    }
-
     function _slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
         internal
         view
-        virtual
         returns (uint256 slashableStake_, uint256 stakeAmount)
     {
         SlashableStakeHints memory slashableStakeHints;
@@ -119,14 +112,14 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         }
 
         if (
-            captureTimestamp < uint256(uint48(block.timestamp)).saturatingSub(IVault(vault).epochDuration())
-                || captureTimestamp >= uint48(block.timestamp)
+            captureTimestamp < Time.timestamp() - IVault(vault).epochDuration() || captureTimestamp >= Time.timestamp()
                 || captureTimestamp < latestSlashedCaptureTimestamp[subnetwork][operator]
         ) {
             return (0, 0);
         }
 
-        stakeAmount = _stake(subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints);
+        stakeAmount = IBaseDelegator(IVault(vault).delegator())
+            .stakeAt(subnetwork, operator, captureTimestamp, slashableStakeHints.stakeHints);
         slashableStake_ = stakeAmount
             - Math.min(
                 cumulativeSlash(subnetwork, operator)
@@ -152,9 +145,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
     }
 
     function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
-        _cumulativeSlash[subnetwork][operator].push(
-            uint48(block.timestamp), cumulativeSlash(subnetwork, operator) + amount
-        );
+        _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
     }
 
     function _delegatorOnSlash(
@@ -174,7 +165,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             );
     }
 
-    function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal virtual {
+    function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal {
         IVault(vault).onSlash(amount, captureTimestamp);
     }
 

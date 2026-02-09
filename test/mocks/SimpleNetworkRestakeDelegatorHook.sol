@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookLegacy.sol";
+import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHook.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";

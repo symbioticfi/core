@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
-import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookLegacy.sol";
+import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHook.sol";
 
 contract SimpleOperatorNetworkSpecificDelegatorHook is IDelegatorHook {
     uint256 public counter1;

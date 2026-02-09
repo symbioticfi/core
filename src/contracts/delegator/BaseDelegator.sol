@@ -7,7 +7,7 @@ import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHookLegacy.sol";
+import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
 import {IOptInService} from "../../interfaces/service/IOptInService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
@@ -40,10 +40,25 @@ abstract contract BaseDelegator is
      */
     bytes32 public constant HOOK_SET_ROLE = keccak256("HOOK_SET_ROLE");
 
-    address internal immutable NETWORK_REGISTRY;
-    address internal immutable VAULT_FACTORY;
-    address internal immutable OPERATOR_VAULT_OPT_IN_SERVICE;
-    address internal immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    address public immutable NETWORK_REGISTRY;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    address public immutable VAULT_FACTORY;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
+
+    /**
+     * @inheritdoc IBaseDelegator
+     */
+    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
     /**
      * @inheritdoc IBaseDelegator
@@ -77,7 +92,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function VERSION() public pure returns (uint64) {
+    function VERSION() external pure returns (uint64) {
         return 1;
     }
 
@@ -111,7 +126,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
+    function stake(bytes32 subnetwork, address operator) external view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
                 || !IOptInService(OPERATOR_NETWORK_OPT_IN_SERVICE).isOptedIn(operator, subnetwork.network())
@@ -125,7 +140,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) public nonReentrant {
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
@@ -145,7 +160,7 @@ abstract contract BaseDelegator is
     /**
      * @inheritdoc IBaseDelegator
      */
-    function setHook(address hook_) public nonReentrant onlyRole(HOOK_SET_ROLE) {
+    function setHook(address hook_) external nonReentrant onlyRole(HOOK_SET_ROLE) {
         if (hook == hook_) {
             revert AlreadySet();
         }
@@ -159,14 +174,12 @@ abstract contract BaseDelegator is
      * @inheritdoc IBaseDelegator
      */
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
-        public
+        external
         nonReentrant
     {
         if (msg.sender != IVault(vault).slasher()) {
             revert NotSlasher();
         }
-
-        _onSlash(subnetwork, operator, amount, captureTimestamp, data);
 
         address hook_ = hook;
         if (hook_ != address(0)) {
@@ -218,10 +231,6 @@ abstract contract BaseDelegator is
     function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
 
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
-
-    function _onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
-        internal
-        virtual {}
 
     function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

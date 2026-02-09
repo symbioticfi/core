@@ -363,8 +363,9 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
                             isPossibleOperatorForSubnetwork[
                                 subnetwork
                             ][vaults_SymbioticCore[k]][operators_SymbioticCore[l].addr] = true;
-                            possibleOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]]
-                            .push(operators_SymbioticCore[l].addr);
+                            possibleOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]].push(
+                                operators_SymbioticCore[l].addr
+                            );
                         }
                         if (_operatorConfirmedValidating_SymbioticCore(
                                 operators_SymbioticCore[l].addr, vaults_SymbioticCore[k], subnetwork
@@ -372,8 +373,9 @@ contract SymbioticCoreIntegration is SymbioticCoreInit {
                             isConfirmedOperatorForSubnetwork[
                                 subnetwork
                             ][vaults_SymbioticCore[k]][operators_SymbioticCore[l].addr] = true;
-                            confirmedOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]]
-                            .push(operators_SymbioticCore[l].addr);
+                            confirmedOperatorsForSubnetwork[subnetwork][vaults_SymbioticCore[k]].push(
+                                operators_SymbioticCore[l].addr
+                            );
                         }
                     }
                 }

@@ -307,7 +307,7 @@ library Checkpoints {
      * in the most recent checkpoint.
      */
     function latestCheckpoint(Trace256 storage self) internal view returns (bool exists, uint48 _key, uint256 _value) {
-        uint208 idx;
+        uint256 idx;
         (exists, _key, idx) = self._trace.latestCheckpoint();
         _value = exists ? self._values[idx] : 0;
     }
