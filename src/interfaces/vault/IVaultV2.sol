@@ -204,18 +204,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     event SetDepositLimit(uint256 limit);
 
-    /**
-     * @notice Emitted when collateral is pulled from the vault.
-     * @param plugin address of the plugin
-     * @param amount amount of the collateral pulled
-     */
     event Deallocate(address indexed plugin, uint256 amount);
 
-    /**
-     * @notice Emitted when collateral is pushed to the vault.
-     * @param plugin address of the plugin
-     * @param amount amount of the collateral pushed
-     */
     event Allocate(address indexed plugin, uint256 amount);
 
     /**
@@ -343,10 +333,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     function flashFee(address token, uint256 amount) external view returns (uint256);
 
-    /**
-     * @notice Get a total amount of the collateral that can be pulled.
-     * @return total amount of the collateral that can be pulled
-     */
     function allocatable() external view returns (uint256);
 
     function pluginLimit(address plugin) external view returns (uint208);

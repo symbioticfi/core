@@ -228,12 +228,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             _revertIfZero(onBehalfOf);
             if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
                 revert NotWhitelistedDepositor();
             }
-
-            skimPlugins();
 
             uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
             collateral.safeTransferFrom(msg.sender, address(this), amount);
@@ -269,10 +269,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 burnedShares, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             _revertIfZero(claimer);
             _revertIfZero(amount);
-
-            skimPlugins();
 
             burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
             if (burnedShares > activeSharesOf(msg.sender)) {
@@ -291,12 +291,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 withdrawnAssets, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             _revertIfZero(claimer);
             if (shares > activeSharesOf(msg.sender)) {
                 revert TooMuchRedeem();
             }
-
-            skimPlugins();
 
             withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
             _revertIfZero(withdrawnAssets);
@@ -371,7 +371,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    function donate(uint256 amount) public nonReentrant {
+    function donate(uint256 amount) public {
         unchecked {
             uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
             collateral.safeTransferFrom(msg.sender, address(this), amount);
@@ -608,12 +608,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 allocated)
     {
         unchecked {
-            allocated = Math.min(Math.min(amount, allocatable()), IPluginBase(plugin).allocatable());
+            allocated = Math.min(
+                Math.min(Math.min(amount, pluginLimit(plugin)), allocatable()), IPluginBase(plugin).allocatable()
+            );
 
             if (allocated > 0) {
-                if (pluginAllocated[plugin] + allocated > pluginLimit(plugin)) {
-                    revert LimitReached();
-                }
                 pluginsAllocated += allocated;
                 pluginAllocated[plugin] += allocated;
 
@@ -634,10 +633,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function deallocatePlugin(address plugin, uint256 amount)
         public
-        nonReentrant
         onlyRole(DEALLOCATE_PLUGIN_ROLE)
-        returns (uint256 deallocated)
+        returns (uint256)
     {
+        return _deallocatePlugin(plugin, amount);
+    }
+
+    function _deallocatePlugin(address plugin, uint256 amount) internal returns (uint256 deallocated) {
         deallocated = IPluginBase(plugin).deallocate(amount);
         if (deallocated > 0) {
             collateral.safeTransferFrom(plugin, address(this), deallocated);
@@ -690,18 +692,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function deallocatePlugins() public {
         unchecked {
-            uint256 toPull = pluginsAllocated.saturatingSub(totalStake());
-            if (toPull > 0) {
+            uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
+            if (toDeallocate > 0) {
                 for (uint256 i; i < plugins.length; ++i) {
                     address plugin = plugins[i];
                     uint256 pluginAllocated_ = pluginAllocated[plugin];
                     if (pluginAllocated_ > 0) {
-                        uint256 pulled = IPluginBase(plugin).deallocate(Math.min(pluginAllocated_, toPull));
-                        if (pulled > 0) {
-                            pluginAllocated[plugin] = pluginAllocated_ - pulled;
-                            pluginsAllocated -= pulled;
-                            toPull -= pulled;
-                            if (toPull == uint256(0)) {
+                        uint256 deallocated = _deallocatePlugin(plugin, Math.min(pluginAllocated_, toDeallocate));
+                        if (deallocated > 0) {
+                            pluginAllocated[plugin] = pluginAllocated_ - deallocated;
+                            pluginsAllocated -= deallocated;
+                            toDeallocate -= deallocated;
+                            if (toDeallocate == uint256(0)) {
                                 break;
                             }
                         }
