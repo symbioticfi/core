@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.28;
 
-import {VaultV2} from "../vault/VaultV2.sol";
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
+import {VaultV2} from "../vault/VaultV2.sol";
 
 import {Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/slasher/IUniversalSlasher.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";

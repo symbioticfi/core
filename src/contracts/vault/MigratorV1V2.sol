@@ -24,6 +24,7 @@ contract MigratorV1V2 is VaultV2Storage, ERC20Upgradeable {
     /* ERRORS */
 
     error AlreadyClaimed();
+
     error InsufficientWithdrawal();
 
     /* EVENTS */

@@ -12,11 +12,12 @@ import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
+import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IRewards} from "../../interfaces/vault/IRewards.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {
     IVaultV2,
     DEPOSIT_WHITELIST_SET_ROLE,
@@ -29,7 +30,6 @@ import {
     MAX_FEE,
     MAX_PLUGINS
 } from "../../interfaces/vault/IVaultV2.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -38,8 +38,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 import {LibCall as Address} from "@solady/src/utils/LibCall.sol";
+import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 
 /// @dev total supply of `collateral()` must be <= 2^255 - 1 from the VaultV2 perspective
 /// @dev total supply of `collateral()` must be <= 2^128 - 1 from the UniversalDelegator perspective
@@ -95,12 +95,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         view
         returns (uint256)
     {
-        // forgefmt: disable-start 
+        // forgefmt: disable-start
         bytes memory unlockToBucketHint; bytes memory withdrawalSharesHint; bytes memory withdrawalSharesCumulativeHintNew; bytes memory withdrawalSharesCumulativeHintOld; bytes memory withdrawalsHint;
         if (hints.length > 0) {
             (unlockToBucketHint, withdrawalSharesHint, withdrawalSharesCumulativeHintNew, withdrawalSharesCumulativeHintOld, withdrawalsHint) = abi.decode(hints, (bytes, bytes, bytes, bytes, bytes));
         }
-        // forgefmt: disable-end 
+        // forgefmt: disable-end
         uint208 withdrawalBucket_ = _unlockToBucket.upperLookupRecent(timestamp, unlockToBucketHint);
         uint256 withdrawalShares_ =
             _withdrawalShares[withdrawalBucket_].upperLookupRecent(timestamp, withdrawalSharesHint);
@@ -148,12 +148,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) public view returns (uint256) {
-        // forgefmt: disable-start 
+        // forgefmt: disable-start
         bytes memory activeSharesOfHint; bytes memory activeStakeHint; bytes memory activeSharesHint;
         if (hints.length > 0) {
             (activeSharesOfHint, activeStakeHint, activeSharesHint) = abi.decode(hints, (bytes, bytes, bytes));
         }
-        // forgefmt: disable-end 
+        // forgefmt: disable-end
         return ERC4626Math.previewRedeem(
             activeSharesOfAt(account, timestamp, activeSharesOfHint),
             activeStakeAt(timestamp, activeStakeHint),

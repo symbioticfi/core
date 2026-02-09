@@ -12,8 +12,8 @@ import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 

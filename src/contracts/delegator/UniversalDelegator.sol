@@ -5,13 +5,15 @@ import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {Checkpoints} from "../libraries/CheckpointsV2.sol";
+import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
+import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {
     IUniversalDelegator,
     CREATE_SLOT_ROLE,
@@ -25,12 +27,8 @@ import {
     WITHDRAWAL_BUFFER_INDEX,
     MAX_CHILDREN
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
-import {IOptInService} from "../../interfaces/service/IOptInService.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
-
-import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
+import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -357,7 +355,7 @@ contract UniversalDelegator is
             }
 
             // forgefmt: disable-start
-            bytes memory prevSumHint; bytes memory availableHints; bytes memory sizeHint; 
+            bytes memory prevSumHint; bytes memory availableHints; bytes memory sizeHint;
             if (hints.length > 0) {
                 (prevSumHint, availableHints, sizeHint) = abi.decode(hints, (bytes, bytes, bytes));
             }
