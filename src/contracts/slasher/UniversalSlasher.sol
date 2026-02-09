@@ -53,7 +53,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /**
      * @inheritdoc IUniversalSlasher
      */
-    uint48 public vetoDuration; // TODO: move from legacy
+    uint48 public vetoDuration;
 
     /**
      * @inheritdoc IUniversalSlasher
@@ -413,11 +413,16 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
         __migrateTimestamp = uint48(block.timestamp);
         __oldSlasher = oldSlasher;
+
         if (oldSlasherType == 1) {
             uint256 slashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();
             assembly ("memory-safe") {
                 sstore(_slashRequests.slot, slashRequestsLength)
             }
+            vetoDuration = IVetoSlasher(oldSlasher).vetoDuration();
+            resolverSetDelay =
+                uint48(IVetoSlasher(oldSlasher).resolverSetEpochsDelay()) * IVaultV2(vault).epochDuration();
+            isBurnerHook = IVetoSlasher(oldSlasher).isBurnerHook();
         }
     }
 }

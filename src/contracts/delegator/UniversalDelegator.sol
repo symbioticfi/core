@@ -928,11 +928,11 @@ contract UniversalDelegator is
         if (IEntity(IVaultV2(vault).delegator()).TYPE() == TYPE) {
             revert NotMigrating();
         }
-        _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
-        _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
-
         __migrateTimestamp = uint48(block.timestamp);
         __oldDelegator = IVaultV2(vault).delegator();
+
+        _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+        _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 
     function _rootSlot() internal view returns (SlotStorage storage) {
