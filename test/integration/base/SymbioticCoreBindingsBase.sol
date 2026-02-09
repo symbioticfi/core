@@ -88,11 +88,11 @@ abstract contract SymbioticCoreBindingsBase is Test {
         _optInVault_SymbioticCore(symbioticCore, who, who, vault, deadline, signature);
     }
 
-    function _optInNetwork_SymbioticCore(SymbioticCoreConstants.Core memory symbioticCore, address who, address network)
-        internal
-        virtual
-        broadcast(who)
-    {
+    function _optInNetwork_SymbioticCore(
+        SymbioticCoreConstants.Core memory symbioticCore,
+        address who,
+        address network
+    ) internal virtual broadcast(who) {
         symbioticCore.operatorNetworkOptInService.optIn(network);
     }
 
@@ -358,7 +358,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         uint48 captureTimestamp
     ) internal virtual broadcast(who) returns (uint256 slashedAmount) {
         slashedAmount = ISymbioticSlasher(ISymbioticVault(vault).slasher())
-            .slash(subnetwork, operator, amount, captureTimestamp, "");
+            .slash(subnetwork, operator, amount, captureTimestamp, new bytes(0));
     }
 
     function _requestSlash_SymbioticCore(
@@ -370,7 +370,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         uint48 captureTimestamp
     ) internal virtual broadcast(who) returns (uint256 slashIndex) {
         slashIndex = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher())
-            .requestSlash(subnetwork, operator, amount, captureTimestamp, "");
+            .requestSlash(subnetwork, operator, amount, captureTimestamp, new bytes(0));
     }
 
     function _executeSlash_SymbioticCore(address who, address vault, uint256 slashIndex)
@@ -379,11 +379,11 @@ abstract contract SymbioticCoreBindingsBase is Test {
         broadcast(who)
         returns (uint256 slashedAmount)
     {
-        slashedAmount = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, "");
+        slashedAmount = ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).executeSlash(slashIndex, new bytes(0));
     }
 
     function _vetoSlash_SymbioticCore(address who, address vault, uint256 slashIndex) internal virtual broadcast(who) {
-        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).vetoSlash(slashIndex, "");
+        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).vetoSlash(slashIndex, new bytes(0));
     }
 
     function _setResolver_SymbioticCore(address who, address vault, uint96 identifier, address resolver)
@@ -391,7 +391,7 @@ abstract contract SymbioticCoreBindingsBase is Test {
         virtual
         broadcast(who)
     {
-        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).setResolver(identifier, resolver, "");
+        ISymbioticVetoSlasher(ISymbioticVault(vault).slasher()).setResolver(identifier, resolver, new bytes(0));
     }
 
     function _grantRole_SymbioticCore(address who, address where, bytes32 role, address account)

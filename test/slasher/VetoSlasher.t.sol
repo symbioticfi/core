@@ -185,6 +185,8 @@ contract VetoSlasherTest is Test {
 
         slasher = _getSlasher(address(vault), vetoDuration);
 
+        assertEq(slasher.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(slasher.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
         assertEq(slasher.vault(), address(vault));
         assertEq(slasher.NETWORK_REGISTRY(), address(networkRegistry));
         assertEq(slasher.vetoDuration(), vetoDuration);
