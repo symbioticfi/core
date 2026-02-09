@@ -174,7 +174,7 @@ contract UniversalDelegator is
         returns (uint256)
     {
         if (timestamp < __migrateTimestamp) {
-            IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
+            return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
 
         // forgefmt: disable-start
@@ -540,7 +540,7 @@ contract UniversalDelegator is
         if (index == 0) {
             revert NotAssigned();
         }
-        return slots[index.getParentIndex()].isShared;
+        return slots[index.getParentIndex()].noPlugins;
     }
 
     function getNoPluginsSize() public view returns (uint208) {
@@ -645,7 +645,10 @@ contract UniversalDelegator is
         uint256 available = getAvailable(index.getParentIndex(), 0);
 
         if (newSize > currentSize) {
-            if (!parent.isShared && slot.prevSum.latest() + currentSize < available && slot.nextSlot > 0) {
+            if (
+                !parent.isShared && slot.prevSum.latest() + currentSize < available && slot.nextSlot > 0
+                    && slot.nextSlot != WITHDRAWAL_BUFFER_CHILD_INDEX
+            ) {
                 SlotStorage storage lastChild = slots[index.getParentIndex().createIndex(parent.lastChild)];
                 if (
                     newSize - currentSize
@@ -659,7 +662,7 @@ contract UniversalDelegator is
             }
         } else {
             if (!parent.isShared && slot.prevSum.latest() < available) {
-                pending = uint208(getAllocated(index, 0).saturatingSub(newSize));
+                pending = uint208((getAllocated(index, 0) - getPending(index, 0)).saturatingSub(newSize));
                 if (pending > 0) {
                     parent.childrenPendingCumulative
                         .push(uint48(block.timestamp), parent.childrenPendingCumulative.latest() + pending);
