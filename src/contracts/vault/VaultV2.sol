@@ -23,6 +23,7 @@ import {
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
     SET_PLUGIN_LIMIT_ROLE,
+    SWAP_PLUGINS_ROLE,
     ALLOCATE_PLUGIN_ROLE,
     DEALLOCATE_PLUGIN_ROLE,
     MAX_PLUGINS
@@ -514,56 +515,46 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function pluginLimit(address plugin) public view returns (uint208) {
-        return uint48(uint256(pendingPluginLimitData[plugin])) == uint48(0)
-            || block.timestamp < uint48(uint256(pendingPluginLimitData[plugin]))
-            ? _pluginLimit[plugin]
-            : uint208(uint256(pendingPluginLimitData[plugin]) >> 48);
+    function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
+        _revertIfZero(plugin);
+
+        if (pluginAllocated[plugin] > newLimit) {
+            revert PluginAllocated();
+        }
+
+        if (newLimit > 0) {
+            uint256 nPlugins = plugins.length;
+            for (uint256 i; i < nPlugins; ++i) {
+                if (plugins[i] == plugin) {
+                    break;
+                }
+                if (i == nPlugins - 1) {
+                    plugins.push(plugin);
+                }
+            }
+        }
+        pluginLimit[plugin] = newLimit;
+
+        emit SetPluginLimit(plugin, newLimit);
     }
 
     /**
      * @inheritdoc IVaultV2
      */
-    function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
-        uint208 currentLimit = pluginLimit(plugin);
-        if (_pluginLimit[plugin] != currentLimit) {
-            _pluginLimit[plugin] = currentLimit;
-            pendingPluginLimitData[plugin] = 0;
+    function swapPlugins(address plugin1, address plugin2) public nonReentrant onlyRole(SWAP_PLUGINS_ROLE) {
+        uint256 index1 = type(uint256).max;
+        uint256 index2 = type(uint256).max;
+        uint256 nPlugins = plugins.length;
+        for (uint256 i; i < nPlugins; ++i) {
+            if (plugins[i] == plugin1) {
+                index1 = i;
+            } else if (plugins[i] == plugin2) {
+                index2 = i;
+            }
         }
-        if (newLimit > currentLimit) {
-            if (_pluginLimit[plugin] == uint208(0) && pendingPluginLimitData[plugin] == bytes32(0)) {
-                _revertIfZero(plugin);
-                unchecked {
-                    plugins.push(plugin);
-                    if (plugins.length >= MAX_PLUGINS) {
-                        revert TooManyPlugins();
-                    }
-                }
-                _grantRole(ALLOCATE_PLUGIN_ROLE, plugin);
-                _grantRole(DEALLOCATE_PLUGIN_ROLE, plugin);
-            }
-            pendingPluginLimitData[plugin] = bytes32(uint256(newLimit) << 48 | (block.timestamp + pluginLimitSetDelay));
-        } else {
-            if (pluginAllocated[plugin] > newLimit) {
-                revert PluginAllocated();
-            }
-            if (newLimit == uint208(0)) {
-                unchecked {
-                    uint256 nPlugins = plugins.length;
-                    for (uint256 i; i < nPlugins; ++i) {
-                        if (plugins[i] == plugin) {
-                            plugins[i] = plugins[nPlugins - 1];
-                            plugins.pop();
-                            break;
-                        }
-                    }
-                }
-            }
-            _pluginLimit[plugin] = newLimit;
-            pendingPluginLimitData[plugin] = 0;
-        }
+        (plugins[index1], plugins[index2]) = (plugins[index2], plugins[index1]);
 
-        emit SetPluginLimit(plugin, newLimit);
+        emit SwapPlugins(plugin1, plugin2);
     }
 
     /**
@@ -577,7 +568,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     {
         unchecked {
             allocated = Math.min(
-                Math.min(Math.min(amount, pluginLimit(plugin)), allocatable()), IPluginBase(plugin).allocatable()
+                Math.min(Math.min(amount, pluginLimit[plugin]), allocatable()), IPluginBase(plugin).allocatable()
             );
 
             if (allocated > 0) {
@@ -741,11 +732,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint208 limit = params.pluginsData[i].limit;
             _revertIfZero(plugin);
             _revertIfZero(limit);
-            if (_pluginLimit[plugin] > 0) {
+            if (pluginLimit[plugin] > 0) {
                 revert DuplicatePlugin();
             }
             plugins.push(plugin);
-            _pluginLimit[plugin] = limit;
+            pluginLimit[plugin] = limit;
         }
 
         emit Initialize(params);

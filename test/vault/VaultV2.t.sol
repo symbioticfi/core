@@ -3508,13 +3508,7 @@ contract VaultV2Test is Test {
         returns (address)
     {
         return address(
-            new VaultV2(
-                delegatorFactory,
-                slasherFactory,
-                vaultFactory,
-                address(rewards),
-                address(migratorV1V2)
-            )
+            new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(rewards), address(migratorV1V2))
         );
     }
 

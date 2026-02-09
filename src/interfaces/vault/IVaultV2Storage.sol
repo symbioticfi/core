@@ -179,7 +179,7 @@ interface IVaultV2Storage {
      */
     function withdrawalsLength(address account) external view returns (uint256);
 
-    function pendingPluginLimitData(address plugin) external view returns (bytes32);
+    function pluginLimit(address plugin) external view returns (uint208);
 
     function plugins(uint256 index) external view returns (address);
 

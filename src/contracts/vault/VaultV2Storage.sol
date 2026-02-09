@@ -125,12 +125,10 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     address[] public plugins;
 
-    mapping(address plugin => uint208 amount) internal _pluginLimit;
-
     /**
      * @inheritdoc IVaultV2Storage
      */
-    mapping(address plugin => bytes32 value) public pendingPluginLimitData;
+    mapping(address plugin => uint208 amount) public pluginLimit;
 
     /**
      * @inheritdoc IVaultV2Storage

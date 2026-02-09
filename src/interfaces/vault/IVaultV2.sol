@@ -14,6 +14,8 @@ bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573
 bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
 // keccak256("SET_PLUGIN_LIMIT_ROLE")
 bytes32 constant SET_PLUGIN_LIMIT_ROLE = 0xe0bdc9c1c8c2e75dc2012527eb0fa05a8dda38297bc81683ecb9055988877100;
+// keccak256("SWAP_PLUGINS_ROLE")
+bytes32 constant SWAP_PLUGINS_ROLE = 0x1c31202be72d3888bec354d209184db36bf8c648652bec1ae036b3ade9fee62e;
 // keccak256("ALLOCATE_PLUGIN_ROLE")
 bytes32 constant ALLOCATE_PLUGIN_ROLE = 0x519cc70d51fcfd11b60dc29f6c85e08207d46a64951561c68760c7dbedf611dc;
 // keccak256("DEALLOCATE_PLUGIN_ROLE")
@@ -64,6 +66,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error PluginAllocated();
     error TooManyPlugins();
     error LimitReached();
+    error PluginsNotFound();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -209,6 +212,13 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     event SetPluginLimit(address indexed plugin, uint208 limit);
 
     /**
+     * @notice Emitted when a plugin is swapped.
+     * @param plugin1 address of the first plugin
+     * @param plugin2 address of the second plugin
+     */
+    event SwapPlugins(address indexed plugin1, address indexed plugin2);
+
+    /**
      * @notice Emitted when a delegator is set.
      * @param delegator vault's delegator to delegate the stake to networks and operators
      * @dev Can be set only once.
@@ -320,8 +330,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
 
     function allocatable() external view returns (uint256);
 
-    function pluginLimit(address plugin) external view returns (uint208);
-
     /**
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf account the deposit is made on behalf of
@@ -412,6 +420,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @dev Only a SET_PLUGIN_LIMIT_ROLE holder can call this function.
      */
     function setPluginLimit(address plugin, uint208 limit) external;
+
+    function swapPlugins(address plugin1, address plugin2) external;
 
     /**
      * @notice Allocate collateral to the plugin.
