@@ -11,12 +11,6 @@ interface IRegistry {
     event AddEntity(address indexed entity);
 
     /**
-     * @notice Emitted when an entity is removed.
-     * @param entity address of the removed entity
-     */
-    event RemoveEntity(address indexed entity);
-
-    /**
      * @notice Get if a given address is an entity.
      * @param account address to check
      * @return if the given address is an entity

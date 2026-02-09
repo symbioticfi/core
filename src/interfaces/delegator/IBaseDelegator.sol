@@ -62,6 +62,30 @@ interface IBaseDelegator is IEntity {
     function VERSION() external view returns (uint64);
 
     /**
+     * @notice Get the network registry's address.
+     * @return address of the network registry
+     */
+    function NETWORK_REGISTRY() external view returns (address);
+
+    /**
+     * @notice Get the vault factory's address.
+     * @return address of the vault factory
+     */
+    function VAULT_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get the operator-vault opt-in service's address.
+     * @return address of the operator-vault opt-in service
+     */
+    function OPERATOR_VAULT_OPT_IN_SERVICE() external view returns (address);
+
+    /**
+     * @notice Get the operator-network opt-in service's address.
+     * @return address of the operator-network opt-in service
+     */
+    function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
+
+    /**
      * @notice Get a gas limit for the hook.
      * @return value of the hook gas limit
      */

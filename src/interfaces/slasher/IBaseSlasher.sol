@@ -50,6 +50,18 @@ interface IBaseSlasher is IEntity {
     function BURNER_RESERVE() external view returns (uint256);
 
     /**
+     * @notice Get the vault factory's address.
+     * @return address of the vault factory
+     */
+    function VAULT_FACTORY() external view returns (address);
+
+    /**
+     * @notice Get the network middleware service's address.
+     * @return address of the network middleware service
+     */
+    function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
+
+    /**
      * @notice Get the vault's address.
      * @return address of the vault to perform slashings on
      */
