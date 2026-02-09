@@ -74,8 +74,6 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     uint48 internal __migrateTimestamp;
 
-    address internal __oldDelegator;
-
     address internal __oldSlasher;
 
     constructor(
@@ -157,7 +155,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                 ) {
                     return 0;
                 }
-                return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, captureTimestamp, "")
+                return UniversalDelegator(IVaultV2(vault).delegator())
+                    .stakeAt(subnetwork, operator, captureTimestamp, "")
                     .saturatingSub(
                         _cumulativeSlash(subnetwork, operator)
                             - _cumulativeSlashAt(subnetwork, operator, captureTimestamp)
@@ -230,14 +229,14 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         _slashRequests[slashIndex].completed = true;
 
-        if (request.createdAt >= __migrateTimestamp) {
-            UniversalDelegator(IVault(vault).delegator())
-                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
-        } else {
+        if (request.createdAt < __migrateTimestamp) {
             __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;
             __cumulativeSlash[request.subnetwork][request.operator].push(
                 uint48(block.timestamp), _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
             );
+        } else {
+            UniversalDelegator(IVault(vault).delegator())
+                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
         }
 
         uint256 owed_;
@@ -354,10 +353,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         view
         returns (uint256)
     {
-        if (timestamp >= __migrateTimestamp) {
-            return __cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp);
+        if (timestamp < __migrateTimestamp) {
+            return IBaseSlasher(__oldSlasher).cumulativeSlashAt(subnetwork, operator, timestamp, "");
         }
-        return IBaseSlasher(__oldSlasher).cumulativeSlashAt(subnetwork, operator, timestamp, "");
+        return __cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp);
     }
 
     function _cumulativeSlash(bytes32 subnetwork, address operator) internal view returns (uint256) {
@@ -413,7 +412,6 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             revert NotMigrating();
         }
         __migrateTimestamp = uint48(block.timestamp);
-        __oldDelegator = IVaultV2(vault).delegator();
         __oldSlasher = oldSlasher;
         if (oldSlasherType == 1) {
             uint256 slashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();

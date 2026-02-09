@@ -11,6 +11,7 @@ import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHook.sol";
+import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {
     IUniversalDelegator,
     CREATE_SLOT_ROLE,
@@ -75,6 +76,9 @@ contract UniversalDelegator is
     mapping(uint96 index => address operator) internal _slotToOperator;
     mapping(uint96 index => Checkpoints.Trace208 amount) internal _cumulativeSlash;
     Checkpoints.Trace208 internal _noPluginsPendingCumulative;
+
+    uint48 internal __migrateTimestamp;
+    address internal __oldDelegator;
 
     struct SlotStorage {
         bool exists;
@@ -152,7 +156,6 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        // workaround for slashing: still provide historical data, while not allowing to slash. TODO: move to slasher, need more view methods for slots
         return getAllocatedAt(subnetwork, operator, timestamp, duration, hints);
     }
 
@@ -171,7 +174,9 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        // TODO: add fallback to old delegator
+        if (timestamp < __migrateTimestamp) {
+            IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
+        }
 
         // forgefmt: disable-start
         bytes memory operatorVaultOptInHint; bytes memory allocatedHints;
@@ -923,9 +928,11 @@ contract UniversalDelegator is
         if (IEntity(IVaultV2(vault).delegator()).TYPE() == TYPE) {
             revert NotMigrating();
         }
-        // TODO: replace type(uint128).max with ?
         _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+
+        __migrateTimestamp = uint48(block.timestamp);
+        __oldDelegator = IVaultV2(vault).delegator();
     }
 
     function _rootSlot() internal view returns (SlotStorage storage) {
