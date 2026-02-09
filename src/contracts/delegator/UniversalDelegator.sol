@@ -685,10 +685,8 @@ contract UniversalDelegator is
         SlotStorage storage slot2 = slots[index2];
         uint256 available = getAvailable(index1.getParentIndex(), 0);
         bool isAllocated = slot1.prevSum.latest() < available;
+        uint96 parentIndex = index1.getParentIndex();
 
-        if (index1 == index2) {
-            revert SameSlot();
-        }
         if (index1.getParentIndex() != index2.getParentIndex()) {
             revert NotSameParent();
         }
@@ -698,26 +696,40 @@ contract UniversalDelegator is
         if (isAllocated != (slot2.prevSum.latest() < available)) {
             revert NotSameAllocated();
         }
-        if (
-            isAllocated
-                && (slot1.prevSum.latest() + slot1.size.latest() > available
-                    || slot2.prevSum.latest() + slot2.size.latest() > available)
+        for (
+            uint32 childIndex = index2.getChildIndex();
+            childIndex > 0;
+            childIndex = slots[parentIndex.createIndex(childIndex)].nextSlot
         ) {
+            if (childIndex == index1.getChildIndex()) {
+                revert WrongOrder();
+            }
+        }
+        if (isAllocated && slot2.prevSum.latest() + slot2.size.latest() > available) {
             revert PartiallyAllocated();
         }
 
         if (index1.getChildIndex() == parent.firstChild) {
             parent.firstChild = index2.getChildIndex();
-        } else if (index2.getChildIndex() == parent.firstChild) {
-            parent.firstChild = index1.getChildIndex();
         }
-        if (index1.getChildIndex() == parent.lastChild) {
-            parent.lastChild = index2.getChildIndex();
-        } else if (index2.getChildIndex() == parent.lastChild) {
+        if (index2.getChildIndex() == parent.lastChild) {
             parent.lastChild = index1.getChildIndex();
+            if (index2.getDepth() == 1) {
+                _withdrawalBufferSlot().prevSlot = index1.getChildIndex();
+            }
         }
+
         (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
+        if (slot1.nextSlot > 0) {
+            slots[parentIndex.createIndex(slot1.nextSlot)].prevSlot = index1.getChildIndex();
+        }
+        slots[parentIndex.createIndex(slot2.nextSlot)].prevSlot = index2.getChildIndex();
+
         (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
+        slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot = index1.getChildIndex();
+        if (slot2.prevSlot > 0) {
+            slots[parentIndex.createIndex(slot2.prevSlot)].nextSlot = index2.getChildIndex();
+        }
 
         emit SwapSlots(index1, index2);
     }
@@ -753,6 +765,7 @@ contract UniversalDelegator is
         }
         if (index.getChildIndex() == parent.lastChild) {
             parent.lastChild = slot.prevSlot;
+            slots[WITHDRAWAL_BUFFER_INDEX].prevSlot = slot.prevSlot;
         } else {
             slots[index.getParentIndex().createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
         }

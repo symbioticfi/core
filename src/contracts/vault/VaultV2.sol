@@ -52,6 +52,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     using Math for uint256;
     using SafeERC20 for address;
 
+    modifier withDeallocatePlugins(bool withPlugins) {
+        if (withPlugins) {
+            deallocatePlugins();
+        }
+        _;
+    }
+
+    modifier withSkimPlugins() {
+        skimPlugins();
+        _;
+    }
+
     /* CONSTRUCTOR */
 
     constructor(
@@ -223,13 +235,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function deposit(address onBehalfOf, uint256 amount)
         public
-        virtual
+        withSkimPlugins
         nonReentrant
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
-            skimPlugins();
-
             _revertIfZero(onBehalfOf);
             if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
                 revert NotWhitelistedDepositor();
@@ -265,11 +275,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function withdraw(address claimer, uint256 amount)
         public
+        withSkimPlugins
         nonReentrant
         returns (uint256 burnedShares, uint256 mintedShares)
     {
         unchecked {
-            skimPlugins();
 
             _revertIfZero(claimer);
             _revertIfZero(amount);
@@ -287,12 +297,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function redeem(address claimer, uint256 shares)
         public
+        withSkimPlugins
         nonReentrant
         returns (uint256 withdrawnAssets, uint256 mintedShares)
     {
         unchecked {
-            skimPlugins();
-
             _revertIfZero(claimer);
             if (shares > activeSharesOf(msg.sender)) {
                 revert TooMuchRedeem();
@@ -338,7 +347,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function claim(address recipient, uint256 index) public nonReentrant returns (uint256 amount) {
+    function claim(address recipient, uint256 index)
+        public
+        withDeallocatePlugins(true)
+        nonReentrant
+        returns (uint256 amount)
+    {
         unchecked {
             _revertIfZero(recipient);
 
@@ -371,7 +385,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    function donate(uint256 amount) public {
+    function donate(uint256 amount) public nonReentrant {
         unchecked {
             uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
             collateral.safeTransferFrom(msg.sender, address(this), amount);
@@ -393,8 +407,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount, bytes calldata hint)
+    function onSlash(uint256 amount, bool withPlugins, bytes calldata hint)
         public
+        withDeallocatePlugins(withPlugins)
         nonReentrant
         returns (uint256 slashedAmount, uint256 owed)
     {
@@ -426,12 +441,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 _withdrawals[withdrawalBucket_
                         + 1].push(uint48(block.timestamp), activeWithdrawals_ - (slashedAmount - activeSlashed));
 
-                uint256 available = _availableToSlash();
-                if (available < slashedAmount) {
-                    deallocatePlugins();
-                    available = _availableToSlash();
-                }
-                owed = slashedAmount.saturatingSub(available);
+                owed = slashedAmount.saturatingSub(_availableToSlash());
 
                 if (owed < slashedAmount) {
                     collateral.safeTransfer(burner, slashedAmount - owed);
@@ -639,7 +649,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return _deallocatePlugin(plugin, amount);
     }
 
-    function _deallocatePlugin(address plugin, uint256 amount) internal returns (uint256 deallocated) {
+    function _deallocatePlugin(address plugin, uint256 amount) internal nonReentrant returns (uint256 deallocated) {
         deallocated = IPluginBase(plugin).deallocate(amount);
         if (deallocated > 0) {
             collateral.safeTransferFrom(plugin, address(this), deallocated);
@@ -700,8 +710,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     if (pluginAllocated_ > 0) {
                         uint256 deallocated = _deallocatePlugin(plugin, Math.min(pluginAllocated_, toDeallocate));
                         if (deallocated > 0) {
-                            pluginAllocated[plugin] = pluginAllocated_ - deallocated;
-                            pluginsAllocated -= deallocated;
                             toDeallocate -= deallocated;
                             if (toDeallocate == uint256(0)) {
                                 break;

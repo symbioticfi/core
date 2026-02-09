@@ -34,8 +34,7 @@ import {
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    ADD_PLUGIN_ROLE,
-    REMOVE_PLUGIN_ROLE
+    SET_PLUGIN_LIMIT_ROLE
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
@@ -54,6 +53,7 @@ import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
@@ -426,10 +426,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
-                        addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0),
-                        pluginActiveDelay: epochDuration * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: address(0),
+                        allocatePluginRoleHolder: address(0),
+                        pluginLimitSetDelay: epochDuration * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -460,10 +460,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0),
-                        pluginActiveDelay: epochDuration * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: address(0),
+                        allocatePluginRoleHolder: address(0),
+                        pluginLimitSetDelay: epochDuration * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -494,10 +494,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0),
-                        pluginActiveDelay: epochDuration * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: address(0),
+                        allocatePluginRoleHolder: address(0),
+                        pluginLimitSetDelay: epochDuration * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -528,10 +528,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0),
-                        pluginActiveDelay: epochDuration * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: address(0),
+                        allocatePluginRoleHolder: address(0),
+                        pluginLimitSetDelay: epochDuration * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -562,10 +562,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
-                        addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0),
-                        pluginActiveDelay: epochDuration * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: address(0),
+                        allocatePluginRoleHolder: address(0),
+                        pluginLimitSetDelay: epochDuration * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -594,10 +594,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -653,10 +653,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -712,10 +712,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -747,10 +747,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -774,10 +774,10 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: alice,
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
-                    addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice,
-                    pluginActiveDelay: 7 days * 3,
-                    plugins: new address[](0)
+                    setPluginLimitRoleHolder: alice,
+                    allocatePluginRoleHolder: alice,
+                    pluginLimitSetDelay: 7 days * 3,
+                    pluginsData: new IVaultV2.PluginData[](0)
                 })
             )
         );
@@ -830,10 +830,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -877,10 +877,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -924,10 +924,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -969,10 +969,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -996,10 +996,10 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: alice,
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
-                    addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice,
-                    pluginActiveDelay: 7 days * 3,
-                    plugins: new address[](0)
+                    setPluginLimitRoleHolder: alice,
+                    allocatePluginRoleHolder: alice,
+                    pluginLimitSetDelay: 7 days * 3,
+                    pluginsData: new IVaultV2.PluginData[](0)
                 })
             )
         );
@@ -1040,10 +1040,10 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        addPluginRoleHolder: alice,
-                        removePluginRoleHolder: alice,
-                        pluginActiveDelay: 7 days * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: alice,
+                        allocatePluginRoleHolder: alice,
+                        pluginLimitSetDelay: 7 days * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
             )
@@ -1609,7 +1609,7 @@ contract VaultV2Test is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVaultV2.InvalidClaimer.selector);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
         vm.startPrank(alice);
         vault.withdraw(address(0), amount1);
         vm.stopPrank();
@@ -1623,7 +1623,7 @@ contract VaultV2Test is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVaultV2.InsufficientWithdrawal.selector);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _withdraw(alice, 0);
     }
 
@@ -1725,7 +1725,7 @@ contract VaultV2Test is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVaultV2.InvalidClaimer.selector);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
         vm.startPrank(alice);
         vault.redeem(address(0), amount1);
         vm.stopPrank();
@@ -1739,7 +1739,7 @@ contract VaultV2Test is Test {
 
         _deposit(alice, amount1);
 
-        vm.expectRevert(IVaultV2.InsufficientRedemption.selector);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _redeem(alice, 0);
     }
 
@@ -1809,7 +1809,7 @@ contract VaultV2Test is Test {
         vm.warp(blockTimestamp);
 
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.InvalidRecipient.selector);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
         vault.claim(address(0), 0);
         vm.stopPrank();
     }
@@ -1967,7 +1967,7 @@ contract VaultV2Test is Test {
         indexes[0] = 0;
         indexes[1] = 1;
 
-        vm.expectRevert(IVaultV2.InvalidRecipient.selector);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
         vm.startPrank(alice);
         vault.claimBatch(address(0), indexes);
         vm.stopPrank();
@@ -2204,7 +2204,7 @@ contract VaultV2Test is Test {
         _deposit(bob, 1);
     }
 
-    function test_SetDepositorWhitelistStatusRevertInvalidAccount() public {
+    function test_SetDepositorWhitelistStatusAllowsZeroAddress() public {
         uint48 epochDuration = 1;
 
         vault = _getVault(epochDuration);
@@ -2214,8 +2214,8 @@ contract VaultV2Test is Test {
 
         _grantDepositorWhitelistRole(alice, alice);
 
-        vm.expectRevert(IVaultV2.InvalidAccount.selector);
         _setDepositorWhitelistStatus(alice, address(0), true);
+        assertEq(vault.isDepositorWhitelisted(address(0)), true);
     }
 
     function test_SetDepositorWhitelistStatusIdempotent() public {
@@ -2416,26 +2416,30 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
         assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
 
-        state.nextEpochStart = uint48(state.blockTimestamp + 3 * epochDuration);
+        state.nextEpochStart = uint48(state.migrateTimestamp + epochDuration);
         assertEq(vaultTestHelper.withdrawalSharesCumulativeLength(address(vaultV2)), 2);
 
         {
+            uint48 expectedEpochBoundary = uint48(
+                state.blockTimestamp + ((state.migrateTimestamp - state.blockTimestamp) / epochDuration + 1)
+                    * epochDuration
+            );
             (uint48 prefixKey0, uint256 prefixVal0) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 0);
-            assertEq(prefixKey0, state.nextEpochStart);
+            assertEq(prefixKey0, expectedEpochBoundary);
             assertEq(prefixVal0, state.epoch2Withdrawals);
         }
 
         {
             (uint48 prefixKey1, uint256 prefixVal1) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 1);
-            assertEq(prefixKey1, uint48(state.nextEpochStart + epochDuration));
+            assertEq(prefixKey1, state.nextEpochStart);
             assertEq(prefixVal1, state.epoch2Withdrawals);
         }
 
-        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 3);
+        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 2);
         {
-            (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 2);
-            assertEq(bucketKey, state.nextEpochStart);
-            assertEq(bucketVal, 2);
+            (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 1);
+            assertEq(bucketKey, state.migrateTimestamp);
+            assertEq(bucketVal, 1);
         }
 
         vm.expectRevert();
@@ -2449,12 +2453,12 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalsLength(alice), 1);
 
         {
-            uint48 bobUnlockAfter0 = vaultV2.withdrawalUnlockAfter(0, bob);
+            assertEq(vaultV2.withdrawalUnlockAfter(0, bob), state.nextEpochStart);
             assertEq(vaultV2.withdrawalUnlockAfter(1, bob), state.nextEpochStart);
             assertEq(vaultV2.withdrawalUnlockAfter(0, alice), state.nextEpochStart);
 
             (uint48 bucketKeyPre, uint208 bucketValPre) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 1);
-            assertEq(bucketKeyPre, bobUnlockAfter0);
+            assertEq(bucketKeyPre, state.migrateTimestamp);
             assertEq(bucketValPre, 1);
         }
 
@@ -2473,11 +2477,10 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalsOf(1, bob), state.expectedBobEpoch2);
         assertEq(vaultV2.withdrawalsOf(0, alice), state.expectedAliceEpoch2);
 
-        uint256 bobBalanceBefore = collateral.balanceOf(bob);
         vm.startPrank(bob);
+        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
         vaultV2.claim(bob, 0);
         vm.stopPrank();
-        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, state.expectedBobEpoch1);
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
@@ -2485,6 +2488,13 @@ contract VaultV2Test is Test {
         vm.stopPrank();
 
         vm.warp(uint256(state.nextEpochStart) + 1);
+
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.startPrank(bob);
+        vaultV2.claim(bob, 0);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, state.expectedBobEpoch1);
+
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
         vm.startPrank(alice);
         vaultV2.claim(alice, 0);
@@ -2545,6 +2555,9 @@ contract VaultV2Test is Test {
         state.expectedEpoch1 = Math.mulDiv(state.withdrawEpoch0, state.withdrawEpoch0 + 1, state.withdrawEpoch0 + 1);
         state.expectedEpoch2 = Math.mulDiv(state.withdrawEpoch1, state.withdrawEpoch1 + 1, state.withdrawEpoch1 + 1);
 
+        uint48 firstUnlockAfter = vaultV2.withdrawalUnlockAfter(0, alice);
+        vm.warp(uint256(firstUnlockAfter) + 1);
+
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
         vm.startPrank(alice);
         vaultV2.claim(alice, 0);
@@ -2552,7 +2565,7 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, state.expectedEpoch1);
         assertEq(vaultV2.isWithdrawalsClaimed(0, alice), true);
 
-        state.nextEpochStart = uint48(state.blockTimestamp + 3 * epochDuration);
+        state.nextEpochStart = vaultV2.withdrawalUnlockAfter(1, alice);
         vm.warp(uint256(state.nextEpochStart) + 1);
 
         aliceBalanceBefore = collateral.balanceOf(alice);
@@ -2570,7 +2583,7 @@ contract VaultV2Test is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.NotSlasher.selector);
-        VaultV2(address(vault)).onSlash(0, "");
+        VaultV2(address(vault)).onSlash(0, false, "");
         vm.stopPrank();
     }
 
@@ -2809,23 +2822,27 @@ contract VaultV2Test is Test {
 
         assertEq(vault.pluginsLength(), 1);
         assertEq(vault.plugins(0), address(plugin));
-        assertEq(vault.pluginActiveSince(address(plugin)), uint48(block.timestamp + vault.pluginActiveDelay()));
+        assertEq(
+            uint48(uint256(vault.pendingPluginLimitData(address(plugin)))),
+            uint48(block.timestamp + vault.pluginLimitSetDelay())
+        );
 
         _grantRemovePluginRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).removePlugin(address(plugin));
+        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
 
         assertEq(vault.pluginsLength(), 0);
-        assertEq(vault.pluginActiveSince(address(plugin)), 0);
+        assertEq(vault.pendingPluginLimitData(address(plugin)), bytes32(0));
     }
 
-    function test_Pull_revertsWhenNotActive() public {
-        vault = _getVault(7 days);
+    function test_AllocatePluginReturnsZeroWhenNotActive() public {
+        vault = _getUniversalVault(7 days);
         MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
 
         vm.prank(address(plugin));
-        vm.expectRevert(IVaultV2.PluginNotActive.selector);
-        vault.pull(1);
+        uint256 allocated = vault.allocatePlugin(address(plugin), 1);
+        assertEq(allocated, 0);
     }
 
     function test_RemovePlugin_revertsWhenOwed() public {
@@ -2834,14 +2851,15 @@ contract VaultV2Test is Test {
 
         MockPlugin plugin = _createPlugin();
         _addPlugin(plugin);
+        _activatePluginLimit();
 
         vm.prank(address(plugin));
-        vault.pull(40);
+        vault.allocatePlugin(address(plugin), 40);
 
         _grantRemovePluginRole(alice, alice);
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.PluginAllocated.selector);
-        VaultV2(address(vault)).removePlugin(address(plugin));
+        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
         vm.stopPrank();
     }
 
@@ -2851,23 +2869,22 @@ contract VaultV2Test is Test {
 
         MockPlugin plugin = _createPlugin();
         _addPlugin(plugin);
+        _activatePluginLimit();
 
         vm.prank(address(plugin));
-        uint256 pulled = vault.pull(80);
+        uint256 pulled = vault.allocatePlugin(address(plugin), 80);
         assertEq(pulled, 80);
         assertEq(vault.pluginsAllocated(), 80);
         assertEq(vault.pluginAllocated(address(plugin)), 80);
 
         vm.prank(address(plugin));
-        pulled = vault.pull(50);
+        pulled = vault.allocatePlugin(address(plugin), 50);
         assertEq(pulled, 20);
         assertEq(vault.pluginsAllocated(), 100);
         assertEq(vault.pluginAllocated(address(plugin)), 100);
 
-        vm.startPrank(address(plugin));
-        collateral.approve(address(vault), 30);
-        vault.push(30);
-        vm.stopPrank();
+        vm.prank(address(plugin));
+        vault.deallocatePlugin(address(plugin), 30);
 
         assertEq(vault.pluginsAllocated(), 70);
         assertEq(vault.pluginAllocated(address(plugin)), 70);
@@ -2879,9 +2896,10 @@ contract VaultV2Test is Test {
 
         MockPlugin plugin = _createPlugin();
         _addPlugin(plugin);
+        _activatePluginLimit();
 
         vm.prank(address(plugin));
-        vault.pull(50);
+        vault.allocatePlugin(address(plugin), 50);
 
         _withdraw(alice, 10);
 
@@ -2900,16 +2918,18 @@ contract VaultV2Test is Test {
 
         MockPlugin plugin = _createPlugin();
         _addPlugin(plugin);
-        plugin.setShouldFail(true);
+        _activatePluginLimit();
 
         vm.prank(address(plugin));
-        vault.pull(80);
+        vault.allocatePlugin(address(plugin), 80);
+
+        plugin.setShouldFail(true);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         uint48 captureTimestamp = uint48(block.timestamp - 1);
 
         vm.prank(address(slasher));
-        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, "");
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true, "");
 
         assertEq(slashedAmount, 60);
         assertEq(owed, 40);
@@ -2975,9 +2995,10 @@ contract VaultV2Test is Test {
 
         MockPlugin plugin = _createPlugin();
         _addPlugin(plugin);
+        _activatePluginLimit();
 
         vm.prank(address(plugin));
-        vault.pull(40);
+        vault.allocatePlugin(address(plugin), 40);
 
         plugin.setShouldFail(true);
 
@@ -2987,12 +3008,286 @@ contract VaultV2Test is Test {
         uint48 captureTimestamp = uint48(block.timestamp - 1);
 
         vm.prank(address(slasher));
-        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, "");
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true, "");
 
         assertEq(slashedAmount, 60);
         assertEq(owed, 30);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 30);
         assertEq(vault.pluginAllocated(address(plugin)), 40);
+    }
+
+    function test_ViewWrappersAndERC20Views() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+        _withdraw(alice, 40);
+
+        uint48 timestamp = uint48(block.timestamp);
+        assertEq(vault.withdrawalBucket(), vaultTestHelper.unlockToBucketLatest(address(vault)));
+        assertEq(VaultV2(address(vault)).activeWithdrawalsFor(0, ""), VaultV2(address(vault)).activeWithdrawals());
+        assertEq(
+            VaultV2(address(vault)).activeWithdrawalsAt(timestamp, ""),
+            VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp, "")
+        );
+        assertGt(VaultV2(address(vault)).withdrawalsOf(0, alice), 0);
+        assertEq(VaultV2(address(vault)).decimals(), collateral.decimals());
+        assertEq(VaultV2(address(vault)).totalSupply(), vault.activeShares());
+        assertEq(VaultV2(address(vault)).balanceOf(alice), vault.activeSharesOf(alice));
+
+        uint256 expectedAllocatable = vault.totalStake()
+            .saturatingSub(IUniversalDelegator(vault.delegator()).getNoPluginsSize())
+            .saturatingSub(vault.pluginsAllocated());
+        assertEq(vault.allocatable(), expectedAllocatable);
+        assertEq(vault.pluginLimit(address(uint160(0xBEEF))), 0);
+    }
+
+    function test_InstantWithdraw() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        uint256 buffer = IUniversalDelegator(vault.delegator()).getWithdrawalBuffer();
+        assertGt(buffer, 0);
+        uint256 amount = Math.min(buffer, uint256(10));
+
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(bob, amount);
+
+        assertEq(withdrawnAssets, amount);
+        assertGt(burnedShares, 0);
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, amount);
+    }
+
+    function test_InstantWithdrawRevertInsufficientAmount() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).instantWithdraw(alice, 0);
+    }
+
+    function test_InstantWithdrawRevertTooMuchWithdraw() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        vm.prank(bob);
+        vm.expectRevert(IVaultV2.TooMuchWithdraw.selector);
+        VaultV2(address(vault)).instantWithdraw(bob, 1);
+    }
+
+    function test_FlashFeeRevertUnsupportedToken() public {
+        vault = _getVault(7 days);
+        vm.expectRevert(IVaultV2.UnsupportedToken.selector);
+        vault.flashFee(address(uint160(0xBEEF)), 1);
+    }
+
+    function test_FlashLoanRevertInsufficientAmount() public {
+        vault = _getVault(7 days);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).flashLoan(address(collateral), 0, "");
+    }
+
+    function test_FlashLoanDistributesFee() public {
+        vault = _getVault(7 days);
+        feeRegistry.setFlashloanFee(100_000);
+        _deposit(alice, 500);
+
+        uint256 amount = 100;
+        uint256 fee = vault.flashFee(address(collateral), amount);
+
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+        uint256 selfBalanceBefore = collateral.balanceOf(address(this));
+        VaultV2(address(vault)).flashLoan(address(collateral), amount, "");
+        assertEq(collateral.balanceOf(address(vault)) - vaultBalanceBefore, fee);
+        assertEq(selfBalanceBefore - collateral.balanceOf(address(this)), fee);
+    }
+
+    function test_FlashLoanRevertInvalidReturnAmount() public {
+        collateral = Token(address(feeOnTransferCollateral));
+        vault = _getVault(7 days);
+        feeRegistry.setFlashloanFee(100_000);
+
+        uint256 depositAmount = 300;
+        feeOnTransferCollateral.transfer(alice, depositAmount + 1);
+        vm.startPrank(alice);
+        feeOnTransferCollateral.approve(address(vault), depositAmount);
+        vault.deposit(alice, depositAmount);
+        vm.stopPrank();
+
+        uint256 amount = 100;
+        uint256 fee = vault.flashFee(address(collateral), amount);
+        feeOnTransferCollateral.transfer(address(this), fee + 2);
+
+        vm.expectRevert(IVaultV2.InvalidReturnAmount.selector);
+        VaultV2(address(vault)).flashLoan(address(collateral), amount, "");
+    }
+
+    function onFlashLoan(address initiator, address token, uint256 amount, uint256 fee, bytes calldata data)
+        external
+        returns (bytes32)
+    {
+        initiator;
+        data;
+        if (msg.sender != address(vault)) {
+            revert("InvalidLender");
+        }
+        IERC20(token).approve(msg.sender, amount + fee);
+        return keccak256("ERC3156FlashBorrower.onFlashLoan");
+    }
+
+    function test_SetPluginLimitRevertTooManyPlugins() public {
+        vault = _getUniversalVault(7 days);
+        _grantAddPluginRole(alice, alice);
+
+        for (uint256 i; i < 9; ++i) {
+            MockPlugin plugin = _createPlugin();
+            vm.prank(alice);
+            VaultV2(address(vault)).setPluginLimit(address(plugin), 1);
+        }
+
+        MockPlugin extraPlugin = _createPlugin();
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.TooManyPlugins.selector);
+        VaultV2(address(vault)).setPluginLimit(address(extraPlugin), 1);
+        vm.stopPrank();
+    }
+
+    function test_AllocatePluginRevertFeeOnTransferNotSupported() public {
+        collateral = Token(address(feeOnTransferCollateral));
+        vault = _getUniversalVault(7 days);
+
+        uint256 depositAmount = 100;
+        feeOnTransferCollateral.transfer(alice, depositAmount + 1);
+        vm.startPrank(alice);
+        feeOnTransferCollateral.approve(address(vault), depositAmount);
+        vault.deposit(alice, depositAmount);
+        vm.stopPrank();
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vm.expectRevert(IVaultV2.FeeOnTransferNotSupported.selector);
+        vault.allocatePlugin(address(plugin), 10);
+    }
+
+    function test_SyncOwedSlashRevertNotSlasher() public {
+        vault = _getUniversalVault(7 days);
+
+        vm.expectRevert(IVaultV2.NotSlasher.selector);
+        VaultV2(address(vault)).syncOwedSlash(1);
+    }
+
+    function test_SkimPlugins() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 30);
+        assertEq(collateral.balanceOf(address(plugin)), 30);
+
+        VaultV2(address(vault)).skimPlugins();
+        assertEq(collateral.balanceOf(address(plugin)), 0);
+    }
+
+    function test_DeallocatePlugins() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+
+        plugin.setShouldFail(true);
+        vm.prank(address(slasher));
+        VaultV2(address(vault)).onSlash(60, true, "");
+
+        uint256 totalStakeAfterSlash = vault.totalStake();
+        assertEq(totalStakeAfterSlash, 40);
+
+        plugin.setShouldFail(false);
+        VaultV2(address(vault)).deallocatePlugins();
+
+        assertEq(vault.pluginsAllocated(), totalStakeAfterSlash);
+        assertEq(vault.pluginAllocated(address(plugin)), totalStakeAfterSlash);
+    }
+
+    function test_TransferUpdatesActiveShares() public {
+        vault = _getVault(7 days);
+        _deposit(alice, 100);
+
+        uint256 sharesToTransfer = vault.activeSharesOf(alice) / 2;
+        vm.prank(alice);
+        VaultV2(address(vault)).transfer(bob, sharesToTransfer);
+
+        assertEq(vault.activeSharesOf(bob), sharesToTransfer);
+        assertEq(vault.activeSharesOf(alice), VaultV2(address(vault)).balanceOf(alice));
+    }
+
+    function test_CreateRevertInvalidPluginActiveDelay(uint48 epochDuration) public {
+        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(epochDuration);
+        params.pluginLimitSetDelay = epochDuration;
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vm.expectRevert(IVaultV2.InvalidPluginActiveDelay.selector);
+        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+    }
+
+    function test_CreateRevertPluginDataInvalidAddress() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.pluginsData = new IVaultV2.PluginData[](1);
+        params.pluginsData[0] = IVaultV2.PluginData({plugin: address(0), limit: 1});
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+    }
+
+    function test_CreateRevertPluginDataZeroLimit() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.pluginsData = new IVaultV2.PluginData[](1);
+        params.pluginsData[0] = IVaultV2.PluginData({plugin: makeAddr("plugin"), limit: 0});
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+    }
+
+    function test_CreateRevertDuplicatePluginData() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        address plugin = makeAddr("duplicatePlugin");
+        params.pluginsData = new IVaultV2.PluginData[](2);
+        params.pluginsData[0] = IVaultV2.PluginData({plugin: plugin, limit: 1});
+        params.pluginsData[1] = IVaultV2.PluginData({plugin: plugin, limit: 2});
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vm.expectRevert(IVaultV2.DuplicatePlugin.selector);
+        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+    }
+
+    function test_CreateWithPluginData() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        address plugin1 = makeAddr("plugin1");
+        address plugin2 = makeAddr("plugin2");
+        params.pluginsData = new IVaultV2.PluginData[](2);
+        params.pluginsData[0] = IVaultV2.PluginData({plugin: plugin1, limit: 11});
+        params.pluginsData[1] = IVaultV2.PluginData({plugin: plugin2, limit: 22});
+
+        vault = IVaultV2(vaultFactory.create(vaultFactory.lastVersion(), alice, _getEncodedVaultParams(params)));
+        assertEq(vault.pluginsLength(), 2);
+        assertEq(vault.plugins(0), plugin1);
+        assertEq(vault.plugins(1), plugin2);
+        assertEq(vault.pluginLimit(plugin1), 11);
+        assertEq(vault.pluginLimit(plugin2), 22);
     }
 
     function _latestWithdrawalBucket() internal view returns (uint256) {
@@ -3130,13 +3425,13 @@ contract VaultV2Test is Test {
 
     function _grantAddPluginRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(ADD_PLUGIN_ROLE, account);
+        VaultV2(address(vault)).grantRole(SET_PLUGIN_LIMIT_ROLE, account);
         vm.stopPrank();
     }
 
     function _grantRemovePluginRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(REMOVE_PLUGIN_ROLE, account);
+        VaultV2(address(vault)).grantRole(SET_PLUGIN_LIMIT_ROLE, account);
         vm.stopPrank();
     }
 
@@ -3147,7 +3442,11 @@ contract VaultV2Test is Test {
     function _addPlugin(MockPlugin plugin) internal {
         _grantAddPluginRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).addPlugin(address(plugin));
+        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+    }
+
+    function _activatePluginLimit() internal {
+        vm.warp(block.timestamp + vault.pluginLimitSetDelay());
     }
 
     function _deposit(address user, uint256 amount) internal returns (uint256 depositedAmount, uint256 mintedShares) {
@@ -3256,7 +3555,7 @@ contract VaultV2Test is Test {
         hints;
 
         vm.startPrank(address(slasher));
-        (slashAmount,) = VaultV2(address(vault)).onSlash(amount, "");
+        (slashAmount,) = VaultV2(address(vault)).onSlash(amount, false, "");
         vm.stopPrank();
     }
 
@@ -3420,10 +3719,10 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: baseParams.depositorWhitelistRoleHolder,
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
-                    addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice,
-                    pluginActiveDelay: baseParams.epochDuration * 3,
-                    plugins: new address[](0)
+                    setPluginLimitRoleHolder: alice,
+                    allocatePluginRoleHolder: alice,
+                    pluginLimitSetDelay: baseParams.epochDuration * 3,
+                    pluginsData: new IVaultV2.PluginData[](0)
                 })
             );
         }
@@ -3517,10 +3816,10 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: baseParams.depositorWhitelistRoleHolder,
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
-                    addPluginRoleHolder: alice,
-                    removePluginRoleHolder: alice,
-                    pluginActiveDelay: baseParams.epochDuration * 3,
-                    plugins: new address[](0)
+                    setPluginLimitRoleHolder: alice,
+                    allocatePluginRoleHolder: alice,
+                    pluginLimitSetDelay: baseParams.epochDuration * 3,
+                    pluginsData: new IVaultV2.PluginData[](0)
                 })
             );
         }
@@ -3572,6 +3871,28 @@ contract VaultV2Test is Test {
             symbol: VAULT_SYMBOL,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
+        });
+    }
+
+    function _defaultVaultInitParams(uint48 epochDuration) internal view returns (IVaultV2.InitParams memory params) {
+        params = IVaultV2.InitParams({
+            name: VAULT_NAME,
+            symbol: VAULT_SYMBOL,
+            collateral: address(collateral),
+            burner: address(0xdEaD),
+            epochDuration: epochDuration,
+            depositWhitelist: false,
+            isDepositLimit: false,
+            depositLimit: 0,
+            defaultAdminRoleHolder: alice,
+            depositWhitelistSetRoleHolder: alice,
+            depositorWhitelistRoleHolder: alice,
+            isDepositLimitSetRoleHolder: alice,
+            depositLimitSetRoleHolder: alice,
+            setPluginLimitRoleHolder: alice,
+            allocatePluginRoleHolder: alice,
+            pluginLimitSetDelay: epochDuration * 3,
+            pluginsData: new IVaultV2.PluginData[](0)
         });
     }
 

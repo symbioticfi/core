@@ -6,5 +6,5 @@ import {IRegistry} from "./common/IRegistry.sol";
 interface IPluginRegistry is IRegistry {
     error PluginAlreadyWhitelisted();
 
-    function whitelistPlugin(address plugin) external;
+    function whitelistPlugin(address plugin, uint256 limit) external;
 }

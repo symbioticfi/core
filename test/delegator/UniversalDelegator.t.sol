@@ -176,10 +176,10 @@ contract UniversalDelegatorTest is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        addPluginRoleHolder: address(0),
-                        removePluginRoleHolder: address(0),
-                        pluginActiveDelay: EPOCH_DURATION * 3,
-                        plugins: new address[](0)
+                        setPluginLimitRoleHolder: address(0),
+                        allocatePluginRoleHolder: address(0),
+                        pluginLimitSetDelay: EPOCH_DURATION * 3,
+                        pluginsData: new IVaultV2.PluginData[](0)
                     })
                 ),
                 delegatorIndex: 0,
@@ -1168,24 +1168,36 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(slot1, 0), 30);
     }
 
-    function test_swapSlots_allowsAnyOrder() public {
-        _deposit(alice, 100);
-
+    function test_swapSlots_revertsWrongOrder() public {
         _createSlot(0, false, 10);
         _createSlot(0, false, 10);
         uint96 slot1 = _rootIndex(uint32(1));
         uint96 slot2 = _rootIndex(uint32(2));
 
-        IUniversalDelegator.Slot memory slot1Before = delegator.getSlot(slot1);
-        IUniversalDelegator.Slot memory slot2Before = delegator.getSlot(slot2);
+        vm.expectRevert(IUniversalDelegator.WrongOrder.selector);
         delegator.swapSlots(slot2, slot1);
-        IUniversalDelegator.Slot memory slot1After = delegator.getSlot(slot1);
-        IUniversalDelegator.Slot memory slot2After = delegator.getSlot(slot2);
+    }
 
-        assertEq(slot1After.prevSlot, slot2Before.prevSlot);
-        assertEq(slot1After.nextSlot, slot2Before.nextSlot);
-        assertEq(slot2After.prevSlot, slot1Before.prevSlot);
-        assertEq(slot2After.nextSlot, slot1Before.nextSlot);
+    function test_swapSlots_adjacentTail_preservesLinks() public {
+        _createSlot(0, false, 10);
+        _createSlot(0, false, 10);
+        _createSlot(0, false, 10);
+
+        uint96 slot1 = _rootIndex(uint32(1));
+        uint96 slot2 = _rootIndex(uint32(2));
+        uint96 slot3 = _rootIndex(uint32(3));
+
+        delegator.swapSlots(slot2, slot3);
+
+        IUniversalDelegator.Slot memory rootAfter = delegator.getSlot(0);
+        IUniversalDelegator.Slot memory slot2After = delegator.getSlot(slot2);
+        IUniversalDelegator.Slot memory slot3After = delegator.getSlot(slot3);
+
+        assertEq(rootAfter.firstChild, slot1.getChildIndex());
+        assertEq(rootAfter.lastChild, slot2.getChildIndex());
+        assertEq(slot3After.prevSlot, slot1.getChildIndex());
+        assertEq(slot3After.nextSlot, slot2.getChildIndex());
+        assertEq(slot2After.prevSlot, slot3.getChildIndex());
     }
 
     function test_swapSlots_revertsNotSameParent() public {
@@ -1277,11 +1289,11 @@ contract UniversalDelegatorTest is Test {
     }
 
     function _operatorKey(address operator) internal pure returns (bytes32) {
-        return bytes32(uint256(uint160(operator)));
+        return bytes32(bytes20(operator));
     }
 
     function _rootIndex(uint32 localIndex) internal pure returns (uint96) {
-        return uint96(0).createIndex(localIndex + 1);
+        return uint96(0).createIndex(localIndex);
     }
 
     function _unallocated2(uint96 parentIndex, uint96 slot1, uint96 slot2) internal view returns (uint256) {

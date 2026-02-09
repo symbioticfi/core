@@ -60,6 +60,7 @@ interface IUniversalDelegator {
     error TooManyOperators();
     error NotEnoughNoPlugins();
     error SlotNotAllocated();
+    error WrongOrder();
 
     /**
      * @notice Base parameters needed for delegators' deployment.

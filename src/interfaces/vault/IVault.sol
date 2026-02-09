@@ -13,6 +13,7 @@ interface IVault is IMigratableEntity, IVaultStorage {
     error InsufficientDeposit();
     error InsufficientRedemption();
     error InsufficientWithdrawal();
+    error InvalidAccount();
     error InvalidCaptureEpoch();
     error InvalidClaimer();
     error InvalidCollateral();
