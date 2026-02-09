@@ -241,43 +241,120 @@ def _map_sequence(
     return mapped
 
 
+def _find_next_index(
+    children: list[tuple[str, int]],
+    start: int,
+    names: tuple[str, ...] | str,
+) -> int | None:
+    if isinstance(names, str):
+        names = (names,)
+    for i in range(start, len(children)):
+        if children[i][0] in names:
+            return i
+    return None
+
+
 def map_execute(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
-    expected: list[tuple[tuple[str, ...] | str, str, bool]] = [
-        ("ReentrancyGuard::_nonReentrantBefore", "ReentrancyGuard::_nonReentrantBefore", True),
-        ("UniversalSlasher::slashRequests", "UniversalSlasher::slashRequests", True),
-        ("UniversalSlasher::_checkNetworkMiddleware", "UniversalSlasher::_checkNetworkMiddleware", True),
-        ("MigratableEntityProxy::fallback", "VaultV2::epochDuration (via proxy)", True),
-        (("UniversalSlasher::slashableStake", "UniversalSlasher::_slashableStake"), "UniversalSlasher::slashableStake", True),
-        ("MigratableEntityProxy::fallback", "VaultV2::delegator (via proxy)", True),
-        (("onSlash", "UniversalDelegator::onSlash"), "UniversalDelegator::onSlash", True),
-        ("MigratableEntityProxy::fallback", "VaultV2::onSlash (via proxy)", True),
-        ("UniversalSlasher::_burnerOnSlash", "UniversalSlasher::_burnerOnSlash", True),
-        ("ReentrancyGuard::_nonReentrantAfter", "ReentrancyGuard::_nonReentrantAfter", False),
+    context = "executeSlash"
+    mapped: list[tuple[str, int]] = []
+    idx = 0
+
+    def _require(names: tuple[str, ...] | str, label: str) -> int:
+        nonlocal idx
+        found = _find_next_index(children, idx, names)
+        if found is None:
+            raise ValueError(f"Unexpected {context} trace shape.")
+        mapped.append((label, children[found][1]))
+        idx = found + 1
+        return found
+
+    _require("ReentrancyGuard::_nonReentrantBefore", "ReentrancyGuard::_nonReentrantBefore")
+    _require("UniversalSlasher::slashRequests", "UniversalSlasher::slashRequests")
+    _require("UniversalSlasher::_checkNetworkMiddleware", "UniversalSlasher::_checkNetworkMiddleware")
+    _require("MigratableEntityProxy::fallback", "VaultV2::epochDuration (via proxy)")
+    _require(
+        ("UniversalSlasher::slashableStake", "UniversalSlasher::_slashableStake"),
+        "UniversalSlasher::slashableStake",
+    )
+    _require("MigratableEntityProxy::fallback", "VaultV2::delegator (via proxy)")
+    _require(("onSlash", "UniversalDelegator::onSlash"), "UniversalDelegator::onSlash")
+
+    burner_idx = _find_next_index(children, idx, "UniversalSlasher::_burnerOnSlash")
+    if burner_idx is None:
+        raise ValueError(f"Unexpected {context} trace shape.")
+
+    fallbacks_before_burner = [
+        i for i in range(idx, burner_idx) if children[i][0] == "MigratableEntityProxy::fallback"
     ]
-    return _map_sequence(children, expected, "executeSlash")
+    if not fallbacks_before_burner:
+        raise ValueError(f"Unexpected {context} trace shape.")
+    vault_on_slash_fallback_idx = fallbacks_before_burner[-1]
+    delegator_for_plugins_idx = fallbacks_before_burner[-2] if len(fallbacks_before_burner) > 1 else None
+
+    if delegator_for_plugins_idx is None:
+        mapped.append(("VaultV2::delegator (via proxy, for getIsNoPlugins)", 0))
+    else:
+        mapped.append(
+            (
+                "VaultV2::delegator (via proxy, for getIsNoPlugins)",
+                children[delegator_for_plugins_idx][1],
+            )
+        )
+
+    get_is_no_plugins_idx = _find_next_index(
+        children,
+        idx,
+        ("getIsNoPlugins", "UniversalDelegator::getIsNoPlugins"),
+    )
+    if get_is_no_plugins_idx is None or get_is_no_plugins_idx >= burner_idx:
+        mapped.append(("UniversalDelegator::getIsNoPlugins", 0))
+    else:
+        mapped.append(("UniversalDelegator::getIsNoPlugins", children[get_is_no_plugins_idx][1]))
+
+    mapped.append(("VaultV2::onSlash (via proxy)", children[vault_on_slash_fallback_idx][1]))
+    mapped.append(("UniversalSlasher::_burnerOnSlash", children[burner_idx][1]))
+
+    non_reentrant_after_idx = _find_next_index(children, burner_idx + 1, "ReentrancyGuard::_nonReentrantAfter")
+    mapped.append(
+        (
+            "ReentrancyGuard::_nonReentrantAfter",
+            children[non_reentrant_after_idx][1] if non_reentrant_after_idx is not None else 0,
+        )
+    )
+    return mapped
 
 
 def map_vault(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
     expected: list[tuple[tuple[str, ...] | str, str, bool]] = [
+        ("VaultV2::deallocatePlugins", "VaultV2::deallocatePlugins", False),
         ("ReentrancyGuard::_nonReentrantBefore", "ReentrancyGuard::_nonReentrantBefore", True),
-        ("Checkpoints::latest", "Checkpoints::latest", True),
-        ("Checkpoints::latest", "Checkpoints::latest", True),
-        ("Checkpoints::latest", "Checkpoints::latest", True),
+        ("VaultV2Storage::activeStake", "VaultV2Storage::activeStake", True),
+        ("VaultV2Storage::withdrawalBucket", "VaultV2Storage::withdrawalBucket", True),
         ("Checkpoints::upperLookupRecent", "Checkpoints::upperLookupRecent", True),
         ("Checkpoints::latest", "Checkpoints::latest", True),
-        ("VaultV2Storage::activeStake", "VaultV2Storage::activeStake", True),
+        ("VaultV2::activeWithdrawals", "VaultV2::activeWithdrawals", True),
+        ("VaultV2::activeWithdrawals", "VaultV2::activeWithdrawals", True),
+        ("VaultV2Storage::withdrawals", "VaultV2Storage::withdrawals", True),
         ("Checkpoints::push", "Checkpoints::push", True),
         ("Checkpoints::push", "Checkpoints::push", True),
+        ("VaultV2Storage::withdrawalShares", "VaultV2Storage::withdrawalShares", True),
         ("Checkpoints::push", "Checkpoints::push", True),
         ("Checkpoints::push", "Checkpoints::push", True),
         ("FixedPointMathLib::mulDiv", "FixedPointMathLib::mulDiv", True),
         ("Checkpoints::push", "Checkpoints::push", True),
         ("Checkpoints::push", "Checkpoints::push", True),
-        ("Token::balanceOf", "Token::balanceOf", True),
-        ("SafeTransferLib::safeTransfer", "SafeTransferLib::safeTransfer", True),
+        ("VaultV2::_availableToSlash", "VaultV2::_availableToSlash", True),
+        ("SafeTransferLib::safeTransfer", "SafeTransferLib::safeTransfer", False),
         ("ReentrancyGuard::_nonReentrantAfter", "ReentrancyGuard::_nonReentrantAfter", False),
     ]
     return _map_sequence(children, expected, "VaultV2::onSlash")
+
+
+def component_gas(components: list[tuple[str, int]], label: str, context: str) -> int:
+    for name, gas in components:
+        if name == label:
+            return gas
+    raise ValueError(f"Missing {context} component: {label}")
 
 
 def _norm_label(value: str) -> str:
@@ -504,7 +581,11 @@ Note: costs are lower because `latest()` state is used.
             report_1_lines,
             "## Delta (with hints vs no hints)",
             [
-                (("`UniversalSlasher::slashableStake`",), exec_2[4][1] - exec_1[4][1]),
+                (
+                    ("`UniversalSlasher::slashableStake`",),
+                    component_gas(exec_2, "UniversalSlasher::slashableStake", "executeSlash with hints")
+                    - component_gas(exec_1, "UniversalSlasher::slashableStake", "executeSlash no hints"),
+                ),
                 (("Total `executeSlash`",), logs["executeSlash_with_hints"] - logs["executeSlash_no_hints"]),
             ],
             1,
@@ -554,7 +635,11 @@ Note: costs are lower because `latest()` state is used.
             report_2_lines,
             "## Delta (with hints vs no hints)",
             [
-                (("`UniversalSlasher::slashableStake`",), exec_4[4][1] - exec_3[4][1]),
+                (
+                    ("`UniversalSlasher::slashableStake`",),
+                    component_gas(exec_4, "UniversalSlasher::slashableStake", "executeSlash2 with hints")
+                    - component_gas(exec_3, "UniversalSlasher::slashableStake", "executeSlash2 no hints"),
+                ),
                 (("Total `executeSlash`",), logs["executeSlash2_with_hints"] - logs["executeSlash2_no_hints"]),
             ],
             1,
