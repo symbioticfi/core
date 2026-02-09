@@ -19,8 +19,6 @@ bytes32 constant ALLOCATE_PLUGIN_ROLE = 0x519cc70d51fcfd11b60dc29f6c85e08207d46a
 // keccak256("DEALLOCATE_PLUGIN_ROLE")
 bytes32 constant DEALLOCATE_PLUGIN_ROLE = 0x2228e59f6ee6ff4b08702cdeaa6118d05e883f4b7df19c7053169d4e74afd4be;
 
-uint256 constant MAX_FEE = 1_000_000;
-
 uint256 constant MAX_PLUGINS = 10;
 
 /**
@@ -64,11 +62,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error FeeOnTransferNotSupported();
     error DuplicatePlugin();
     error PluginAllocated();
-    error UnsupportedToken();
-    error MaxLoanExceeded();
-    error InvalidReceiver();
-    error InvalidReturnAmount();
-    error InsufficientBalance();
     error TooManyPlugins();
     error LimitReached();
 
@@ -325,14 +318,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     function withdrawalsOf(uint256 index, address account) external view returns (uint256);
 
-    /**
-     * @notice Get the flash fee for a given token and amount.
-     * @param token address of the token
-     * @param amount amount of the token
-     * @return flash fee for the given token and amount
-     */
-    function flashFee(address token, uint256 amount) external view returns (uint256);
-
     function allocatable() external view returns (uint256);
 
     function pluginLimit(address plugin) external view returns (uint208);
@@ -445,14 +430,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function skimPlugins() external;
 
     function deallocatePlugins() external;
-
-    /**
-     * @notice Flash loan collateral from the vault.
-     * @param token address of the token
-     * @param amount amount of the token
-     * @param data data for the flash loan
-     */
-    function flashLoan(address token, uint256 amount, bytes memory data) external;
 
     /**
      * @dev Migrates a epoch-based withdawal to the fixed-delay-based one.

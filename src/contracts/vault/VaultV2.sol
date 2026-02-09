@@ -13,10 +13,8 @@ import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
-import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
 import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IRewards} from "../../interfaces/vault/IRewards.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {
     IVaultV2,
@@ -27,7 +25,6 @@ import {
     SET_PLUGIN_LIMIT_ROLE,
     ALLOCATE_PLUGIN_ROLE,
     DEALLOCATE_PLUGIN_ROLE,
-    MAX_FEE,
     MAX_PLUGINS
 } from "../../interfaces/vault/IVaultV2.sol";
 
@@ -35,7 +32,6 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {LibCall as Address} from "@solady/src/utils/LibCall.sol";
@@ -71,11 +67,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         address slasherFactory,
         address vaultFactory,
         address rewards,
-        address feeRegistry,
         address migratorV1V2
     ) VaultV2Storage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
         REWARDS = rewards;
-        FEE_REGISTRY = feeRegistry;
         MIGRATOR_V1V2 = migratorV1V2;
     }
 
@@ -209,16 +203,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function balanceOf(address account) public view override returns (uint256) {
         return activeSharesOf(account);
-    }
-
-    /**
-     * @inheritdoc IVaultV2
-     */
-    function flashFee(address token, uint256 amount) public view returns (uint256) {
-        if (token != collateral) {
-            revert UnsupportedToken();
-        }
-        return amount.fullMulDivUp(IFeeRegistry(FEE_REGISTRY).getFlashloanFee(address(this)), MAX_FEE);
     }
 
     /**
@@ -521,32 +505,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function setDepositLimit(uint256 limit) public nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         depositLimit = limit;
         emit SetDepositLimit(limit);
-    }
-
-    /**
-     * @inheritdoc IVaultV2
-     */
-    function flashLoan(address token, uint256 amount, bytes memory data) external nonReentrant {
-        _revertIfZero(amount);
-        uint256 fee = flashFee(token, amount);
-        address collateral_ = collateral;
-        uint256 balanceBefore = IERC20(collateral_).balanceOf(address(this));
-
-        collateral_.safeTransfer(msg.sender, amount);
-
-        IERC3156FlashBorrower(msg.sender).onFlashLoan(msg.sender, token, amount, fee, data);
-
-        collateral_.safeTransferFrom(msg.sender, address(this), amount + fee);
-
-        uint256 actualFee = IERC20(collateral_).balanceOf(address(this)) - balanceBefore;
-        if (actualFee < fee) {
-            revert InvalidReturnAmount();
-        }
-
-        if (actualFee > 0) {
-            collateral.safeApprove(REWARDS, actualFee);
-            IRewards(REWARDS).distributeDonationRewards(address(this), actualFee);
-        }
     }
 
     /* EXTERNAL LIQUIDITY FUNCTIONS */

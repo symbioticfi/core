@@ -61,7 +61,6 @@ import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 import {VaultV2TestHelper} from "../helpers/VaultV2TestHelper.sol";
 import {MockPlugin} from "../mocks/MockPlugin.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
-import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 
 contract VaultV2Test is Test {
     using Math for uint256;
@@ -92,7 +91,6 @@ contract VaultV2Test is Test {
     VaultV2TestHelper vaultTestHelper;
     MigratorV1V2 migratorV1V2;
     MockRewards rewards;
-    MockFeeRegistry feeRegistry;
 
     IVaultV2 vault;
     FullRestakeDelegator delegator;
@@ -184,7 +182,6 @@ contract VaultV2Test is Test {
 
         migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
-        feeRegistry = new MockFeeRegistry(0);
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -3075,66 +3072,6 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).instantWithdraw(bob, 1);
     }
 
-    function test_FlashFeeRevertUnsupportedToken() public {
-        vault = _getVault(7 days);
-        vm.expectRevert(IVaultV2.UnsupportedToken.selector);
-        vault.flashFee(address(uint160(0xBEEF)), 1);
-    }
-
-    function test_FlashLoanRevertInsufficientAmount() public {
-        vault = _getVault(7 days);
-        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
-        VaultV2(address(vault)).flashLoan(address(collateral), 0, "");
-    }
-
-    function test_FlashLoanDistributesFee() public {
-        vault = _getVault(7 days);
-        feeRegistry.setFlashloanFee(100_000);
-        _deposit(alice, 500);
-
-        uint256 amount = 100;
-        uint256 fee = vault.flashFee(address(collateral), amount);
-
-        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 selfBalanceBefore = collateral.balanceOf(address(this));
-        VaultV2(address(vault)).flashLoan(address(collateral), amount, "");
-        assertEq(collateral.balanceOf(address(vault)) - vaultBalanceBefore, fee);
-        assertEq(selfBalanceBefore - collateral.balanceOf(address(this)), fee);
-    }
-
-    function test_FlashLoanRevertInvalidReturnAmount() public {
-        collateral = Token(address(feeOnTransferCollateral));
-        vault = _getVault(7 days);
-        feeRegistry.setFlashloanFee(100_000);
-
-        uint256 depositAmount = 300;
-        feeOnTransferCollateral.transfer(alice, depositAmount + 1);
-        vm.startPrank(alice);
-        feeOnTransferCollateral.approve(address(vault), depositAmount);
-        vault.deposit(alice, depositAmount);
-        vm.stopPrank();
-
-        uint256 amount = 100;
-        uint256 fee = vault.flashFee(address(collateral), amount);
-        feeOnTransferCollateral.transfer(address(this), fee + 2);
-
-        vm.expectRevert(IVaultV2.InvalidReturnAmount.selector);
-        VaultV2(address(vault)).flashLoan(address(collateral), amount, "");
-    }
-
-    function onFlashLoan(address initiator, address token, uint256 amount, uint256 fee, bytes calldata data)
-        external
-        returns (bytes32)
-    {
-        initiator;
-        data;
-        if (msg.sender != address(vault)) {
-            revert("InvalidLender");
-        }
-        IERC20(token).approve(msg.sender, amount + fee);
-        return keccak256("ERC3156FlashBorrower.onFlashLoan");
-    }
-
     function test_SetPluginLimitRevertTooManyPlugins() public {
         vault = _getUniversalVault(7 days);
         _grantAddPluginRole(alice, alice);
@@ -3576,7 +3513,6 @@ contract VaultV2Test is Test {
                 slasherFactory,
                 vaultFactory,
                 address(rewards),
-                address(feeRegistry),
                 address(migratorV1V2)
             )
         );

@@ -26,7 +26,6 @@ import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 
-import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
 import {Token} from "../mocks/Token.sol";
 
@@ -58,7 +57,6 @@ contract UniversalDelegatorGasTest is Test {
     VaultConfigurator internal vaultConfigurator;
     MigratorV1V2 internal migratorV1V2;
     MockRewards internal rewards;
-    MockFeeRegistry internal feeRegistry;
 
     Token internal collateral;
     IVaultV2 internal vault;
@@ -86,7 +84,6 @@ contract UniversalDelegatorGasTest is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
-        feeRegistry = new MockFeeRegistry(0);
 
         address vaultImplV1 =
             address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
@@ -102,7 +99,6 @@ contract UniversalDelegatorGasTest is Test {
                 address(slasherFactory),
                 address(vaultFactory),
                 address(rewards),
-                address(feeRegistry),
                 address(migratorV1V2)
             )
         );

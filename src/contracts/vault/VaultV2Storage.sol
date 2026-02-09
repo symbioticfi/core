@@ -20,7 +20,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     address internal immutable DELEGATOR_FACTORY;
     address internal immutable SLASHER_FACTORY;
     address internal immutable REWARDS;
-    address internal immutable FEE_REGISTRY;
 
     address internal immutable MIGRATOR_V1V2;
 
