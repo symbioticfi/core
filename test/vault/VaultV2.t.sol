@@ -34,7 +34,9 @@ import {
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    SET_PLUGIN_LIMIT_ROLE
+    SET_PLUGIN_LIMIT_ROLE,
+    SWAP_PLUGINS_ROLE,
+    MAX_PLUGINS
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 
@@ -2819,17 +2821,101 @@ contract VaultV2Test is Test {
 
         assertEq(vault.pluginsLength(), 1);
         assertEq(vault.plugins(0), address(plugin));
-        assertEq(
-            uint48(uint256(vault.pendingPluginLimitData(address(plugin)))),
-            uint48(block.timestamp + vault.pluginLimitSetDelay())
-        );
+        assertEq(vault.pluginLimit(address(plugin)), type(uint208).max);
 
         _grantRemovePluginRole(alice, alice);
         vm.prank(alice);
         VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
 
         assertEq(vault.pluginsLength(), 0);
-        assertEq(vault.pendingPluginLimitData(address(plugin)), bytes32(0));
+        assertEq(vault.pluginLimit(address(plugin)), 0);
+    }
+
+    function test_DepositAutoAllocatesFirstPlugin() public {
+        vault = _getUniversalVault(7 days);
+
+        MockPlugin plugin1 = _createPlugin();
+        MockPlugin plugin2 = _createPlugin();
+        _addPlugin(plugin1);
+        _addPlugin(plugin2);
+
+        (uint256 depositedAmount,) = _deposit(alice, 100);
+
+        assertEq(vault.pluginsAllocated(), depositedAmount);
+        assertEq(vault.pluginAllocated(address(plugin1)), depositedAmount);
+        assertEq(vault.pluginAllocated(address(plugin2)), 0);
+    }
+
+    function test_SetPluginLimitRemoveNonLastSwapsAndPops() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin1 = _createPlugin();
+        MockPlugin plugin2 = _createPlugin();
+        MockPlugin plugin3 = _createPlugin();
+
+        _addPlugin(plugin1);
+        _addPlugin(plugin2);
+        _addPlugin(plugin3);
+
+        _grantRemovePluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin1), 0);
+
+        assertEq(vault.pluginsLength(), 2);
+        assertEq(vault.plugins(0), address(plugin3));
+        assertEq(vault.plugins(1), address(plugin2));
+        assertEq(vault.pluginLimit(address(plugin1)), 0);
+    }
+
+    function test_SwapPlugins() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin1 = _createPlugin();
+        MockPlugin plugin2 = _createPlugin();
+        _addPlugin(plugin1);
+        _addPlugin(plugin2);
+
+        vm.prank(alice);
+        VaultV2(address(vault)).grantRole(SWAP_PLUGINS_ROLE, alice);
+
+        vm.prank(alice);
+        VaultV2(address(vault)).swapPlugins(address(plugin1), address(plugin2));
+
+        assertEq(vault.plugins(0), address(plugin2));
+        assertEq(vault.plugins(1), address(plugin1));
+    }
+
+    function test_SwapPluginsRevertPluginsNotFound() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin1 = _createPlugin();
+        MockPlugin plugin2 = _createPlugin();
+        _addPlugin(plugin1);
+
+        vm.prank(alice);
+        VaultV2(address(vault)).grantRole(SWAP_PLUGINS_ROLE, alice);
+
+        vm.startPrank(alice);
+        vm.expectRevert(stdError.indexOOBError);
+        VaultV2(address(vault)).swapPlugins(address(plugin1), address(plugin2));
+        vm.stopPrank();
+    }
+
+    function test_AllocatePluginRevertMissingRoles() public {
+        vault = _getUniversalVault(7 days);
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        vault.allocatePlugin(address(plugin), 1);
+    }
+
+    function test_DeallocatePluginRevertMissingRoles() public {
+        vault = _getUniversalVault(7 days);
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(bob);
+        vm.expectRevert();
+        vault.deallocatePlugin(address(plugin), 1);
     }
 
     function test_AllocatePluginReturnsZeroWhenNotActive() public {
@@ -3076,7 +3162,7 @@ contract VaultV2Test is Test {
         vault = _getUniversalVault(7 days);
         _grantAddPluginRole(alice, alice);
 
-        for (uint256 i; i < 9; ++i) {
+        for (uint256 i; i < MAX_PLUGINS; ++i) {
             MockPlugin plugin = _createPlugin();
             vm.prank(alice);
             VaultV2(address(vault)).setPluginLimit(address(plugin), 1);
