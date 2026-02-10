@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultV2Storage} from "./IVaultV2Storage.sol";
 
+uint64 constant VAULT_V2_VERSION = 3;
+
 // keccak256("DEPOSIT_WHITELIST_SET_ROLE")
 bytes32 constant DEPOSIT_WHITELIST_SET_ROLE = 0xbae4ee3de6c709ff9a002e774c5b78cb381560b219213c88ae0f1e207c03c023;
 // keccak256("DEPOSITOR_WHITELIST_ROLE")

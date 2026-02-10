@@ -16,6 +16,9 @@ import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddle
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IUniversalDelegator,
+    MAX_GROUPS,
+    MAX_NETWORKS,
+    MAX_OPERATORS,
     CREATE_SLOT_ROLE,
     HOOK_GAS_LIMIT,
     HOOK_RESERVE,
@@ -23,13 +26,11 @@ import {
     REMOVE_SLOT_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
-    WITHDRAWAL_BUFFER_CHILD_INDEX,
+    SET_WITHDRAWAL_BUFFER_SIZE_ROLE,
     WITHDRAWAL_BUFFER_INDEX,
-    MAX_GROUPS,
-    MAX_NETWORKS,
-    MAX_OPERATORS
+    WITHDRAWAL_BUFFER_CHILD_INDEX
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -66,7 +67,7 @@ contract UniversalDelegator is
      */
     address public hook;
 
-    uint208 internal _noPluginsSize;
+    uint256 internal _noPluginsSize;
 
     // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
     mapping(uint96 index => SlotStorage slot) internal slots;
@@ -85,10 +86,10 @@ contract UniversalDelegator is
         bool exists;
         uint32 nextSlot;
         uint32 prevSlot;
-        uint32 numChildren;
+        uint32 totalChildren;
+        uint32 existChildren;
         uint32 firstChild;
         uint32 lastChild;
-        uint32 numNetworks;
         bool isShared;
         bool noPlugins;
         bool needPrevSumsSync;
@@ -117,14 +118,16 @@ contract UniversalDelegator is
     }
 
     function _syncPrevSums(uint96 parentIndex) internal {
-        uint208 prevSum;
-        for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
-            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
-            if (child.prevSum.latest() != prevSum) {
-                child.prevSum.push(uint48(block.timestamp), prevSum);
+        unchecked {
+            uint208 prevSum;
+            for (uint32 childIndex = slots[parentIndex].firstChild; childIndex > 0;) {
+                SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
+                if (child.prevSum.latest() != prevSum) {
+                    child.prevSum.push(uint48(block.timestamp), prevSum);
+                }
+                prevSum += child.size.latest();
+                childIndex = child.nextSlot;
             }
-            prevSum += child.size.latest();
-            childIndex = child.nextSlot;
         }
     }
 
@@ -178,7 +181,6 @@ contract UniversalDelegator is
         if (timestamp < __migrateTimestamp) {
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
-
         return getAllocatedAt(subnetwork, operator, timestamp, IVaultV2(vault).epochDuration());
     }
 
@@ -197,17 +199,20 @@ contract UniversalDelegator is
             exists: slots[index].exists,
             nextSlot: slots[index].nextSlot,
             prevSlot: slots[index].prevSlot,
-            numChildren: slots[index].numChildren,
+            totalChildren: slots[index].totalChildren,
+            existChildren: slots[index].existChildren,
             firstChild: slots[index].firstChild,
             lastChild: slots[index].lastChild,
             isShared: slots[index].isShared,
             noPlugins: slots[index].noPlugins,
             size: uint128(slots[index].size.latest()),
-            prevSum: slots[index].prevSum.latest(),
-            childrenPendingCumulative: slots[index].childrenPendingCumulative.latest()
+            prevSum: slots[index].prevSum.latest()
         });
     }
 
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
     function getChildrenPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -227,6 +232,9 @@ contract UniversalDelegator is
         }
     }
 
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
     function getChildrenPending(uint96 index, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -245,6 +253,9 @@ contract UniversalDelegator is
         }
     }
 
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
     function getPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -264,6 +275,9 @@ contract UniversalDelegator is
         }
     }
 
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
     function getPending(uint96 index, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -279,33 +293,16 @@ contract UniversalDelegator is
         }
     }
 
-    function _getNoPluginsPending() internal view returns (uint208) {
-        unchecked {
-            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
-            return uint208(
-                uint256(
-                        _noPluginsPendingCumulative.latest()
-                            - _noPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
-                    .saturatingSub(
-                        _clearedNoPluginsPendingCumulative.latest()
-                            - _clearedNoPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
-            );
-        }
-    }
-
     /**
      * @inheritdoc IUniversalDelegator
      * @dev Returns the collateral balance of a given slot.
      */
     function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
         unchecked {
-            if (index == 0) {
-                return IVaultV2(vault).activeStakeAt(timestamp, "")
+            return index > 0
+                ? getAllocatedAt(index, timestamp, duration)
+                : IVaultV2(vault).activeStakeAt(timestamp, "")
                     + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
-            }
-            return getAllocatedAt(index, timestamp, duration);
         }
     }
 
@@ -314,10 +311,9 @@ contract UniversalDelegator is
      */
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
-            if (index == 0) {
-                return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration);
-            }
-            return getAllocated(index, duration);
+            return index > 0
+                ? getAllocated(index, duration)
+                : IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration);
         }
     }
 
@@ -352,11 +348,11 @@ contract UniversalDelegator is
             uint256 prevSum;
             if (parent.needPrevSumsSync) {
                 for (uint32 childIndex = parent.firstChild; childIndex > 0;) {
-                    uint96 currentIndex = parentIndex.createIndex(childIndex);
-                    if (index == currentIndex) {
+                    uint96 curIndex = parentIndex.createIndex(childIndex);
+                    if (index == curIndex) {
                         break;
                     }
-                    SlotStorage storage child = slots[currentIndex];
+                    SlotStorage storage child = slots[curIndex];
                     prevSum += child.size.upperLookupRecent(timestamp);
                     childIndex = child.nextSlot;
                 }
@@ -390,9 +386,9 @@ contract UniversalDelegator is
             uint256 prevSum;
             if (parent.needPrevSumsSync) {
                 for (uint32 childIndex = parent.firstChild; childIndex > 0;) {
-                    uint96 currentIndex = parentIndex.createIndex(childIndex);
-                    SlotStorage storage child = slots[currentIndex];
-                    if (index == currentIndex) {
+                    uint96 curIndex = parentIndex.createIndex(childIndex);
+                    SlotStorage storage child = slots[curIndex];
+                    if (index == curIndex) {
                         break;
                     }
                     prevSum += child.size.latest();
@@ -491,15 +487,13 @@ contract UniversalDelegator is
         return slots[index.getParentIndex()].noPlugins;
     }
 
-    function getNoPluginsSize() public view returns (uint208) {
+    function getNoPluginsSize() public view returns (uint256) {
         return _noPluginsSize + _getNoPluginsPending();
     }
 
     function getWithdrawalBuffer() public view returns (uint256) {
         return getAllocated(WITHDRAWAL_BUFFER_INDEX, 0);
     }
-
-    // TODO: add isFirst()?
 
     /* CURATOR FUNCTIONS */
 
@@ -510,72 +504,71 @@ contract UniversalDelegator is
         public
         onlyRole(CREATE_SLOT_ROLE)
         slotExists(parentIndex)
-        returns (uint96)
+        syncPrevSums(parentIndex)
+        returns (uint96 index)
     {
-        if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
-            revert WrongDepth();
-        }
-
-        SlotStorage storage parent = slots[parentIndex];
-        if (
-            ++parent.numChildren
-                > (parentIndex.getDepth() == 0
-                        ? MAX_GROUPS
-                        : parentIndex.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS)
-        ) {
-            revert TooManyChildren();
-        }
-
-        uint96 index = parentIndex.createIndex(parent.numChildren);
-
-        if (parentIndex.getDepth() == 1) {
-            if (_networkToSlot[subnetworkOrOperator].latest() != 0) {
-                revert AlreadyAssigned();
+        unchecked {
+            if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
+                revert WrongDepth();
             }
-            _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
-            _slotToNetwork[index] = subnetworkOrOperator;
-        } else if (parentIndex.getDepth() == 2) {
-            if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() != 0) {
-                revert AlreadyAssigned();
+
+            SlotStorage storage parent = slots[parentIndex];
+            if (
+                ++parent.existChildren
+                    > (parentIndex.getDepth() == 0
+                            ? MAX_GROUPS
+                            : parentIndex.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS)
+            ) {
+                revert TooManyChildren();
             }
-            _operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].push(uint48(block.timestamp), index);
-            _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
-        }
+            ++parent.totalChildren;
 
-        SlotStorage storage slot = slots[index];
+            index = parentIndex.createIndex(parent.existChildren);
 
-        if (parent.firstChild == 0) {
-            parent.firstChild = index.getChildIndex();
-        } else {
-            slot.prevSlot = parent.lastChild;
-            slots[parentIndex.createIndex(parent.lastChild)].nextSlot = index.getChildIndex();
-        }
-        parent.lastChild = index.getChildIndex();
-        if (size > 0) {
-            slot.size.push(uint48(block.timestamp), size);
-        }
-        slot.exists = true;
-
-        if (parentIndex.getDepth() == 0) {
-            slots[index].nextSlot = WITHDRAWAL_BUFFER_CHILD_INDEX;
-            slot.isShared = isShared;
-            if (noPlugins) {
-                if (size > IVaultV2(vault).allocatable()) {
-                    revert NotEnoughNoPlugins();
+            if (parentIndex.getDepth() == 1) {
+                if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
+                    revert AlreadyAssigned();
                 }
-                slot.noPlugins = true;
-                _noPluginsSize += size;
+                _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
+                _slotToNetwork[index] = subnetworkOrOperator;
+            } else if (parentIndex.getDepth() == 2) {
+                if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() > 0) {
+                    revert AlreadyAssigned();
+                }
+                _operatorToSlot[parentIndex][address(
+                        bytes20(subnetworkOrOperator)
+                    )].push(uint48(block.timestamp), index);
+                _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
             }
+
+            SlotStorage storage slot = slots[index];
+
+            slot.exists = true;
+            if (parent.firstChild == 0) {
+                parent.firstChild = index.getChildIndex();
+            } else {
+                slots[parentIndex.createIndex(parent.lastChild)].nextSlot = index.getChildIndex();
+                slot.prevSlot = parent.lastChild;
+            }
+            parent.lastChild = index.getChildIndex();
+            if (size > 0) {
+                slot.size.push(uint48(block.timestamp), size);
+            }
+
+            if (parentIndex.getDepth() == 0) {
+                slots[index].nextSlot = WITHDRAWAL_BUFFER_CHILD_INDEX;
+                slot.isShared = isShared;
+                if (noPlugins) {
+                    if (size > IVaultV2(vault).allocatable()) {
+                        revert NotEnoughNoPlugins();
+                    }
+                    slot.noPlugins = true;
+                    _noPluginsSize += size;
+                }
+            }
+
+            emit CreateSlot(index, isShared, noPlugins, size);
         }
-        if (parentIndex.getDepth() == 1) {
-            ++parent.numNetworks;
-        }
-
-        _syncPrevSums(parentIndex);
-
-        emit CreateSlot(index, isShared, noPlugins, size);
-
-        return index;
     }
 
     /**
@@ -590,53 +583,54 @@ contract UniversalDelegator is
         syncPrevSums(index.getParentIndex())
         returns (uint208 pending)
     {
-        SlotStorage storage slot = slots[index];
-        uint208 currentSize = slot.size.latest();
-        if (currentSize == newSize) {
-            return 0;
-        }
-        SlotStorage storage parent = slots[index.getParentIndex()];
-        uint256 available = getAvailable(index.getParentIndex(), 0);
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            uint128 curSize = uint128(slot.size.latest());
+            if (curSize == newSize) {
+                return 0;
+            }
+            SlotStorage storage parent = slots[index.getParentIndex()];
+            uint256 available = getAvailable(index.getParentIndex(), 0);
 
-        if (newSize > currentSize) {
-            if (
-                !parent.isShared && slot.prevSum.latest() + currentSize < available && slot.nextSlot > 0
-                    && slot.nextSlot != WITHDRAWAL_BUFFER_CHILD_INDEX
-            ) {
-                SlotStorage storage lastChild = slots[index.getParentIndex().createIndex(parent.lastChild)];
+            if (newSize > curSize) {
                 if (
-                    newSize - currentSize
-                        > available.saturatingSub(lastChild.prevSum.latest() + lastChild.size.latest())
+                    !parent.isShared && slot.prevSum.latest() + curSize < available && slot.nextSlot > 0
+                        && slot.nextSlot < WITHDRAWAL_BUFFER_CHILD_INDEX
                 ) {
-                    revert NotEnoughAvailable();
+                    SlotStorage storage lastChild = slots[index.getParentIndex().createIndex(parent.lastChild)];
+                    // TODO: introduce getFilled() for this
+                    if (
+                        newSize - curSize
+                            > available.saturatingSub(lastChild.prevSum.latest() + lastChild.size.latest())
+                    ) {
+                        revert NotEnoughAvailable();
+                    }
                 }
-            }
-            if (slot.noPlugins && newSize - currentSize > IVaultV2(vault).allocatable()) {
-                revert NotEnoughNoPlugins();
-            }
-        } else {
-            if (!parent.isShared && slot.prevSum.latest() < available) {
-                pending = uint208((getAllocated(index, 0) - getPending(index, 0)).saturatingSub(newSize));
-                if (pending > 0) {
-                    parent.childrenPendingCumulative
-                        .push(uint48(block.timestamp), parent.childrenPendingCumulative.latest() + pending);
-                    slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + pending);
-                    if (slot.noPlugins) {
-                        _noPluginsPendingCumulative.push(
-                            uint48(block.timestamp), _noPluginsPendingCumulative.latest() + pending
-                        );
+                if (slot.noPlugins && newSize - curSize > IVaultV2(vault).allocatable()) {
+                    revert NotEnoughNoPlugins();
+                }
+            } else {
+                if (!parent.isShared && slot.prevSum.latest() < available) {
+                    pending = uint208((getAllocated(index, 0) - getPending(index, 0)).saturatingSub(newSize));
+                    if (pending > 0) {
+                        parent.childrenPendingCumulative
+                            .push(uint48(block.timestamp), parent.childrenPendingCumulative.latest() + pending);
+                        slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + pending);
+                        if (slot.noPlugins) {
+                            _noPluginsPendingCumulative.push(
+                                uint48(block.timestamp), _noPluginsPendingCumulative.latest() + pending
+                            );
+                        }
                     }
                 }
             }
-        }
-        slot.size.push(uint48(block.timestamp), newSize);
-        if (slot.noPlugins) {
-            unchecked {
-                _noPluginsSize = _noPluginsSize - currentSize + newSize;
+            slot.size.push(uint48(block.timestamp), newSize);
+            if (slot.noPlugins) {
+                _noPluginsSize = _noPluginsSize - curSize + newSize;
             }
-        }
 
-        emit SetSize(index, newSize);
+            emit SetSize(index, newSize);
+        }
     }
 
     /**
@@ -649,58 +643,57 @@ contract UniversalDelegator is
         slotExists(index2)
         syncPrevSums(index1.getParentIndex())
     {
-        SlotStorage storage parent = slots[index1.getParentIndex()];
-        SlotStorage storage slot1 = slots[index1];
-        SlotStorage storage slot2 = slots[index2];
-        uint256 available = getAvailable(index1.getParentIndex(), 0);
-        bool isAllocated = slot1.prevSum.latest() < available;
-        uint96 parentIndex = index1.getParentIndex();
+        unchecked {
+            SlotStorage storage parent = slots[index1.getParentIndex()];
+            SlotStorage storage slot1 = slots[index1];
+            SlotStorage storage slot2 = slots[index2];
+            uint256 available = getAvailable(index1.getParentIndex(), 0);
+            bool isAllocated = slot1.prevSum.latest() < available;
+            uint96 parentIndex = index1.getParentIndex();
 
-        if (index1.getParentIndex() != index2.getParentIndex()) {
-            revert NotSameParent();
-        }
-        if (parent.isShared) {
-            revert IsShared();
-        }
-        if (isAllocated != (slot2.prevSum.latest() < available)) {
-            revert NotSameAllocated();
-        }
-        for (
-            uint32 childIndex = index2.getChildIndex();
-            childIndex > 0;
-            childIndex = slots[parentIndex.createIndex(childIndex)].nextSlot
-        ) {
-            if (childIndex == index1.getChildIndex()) {
-                revert WrongOrder();
+            if (parentIndex != index2.getParentIndex()) {
+                revert NotSameParent();
             }
-        }
-        if (isAllocated && slot2.prevSum.latest() + slot2.size.latest() > available) {
-            revert PartiallyAllocated();
-        }
-
-        if (index1.getChildIndex() == parent.firstChild) {
-            parent.firstChild = index2.getChildIndex();
-        }
-        if (index2.getChildIndex() == parent.lastChild) {
-            parent.lastChild = index1.getChildIndex();
-            if (index2.getDepth() == 1) {
-                _withdrawalBufferSlot().prevSlot = index1.getChildIndex();
+            if (parent.isShared) {
+                revert IsShared();
             }
-        }
+            if (isAllocated != (slot2.prevSum.latest() < available)) {
+                revert NotSameAllocated();
+            }
+            for (
+                uint32 childIndex = index2.getChildIndex();
+                childIndex > 0;
+                childIndex = slots[parentIndex.createIndex(childIndex)].nextSlot
+            ) {
+                if (childIndex == index1.getChildIndex()) {
+                    revert WrongOrder();
+                }
+            }
+            if (isAllocated && slot2.prevSum.latest() + slot2.size.latest() > available) {
+                revert PartiallyAllocated();
+            }
 
-        (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
-        if (slot1.nextSlot > 0) {
-            slots[parentIndex.createIndex(slot1.nextSlot)].prevSlot = index1.getChildIndex();
-        }
-        slots[parentIndex.createIndex(slot2.nextSlot)].prevSlot = index2.getChildIndex();
+            if (index1.getChildIndex() == parent.firstChild) {
+                parent.firstChild = index2.getChildIndex();
+            }
+            if (index2.getChildIndex() == parent.lastChild) {
+                parent.lastChild = index1.getChildIndex();
+            }
 
-        (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
-        slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot = index1.getChildIndex();
-        if (slot2.prevSlot > 0) {
-            slots[parentIndex.createIndex(slot2.prevSlot)].nextSlot = index2.getChildIndex();
-        }
+            (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
+            if (slot1.nextSlot > 0) {
+                slots[parentIndex.createIndex(slot1.nextSlot)].prevSlot = index1.getChildIndex();
+            }
+            slots[parentIndex.createIndex(slot2.nextSlot)].prevSlot = index2.getChildIndex();
 
-        emit SwapSlots(index1, index2);
+            (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
+            slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot = index1.getChildIndex();
+            if (slot2.prevSlot > 0) {
+                slots[parentIndex.createIndex(slot2.prevSlot)].nextSlot = index2.getChildIndex();
+            }
+
+            emit SwapSlots(index1, index2);
+        }
     }
 
     function removeSlot(uint96 index)
@@ -725,24 +718,27 @@ contract UniversalDelegator is
     }
 
     function _removeSlot(uint96 index) internal {
-        SlotStorage storage slot = slots[index];
-        SlotStorage storage parent = slots[index.getParentIndex()];
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            SlotStorage storage parent = slots[index.getParentIndex()];
 
-        if (index.getChildIndex() == parent.firstChild) {
-            parent.firstChild = slot.nextSlot;
-        } else {
-            slots[index.getParentIndex().createIndex(slot.prevSlot)].nextSlot = slot.nextSlot;
-        }
-        if (index.getChildIndex() == parent.lastChild) {
-            parent.lastChild = slot.prevSlot;
-            slots[WITHDRAWAL_BUFFER_INDEX].prevSlot = slot.prevSlot;
-        } else {
-            slots[index.getParentIndex().createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
-        }
-        --parent.numChildren;
-        slot.exists = false;
+            if (index.getChildIndex() == parent.firstChild) {
+                uint32 nextChildIndex = slot.nextSlot;
+                parent.firstChild =
+                    index.getDepth() > 1 || nextChildIndex < WITHDRAWAL_BUFFER_CHILD_INDEX ? nextChildIndex : 0;
+            } else {
+                slots[index.getParentIndex().createIndex(slot.prevSlot)].nextSlot = slot.nextSlot;
+            }
+            if (index.getChildIndex() == parent.lastChild) {
+                parent.lastChild = slot.prevSlot;
+            } else {
+                slots[index.getParentIndex().createIndex(slot.nextSlot)].prevSlot = slot.prevSlot;
+            }
+            --parent.existChildren;
+            slot.exists = false;
 
-        emit RemoveSlot(index);
+            emit RemoveSlot(index);
+        }
     }
 
     /* NETWORK FUNCTIONS */
@@ -764,45 +760,175 @@ contract UniversalDelegator is
             }
 
             _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+            _slotToNetwork[index] = bytes32(0);
 
-            if (slots[index.getParentIndex()].numChildren == 1) {
+            if (slots[index.getParentIndex()].existChildren == 1) {
                 index = index.getParentIndex();
             }
             SlotStorage storage slot = slots[index];
             SlotStorage storage parent = slots[index.getParentIndex()];
 
-            // clear pending for slot
             uint208 pending = getPending(index, 0);
             if (pending > 0) {
+                // Do not clear slot's pending because the slot will be completely removed anyway.
+
+                // Clear parent's children-pending for slot.
                 parent.clearedChildrenPendingCumulative
                     .push(uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pending);
-            }
-            // clear pending for plugins' utilization
-            if (slot.noPlugins) {
-                uint208 noPluginsPending = _getNoPluginsPending();
-                if (noPluginsPending > 0) {
-                    _clearedNoPluginsPendingCumulative.push(
-                        uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + noPluginsPending
-                    );
+
+                // Clear no-plugins pending.
+                if (slot.noPlugins) {
+                    uint208 noPluginsPending = _getNoPluginsPending();
+                    if (noPluginsPending > 0) {
+                        _clearedNoPluginsPendingCumulative.push(
+                            uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + noPluginsPending
+                        );
+                    }
                 }
             }
-            // clear slot's size
+
             uint208 slotSize = slot.size.latest();
             if (slotSize > 0) {
+                // Clear slot's size.
                 slot.size.push(uint48(block.timestamp), 0);
                 parent.needPrevSumsSync = true;
+
+                // Clear no-plugins size.
                 if (index.getDepth() == 1 && slot.noPlugins) {
                     _noPluginsSize -= slotSize;
                 }
             }
-            // remove slot to restrict from slashing
+
+            // Remove slot to restrict from slashing.
             _removeSlot(index);
 
             emit ResetAllocation(index, subnetwork);
         }
     }
 
-    /* BASE DELEGATOR FUNCTIONS */
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) public onlyRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE) {
+        _withdrawalBufferSlot().size.push(uint48(block.timestamp), newWithdrawalBufferSize);
+
+        emit SetWithdrawalBufferSize(newWithdrawalBufferSize);
+    }
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function setHook(address newHook) public nonReentrant onlyRole(HOOK_SET_ROLE) {
+        hook = newHook;
+
+        emit SetHook(newHook);
+    }
+
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
+        unchecked {
+            if (IVault(vault).slasher() != msg.sender) {
+                revert NotSlasher();
+            }
+
+            // Adjust slot's and its parents' allocations.
+            for (uint96 index = getSlotOf(subnetwork, operator); index > 0;) {
+                SlotStorage storage slot = slots[index];
+                uint208 pendingSlashed = uint208(Math.min(getPending(index, 0), amount));
+                if (pendingSlashed > 0) {
+                    // Clear slot's pending.
+                    slot.clearedPendingCumulative
+                        .push(uint48(block.timestamp), slot.clearedPendingCumulative.latest() + pendingSlashed);
+
+                    // Clear parent's children-pending.
+                    slots[index.getParentIndex()].clearedChildrenPendingCumulative
+                        .push(
+                            uint48(block.timestamp),
+                            slots[index.getParentIndex()].clearedChildrenPendingCumulative.latest() + pendingSlashed
+                        );
+
+                    // Clear no-plugins pending.
+                    if (index.getDepth() == 1 && slot.noPlugins) {
+                        _clearedNoPluginsPendingCumulative.push(
+                            uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pendingSlashed
+                        );
+                    }
+                }
+
+                uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
+                if (sizeSlashed > 0) {
+                    // Clear slot's size.
+                    slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
+                    slots[index.getParentIndex()].needPrevSumsSync = true;
+
+                    // Clear no-plugins size.
+                    if (index.getDepth() == 1 && slot.noPlugins) {
+                        _noPluginsSize -= sizeSlashed;
+                    }
+                }
+                index = index.getParentIndex();
+            }
+
+            // Make a call to the custom hook.
+            address hook_ = hook;
+            if (hook_ != address(0)) {
+                bytes memory hookCalldata = abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, data));
+
+                if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
+                    revert InsufficientHookGas();
+                }
+
+                assembly ("memory-safe") {
+                    pop(call(HOOK_GAS_LIMIT, hook_, 0, add(hookCalldata, 0x20), mload(hookCalldata), 0, 0))
+                }
+            }
+
+            emit OnSlash(subnetwork, operator, amount);
+        }
+    }
+
+    function _initialize(bytes calldata data) internal override {
+        (address newVault, bytes memory initData) = abi.decode(data, (address, bytes));
+
+        if (!IRegistry(VAULT_FACTORY).isEntity(newVault)) {
+            revert NotVault();
+        }
+
+        if (IMigratableEntity(newVault).version() < VAULT_V2_VERSION) {
+            revert OldVault();
+        }
+
+        InitParams memory params = abi.decode(initData, (InitParams));
+
+        __ReentrancyGuard_init();
+
+        vault = newVault;
+
+        hook = params.hook;
+
+        _withdrawalBufferSlot().size.push(uint48(block.timestamp), params.withdrawalBufferSize);
+
+        _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        _grantRoleIfNotZero(HOOK_SET_ROLE, params.hookSetRoleHolder);
+        _grantRoleIfNotZero(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
+        _grantRoleIfNotZero(SET_SIZE_ROLE, params.setSizeRoleHolder);
+        _grantRoleIfNotZero(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
+
+        emit Initialize(params);
+    }
+
+    function migrate() public {
+        if (IMigratableEntity(vault).version() != VAULT_V2_VERSION) {
+            revert WrongMigrate();
+        }
+        if (IEntity(IVaultV2(vault).delegator()).TYPE() == TYPE) {
+            revert NotMigrating();
+        }
+        __migrateTimestamp = uint48(block.timestamp);
+        __oldDelegator = IVaultV2(vault).delegator();
+
+        _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+        _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+    }
 
     /**
      * @inheritdoc IUniversalDelegator
@@ -816,129 +942,20 @@ contract UniversalDelegator is
      */
     function setMaxNetworkLimit(uint96, uint256) public {}
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function setHook(address hook_) public nonReentrant onlyRole(HOOK_SET_ROLE) {
-        if (hook == hook_) {
-            revert AlreadySet();
-        }
-
-        hook = hook_;
-
-        emit SetHook(hook_);
-    }
-
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
+    function _getNoPluginsPending() internal view returns (uint208) {
         unchecked {
-            if (msg.sender != IVault(vault).slasher()) {
-                revert NotSlasher();
-            }
-
-            // adjust slot's and its parents' allocations
-            for (uint96 currentIndex = getSlotOf(subnetwork, operator); currentIndex > 0;) {
-                SlotStorage storage slot = slots[currentIndex];
-                uint208 pendingSlashed = uint208(Math.min(getPending(currentIndex, 0), amount));
-                if (pendingSlashed > 0) {
-                    slot.clearedPendingCumulative
-                        .push(uint48(block.timestamp), slot.clearedPendingCumulative.latest() + pendingSlashed);
-                    slots[currentIndex.getParentIndex()].clearedChildrenPendingCumulative
-                        .push(
-                            uint48(block.timestamp),
-                            slots[currentIndex.getParentIndex()].clearedChildrenPendingCumulative.latest()
-                                + pendingSlashed
-                        );
-                    if (currentIndex.getDepth() == 1 && slot.noPlugins) {
-                        _clearedNoPluginsPendingCumulative.push(
-                            uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pendingSlashed
-                        );
-                    }
-                }
-                uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
-                if (sizeSlashed > 0) {
-                    slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
-                    slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
-                    if (currentIndex.getDepth() == 1 && slot.noPlugins) {
-                        _noPluginsSize -= sizeSlashed;
-                    }
-                }
-                currentIndex = currentIndex.getParentIndex();
-            }
-
-            // make a call to the custom hook
-            address hook_ = hook;
-            if (hook_ != address(0)) {
-                bytes memory calldata_ = abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, data));
-
-                if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
-                    revert InsufficientHookGas();
-                }
-
-                assembly ("memory-safe") {
-                    pop(call(HOOK_GAS_LIMIT, hook_, 0, add(calldata_, 0x20), mload(calldata_), 0, 0))
-                }
-            }
-
-            emit OnSlash(subnetwork, operator, amount);
+            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
+            return uint208(
+                uint256(
+                        _noPluginsPendingCumulative.latest()
+                            - _noPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
+                    )
+                    .saturatingSub(
+                        _clearedNoPluginsPendingCumulative.latest()
+                            - _clearedNoPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
+                    )
+            );
         }
-    }
-
-    function _initialize(bytes calldata data) internal override {
-        (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
-
-        if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
-            revert NotVault();
-        }
-
-        if (IMigratableEntity(vault_).version() < 3) {
-            revert OldVault();
-        }
-
-        InitParams memory params = abi.decode(data_, (InitParams));
-
-        if (params.defaultAdminRoleHolder == address(0) && params.createSlotRoleHolder == address(0)) {
-            revert MissingRoleHolders();
-        }
-
-        __ReentrancyGuard_init();
-
-        vault = vault_;
-
-        hook = params.hook;
-
-        _withdrawalBufferSlot().size.push(uint48(block.timestamp), params.withdrawalBufferSize);
-
-        if (params.defaultAdminRoleHolder != address(0)) {
-            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-        if (params.hookSetRoleHolder != address(0)) {
-            _grantRole(HOOK_SET_ROLE, params.hookSetRoleHolder);
-        }
-        if (params.createSlotRoleHolder != address(0)) {
-            _grantRole(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
-        }
-        if (params.setSizeRoleHolder != address(0)) {
-            _grantRole(SET_SIZE_ROLE, params.setSizeRoleHolder);
-        }
-        if (params.swapSlotsRoleHolder != address(0)) {
-            _grantRole(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
-        }
-
-        emit Initialize(params);
-    }
-
-    function migrate() public {
-        if (IMigratableEntity(vault).version() != 3) {
-            revert WrongMigrate();
-        }
-        if (IEntity(IVaultV2(vault).delegator()).TYPE() == TYPE) {
-            revert NotMigrating();
-        }
-        __migrateTimestamp = uint48(block.timestamp);
-        __oldDelegator = IVaultV2(vault).delegator();
-
-        _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
-        _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 
     function _rootSlot() internal view returns (SlotStorage storage) {
@@ -947,5 +964,11 @@ contract UniversalDelegator is
 
     function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
         return slots[WITHDRAWAL_BUFFER_INDEX];
+    }
+
+    function _grantRoleIfNotZero(bytes32 role, address holder) internal {
+        if (holder != address(0)) {
+            _grantRole(role, holder);
+        }
     }
 }

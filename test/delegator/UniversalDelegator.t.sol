@@ -44,13 +44,12 @@ import {
     MAX_GROUPS,
     MAX_NETWORKS,
     MAX_OPERATORS,
+    SET_WITHDRAWAL_BUFFER_SIZE_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
     REMOVE_SLOT_ROLE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookV2.sol";
-import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
-import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
@@ -94,12 +93,17 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
         return slots[parentIndex].needPrevSumsSync;
     }
 
-    function setParentChildrenRaw(uint96 parentIndex, uint32 firstChild, uint32 lastChild, uint32 numChildren)
-        external
-    {
+    function setParentChildrenRaw(
+        uint96 parentIndex,
+        uint32 firstChild,
+        uint32 lastChild,
+        uint32 totalChildren,
+        uint32 existChildren
+    ) external {
         slots[parentIndex].firstChild = firstChild;
         slots[parentIndex].lastChild = lastChild;
-        slots[parentIndex].numChildren = numChildren;
+        slots[parentIndex].totalChildren = totalChildren;
+        slots[parentIndex].existChildren = existChildren;
     }
 
     function setSlotLinksRaw(uint96 index, uint32 prevSlot, uint32 nextSlot) external {
@@ -1362,6 +1366,24 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getWithdrawalBuffer(), 0);
     }
 
+    function test_setWithdrawalBufferSize_requiresRole_andUpdatesValue() public {
+        _deposit(alice, 100);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, owner, SET_WITHDRAWAL_BUFFER_SIZE_ROLE
+            )
+        );
+        delegator.setWithdrawalBufferSize(40);
+
+        delegator.grantRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE, owner);
+        delegator.setWithdrawalBufferSize(40);
+        assertEq(delegator.getWithdrawalBuffer(), 40);
+
+        delegator.setWithdrawalBufferSize(120);
+        assertEq(delegator.getWithdrawalBuffer(), 100);
+    }
+
     function test_slotExists_revertsForMissingSlot() public {
         vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
         delegator.setSize(_rootIndex(uint32(1)), 1);
@@ -1392,7 +1414,7 @@ contract UniversalDelegatorTest is Test {
         harness.setSlotExistsRaw(child1, true);
         harness.setSlotExistsRaw(child2, true);
 
-        harness.setParentChildrenRaw(parent, 1, 2, 2);
+        harness.setParentChildrenRaw(parent, 1, 2, 2, 2);
         harness.setSlotLinksRaw(child1, 0, 2);
         harness.setSlotLinksRaw(child2, 1, 0);
         harness.pushSizeRaw(child1, 1, 5);
@@ -1418,6 +1440,27 @@ contract UniversalDelegatorTest is Test {
         delegator.grantRole(REMOVE_SLOT_ROLE, owner);
         vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
         delegator.removeSlot(_rootIndex(uint32(1)));
+    }
+
+    function test_slotCounters_trackTotalAndExistingChildren() public {
+        delegator.grantRole(REMOVE_SLOT_ROLE, owner);
+
+        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, 0);
+
+        IUniversalDelegator.Slot memory root = delegator.getSlot(0);
+        assertEq(root.totalChildren, 2);
+        assertEq(root.existChildren, 2);
+        assertEq(root.firstChild, slot1.getChildIndex());
+        assertEq(root.lastChild, slot2.getChildIndex());
+
+        delegator.removeSlot(slot1);
+
+        root = delegator.getSlot(0);
+        assertEq(root.totalChildren, 2);
+        assertEq(root.existChildren, 1);
+        assertEq(root.firstChild, slot2.getChildIndex());
+        assertEq(root.lastChild, slot2.getChildIndex());
     }
 
     function test_syncPrevSums_pathForNonRootParent_afterSlash() public {
@@ -1710,9 +1753,8 @@ contract UniversalDelegatorTest is Test {
         delegator.grantRole(HOOK_SET_ROLE, owner);
         UniversalDelegatorHookMock hookMock = new UniversalDelegatorHookMock();
         delegator.setHook(address(hookMock));
-
-        vm.expectRevert(IUniversalDelegator.AlreadySet.selector);
         delegator.setHook(address(hookMock));
+        assertEq(delegator.hook(), address(hookMock));
 
         _deposit(alice, 100);
 
@@ -1766,7 +1808,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(pending, 0);
     }
 
-    function test_initializeReverts_NotVault_OldVault_MissingRoleHolders() public {
+    function test_initializeReverts_NotVault_OldVault_AndAllowsMissingRoleHolders() public {
         IUniversalDelegator.InitParams memory params = _defaultDelegatorInitParams();
 
         vm.expectRevert(IUniversalDelegator.NotVault.selector);
@@ -1792,9 +1834,13 @@ contract UniversalDelegatorTest is Test {
 
         params.defaultAdminRoleHolder = address(0);
         params.createSlotRoleHolder = address(0);
+        address noRoleDelegator = delegatorFactory.create(0, abi.encode(address(vault), abi.encode(params)));
+        assertEq(UniversalDelegator(noRoleDelegator).vault(), address(vault));
 
-        vm.expectRevert(IUniversalDelegator.MissingRoleHolders.selector);
-        delegatorFactory.create(0, abi.encode(address(vault), abi.encode(params)));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, owner, CREATE_SLOT_ROLE)
+        );
+        UniversalDelegator(noRoleDelegator).createSlot(bytes32(0), 0, false, false, 1);
     }
 
     function test_migrateReverts_WrongMigrate_And_NotMigrating() public {
@@ -2115,9 +2161,6 @@ contract UniversalDelegatorMigrationTest is Test {
             depositLimitSetRoleHolder: owner
         });
 
-        bytes memory slasherParams =
-            abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}));
-
         (address vaultAddress, address delegatorAddress, address slasherAddress) = vaultConfigurator.create(
             IVaultConfigurator.InitParams({
                 version: 1,
@@ -2125,9 +2168,9 @@ contract UniversalDelegatorMigrationTest is Test {
                 vaultParams: abi.encode(baseParams),
                 delegatorIndex: delegatorIndex,
                 delegatorParams: _legacyDelegatorParams(delegatorIndex),
-                withSlasher: true,
+                withSlasher: false,
                 slasherIndex: 0,
-                slasherParams: slasherParams
+                slasherParams: bytes("")
             })
         );
 
@@ -2211,7 +2254,7 @@ contract UniversalDelegatorMigrationTest is Test {
         assertTrue(newDelegator != oldDelegator);
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
 
-        uint208 pending = IUniversalDelegator(newDelegator).getSlot(0).childrenPendingCumulative;
+        uint208 pending = IUniversalDelegator(newDelegator).getChildrenPending(0, 0);
         assertEq(pending, type(uint128).max);
     }
 }

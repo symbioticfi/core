@@ -4007,7 +4007,7 @@ contract VaultV2Test is Test {
     function _assertMigrationState(IVaultV2 vaultV2, address oldSlasher) internal view {
         assertEq(IEntity(vaultV2.delegator()).TYPE(), delegatorFactory.totalTypes() - 1);
         assertEq(IEntity(vaultV2.slasher()).TYPE(), slasherFactory.totalTypes() - 1);
-        uint208 pending = IUniversalDelegator(vaultV2.delegator()).getSlot(0).childrenPendingCumulative;
+        uint208 pending = IUniversalDelegator(vaultV2.delegator()).getChildrenPending(0, 0);
         assertEq(pending, type(uint128).max);
         uint256 expectedSlashRequestsLength = 0;
         if (oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == 1) {

@@ -17,7 +17,7 @@ import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/slasher/IUniversalSlasher.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
 
@@ -378,7 +378,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             revert NotVault();
         }
 
-        if (IMigratableEntity(vault_).version() < 3) {
+        if (IMigratableEntity(vault_).version() < VAULT_V2_VERSION) {
             revert OldVault();
         }
 
@@ -408,7 +408,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     }
 
     function migrate() public {
-        if (IMigratableEntity(vault).version() != 3) {
+        if (IMigratableEntity(vault).version() != VAULT_V2_VERSION) {
             revert WrongMigrate();
         }
         address oldSlasher = IVaultV2(vault).slasher();

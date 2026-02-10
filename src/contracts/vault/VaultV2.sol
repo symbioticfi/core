@@ -19,6 +19,8 @@ import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {
     IVaultV2,
+    MAX_DURATION,
+    MAX_PLUGINS,
     DEPOSIT_WHITELIST_SET_ROLE,
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
@@ -26,10 +28,10 @@ import {
     SET_PLUGIN_LIMIT_ROLE,
     SWAP_PLUGINS_ROLE,
     ALLOCATE_PLUGIN_ROLE,
-    DEALLOCATE_PLUGIN_ROLE,
-    MAX_DURATION,
-    MAX_PLUGINS
+    DEALLOCATE_PLUGIN_ROLE
 } from "../../interfaces/vault/IVaultV2.sol";
+import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {UNIVERSAL_SLASHER_TYPE} from "../../interfaces/slasher/IUniversalSlasher.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -586,16 +588,16 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert PluginAllocated();
             }
 
-            uint256 nPlugins = plugins.length;
+            uint256 numPlugins = plugins.length;
             if (newLimit > 0) {
                 uint256 i;
-                for (; i < nPlugins; ++i) {
+                for (; i < numPlugins; ++i) {
                     if (plugin == plugins[i]) {
                         break;
                     }
                 }
-                if (i == nPlugins) {
-                    if (nPlugins + 1 > MAX_PLUGINS) {
+                if (i == numPlugins) {
+                    if (numPlugins + 1 > MAX_PLUGINS) {
                         revert TooManyPlugins();
                     }
                     plugins.push(plugin);
@@ -603,9 +605,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     _grantRole(DEALLOCATE_PLUGIN_ROLE, plugin);
                 }
             } else {
-                for (uint256 i; i < nPlugins; ++i) {
+                for (uint256 i; i < numPlugins; ++i) {
                     if (plugin == plugins[i]) {
-                        plugins[i] = plugins[nPlugins - 1];
+                        plugins[i] = plugins[numPlugins - 1];
                         plugins.pop();
                         break;
                     }
@@ -624,8 +626,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             uint256 index1 = type(uint256).max;
             uint256 index2 = type(uint256).max;
-            uint256 nPlugins = plugins.length;
-            for (uint256 i; i < nPlugins; ++i) {
+            uint256 numPlugins = plugins.length;
+            for (uint256 i; i < numPlugins; ++i) {
                 if (plugin1 == plugins[i]) {
                     index1 = i;
                 } else if (plugin2 == plugins[i]) {
@@ -876,26 +878,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /* INTERNAL HELPERS */
-
-    function _revertIfZero(address value) internal pure {
-        if (value == address(0)) {
-            revert InvalidAddress();
-        }
-    }
-
-    function _revertIfZero(uint256 amount) internal pure {
-        if (amount == uint256(0)) {
-            revert InsufficientAmount();
-        }
-    }
-
-    function _grantRoleIfNotZero(bytes32 role, address holder) internal {
-        if (holder != address(0)) {
-            _grantRole(role, holder);
-        }
-    }
-
     /* MIGRATE FUNCTIONS */
 
     function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {
@@ -927,13 +909,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _withdrawals[0].push(uint48(block.timestamp), curActiveWithdrawals);
             _withdrawalShares[0].push(uint48(block.timestamp), curActiveWithdrawals);
 
-            address newDelegator =
-                DelegatorFactory(DELEGATOR_FACTORY).create(4, abi.encode(address(this), params.delegatorParams));
+            address newDelegator = DelegatorFactory(DELEGATOR_FACTORY)
+                .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
             UniversalDelegator(newDelegator).migrate();
             delegator = newDelegator;
             if (slasher != address(0)) {
-                address newSlasher =
-                    SlasherFactory(SLASHER_FACTORY).create(2, abi.encode(address(this), params.slasherParams));
+                address newSlasher = SlasherFactory(SLASHER_FACTORY)
+                    .create(UNIVERSAL_SLASHER_TYPE, abi.encode(address(this), params.slasherParams));
                 UniversalSlasher(newSlasher).migrate();
                 slasher = newSlasher;
             }
@@ -941,6 +923,26 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _unclaimedRaw = int256(IERC20(collateral).balanceOf(address(this)) - activeStake() - curActiveWithdrawals);
 
             emit Migrate(params, delegator, slasher);
+        }
+    }
+
+    /* INTERNAL HELPERS */
+
+    function _revertIfZero(address value) internal pure {
+        if (value == address(0)) {
+            revert InvalidAddress();
+        }
+    }
+
+    function _revertIfZero(uint256 amount) internal pure {
+        if (amount == uint256(0)) {
+            revert InsufficientAmount();
+        }
+    }
+
+    function _grantRoleIfNotZero(bytes32 role, address holder) internal {
+        if (holder != address(0)) {
+            _grantRole(role, holder);
         }
     }
 }

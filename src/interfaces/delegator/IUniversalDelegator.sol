@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
+
 uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
 uint96 constant WITHDRAWAL_BUFFER_INDEX = 0xFFFFFFFF0000000000000000;
 
@@ -18,6 +20,8 @@ bytes32 constant SET_SIZE_ROLE = 0xc9c130a1412d72f4d79081ca47a83fb21e212d7ff5794
 bytes32 constant SWAP_SLOTS_ROLE = 0xffd98ac79bb60993f79efa77ec34b3f446950a5c284ae3036fc0fb810a00af60;
 // keccak256("REMOVE_SLOT_ROLE")
 bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a0f7f47acb5d727ef90e6f4;
+// keccak256("SET_WITHDRAWAL_BUFFER_SIZE_ROLE")
+bytes32 constant SET_WITHDRAWAL_BUFFER_SIZE_ROLE = 0x6f48b129515ad8dd335666ffdfdf6533e7a5a9a9cd01b8a62f938f739fc9a4ce;
 
 uint256 constant MAX_GROUPS = 10;
 uint256 constant MAX_NETWORKS = 15;
@@ -32,7 +36,6 @@ uint256 constant MAX_OPERATORS = 20;
  *      onSlash()
  */
 interface IUniversalDelegator {
-    error AlreadySet();
     error NotEnoughAvailable();
     error NotNetwork();
     error NotSlasher();
@@ -42,7 +45,6 @@ interface IUniversalDelegator {
     error PartiallyAllocated();
     error NotAssigned();
     error SlotAllocated();
-    error MissingRoleHolders();
     error WrongDepth();
     error IsShared();
     error SlotNotCreated();
@@ -84,14 +86,14 @@ interface IUniversalDelegator {
         bool exists;
         uint32 nextSlot;
         uint32 prevSlot;
-        uint32 numChildren;
+        uint32 totalChildren;
+        uint32 existChildren;
         uint32 firstChild;
         uint32 lastChild;
         bool isShared;
         bool noPlugins;
         uint128 size;
         uint208 prevSum;
-        uint208 childrenPendingCumulative;
     }
 
     event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
@@ -117,6 +119,8 @@ interface IUniversalDelegator {
     event RemoveSlot(uint96 indexed index);
 
     event ResetAllocation(uint96 indexed index, bytes32 indexed subnetwork);
+
+    event SetWithdrawalBufferSize(uint128 newWithdrawalBufferSize);
 
     event Initialize(InitParams params);
 
@@ -191,9 +195,17 @@ interface IUniversalDelegator {
 
     function getWithdrawalBuffer() external view returns (uint256);
 
-    function getNoPluginsSize() external view returns (uint208);
+    function getNoPluginsSize() external view returns (uint256);
 
     function getSlot(uint96 index) external view returns (Slot memory);
+
+    function getChildrenPendingAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint208);
+
+    function getChildrenPending(uint96 index, uint48 duration) external view returns (uint208);
+
+    function getPendingAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint208);
+
+    function getPending(uint96 index, uint48 duration) external view returns (uint208);
 
     function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         external
@@ -246,4 +258,8 @@ interface IUniversalDelegator {
     function swapSlots(uint96 index1, uint96 index2) external;
 
     function removeSlot(uint96 index) external;
+
+    function resetAllocation(bytes32 subnetwork) external;
+
+    function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) external;
 }

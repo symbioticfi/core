@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+uint64 constant UNIVERSAL_SLASHER_TYPE = 2;
+
 uint256 constant BURNER_GAS_LIMIT = 150_000;
 uint256 constant BURNER_RESERVE = 20_000;
 
