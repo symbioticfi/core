@@ -23,7 +23,7 @@ bytes32 constant DEALLOCATE_PLUGIN_ROLE = 0x2228e59f6ee6ff4b08702cdeaa6118d05e88
 
 uint256 constant MAX_PLUGINS = 10;
 
-uint48 constant MAX_EPOCH_DURATION = 1000 * 365 days;
+uint48 constant MAX_DURATION = 1000 * 365 days;
 
 /**
  * @title IVault
@@ -48,7 +48,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidClaimer();
     error InvalidCollateral();
     error InvalidDelegator();
-    error InvalidEpochDuration();
+    error TooLongDuration();
     error InvalidPluginActiveDelay();
     error InvalidLengthEpochs();
     error InvalidOnBehalfOf();

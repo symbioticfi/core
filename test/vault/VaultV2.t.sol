@@ -362,7 +362,7 @@ contract VaultV2Test is Test {
         address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
         operatorNetworkSharesSetRoleHolders[0] = alice;
         uint64 lastVersion = vaultFactory.lastVersion();
-        vm.expectRevert(IVaultV2.InvalidEpochDuration.selector);
+        vm.expectRevert(IVaultV2.TooLongDuration.selector);
         _createInitializedVault(
             epochDuration,
             networkLimitSetRoleHolders,
@@ -1128,38 +1128,30 @@ contract VaultV2Test is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 + amount2);
         assertEq(vault.activeBalanceOf(alice), amount1 + amount2);
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1
         );
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1
         );
-        assertGt(gasSpent, gasLeft - gasleft());
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1 + amount2
         );
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1 + amount2
         );
-        assertGt(gasSpent, gasLeft - gasleft());
     }
 
     function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
@@ -1283,38 +1275,30 @@ contract VaultV2Test is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - 1);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - 1 + amount2 - 1);
         assertEq(vault.activeBalanceOf(alice), amount1 - 1 + amount2 - 1);
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1 - 1
         );
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp - 1), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1 - 1
         );
-        assertGt(gasSpent, gasLeft - gasleft());
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp), abi.encode(abi.encode(0), abi.encode(0), abi.encode(0))
             ),
             amount1 - 1 + amount2 - 1
         );
-        gasSpent = gasLeft - gasleft();
-        gasLeft = gasleft();
         assertEq(
             vault.activeBalanceOfAt(
                 alice, uint48(blockTimestamp), abi.encode(abi.encode(1), abi.encode(1), abi.encode(1))
             ),
             amount1 - 1 + amount2 - 1
         );
-        assertGt(gasSpent, gasLeft - gasleft());
     }
 
     function test_DepositBoth(uint256 amount1, uint256 amount2) public virtual {

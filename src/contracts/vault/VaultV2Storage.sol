@@ -102,7 +102,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     uint48 internal __migrateTimestamp;
     uint48 internal __migrateEpoch;
-    uint48 internal __migrateNextTimestamp;
+    uint48 internal __migrateNextEpochTimestamp;
 
     mapping(address account => uint256 value) internal _withdrawalsOfLength;
 
