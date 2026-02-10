@@ -42,6 +42,9 @@ import {
     HOOK_GAS_LIMIT,
     HOOK_RESERVE,
     HOOK_SET_ROLE,
+    MAX_GROUPS,
+    MAX_NETWORKS,
+    MAX_OPERATORS,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
     REMOVE_SLOT_ROLE
@@ -1543,13 +1546,40 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getNoPluginsSize(), 10);
     }
 
-    function test_createSlot_revertsTooManyOperators() public {
-        for (uint256 i; i < 49; ++i) {
+    function test_createSlot_revertsTooManyGroups() public {
+        for (uint256 i; i < MAX_GROUPS; ++i) {
             _createSlot(0, false, 0);
         }
 
-        vm.expectRevert(IUniversalDelegator.TooManyOperators.selector);
+        vm.expectRevert(IUniversalDelegator.TooManyChildren.selector);
         _createSlot(0, false, 0);
+    }
+
+    function test_createSlot_revertsTooManyNetworksPerGroup() public {
+        _createSlot(0, false, 0);
+        uint96 group = _rootIndex(uint32(1));
+
+        for (uint256 i; i < MAX_NETWORKS; ++i) {
+            bytes32 subnetwork = bytes32(i + 1);
+            delegator.createSlot(subnetwork, group, false, false, 0);
+        }
+
+        vm.expectRevert(IUniversalDelegator.TooManyChildren.selector);
+        delegator.createSlot(bytes32(MAX_NETWORKS + 1), group, false, false, 0);
+    }
+
+    function test_createSlot_revertsTooManyOperatorsPerNetwork() public {
+        _createSlot(0, false, 0);
+        uint96 group = _rootIndex(uint32(1));
+        uint96 networkSlot = delegator.createSlot(bytes32("network"), group, false, false, 0);
+
+        for (uint256 i; i < MAX_OPERATORS; ++i) {
+            address operator = address(uint160(i + 1));
+            delegator.createSlot(_operatorKey(operator), networkSlot, false, false, 0);
+        }
+
+        vm.expectRevert(IUniversalDelegator.TooManyChildren.selector);
+        delegator.createSlot(_operatorKey(address(uint160(MAX_OPERATORS + 1))), networkSlot, false, false, 0);
     }
 
     function test_swapSlots_revertsIsShared() public {

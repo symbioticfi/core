@@ -25,7 +25,9 @@ import {
     SWAP_SLOTS_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
     WITHDRAWAL_BUFFER_INDEX,
-    MAX_CHILDREN
+    MAX_GROUPS,
+    MAX_NETWORKS,
+    MAX_OPERATORS
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
@@ -515,9 +517,15 @@ contract UniversalDelegator is
         }
 
         SlotStorage storage parent = slots[parentIndex];
-        if (++parent.numChildren >= MAX_CHILDREN) {
-            revert TooManyOperators();
+        if (
+            ++parent.numChildren
+                > (parentIndex.getDepth() == 0
+                        ? MAX_GROUPS
+                        : parentIndex.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS)
+        ) {
+            revert TooManyChildren();
         }
+
         uint96 index = parentIndex.createIndex(parent.numChildren);
 
         if (parentIndex.getDepth() == 1) {
@@ -775,11 +783,12 @@ contract UniversalDelegator is
                 }
             }
             // clear slot's size
-            if (slot.size.latest() > 0) {
+            uint208 slotSize = slot.size.latest();
+            if (slotSize > 0) {
                 slot.size.push(uint48(block.timestamp), 0);
                 parent.needPrevSumsSync = true;
                 if (index.getDepth() == 1 && slot.noPlugins) {
-                    _noPluginsSize -= slot.size.latest();
+                    _noPluginsSize -= slotSize;
                 }
             }
             // remove slot to restrict from slashing
