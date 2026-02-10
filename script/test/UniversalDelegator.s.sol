@@ -81,7 +81,8 @@ contract UniversalDelegatorUiSetup is Script {
             setIsSharedRoleHolder: broadcaster,
             setSizeRoleHolder: broadcaster,
             setShareRoleHolder: broadcaster,
-            swapSlotsRoleHolder: broadcaster
+            swapSlotsRoleHolder: broadcaster,
+            withdrawalBufferSize: type(uint128).max
         });
 
         bytes memory initCalldata =

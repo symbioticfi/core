@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Checkpoints} from "../../contracts/libraries/CheckpointsV2.sol";
-
 uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
 uint96 constant WITHDRAWAL_BUFFER_INDEX = 0xFFFFFFFF0000000000000000;
 
@@ -40,28 +38,21 @@ interface IUniversalDelegator {
     error NotSlasher();
     error NotVault();
     error NotSameParent();
-    error SameSlot();
     error NotSameAllocated();
     error PartiallyAllocated();
     error NotAssigned();
     error SlotAllocated();
     error MissingRoleHolders();
-    error IsSharedNotChanged();
     error WrongDepth();
-    error TooManyShares();
     error IsShared();
     error SlotNotCreated();
     error OldVault();
     error NotMigrating();
     error WrongMigrate();
-    error InvalidDuration();
-    error IsWithdrawalBuffer();
     error NotNetworkOrMiddleware();
     error AlreadyAssigned();
     error InsufficientHookGas();
-    error TooManyOperators();
     error NotEnoughNoPlugins();
-    error SlotNotAllocated();
     error WrongOrder();
     error TooManyChildren();
 
@@ -86,6 +77,7 @@ interface IUniversalDelegator {
         address setSizeRoleHolder;
         address setShareRoleHolder;
         address swapSlotsRoleHolder;
+        uint128 withdrawalBufferSize;
     }
 
     struct Slot {
@@ -117,8 +109,6 @@ interface IUniversalDelegator {
      * @param hook address of the hook
      */
     event SetHook(address indexed hook);
-
-    event SetIsShared(uint96 indexed index, bool isShared);
 
     event SetSize(uint96 indexed index, uint128 size);
 

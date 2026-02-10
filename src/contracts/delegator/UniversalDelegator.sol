@@ -906,6 +906,8 @@ contract UniversalDelegator is
 
         hook = params.hook;
 
+        _withdrawalBufferSlot().size.push(uint48(block.timestamp), params.withdrawalBufferSize);
+
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         }
@@ -921,8 +923,6 @@ contract UniversalDelegator is
         if (params.swapSlotsRoleHolder != address(0)) {
             _grantRole(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
         }
-
-        _withdrawalBufferSlot().size.push(uint48(block.timestamp), type(uint128).max);
 
         emit Initialize(params);
     }

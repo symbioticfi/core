@@ -6,7 +6,6 @@ import {BaseSlasher} from "./BaseSlasher.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";

@@ -35,9 +35,7 @@ interface IUniversalSlasher {
     error VetoPeriodNotEnded();
     error OldVault();
     error NotMigrating();
-    error NotVetoSlasher();
     error WrongMigrate();
-    error NoOwed();
     error NoBurner();
     error InsufficientBurnerGas();
     error NotNetworkMiddleware();

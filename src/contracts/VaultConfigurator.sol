@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.25;
 
-import {BaseSlasher} from "./slasher/BaseSlasher.sol";
 import {DelegatorFactory} from "./DelegatorFactory.sol";
 import {SlasherFactory} from "./SlasherFactory.sol";
 import {VaultFactory} from "./VaultFactory.sol";

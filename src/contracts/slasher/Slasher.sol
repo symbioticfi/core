@@ -3,7 +3,6 @@ pragma solidity ^0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "../../interfaces/slasher/ISlasher.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 

@@ -49,7 +49,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidCollateral();
     error InvalidDelegator();
     error TooLongDuration();
-    error InvalidPluginActiveDelay();
     error InvalidLengthEpochs();
     error InvalidOnBehalfOf();
     error InvalidRecipient();
@@ -62,14 +61,12 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooMuchRedeem();
     error TooMuchWithdraw();
     error WithdrawalNotMatured();
-    error PluginNotActive();
     error FeeOnTransferNotSupported();
     error DuplicatePlugin();
     error PluginAllocated();
     error TooManyPlugins();
-    error LimitReached();
-    error PluginsNotFound();
     error MigrationNotCompleted();
+    error DuplicateDepositor();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -97,6 +94,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address burner;
         uint48 epochDuration;
         bool depositWhitelist;
+        address[] depositorsWhitelisted;
         bool isDepositLimit;
         uint256 depositLimit;
         address defaultAdminRoleHolder;
