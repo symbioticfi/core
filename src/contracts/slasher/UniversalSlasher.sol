@@ -8,7 +8,6 @@ import {VaultV2} from "../vault/VaultV2.sol";
 
 import {Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
-import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
@@ -24,16 +23,13 @@ import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-import {SafeCastLib as SafeCast} from "@solady/src/utils/SafeCastLib.sol";
 
 contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IUniversalSlasher {
     using Math for uint256;
-    using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint96;
 
     address internal immutable VAULT_FACTORY;
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;

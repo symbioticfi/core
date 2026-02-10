@@ -3,19 +3,16 @@ pragma solidity 0.8.28;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {IVaultV2Storage} from "../../interfaces/vault/IVaultV2Storage.sol";
-
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using CheckpointsV2 for CheckpointsV2.Trace256;
     using CheckpointsV2 for CheckpointsV2.Trace208;
-    using SafeCast for uint256;
 
     address internal immutable DELEGATOR_FACTORY;
     address internal immutable SLASHER_FACTORY;

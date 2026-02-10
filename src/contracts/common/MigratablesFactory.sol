@@ -8,13 +8,11 @@ import {IMigratableEntityProxy} from "../../interfaces/common/IMigratableEntityP
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Address for address;
 
     /**
      * @inheritdoc IMigratablesFactory

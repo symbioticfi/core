@@ -8,8 +8,8 @@ import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
 
-import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626MathV2.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
@@ -37,7 +37,6 @@ import {VAULT_VERSION} from "../../interfaces/vault/IVault.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
@@ -280,9 +279,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert NotWhitelistedDepositor();
             }
 
-            uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+            uint256 balanceBefore = collateral.balanceOf(address(this));
             collateral.safeTransferFrom(msg.sender, address(this), amount);
-            depositedAmount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+            depositedAmount = collateral.balanceOf(address(this)) - balanceBefore;
 
             _revertIfZero(depositedAmount);
 
@@ -432,9 +431,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert NotRewards();
             }
 
-            uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
+            uint256 balanceBefore = collateral.balanceOf(address(this));
             collateral.safeTransferFrom(msg.sender, address(this), amount);
-            amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
+            amount = collateral.balanceOf(address(this)) - balanceBefore;
 
             _revertIfZero(amount);
 
@@ -679,9 +678,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 pluginsAllocated += allocated;
                 pluginAllocated[plugin] += allocated;
 
-                uint256 balanceBefore = IERC20(collateral).balanceOf(plugin);
+                uint256 balanceBefore = collateral.balanceOf(plugin);
                 collateral.safeTransfer(plugin, allocated);
-                if (IERC20(collateral).balanceOf(plugin) - balanceBefore < allocated) {
+                if (collateral.balanceOf(plugin) - balanceBefore < allocated) {
                     revert FeeOnTransferNotSupported();
                 }
                 IPluginBase(plugin).allocate(allocated);
@@ -769,7 +768,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     function _availableToSlash() internal view returns (uint256) {
         unchecked {
-            return IERC20(collateral).balanceOf(address(this))
+            return collateral.balanceOf(address(this))
                 .saturatingSub(uint256(_unclaimedRaw + int256(withdrawals(withdrawalBucket()) - activeWithdrawals())));
         }
     }
@@ -936,7 +935,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 slasher = newSlasher;
             }
 
-            _unclaimedRaw = int256(IERC20(collateral).balanceOf(address(this)) - activeStake() - curActiveWithdrawals);
+            _unclaimedRaw = int256(collateral.balanceOf(address(this)) - activeStake() - curActiveWithdrawals);
 
             emit Migrate(params, delegator, slasher);
         }

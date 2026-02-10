@@ -11,8 +11,6 @@ import {ISlasher} from "../../interfaces/slasher/ISlasher.sol";
 import {IVaultStorage} from "../../interfaces/vault/IVaultStorage.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract BaseSlasherHints is Hints {
@@ -108,9 +106,7 @@ contract SlasherHints is Hints {
 }
 
 contract VetoSlasherHints is Hints {
-    using Math for uint256;
     using Checkpoints for Checkpoints.Trace208;
-    using SafeCast for uint256;
 
     address public immutable BASE_SLASHER_HINTS;
 

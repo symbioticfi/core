@@ -3,11 +3,7 @@ pragma solidity ^0.8.25;
 
 import {IStaticDelegateCallable} from "../../interfaces/common/IStaticDelegateCallable.sol";
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-
 abstract contract Hints {
-    using Address for address;
-
     address private immutable _SELF;
 
     constructor() {
