@@ -1166,51 +1166,6 @@ contract VaultV2Test is Test {
         assertGt(gasSpent, gasLeft - gasleft());
     }
 
-    function test_ActiveWithdrawalsForAt_withoutHints_matchesWithHints() public {
-        uint48 epochDuration = 7 days;
-        vault = _getVault(epochDuration);
-
-        uint256 depositAmount = 100 ether;
-        uint256 withdrawAmount = 40 ether;
-
-        collateral.transfer(alice, depositAmount);
-        vm.startPrank(alice);
-        collateral.approve(address(vault), type(uint256).max);
-        vault.deposit(alice, depositAmount);
-        vault.withdraw(alice, withdrawAmount);
-        vm.stopPrank();
-
-        uint48 timestamp = uint48(block.timestamp);
-        uint256 withoutHints = VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp);
-        bytes memory hints = vaultTestHelper.activeWithdrawalsHints(address(vault), 0, timestamp);
-        uint256 withHints = VaultV2(address(vault)).activeWithdrawalsAt(timestamp, hints);
-
-        assertEq(withoutHints, withHints);
-    }
-
-    function test_ActiveWithdrawalsForAt_withHints_matchesWithoutHints() public {
-        uint48 epochDuration = 7 days;
-        vault = _getVault(epochDuration);
-
-        uint256 depositAmount = 100 ether;
-        uint256 withdrawAmount = 40 ether;
-
-        collateral.transfer(alice, depositAmount);
-        vm.startPrank(alice);
-        collateral.approve(address(vault), type(uint256).max);
-        vault.deposit(alice, depositAmount);
-        vault.withdraw(alice, withdrawAmount);
-        vm.stopPrank();
-
-        uint48 timestamp = uint48(block.timestamp);
-        uint48 duration = epochDuration / 2;
-        bytes memory hints = vaultTestHelper.activeWithdrawalsHints(address(vault), duration, timestamp);
-        uint256 withdrawalsForDuration = VaultV2(address(vault)).activeWithdrawalsForAt(duration, timestamp);
-        uint256 withdrawalsAt = VaultV2(address(vault)).activeWithdrawalsAt(timestamp, hints);
-
-        assertLe(withdrawalsForDuration, withdrawalsAt);
-    }
-
     function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 2, 100 * 10 ** 18);
         amount2 = bound(amount2, 2, 100 * 10 ** 18);
@@ -3151,7 +3106,7 @@ contract VaultV2Test is Test {
         assertEq(vault.withdrawalBucket(), vaultTestHelper.unlockToBucketLatest(address(vault)));
         assertEq(VaultV2(address(vault)).activeWithdrawalsFor(0), VaultV2(address(vault)).activeWithdrawals());
         assertEq(
-            VaultV2(address(vault)).activeWithdrawalsAt(timestamp, ""),
+            VaultV2(address(vault)).activeWithdrawalsAt(timestamp),
             VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp)
         );
         assertGt(VaultV2(address(vault)).withdrawalsOf(0, alice), 0);
@@ -3203,6 +3158,7 @@ contract VaultV2Test is Test {
 
     function test_SetPluginLimitRevertTooManyPlugins() public {
         vault = _getUniversalVault(7 days);
+        vm.warp(block.timestamp + vault.epochDuration() + 1);
         _grantAddPluginRole(alice, alice);
 
         for (uint256 i; i < MAX_PLUGINS; ++i) {

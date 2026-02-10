@@ -1662,12 +1662,33 @@ contract UniversalDelegatorTest is Test {
         delegator.resetAllocation(subnetwork);
 
         assertFalse(delegator.getSlot(noPluginsGroup).exists);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
         assertEq(delegator.getNoPluginsSize(), 0);
         assertEq(delegator.getAllocated(slot3, 0), 1);
         assertEq(delegator.getAllocatedAt(slot3, uint48(block.timestamp), 0), 1);
 
         delegator.setSize(slot2, 2);
         assertEq(delegator.getSlot(slot2).size, 2);
+    }
+
+    function test_resetAllocation_singleNetworkClearsAssignmentAndAllowsReassign() public {
+        address network = makeAddr("reset-single-network");
+        address middleware = makeAddr("reset-single-middleware");
+        _registerNetwork(network, middleware);
+        bytes32 subnetwork = network.subnetwork(0);
+
+        uint96 group = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        uint96 slot = delegator.createSlot(subnetwork, group, false, false, 0);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), slot);
+
+        vm.prank(middleware);
+        delegator.resetAllocation(subnetwork);
+
+        assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
+
+        uint96 newGroup = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        uint96 newSlot = delegator.createSlot(subnetwork, newGroup, false, false, 0);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), newSlot);
     }
 
     function test_onSlash_noPluginsRootDecreasesNoPluginsSize() public {

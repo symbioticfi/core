@@ -123,7 +123,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsAt(uint48 timestamp, bytes memory hints) public view returns (uint256) {
+    function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
         return activeWithdrawalsForAt(0, timestamp);
     }
 
@@ -504,7 +504,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
-        MigratorV1V2(MIGRATOR_V1V2).onSetPluginLimit();
+        MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.onSetPluginLimit, ()));
 
         _revertIfZero(plugin);
 

@@ -712,12 +712,6 @@ contract UniversalDelegator is
         if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
-        _removeSlot(index);
-    }
-
-    function _removeSlot(uint96 index) internal {
-        SlotStorage storage slot = slots[index];
-        SlotStorage storage parent = slots[index.getParentIndex()];
 
         if (_slotToNetwork[index] != bytes32(0)) {
             _networkToSlot[_slotToNetwork[index]].push(uint48(block.timestamp), 0);
@@ -726,6 +720,13 @@ contract UniversalDelegator is
             _operatorToSlot[index.getParentIndex()][_slotToOperator[index]].push(uint48(block.timestamp), 0);
             _slotToOperator[index] = address(0);
         }
+
+        _removeSlot(index);
+    }
+
+    function _removeSlot(uint96 index) internal {
+        SlotStorage storage slot = slots[index];
+        SlotStorage storage parent = slots[index.getParentIndex()];
 
         if (index.getChildIndex() == parent.firstChild) {
             parent.firstChild = slot.nextSlot;
@@ -761,6 +762,9 @@ contract UniversalDelegator is
             if (index == 0) {
                 revert NotAssigned();
             }
+
+            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+
             if (slots[index.getParentIndex()].numChildren == 1) {
                 index = index.getParentIndex();
             }

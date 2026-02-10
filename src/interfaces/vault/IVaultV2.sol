@@ -287,10 +287,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     /**
      * @notice Get a total amount of the active withdrawals at a given timestamp.
      * @param timestamp time point to get the active withdrawals at
-     * @param hints hints for checkpoints' indexes
      * @return total amount of the active withdrawals
      */
-    function activeWithdrawalsAt(uint48 timestamp, bytes memory hints) external view returns (uint256);
+    function activeWithdrawalsAt(uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the withdrawals.
