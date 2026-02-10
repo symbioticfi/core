@@ -840,6 +840,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             epochDuration = params.epochDuration;
 
             depositWhitelist = params.depositWhitelist;
+            for (uint256 i; i < params.depositorsWhitelisted.length; ++i) {
+                address depositor = params.depositorsWhitelisted[i];
+                _revertIfZero(depositor);
+                if (isDepositorWhitelisted[depositor]) {
+                    revert DuplicateDepositor();
+                }
+                isDepositorWhitelisted[depositor] = true;
+            }
 
             isDepositLimit = params.isDepositLimit;
             depositLimit = params.depositLimit;

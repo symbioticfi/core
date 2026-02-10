@@ -302,7 +302,8 @@ contract UniversalSlasherMigrationTest is Test {
             setIsSharedRoleHolder: owner,
             setSizeRoleHolder: owner,
             setShareRoleHolder: owner,
-            swapSlotsRoleHolder: owner
+            swapSlotsRoleHolder: owner,
+            withdrawalBufferSize: type(uint128).max
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             isBurnerHook: false, vetoDuration: vetoDuration, resolverSetDelay: EPOCH_DURATION * 3

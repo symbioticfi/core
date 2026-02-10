@@ -133,6 +133,7 @@ contract UniversalDelegatorGasTest is Test {
                         burner: address(0xdEaD),
                         epochDuration: EPOCH_DURATION,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: owner,
@@ -155,7 +156,8 @@ contract UniversalDelegatorGasTest is Test {
                         setIsSharedRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         setShareRoleHolder: owner,
-                        swapSlotsRoleHolder: owner
+                        swapSlotsRoleHolder: owner,
+                        withdrawalBufferSize: type(uint128).max
                     })
                 ),
                 withSlasher: true,

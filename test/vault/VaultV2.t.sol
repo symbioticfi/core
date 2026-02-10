@@ -414,6 +414,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: epochDuration,
                         depositWhitelist: true,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: address(0),
@@ -447,6 +448,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: epochDuration,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: true,
                         depositLimit: 0,
                         defaultAdminRoleHolder: address(0),
@@ -480,6 +482,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: epochDuration,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: address(0),
@@ -513,6 +516,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: epochDuration,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 1,
                         defaultAdminRoleHolder: address(0),
@@ -546,6 +550,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: epochDuration,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: address(0),
@@ -577,6 +582,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -635,6 +641,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -693,6 +700,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -727,6 +735,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -753,6 +762,7 @@ contract VaultV2Test is Test {
                     burner: address(0xdEaD),
                     epochDuration: 7 days,
                     depositWhitelist: false,
+                    depositorsWhitelisted: new address[](0),
                     isDepositLimit: false,
                     depositLimit: 0,
                     defaultAdminRoleHolder: alice,
@@ -808,6 +818,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -854,6 +865,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -900,6 +912,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -944,6 +957,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -970,6 +984,7 @@ contract VaultV2Test is Test {
                     burner: address(0xdEaD),
                     epochDuration: 7 days,
                     depositWhitelist: false,
+                    depositorsWhitelisted: new address[](0),
                     isDepositLimit: false,
                     depositLimit: 0,
                     defaultAdminRoleHolder: alice,
@@ -1013,6 +1028,7 @@ contract VaultV2Test is Test {
                         burner: address(0xdEaD),
                         epochDuration: 7 days,
                         depositWhitelist: false,
+                        depositorsWhitelisted: new address[](0),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: alice,
@@ -3327,6 +3343,47 @@ contract VaultV2Test is Test {
         vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
     }
 
+    function test_CreateRevertWhitelistedDepositorInvalidAddress() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.depositorsWhitelisted = new address[](1);
+        params.depositorsWhitelisted[0] = address(0);
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+    }
+
+    function test_CreateRevertDuplicateWhitelistedDepositor() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.depositorsWhitelisted = new address[](2);
+        params.depositorsWhitelisted[0] = bob;
+        params.depositorsWhitelisted[1] = bob;
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vm.expectRevert(IVaultV2.DuplicateDepositor.selector);
+        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+    }
+
+    function test_CreateWithDepositorsWhitelisted() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.depositWhitelist = true;
+        params.depositorsWhitelisted = new address[](1);
+        params.depositorsWhitelisted[0] = bob;
+
+        vault = IVaultV2(vaultFactory.create(vaultFactory.lastVersion(), alice, _getEncodedVaultParams(params)));
+        assertEq(vault.isDepositorWhitelisted(bob), true);
+
+        _deposit(bob, 1);
+
+        address notWhitelisted = makeAddr("notWhitelisted");
+        collateral.transfer(notWhitelisted, 1);
+        vm.startPrank(notWhitelisted);
+        collateral.approve(address(vault), 1);
+        vm.expectRevert(IVaultV2.NotWhitelistedDepositor.selector);
+        vault.deposit(notWhitelisted, 1);
+        vm.stopPrank();
+    }
+
     function test_CreateWithPluginData() public {
         IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
         address plugin1 = makeAddr("plugin1");
@@ -3761,6 +3818,7 @@ contract VaultV2Test is Test {
                     burner: baseParams.burner,
                     epochDuration: baseParams.epochDuration,
                     depositWhitelist: baseParams.depositWhitelist,
+                    depositorsWhitelisted: new address[](0),
                     isDepositLimit: baseParams.isDepositLimit,
                     depositLimit: baseParams.depositLimit,
                     defaultAdminRoleHolder: baseParams.defaultAdminRoleHolder,
@@ -3857,6 +3915,7 @@ contract VaultV2Test is Test {
                     burner: baseParams.burner,
                     epochDuration: baseParams.epochDuration,
                     depositWhitelist: baseParams.depositWhitelist,
+                    depositorsWhitelisted: new address[](0),
                     isDepositLimit: baseParams.isDepositLimit,
                     depositLimit: baseParams.depositLimit,
                     defaultAdminRoleHolder: baseParams.defaultAdminRoleHolder,
@@ -3879,7 +3938,8 @@ contract VaultV2Test is Test {
             setIsSharedRoleHolder: alice,
             setSizeRoleHolder: alice,
             setShareRoleHolder: alice,
-            swapSlotsRoleHolder: alice
+            swapSlotsRoleHolder: alice,
+            withdrawalBufferSize: type(uint128).max
         });
 
         (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
@@ -3908,7 +3968,8 @@ contract VaultV2Test is Test {
             setIsSharedRoleHolder: alice,
             setSizeRoleHolder: alice,
             setShareRoleHolder: alice,
-            swapSlotsRoleHolder: alice
+            swapSlotsRoleHolder: alice,
+            withdrawalBufferSize: type(uint128).max
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
             isBurnerHook: false, vetoDuration: vetoDuration, resolverSetDelay: uint48(epochDuration * 3)
@@ -3929,6 +3990,7 @@ contract VaultV2Test is Test {
             burner: address(0xdEaD),
             epochDuration: epochDuration,
             depositWhitelist: false,
+            depositorsWhitelisted: new address[](0),
             isDepositLimit: false,
             depositLimit: 0,
             defaultAdminRoleHolder: alice,
