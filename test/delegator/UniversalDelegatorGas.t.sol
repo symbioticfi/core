@@ -151,7 +151,6 @@ contract UniversalDelegatorGasTest is Test {
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: EPOCH_DURATION * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 ),

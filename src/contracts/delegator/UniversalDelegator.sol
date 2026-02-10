@@ -832,7 +832,7 @@ contract UniversalDelegator is
             if (slot.size.latest() > 0) {
                 slot.size.push(uint48(block.timestamp), 0);
                 parent.needPrevSumsSync = true;
-                if (slot.noPlugins) {
+                if (index.getDepth() == 1 && slot.noPlugins) {
                     _noPluginsSize -= slot.size.latest();
                 }
             }
@@ -889,7 +889,7 @@ contract UniversalDelegator is
                             slots[currentIndex.getParentIndex()].clearedChildrenPendingCumulative.latest()
                                 + pendingSlashed
                         );
-                    if (slot.noPlugins) {
+                    if (currentIndex.getDepth() == 1 && slot.noPlugins) {
                         _clearedNoPluginsPendingCumulative.push(
                             uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pendingSlashed
                         );
@@ -899,6 +899,9 @@ contract UniversalDelegator is
                 if (sizeSlashed > 0) {
                     slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
                     slots[currentIndex.getParentIndex()].needPrevSumsSync = true;
+                    if (currentIndex.getDepth() == 1 && slot.noPlugins) {
+                        _noPluginsSize -= sizeSlashed;
+                    }
                 }
                 currentIndex = currentIndex.getParentIndex();
             }
@@ -950,7 +953,6 @@ contract UniversalDelegator is
         if (params.hookSetRoleHolder != address(0)) {
             _grantRole(HOOK_SET_ROLE, params.hookSetRoleHolder);
         }
-
         if (params.createSlotRoleHolder != address(0)) {
             _grantRole(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
         }

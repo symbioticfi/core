@@ -521,6 +521,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
+        MigratorV1V2(MIGRATOR_V1V2).onSetPluginLimit();
+
         _revertIfZero(plugin);
 
         if (pluginAllocated[plugin] > newLimit) {
@@ -724,10 +726,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert InvalidEpochDuration();
         }
 
-        if (params.pluginLimitSetDelay <= params.epochDuration) {
-            revert InvalidPluginActiveDelay();
-        }
-
         __ERC20_init(params.name, params.symbol);
 
         collateral = params.collateral;
@@ -740,8 +738,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
-
-        pluginLimitSetDelay = params.pluginLimitSetDelay;
 
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);

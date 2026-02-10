@@ -427,7 +427,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: epochDuration * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -461,7 +460,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: epochDuration * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -495,7 +493,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: epochDuration * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -529,7 +526,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: epochDuration * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -563,7 +559,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: epochDuration * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -595,7 +590,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -654,7 +648,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -713,7 +706,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -748,7 +740,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -775,7 +766,6 @@ contract VaultV2Test is Test {
                     depositLimitSetRoleHolder: alice,
                     setPluginLimitRoleHolder: alice,
                     allocatePluginRoleHolder: alice,
-                    pluginLimitSetDelay: 7 days * 3,
                     pluginsData: new IVaultV2.PluginData[](0)
                 })
             )
@@ -831,7 +821,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -878,7 +867,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -925,7 +913,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -970,7 +957,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -997,7 +983,6 @@ contract VaultV2Test is Test {
                     depositLimitSetRoleHolder: alice,
                     setPluginLimitRoleHolder: alice,
                     allocatePluginRoleHolder: alice,
-                    pluginLimitSetDelay: 7 days * 3,
                     pluginsData: new IVaultV2.PluginData[](0)
                 })
             )
@@ -1041,7 +1026,6 @@ contract VaultV2Test is Test {
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
                         allocatePluginRoleHolder: alice,
-                        pluginLimitSetDelay: 7 days * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 )
@@ -3314,14 +3298,47 @@ contract VaultV2Test is Test {
         assertEq(vault.activeSharesOf(alice), VaultV2(address(vault)).balanceOf(alice));
     }
 
-    function test_CreateRevertInvalidPluginActiveDelay(uint48 epochDuration) public {
-        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
-        IVaultV2.InitParams memory params = _defaultVaultInitParams(epochDuration);
-        params.pluginLimitSetDelay = epochDuration;
-        uint64 lastVersion = vaultFactory.lastVersion();
+    function test_SetPluginLimitRevertMigrationNotCompleted() public {
+        uint48 epochDuration = 7 days;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
 
-        vm.expectRevert(IVaultV2.InvalidPluginActiveDelay.selector);
-        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vm.prank(alice);
+        VaultV2(address(vaultV2)).grantRole(SET_PLUGIN_LIMIT_ROLE, alice);
+
+        MockPlugin plugin = new MockPlugin(address(vaultV2), address(collateral));
+
+        vm.prank(alice);
+        vm.expectRevert(MigratorV1V2.MigrationNotCompleted.selector);
+        VaultV2(address(vaultV2)).setPluginLimit(address(plugin), 1);
+
+        vm.warp(block.timestamp + epochDuration + 1);
+        vm.prank(alice);
+        VaultV2(address(vaultV2)).setPluginLimit(address(plugin), 1);
+
+        assertEq(vaultV2.pluginsLength(), 1);
+        assertEq(vaultV2.plugins(0), address(plugin));
     }
 
     function test_CreateRevertPluginDataInvalidAddress() public {
@@ -3522,13 +3539,18 @@ contract VaultV2Test is Test {
     }
 
     function _addPlugin(MockPlugin plugin) internal {
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+
         _grantAddPluginRole(alice, alice);
         vm.prank(alice);
         VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
     }
 
     function _activatePluginLimit() internal {
-        vm.warp(block.timestamp + vault.pluginLimitSetDelay());
+        // no-op: plugin activation delay was removed from the vault
     }
 
     function _deposit(address user, uint256 amount) internal returns (uint256 depositedAmount, uint256 mintedShares) {
@@ -3796,7 +3818,6 @@ contract VaultV2Test is Test {
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setPluginLimitRoleHolder: alice,
                     allocatePluginRoleHolder: alice,
-                    pluginLimitSetDelay: baseParams.epochDuration * 3,
                     pluginsData: new IVaultV2.PluginData[](0)
                 })
             );
@@ -3893,7 +3914,6 @@ contract VaultV2Test is Test {
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setPluginLimitRoleHolder: alice,
                     allocatePluginRoleHolder: alice,
-                    pluginLimitSetDelay: baseParams.epochDuration * 3,
                     pluginsData: new IVaultV2.PluginData[](0)
                 })
             );
@@ -3966,7 +3986,6 @@ contract VaultV2Test is Test {
             depositLimitSetRoleHolder: alice,
             setPluginLimitRoleHolder: alice,
             allocatePluginRoleHolder: alice,
-            pluginLimitSetDelay: epochDuration * 3,
             pluginsData: new IVaultV2.PluginData[](0)
         });
     }

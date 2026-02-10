@@ -222,6 +222,17 @@ contract UniversalSlasherMigrationTest is Test {
         assertEq(IUniversalSlasher(newSlasher).slashRequestsLength(), 0);
     }
 
+    function test_MigrateFromSlasher_ToUniversalSlasher_preservesBurnerHook() public {
+        bytes memory slasherParams =
+            abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: true})}));
+        (IVaultV2 vault_,) = _createLegacyVault(true, 0, slasherParams);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams());
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
+
+        assertTrue(IUniversalSlasher(vault_.slasher()).isBurnerHook());
+    }
+
     function test_MigrateFromVetoSlasher_ToUniversalSlasher() public {
         bytes memory slasherParams = abi.encode(
             IVetoSlasher.InitParams({
@@ -342,6 +353,7 @@ contract MockUniversalDelegator {
     uint256 public stakeForValue;
     uint256 public stakeAtValue;
     bool public isNoPlugins;
+    bool public revertOnGetIsNoPlugins;
 
     bytes32 public lastSlashSubnetwork;
     address public lastSlashOperator;
@@ -361,6 +373,10 @@ contract MockUniversalDelegator {
         isNoPlugins = value;
     }
 
+    function setRevertOnGetIsNoPlugins(bool value) external {
+        revertOnGetIsNoPlugins = value;
+    }
+
     function stakeFor(bytes32, address, uint48) external view returns (uint256) {
         return stakeForValue;
     }
@@ -378,6 +394,9 @@ contract MockUniversalDelegator {
     }
 
     function getIsNoPlugins(bytes32) external view returns (bool) {
+        if (revertOnGetIsNoPlugins) {
+            revert("NOT_ASSIGNED");
+        }
         return isNoPlugins;
     }
 }
@@ -918,6 +937,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.setOldSlasherRaw(address(legacySlasher));
         slasher.setMigrateTimestampRaw(100);
         delegator.setStakeAtValue(90);
+        delegator.setRevertOnGetIsNoPlugins(true);
         legacySlasher.setCumulativeSlash(0);
         legacySlasher.setCumulativeSlashAt(0);
         vm.warp(120);
@@ -928,6 +948,8 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
         assertEq(slasher.exposeLatestSlashedCaptureTimestamp(subnetwork, operator), 90);
         assertEq(slasher.exposeCumulativeSlash(subnetwork, operator), 30);
+        assertEq(delegator.onSlashCalls(), 0);
+        assertFalse(vault.lastOnSlashWithPlugins());
     }
 
     function test_executeSlash_postMigrateCallsDelegatorHook() public {

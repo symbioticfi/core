@@ -54,12 +54,6 @@ interface IVaultV2Storage {
     function epochDuration() external view returns (uint48);
 
     /**
-     * @notice Get a duration before a plugin becomes active.
-     * @return delay before a plugin becomes active
-     */
-    function pluginLimitSetDelay() external view returns (uint48);
-
-    /**
      * @notice Get if the deposit whitelist is enabled.
      * @return if the deposit whitelist is enabled
      */

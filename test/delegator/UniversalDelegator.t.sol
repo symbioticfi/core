@@ -238,7 +238,6 @@ contract UniversalDelegatorTest is Test {
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
                         allocatePluginRoleHolder: address(0),
-                        pluginLimitSetDelay: EPOCH_DURATION * 3,
                         pluginsData: new IVaultV2.PluginData[](0)
                     })
                 ),
@@ -1591,16 +1590,37 @@ contract UniversalDelegatorTest is Test {
 
         vm.warp(1);
         delegator.setSize(noPluginsGroup, 40);
+        assertEq(delegator.getNoPluginsSize(), 80);
 
         vm.prank(network);
         delegator.resetAllocation(subnetwork);
 
         assertFalse(delegator.getSlot(noPluginsGroup).exists);
+        assertEq(delegator.getNoPluginsSize(), 0);
         assertEq(delegator.getAllocated(slot3, 0), 1);
         assertEq(delegator.getAllocatedAt(slot3, uint48(block.timestamp), 0, ""), 1);
 
         delegator.setSize(slot2, 2);
         assertEq(delegator.getSlot(slot2).size, 2);
+    }
+
+    function test_onSlash_noPluginsRootDecreasesNoPluginsSize() public {
+        _deposit(alice, 100);
+
+        bytes32 subnetwork = makeAddr("no-plugins-on-slash").subnetwork(0);
+        uint96 group = delegator.createSlot(bytes32(0), 0, false, true, 80);
+        delegator.createSlot(subnetwork, group, false, false, 80);
+        uint96 networkSlot = group.createIndex(uint32(1));
+        delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 80);
+
+        assertEq(delegator.getNoPluginsSize(), 80);
+        assertEq(delegator.getSlot(group).size, 80);
+
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, alice, 20, bytes(""));
+
+        assertEq(delegator.getNoPluginsSize(), 60);
+        assertEq(delegator.getSlot(group).size, 60);
     }
 
     function test_setHookAndOnSlashPaths() public {

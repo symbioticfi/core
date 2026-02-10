@@ -228,14 +228,14 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         _slashRequests[slashIndex].completed = true;
 
-        if (request.createdAt < __migrateTimestamp) {
+        if (request.createdAt >= __migrateTimestamp) {
+            UniversalDelegator(IVault(vault).delegator())
+                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
+        } else {
             __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;
             __cumulativeSlash[request.subnetwork][request.operator].push(
                 uint48(block.timestamp), _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
             );
-        } else {
-            UniversalDelegator(IVault(vault).delegator())
-                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
         }
 
         uint256 owed_;
@@ -243,7 +243,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             (slashedAmount, owed_) = VaultV2(vault)
                 .onSlash(
                     slashedAmount,
-                    !UniversalDelegator(IVault(vault).delegator()).getIsNoPlugins(request.subnetwork),
+                    request.createdAt >= __migrateTimestamp
+                        ? !UniversalDelegator(IVault(vault).delegator()).getIsNoPlugins(request.subnetwork)
+                        : false,
                     hint
                 );
             if (owed_ > 0) {
@@ -418,6 +420,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         __migrateTimestamp = uint48(block.timestamp);
         __oldSlasher = oldSlasher;
 
+        isBurnerHook = IVetoSlasher(oldSlasher).isBurnerHook();
         if (oldSlasherType == 1) {
             uint256 slashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();
             assembly ("memory-safe") {
@@ -426,7 +429,6 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             vetoDuration = IVetoSlasher(oldSlasher).vetoDuration();
             resolverSetDelay =
                 uint48(IVetoSlasher(oldSlasher).resolverSetEpochsDelay()) * IVaultV2(vault).epochDuration();
-            isBurnerHook = IVetoSlasher(oldSlasher).isBurnerHook();
         }
     }
 }

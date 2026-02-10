@@ -118,11 +118,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @inheritdoc IVaultV2Storage
      */
-    uint48 public pluginLimitSetDelay;
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
     address[] public plugins;
 
     /**
