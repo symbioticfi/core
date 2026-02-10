@@ -17,12 +17,6 @@ interface IVaultV2Storage {
     error InvalidTimestamp();
     error NoPreviousEpoch();
 
-    struct Withdrawal {
-        bool claimed;
-        uint48 unlockAfter;
-        uint256 shares;
-    }
-
     /**
      * @notice Get a vault collateral.
      * @return address of the underlying collateral
@@ -143,35 +137,12 @@ interface IVaultV2Storage {
     function withdrawalShares(uint256 index) external view returns (uint256);
 
     /**
-     * @notice Get a number of withdrawal shares for a particular account at a given index (zero if claimed).
-     * @param index index to get the number of withdrawal shares for the account at
-     * @param account account to get the number of withdrawal shares for
-     * @return number of withdrawal shares for the account at the index
-     */
-    function withdrawalSharesOf(uint256 index, address account) external view returns (uint256);
-
-    /**
      * @notice Get if the withdrawal is claimed for a particular account at a given index.
      * @param index index to check the withdrawal for the account at
      * @param account account to check the withdrawal for
      * @return if the withdrawal is claimed for the account at the index
      */
     function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
-
-    /**
-     * @notice Get when the withdrawal become claimable for a particular account at a given index.
-     * @param index index to check the withdrawals for the account at
-     * @param account account to check the withdrawal for
-     * @return when the withdrawal is claimable for the account at the index
-     */
-    function withdrawalUnlockAfter(uint256 index, address account) external view returns (uint48);
-
-    /**
-     * @notice Get how many withdrawals a particular account requested.
-     * @param account account to check the withdrawals for
-     * @return the number of withdrawals requested by the account
-     */
-    function withdrawalsLength(address account) external view returns (uint256);
 
     function pluginLimit(address plugin) external view returns (uint208);
 

@@ -16,7 +16,6 @@ import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
-import {MigratorV1V2} from "../../src/contracts/vault/MigratorV1V2.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
@@ -91,7 +90,6 @@ contract VaultV2Test is Test {
     FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
     VaultV2TestHelper vaultTestHelper;
-    MigratorV1V2 migratorV1V2;
     MockRewards rewards;
 
     IVaultV2 vault;
@@ -181,8 +179,6 @@ contract VaultV2Test is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-
-        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
 
         vaultTestHelper = new VaultV2TestHelper();
@@ -350,7 +346,7 @@ contract VaultV2Test is Test {
         assertEq(vault.activeSharesOf(alice), 0);
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), 0);
         assertEq(vault.activeBalanceOf(alice), 0);
-        assertEq(vault.withdrawalsLength(alice), 0);
+        assertEq(vault.withdrawalsOfLength(alice), 0);
         assertEq(vault.withdrawals(0), 0);
         assertEq(vault.withdrawalShares(0), 0);
         assertEq(vault.depositWhitelist(), depositWhitelist);
@@ -1501,7 +1497,7 @@ contract VaultV2Test is Test {
 
         _withdraw(alice, amount2);
 
-        assertEq(vault.withdrawalsLength(alice), 1);
+        assertEq(vault.withdrawalsOfLength(alice), 1);
         assertEq(vault.withdrawalUnlockAfter(0, alice), uint48(blockTimestamp + epochDuration));
 
         blockTimestamp = blockTimestamp + 2;
@@ -1509,7 +1505,7 @@ contract VaultV2Test is Test {
 
         _withdraw(alice, amount3);
 
-        assertEq(vault.withdrawalsLength(alice), 2);
+        assertEq(vault.withdrawalsOfLength(alice), 2);
         assertEq(vault.withdrawalUnlockAfter(1, alice), uint48(blockTimestamp + epochDuration));
     }
 
@@ -1533,8 +1529,8 @@ contract VaultV2Test is Test {
         (, uint256 mintedShares) = vault.withdraw(bob, amount2);
         vm.stopPrank();
 
-        assertEq(vault.withdrawalsLength(alice), 0);
-        assertEq(vault.withdrawalsLength(bob), 1);
+        assertEq(vault.withdrawalsOfLength(alice), 0);
+        assertEq(vault.withdrawalsOfLength(bob), 1);
         assertEq(vault.withdrawalUnlockAfter(0, bob), uint48(blockTimestamp + epochDuration));
         assertEq(vault.withdrawalSharesOf(0, bob), mintedShares);
     }
@@ -1774,7 +1770,7 @@ contract VaultV2Test is Test {
         blockTimestamp = blockTimestamp + 2;
         vm.warp(blockTimestamp);
 
-        vm.expectRevert(stdError.indexOOBError);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _claim(alice, 10);
     }
 
@@ -1976,7 +1972,7 @@ contract VaultV2Test is Test {
         indexes[0] = 0;
         indexes[1] = 2;
 
-        vm.expectRevert(stdError.indexOOBError);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _claimBatch(alice, indexes);
     }
 
@@ -2354,50 +2350,44 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
         assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
 
-        state.nextEpochStart = uint48(state.migrateTimestamp + epochDuration);
+        uint256 legacyEpochIndex = (state.migrateTimestamp - state.blockTimestamp) / epochDuration;
+        state.nextEpochStart = uint48(
+            state.blockTimestamp + ((state.migrateTimestamp - state.blockTimestamp) / epochDuration + 1) * epochDuration
+        );
+        uint48 postMigrateUnlockAfter = uint48(state.migrateTimestamp + epochDuration);
+
         assertEq(vaultTestHelper.withdrawalSharesCumulativeLength(address(vaultV2)), 2);
 
         {
-            uint48 expectedEpochBoundary = uint48(
-                state.blockTimestamp + ((state.migrateTimestamp - state.blockTimestamp) / epochDuration + 1)
-                    * epochDuration
-            );
             (uint48 prefixKey0, uint256 prefixVal0) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 0);
-            assertEq(prefixKey0, expectedEpochBoundary);
+            assertEq(prefixKey0, state.nextEpochStart);
             assertEq(prefixVal0, state.epoch2Withdrawals);
         }
 
         {
             (uint48 prefixKey1, uint256 prefixVal1) = vaultTestHelper.withdrawalSharesCumulativeAt(address(vaultV2), 1);
-            assertEq(prefixKey1, state.nextEpochStart);
+            assertEq(prefixKey1, postMigrateUnlockAfter);
             assertEq(prefixVal1, state.epoch2Withdrawals);
         }
 
-        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 2);
+        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 1);
         {
-            (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 1);
+            (uint48 bucketKey, uint208 bucketVal) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 0);
             assertEq(bucketKey, state.migrateTimestamp);
-            assertEq(bucketVal, 1);
+            assertEq(bucketVal, 0);
         }
 
-        vm.expectRevert();
-        vaultV2.migrateWithdrawalOf(alice, 1);
-
-        vaultV2.migrateWithdrawalOf(bob, 1);
-        vaultV2.migrateWithdrawalOf(alice, 2);
-        vaultV2.migrateWithdrawalOf(bob, 2);
-
-        assertEq(vaultV2.withdrawalsLength(bob), 2);
-        assertEq(vaultV2.withdrawalsLength(alice), 1);
+        assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 1);
+        assertEq(vaultV2.withdrawalsOfLength(alice), legacyEpochIndex + 1);
 
         {
-            assertEq(vaultV2.withdrawalUnlockAfter(0, bob), state.nextEpochStart);
-            assertEq(vaultV2.withdrawalUnlockAfter(1, bob), state.nextEpochStart);
-            assertEq(vaultV2.withdrawalUnlockAfter(0, alice), state.nextEpochStart);
+            assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex, bob), state.nextEpochStart);
+            assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex, alice), state.nextEpochStart);
+            assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex + 1, bob), postMigrateUnlockAfter);
 
-            (uint48 bucketKeyPre, uint208 bucketValPre) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 1);
+            (uint48 bucketKeyPre, uint208 bucketValPre) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 0);
             assertEq(bucketKeyPre, state.migrateTimestamp);
-            assertEq(bucketValPre, 1);
+            assertEq(bucketValPre, 0);
         }
 
         state.expectedBobEpoch1 =
@@ -2407,35 +2397,41 @@ contract VaultV2Test is Test {
         state.expectedBobEpoch2 =
             Math.mulDiv(state.bobWithdrawEpoch1, state.epoch2Withdrawals + 1, state.epoch2Withdrawals + 1);
 
-        assertEq(vaultV2.withdrawalSharesOf(0, bob), state.bobWithdrawEpoch0);
-        assertEq(vaultV2.withdrawalSharesOf(1, bob), state.expectedBobEpoch2);
-        assertEq(vaultV2.withdrawalSharesOf(0, alice), state.expectedAliceEpoch2);
+        assertEq(vaultV2.withdrawalSharesOf(legacyEpochIndex - 1, bob), state.bobWithdrawEpoch0);
+        assertEq(vaultV2.withdrawalSharesOf(legacyEpochIndex, bob), state.expectedBobEpoch2);
+        assertEq(vaultV2.withdrawalSharesOf(legacyEpochIndex, alice), state.expectedAliceEpoch2);
 
-        assertEq(vaultV2.withdrawalsOf(0, bob), state.expectedBobEpoch1);
-        assertEq(vaultV2.withdrawalsOf(1, bob), state.expectedBobEpoch2);
-        assertEq(vaultV2.withdrawalsOf(0, alice), state.expectedAliceEpoch2);
+        assertEq(vaultV2.withdrawalsOf(legacyEpochIndex - 1, bob), state.expectedBobEpoch1);
+        assertEq(vaultV2.withdrawalsOf(legacyEpochIndex, bob), state.expectedBobEpoch2);
+        assertEq(vaultV2.withdrawalsOf(legacyEpochIndex, alice), state.expectedAliceEpoch2);
 
         vm.startPrank(bob);
         vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
-        vaultV2.claim(bob, 0);
+        vaultV2.claim(bob, legacyEpochIndex);
         vm.stopPrank();
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
-        vaultV2.claim(alice, 0);
+        vaultV2.claim(alice, legacyEpochIndex);
         vm.stopPrank();
-
-        vm.warp(uint256(state.nextEpochStart) + 1);
 
         uint256 bobBalanceBefore = collateral.balanceOf(bob);
         vm.startPrank(bob);
-        vaultV2.claim(bob, 0);
+        vaultV2.claim(bob, legacyEpochIndex - 1);
         vm.stopPrank();
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, state.expectedBobEpoch1);
 
+        vm.warp(uint256(state.nextEpochStart) + 1);
+
+        bobBalanceBefore = collateral.balanceOf(bob);
+        vm.startPrank(bob);
+        vaultV2.claim(bob, legacyEpochIndex);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, state.expectedBobEpoch2);
+
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
         vm.startPrank(alice);
-        vaultV2.claim(alice, 0);
+        vaultV2.claim(alice, legacyEpochIndex);
         vm.stopPrank();
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, state.expectedAliceEpoch2);
     }
@@ -2487,31 +2483,34 @@ contract VaultV2Test is Test {
 
         IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
         _assertMigrationState(vaultV2, oldSlasher);
-        vaultV2.migrateWithdrawalOf(alice, 1);
-        vaultV2.migrateWithdrawalOf(alice, 2);
+
+        uint256 legacyEpochIndex = (state.epoch2Start + epochDuration / 2 - state.blockTimestamp) / epochDuration;
 
         state.expectedEpoch1 = Math.mulDiv(state.withdrawEpoch0, state.withdrawEpoch0 + 1, state.withdrawEpoch0 + 1);
         state.expectedEpoch2 = Math.mulDiv(state.withdrawEpoch1, state.withdrawEpoch1 + 1, state.withdrawEpoch1 + 1);
 
-        uint48 firstUnlockAfter = vaultV2.withdrawalUnlockAfter(0, alice);
-        vm.warp(uint256(firstUnlockAfter) + 1);
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
+        vaultV2.claim(alice, legacyEpochIndex);
+        vm.stopPrank();
 
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
         vm.startPrank(alice);
-        vaultV2.claim(alice, 0);
+        vaultV2.claim(alice, legacyEpochIndex - 1);
         vm.stopPrank();
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, state.expectedEpoch1);
-        assertEq(vaultV2.isWithdrawalsClaimed(0, alice), true);
+        assertEq(vaultV2.isWithdrawalsClaimed(legacyEpochIndex - 1, alice), true);
 
-        state.nextEpochStart = vaultV2.withdrawalUnlockAfter(1, alice);
+        uint48 firstUnlockAfter = vaultV2.withdrawalUnlockAfter(legacyEpochIndex, alice);
+        state.nextEpochStart = firstUnlockAfter;
         vm.warp(uint256(state.nextEpochStart) + 1);
 
         aliceBalanceBefore = collateral.balanceOf(alice);
         vm.startPrank(alice);
-        vaultV2.claim(alice, 1);
+        vaultV2.claim(alice, legacyEpochIndex);
         vm.stopPrank();
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, state.expectedEpoch2);
-        assertEq(vaultV2.isWithdrawalsClaimed(1, alice), true);
+        assertEq(vaultV2.isWithdrawalsClaimed(legacyEpochIndex, alice), true);
     }
 
     function test_MigrateWithdrawals_LegacyBucketAndInsufficientWithdrawal() public {
@@ -2551,26 +2550,41 @@ contract VaultV2Test is Test {
         vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
 
         IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        uint256 legacyEpochIndex = (migrateTimestamp - blockTimestamp) / epochDuration;
+        uint48 expectedUnlockAfter = uint48(blockTimestamp + (legacyEpochIndex + 1) * epochDuration);
+        uint256 expectedLegacyCurrentEpochWithdrawals = 60;
+        uint256 expectedLegacyPrevEpochWithdrawals = 100;
 
-        vm.expectRevert(MigratorV1V2.InsufficientWithdrawal.selector);
-        vaultV2.migrateWithdrawalOf(alice, 77);
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        vaultV2.claim(alice, legacyEpochIndex - 1);
+        vm.stopPrank();
 
-        assertEq(vaultV2.withdrawals(0), 0);
-        assertEq(vaultV2.withdrawalShares(0), 0);
+        assertEq(vaultV2.withdrawals(0), expectedLegacyCurrentEpochWithdrawals);
+        assertEq(vaultV2.withdrawalShares(0), expectedLegacyCurrentEpochWithdrawals);
 
-        vm.warp(blockTimestamp + 1);
-        uint48 expectedUnlockAfter = uint48(blockTimestamp + 1 + epochDuration);
-        vaultV2.migrateWithdrawalOf(bob, 1);
+        assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 1);
+        assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex, bob), expectedUnlockAfter);
+        assertEq(vaultV2.withdrawalsOf(legacyEpochIndex - 1, bob), expectedLegacyPrevEpochWithdrawals);
+        assertEq(vaultV2.withdrawalsOf(legacyEpochIndex, bob), expectedLegacyCurrentEpochWithdrawals);
 
-        assertEq(vaultV2.withdrawalsLength(bob), 1);
-        assertEq(vaultV2.withdrawalUnlockAfter(0, bob), expectedUnlockAfter);
-        assertGt(vaultV2.withdrawalSharesOf(0, bob), 0);
-        assertGt(vaultV2.withdrawals(0), 0);
-        assertGt(vaultV2.withdrawalShares(0), 0);
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.startPrank(bob);
+        vaultV2.claim(bob, legacyEpochIndex - 1);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyPrevEpochWithdrawals);
 
-        (uint48 bucketKey, uint208 bucketValue) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 0);
-        assertEq(bucketKey, expectedUnlockAfter);
-        assertEq(bucketValue, 0);
+        vm.startPrank(bob);
+        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
+        vaultV2.claim(bob, legacyEpochIndex);
+        vm.stopPrank();
+
+        vm.warp(uint256(expectedUnlockAfter) + 1);
+        bobBalanceBefore = collateral.balanceOf(bob);
+        vm.startPrank(bob);
+        vaultV2.claim(bob, legacyEpochIndex);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyCurrentEpochWithdrawals);
     }
 
     function test_OnSlashRevertNotSlasher() public {
@@ -3286,7 +3300,7 @@ contract VaultV2Test is Test {
         MockPlugin plugin = new MockPlugin(address(vaultV2), address(collateral));
 
         vm.prank(alice);
-        vm.expectRevert(MigratorV1V2.MigrationNotCompleted.selector);
+        vm.expectRevert(IVaultV2.MigrationNotCompleted.selector);
         VaultV2(address(vaultV2)).setPluginLimit(address(plugin), 1);
 
         vm.warp(block.timestamp + epochDuration + 1);
@@ -3630,9 +3644,7 @@ contract VaultV2Test is Test {
         virtual
         returns (address)
     {
-        return address(
-            new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(rewards), address(migratorV1V2))
-        );
+        return address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(rewards)));
     }
 
     function _createVaultV1Impl(address delegatorFactory, address slasherFactory, address vaultFactory)

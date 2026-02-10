@@ -15,7 +15,6 @@ import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
-import {MigratorV1V2} from "../../src/contracts/vault/MigratorV1V2.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
@@ -59,7 +58,6 @@ contract UniversalSlasherMigrationTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
-    MigratorV1V2 internal migratorV1V2;
     MockRewards internal rewards;
 
     Token internal collateral;
@@ -77,7 +75,6 @@ contract UniversalSlasherMigrationTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
 
         address vaultImplV1 =
@@ -89,13 +86,7 @@ contract UniversalSlasherMigrationTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(
-                address(delegatorFactory),
-                address(slasherFactory),
-                address(vaultFactory),
-                address(rewards),
-                address(migratorV1V2)
-            )
+            new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards))
         );
         vaultFactory.whitelist(vaultImpl);
 
@@ -416,7 +407,6 @@ contract MockVaultV2ForSlasher {
     uint256 public onSlashCalls;
     uint256 public lastOnSlashAmount;
     bool public lastOnSlashWithPlugins;
-    bytes public lastOnSlashHint;
     uint256 public lastSyncOwedAmount;
 
     function setDelegator(address value) external {
@@ -449,11 +439,10 @@ contract MockVaultV2ForSlasher {
         syncOwedReturn = value;
     }
 
-    function onSlash(uint256 amount, bool withPlugins, bytes calldata hint) external returns (uint256, uint256) {
+    function onSlash(uint256 amount, bool withPlugins) external returns (uint256, uint256) {
         ++onSlashCalls;
         lastOnSlashAmount = amount;
         lastOnSlashWithPlugins = withPlugins;
-        lastOnSlashHint = hint;
 
         uint256 slashedAmount = useInputOnSlashAmount ? amount : fixedOnSlashAmount;
         return (slashedAmount, onSlashOwed);

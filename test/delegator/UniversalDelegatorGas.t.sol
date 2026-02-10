@@ -14,7 +14,6 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
-import {MigratorV1V2} from "../../src/contracts/vault/MigratorV1V2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
@@ -55,7 +54,6 @@ contract UniversalDelegatorGasTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
-    MigratorV1V2 internal migratorV1V2;
     MockRewards internal rewards;
 
     Token internal collateral;
@@ -82,7 +80,6 @@ contract UniversalDelegatorGasTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
 
         address vaultImplV1 =
@@ -94,13 +91,7 @@ contract UniversalDelegatorGasTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(
-                address(delegatorFactory),
-                address(slasherFactory),
-                address(vaultFactory),
-                address(rewards),
-                address(migratorV1V2)
-            )
+            new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards))
         );
         vaultFactory.whitelist(vaultImpl);
 

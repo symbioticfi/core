@@ -3,9 +3,10 @@ pragma solidity ^0.8.28;
 
 import {DelegatorFactory} from "../DelegatorFactory.sol";
 import {MigratableEntity} from "../common/MigratableEntity.sol";
-import {MigratorV1V2} from "./MigratorV1V2.sol";
 import {SlasherFactory} from "../SlasherFactory.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
+import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 
 import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
 import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
@@ -26,6 +27,7 @@ import {
     SWAP_PLUGINS_ROLE,
     ALLOCATE_PLUGIN_ROLE,
     DEALLOCATE_PLUGIN_ROLE,
+    MAX_EPOCH_DURATION,
     MAX_PLUGINS
 } from "../../interfaces/vault/IVaultV2.sol";
 
@@ -63,15 +65,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* CONSTRUCTOR */
 
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory,
-        address rewards,
-        address migratorV1V2
-    ) VaultV2Storage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
+    constructor(address delegatorFactory, address slasherFactory, address vaultFactory, address rewards)
+        VaultV2Storage(delegatorFactory, slasherFactory)
+        MigratableEntity(vaultFactory)
+    {
         REWARDS = rewards;
-        MIGRATOR_V1V2 = migratorV1V2;
     }
 
     /**
@@ -161,11 +159,61 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
+    function withdrawalsOfLength(address account) public view returns (uint256) {
+        unchecked {
+            return __migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0
+                ? _withdrawalsOfLength[account]
+                : __migrateEpoch + 1;
+        }
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function withdrawalSharesOf(uint256 index, address account) public view returns (uint256 shares) {
+        unchecked {
+            shares = _withdrawalSharesOf[index][account];
+            if (__migrateTimestamp > 0 && (index == __migrateEpoch || index == __migrateEpoch + 1)) {
+                shares = ERC4626Math.previewRedeem(shares, __withdrawals[index], __withdrawalShares[index]);
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
+    function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48 timestamp) {
+        unchecked {
+            if (__migrateTimestamp > 0) {
+                if (index == __migrateEpoch) {
+                    return __migrateNextTimestamp;
+                }
+                if (index == __migrateEpoch + 1) {
+                    return __migrateTimestamp + epochDuration;
+                }
+            }
+            return _withdrawalUnlockAfter[index][account];
+        }
+    }
+
+    /**
+     * @inheritdoc IVaultV2
+     */
     function withdrawalsOf(uint256 index, address account) public view returns (uint256) {
-        uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAfter(index, account));
-        return ERC4626Math.previewRedeem(
-            withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares(bucketIndex)
-        );
+        unchecked {
+            if (__migrateEpoch > 0 && index < __migrateEpoch) {
+                return ERC4626Math.previewRedeem(
+                    _withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]
+                );
+            }
+            uint256 bucketIndex = _unlockToBucket.upperLookupRecent(_withdrawalUnlockAfter[index][account]);
+            uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
+            return withdrawalShares_ > 0
+                ? ERC4626Math.previewRedeem(
+                    withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares_
+                )
+                : 0;
+        }
     }
 
     /**
@@ -329,16 +377,16 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             _revertIfZero(recipient);
 
-            Withdrawal storage withdrawal = _withdrawalsOf[msg.sender][index];
-            if (withdrawal.claimed) {
+            if (isWithdrawalsClaimed[index][msg.sender]) {
                 revert AlreadyClaimed();
             }
-            if (withdrawal.unlockAfter >= block.timestamp) {
+            if (withdrawalUnlockAfter(index, msg.sender) >= block.timestamp) {
                 revert WithdrawalNotMatured();
             }
             amount = withdrawalsOf(index, msg.sender);
             _revertIfZero(amount);
-            withdrawal.claimed = true;
+
+            isWithdrawalsClaimed[index][msg.sender] = true;
             _unclaimedRaw -= int256(amount);
 
             collateral.safeTransfer(recipient, amount);
@@ -446,9 +494,16 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _withdrawalShares[withdrawalBucket_].push(uint48(block.timestamp), withdrawalShares_ + mintedShares);
             require(withdrawalShares(withdrawalBucket_) >= mintedShares);
 
+            if (__migrateTimestamp > 0 && _withdrawalsOfLength[claimer] == 0) {
+                _withdrawalsOfLength[claimer] = __migrateEpoch + 1;
+            }
+
+            uint256 withdrawalIndex = withdrawalsOfLength(claimer);
+            _withdrawalSharesOf[withdrawalIndex][claimer] = mintedShares;
             uint48 unlockAfter = uint48(block.timestamp) + epochDuration;
             require(unlockAfter >= block.timestamp);
-            _withdrawalsOf[claimer].push(Withdrawal({claimed: false, unlockAfter: unlockAfter, shares: mintedShares}));
+            _withdrawalUnlockAfter[withdrawalIndex][claimer] = unlockAfter;
+            _withdrawalsOfLength[claimer] = withdrawalIndex + 1;
             _withdrawalSharesCumulative.push(unlockAfter, _withdrawalSharesCumulative.latest() + mintedShares);
 
             emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
@@ -504,7 +559,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
-        MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.onSetPluginLimit, ()));
+        if (__migrateTimestamp > 0 && block.timestamp <= __migrateTimestamp + epochDuration) {
+            revert MigrationNotCompleted();
+        }
 
         _revertIfZero(plugin);
 
@@ -681,6 +738,50 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* ERC20 FUNCTIONS */
 
+    /* INTERNAL DEV FUNCTIONS */
+
+    function setDelegator(address delegator_) public nonReentrant {
+        if (_isDelegatorInitialized) {
+            revert DelegatorAlreadyInitialized();
+        }
+
+        if (!IRegistry(DELEGATOR_FACTORY).isEntity(delegator_)) {
+            revert NotDelegator();
+        }
+
+        if (IBaseDelegator(delegator_).vault() != address(this)) {
+            revert InvalidDelegator();
+        }
+
+        delegator = delegator_;
+
+        _isDelegatorInitialized = true;
+
+        emit SetDelegator(delegator_);
+    }
+
+    function setSlasher(address slasher_) public nonReentrant {
+        if (_isSlasherInitialized) {
+            revert SlasherAlreadyInitialized();
+        }
+
+        if (slasher_ != address(0)) {
+            if (!IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
+                revert NotSlasher();
+            }
+
+            if (IBaseSlasher(slasher_).vault() != address(this)) {
+                revert InvalidSlasher();
+            }
+
+            slasher = slasher_;
+        }
+
+        _isSlasherInitialized = true;
+
+        emit SetSlasher(slasher_);
+    }
+
     /* * INTERNAL FUNCTIONS * */
 
     /**
@@ -705,7 +806,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert InvalidCollateral();
         }
 
-        if (params.epochDuration == uint48(0)) {
+        if (params.epochDuration == uint48(0) || params.epochDuration > MAX_EPOCH_DURATION) {
             revert InvalidEpochDuration();
         }
 
@@ -765,60 +866,48 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /* INTERNAL DEV FUNCTIONS */
-
-    function setDelegator(address delegator_) public nonReentrant {
-        if (_isDelegatorInitialized) {
-            revert DelegatorAlreadyInitialized();
-        }
-
-        if (!IRegistry(DELEGATOR_FACTORY).isEntity(delegator_)) {
-            revert NotDelegator();
-        }
-
-        if (IBaseDelegator(delegator_).vault() != address(this)) {
-            revert InvalidDelegator();
-        }
-
-        delegator = delegator_;
-
-        _isDelegatorInitialized = true;
-
-        emit SetDelegator(delegator_);
-    }
-
-    function setSlasher(address slasher_) public nonReentrant {
-        if (_isSlasherInitialized) {
-            revert SlasherAlreadyInitialized();
-        }
-
-        if (slasher_ != address(0)) {
-            if (!IRegistry(SLASHER_FACTORY).isEntity(slasher_)) {
-                revert NotSlasher();
-            }
-
-            if (IBaseSlasher(slasher_).vault() != address(this)) {
-                revert InvalidSlasher();
-            }
-
-            slasher = slasher_;
-        }
-
-        _isSlasherInitialized = true;
-
-        emit SetSlasher(slasher_);
-    }
-
     /* MIGRATE FUNCTIONS */
 
-    /**
-     * @inheritdoc IVaultV2
-     */
-    function migrateWithdrawalOf(address account, uint48 epoch) public nonReentrant {
-        MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.migrateWithdrawalOf, (account, epoch)));
-    }
-
     function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {
-        MIGRATOR_V1V2.delegateCallContract(abi.encodeCall(MigratorV1V2.migrate, (oldVersion, data)));
+        if (epochDuration > MAX_EPOCH_DURATION) {
+            revert InvalidEpochDuration();
+        }
+
+        __migrateTimestamp = uint48(block.timestamp);
+        uint48 migrateEpoch = uint48((block.timestamp - __epochDurationInit) / epochDuration);
+        uint48 migrateNextTimestamp = __epochDurationInit + (migrateEpoch + 1) * epochDuration;
+        __migrateEpoch = migrateEpoch;
+        __migrateNextTimestamp = migrateNextTimestamp;
+
+        MigrateParams memory params = abi.decode(data, (MigrateParams));
+        if (oldVersion == 1) {
+            __ERC20_init(params.name, params.symbol);
+        }
+
+        uint256 epochWithdrawals;
+        if (migrateEpoch > 0) {
+            epochWithdrawals = __withdrawals[migrateEpoch];
+            _withdrawalSharesCumulative.push(migrateNextTimestamp, epochWithdrawals);
+        }
+        epochWithdrawals += __withdrawals[migrateEpoch + 1];
+        _withdrawalSharesCumulative.push(uint48(block.timestamp) + epochDuration, epochWithdrawals);
+        _unlockToBucket.push(uint48(block.timestamp), 0);
+        _withdrawals[0].push(uint48(block.timestamp), epochWithdrawals);
+        _withdrawalShares[0].push(uint48(block.timestamp), epochWithdrawals);
+
+        address newDelegator =
+            DelegatorFactory(DELEGATOR_FACTORY).create(4, abi.encode(address(this), params.delegatorParams));
+        UniversalDelegator(newDelegator).migrate();
+        delegator = newDelegator;
+        if (slasher != address(0)) {
+            address newSlasher =
+                SlasherFactory(SLASHER_FACTORY).create(2, abi.encode(address(this), params.slasherParams));
+            UniversalSlasher(newSlasher).migrate();
+            slasher = newSlasher;
+        }
+
+        _unclaimedRaw = int256(IERC20(collateral).balanceOf(address(this)) - activeStake() - epochWithdrawals);
+
+        emit Migrate(params, delegator, slasher);
     }
 }

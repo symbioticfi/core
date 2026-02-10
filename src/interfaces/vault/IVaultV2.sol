@@ -23,6 +23,8 @@ bytes32 constant DEALLOCATE_PLUGIN_ROLE = 0x2228e59f6ee6ff4b08702cdeaa6118d05e88
 
 uint256 constant MAX_PLUGINS = 10;
 
+uint48 constant MAX_EPOCH_DURATION = 1000 * 365 days;
+
 /**
  * @title IVault
  * @dev Deprecated functions:
@@ -67,6 +69,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooManyPlugins();
     error LimitReached();
     error PluginsNotFound();
+    error MigrationNotCompleted();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -314,6 +317,29 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
+     * @notice Get how many withdrawals a particular account requested.
+     * @param account account to check the withdrawals for
+     * @return the number of withdrawals requested by the account
+     */
+    function withdrawalsOfLength(address account) external view returns (uint256);
+
+    /**
+     * @notice Get a number of withdrawal shares for a particular account at a given index (zero if claimed).
+     * @param index index to get the number of withdrawal shares for the account at
+     * @param account account to get the number of withdrawal shares for
+     * @return number of withdrawal shares for the account at the index
+     */
+    function withdrawalSharesOf(uint256 index, address account) external view returns (uint256);
+
+    /**
+     * @notice Get when the withdrawal become claimable for a particular account at a given index.
+     * @param index index to check the withdrawals for the account at
+     * @param account account to check the withdrawal for
+     * @return when the withdrawal is claimable for the account at the index
+     */
+    function withdrawalUnlockAfter(uint256 index, address account) external view returns (uint48);
+
+    /**
      * @notice Get withdrawals for a particular account at a given index (zero if claimed) using hints.
      * @param index index to get the withdrawals for the account at
      * @param account account to get the withdrawals for
@@ -433,11 +459,4 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function skimPlugins() external;
 
     function deallocatePlugins() external;
-
-    /**
-     * @dev Migrates a epoch-based withdawal to the fixed-delay-based one.
-     * @param epoch An epoch to migrate the withdrawal for.
-     * @param account An account to migrate the withdrawal of.
-     */
-    function migrateWithdrawalOf(address account, uint48 epoch) external;
 }

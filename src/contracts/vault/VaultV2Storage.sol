@@ -46,7 +46,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    uint48 internal _epochDurationInit;
+    uint48 internal __epochDurationInit;
 
     /**
      * @inheritdoc IVaultV2Storage
@@ -80,22 +80,19 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /**
      * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    mapping(uint256 epoch => uint256 amount) internal _epochWithdrawals;
+    mapping(uint256 epoch => uint256 amount) internal __withdrawals;
 
     /**
      * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
      */
-    mapping(uint256 epoch => uint256 amount) internal _epochWithdrawalShares;
+    mapping(uint256 epoch => uint256 amount) internal __withdrawalShares;
+
+    mapping(uint256 index => mapping(address account => uint256 amount)) internal _withdrawalSharesOf;
 
     /**
-     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
+     * @inheritdoc IVaultV2Storage
      */
-    mapping(uint256 epoch => mapping(address account => uint256 amount)) internal _epochWithdrawalSharesOf;
-
-    /**
-     * @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
-     */
-    mapping(uint256 epoch => mapping(address account => bool value)) internal _isEpochWithdrawalsClaimed;
+    mapping(uint256 index => mapping(address account => bool value)) public isWithdrawalsClaimed;
 
     CheckpointsLegacy.Trace256 internal _activeShares;
 
@@ -103,7 +100,13 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     mapping(address account => CheckpointsLegacy.Trace256 shares) internal _activeSharesOf;
 
-    mapping(address account => Withdrawal[] withdrawals) internal _withdrawalsOf;
+    uint48 internal __migrateTimestamp;
+    uint48 internal __migrateEpoch;
+    uint48 internal __migrateNextTimestamp;
+
+    mapping(address account => uint256 value) internal _withdrawalsOfLength;
+
+    mapping(uint256 index => mapping(address account => uint48 timestamp)) public _withdrawalUnlockAfter;
 
     mapping(uint256 bucketIndex => Checkpoints.Trace256 shares) internal _withdrawalShares;
 
@@ -201,34 +204,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     function withdrawals(uint256 index) public view returns (uint256) {
         return _withdrawals[index].latest();
-    }
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    function withdrawalSharesOf(uint256 index, address account) public view returns (uint256) {
-        return _withdrawalsOf[account][index].shares;
-    }
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    function isWithdrawalsClaimed(uint256 index, address account) public view returns (bool) {
-        return _withdrawalsOf[account][index].claimed;
-    }
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48) {
-        return _withdrawalsOf[account][index].unlockAfter;
-    }
-
-    /**
-     * @inheritdoc IVaultV2Storage
-     */
-    function withdrawalsLength(address account) public view returns (uint256) {
-        return _withdrawalsOf[account].length;
     }
 
     function pluginsLength() public view returns (uint256) {

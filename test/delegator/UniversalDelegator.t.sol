@@ -17,7 +17,6 @@ import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
-import {MigratorV1V2} from "../../src/contracts/vault/MigratorV1V2.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
@@ -145,7 +144,6 @@ contract UniversalDelegatorTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
-    MigratorV1V2 internal migratorV1V2;
     MockRewards internal rewards;
 
     Token internal collateral;
@@ -172,7 +170,6 @@ contract UniversalDelegatorTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
 
         address vaultImplV1 =
@@ -184,13 +181,7 @@ contract UniversalDelegatorTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(
-                address(delegatorFactory),
-                address(slasherFactory),
-                address(vaultFactory),
-                address(rewards),
-                address(migratorV1V2)
-            )
+            new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards))
         );
         vaultFactory.whitelist(vaultImpl);
 
@@ -1938,7 +1929,6 @@ contract UniversalDelegatorMigrationTest is Test {
     OptInService internal operatorVaultOptInService;
     OptInService internal operatorNetworkOptInService;
     VaultConfigurator internal vaultConfigurator;
-    MigratorV1V2 internal migratorV1V2;
     MockRewards internal rewards;
 
     Token internal collateral;
@@ -1958,7 +1948,6 @@ contract UniversalDelegatorMigrationTest is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
-        migratorV1V2 = new MigratorV1V2(address(delegatorFactory), address(slasherFactory));
         rewards = new MockRewards();
 
         address vaultImplV1 =
@@ -1970,13 +1959,7 @@ contract UniversalDelegatorMigrationTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(
-                address(delegatorFactory),
-                address(slasherFactory),
-                address(vaultFactory),
-                address(rewards),
-                address(migratorV1V2)
-            )
+            new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards))
         );
         vaultFactory.whitelist(vaultImpl);
 
