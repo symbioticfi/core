@@ -943,6 +943,7 @@ contract UniversalDelegator is
         __migrateTimestamp = uint48(block.timestamp);
         __oldDelegator = IVaultV2(vault).delegator();
 
+        // TODO: more smooth migration
         _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }

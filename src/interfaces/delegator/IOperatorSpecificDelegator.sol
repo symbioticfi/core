@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IBaseDelegator} from "./IBaseDelegator.sol";
 
+uint64 constant OPERATOR_SPECIFIC_DELEGATOR_TYPE = 2;
+
 interface IOperatorSpecificDelegator is IBaseDelegator {
     error DuplicateRoleHolder();
     error ExceedsMaxNetworkLimit();

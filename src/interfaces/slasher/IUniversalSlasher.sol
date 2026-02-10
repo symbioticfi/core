@@ -30,7 +30,6 @@ interface IUniversalSlasher {
     error NoResolver();
     error NotNetwork();
     error NotResolver();
-    error SlashPeriodEnded();
     error SlashRequestCompleted();
     error SlashRequestNotExist();
     error VetoPeriodEnded();

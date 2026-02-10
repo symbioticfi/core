@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IBaseDelegator} from "./IBaseDelegator.sol";
 
+uint64 constant OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE = 3;
+
 interface IOperatorNetworkSpecificDelegator is IBaseDelegator {
     error InvalidNetwork();
     error NotOperator();

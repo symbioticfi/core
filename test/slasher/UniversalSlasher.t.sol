@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdError} from "forge-std/Test.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
@@ -241,6 +241,23 @@ contract UniversalSlasherMigrationTest is Test {
         assertTrue(newSlasher != oldSlasher);
         assertEq(IEntity(newSlasher).TYPE(), slasherFactory.totalTypes() - 1);
         assertEq(IUniversalSlasher(newSlasher).slashRequestsLength(), expectedSlashRequestsLength);
+    }
+
+    function test_MigrateFromVetoSlasher_ToUniversalSlasher_preservesResolverSetDelay() public {
+        uint48 resolverSetEpochsDelay = 4;
+        bytes memory slasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                vetoDuration: 1,
+                resolverSetEpochsDelay: resolverSetEpochsDelay
+            })
+        );
+        (IVaultV2 vault_,) = _createLegacyVault(true, 1, slasherParams);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams());
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
+
+        assertEq(IUniversalSlasher(vault_.slasher()).resolverSetDelay(), resolverSetEpochsDelay * EPOCH_DURATION);
     }
 
     function _createLegacyVault(bool withSlasher, uint64 slasherIndex, bytes memory slasherParams)
@@ -778,6 +795,16 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.harnessInitialize(abi.encode(address(vault), abi.encode(params)));
     }
 
+    function test_initializeReverts_ResolverSetDelayAboveMaxDuration() public {
+        vaultFactoryRegistry.setEntity(address(vault), true);
+
+        IUniversalSlasher.InitParams memory params =
+            IUniversalSlasher.InitParams({isBurnerHook: false, vetoDuration: 1, resolverSetDelay: type(uint48).max});
+
+        vm.expectRevert(IUniversalSlasher.InvalidResolverSetEpochsDelay.selector);
+        slasher.harnessInitialize(abi.encode(address(vault), abi.encode(params)));
+    }
+
     function test_initializeReverts_NoBurner() public {
         vaultFactoryRegistry.setEntity(address(vault), true);
         vault.setBurner(address(0));
@@ -897,12 +924,12 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.executeSlash(0, "");
     }
 
-    function test_executeSlashReverts_SlashPeriodEnded() public {
+    function test_executeSlashReverts_InsufficientSlashForStaleCaptureTimestamp() public {
         vm.warp(1000);
         _pushRequest(10, 1, 0, resolver1, false);
 
         vm.prank(middleware);
-        vm.expectRevert(IUniversalSlasher.SlashPeriodEnded.selector);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
         slasher.executeSlash(0, "");
     }
 
@@ -972,7 +999,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_vetoSlashReverts_NotExist() public {
-        vm.expectRevert(IUniversalSlasher.SlashRequestNotExist.selector);
+        vm.expectRevert(stdError.indexOOBError);
         slasher.vetoSlash(0);
     }
 

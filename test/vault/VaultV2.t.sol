@@ -2633,6 +2633,56 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyCurrentEpochWithdrawals);
     }
 
+    function test_MigrateWithdrawals_SecondPostMigrationWithdrawalHasZeroUnlockAfter() public {
+        uint48 epochDuration = 10;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVaultV2(address(vaultV1));
+
+        _deposit(bob, 500);
+
+        vm.warp(blockTimestamp + 2 * epochDuration + epochDuration / 2);
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+
+        _withdraw(bob, 100);
+
+        vm.warp(block.timestamp + 1);
+        uint256 secondWithdrawAmount = 40;
+        _withdraw(bob, secondWithdrawAmount);
+
+        uint256 secondIndex = vaultV2.withdrawalsOfLength(bob) - 1;
+        uint48 secondUnlockAfter = vaultV2.withdrawalUnlockAfter(secondIndex, bob);
+        assertEq(secondUnlockAfter, 0);
+
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.startPrank(bob);
+        vaultV2.claim(bob, secondIndex);
+        vm.stopPrank();
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, secondWithdrawAmount);
+    }
+
     function test_OnSlashRevertNotSlasher() public {
         uint48 epochDuration = 1;
 

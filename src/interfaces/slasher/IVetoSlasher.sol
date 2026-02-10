@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IBaseSlasher} from "./IBaseSlasher.sol";
 
+uint64 constant VETO_SLASHER_TYPE = 1;
+
 interface IVetoSlasher is IBaseSlasher {
     error AlreadySet();
     error InsufficientSlash();

@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IBaseSlasher} from "./IBaseSlasher.sol";
 
+uint64 constant SLASHER_TYPE = 0;
+
 interface ISlasher is IBaseSlasher {
     error InsufficientSlash();
     error InvalidCaptureTimestamp();

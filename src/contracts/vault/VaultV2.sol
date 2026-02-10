@@ -175,9 +175,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function withdrawalsOfLength(address account) public view returns (uint256) {
         unchecked {
-            return __migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0
-                ? _withdrawalsOfLength[account]
-                : __migrateEpoch + 1;
+            if (__migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0) {
+                return _withdrawalsOfLength[account];
+            }
+
+            // Legacy support.
+            return __migrateEpoch + 1;
         }
     }
 
@@ -187,6 +190,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function withdrawalSharesOf(uint256 index, address account) public view returns (uint256 shares) {
         unchecked {
             shares = _withdrawalSharesOf[index][account];
+
+            // Legacy support.
             if (__migrateTimestamp > 0) {
                 uint48 migrateEpoch = __migrateEpoch;
                 if (index == migrateEpoch || index == migrateEpoch + 1) {
@@ -201,16 +206,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48 timestamp) {
         unchecked {
-            if (__migrateTimestamp > 0) {
-                uint48 migrateEpoch = __migrateEpoch;
-                if (index == migrateEpoch) {
-                    return __migrateNextEpochTimestamp;
-                }
-                if (index == migrateEpoch + 1) {
-                    return __migrateTimestamp + epochDuration;
-                }
+            if (__migrateTimestamp == 0) {
+                return _withdrawalUnlockAfter[index][account];
             }
-            return _withdrawalUnlockAfter[index][account];
+
+            // Legacy support.
+            uint48 migrateEpoch = __migrateEpoch;
+            if (index == migrateEpoch) {
+                return __migrateNextEpochTimestamp;
+            }
+            if (index == migrateEpoch + 1) {
+                return __migrateTimestamp + epochDuration;
+            }
         }
     }
 
@@ -219,18 +226,21 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function withdrawalsOf(uint256 index, address account) public view returns (uint256 amount) {
         unchecked {
-            if (__migrateEpoch > 0 && index < __migrateEpoch) {
-                return ERC4626Math.previewRedeem(
-                    _withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]
-                );
+            uint48 migrateEpoch = __migrateEpoch;
+            if (migrateEpoch == 0 || index >= migrateEpoch) {
+                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(_withdrawalUnlockAfter[index][account]);
+                uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
+                return withdrawalShares_ > 0
+                    ? ERC4626Math.previewRedeem(
+                        withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares_
+                    )
+                    : 0;
             }
-            uint256 bucketIndex = _unlockToBucket.upperLookupRecent(_withdrawalUnlockAfter[index][account]);
-            uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
-            return withdrawalShares_ > 0
-                ? ERC4626Math.previewRedeem(
-                    withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares_
-                )
-                : 0;
+
+            // Legacy support.
+            return ERC4626Math.previewRedeem(
+                _withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]
+            );
         }
     }
 
@@ -455,7 +465,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         public
         withDeallocatePlugins(withPlugins)
         nonReentrant
-        returns (uint256 slashedAmount, uint256 owed)
+        returns (uint256 slashedAmount, uint256 owedAmount)
     {
         unchecked {
             if (slasher != msg.sender) {
@@ -484,10 +494,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 _withdrawals[curWithdrawalBucket
                         + 1].push(uint48(block.timestamp), curActiveWithdrawals - (slashedAmount - activeSlashed));
 
-                owed = slashedAmount.saturatingSub(_availableToSlash());
+                owedAmount = slashedAmount.saturatingSub(_availableToSlash());
 
-                if (owed < slashedAmount) {
-                    collateral.safeTransfer(burner, slashedAmount - owed);
+                if (owedAmount < slashedAmount) {
+                    collateral.safeTransfer(burner, slashedAmount - owedAmount);
                 }
             }
         }
@@ -716,17 +726,17 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle owed slashing.
-    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 slashed) {
+    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 slashedAmount) {
         if (slasher != msg.sender) {
             revert NotSlasher();
         }
 
         // use only unclaimable (either active stake or active _withdrawals) funds for slashing
-        slashed = Math.min(amount, _availableToSlash());
-        _revertIfZero(slashed);
-        collateral.safeTransfer(burner, slashed);
+        slashedAmount = Math.min(amount, _availableToSlash());
+        _revertIfZero(slashedAmount);
+        collateral.safeTransfer(burner, slashedAmount);
 
-        emit SyncOwedSlash(slashed);
+        emit SyncOwedSlash(slashedAmount);
     }
 
     /* * INTERNAL FUNCTIONS * */
@@ -857,6 +867,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             epochDuration = params.epochDuration;
 
             depositWhitelist = params.depositWhitelist;
+            // TODO: leave only one whitelisted depositor
             for (uint256 i; i < params.depositorsWhitelisted.length; ++i) {
                 address depositor = params.depositorsWhitelisted[i];
                 _revertIfZero(depositor);
