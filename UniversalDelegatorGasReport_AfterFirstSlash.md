@@ -7,12 +7,12 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call           | Hints |             Gas |
 | -------------- | ----- | --------------: |
-| `stakeForAt` | no | 234,466 ($0.05) |
-| `stakeForAt` | yes | 234,466 ($0.05) |
-| `requestSlash` | no | 275,094 ($0.06) |
-| `requestSlash` | yes | 275,094 ($0.06) |
-| `executeSlash` | no | 505,087 ($0.11) |
-| `executeSlash` | yes | 505,087 ($0.11) |
+| `stakeForAt` | no | 234,356 ($0.05) |
+| `stakeForAt` | yes | 234,356 ($0.05) |
+| `requestSlash` | no | 274,962 ($0.06) |
+| `requestSlash` | yes | 274,962 ($0.06) |
+| `executeSlash` | no | 506,312 ($0.11) |
+| `executeSlash` | yes | 506,312 ($0.11) |
 
 Notes:
 
@@ -32,12 +32,12 @@ Immediate child calls of `UniversalSlasher::executeSlash` from the trace (inclus
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 7,734 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 208,402 ($0.05) | heavy path (read-only) |
-| `VaultV2::delegator` (via proxy) | 2,277 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 66,859 ($0.01) | delegator hook |
-| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,277 ($0.00) | delegator address lookup |
+| `UniversalSlasher::slashableStake` | 208,270 ($0.05) | heavy path (read-only) |
+| `VaultV2::delegator` (via proxy) | 2,233 ($0.00) | delegator address lookup |
+| `UniversalDelegator::onSlash` | 67,609 ($0.01) | delegator hook |
+| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,233 ($0.00) | delegator address lookup |
 | `UniversalDelegator::getIsNoPlugins` | 2,285 ($0.00) | plugin mode check |
-| `VaultV2::onSlash` (via proxy) | 162,506 ($0.04) | vault accounting + burn |
+| `VaultV2::onSlash` (via proxy) | 165,700 ($0.04) | vault accounting + burn |
 | `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
@@ -51,12 +51,12 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 7,734 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 208,402 ($0.05) | higher due to hint decoding/usage |
-| `VaultV2::delegator` (via proxy) | 2,277 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 66,859 ($0.01) | delegator hook |
-| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,277 ($0.00) | delegator address lookup |
+| `UniversalSlasher::slashableStake` | 208,270 ($0.05) | higher due to hint decoding/usage |
+| `VaultV2::delegator` (via proxy) | 2,233 ($0.00) | delegator address lookup |
+| `UniversalDelegator::onSlash` | 67,609 ($0.01) | delegator hook |
+| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,233 ($0.00) | delegator address lookup |
 | `UniversalDelegator::getIsNoPlugins` | 2,285 ($0.00) | plugin mode check |
-| `VaultV2::onSlash` (via proxy) | 162,506 ($0.04) | vault accounting + burn |
+| `VaultV2::onSlash` (via proxy) | 165,700 ($0.04) | vault accounting + burn |
 | `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
@@ -67,8 +67,8 @@ The breakdown is identical for the no-hints and with-hints runs in this test.
 
 | Component                                         |            Gas | Notes              |
 | ------------------------------------------------- | -------------: | ------------------ |
-| `VaultV2::deallocatePlugins` | 4,690 ($0.00) | plugin deallocation |
-| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,089 ($0.00) | entry guard |
+| `VaultV2::deallocatePlugins` | 7,498 ($0.00) | plugin deallocation |
+| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 2,743 ($0.00) | entry guard |
 | `VaultV2Storage::activeStake` | 886 ($0.00) | read storage |
 | `VaultV2Storage::withdrawalBucket` | 531 ($0.00) | read storage |
 | `Checkpoints::upperLookupRecent` | 2,477 ($0.00) | read checkpoint |
