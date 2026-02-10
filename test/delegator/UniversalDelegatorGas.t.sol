@@ -133,7 +133,7 @@ contract UniversalDelegatorGasTest is Test {
                         burner: address(0xdEaD),
                         epochDuration: EPOCH_DURATION,
                         depositWhitelist: false,
-                        depositorsWhitelisted: new address[](0),
+                        depositorToWhitelist: address(0xBEEF),
                         isDepositLimit: false,
                         depositLimit: 0,
                         defaultAdminRoleHolder: owner,

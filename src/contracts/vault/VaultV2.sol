@@ -575,6 +575,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         nonReentrant
         onlyRole(DEPOSITOR_WHITELIST_ROLE)
     {
+        _revertIfZero(account);
         isDepositorWhitelisted[account] = newStatus;
         emit SetDepositorWhitelistStatus(account, newStatus);
     }
@@ -858,6 +859,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert TooLongDuration();
             }
 
+            if (params.depositorToWhitelist == address(0)) {
+                revert InvalidDepositorToWhitelist();
+            }
+
             __ERC20_init(params.name, params.symbol);
 
             collateral = params.collateral;
@@ -867,15 +872,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             epochDuration = params.epochDuration;
 
             depositWhitelist = params.depositWhitelist;
-            // TODO: leave only one whitelisted depositor
-            for (uint256 i; i < params.depositorsWhitelisted.length; ++i) {
-                address depositor = params.depositorsWhitelisted[i];
-                _revertIfZero(depositor);
-                if (isDepositorWhitelisted[depositor]) {
-                    revert DuplicateDepositor();
-                }
-                isDepositorWhitelisted[depositor] = true;
-            }
+            isDepositorWhitelisted[params.depositorToWhitelist] = true;
 
             isDepositLimit = params.isDepositLimit;
             depositLimit = params.depositLimit;

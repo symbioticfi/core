@@ -70,6 +70,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooManyPlugins();
     error MigrationNotCompleted();
     error DuplicateDepositor();
+    error InvalidDepositorToWhitelist();
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -97,7 +98,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address burner;
         uint48 epochDuration;
         bool depositWhitelist;
-        address[] depositorsWhitelisted;
+        address depositorToWhitelist;
         bool isDepositLimit;
         uint256 depositLimit;
         address defaultAdminRoleHolder;
