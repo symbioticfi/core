@@ -324,10 +324,11 @@ contract UniversalDelegatorGasTest is Test {
     {
         uint256 gasLeft = gasleft();
         uint256 stake;
+        hints;
         if (timestamp == 0) {
             stake = delegator.stakeFor(subnetwork, operator, 0);
         } else {
-            stake = delegator.stakeForAt(subnetwork, operator, 0, timestamp, hints);
+            stake = delegator.stakeForAt(subnetwork, operator, 0, timestamp);
         }
         gasUsed = gasLeft - gasleft();
         if (timestamp != 0) {

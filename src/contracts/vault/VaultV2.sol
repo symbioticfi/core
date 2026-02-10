@@ -97,42 +97,25 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp, bytes memory hints)
-        public
-        view
-        returns (uint256)
-    {
-        // forgefmt: disable-start
-        bytes memory unlockToBucketHint; bytes memory withdrawalSharesHint; bytes memory withdrawalSharesCumulativeHintNew; bytes memory withdrawalSharesCumulativeHintOld; bytes memory withdrawalsHint;
-        if (hints.length > 0) {
-            (unlockToBucketHint, withdrawalSharesHint, withdrawalSharesCumulativeHintNew, withdrawalSharesCumulativeHintOld, withdrawalsHint) = abi.decode(hints, (bytes, bytes, bytes, bytes, bytes));
-        }
-        // forgefmt: disable-end
-        uint208 withdrawalBucket_ = _unlockToBucket.upperLookupRecent(timestamp, unlockToBucketHint);
-        uint256 withdrawalShares_ =
-            _withdrawalShares[withdrawalBucket_].upperLookupRecent(timestamp, withdrawalSharesHint);
+    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
+        uint208 withdrawalBucket_ = _unlockToBucket.upperLookupRecent(timestamp);
+        uint256 withdrawalShares_ = _withdrawalShares[withdrawalBucket_].upperLookupRecent(timestamp);
         return withdrawalShares_ > 0
-            ? (_withdrawalSharesCumulative.upperLookupRecent(
-                        timestamp + epochDuration, withdrawalSharesCumulativeHintNew
-                    )
-                    - _withdrawalSharesCumulative.upperLookupRecent(
-                        timestamp + duration, withdrawalSharesCumulativeHintOld
-                    ))
-            .fullMulDiv(
-                _withdrawals[withdrawalBucket_].upperLookupRecent(timestamp, withdrawalsHint), withdrawalShares_
-            )
+            ? (_withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
+                    - _withdrawalSharesCumulative.upperLookupRecent(timestamp + duration))
+            .fullMulDiv(_withdrawals[withdrawalBucket_].upperLookupRecent(timestamp), withdrawalShares_)
             : 0;
     }
 
     /**
      * @inheritdoc IVaultV2
      */
-    function activeWithdrawalsFor(uint48 duration, bytes memory hint) public view returns (uint256) {
+    function activeWithdrawalsFor(uint48 duration) public view returns (uint256) {
         uint208 withdrawalBucket_ = withdrawalBucket();
         uint256 withdrawalShares_ = withdrawalShares(withdrawalBucket_);
         return withdrawalShares_ > 0
             ? (_withdrawalSharesCumulative.latest()
-                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration, hint))
+                    - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration))
             .fullMulDiv(withdrawals(withdrawalBucket_), withdrawalShares_)
             : 0;
     }
@@ -141,14 +124,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      * @inheritdoc IVaultV2
      */
     function activeWithdrawalsAt(uint48 timestamp, bytes memory hints) public view returns (uint256) {
-        return activeWithdrawalsForAt(0, timestamp, hints);
+        return activeWithdrawalsForAt(0, timestamp);
     }
 
     /**
      * @inheritdoc IVaultV2
      */
     function activeWithdrawals() public view returns (uint256) {
-        return activeWithdrawalsFor(0, "");
+        return activeWithdrawalsFor(0);
     }
 
     /**
@@ -397,7 +380,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount, bool withPlugins, bytes calldata hint)
+    function onSlash(uint256 amount, bool withPlugins)
         public
         withDeallocatePlugins(withPlugins)
         nonReentrant
@@ -411,7 +394,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 activeStake_ = activeStake();
             uint208 withdrawalBucket_ = withdrawalBucket();
             uint256 activeWithdrawalShares = _withdrawalSharesCumulative.latest()
-                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp), hint);
+                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp));
             uint256 activeWithdrawals_ = activeWithdrawals();
             uint256 claimableWithdrawals = withdrawals(withdrawalBucket_) - activeWithdrawals();
             uint256 slashableStake = activeStake_ + activeWithdrawals_;

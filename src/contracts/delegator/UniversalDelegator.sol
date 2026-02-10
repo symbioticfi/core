@@ -150,12 +150,12 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp, bytes memory hints)
+    function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         public
         view
         returns (uint256)
     {
-        return getAllocatedAt(subnetwork, operator, timestamp, duration, hints);
+        return getAllocatedAt(subnetwork, operator, timestamp, duration);
     }
 
     /**
@@ -177,14 +177,7 @@ contract UniversalDelegator is
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
 
-        // forgefmt: disable-start
-        bytes memory operatorVaultOptInHint; bytes memory allocatedHints;
-        if (hints.length > 0) {
-            (operatorVaultOptInHint, allocatedHints) = abi.decode(hints, (bytes, bytes));
-        }
-        // forgefmt: disable-end
-
-        return getAllocatedAt(subnetwork, operator, timestamp, IVaultV2(vault).epochDuration(), allocatedHints);
+        return getAllocatedAt(subnetwork, operator, timestamp, IVaultV2(vault).epochDuration());
     }
 
     /**
@@ -213,7 +206,6 @@ contract UniversalDelegator is
         });
     }
 
-    // TODO: hints for pending, not for cleared
     function getChildrenPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -305,17 +297,13 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      * @dev Returns the collateral balance of a given slot.
      */
-    function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
-        public
-        view
-        returns (uint256)
-    {
+    function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
         unchecked {
             if (index == 0) {
-                return IVaultV2(vault).activeStakeAt(timestamp, hints)
-                    + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp, "");
+                return IVaultV2(vault).activeStakeAt(timestamp, "")
+                    + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
             }
-            return getAllocatedAt(index, timestamp, duration, hints);
+            return getAllocatedAt(index, timestamp, duration);
         }
     }
 
@@ -325,7 +313,7 @@ contract UniversalDelegator is
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
             if (index == 0) {
-                return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration, "");
+                return IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration);
             }
             return getAllocated(index, duration);
         }
@@ -335,19 +323,8 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      * @dev Returns the available to allocate balance in the given slot.
      */
-    function getAvailableAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
-        public
-        view
-        returns (uint256)
-    {
-        // forgefmt: disable-start
-        bytes memory balanceHints; bytes memory pendingHint; bytes memory pendingEpochHint;
-        if (hints.length > 0) {
-            (balanceHints, pendingHint, pendingEpochHint) = abi.decode(hints, (bytes, bytes, bytes));
-        }
-        // forgefmt: disable-end
-        return getBalanceAt(index, timestamp, duration, balanceHints)
-            .saturatingSub(getChildrenPendingAt(index, timestamp, duration));
+    function getAvailableAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
+        return getBalanceAt(index, timestamp, duration).saturatingSub(getChildrenPendingAt(index, timestamp, duration));
     }
 
     /**
@@ -361,22 +338,12 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      * @dev Returns the allocation of the given slot.
      */
-    function getAllocatedAt(uint96 index, uint48 timestamp, uint48 duration, bytes memory hints)
-        public
-        view
-        returns (uint256)
-    {
+    function getAllocatedAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
         unchecked {
             if (duration > IVaultV2(vault).epochDuration()) {
                 return 0;
             }
 
-            // forgefmt: disable-start
-            bytes memory prevSumHint; bytes memory availableHints; bytes memory sizeHint;
-            if (hints.length > 0) {
-                (prevSumHint, availableHints, sizeHint) = abi.decode(hints, (bytes, bytes, bytes));
-            }
-            // forgefmt: disable-end
             SlotStorage storage slot = slots[index];
             uint96 parentIndex = index.getParentIndex();
             SlotStorage storage parent = slots[parentIndex];
@@ -388,20 +355,21 @@ contract UniversalDelegator is
                         break;
                     }
                     SlotStorage storage child = slots[currentIndex];
-                    prevSum += child.size.upperLookupRecent(timestamp); // TODO: add hints
+                    prevSum += child.size.upperLookupRecent(timestamp);
                     childIndex = child.nextSlot;
                 }
             } else {
-                prevSum = slot.prevSum.upperLookupRecent(timestamp, prevSumHint);
+                prevSum = slot.prevSum.upperLookupRecent(timestamp);
             }
 
-            uint256 slotAvailable = getAvailableAt(parentIndex, timestamp, duration, availableHints);
+            uint256 slotAvailable = getAvailableAt(parentIndex, timestamp, duration);
             if (!parent.isShared) {
                 slotAvailable = slotAvailable.saturatingSub(prevSum);
             }
             // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
-            return Math.min(slotAvailable, slot.size.upperLookupRecent(timestamp, sizeHint))
-                + getPendingAt(index, timestamp, duration);
+            return
+                Math.min(slotAvailable, slot.size.upperLookupRecent(timestamp))
+                    + getPendingAt(index, timestamp, duration);
         }
     }
 
@@ -443,19 +411,13 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration, bytes memory hints)
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration)
         public
         view
         returns (uint256)
     {
-        // forgefmt: disable-start
-        bytes memory slotOfHints; bytes memory allocatedHints;
-        if (hints.length > 0) {
-            (slotOfHints, allocatedHints) = abi.decode(hints, (bytes, bytes));
-        }
-        // forgefmt: disable-end
-        uint96 index = getSlotOfAt(subnetwork, operator, timestamp, slotOfHints);
-        return index > 0 ? getAllocatedAt(index, timestamp, duration, allocatedHints) : 0;
+        uint96 index = getSlotOfAt(subnetwork, operator, timestamp);
+        return index > 0 ? getAllocatedAt(index, timestamp, duration) : 0;
     }
 
     /**
@@ -469,8 +431,8 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint96) {
-        return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp, hint));
+    function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint96) {
+        return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp));
     }
 
     /**
@@ -483,12 +445,8 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getSlotOfOperatorAt(uint96 parentIndex, address operator, uint48 timestamp, bytes memory hint)
-        public
-        view
-        returns (uint96)
-    {
-        return uint96(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp, hint));
+    function getSlotOfOperatorAt(uint96 parentIndex, address operator, uint48 timestamp) public view returns (uint96) {
+        return uint96(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp));
     }
 
     /**
@@ -501,20 +459,8 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
-        public
-        view
-        returns (uint96)
-    {
-        // forgefmt: disable-start
-        bytes memory slotOfNetworkHints; bytes memory slotOfOperatorHints;
-        if (hints.length > 0) {
-            (slotOfNetworkHints, slotOfOperatorHints) = abi.decode(hints, (bytes, bytes));
-        }
-        // forgefmt: disable-end
-        return getSlotOfOperatorAt(
-            getSlotOfNetworkAt(subnetwork, timestamp, slotOfNetworkHints), operator, timestamp, slotOfOperatorHints
-        );
+    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint96) {
+        return getSlotOfOperatorAt(getSlotOfNetworkAt(subnetwork, timestamp), operator, timestamp);
     }
 
     /**

@@ -270,23 +270,19 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function totalStake() external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active withdrawals for a given duration at a given timestamp using hints.
+     * @notice Get a total amount of the active withdrawals for a given duration at a given timestamp.
      * @param duration duration to get the active withdrawals for
      * @param timestamp time point to get the active withdrawals at
-     * @param hints hints for checkpoints' indexes
      * @return total amount of the active withdrawals
      */
-    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp, bytes memory hints)
-        external
-        view
-        returns (uint256);
+    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the active withdrawals for a given duration.
      * @param duration duration to get the active withdrawals for
      * @return total amount of the active withdrawals
      */
-    function activeWithdrawalsFor(uint48 duration, bytes memory hint) external view returns (uint256);
+    function activeWithdrawalsFor(uint48 duration) external view returns (uint256);
 
     /**
      * @notice Get a total amount of the active withdrawals at a given timestamp.

@@ -201,7 +201,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /**
      * @inheritdoc IUniversalSlasher
      */
-    function executeSlash(uint256 slashIndex, bytes calldata hint) public nonReentrant returns (uint256 slashedAmount) {
+    function executeSlash(uint256 slashIndex, bytes calldata) public nonReentrant returns (uint256 slashedAmount) {
         SlashRequest memory request = slashRequests(slashIndex);
 
         _checkNetworkMiddleware(request.subnetwork);
@@ -245,8 +245,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                     slashedAmount,
                     request.createdAt >= __migrateTimestamp
                         ? !UniversalDelegator(IVault(vault).delegator()).getIsNoPlugins(request.subnetwork)
-                        : false,
-                    hint
+                        : false
                 );
             if (owed_ > 0) {
                 owed[request.subnetwork][request.operator] += owed_;

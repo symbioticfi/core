@@ -1181,9 +1181,9 @@ contract VaultV2Test is Test {
         vm.stopPrank();
 
         uint48 timestamp = uint48(block.timestamp);
-        uint256 withoutHints = VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp, "");
+        uint256 withoutHints = VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp);
         bytes memory hints = vaultTestHelper.activeWithdrawalsHints(address(vault), 0, timestamp);
-        uint256 withHints = VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp, hints);
+        uint256 withHints = VaultV2(address(vault)).activeWithdrawalsAt(timestamp, hints);
 
         assertEq(withoutHints, withHints);
     }
@@ -1205,10 +1205,10 @@ contract VaultV2Test is Test {
         uint48 timestamp = uint48(block.timestamp);
         uint48 duration = epochDuration / 2;
         bytes memory hints = vaultTestHelper.activeWithdrawalsHints(address(vault), duration, timestamp);
-        uint256 withHints = VaultV2(address(vault)).activeWithdrawalsForAt(duration, timestamp, hints);
-        uint256 withoutHints = VaultV2(address(vault)).activeWithdrawalsForAt(duration, timestamp, "");
+        uint256 withdrawalsForDuration = VaultV2(address(vault)).activeWithdrawalsForAt(duration, timestamp);
+        uint256 withdrawalsAt = VaultV2(address(vault)).activeWithdrawalsAt(timestamp, hints);
 
-        assertEq(withHints, withoutHints);
+        assertLe(withdrawalsForDuration, withdrawalsAt);
     }
 
     function test_DepositTwiceFeeOnTransferCollateral(uint256 amount1, uint256 amount2) public {
@@ -2625,7 +2625,7 @@ contract VaultV2Test is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(IVaultV2.NotSlasher.selector);
-        VaultV2(address(vault)).onSlash(0, false, "");
+        VaultV2(address(vault)).onSlash(0, false);
         vm.stopPrank();
     }
 
@@ -3055,7 +3055,7 @@ contract VaultV2Test is Test {
         uint48 captureTimestamp = uint48(block.timestamp - 1);
 
         vm.prank(address(slasher));
-        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true, "");
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true);
 
         assertEq(slashedAmount, 60);
         assertEq(owed, 40);
@@ -3134,7 +3134,7 @@ contract VaultV2Test is Test {
         uint48 captureTimestamp = uint48(block.timestamp - 1);
 
         vm.prank(address(slasher));
-        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true, "");
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true);
 
         assertEq(slashedAmount, 60);
         assertEq(owed, 30);
@@ -3149,10 +3149,10 @@ contract VaultV2Test is Test {
 
         uint48 timestamp = uint48(block.timestamp);
         assertEq(vault.withdrawalBucket(), vaultTestHelper.unlockToBucketLatest(address(vault)));
-        assertEq(VaultV2(address(vault)).activeWithdrawalsFor(0, ""), VaultV2(address(vault)).activeWithdrawals());
+        assertEq(VaultV2(address(vault)).activeWithdrawalsFor(0), VaultV2(address(vault)).activeWithdrawals());
         assertEq(
             VaultV2(address(vault)).activeWithdrawalsAt(timestamp, ""),
-            VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp, "")
+            VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp)
         );
         assertGt(VaultV2(address(vault)).withdrawalsOf(0, alice), 0);
         assertEq(VaultV2(address(vault)).decimals(), collateral.decimals());
@@ -3274,7 +3274,7 @@ contract VaultV2Test is Test {
 
         plugin.setShouldFail(true);
         vm.prank(address(slasher));
-        VaultV2(address(vault)).onSlash(60, true, "");
+        VaultV2(address(vault)).onSlash(60, true);
 
         uint256 totalStakeAfterSlash = vault.totalStake();
         assertEq(totalStakeAfterSlash, 40);
@@ -3659,7 +3659,7 @@ contract VaultV2Test is Test {
         hints;
 
         vm.startPrank(address(slasher));
-        (slashAmount,) = VaultV2(address(vault)).onSlash(amount, false, "");
+        (slashAmount,) = VaultV2(address(vault)).onSlash(amount, false);
         vm.stopPrank();
     }
 
