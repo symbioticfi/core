@@ -4,9 +4,9 @@ pragma solidity ^0.8.28;
 import {DelegatorFactory} from "../DelegatorFactory.sol";
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {SlasherFactory} from "../SlasherFactory.sol";
-import {VaultV2Storage} from "./VaultV2Storage.sol";
-import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
+import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
+import {VaultV2Storage} from "./VaultV2Storage.sol";
 
 import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
 import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
