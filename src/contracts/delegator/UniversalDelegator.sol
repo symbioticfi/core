@@ -37,14 +37,12 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-import {Multicallable as MulticallUpgradeable} from "@solady/src/utils/Multicallable.sol";
 
 contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
     ReentrancyGuardUpgradeable,
-    MulticallUpgradeable,
     IUniversalDelegator
 {
     using UniversalDelegatorIndex for uint96;
@@ -53,9 +51,32 @@ contract UniversalDelegator is
     using Subnetwork for bytes32;
     using Subnetwork for address;
 
+    /* IMMUTABLES */
+
     address internal immutable NETWORK_REGISTRY;
     address internal immutable VAULT_FACTORY;
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
+
+    /* STORAGE */
+
+    struct SlotStorage {
+        bool exists;
+        uint32 nextSlot;
+        uint32 prevSlot;
+        uint32 totalChildren;
+        uint32 existChildren;
+        uint32 firstChild;
+        uint32 lastChild;
+        bool isShared;
+        bool noPlugins;
+        bool needPrevSumsSync;
+        Checkpoints.Trace208 size;
+        Checkpoints.Trace208 prevSum;
+        Checkpoints.Trace208 pendingCumulative;
+        Checkpoints.Trace208 clearedPendingCumulative;
+        Checkpoints.Trace208 childrenPendingCumulative;
+        Checkpoints.Trace208 clearedChildrenPendingCumulative;
+    }
 
     /**
      * @inheritdoc IUniversalDelegator
@@ -82,24 +103,7 @@ contract UniversalDelegator is
     uint48 internal __migrateTimestamp;
     address internal __oldDelegator;
 
-    struct SlotStorage {
-        bool exists;
-        uint32 nextSlot;
-        uint32 prevSlot;
-        uint32 totalChildren;
-        uint32 existChildren;
-        uint32 firstChild;
-        uint32 lastChild;
-        bool isShared;
-        bool noPlugins;
-        bool needPrevSumsSync;
-        Checkpoints.Trace208 size;
-        Checkpoints.Trace208 prevSum;
-        Checkpoints.Trace208 pendingCumulative;
-        Checkpoints.Trace208 clearedPendingCumulative;
-        Checkpoints.Trace208 childrenPendingCumulative;
-        Checkpoints.Trace208 clearedChildrenPendingCumulative;
-    }
+    /* MODIFIERS */
 
     modifier slotExists(uint96 index) {
         if (index > 0 && !slots[index].exists) {
@@ -127,6 +131,19 @@ contract UniversalDelegator is
                 }
                 prevSum += child.size.latest();
                 childIndex = child.nextSlot;
+            }
+        }
+    }
+
+    /* MULTICALL */
+
+    function multicall(bytes[] calldata data) external {
+        for (uint256 i; i < data.length; ++i) {
+            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
+            if (!success) {
+                assembly ("memory-safe") {
+                    revert(add(32, returnData), mload(returnData))
+                }
             }
         }
     }

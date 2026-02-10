@@ -1168,6 +1168,32 @@ contract UniversalDelegatorTest is Test {
         vm.stopPrank();
     }
 
+    function test_multicall_executesCallsSequentially() public {
+        _deposit(alice, 100);
+
+        delegator.grantRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE, owner);
+
+        bytes[] memory calls = new bytes[](2);
+        calls[0] = abi.encodeCall(UniversalDelegator.setWithdrawalBufferSize, (40));
+        calls[1] = abi.encodeCall(UniversalDelegator.setWithdrawalBufferSize, (20));
+
+        delegator.multicall(calls);
+
+        assertEq(delegator.getWithdrawalBuffer(), 20);
+    }
+
+    function test_multicall_bubblesRevertReason() public {
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeCall(UniversalDelegator.setWithdrawalBufferSize, (40));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, owner, SET_WITHDRAWAL_BUFFER_SIZE_ROLE
+            )
+        );
+        delegator.multicall(calls);
+    }
+
     function test_depthGuards_enforced() public {
         _createSlot(0, false, 100);
         uint96 group = _rootIndex(uint32(1));

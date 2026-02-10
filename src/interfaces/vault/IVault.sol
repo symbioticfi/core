@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IVaultStorage} from "./IVaultStorage.sol";
 
+uint64 constant VAULT_VERSION = 1;
+
 interface IVault is IMigratableEntity, IVaultStorage {
     error AlreadyClaimed();
     error AlreadySet();

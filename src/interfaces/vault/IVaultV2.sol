@@ -37,6 +37,7 @@ uint48 constant MAX_DURATION = 1000 * 365 days;
  *      onSlash()
  */
 interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
+    error NotRewards();
     error AlreadyClaimed();
     error AlreadySet();
     error DelegatorAlreadyInitialized();

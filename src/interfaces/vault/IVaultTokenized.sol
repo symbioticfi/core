@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IVault} from "./IVault.sol";
 
+uint64 constant VAULT_TOKENIZED_VERSION = 2;
+
 interface IVaultTokenized is IVault {
     /**
      * @notice Initial parameters needed for a tokenized vault deployment.

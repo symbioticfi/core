@@ -38,6 +38,7 @@ import {
     MAX_PLUGINS
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {FeeOnTransferToken} from "../mocks/FeeOnTransferToken.sol";
@@ -1391,6 +1392,20 @@ contract VaultV2Test is Test {
         assertEq(vault.activeSharesOf(alice), 1);
     }
 
+    function test_DonateRevertNotRewards() public {
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        uint256 amount = 1;
+        collateral.transfer(alice, amount);
+
+        vm.startPrank(alice);
+        collateral.approve(address(vault), amount);
+        vm.expectRevert(IVaultV2.NotRewards.selector);
+        VaultV2(address(vault)).donate(amount);
+        vm.stopPrank();
+    }
+
     function test_DepositRevertInsufficientDeposit() public {
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
@@ -2116,6 +2131,37 @@ contract VaultV2Test is Test {
 
         _setDepositWhitelist(alice, true);
         assertEq(vault.depositWhitelist(), true);
+    }
+
+    function test_Multicall_executesCallsSequentially() public {
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        _grantDepositWhitelistSetRole(alice, alice);
+
+        bytes[] memory calls = new bytes[](2);
+        calls[0] = abi.encodeCall(VaultV2.setDepositWhitelist, (true));
+        calls[1] = abi.encodeCall(VaultV2.setDepositWhitelist, (false));
+
+        vm.prank(alice);
+        VaultV2(address(vault)).multicall(calls);
+
+        assertEq(vault.depositWhitelist(), false);
+    }
+
+    function test_Multicall_bubblesRevertReason() public {
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeCall(VaultV2.setDepositWhitelist, (true));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, owner, DEPOSIT_WHITELIST_SET_ROLE
+            )
+        );
+        VaultV2(address(vault)).multicall(calls);
     }
 
     function test_SetDepositorWhitelistStatus() public {

@@ -3,18 +3,18 @@ pragma solidity 0.8.28;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
-import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 
 import {IVaultV2Storage} from "../../interfaces/vault/IVaultV2Storage.sol";
 
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
-    using CheckpointsLegacy for CheckpointsLegacy.Trace256;
-    using CheckpointsLegacy for CheckpointsLegacy.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
+    using CheckpointsV2 for CheckpointsV2.Trace256;
+    using CheckpointsV2 for CheckpointsV2.Trace208;
     using SafeCast for uint256;
 
     address internal immutable DELEGATOR_FACTORY;
@@ -94,11 +94,11 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
      */
     mapping(uint256 index => mapping(address account => bool value)) public isWithdrawalsClaimed;
 
-    CheckpointsLegacy.Trace256 internal _activeShares;
+    Checkpoints.Trace256 internal _activeShares;
 
-    CheckpointsLegacy.Trace256 internal _activeStake;
+    Checkpoints.Trace256 internal _activeStake;
 
-    mapping(address account => CheckpointsLegacy.Trace256 shares) internal _activeSharesOf;
+    mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
     uint48 internal __migrateTimestamp;
     uint48 internal __migrateEpoch;
@@ -108,13 +108,13 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     mapping(uint256 index => mapping(address account => uint48 timestamp)) public _withdrawalUnlockAfter;
 
-    mapping(uint256 bucketIndex => Checkpoints.Trace256 shares) internal _withdrawalShares;
+    mapping(uint256 bucketIndex => CheckpointsV2.Trace256 shares) internal _withdrawalShares;
 
-    mapping(uint256 bucketIndex => Checkpoints.Trace256 withdrawals) internal _withdrawals;
+    mapping(uint256 bucketIndex => CheckpointsV2.Trace256 withdrawals) internal _withdrawals;
 
-    Checkpoints.Trace208 internal _unlockToBucket;
+    CheckpointsV2.Trace208 internal _unlockToBucket;
 
-    Checkpoints.Trace256 internal _withdrawalSharesCumulative;
+    CheckpointsV2.Trace256 internal _withdrawalSharesCumulative;
 
     int256 internal _unclaimedRaw;
 

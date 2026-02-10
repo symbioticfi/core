@@ -8,8 +8,8 @@ import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
 
-import {Checkpoints as CheckpointsLegacy} from "../libraries/Checkpoints.sol";
-import {Checkpoints as Checkpoints} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {ERC4626Math} from "../libraries/ERC4626MathV2.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
@@ -32,6 +32,7 @@ import {
 } from "../../interfaces/vault/IVaultV2.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {UNIVERSAL_SLASHER_TYPE} from "../../interfaces/slasher/IUniversalSlasher.sol";
+import {VAULT_VERSION} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -39,19 +40,19 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-import {LibCall as Address} from "@solady/src/utils/LibCall.sol";
 import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 
 /// @dev total supply of `collateral()` must be <= 2^255 - 1 from the VaultV2 perspective
 /// @dev total supply of `collateral()` must be <= 2^128 - 1 from the UniversalDelegator perspective
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
-    using CheckpointsLegacy for CheckpointsLegacy.Trace208;
-    using CheckpointsLegacy for CheckpointsLegacy.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
-    using Address for address;
+    using CheckpointsV2 for CheckpointsV2.Trace208;
+    using CheckpointsV2 for CheckpointsV2.Trace256;
     using Math for uint256;
     using SafeERC20 for address;
+
+    /* MODIFIERS */
 
     modifier withDeallocatePlugins(bool withPlugins) {
         if (withPlugins) {
@@ -63,6 +64,19 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     modifier withSkimPlugins() {
         skimPlugins();
         _;
+    }
+
+    /* MULTICALL */
+
+    function multicall(bytes[] calldata data) external {
+        for (uint256 i; i < data.length; ++i) {
+            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
+            if (!success) {
+                assembly ("memory-safe") {
+                    revert(add(32, returnData), mload(returnData))
+                }
+            }
+        }
     }
 
     /* CONSTRUCTOR */
@@ -414,6 +428,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     function donate(uint256 amount) public nonReentrant {
         unchecked {
+            if (REWARDS != msg.sender) {
+                revert NotRewards();
+            }
+
             uint256 balanceBefore = IERC20(collateral).balanceOf(address(this));
             collateral.safeTransferFrom(msg.sender, address(this), amount);
             amount = IERC20(collateral).balanceOf(address(this)) - balanceBefore;
@@ -645,7 +663,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function allocatePlugin(address plugin, uint256 amount)
         public
-        nonReentrant
         onlyRole(ALLOCATE_PLUGIN_ROLE)
         returns (uint256 allocated)
     {
@@ -679,7 +696,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
      */
     function deallocatePlugin(address plugin, uint256 amount)
         public
-        nonReentrant
         onlyRole(DEALLOCATE_PLUGIN_ROLE)
         returns (uint256)
     {
@@ -730,7 +746,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /**
      * @inheritdoc IVaultV2
      */
-    function deallocatePlugins() public nonReentrant {
+    function deallocatePlugins() public {
         unchecked {
             uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
             if (toDeallocate > 0) {
@@ -893,7 +909,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             __migrateNextEpochTimestamp = migrateNextEpochTimestamp;
 
             MigrateParams memory params = abi.decode(data, (MigrateParams));
-            if (oldVersion == 1) {
+            if (oldVersion == VAULT_VERSION) {
                 __ERC20_init(params.name, params.symbol);
             }
 
