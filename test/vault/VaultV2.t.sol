@@ -58,7 +58,7 @@ import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC4626Math} from "../../src/contracts/libraries/ERC4626MathV2.sol";
+import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
