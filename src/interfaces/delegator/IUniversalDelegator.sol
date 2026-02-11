@@ -199,11 +199,11 @@ interface IUniversalDelegator {
 
     function getSlot(uint96 index) external view returns (Slot memory);
 
-    function getChildrenPendingAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint208);
+    function getChildrenPendingAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint208);
 
     function getChildrenPending(uint96 index, uint48 duration) external view returns (uint208);
 
-    function getPendingAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint208);
+    function getPendingAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint208);
 
     function getPending(uint96 index, uint48 duration) external view returns (uint208);
 
@@ -214,19 +214,19 @@ interface IUniversalDelegator {
 
     function stakeFor(bytes32 subnetwork, address operator, uint48 duration) external view returns (uint256);
 
-    function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint256);
+    function getBalanceAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256);
 
     function getBalance(uint96 index, uint48 duration) external view returns (uint256);
 
-    function getAvailableAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint256);
+    function getAvailableAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256);
 
     function getAvailable(uint96 index, uint48 duration) external view returns (uint256);
 
-    function getAllocatedAt(uint96 index, uint48 timestamp, uint48 duration) external view returns (uint256);
+    function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256);
 
     function getAllocated(uint96 index, uint48 duration) external view returns (uint256);
 
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration)
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         external
         view
         returns (uint256);

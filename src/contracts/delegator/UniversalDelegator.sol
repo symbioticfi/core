@@ -177,7 +177,7 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        return getAllocatedAt(subnetwork, operator, timestamp, duration);
+        return getAllocatedAt(subnetwork, operator, duration, timestamp);
     }
 
     /**
@@ -198,7 +198,7 @@ contract UniversalDelegator is
         if (timestamp < __migrateTimestamp) {
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
-        return getAllocatedAt(subnetwork, operator, timestamp, IVaultV2(vault).epochDuration());
+        return getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration(), timestamp);
     }
 
     /**
@@ -230,7 +230,7 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getChildrenPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint208) {
+    function getChildrenPendingAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
             uint48 fromTimestamp = uint48(
@@ -273,7 +273,7 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getPendingAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint208) {
+    function getPendingAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
             uint48 fromTimestamp = uint48(
@@ -314,10 +314,10 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      * @dev Returns the collateral balance of a given slot.
      */
-    function getBalanceAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
+    function getBalanceAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             return index > 0
-                ? getAllocatedAt(index, timestamp, duration)
+                ? getAllocatedAt(index, duration, timestamp)
                 : IVaultV2(vault).activeStakeAt(timestamp, "")
                     + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
         }
@@ -338,8 +338,8 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      * @dev Returns the available to allocate balance in the given slot.
      */
-    function getAvailableAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
-        return getBalanceAt(index, timestamp, duration).saturatingSub(getChildrenPendingAt(index, timestamp, duration));
+    function getAvailableAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
+        return getBalanceAt(index, duration, timestamp).saturatingSub(getChildrenPendingAt(index, duration, timestamp));
     }
 
     /**
@@ -353,7 +353,7 @@ contract UniversalDelegator is
      * @inheritdoc IUniversalDelegator
      * @dev Returns the allocation of the given slot.
      */
-    function getAllocatedAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
+    function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             if (duration > IVaultV2(vault).epochDuration()) {
                 return 0;
@@ -377,14 +377,14 @@ contract UniversalDelegator is
                 prevSum = slot.prevSum.upperLookupRecent(timestamp);
             }
 
-            uint256 slotAvailable = getAvailableAt(parentIndex, timestamp, duration);
+            uint256 slotAvailable = getAvailableAt(parentIndex, duration, timestamp);
             if (!parent.isShared) {
                 slotAvailable = slotAvailable.saturatingSub(prevSum);
             }
             // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
             return
                 Math.min(slotAvailable, slot.size.upperLookupRecent(timestamp))
-                    + getPendingAt(index, timestamp, duration);
+                    + getPendingAt(index, duration, timestamp);
         }
     }
 
@@ -468,13 +468,13 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration)
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         public
         view
         returns (uint256)
     {
         uint96 index = getSlotOfAt(subnetwork, operator, timestamp);
-        return index > 0 ? getAllocatedAt(index, timestamp, duration) : 0;
+        return index > 0 ? getAllocatedAt(index, duration, timestamp) : 0;
     }
 
     /**
@@ -485,7 +485,7 @@ contract UniversalDelegator is
         return index > 0 ? getAllocated(index, duration) : 0;
     }
 
-    function getFilledAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
+    function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             SlotStorage storage slot = slots[index];
             if (slot.existChildren == 0) {
@@ -506,7 +506,7 @@ contract UniversalDelegator is
             }
 
             return Math.min(
-                sizeSum + getChildrenPendingAt(index, timestamp, duration), getBalanceAt(index, timestamp, duration)
+                sizeSum + getChildrenPendingAt(index, duration, timestamp), getBalanceAt(index, duration, timestamp)
             );
         }
     }

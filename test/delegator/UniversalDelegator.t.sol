@@ -277,12 +277,12 @@ contract UniversalDelegatorTest is Test {
 
         vm.warp(5);
         _deposit(alice, 100);
-        assertEq(delegator.getAllocatedAt(slot1, 5, 0), 30);
+        assertEq(delegator.getAllocatedAt(slot1, 0, 5), 30);
 
         vm.warp(7);
         delegator.setSize(slot1, 20);
-        assertEq(delegator.getAllocatedAt(slot1, 7, 0), 30);
-        assertEq(delegator.getAllocatedAt(slot1, 9, EPOCH_DURATION), 20);
+        assertEq(delegator.getAllocatedAt(slot1, 0, 7), 30);
+        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION, 9), 20);
     }
 
     function test_createSlot_root_allowsDepth1() public {
@@ -354,8 +354,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(slot1, 45);
 
-        assertEq(delegator.getAllocatedAt(slot1, 1, 0), 45);
-        assertEq(delegator.getAllocatedAt(slot2, 1, 0), 50);
+        assertEq(delegator.getAllocatedAt(slot1, 0, 1), 45);
+        assertEq(delegator.getAllocatedAt(slot2, 0, 1), 50);
         assertEq(_unallocated2(0, slot1, slot2), 5);
     }
 
@@ -520,20 +520,20 @@ contract UniversalDelegatorTest is Test {
         delegator.setSize(operatorSlot, 0);
 
         uint48 timestampBeforeSlash = uint48(block.timestamp);
-        uint208 pendingBefore = delegator.getPendingAt(operatorSlot, timestampBeforeSlash, 0);
-        uint208 childrenPendingBefore = delegator.getChildrenPendingAt(networkSlot, timestampBeforeSlash, 0);
-        uint256 availableBefore = delegator.getAvailableAt(networkSlot, timestampBeforeSlash, 0);
-        uint256 allocatedBefore = delegator.getAllocatedAt(operatorSlot, timestampBeforeSlash, 0);
+        uint208 pendingBefore = delegator.getPendingAt(operatorSlot, 0, timestampBeforeSlash);
+        uint208 childrenPendingBefore = delegator.getChildrenPendingAt(networkSlot, 0, timestampBeforeSlash);
+        uint256 availableBefore = delegator.getAvailableAt(networkSlot, 0, timestampBeforeSlash);
+        uint256 allocatedBefore = delegator.getAllocatedAt(operatorSlot, 0, timestampBeforeSlash);
         assertGt(pendingBefore, 0);
         assertGt(childrenPendingBefore, 0);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 20, bytes(""));
         uint48 timestampAfterSlash = uint48(block.timestamp);
-        uint208 pendingAfter = delegator.getPendingAt(operatorSlot, timestampAfterSlash, 0);
-        uint208 childrenPendingAfter = delegator.getChildrenPendingAt(networkSlot, timestampAfterSlash, 0);
-        uint256 availableAfter = delegator.getAvailableAt(networkSlot, timestampAfterSlash, 0);
-        uint256 allocatedAfter = delegator.getAllocatedAt(operatorSlot, timestampAfterSlash, 0);
+        uint208 pendingAfter = delegator.getPendingAt(operatorSlot, 0, timestampAfterSlash);
+        uint208 childrenPendingAfter = delegator.getChildrenPendingAt(networkSlot, 0, timestampAfterSlash);
+        uint256 availableAfter = delegator.getAvailableAt(networkSlot, 0, timestampAfterSlash);
+        uint256 allocatedAfter = delegator.getAllocatedAt(operatorSlot, 0, timestampAfterSlash);
 
         assertLe(pendingAfter, pendingBefore);
         assertLe(childrenPendingAfter, childrenPendingBefore);
@@ -978,16 +978,16 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         _deposit(alice, 60);
 
-        assertEq(delegator.getAllocatedAt(slot1, 1, 0), 30);
-        assertEq(delegator.getAllocatedAt(slot2, 1, 0), 30);
-        assertEq(delegator.getAllocatedAt(slot3, 1, 0), 0);
+        assertEq(delegator.getAllocatedAt(slot1, 0, 1), 30);
+        assertEq(delegator.getAllocatedAt(slot2, 0, 1), 30);
+        assertEq(delegator.getAllocatedAt(slot3, 0, 1), 0);
 
         vm.warp(2);
         _deposit(alice, 60);
 
-        assertEq(delegator.getAllocatedAt(slot1, 2, 0), 30);
-        assertEq(delegator.getAllocatedAt(slot2, 2, 0), 50);
-        assertEq(delegator.getAllocatedAt(slot3, 2, 0), 40);
+        assertEq(delegator.getAllocatedAt(slot1, 0, 2), 30);
+        assertEq(delegator.getAllocatedAt(slot2, 0, 2), 50);
+        assertEq(delegator.getAllocatedAt(slot3, 0, 2), 40);
     }
 
     function test_isolatedNetworks_followGroupPriority() public {
@@ -1771,8 +1771,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(slot1, 40);
 
-        assertEq(delegator.getAvailableAt(0, 2, EPOCH_DURATION), 100);
-        assertEq(delegator.getAvailableAt(0, 4, EPOCH_DURATION), 100);
+        assertEq(delegator.getAvailableAt(0, EPOCH_DURATION, 2), 100);
+        assertEq(delegator.getAvailableAt(0, EPOCH_DURATION, 4), 100);
     }
 
     function test_miscViewsAndDeprecatedMethods() public {
@@ -1947,19 +1947,19 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getSlotOfAt(subnetwork, alice, uint48(block.timestamp)), operatorSlot);
         assertEq(delegator.getSlotOf(subnetwork, alice), operatorSlot);
 
-        assertEq(delegator.getAllocatedAt(subnetwork, alice, uint48(block.timestamp), 0), 80);
+        assertEq(delegator.getAllocatedAt(subnetwork, alice, 0, uint48(block.timestamp)), 80);
         assertEq(delegator.getAllocated(subnetwork, alice, 0), 80);
-        assertEq(delegator.getAllocatedAt(operatorSlot, uint48(block.timestamp), EPOCH_DURATION + 1), 0);
+        assertEq(delegator.getAllocatedAt(operatorSlot, EPOCH_DURATION + 1, uint48(block.timestamp)), 0);
         assertEq(delegator.getAllocated(operatorSlot, EPOCH_DURATION + 1), 0);
 
-        assertEq(delegator.getBalanceAt(operatorSlot, uint48(block.timestamp), 0), 80);
-        assertEq(delegator.getBalanceAt(0, uint48(block.timestamp), 0), 100);
+        assertEq(delegator.getBalanceAt(operatorSlot, 0, uint48(block.timestamp)), 80);
+        assertEq(delegator.getBalanceAt(0, 0, uint48(block.timestamp)), 100);
         assertEq(delegator.getBalance(operatorSlot, 0), 80);
-        assertEq(delegator.getAvailableAt(operatorSlot, uint48(block.timestamp), 0), 80);
+        assertEq(delegator.getAvailableAt(operatorSlot, 0, uint48(block.timestamp)), 80);
         assertEq(delegator.getAvailable(operatorSlot, 0), 80);
-        assertEq(delegator.getPendingAt(operatorSlot, uint48(block.timestamp), 0), 0);
+        assertEq(delegator.getPendingAt(operatorSlot, 0, uint48(block.timestamp)), 0);
         assertEq(delegator.getPending(operatorSlot, 0), 0);
-        assertEq(delegator.getChildrenPendingAt(networkSlot, uint48(block.timestamp), 0), 0);
+        assertEq(delegator.getChildrenPendingAt(networkSlot, 0, uint48(block.timestamp)), 0);
         assertEq(delegator.getChildrenPending(networkSlot, 0), 0);
     }
 
@@ -2117,7 +2117,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
         assertEq(delegator.getNoPluginsSize(), 0);
         assertEq(delegator.getAllocated(slot3, 0), 1);
-        assertEq(delegator.getAllocatedAt(slot3, uint48(block.timestamp), 0), 1);
+        assertEq(delegator.getAllocatedAt(slot3, 0, uint48(block.timestamp)), 1);
 
         delegator.setSize(slot2, 2);
         assertEq(delegator.getSlot(slot2).size, 2);
@@ -2198,7 +2198,7 @@ contract UniversalDelegatorTest is Test {
         assertEq(hookMock.lastAmount(), 50);
         assertEq(hookMock.lastData(), bytes("payload"));
         assertGt(delegator.getAllocated(operatorSlot2, 0), 0);
-        assertGt(delegator.getAllocatedAt(operatorSlot2, uint48(block.timestamp), 0), 0);
+        assertGt(delegator.getAllocatedAt(operatorSlot2, 0, uint48(block.timestamp)), 0);
 
         uint256 gasToSend = HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63 - 1;
         vm.expectRevert(IUniversalDelegator.InsufficientHookGas.selector);
