@@ -25,8 +25,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     address internal immutable SLASHER_FACTORY;
     /// @dev Address of the rewards contract.
     address internal immutable REWARDS;
-    /// @dev Address of the migrator used for V1-to-V2 transitions.
-    address internal immutable MIGRATOR_V1V2;
+    /// @dev Address of the plugin registry.
+    address internal immutable PLUGIN_REGISTRY;
 
     /* STATE VARIABLES */
 
@@ -104,9 +104,11 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     /* CONSTRUCTOR */
 
-    constructor(address delegatorFactory, address slasherFactory) {
+    constructor(address delegatorFactory, address slasherFactory, address rewards, address pluginRegistry) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
+        REWARDS = rewards;
+        PLUGIN_REGISTRY = pluginRegistry;
     }
 
     /* VIEW FUNCTIONS */

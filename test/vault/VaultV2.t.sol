@@ -24,6 +24,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
+import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
 
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
@@ -92,6 +93,7 @@ contract VaultV2Test is Test {
     VaultConfigurator vaultConfigurator;
     VaultV2TestHelper vaultTestHelper;
     MockRewards rewards;
+    PluginRegistry pluginRegistry;
 
     IVaultV2 vault;
     FullRestakeDelegator delegator;
@@ -181,6 +183,7 @@ contract VaultV2Test is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         rewards = new MockRewards();
+        pluginRegistry = new PluginRegistry(owner);
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -3394,6 +3397,7 @@ contract VaultV2Test is Test {
         VaultV2(address(vaultV2)).grantRole(SET_PLUGIN_LIMIT_ROLE, alice);
 
         MockPlugin plugin = new MockPlugin(address(vaultV2), address(collateral));
+        pluginRegistry.whitelistPlugin(address(plugin));
 
         vm.prank(alice);
         vm.expectRevert(IVaultV2.MigrationNotCompleted.selector);
@@ -3637,7 +3641,9 @@ contract VaultV2Test is Test {
     }
 
     function _createPlugin() internal returns (MockPlugin) {
-        return new MockPlugin(address(vault), address(collateral));
+        MockPlugin plugin = new MockPlugin(address(vault), address(collateral));
+        pluginRegistry.whitelistPlugin(address(plugin));
+        return plugin;
     }
 
     function _addPlugin(MockPlugin plugin) internal {
@@ -3776,7 +3782,9 @@ contract VaultV2Test is Test {
         virtual
         returns (address)
     {
-        return address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(rewards)));
+        return address(
+            new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(rewards), address(pluginRegistry))
+        );
     }
 
     function _createVaultV1Impl(address delegatorFactory, address slasherFactory, address vaultFactory)
@@ -4026,9 +4034,7 @@ contract VaultV2Test is Test {
             hook: address(0),
             hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
-            setIsSharedRoleHolder: alice,
             setSizeRoleHolder: alice,
-            setShareRoleHolder: alice,
             swapSlotsRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
@@ -4056,9 +4062,7 @@ contract VaultV2Test is Test {
             hook: address(0),
             hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
-            setIsSharedRoleHolder: alice,
             setSizeRoleHolder: alice,
-            setShareRoleHolder: alice,
             swapSlotsRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });

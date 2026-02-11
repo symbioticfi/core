@@ -6,13 +6,15 @@ import {Registry} from "./common/Registry.sol";
 
 import {IPluginRegistry} from "../interfaces/IPluginRegistry.sol";
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title PluginsRegistry
+/// @title PluginRegistry
 /// @notice Registry contract for whitelisted plugin contracts.
-contract PluginsRegistry is Registry, OwnableUpgradeable, IPluginRegistry {
+contract PluginRegistry is Registry, Ownable, IPluginRegistry {
+    constructor(address initOwner) Ownable(initOwner) {}
+
     /// @inheritdoc IPluginRegistry
-    function whitelistPlugin(address plugin, uint256 limit) external onlyOwner {
+    function whitelistPlugin(address plugin) external onlyOwner {
         if (isEntity(plugin)) {
             revert PluginAlreadyWhitelisted();
         }

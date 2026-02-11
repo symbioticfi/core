@@ -145,6 +145,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error NotSlasher();
 
     /**
+     * @notice Raised when the provided plugin is not whitelisted in plugin registry.
+     */
+    error NotPlugin();
+
+    /**
      * @notice Raised when depositor is not in the whitelist while whitelist is enabled.
      */
     error NotWhitelistedDepositor();

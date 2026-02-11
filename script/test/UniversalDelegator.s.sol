@@ -78,9 +78,7 @@ contract UniversalDelegatorUiSetup is Script {
             hook: address(0),
             hookSetRoleHolder: broadcaster,
             createSlotRoleHolder: broadcaster,
-            setIsSharedRoleHolder: broadcaster,
             setSizeRoleHolder: broadcaster,
-            setShareRoleHolder: broadcaster,
             swapSlotsRoleHolder: broadcaster,
             withdrawalBufferSize: type(uint128).max
         });

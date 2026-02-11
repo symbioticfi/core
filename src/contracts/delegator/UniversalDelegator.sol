@@ -914,13 +914,13 @@ contract UniversalDelegator is
 
     /// @dev Initialize delegator state from encoded initialization parameters.
     function _initialize(bytes calldata data) internal override {
-        (address newVault, bytes memory initData) = abi.decode(data, (address, bytes));
+        (address initVault, bytes memory initData) = abi.decode(data, (address, bytes));
 
-        if (!IRegistry(VAULT_FACTORY).isEntity(newVault)) {
+        if (!IRegistry(VAULT_FACTORY).isEntity(initVault)) {
             revert NotVault();
         }
 
-        if (IMigratableEntity(newVault).version() < VAULT_V2_VERSION) {
+        if (IMigratableEntity(initVault).version() < VAULT_V2_VERSION) {
             revert OldVault();
         }
 
@@ -928,7 +928,7 @@ contract UniversalDelegator is
 
         __ReentrancyGuard_init();
 
-        vault = newVault;
+        vault = initVault;
 
         hook = params.hook;
 

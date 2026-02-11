@@ -82,12 +82,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* CONSTRUCTOR */
 
-    constructor(address delegatorFactory, address slasherFactory, address vaultFactory, address rewards)
-        VaultV2Storage(delegatorFactory, slasherFactory)
-        MigratableEntity(vaultFactory)
-    {
-        REWARDS = rewards;
-    }
+    constructor(
+        address delegatorFactory,
+        address slasherFactory,
+        address vaultFactory,
+        address rewards,
+        address pluginRegistry
+    ) VaultV2Storage(delegatorFactory, slasherFactory, rewards, pluginRegistry) MigratableEntity(vaultFactory) {}
 
     /* VIEW FUNCTIONS */
 
@@ -573,6 +574,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 if (i == numPlugins) {
                     if (numPlugins + 1 > MAX_PLUGINS) {
                         revert TooManyPlugins();
+                    }
+                    if (!IRegistry(PLUGIN_REGISTRY).isEntity(plugin)) {
+                        revert NotPlugin();
                     }
                     plugins.push(plugin);
                     _grantRole(ALLOCATE_PLUGIN_ROLE, plugin);

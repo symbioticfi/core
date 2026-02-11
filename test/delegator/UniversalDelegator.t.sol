@@ -185,7 +185,9 @@ contract UniversalDelegatorTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards))
+            new VaultV2(
+                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards), address(0)
+            )
         );
         vaultFactory.whitelist(vaultImpl);
 
@@ -247,9 +249,7 @@ contract UniversalDelegatorTest is Test {
                         hook: address(0),
                         hookSetRoleHolder: address(0),
                         createSlotRoleHolder: owner,
-                        setIsSharedRoleHolder: owner,
                         setSizeRoleHolder: owner,
-                        setShareRoleHolder: owner,
                         swapSlotsRoleHolder: owner,
                         withdrawalBufferSize: type(uint128).max
                     })
@@ -2283,9 +2283,7 @@ contract UniversalDelegatorTest is Test {
             hook: address(0),
             hookSetRoleHolder: owner,
             createSlotRoleHolder: owner,
-            setIsSharedRoleHolder: owner,
             setSizeRoleHolder: owner,
-            setShareRoleHolder: owner,
             swapSlotsRoleHolder: owner,
             withdrawalBufferSize: type(uint128).max
         });
@@ -2424,7 +2422,9 @@ contract UniversalDelegatorMigrationTest is Test {
         vaultFactory.whitelist(vaultImplTokenized);
 
         address vaultImpl = address(
-            new VaultV2(address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards))
+            new VaultV2(
+                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards), address(0)
+            )
         );
         vaultFactory.whitelist(vaultImpl);
 
@@ -2645,9 +2645,7 @@ contract UniversalDelegatorMigrationTest is Test {
             hook: address(0),
             hookSetRoleHolder: owner,
             createSlotRoleHolder: owner,
-            setIsSharedRoleHolder: owner,
             setSizeRoleHolder: owner,
-            setShareRoleHolder: owner,
             swapSlotsRoleHolder: owner,
             withdrawalBufferSize: type(uint128).max
         });

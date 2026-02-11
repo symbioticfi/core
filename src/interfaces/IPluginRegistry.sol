@@ -8,7 +8,15 @@ import {IRegistry} from "./common/IRegistry.sol";
  * @notice Interface for the PluginRegistry contract.
  */
 interface IPluginRegistry is IRegistry {
+    /**
+     * @notice Raised when trying to whitelist a plugin that is already whitelisted.
+     */
     error PluginAlreadyWhitelisted();
 
-    function whitelistPlugin(address plugin, uint256 limit) external;
+    /**
+     * @notice Whitelist a plugin contract.
+     * @param plugin Address of the plugin to whitelist.
+     * @dev Only the contract owner can call this function.
+     */
+    function whitelistPlugin(address plugin) external;
 }

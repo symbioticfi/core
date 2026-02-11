@@ -340,33 +340,33 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @dev Initialize slasher state from encoded initialization parameters.
     function _initialize(bytes calldata data) internal override {
-        (address newVault, bytes memory initData) = abi.decode(data, (address, bytes));
+        (address initVault, bytes memory initData) = abi.decode(data, (address, bytes));
 
-        if (!IRegistry(VAULT_FACTORY).isEntity(newVault)) {
+        if (!IRegistry(VAULT_FACTORY).isEntity(initVault)) {
             revert NotVault();
         }
 
-        if (IMigratableEntity(newVault).version() < VAULT_V2_VERSION) {
+        if (IMigratableEntity(initVault).version() < VAULT_V2_VERSION) {
             revert OldVault();
         }
 
         InitParams memory params = abi.decode(initData, (InitParams));
 
-        if (params.vetoDuration >= IVaultV2(newVault).epochDuration()) {
+        if (params.vetoDuration >= IVaultV2(initVault).epochDuration()) {
             revert InvalidVetoDuration();
         }
 
-        if (params.resolverSetDelay <= IVaultV2(newVault).epochDuration() || params.resolverSetDelay > MAX_DURATION) {
+        if (params.resolverSetDelay <= IVaultV2(initVault).epochDuration() || params.resolverSetDelay > MAX_DURATION) {
             revert InvalidResolverSetEpochsDelay();
         }
 
-        if (IVault(newVault).burner() == address(0) && params.isBurnerHook) {
+        if (IVault(initVault).burner() == address(0) && params.isBurnerHook) {
             revert NoBurner();
         }
 
         __ReentrancyGuard_init();
 
-        vault = newVault;
+        vault = initVault;
 
         isBurnerHook = params.isBurnerHook;
         vetoDuration = params.vetoDuration;
