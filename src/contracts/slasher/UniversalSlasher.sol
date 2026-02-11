@@ -378,11 +378,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /* MIGRATION */
 
     /// @dev Migrate slasher state from the previously configured slasher.
-    function migrate() public {
-        if (IMigratableEntity(vault).version() != VAULT_V2_VERSION) {
-            revert WrongMigrate();
+    function migrate(address oldSlasher) public {
+        if (vault != msg.sender) {
+            revert NotVault();
         }
-        address oldSlasher = IVaultV2(vault).slasher();
         uint64 oldSlasherType = IEntity(oldSlasher).TYPE();
         if (oldSlasherType == TYPE) {
             revert NotMigrating();

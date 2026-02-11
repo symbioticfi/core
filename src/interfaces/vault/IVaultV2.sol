@@ -195,11 +195,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooManyPlugins();
 
     /**
-     * @notice Raised when migration-dependent actions are called before migration completion.
-     */
-    error MigrationNotCompleted();
-
-    /**
      * @notice Raised when trying to whitelist a depositor that is already whitelisted.
      */
     error DuplicateDepositor();
@@ -228,8 +223,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositLimitSetRoleHolder Address of the initial DEPOSIT_LIMIT_SET_ROLE holder.
      * @param setPluginLimitRoleHolder Address of the initial SET_PLUGIN_LIMIT_ROLE holder.
-     * @param allocatePluginRoleHolder Address of the initial ALLOCATE_PLUGIN_ROLE holder.
-     * @param pluginsData Initial plugin list.
+     * @param allocatePluginRoleHolder Address of the initial ALLOCATE_PLUGIN_ROLE holder..
      */
     struct InitParams {
         string name;
@@ -248,7 +242,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address depositLimitSetRoleHolder;
         address setPluginLimitRoleHolder;
         address allocatePluginRoleHolder;
-        PluginData[] pluginsData;
     }
 
     /**
@@ -263,16 +256,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         string symbol;
         bytes delegatorParams;
         bytes slasherParams;
-    }
-
-    /**
-     * @notice Plugin configuration entry for initialization.
-     * @param plugin Address of the plugin.
-     * @param limit Allocation limit for the plugin.
-     */
-    struct PluginData {
-        address plugin;
-        uint208 limit;
     }
 
     /* EVENTS */

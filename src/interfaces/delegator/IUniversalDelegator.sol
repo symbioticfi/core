@@ -105,11 +105,6 @@ interface IUniversalDelegator {
     error NotMigrating();
 
     /**
-     * @notice Raised when migration input parameters are invalid.
-     */
-    error WrongMigrate();
-
-    /**
      * @notice Raised when the caller is neither a network nor its middleware.
      */
     error NotNetworkOrMiddleware();

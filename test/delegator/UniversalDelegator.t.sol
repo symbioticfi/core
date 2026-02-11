@@ -1903,6 +1903,16 @@ contract UniversalDelegatorTest is Test {
         assertEq(root.lastChild, slot2.getChildIndex());
     }
 
+    function test_createSlot_returnsCreatedIndex() public {
+        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, 0);
+
+        assertEq(slot1, _rootIndex(1));
+        assertEq(slot2, _rootIndex(2));
+        assertTrue(delegator.getSlot(slot1).exists);
+        assertTrue(delegator.getSlot(slot2).exists);
+    }
+
     function test_syncPrevSums_pathForNonRootParent_afterSlash() public {
         _deposit(alice, 100);
 
@@ -2279,14 +2289,22 @@ contract UniversalDelegatorTest is Test {
         UniversalDelegator(noRoleDelegator).createSlot(bytes32(0), 0, false, false, 1);
     }
 
-    function test_migrateReverts_WrongMigrate_And_NotMigrating() public {
-        vm.mockCall(address(vault), abi.encodeWithSelector(IMigratableEntity.version.selector), abi.encode(uint64(4)));
-        vm.expectRevert(IUniversalDelegator.WrongMigrate.selector);
-        delegator.migrate();
-        vm.clearMockedCalls();
+    function test_migrateReverts_NotVault() public {
+        vm.expectRevert(IUniversalDelegator.NotVault.selector);
+        delegator.migrate(address(0xBEEF));
+    }
 
-        vm.expectRevert(IUniversalDelegator.NotMigrating.selector);
-        delegator.migrate();
+    function test_migrate_fromVault_createsNoPluginsGroup() public {
+        vm.prank(address(vault));
+        delegator.migrate(address(0xBEEF));
+
+        IUniversalDelegator.Slot memory root = delegator.getSlot(0);
+        assertEq(root.existChildren, 1);
+        assertEq(root.firstChild, 1);
+
+        IUniversalDelegator.Slot memory noPluginsGroup = delegator.getSlot(uint96(0).createIndex(root.firstChild));
+        assertTrue(noPluginsGroup.noPlugins);
+        assertEq(uint256(noPluginsGroup.size), IUniversalDelegator(address(delegator)).getNoPluginsSize());
     }
 
     function _requestAndExecuteSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp)
@@ -2394,6 +2412,7 @@ contract UniversalDelegatorTest is Test {
 
 contract UniversalDelegatorMigrationTest is Test {
     using Subnetwork for address;
+    using UniversalDelegatorIndex for uint96;
 
     uint48 internal constant EPOCH_DURATION = 7 days;
     string internal constant VAULT_NAME = "Test";
@@ -2688,7 +2707,11 @@ contract UniversalDelegatorMigrationTest is Test {
         assertTrue(newDelegator != oldDelegator);
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
 
-        uint208 pending = IUniversalDelegator(newDelegator).getChildrenPending(0, 0);
-        assertEq(pending, type(uint128).max);
+        IUniversalDelegator.Slot memory root = IUniversalDelegator(newDelegator).getSlot(0);
+        assertEq(root.existChildren, 1);
+        IUniversalDelegator.Slot memory noPluginsGroup =
+            IUniversalDelegator(newDelegator).getSlot(uint96(0).createIndex(root.firstChild));
+        assertTrue(noPluginsGroup.noPlugins);
+        assertEq(uint256(noPluginsGroup.size), IUniversalDelegator(newDelegator).getNoPluginsSize());
     }
 }

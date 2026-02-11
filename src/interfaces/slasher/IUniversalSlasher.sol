@@ -84,11 +84,6 @@ interface IUniversalSlasher {
     error NotMigrating();
 
     /**
-     * @notice Raised when migration input parameters are invalid.
-     */
-    error WrongMigrate();
-
-    /**
      * @notice Raised when burner-hook mode is enabled but the vault has no burner.
      */
     error NoBurner();

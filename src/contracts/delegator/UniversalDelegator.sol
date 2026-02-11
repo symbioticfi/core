@@ -416,7 +416,11 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
-            uint96 lastIndex = index.createIndex(uint32(slots[index].lastChild.upperLookupRecent(timestamp)));
+            uint32 lastChildIndex = uint32(slots[index].lastChild.upperLookupRecent(timestamp));
+            if (lastChildIndex == 0) {
+                return 0;
+            }
+            uint96 lastIndex = index.createIndex(lastChildIndex);
             return Math.min(
                 _getPrevSumAt(lastIndex, timestamp) + slots[lastIndex].size.upperLookupRecent(timestamp)
                     + getChildrenPendingAt(index, duration, timestamp),
@@ -428,7 +432,11 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getFilled(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
-            uint96 lastIndex = index.createIndex(uint32(slots[index].lastChild.latest()));
+            uint32 lastChildIndex = uint32(slots[index].lastChild.latest());
+            if (lastChildIndex == 0) {
+                return 0;
+            }
+            uint96 lastIndex = index.createIndex(lastChildIndex);
             return Math.min(
                 _getPrevSum(lastIndex) + slots[lastIndex].size.latest() + getChildrenPending(index, duration),
                 getBalance(index, duration)
@@ -470,6 +478,14 @@ contract UniversalDelegator is
     function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
+        returns (uint96 index)
+    {
+        return _createSlot(subnetworkOrOperator, parentIndex, isShared, noPlugins, size);
+    }
+
+    /// @dev Create a new slot.
+    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
+        internal
         slotExists(parentIndex)
         syncPrevSums(parentIndex)
         returns (uint96 index)
@@ -490,7 +506,7 @@ contract UniversalDelegator is
             }
             ++parent.totalChildren;
 
-            index = parentIndex.createIndex(parent.existChildren);
+            index = parentIndex.createIndex(parent.totalChildren);
 
             if (parentIndex.getDepth() == 1) {
                 if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
@@ -894,19 +910,14 @@ contract UniversalDelegator is
     /* MIGRATION */
 
     /// @dev Migrate delegator state from the previously configured delegator.
-    function migrate() public {
-        if (IMigratableEntity(vault).version() != VAULT_V2_VERSION) {
-            revert WrongMigrate();
-        }
-        if (IEntity(IVaultV2(vault).delegator()).TYPE() == TYPE) {
-            revert NotMigrating();
+    function migrate(address oldDelegator) public {
+        if (vault != msg.sender) {
+            revert NotVault();
         }
         __migrateTimestamp = uint48(block.timestamp);
-        __oldDelegator = IVaultV2(vault).delegator();
+        __oldDelegator = oldDelegator;
 
-        // TODO: more smooth migration.
-        _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
-        _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
+        _createSlot(bytes32(0), 0, true, true, uint128(Math.min(IVaultV2(vault).allocatable(), type(uint128).max)));
     }
 
     /* DEPRECATED FUNCTIONS */

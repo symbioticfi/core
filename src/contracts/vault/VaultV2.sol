@@ -163,7 +163,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             }
 
             // Legacy support.
-            return __migrateEpoch + 1;
+            return __migrateEpoch + 2;
         }
     }
 
@@ -205,7 +205,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             uint48 migrateEpoch = __migrateEpoch;
             if (migrateEpoch == 0 || index >= migrateEpoch) {
-                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(_withdrawalUnlockAfter[index][account]);
+                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAfter(index, account));
                 uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
                 return withdrawalShares_ > 0
                     ? ERC4626Math.previewRedeem(
@@ -561,11 +561,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
         unchecked {
-            uint256 migrateTimestamp = __migrateTimestamp;
-            if (migrateTimestamp > 0 && block.timestamp <= migrateTimestamp + epochDuration) {
-                revert MigrationNotCompleted();
-            }
-
             _revertIfZero(plugin);
 
             if (pluginAllocated[plugin] > newLimit) {
@@ -696,20 +691,15 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function deallocatePlugins() public {
         unchecked {
-            uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
-            if (toDeallocate > 0) {
-                for (uint256 i; i < plugins.length; ++i) {
-                    address plugin = plugins[i];
-                    uint256 curPluginAllocated = pluginAllocated[plugin];
-                    if (curPluginAllocated > 0) {
-                        uint256 deallocated = _deallocatePlugin(plugin, Math.min(curPluginAllocated, toDeallocate));
-                        if (deallocated > 0) {
-                            toDeallocate -= deallocated;
-                            if (toDeallocate == uint256(0)) {
-                                break;
-                            }
-                        }
-                    }
+            for (uint256 i; i < plugins.length; ++i) {
+                uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
+                if (toDeallocate == uint256(0)) {
+                    break;
+                }
+                address plugin = plugins[i];
+                uint256 curPluginAllocated = pluginAllocated[plugin];
+                if (curPluginAllocated > 0) {
+                    _deallocatePlugin(plugin, Math.min(curPluginAllocated, toDeallocate));
                 }
             }
         }
@@ -840,18 +830,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _grantRoleIfNotZero(SET_PLUGIN_LIMIT_ROLE, params.setPluginLimitRoleHolder);
             _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, params.allocatePluginRoleHolder);
 
-            for (uint256 i; i < params.pluginsData.length; ++i) {
-                address plugin = params.pluginsData[i].plugin;
-                uint208 limit = params.pluginsData[i].limit;
-                _revertIfZero(plugin);
-                _revertIfZero(limit);
-                if (pluginLimit[plugin] > 0) {
-                    revert DuplicatePlugin();
-                }
-                plugins.push(plugin);
-                pluginLimit[plugin] = limit;
-            }
-
             emit Initialize(params);
         }
     }
@@ -879,27 +857,30 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 curActiveWithdrawals;
             if (migrateEpoch > 0) {
                 curActiveWithdrawals = __withdrawals[migrateEpoch];
-                _withdrawalSharesCumulative.push(migrateNextEpochTimestamp, curActiveWithdrawals);
+                if (curActiveWithdrawals > 0) {
+                    _withdrawalSharesCumulative.push(migrateNextEpochTimestamp, curActiveWithdrawals);
+                }
             }
             curActiveWithdrawals += __withdrawals[migrateEpoch + 1];
-            _withdrawalSharesCumulative.push(uint48(block.timestamp) + epochDuration, curActiveWithdrawals);
-
-            _unlockToBucket.push(uint48(block.timestamp), 0);
-            _withdrawals[0].push(uint48(block.timestamp), curActiveWithdrawals);
-            _withdrawalShares[0].push(uint48(block.timestamp), curActiveWithdrawals);
-
-            address newDelegator = DelegatorFactory(DELEGATOR_FACTORY)
-                .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
-            UniversalDelegator(newDelegator).migrate();
-            delegator = newDelegator;
-            if (slasher != address(0)) {
-                address newSlasher = SlasherFactory(SLASHER_FACTORY)
-                    .create(UNIVERSAL_SLASHER_TYPE, abi.encode(address(this), params.slasherParams));
-                UniversalSlasher(newSlasher).migrate();
-                slasher = newSlasher;
+            if (curActiveWithdrawals > 0) {
+                _withdrawalSharesCumulative.push(uint48(block.timestamp) + epochDuration, curActiveWithdrawals);
+                _withdrawals[0].push(uint48(block.timestamp), curActiveWithdrawals);
+                _withdrawalShares[0].push(uint48(block.timestamp), curActiveWithdrawals);
             }
 
             _unclaimedRaw = int256(collateral.balanceOf(address(this)) - activeStake() - curActiveWithdrawals);
+
+            address oldDelegator = delegator;
+            delegator = DelegatorFactory(DELEGATOR_FACTORY)
+                .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
+            UniversalDelegator(delegator).migrate(oldDelegator);
+
+            if (slasher != address(0)) {
+                address oldSlasher = slasher;
+                slasher = SlasherFactory(SLASHER_FACTORY)
+                    .create(UNIVERSAL_SLASHER_TYPE, abi.encode(address(this), params.slasherParams));
+                UniversalSlasher(slasher).migrate(oldSlasher);
+            }
 
             emit Migrate(params, delegator, slasher);
         }

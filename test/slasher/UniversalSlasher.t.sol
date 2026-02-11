@@ -816,20 +816,16 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.harnessInitialize(abi.encode(address(vault), abi.encode(params)));
     }
 
-    function test_migrateReverts_WrongMigrate() public {
-        vault.setVersion(4);
-
-        vm.expectRevert(IUniversalSlasher.WrongMigrate.selector);
-        slasher.migrate();
+    function test_migrateReverts_NotVault() public {
+        vm.expectRevert(IUniversalSlasher.NotVault.selector);
+        slasher.migrate(address(legacySlasher));
     }
 
     function test_migrateReverts_NotMigrating() public {
-        vault.setVersion(3);
         legacySlasher.setType(slasher.TYPE());
-        vault.setSlasher(address(legacySlasher));
-
+        vm.prank(address(vault));
         vm.expectRevert(IUniversalSlasher.NotMigrating.selector);
-        slasher.migrate();
+        slasher.migrate(address(legacySlasher));
     }
 
     function test_resolver_switchesToPendingWhenDelayReached() public {
