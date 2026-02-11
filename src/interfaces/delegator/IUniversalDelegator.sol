@@ -233,6 +233,8 @@ interface IUniversalDelegator {
 
     function getAllocated(bytes32 subnetwork, address operator, uint48 duration) external view returns (uint256);
 
+    function getFilled(uint96 index, uint48 duration) external view returns (uint256);
+
     function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) external view returns (uint96);
 
     function getSlotOfNetwork(bytes32 subnetwork) external view returns (uint96);

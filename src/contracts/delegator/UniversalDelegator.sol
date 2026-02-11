@@ -426,26 +426,6 @@ contract UniversalDelegator is
     /**
      * @inheritdoc IUniversalDelegator
      */
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration)
-        public
-        view
-        returns (uint256)
-    {
-        uint96 index = getSlotOfAt(subnetwork, operator, timestamp);
-        return index > 0 ? getAllocatedAt(index, timestamp, duration) : 0;
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
-    function getAllocated(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
-        uint96 index = getSlotOf(subnetwork, operator);
-        return index > 0 ? getAllocated(index, duration) : 0;
-    }
-
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
     function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint96) {
         return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp));
     }
@@ -483,6 +463,76 @@ contract UniversalDelegator is
      */
     function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint96) {
         return getSlotOfOperator(getSlotOfNetwork(subnetwork), operator);
+    }
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 timestamp, uint48 duration)
+        public
+        view
+        returns (uint256)
+    {
+        uint96 index = getSlotOfAt(subnetwork, operator, timestamp);
+        return index > 0 ? getAllocatedAt(index, timestamp, duration) : 0;
+    }
+
+    /**
+     * @inheritdoc IUniversalDelegator
+     */
+    function getAllocated(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
+        uint96 index = getSlotOf(subnetwork, operator);
+        return index > 0 ? getAllocated(index, duration) : 0;
+    }
+
+    function getFilledAt(uint96 index, uint48 timestamp, uint48 duration) public view returns (uint256) {
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            if (slot.existChildren == 0) {
+                return 0;
+            }
+
+            uint256 sizeSum;
+            if (slot.needPrevSumsSync) {
+                for (
+                    uint32 childIndex = slot.firstChild; childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;) {
+                    SlotStorage storage child = slots[index.createIndex(childIndex)];
+                    sizeSum += child.size.upperLookupRecent(timestamp);
+                    childIndex = child.nextSlot;
+                }
+            } else {
+                SlotStorage storage lastChild = slots[index.createIndex(slot.lastChild)];
+                sizeSum = lastChild.prevSum.upperLookupRecent(timestamp) + lastChild.size.upperLookupRecent(timestamp);
+            }
+
+            return Math.min(
+                sizeSum + getChildrenPendingAt(index, timestamp, duration), getBalanceAt(index, timestamp, duration)
+            );
+        }
+    }
+
+    function getFilled(uint96 index, uint48 duration) public view returns (uint256) {
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            if (slot.existChildren == 0) {
+                return 0;
+            }
+
+            uint256 sizeSum;
+            if (slot.needPrevSumsSync) {
+                for (
+                    uint32 childIndex = slot.firstChild; childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;) {
+                    SlotStorage storage child = slots[index.createIndex(childIndex)];
+                    sizeSum += child.size.latest();
+                    childIndex = child.nextSlot;
+                }
+            } else {
+                SlotStorage storage lastChild = slots[index.createIndex(slot.lastChild)];
+                sizeSum = lastChild.prevSum.latest() + lastChild.size.latest();
+            }
+
+            return Math.min(sizeSum + getChildrenPending(index, duration), getBalance(index, duration));
+        }
     }
 
     /**
@@ -615,7 +665,6 @@ contract UniversalDelegator is
                         && slot.nextSlot < WITHDRAWAL_BUFFER_CHILD_INDEX
                 ) {
                     SlotStorage storage lastChild = slots[index.getParentIndex().createIndex(parent.lastChild)];
-                    // TODO: introduce getFilled() for this
                     if (
                         newSize - curSize
                             > available.saturatingSub(lastChild.prevSum.latest() + lastChild.size.latest())

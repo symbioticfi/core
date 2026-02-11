@@ -576,6 +576,396 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(op2, 0), 30);
     }
 
+    function test_getFilled_zeroWhenNetworkHasNoOperators() public {
+        _deposit(alice, 100);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 group = _rootIndex(uint32(1));
+
+        _createSlot(group, false, 100);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        assertEq(delegator.getFilled(networkSlot, 0), 0);
+    }
+
+    function test_getFilled_matchesSumOfOperatorsForNetwork() public {
+        _deposit(alice, 100);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 group = _rootIndex(uint32(1));
+
+        _createSlot(group, false, 100);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        _createSlot(networkSlot, false, 70);
+        _createSlot(networkSlot, false, 70);
+        uint96 op1 = networkSlot.createIndex(uint32(1));
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+
+        uint256 expected = delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0);
+        assertEq(delegator.getFilled(networkSlot, 0), expected);
+        assertEq(delegator.getFilled(networkSlot, 0), 100);
+    }
+
+    function test_getFilled_respectsDurationWindowForPending() public {
+        _deposit(alice, 200);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 group = _rootIndex(uint32(1));
+
+        _createSlot(group, false, 200);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        _createSlot(networkSlot, false, 100);
+        _createSlot(networkSlot, false, 100);
+        uint96 op1 = networkSlot.createIndex(uint32(1));
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+
+        vm.warp(1);
+        delegator.setSize(op1, 50);
+
+        uint256 expectedWithPendingWindow = delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0);
+        uint256 expectedWithoutPendingWindow =
+            delegator.getAllocated(op1, EPOCH_DURATION) + delegator.getAllocated(op2, EPOCH_DURATION);
+
+        assertEq(expectedWithPendingWindow, 200);
+        assertEq(expectedWithoutPendingWindow, 150);
+        assertEq(delegator.getFilled(networkSlot, 0), expectedWithPendingWindow);
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), expectedWithoutPendingWindow);
+        assertEq(delegator.getFilled(networkSlot, 0), 200);
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 150);
+    }
+
+    function test_getFilled_numericTrace_multiDepthMultipleSizeChanges() public {
+        _deposit(alice, 1000);
+
+        _createSlot(0, false, 700);
+        _createSlot(0, false, 500);
+        uint96 group1 = _rootIndex(uint32(1));
+        uint96 group2 = _rootIndex(uint32(2));
+
+        _createSlot(group1, false, 500);
+        _createSlot(group1, false, 300);
+        uint96 network1 = group1.createIndex(uint32(1));
+        uint96 network2 = group1.createIndex(uint32(2));
+
+        _createSlot(network1, false, 220);
+        _createSlot(network1, false, 180);
+        _createSlot(network1, false, 160);
+        uint96 op1 = network1.createIndex(uint32(1));
+        uint96 op2 = network1.createIndex(uint32(2));
+        uint96 op3 = network1.createIndex(uint32(3));
+
+        // Initial state.
+        assertEq(delegator.getAllocated(group1, 0), 700);
+        assertEq(delegator.getAllocated(group2, 0), 300);
+        assertEq(delegator.getAllocated(network1, 0), 500);
+        assertEq(delegator.getAllocated(network2, 0), 200);
+        assertEq(delegator.getAllocated(op1, 0), 220);
+        assertEq(delegator.getAllocated(op2, 0), 180);
+        assertEq(delegator.getAllocated(op3, 0), 100);
+        assertEq(
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0),
+            delegator.getFilled(network1, 0)
+        );
+        assertEq(delegator.getFilled(network1, 0), 500);
+
+        // Decrease network size: allocation stays 500 due to pending=80.
+        vm.warp(1);
+        delegator.setSize(network1, 420);
+        assertEq(delegator.getChildrenPending(group1, 0), 80);
+        assertEq(delegator.getAllocated(network1, 0), 500);
+        assertEq(delegator.getAllocated(network2, 0), 200);
+        assertEq(delegator.getFilled(network1, 0), 500);
+
+        // Decrease operator2 size: creates pending=60 for operator2/network1.
+        vm.warp(2);
+        delegator.setSize(op2, 120);
+        assertEq(delegator.getPending(op2, 0), 60);
+        assertEq(delegator.getChildrenPending(network1, 0), 60);
+        assertEq(delegator.getAllocated(op1, 0), 220);
+        assertEq(delegator.getAllocated(op2, 0), 180);
+        assertEq(delegator.getAllocated(op3, 0), 100);
+        assertEq(
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0),
+            delegator.getFilled(network1, 0)
+        );
+        assertEq(delegator.getFilled(network1, 0), 500);
+
+        // Decrease operator3 size from 160 -> 100: pending remains 0 (allocated was already 100).
+        vm.warp(3);
+        delegator.setSize(op3, 100);
+        assertEq(delegator.getPending(op3, 0), 0);
+        assertEq(delegator.getChildrenPending(network1, 0), 60);
+        assertEq(delegator.getAllocated(op3, 0), 100);
+
+        // Attempting operator1 increase 220 -> 260 reverts in this state (no tail unallocated amount).
+        vm.warp(4);
+        vm.expectRevert(IUniversalDelegator.NotEnoughAvailable.selector);
+        delegator.setSize(op1, 260);
+
+        // After pending windows expire, the same topology has lower filled amount.
+        vm.warp(6);
+        assertEq(delegator.getChildrenPending(group1, 0), 0);
+        assertEq(delegator.getChildrenPending(network1, 0), 0);
+        assertEq(delegator.getAllocated(network1, 0), 420);
+        assertEq(delegator.getAllocated(op1, 0), 220);
+        assertEq(delegator.getAllocated(op2, 0), 120);
+        assertEq(delegator.getAllocated(op3, 0), 80);
+        assertEq(
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0),
+            delegator.getFilled(network1, 0)
+        );
+        assertEq(delegator.getFilled(network1, 0), 420);
+    }
+
+    function test_getFilled_invariant_repeatedSetSizes_withDepositWithdraw() public {
+        _deposit(alice, 400);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 group = _rootIndex(uint32(1));
+        _createSlot(group, false, 400);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        _createSlot(networkSlot, false, 200);
+        _createSlot(networkSlot, false, 150);
+        _createSlot(networkSlot, false, 150);
+        uint96 op1 = networkSlot.createIndex(uint32(1));
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+        uint96 op3 = networkSlot.createIndex(uint32(3));
+
+        uint256 sumInitial =
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0);
+        assertEq(sumInitial, 400);
+        assertEq(delegator.getFilled(networkSlot, 0), sumInitial);
+        assertEq(delegator.getFilled(networkSlot, 0), 400);
+
+        vm.warp(1);
+        delegator.setSize(op2, 120);
+        assertEq(delegator.getPending(op2, 0), 30);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 400);
+
+        vm.warp(2);
+        delegator.setSize(op1, 170);
+        assertEq(delegator.getPending(op1, 0), 30);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 60);
+
+        uint256 filledWithPending = delegator.getFilled(networkSlot, 0);
+        uint256 filledWithoutPending = delegator.getFilled(networkSlot, EPOCH_DURATION);
+        assertEq(
+            filledWithPending,
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(
+            filledWithoutPending,
+            delegator.getAllocated(op1, EPOCH_DURATION) + delegator.getAllocated(op2, EPOCH_DURATION)
+                + delegator.getAllocated(op3, EPOCH_DURATION)
+        );
+        assertGe(filledWithPending, filledWithoutPending);
+        assertEq(filledWithPending, 400);
+        assertEq(filledWithoutPending, 400);
+
+        vm.warp(3);
+        _withdraw(alice, 100);
+        _deposit(bob, 80);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 400);
+
+        vm.warp(EPOCH_DURATION + 4);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 0);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 380);
+        assertEq(delegator.getFilled(networkSlot, 0), delegator.getFilled(networkSlot, EPOCH_DURATION));
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 380);
+    }
+
+    function test_getFilled_invariant_afterSwapsResizesAndStakeChanges() public {
+        _deposit(alice, 300);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 group = _rootIndex(uint32(1));
+        _createSlot(group, false, 300);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        _createSlot(networkSlot, false, 100);
+        _createSlot(networkSlot, false, 100);
+        _createSlot(networkSlot, false, 100);
+        uint96 op1 = networkSlot.createIndex(uint32(1));
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+        uint96 op3 = networkSlot.createIndex(uint32(3));
+
+        assertEq(delegator.getFilled(networkSlot, 0), 300);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 300);
+
+        vm.warp(1);
+        delegator.swapSlots(op1, op3);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 300);
+
+        vm.warp(2);
+        delegator.setSize(op3, 70);
+        assertEq(delegator.getPending(op3, 0), 30);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 30);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 300);
+
+        vm.warp(3);
+        delegator.swapSlots(op3, op2);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 300);
+
+        vm.warp(4);
+        _withdraw(alice, 120);
+        _deposit(bob, 50);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 300);
+
+        vm.warp(EPOCH_DURATION + 5);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 0);
+        assertEq(
+            delegator.getFilled(networkSlot, 0),
+            delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
+        );
+        assertEq(delegator.getFilled(networkSlot, 0), 230);
+        assertEq(delegator.getFilled(networkSlot, 0), delegator.getFilled(networkSlot, EPOCH_DURATION));
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 230);
+    }
+
+    struct Test_GetFilledInvariantAfterSlashingResetRemovalStruct {
+        address network1;
+        address network2;
+        address middleware;
+        address operator1;
+        address operator2;
+        address operator3;
+        address extraOperator;
+        bytes32 subnetwork1;
+        bytes32 subnetwork2;
+        uint96 group;
+        uint96 networkSlot1;
+        uint96 networkSlot2;
+        uint96 opSlot1;
+        uint96 opSlot2;
+        uint96 opSlot3;
+        uint96 extraSlot;
+        uint256 slashIndex;
+        uint256 slashedAmount;
+    }
+
+    function test_getFilled_invariant_afterSlashingResetRemovalAndStakeChanges() public {
+        Test_GetFilledInvariantAfterSlashingResetRemovalStruct memory testStruct;
+        testStruct.network1 = makeAddr("filled-network-1");
+        testStruct.network2 = makeAddr("filled-network-2");
+        testStruct.middleware = makeAddr("filled-middleware");
+        testStruct.operator1 = alice;
+        testStruct.operator2 = bob;
+        testStruct.operator3 = makeAddr("filled-operator-3");
+        testStruct.extraOperator = makeAddr("filled-extra-operator");
+
+        _registerNetwork(testStruct.network1, testStruct.middleware);
+        _registerNetwork(testStruct.network2, testStruct.middleware);
+        _registerOperator(testStruct.operator1);
+        _registerOperator(testStruct.operator2);
+        _registerOperator(testStruct.operator3);
+        _registerOperator(testStruct.extraOperator);
+        _optIn(testStruct.operator1, testStruct.network1);
+        _optIn(testStruct.operator2, testStruct.network1);
+        _optIn(testStruct.operator3, testStruct.network2);
+
+        testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
+        testStruct.subnetwork2 = testStruct.network2.subnetwork(0);
+
+        _deposit(alice, 500);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        testStruct.group = _rootIndex(uint32(1));
+        _createNetworkSlot(testStruct.group, testStruct.subnetwork1, 300);
+        _createNetworkSlot(testStruct.group, testStruct.subnetwork2, 200);
+        testStruct.networkSlot1 = testStruct.group.createIndex(uint32(1));
+        testStruct.networkSlot2 = testStruct.group.createIndex(uint32(2));
+
+        _createOperatorSlot(testStruct.networkSlot1, testStruct.operator1, 180);
+        _createOperatorSlot(testStruct.networkSlot1, testStruct.operator2, 180);
+        testStruct.opSlot1 = testStruct.networkSlot1.createIndex(uint32(1));
+        testStruct.opSlot2 = testStruct.networkSlot1.createIndex(uint32(2));
+
+        _createOperatorSlot(testStruct.networkSlot2, testStruct.operator3, 200);
+        testStruct.opSlot3 = testStruct.networkSlot2.createIndex(uint32(1));
+
+        assertEq(
+            delegator.getFilled(testStruct.networkSlot1, 0),
+            delegator.getAllocated(testStruct.opSlot1, 0) + delegator.getAllocated(testStruct.opSlot2, 0)
+        );
+        assertEq(delegator.getFilled(testStruct.networkSlot2, 0), delegator.getAllocated(testStruct.opSlot3, 0));
+        assertEq(delegator.getFilled(testStruct.networkSlot1, 0), 300);
+        assertEq(delegator.getFilled(testStruct.networkSlot2, 0), 200);
+
+        vm.warp(1);
+        _withdraw(alice, 100);
+        _deposit(bob, 40);
+        assertEq(delegator.getFilled(testStruct.networkSlot1, 0), 300);
+        assertEq(delegator.getFilled(testStruct.networkSlot2, 0), 200);
+
+        vm.startPrank(testStruct.middleware);
+        testStruct.slashIndex = slasher.requestSlash(testStruct.subnetwork1, testStruct.operator1, 70, 0, "");
+        testStruct.slashedAmount = slasher.executeSlash(testStruct.slashIndex, "");
+        vm.stopPrank();
+        assertGt(testStruct.slashedAmount, 0);
+        assertEq(testStruct.slashedAmount, 70);
+        assertEq(
+            delegator.getFilled(testStruct.networkSlot1, 0),
+            delegator.getAllocated(testStruct.opSlot1, 0) + delegator.getAllocated(testStruct.opSlot2, 0)
+        );
+        assertEq(delegator.getFilled(testStruct.networkSlot1, 0), 230);
+
+        vm.prank(testStruct.middleware);
+        delegator.resetAllocation(testStruct.subnetwork2);
+        assertEq(delegator.getSlotOfNetwork(testStruct.subnetwork2), 0);
+        assertEq(
+            delegator.getFilled(testStruct.networkSlot1, 0),
+            delegator.getAllocated(testStruct.opSlot1, 0) + delegator.getAllocated(testStruct.opSlot2, 0)
+        );
+        assertEq(delegator.getFilled(testStruct.networkSlot1, 0), 230);
+
+        delegator.grantRole(REMOVE_SLOT_ROLE, owner);
+        _createOperatorSlot(testStruct.networkSlot1, testStruct.extraOperator, 0);
+        testStruct.extraSlot = testStruct.networkSlot1.createIndex(uint32(3));
+        delegator.removeSlot(testStruct.extraSlot);
+        assertEq(delegator.getSlotOfOperator(testStruct.networkSlot1, testStruct.extraOperator), 0);
+
+        assertEq(
+            delegator.getFilled(testStruct.networkSlot1, 0),
+            delegator.getAllocated(testStruct.opSlot1, 0) + delegator.getAllocated(testStruct.opSlot2, 0)
+        );
+        assertEq(delegator.getFilled(testStruct.networkSlot1, 0), 230);
+    }
+
     function test_isolatedGroups_prioritizedOverTime() public {
         _createSlot(0, false, 30);
         _createSlot(0, false, 50);
