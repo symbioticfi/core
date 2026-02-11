@@ -86,11 +86,11 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
     }
 
     function setNeedPrevSumsSyncRaw(uint96 parentIndex, bool value) external {
-        slots[parentIndex].needPrevSumsSync = value;
+        slots[parentIndex].needPrevSumsSync.push(uint48(block.timestamp), value ? 1 : 0);
     }
 
     function needPrevSumsSyncRaw(uint96 parentIndex) external view returns (bool) {
-        return slots[parentIndex].needPrevSumsSync;
+        return slots[parentIndex].needPrevSumsSync.latest() > 0;
     }
 
     function setParentChildrenRaw(
@@ -100,15 +100,15 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
         uint32 totalChildren,
         uint32 existChildren
     ) external {
-        slots[parentIndex].firstChild = firstChild;
-        slots[parentIndex].lastChild = lastChild;
+        slots[parentIndex].firstChild.push(uint48(block.timestamp), firstChild);
+        slots[parentIndex].lastChild.push(uint48(block.timestamp), lastChild);
         slots[parentIndex].totalChildren = totalChildren;
         slots[parentIndex].existChildren = existChildren;
     }
 
     function setSlotLinksRaw(uint96 index, uint32 prevSlot, uint32 nextSlot) external {
         slots[index].prevSlot = prevSlot;
-        slots[index].nextSlot = nextSlot;
+        slots[index].nextSlot.push(uint48(block.timestamp), nextSlot);
     }
 
     function pushSizeRaw(uint96 index, uint48 key, uint208 size) external {
@@ -585,7 +585,7 @@ contract UniversalDelegatorTest is Test {
         _createSlot(group, false, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
 
-        assertEq(delegator.getFilled(networkSlot, 0), 0);
+        assertEq(delegator.getFilled(networkSlot, 0), 100);
     }
 
     function test_getFilled_matchesSumOfOperatorsForNetwork() public {
@@ -1900,26 +1900,22 @@ contract UniversalDelegatorTest is Test {
     }
 
     function test_syncPrevSums_modifier_clearsInjectedFlag() public {
-        _deposit(alice, 100);
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
 
-        _createSlot(0, false, 100);
-        uint96 group = _rootIndex(uint32(1));
-        _createSlot(group, false, 60);
-        uint96 child = group.createIndex(uint32(1));
+        uint96 parent = _rootIndex(uint32(1));
+        uint96 child = parent.createIndex(uint32(1));
 
-        bytes32 groupSlot = keccak256(abi.encode(uint256(group), uint256(3)));
-        bytes32 groupData = vm.load(address(delegator), groupSlot);
-        bytes32 groupDataWithFlag = groupData | bytes32(uint256(1) << (27 * 8));
-        vm.store(address(delegator), groupSlot, groupDataWithFlag);
-        bytes32 groupDataBefore = vm.load(address(delegator), groupSlot);
-        assertEq((uint256(groupDataBefore) >> (27 * 8)) & 0xFF, 1);
+        harness.setSlotExistsRaw(parent, true);
+        harness.setSlotExistsRaw(child, true);
+        harness.setParentChildrenRaw(parent, 1, 1, 1, 1);
+        harness.setSlotLinksRaw(child, 0, 0);
+        harness.pushSizeRaw(child, 1, 60);
+        harness.setNeedPrevSumsSyncRaw(parent, true);
 
-        uint128 currentSize = delegator.getSlot(child).size;
-        uint208 pending = delegator.setSize(child, currentSize);
-        assertEq(pending, 0);
+        harness.exposeSyncPrevSums(parent);
 
-        bytes32 groupDataAfter = vm.load(address(delegator), groupSlot);
-        assertEq((uint256(groupDataAfter) >> (27 * 8)) & 0xFF, 0);
+        assertFalse(harness.needPrevSumsSyncRaw(parent));
+        assertEq(harness.prevSumLatestRaw(child), 0);
     }
 
     function test_viewWrappersAndHints() public {

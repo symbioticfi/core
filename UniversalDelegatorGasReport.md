@@ -7,12 +7,12 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call           | Hints |             Gas |
 | -------------- | ----- | --------------: |
-| `stakeForAt` | no | 141,439 ($0.03) |
-| `stakeForAt` | yes | 141,439 ($0.03) |
-| `requestSlash` | no | 296,901 ($0.06) |
-| `requestSlash` | yes | 296,901 ($0.06) |
-| `executeSlash` | no | 664,316 ($0.14) |
-| `executeSlash` | yes | 664,316 ($0.14) |
+| `stakeForAt` | no | 149,415 ($0.03) |
+| `stakeForAt` | yes | 149,415 ($0.03) |
+| `requestSlash` | no | 304,433 ($0.07) |
+| `requestSlash` | yes | 304,433 ($0.07) |
+| `executeSlash` | no | 790,800 ($0.17) |
+| `executeSlash` | yes | 790,800 ($0.17) |
 
 Notes:
 
@@ -31,12 +31,12 @@ These are immediate child calls of `UniversalSlasher::executeSlash` from the tra
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 0 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 142,295 ($0.03) | heavy path (read-only) |
-| `VaultV2::delegator` (via proxy) | 2,321 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 120,635 ($0.03) | delegator hook |
-| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,321 ($0.00) | delegator address lookup |
-| `UniversalDelegator::getIsNoPlugins` | 2,285 ($0.00) | plugin mode check |
-| `VaultV2::onSlash` (via proxy) | 346,734 ($0.08) | vault accounting + burn |
+| `UniversalSlasher::slashableStake` | 149,805 ($0.03) | heavy path (read-only) |
+| `VaultV2::delegator` (via proxy) | 2,299 ($0.00) | delegator address lookup |
+| `UniversalDelegator::onSlash` | 239,681 ($0.05) | delegator hook |
+| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,299 ($0.00) | delegator address lookup |
+| `UniversalDelegator::getIsNoPlugins` | 2,279 ($0.00) | plugin mode check |
+| `VaultV2::onSlash` (via proxy) | 346,712 ($0.08) | vault accounting + burn |
 | `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
@@ -50,12 +50,12 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,623 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 0 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 142,295 ($0.03) | higher due to hint decoding/usage |
-| `VaultV2::delegator` (via proxy) | 2,321 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash` | 120,635 ($0.03) | delegator hook |
-| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,321 ($0.00) | delegator address lookup |
-| `UniversalDelegator::getIsNoPlugins` | 2,285 ($0.00) | plugin mode check |
-| `VaultV2::onSlash` (via proxy) | 346,734 ($0.08) | vault accounting + burn |
+| `UniversalSlasher::slashableStake` | 149,805 ($0.03) | higher due to hint decoding/usage |
+| `VaultV2::delegator` (via proxy) | 2,299 ($0.00) | delegator address lookup |
+| `UniversalDelegator::onSlash` | 239,681 ($0.05) | delegator hook |
+| `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 2,299 ($0.00) | delegator address lookup |
+| `UniversalDelegator::getIsNoPlugins` | 2,279 ($0.00) | plugin mode check |
+| `VaultV2::onSlash` (via proxy) | 346,712 ($0.08) | vault accounting + burn |
 | `UniversalSlasher::_burnerOnSlash` | 165 ($0.00) | burner hook |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter` | 0 ($0.00) | exit guard |
 
