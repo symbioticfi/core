@@ -338,7 +338,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 withdrawnAssets, uint256 burnedShares)
     {
         unchecked {
-            withdrawnAssets = Math.min(amount, IUniversalDelegator(delegator).getWithdrawalBuffer());
+            withdrawnAssets =
+                Math.min(Math.min(amount, _availableToSlash()), IUniversalDelegator(delegator).getWithdrawalBuffer());
 
             _revertIfZero(withdrawnAssets);
 

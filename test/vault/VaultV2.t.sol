@@ -3348,6 +3348,33 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginAllocated(address(plugin)), 20);
     }
 
+    function test_InstantWithdraw_capsByAvailableToSlash() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+
+        uint256 buffer = IUniversalDelegator(vault.delegator()).getWithdrawalBuffer();
+        assertEq(buffer, 100);
+
+        uint256 liquidBefore = collateral.balanceOf(address(vault));
+        assertEq(liquidBefore, 20);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 60);
+
+        assertEq(withdrawnAssets, liquidBefore);
+        assertGt(burnedShares, 0);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+    }
+
     function test_InstantWithdrawRevertInsufficientAmount() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
