@@ -8,10 +8,29 @@ pragma solidity ^0.8.0;
 interface IVaultV2Storage {
     /* ERRORS */
 
+    /**
+     * @notice Raised when a timestamp argument is invalid for a checkpoint lookup.
+     */
     error InvalidTimestamp();
+
+    /**
+     * @notice Raised when there is no previous epoch for the requested operation.
+     */
     error NoPreviousEpoch();
 
     /* FUNCTIONS */
+
+    /**
+     * @notice Get if the deposit whitelist is enabled.
+     * @return If The deposit whitelist is enabled.
+     */
+    function depositWhitelist() external view returns (bool);
+
+    /**
+     * @notice Get if the deposit limit is set.
+     * @return If The deposit limit is set.
+     */
+    function isDepositLimit() external view returns (bool);
 
     /**
      * @notice Get a vault collateral.
@@ -26,6 +45,12 @@ interface IVaultV2Storage {
     function burner() external view returns (address);
 
     /**
+     * @notice Get a duration of the vault withdrawal delay.
+     * @return Duration Of the withdrawal delay.
+     */
+    function epochDuration() external view returns (uint48);
+
+    /**
      * @notice Get a delegator (it delegates the vault's stake to networks and operators).
      * @return Address Of the delegator.
      */
@@ -38,16 +63,10 @@ interface IVaultV2Storage {
     function slasher() external view returns (address);
 
     /**
-     * @notice Get a duration of the vault withdrawal delay.
-     * @return Duration Of the withdrawal delay.
+     * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
+     * @return Deposit Limit.
      */
-    function epochDuration() external view returns (uint48);
-
-    /**
-     * @notice Get if the deposit whitelist is enabled.
-     * @return If The deposit whitelist is enabled.
-     */
-    function depositWhitelist() external view returns (bool);
+    function depositLimit() external view returns (uint256);
 
     /**
      * @notice Get if a given account is whitelisted as a depositor.
@@ -57,16 +76,39 @@ interface IVaultV2Storage {
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
-     * @notice Get if the deposit limit is set.
-     * @return If The deposit limit is set.
+     * @notice Get if the withdrawal is claimed for a particular account at a given index.
+     * @param index Index to check the withdrawal for the account at.
+     * @param account Account to check the withdrawal for.
+     * @return If The withdrawal is claimed for the account at the index.
      */
-    function isDepositLimit() external view returns (bool);
+    function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
 
     /**
-     * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
-     * @return Deposit Limit.
+     * @notice Get a plugin address by index.
+     * @param index Index of the plugin in the plugins array.
+     * @return Plugin Address at the requested index.
      */
-    function depositLimit() external view returns (uint256);
+    function plugins(uint256 index) external view returns (address);
+
+    /**
+     * @notice Get a plugin allocation limit.
+     * @param plugin Address of the plugin.
+     * @return Limit Maximum collateral amount allocatable to the plugin.
+     */
+    function pluginLimit(address plugin) external view returns (uint208);
+
+    /**
+     * @notice Get the total amount allocated across all plugins.
+     * @return Allocated Total collateral amount allocated to plugins.
+     */
+    function pluginsAllocated() external view returns (uint256);
+
+    /**
+     * @notice Get the currently allocated amount for a plugin.
+     * @param plugin Address of the plugin.
+     * @return Allocated Collateral amount allocated to the plugin.
+     */
+    function pluginAllocated(address plugin) external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault at a given timestamp using a hint.
@@ -113,17 +155,10 @@ interface IVaultV2Storage {
     function activeSharesOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get a index of the last withdrawal bucket.
+     * @notice Get the index of the last withdrawal bucket.
      * @return Index Of the last withdrawal bucket.
      */
     function withdrawalBucket() external view returns (uint208);
-
-    /**
-     * @notice Get a total amount of the withdrawals at a given bucket index.
-     * @param index Index to get the total amount of the withdrawals at.
-     * @return Total Amount of the withdrawals at the bucket index.
-     */
-    function withdrawals(uint256 index) external view returns (uint256);
 
     /**
      * @notice Get a total number of withdrawal shares at a given bucket index.
@@ -133,20 +168,15 @@ interface IVaultV2Storage {
     function withdrawalShares(uint256 index) external view returns (uint256);
 
     /**
-     * @notice Get if the withdrawal is claimed for a particular account at a given index.
-     * @param index Index to check the withdrawal for the account at.
-     * @param account Account to check the withdrawal for.
-     * @return If The withdrawal is claimed for the account at the index.
+     * @notice Get a total amount of the withdrawals at a given bucket index.
+     * @param index Index to get the total amount of the withdrawals at.
+     * @return Total Amount of the withdrawals at the bucket index.
      */
-    function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
+    function withdrawals(uint256 index) external view returns (uint256);
 
-    function pluginLimit(address plugin) external view returns (uint208);
-
-    function plugins(uint256 index) external view returns (address);
-
+    /**
+     * @notice Get the number of configured plugins.
+     * @return Length Number of plugins.
+     */
     function pluginsLength() external view returns (uint256);
-
-    function pluginsAllocated() external view returns (uint256);
-
-    function pluginAllocated(address plugin) external view returns (uint256);
 }

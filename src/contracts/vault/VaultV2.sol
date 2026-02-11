@@ -393,7 +393,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /// @inheritdoc IVaultV2
+    /// @dev Credit rewards donation into active stake after pulling collateral from the rewards address.
     function donate(uint256 amount) public nonReentrant {
         unchecked {
             if (REWARDS != msg.sender) {
@@ -727,7 +727,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit SyncOwedSlash(slashedAmount);
     }
 
-    /// @inheritdoc IVaultV2
+    /// @dev Set the vault delegator once after validating registry membership and vault linkage.
     function setDelegator(address newDelegator) public nonReentrant {
         if (_isDelegatorInitialized) {
             revert DelegatorAlreadyInitialized();
@@ -748,7 +748,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit SetDelegator(newDelegator);
     }
 
-    /// @inheritdoc IVaultV2
+    /// @dev Set the vault slasher once after validating registry membership and vault linkage.
     function setSlasher(address newSlasher) public nonReentrant {
         if (_isSlasherInitialized) {
             revert SlasherAlreadyInitialized();

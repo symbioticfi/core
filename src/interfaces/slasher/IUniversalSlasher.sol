@@ -13,27 +13,133 @@ uint256 constant BURNER_RESERVE = 20_000;
 interface IUniversalSlasher {
     /* ERRORS */
 
+    /**
+     * @notice Raised when trying to set a value that is already set.
+     */
     error AlreadySet();
+
+    /**
+     * @notice Raised when the requested slash amount is zero after validation.
+     */
     error InsufficientSlash();
+
+    /**
+     * @notice Raised when the provided capture timestamp is invalid.
+     */
     error InvalidCaptureTimestamp();
+
+    /**
+     * @notice Raised when the resolver set delay is outside allowed bounds.
+     */
     error InvalidResolverSetEpochsDelay();
+
+    /**
+     * @notice Raised when the veto duration is outside allowed bounds.
+     */
     error InvalidVetoDuration();
+
+    /**
+     * @notice Raised when an operation requires a resolver but none is configured.
+     */
     error NoResolver();
+
+    /**
+     * @notice Raised when the caller is not a registered network.
+     */
     error NotNetwork();
+
+    /**
+     * @notice Raised when the caller is not the configured resolver.
+     */
     error NotResolver();
+
+    /**
+     * @notice Raised when the slash request has already been completed.
+     */
     error SlashRequestCompleted();
+
+    /**
+     * @notice Raised when the slash request does not exist.
+     */
     error SlashRequestNotExist();
+
+    /**
+     * @notice Raised when the veto period has already ended.
+     */
     error VetoPeriodEnded();
+
+    /**
+     * @notice Raised when the veto period has not ended yet.
+     */
     error VetoPeriodNotEnded();
+
+    /**
+     * @notice Raised when the connected vault version is older than required.
+     */
     error OldVault();
+
+    /**
+     * @notice Raised when migration functions are called outside migration mode.
+     */
     error NotMigrating();
+
+    /**
+     * @notice Raised when migration input parameters are invalid.
+     */
     error WrongMigrate();
+
+    /**
+     * @notice Raised when burner-hook mode is enabled but the vault has no burner.
+     */
     error NoBurner();
+
+    /**
+     * @notice Raised when there is not enough gas left for the burner hook call.
+     */
     error InsufficientBurnerGas();
+
+    /**
+     * @notice Raised when the caller is not the network middleware for the subnetwork.
+     */
     error NotNetworkMiddleware();
+
+    /**
+     * @notice Raised when the provided vault is invalid.
+     */
     error NotVault();
 
     /* STRUCTS */
+
+    /**
+     * @notice Structure for a slash request.
+     * @param subnetwork Subnetwork that requested the slash.
+     * @param operator Operator that could be slashed (if the request is not vetoed).
+     * @param amount Maximum amount of the collateral to be slashed.
+     * @param createdAt Time point when the request was created (capture timestamp if legacy).
+     * @param vetoDeadline Deadline for the resolver to veto the slash (exclusively).
+     * @param completed If the slash was vetoed/executed.
+     */
+    struct SlashRequest {
+        bytes32 subnetwork;
+        address operator;
+        uint48 createdAt;
+        uint256 amount;
+        address resolver;
+        uint48 vetoDeadline;
+        bool completed;
+    }
+
+    /**
+     * @notice Initial parameters needed for a slasher deployment.
+     * @param isBurnerHook If burner hook calls are enabled on slashes.
+     * @param vetoDuration Duration of the veto period for a slash request.
+     * @param resolverSetDelay Delay in seconds for a network to update a resolver.
+     */
+    struct InitParams {
+        bool isBurnerHook;
+        uint48 vetoDuration;
+        uint48 resolverSetDelay;
+    }
 
     /**
      * @notice Base parameters needed for slashers' deployment.
@@ -67,37 +173,6 @@ interface IUniversalSlasher {
     struct GeneralDelegatorData {
         uint64 slasherType;
         bytes data;
-    }
-
-    /**
-     * @notice Initial parameters needed for a slasher deployment.
-     * @param baseParams Base parameters for slashers' deployment.
-     * @param vetoDuration Duration of the veto period for a slash request.
-     * @param resolverSetDelay Delay in seconds for a network to update a resolver.
-     */
-    struct InitParams {
-        bool isBurnerHook;
-        uint48 vetoDuration;
-        uint48 resolverSetDelay;
-    }
-
-    /**
-     * @notice Structure for a slash request.
-     * @param subnetwork Subnetwork that requested the slash.
-     * @param operator Operator that could be slashed (if the request is not vetoed).
-     * @param amount Maximum amount of the collateral to be slashed.
-     * @param createdAt Time point when the request was created (capture timestamp if legacy).
-     * @param vetoDeadline Deadline for the resolver to veto the slash (exclusively).
-     * @param completed If the slash was vetoed/executed.
-     */
-    struct SlashRequest {
-        bytes32 subnetwork;
-        address operator;
-        uint48 createdAt;
-        uint256 amount;
-        address resolver;
-        uint48 vetoDeadline;
-        bool completed;
     }
 
     /* EVENTS */
@@ -139,6 +214,12 @@ interface IUniversalSlasher {
      */
     event SetResolver(bytes32 indexed subnetwork, address resolver);
 
+    /**
+     * @notice Emitted when owed slashing is synced for an operator.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @param slashed Amount of collateral synced and burned.
+     */
     event SyncOwedSlash(bytes32 indexed subnetwork, address indexed operator, uint256 slashed);
 
     /**
@@ -162,27 +243,31 @@ interface IUniversalSlasher {
     function isBurnerHook() external view returns (bool);
 
     /**
-     * @notice Get a slashable amount of a stake got at a given capture timestamp using hints.
-     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
-     * @param operator Address of the operator.
-     * @param captureTimestamp Time point to get the stake amount at.
-     * @param hints Hints for the checkpoints' indexes.
-     * @return Slashable Amount of the stake.
-     */
-    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
-        external
-        view
-        returns (uint256);
-
-    /**
-     * @notice Get the network registry's address.
-     * @return Address Of the network registry.
-     */
-    /**
      * @notice Get a duration during which resolvers can veto slash requests.
      * @return Duration Of the veto period.
      */
     function vetoDuration() external view returns (uint48);
+
+    /**
+     * @notice Get a delay for networks in seconds to update a resolver.
+     * @return Updating Resolver delay in seconds.
+     */
+    function resolverSetDelay() external view returns (uint48);
+
+    /**
+     * @notice Get pending resolver activation data for a subnetwork.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @return Data Encoded pending resolver address and activation timestamp.
+     */
+    function pendingResolverData(bytes32 subnetwork) external view returns (bytes32);
+
+    /**
+     * @notice Get owed slash amount for a subnetwork and operator.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @return Amount Outstanding slash amount not yet synced to burner.
+     */
+    function owed(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
      * @notice Get a total number of slash requests.
@@ -198,29 +283,33 @@ interface IUniversalSlasher {
     function slashRequests(uint256 slashIndex) external view returns (SlashRequest memory request);
 
     /**
-     * @notice Get a delay for networks in seconds to update a resolver.
-     * @return Updating Resolver delay in seconds.
-     */
-    function resolverSetDelay() external view returns (uint48);
-
-    /**
      * @notice Get a resolver for a given subnetwork.
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @return Address Of the resolver.
      */
     function resolver(bytes32 subnetwork) external view returns (address);
 
-    function pendingResolverData(bytes32 subnetwork) external view returns (bytes32);
-
-    function owed(bytes32 subnetwork, address operator) external view returns (uint256);
+    /**
+     * @notice Get a slashable amount of stake at a given capture timestamp.
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param operator Address of the operator.
+     * @param captureTimestamp Time point to get the stake amount at.
+     * @param hints Reserved hints payload for compatibility.
+     * @return Slashable Amount of the stake.
+     * @dev Can use 0 as a capture timestamp to get the current stake amount.
+     */
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
+        external
+        view
+        returns (uint256);
 
     /**
-     * @notice Request a slash using a subnetwork for a particular operator by a given amount using hints.
+     * @notice Request a slash using a subnetwork for a particular operator by a given amount.
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @param operator Address of the operator.
      * @param amount Maximum amount of the collateral to be slashed.
-     * @param captureTimestamp Time point when the stake was captured.
-     * @param hints Hints for checkpoints' indexes.
+     * @param captureTimestamp Legacy parameter reserved for compatibility (can use 0 as a capture timestamp to get the current stake amount).
+     * @param hints Reserved hints payload for compatibility.
      * @return slashIndex Index of the slash request.
      * @dev Only a network middleware can call this function.
      */
@@ -233,10 +322,10 @@ interface IUniversalSlasher {
     ) external returns (uint256 slashIndex);
 
     /**
-     * @notice Execute a slash with a given slash index using hints.
+     * @notice Execute a slash with a given slash index.
      * @param slashIndex Index of the slash request.
-     * @param hints Hints for checkpoints' indexes.
-     * @return slashedAmount Virtual amount of the collateral slashed.
+     * @param hints Reserved hints payload for compatibility.
+     * @return slashedAmount Virtual amount of collateral slashed.
      * @dev Only a network middleware can call this function.
      */
     function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);

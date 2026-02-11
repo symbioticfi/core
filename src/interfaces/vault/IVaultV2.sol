@@ -34,39 +34,174 @@ uint48 constant MAX_DURATION = 1000 * 365 days;
 interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     /* ERRORS */
 
+    /**
+     * @notice Raised when the caller is not the configured rewards address.
+     */
     error NotRewards();
+
+    /**
+     * @notice Raised when a withdrawal is already claimed.
+     */
     error AlreadyClaimed();
+
+    /**
+     * @notice Raised when trying to set a value that is already set.
+     */
     error AlreadySet();
+
+    /**
+     * @notice Raised when delegator initialization is attempted more than once.
+     */
     error DelegatorAlreadyInitialized();
+
+    /**
+     * @notice Raised when a deposit would exceed the configured deposit limit.
+     */
     error DepositLimitReached();
+
+    /**
+     * @notice Raised when there is nothing claimable for the request.
+     */
     error InsufficientClaim();
+
+    /**
+     * @notice Raised when the provided amount is zero or insufficient.
+     */
     error InsufficientAmount();
+
+    /**
+     * @notice Raised when redemption output is insufficient.
+     */
     error InsufficientRedemption();
+
+    /**
+     * @notice Raised when withdrawal output is insufficient.
+     */
     error InsufficientWithdrawal();
+
+    /**
+     * @notice Raised when an address argument is invalid.
+     */
     error InvalidAddress();
+
+    /**
+     * @notice Raised when capture epoch input is invalid.
+     */
     error InvalidCaptureEpoch();
+
+    /**
+     * @notice Raised when claimer address is invalid.
+     */
     error InvalidClaimer();
+
+    /**
+     * @notice Raised when collateral address is invalid.
+     */
     error InvalidCollateral();
+
+    /**
+     * @notice Raised when delegator address is invalid.
+     */
     error InvalidDelegator();
+
+    /**
+     * @notice Raised when epoch duration is outside allowed bounds.
+     */
     error TooLongDuration();
+
+    /**
+     * @notice Raised when epochs-length input is invalid.
+     */
     error InvalidLengthEpochs();
+
+    /**
+     * @notice Raised when on-behalf-of address is invalid.
+     */
     error InvalidOnBehalfOf();
+
+    /**
+     * @notice Raised when recipient address is invalid.
+     */
     error InvalidRecipient();
+
+    /**
+     * @notice Raised when slasher address is invalid.
+     */
     error InvalidSlasher();
+
+    /**
+     * @notice Raised when required role holders are missing at initialization.
+     */
     error MissingRoles();
+
+    /**
+     * @notice Raised when the provided delegator is not recognized.
+     */
     error NotDelegator();
+
+    /**
+     * @notice Raised when the provided slasher is not recognized.
+     */
     error NotSlasher();
+
+    /**
+     * @notice Raised when depositor is not in the whitelist while whitelist is enabled.
+     */
     error NotWhitelistedDepositor();
+
+    /**
+     * @notice Raised when slasher initialization is attempted more than once.
+     */
     error SlasherAlreadyInitialized();
+
+    /**
+     * @notice Raised when redeeming more shares than available.
+     */
     error TooMuchRedeem();
+
+    /**
+     * @notice Raised when withdrawing more assets than available.
+     */
     error TooMuchWithdraw();
+
+    /**
+     * @notice Raised when withdrawal is not yet matured.
+     */
     error WithdrawalNotMatured();
+
+    /**
+     * @notice Raised when fee-on-transfer behavior is unsupported for the operation.
+     */
     error FeeOnTransferNotSupported();
+
+    /**
+     * @notice Raised when trying to add a plugin that is already configured.
+     */
     error DuplicatePlugin();
+
+    /**
+     * @notice Raised when plugin allocation exceeds or conflicts with limits.
+     */
     error PluginAllocated();
+
+    /**
+     * @notice Raised when plugin count exceeds the configured maximum.
+     */
     error TooManyPlugins();
+
+    /**
+     * @notice Raised when migration-dependent actions are called before migration completion.
+     */
     error MigrationNotCompleted();
+
+    /**
+     * @notice Raised when trying to whitelist a depositor that is already whitelisted.
+     */
     error DuplicateDepositor();
+
+    /**
+     * @notice Raised when depositor address provided for whitelist initialization is invalid.
+     */
     error InvalidDepositorToWhitelist();
 
     /* STRUCTS */
@@ -79,6 +214,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param burner Vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
      * @param epochDuration Duration of the vault epoch (it determines sync points for withdrawals).
      * @param depositWhitelist If enabling deposit whitelist.
+     * @param depositorToWhitelist Initial depositor address to whitelist.
      * @param isDepositLimit If enabling deposit limit.
      * @param depositLimit Deposit limit (maximum amount of the collateral that can be in the vault simultaneously).
      * @param defaultAdminRoleHolder Address of the initial DEFAULT_ADMIN_ROLE holder.
@@ -124,6 +260,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         bytes slasherParams;
     }
 
+    /**
+     * @notice Plugin configuration entry for initialization.
+     * @param plugin Address of the plugin.
+     * @param limit Allocation limit for the plugin.
+     */
     struct PluginData {
         address plugin;
         uint208 limit;
@@ -153,6 +294,13 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     );
 
     /**
+     * @notice Emitted when an instant withdrawal is made.
+     * @param recipient Account that received the collateral.
+     * @param amount Amount of the collateral withdrawn.
+     */
+    event InstantWithdraw(address indexed recipient, uint256 amount);
+
+    /**
      * @notice Emitted when a claim is made.
      * @param claimer Account that claimed.
      * @param recipient Account that received the collateral.
@@ -170,6 +318,10 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] indexes, uint256 amount);
 
+    /**
+     * @notice Emitted when collateral is donated into vault accounting.
+     * @param amount Donated collateral amount.
+     */
     event Donate(uint256 amount);
 
     /**
@@ -204,10 +356,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     event SetDepositLimit(uint256 limit);
 
-    event Deallocate(address indexed plugin, uint256 amount);
-
-    event Allocate(address indexed plugin, uint256 amount);
-
     /**
      * @notice Emitted when a limit is set.
      * @param plugin Address of the plugin.
@@ -223,6 +371,26 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     event SwapPlugins(address indexed plugin1, address indexed plugin2);
 
     /**
+     * @notice Emitted when collateral is allocated to a plugin.
+     * @param plugin Address of the plugin.
+     * @param amount Allocated amount.
+     */
+    event Allocate(address indexed plugin, uint256 amount);
+
+    /**
+     * @notice Emitted when collateral is deallocated from a plugin.
+     * @param plugin Address of the plugin.
+     * @param amount Deallocated amount.
+     */
+    event Deallocate(address indexed plugin, uint256 amount);
+
+    /**
+     * @notice Emitted when a slashing is synced.
+     * @param amount Amount of the collateral to slash.
+     */
+    event SyncOwedSlash(uint256 amount);
+
+    /**
      * @notice Emitted when a delegator is set.
      * @param delegator Vault's delegator to delegate the stake to networks and operators.
      * @dev Can be set only once.
@@ -235,19 +403,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @dev Can be set only once.
      */
     event SetSlasher(address indexed slasher);
-
-    /**
-     * @notice Emitted when a instant withdrawal is made.
-     * @param recipient Account that received the collateral.
-     * @param amount Amount of the collateral withdrawn.
-     */
-    event InstantWithdraw(address indexed recipient, uint256 amount);
-
-    /**
-     * @notice Emitted when a slashing is synced.
-     * @param amount Amount of the collateral to slash.
-     */
-    event SyncOwedSlash(uint256 amount);
 
     /**
      * @notice Emitted when a vault is initialized.
@@ -306,16 +461,16 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function activeWithdrawalsAt(uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the withdrawals.
-     * @return Total Amount of the withdrawals.
+     * @notice Get the current amount of active withdrawals.
+     * @return Total Amount of active withdrawals.
      */
     function activeWithdrawals() external view returns (uint256);
 
     /**
-     * @notice Get an active balance for a particular account at a given timestamp using hints.
+     * @notice Get an active balance for a particular account at a given timestamp.
      * @param account Account to get the active balance for.
      * @param timestamp Time point to get the active balance for the account at.
-     * @param hints Hints for checkpoints' indexes.
+     * @param hints Reserved hints payload for compatibility.
      * @return Active Balance for the account at the timestamp.
      */
     function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
@@ -343,7 +498,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function withdrawalSharesOf(uint256 index, address account) external view returns (uint256);
 
     /**
-     * @notice Get when the withdrawal become claimable for a particular account at a given index.
+     * @notice Get when the withdrawal becomes claimable for a particular account at a given index.
      * @param index Index to check the withdrawals for the account at.
      * @param account Account to check the withdrawal for.
      * @return When The withdrawal is claimable for the account at the index.
@@ -351,7 +506,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function withdrawalUnlockAfter(uint256 index, address account) external view returns (uint48);
 
     /**
-     * @notice Get withdrawals for a particular account at a given index (zero if claimed) using hints.
+     * @notice Get withdrawals for a particular account at a given index (zero if claimed).
      * @param index Index to get the withdrawals for the account at.
      * @param account Account to get the withdrawals for.
      * @return Withdrawals For the account at the index.
@@ -397,6 +552,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Instant withdraw collateral from the vault.
      * @param recipient Account that received the collateral.
      * @param amount Amount of the collateral withdrawn.
+     * @return withdrawnAssets Amount of collateral withdrawn.
+     * @return burnedShares Amount of active shares burned.
      */
     function instantWithdraw(address recipient, uint256 amount)
         external
@@ -417,24 +574,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @return amount Amount of the collateral claimed.
      */
     function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
-
-    /**
-     * @notice Donate collateral directly into the vault accounting.
-     * @param amount Amount of collateral to donate.
-     */
-    function donate(uint256 amount) external;
-
-    /**
-     * @notice Set the vault delegator.
-     * @param newDelegator Address of the new delegator.
-     */
-    function setDelegator(address newDelegator) external;
-
-    /**
-     * @notice Set the vault slasher.
-     * @param newSlasher Address of the new slasher.
-     */
-    function setSlasher(address newSlasher) external;
 
     /**
      * @notice Enable/disable deposit whitelist.
@@ -483,15 +622,19 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
 
     /**
      * @notice Allocate collateral to the plugin.
-     * @param amount Amount of the collateral to allocatePlugin.
-     * @dev Only a plugin can call this function.
+     * @param plugin Address of the plugin.
+     * @param amount Amount of collateral to allocate.
+     * @return allocated Amount of collateral allocated.
+     * @dev Only an ALLOCATE_PLUGIN_ROLE holder can call this function.
      */
     function allocatePlugin(address plugin, uint256 amount) external returns (uint256 allocated);
 
     /**
      * @notice Deallocate collateral from the plugin.
-     * @param amount Amount of the collateral to deallocatePlugin.
-     * @dev Only a plugin can call this function.
+     * @param plugin Address of the plugin.
+     * @param amount Amount of collateral to deallocate.
+     * @return deallocated Amount of collateral deallocated.
+     * @dev Only a DEALLOCATE_PLUGIN_ROLE holder can call this function.
      */
     function deallocatePlugin(address plugin, uint256 amount) external returns (uint256 deallocated);
 
