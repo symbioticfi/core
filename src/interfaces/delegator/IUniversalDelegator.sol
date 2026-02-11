@@ -32,6 +32,8 @@ uint256 constant MAX_OPERATORS = 20;
  * @notice Interface for the UniversalDelegator contract.
  */
 interface IUniversalDelegator {
+    /* ERRORS */
+
     error NotEnoughAvailable();
     error NotNetwork();
     error NotSlasher();
@@ -53,6 +55,8 @@ interface IUniversalDelegator {
     error NotEnoughNoPlugins();
     error WrongOrder();
     error TooManyChildren();
+
+    /* STRUCTS */
 
     /**
      * @notice Base parameters needed for delegators' deployment.
@@ -92,6 +96,8 @@ interface IUniversalDelegator {
         uint208 prevSum;
     }
 
+    /* EVENTS */
+
     event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
 
     /**
@@ -120,6 +126,14 @@ interface IUniversalDelegator {
 
     event Initialize(InitParams params);
 
+    /* FUNCTIONS */
+
+    /**
+     * @notice Execute a batch of delegatecalls on the delegator.
+     * @param data Calldata items to execute.
+     */
+    function multicall(bytes[] calldata data) external;
+
     /**
      * @notice Get a version of the delegator (different versions mean different interfaces).
      * @return Version Of the delegator.
@@ -141,16 +155,14 @@ interface IUniversalDelegator {
     function hook() external view returns (address);
 
     /**
-     * @notice Get a particular subnetwork's maximum limit
-     * (meaning the subnetwork is not ready to get more as a stake).
+     * @notice Get a particular subnetwork's maximum limit (meaning the subnetwork is not ready to get more as a stake).
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @return Maximum Limit of the subnetwork.
      */
     function maxNetworkLimit(bytes32 subnetwork) external pure returns (uint256);
 
     /**
-     * @notice Get a stake that a given subnetwork could be able to slash for a certain operator at a given timestamp
-     * until the end of the consequent epoch using hints (if no cross-slashing and no slashings by the subnetwork).
+     * @notice Get a stake that a given subnetwork could be able to slash for a certain operator at a given timestamp until the end of the consequent epoch using hints (if no cross-slashing and no slashings by the subnetwork).
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @param operator Address of the operator.
      * @param timestamp Time point to capture the stake at.
@@ -164,8 +176,7 @@ interface IUniversalDelegator {
         returns (uint256);
 
     /**
-     * @notice Get a stake that a given subnetwork will be able to slash
-     * for a certain operator until the end of the next epoch (if no cross-slashing and no slashings by the subnetwork).
+     * @notice Get a stake that a given subnetwork will be able to slash for a certain operator until the end of the next epoch (if no cross-slashing and no slashings by the subnetwork).
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @param operator Address of the operator.
      * @return Slashable Stake until the end of the next epoch.
@@ -228,6 +239,8 @@ interface IUniversalDelegator {
         returns (uint256);
 
     function getAllocated(bytes32 subnetwork, address operator, uint48 duration) external view returns (uint256);
+
+    function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256);
 
     function getFilled(uint96 index, uint48 duration) external view returns (uint256);
 

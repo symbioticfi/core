@@ -34,37 +34,46 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     using Subnetwork for bytes32;
     using Subnetwork for address;
 
+    /* IMMUTABLES */
+
+    /// @dev Address of the vault factory.
     address internal immutable VAULT_FACTORY;
+    /// @dev Address of the network middleware service.
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
+    /// @dev Address of the network registry.
     address internal immutable NETWORK_REGISTRY;
+
+    /* STATE VARIABLES */
 
     /// @inheritdoc IUniversalSlasher
     address public vault;
-
     /// @inheritdoc IUniversalSlasher
     bool public isBurnerHook;
-
     /// @inheritdoc IUniversalSlasher
     uint48 public vetoDuration;
-
     /// @inheritdoc IUniversalSlasher
     uint48 public resolverSetDelay;
 
-    SlashRequest[] internal _slashRequests;
-
+    /// @inheritdoc IUniversalSlasher
+    mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
+    /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => mapping(address operator => uint256 amount)) public owed;
 
+    /// @dev Slash request storage.
+    SlashRequest[] internal _slashRequests;
+    /// @dev Resolver mapping before pending resolver activation.
     mapping(bytes32 subnetwork => address value) internal _resolver;
-
-    mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
-
+    /// @dev Legacy latest slashed capture timestamps.
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) internal __latestSlashedCaptureTimestamp;
-
+    /// @dev Legacy cumulative slash checkpoints.
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal __cumulativeSlash;
 
+    /// @dev Timestamp when migration from the previous slasher occurred.
     uint48 internal __migrateTimestamp;
-
+    /// @dev Address of the previous slasher during migration.
     address internal __oldSlasher;
+
+    /* CONSTRUCTOR */
 
     constructor(
         address vaultFactory,
@@ -78,13 +87,14 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         NETWORK_REGISTRY = networkRegistry;
     }
 
+    /* VIEW FUNCTIONS */
+
     /// @inheritdoc IUniversalSlasher
     function slashRequestsLength() public view returns (uint256) {
         return _slashRequests.length;
     }
 
     /// @inheritdoc IUniversalSlasher
-    /// @dev Add comment that the resolver here can change depnding on the timestamp when called.
     function slashRequests(uint256 slashIndex) public view returns (SlashRequest memory request) {
         unchecked {
             request = _slashRequests[slashIndex];
@@ -151,6 +161,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                 );
         }
     }
+
+    /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IUniversalSlasher
     function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata hints)
@@ -283,6 +295,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
     /// @inheritdoc IUniversalSlasher
     function syncOwedSlash(bytes32 subnetwork, address operator) public returns (uint256 slashedAmount) {
         unchecked {
@@ -295,12 +309,16 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
+    /* INTERNAL FUNCTIONS */
+
+    /// @dev Revert unless caller is the middleware configured for the request subnetwork.
     function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
     }
 
+    /// @dev Call the burner hook after a slash when burner hook mode is enabled.
     function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
         unchecked {
             if (isBurnerHook) {
@@ -318,6 +336,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
+    /* INITIALIZATION */
+
+    /// @dev Initialize slasher state from encoded initialization parameters.
     function _initialize(bytes calldata data) internal override {
         (address newVault, bytes memory initData) = abi.decode(data, (address, bytes));
 
@@ -354,6 +375,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         emit Initialize(params);
     }
 
+    /* MIGRATION */
+
+    /// @dev Migrate slasher state from the previously configured slasher.
     function migrate() public {
         if (IMigratableEntity(vault).version() != VAULT_V2_VERSION) {
             revert WrongMigrate();
@@ -380,6 +404,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             );
         }
     }
+
+    /* INTERNAL FUNCTIONS (LEGACY) */
 
     /// @dev Legacy support.
     function _latestSlashedCaptureTimestamp(bytes32 subnetwork, address operator) internal view returns (uint48) {

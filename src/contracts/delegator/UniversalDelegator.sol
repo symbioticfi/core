@@ -56,11 +56,14 @@ contract UniversalDelegator is
 
     /* IMMUTABLES */
 
+    /// @dev Address of the network registry.
     address internal immutable NETWORK_REGISTRY;
+    /// @dev Address of the vault factory.
     address internal immutable VAULT_FACTORY;
+    /// @dev Address of the network middleware service.
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
 
-    /* STORAGE */
+    /* STATE VARIABLES */
 
     struct SlotStorage {
         bool exists;
@@ -83,23 +86,31 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
-
     /// @inheritdoc IUniversalDelegator
     address public hook;
 
+    /// @dev Total slot size marked as no-plugins across root groups.
     uint256 internal _noPluginsSize;
-
-    // @dev Index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}.
+    /// @dev Slot storage keyed by encoded slot index.
     mapping(uint96 index => SlotStorage slot) internal slots;
+    /// @dev Mapping from subnetwork id to slot index checkpoints.
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
+    /// @dev Mapping from slot index to subnetwork id.
     mapping(uint96 index => bytes32 subnetwork) internal _slotToNetwork;
+    /// @dev Mapping from parent slot and operator to slot index checkpoints.
     mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
+    /// @dev Mapping from slot index to operator address.
     mapping(uint96 index => address operator) internal _slotToOperator;
+    /// @dev Cumulative slashed amounts per slot.
     mapping(uint96 index => Checkpoints.Trace208 amount) internal _cumulativeSlash;
+    /// @dev Cumulative pending no-plugins amounts.
     Checkpoints.Trace208 internal _noPluginsPendingCumulative;
+    /// @dev Cumulative cleared pending no-plugins amounts.
     Checkpoints.Trace208 internal _clearedNoPluginsPendingCumulative;
 
+    /// @dev Timestamp when migration from the previous delegator occurred.
     uint48 internal __migrateTimestamp;
+    /// @dev Address of the previous delegator during migration.
     address internal __oldDelegator;
 
     /* MODIFIERS */
@@ -120,6 +131,7 @@ contract UniversalDelegator is
         _syncPrevSums(parentIndex);
     }
 
+    /// @dev Synchronize cumulative child prefix sums for a parent slot.
     function _syncPrevSums(uint96 parentIndex) internal {
         unchecked {
             uint208 prevSum;
@@ -136,7 +148,8 @@ contract UniversalDelegator is
 
     /* MULTICALL */
 
-    function multicall(bytes[] calldata data) external {
+    /// @inheritdoc IUniversalDelegator
+    function multicall(bytes[] calldata data) public {
         for (uint256 i; i < data.length; ++i) {
             (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
             if (!success) {
@@ -146,6 +159,8 @@ contract UniversalDelegator is
             }
         }
     }
+
+    /* CONSTRUCTOR */
 
     constructor(
         address networkRegistry,
@@ -290,7 +305,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    /// @dev Returns the collateral balance of a given slot.
     function getBalanceAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             return index > 0
@@ -310,7 +324,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    /// @dev Returns the available to allocate balance in the given slot.
     function getAvailableAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         return getBalanceAt(index, duration, timestamp).saturatingSub(getChildrenPendingAt(index, duration, timestamp));
     }
@@ -321,7 +334,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    /// @dev Returns the allocation of the given slot.
     function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             if (duration > IVaultV2(vault).epochDuration()) {
@@ -436,6 +448,7 @@ contract UniversalDelegator is
         return index > 0 ? getAllocated(index, duration) : 0;
     }
 
+    /// @inheritdoc IUniversalDelegator
     function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -462,6 +475,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @inheritdoc IUniversalDelegator
     function getFilled(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -495,6 +509,7 @@ contract UniversalDelegator is
         return slots[index.getParentIndex()].isShared;
     }
 
+    /// @inheritdoc IUniversalDelegator
     function getIsNoPlugins(bytes32 subnetwork) public view returns (bool) {
         uint96 index = getSlotOfNetwork(subnetwork);
         if (index == 0) {
@@ -503,15 +518,17 @@ contract UniversalDelegator is
         return slots[index.getParentIndex()].noPlugins;
     }
 
+    /// @inheritdoc IUniversalDelegator
     function getNoPluginsSize() public view returns (uint256) {
         return _noPluginsSize + _getNoPluginsPending();
     }
 
+    /// @inheritdoc IUniversalDelegator
     function getWithdrawalBuffer() public view returns (uint256) {
         return getAllocated(WITHDRAWAL_BUFFER_INDEX, 0);
     }
 
-    /* CURATOR FUNCTIONS */
+    /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IUniversalDelegator
     function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
@@ -586,8 +603,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    /// @dev If size increase: just change the size if slot not fully allocated or last child, otherwise use unallocated funds
-    /// if size decrease: just change the size if slot not allocated, otherwise increase pending free.
     function setSize(uint96 index, uint128 newSize)
         public
         onlyRole(SET_SIZE_ROLE)
@@ -705,6 +720,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @inheritdoc IUniversalDelegator
     function removeSlot(uint96 index)
         public
         onlyRole(REMOVE_SLOT_ROLE)
@@ -726,6 +742,7 @@ contract UniversalDelegator is
         _removeSlot(index);
     }
 
+    /// @dev Remove a slot from the linked-list structure and mark it as non-existent.
     function _removeSlot(uint96 index) internal {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -750,8 +767,9 @@ contract UniversalDelegator is
         }
     }
 
-    /* NETWORK FUNCTIONS */
+    /* PUBLIC FUNCTIONS (NETWORK) */
 
+    /// @inheritdoc IUniversalDelegator
     function resetAllocation(bytes32 subnetwork) public {
         unchecked {
             if (
@@ -829,6 +847,7 @@ contract UniversalDelegator is
         emit SetHook(newHook);
     }
 
+    /// @dev Apply slash accounting updates across the affected slot chain and invoke the optional hook.
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
         unchecked {
             if (IVault(vault).slasher() != msg.sender) {
@@ -891,6 +910,9 @@ contract UniversalDelegator is
         }
     }
 
+    /* INITIALIZATION */
+
+    /// @dev Initialize delegator state from encoded initialization parameters.
     function _initialize(bytes calldata data) internal override {
         (address newVault, bytes memory initData) = abi.decode(data, (address, bytes));
 
@@ -921,6 +943,9 @@ contract UniversalDelegator is
         emit Initialize(params);
     }
 
+    /* MIGRATION */
+
+    /// @dev Migrate delegator state from the previously configured delegator.
     function migrate() public {
         if (IMigratableEntity(vault).version() != VAULT_V2_VERSION) {
             revert WrongMigrate();
@@ -936,6 +961,8 @@ contract UniversalDelegator is
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 
+    /* DEPRECATED FUNCTIONS */
+
     /// @inheritdoc IUniversalDelegator
     function maxNetworkLimit(bytes32) public pure returns (uint256) {
         return type(uint256).max;
@@ -944,6 +971,9 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function setMaxNetworkLimit(uint96, uint256) public {}
 
+    /* UTILITY FUNCTIONS */
+
+    /// @dev Return pending no-plugins allocation over the current slashable window.
     function _getNoPluginsPending() internal view returns (uint208) {
         unchecked {
             uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
@@ -960,14 +990,17 @@ contract UniversalDelegator is
         }
     }
 
+    /// @dev Return storage pointer to the root slot.
     function _rootSlot() internal view returns (SlotStorage storage) {
         return slots[0];
     }
 
+    /// @dev Return storage pointer to the withdrawal buffer slot.
     function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
         return slots[WITHDRAWAL_BUFFER_INDEX];
     }
 
+    /// @dev Grant a role when the holder address is not zero.
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
         if (holder != address(0)) {
             _grantRole(role, holder);

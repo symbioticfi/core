@@ -6,8 +6,12 @@ pragma solidity ^0.8.0;
  * @notice Interface for the VaultV2Storage contract.
  */
 interface IVaultV2Storage {
+    /* ERRORS */
+
     error InvalidTimestamp();
     error NoPreviousEpoch();
+
+    /* FUNCTIONS */
 
     /**
      * @notice Get a vault collateral.

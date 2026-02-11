@@ -68,7 +68,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* MULTICALL */
 
-    function multicall(bytes[] calldata data) external {
+    /// @inheritdoc IVaultV2
+    function multicall(bytes[] calldata data) public {
         for (uint256 i; i < data.length; ++i) {
             (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
             if (!success) {
@@ -88,14 +89,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         REWARDS = rewards;
     }
 
+    /* VIEW FUNCTIONS */
+
     /// @inheritdoc IVaultV2
     function isInitialized() public view returns (bool) {
         return _isDelegatorInitialized && _isSlasherInitialized;
     }
-
-    /* ACCOUNTING FUNCTIONS */
-
-    /* * PUBLIC FUNCTIONS * */
 
     /// @inheritdoc IVaultV2
     function totalStake() public view returns (uint256) {
@@ -242,6 +241,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize())
                 .saturatingSub(pluginsAllocated);
     }
+
+    /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
     function deposit(address onBehalfOf, uint256 amount)
@@ -392,6 +393,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /// @inheritdoc IVaultV2
     function donate(uint256 amount) public nonReentrant {
         unchecked {
             if (REWARDS != msg.sender) {
@@ -462,8 +464,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit OnSlash(amount, slashedAmount);
     }
 
-    /* * INTERNAL FUNCTIONS * */
+    /* INTERNAL FUNCTIONS (ACCOUNTING) */
 
+    /// @dev Return active withdrawal shares for a duration at a timestamp.
     function _activeWithdrawalSharesForAt(uint48 duration, uint48 timestamp) internal view returns (uint256) {
         unchecked {
             return _withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
@@ -471,6 +474,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /// @dev Return active withdrawal shares for a duration at the current timestamp.
     function _activeWithdrawalSharesFor(uint48 duration) internal view returns (uint256) {
         unchecked {
             return _withdrawalSharesCumulative.latest()
@@ -478,6 +482,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /// @dev Convert active shares into a withdrawal request.
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         virtual
@@ -512,9 +517,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /* OWNER FUNCTIONS */
-
-    /* * PUBLIC FUNCTIONS * */
+    /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IVaultV2
     function setDepositWhitelist(bool newStatus) public nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
@@ -544,10 +547,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         depositLimit = newLimit;
         emit SetDepositLimit(newLimit);
     }
-
-    /* EXTERNAL LIQUIDITY FUNCTIONS */
-
-    /* * PUBLIC FUNCTIONS * */
 
     /// @inheritdoc IVaultV2
     function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
@@ -622,6 +621,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return _allocatePlugin(plugin, amount);
     }
 
+    /// @dev Allocate collateral to a plugin within configured limits.
     function _allocatePlugin(address plugin, uint256 amount) internal returns (uint256 allocated) {
         unchecked {
             allocated = Math.min(
@@ -653,6 +653,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return _deallocatePlugin(plugin, amount);
     }
 
+    /// @dev Deallocate collateral from a plugin and update accounting.
     function _deallocatePlugin(address plugin, uint256 amount) internal returns (uint256 deallocated) {
         deallocated = IPluginBase(plugin).deallocate(amount);
         if (deallocated > 0) {
@@ -667,21 +668,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit Deallocate(plugin, deallocated);
     }
 
-    // @dev Internal dev function to handle owed slashing.
-    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 slashedAmount) {
-        if (slasher != msg.sender) {
-            revert NotSlasher();
-        }
-
-        // Use only unclaimable (either active stake or active _withdrawals) funds for slashing.
-        slashedAmount = Math.min(amount, _availableToSlash());
-        _revertIfZero(slashedAmount);
-        collateral.safeTransfer(burner, slashedAmount);
-
-        emit SyncOwedSlash(slashedAmount);
-    }
-
-    /* * INTERNAL FUNCTIONS * */
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IVaultV2
     function skimPlugins() public {
@@ -714,6 +701,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /* INTERNAL FUNCTIONS (PLUGINS) */
+
+    /// @dev Return collateral currently available for slashing.
     function _availableToSlash() internal view returns (uint256) {
         unchecked {
             return collateral.balanceOf(address(this))
@@ -721,10 +711,23 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /* ERC20 FUNCTIONS */
+    /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
-    /* INTERNAL DEV FUNCTIONS */
+    // @dev Internal dev function to handle owed slashing.
+    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 slashedAmount) {
+        if (slasher != msg.sender) {
+            revert NotSlasher();
+        }
 
+        // Use only unclaimable (either active stake or active _withdrawals) funds for slashing.
+        slashedAmount = Math.min(amount, _availableToSlash());
+        _revertIfZero(slashedAmount);
+        collateral.safeTransfer(burner, slashedAmount);
+
+        emit SyncOwedSlash(slashedAmount);
+    }
+
+    /// @inheritdoc IVaultV2
     function setDelegator(address newDelegator) public nonReentrant {
         if (_isDelegatorInitialized) {
             revert DelegatorAlreadyInitialized();
@@ -745,6 +748,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit SetDelegator(newDelegator);
     }
 
+    /// @inheritdoc IVaultV2
     function setSlasher(address newSlasher) public nonReentrant {
         if (_isSlasherInitialized) {
             revert SlasherAlreadyInitialized();
@@ -767,9 +771,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit SetSlasher(newSlasher);
     }
 
-    /* * INTERNAL FUNCTIONS * */
+    /* INTERNAL FUNCTIONS (ERC20) */
 
     /// @inheritdoc ERC20Upgradeable
+    /// @dev Mirror ERC20 transfers into active share checkpoints.
     function _update(address from, address to, uint256 value) internal override {
         // _Update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
         _activeSharesOf[from].push(uint48(block.timestamp), balanceOf(from) - value);
@@ -780,8 +785,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit Transfer(from, to, value);
     }
 
-    /* * INITIALIZE FUNCTIONS * */
+    /* INITIALIZATION */
 
+    /// @dev Initialize vault state from encoded initialization parameters.
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         unchecked {
             InitParams memory params = abi.decode(data, (InitParams));
@@ -836,8 +842,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /* MIGRATE FUNCTIONS */
+    /* MIGRATION */
 
+    /// @dev Migrate vault state and deploy V2 delegator and slasher contracts.
     function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {
         unchecked {
             if (epochDuration > MAX_DURATION) {
@@ -884,20 +891,23 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /* INTERNAL HELPERS */
+    /* UTILITY FUNCTIONS */
 
+    /// @dev Revert when an address argument is zero.
     function _revertIfZero(address value) internal pure {
         if (value == address(0)) {
             revert InvalidAddress();
         }
     }
 
+    /// @dev Revert when an amount argument is zero.
     function _revertIfZero(uint256 amount) internal pure {
         if (amount == uint256(0)) {
             revert InsufficientAmount();
         }
     }
 
+    /// @dev Grant a role when the holder address is not zero.
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
         if (holder != address(0)) {
             _grantRole(role, holder);

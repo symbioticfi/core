@@ -32,6 +32,8 @@ uint48 constant MAX_DURATION = 1000 * 365 days;
  * @notice Interface for the VaultV2 contract.
  */
 interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
+    /* ERRORS */
+
     error NotRewards();
     error AlreadyClaimed();
     error AlreadySet();
@@ -66,6 +68,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error MigrationNotCompleted();
     error DuplicateDepositor();
     error InvalidDepositorToWhitelist();
+
+    /* STRUCTS */
 
     /**
      * @notice Initial parameters needed for a vault deployment.
@@ -124,6 +128,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address plugin;
         uint208 limit;
     }
+
+    /* EVENTS */
 
     /**
      * @notice Emitted when a deposit is made.
@@ -257,6 +263,14 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     event Migrate(MigrateParams params, address newDelegator, address newSlasher);
 
+    /* FUNCTIONS */
+
+    /**
+     * @notice Execute a batch of delegatecalls on the vault.
+     * @param data Calldata items to execute.
+     */
+    function multicall(bytes[] calldata data) external;
+
     /**
      * @notice Check if the vault is fully initialized (a delegator and a slasher are set).
      * @return If The vault is fully initialized.
@@ -344,6 +358,10 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     function withdrawalsOf(uint256 index, address account) external view returns (uint256);
 
+    /**
+     * @notice Get the amount that can still be allocated into plugins.
+     * @return Allocatable Amount of collateral.
+     */
     function allocatable() external view returns (uint256);
 
     /**
@@ -401,6 +419,24 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
 
     /**
+     * @notice Donate collateral directly into the vault accounting.
+     * @param amount Amount of collateral to donate.
+     */
+    function donate(uint256 amount) external;
+
+    /**
+     * @notice Set the vault delegator.
+     * @param newDelegator Address of the new delegator.
+     */
+    function setDelegator(address newDelegator) external;
+
+    /**
+     * @notice Set the vault slasher.
+     * @param newSlasher Address of the new slasher.
+     */
+    function setSlasher(address newSlasher) external;
+
+    /**
      * @notice Enable/disable deposit whitelist.
      * @param status If enabling deposit whitelist.
      * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.
@@ -437,6 +473,12 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     function setPluginLimit(address plugin, uint208 limit) external;
 
+    /**
+     * @notice Swap plugin order.
+     * @param plugin1 Address of the first plugin.
+     * @param plugin2 Address of the second plugin.
+     * @dev Only a SWAP_PLUGINS_ROLE holder can call this function.
+     */
     function swapPlugins(address plugin1, address plugin2) external;
 
     /**
@@ -453,7 +495,13 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      */
     function deallocatePlugin(address plugin, uint256 amount) external returns (uint256 deallocated);
 
+    /**
+     * @notice Skim rewards from plugins into the vault.
+     */
     function skimPlugins() external;
 
+    /**
+     * @notice Deallocate collateral from plugins when needed.
+     */
     function deallocatePlugins() external;
 }

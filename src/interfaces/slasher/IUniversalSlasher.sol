@@ -11,6 +11,8 @@ uint256 constant BURNER_RESERVE = 20_000;
  * @notice Interface for the UniversalSlasher contract.
  */
 interface IUniversalSlasher {
+    /* ERRORS */
+
     error AlreadySet();
     error InsufficientSlash();
     error InvalidCaptureTimestamp();
@@ -30,6 +32,8 @@ interface IUniversalSlasher {
     error InsufficientBurnerGas();
     error NotNetworkMiddleware();
     error NotVault();
+
+    /* STRUCTS */
 
     /**
      * @notice Base parameters needed for slashers' deployment.
@@ -96,6 +100,8 @@ interface IUniversalSlasher {
         bool completed;
     }
 
+    /* EVENTS */
+
     /**
      * @notice Emitted when a slash request is created.
      * @param slashIndex Index of the slash request.
@@ -140,6 +146,8 @@ interface IUniversalSlasher {
      * @param params Initial parameters for the slasher.
      */
     event Initialize(InitParams params);
+
+    /* FUNCTIONS */
 
     /**
      * @notice Get the vault's address.
@@ -203,6 +211,8 @@ interface IUniversalSlasher {
     function resolver(bytes32 subnetwork) external view returns (address);
 
     function pendingResolverData(bytes32 subnetwork) external view returns (bytes32);
+
+    function owed(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
      * @notice Request a slash using a subnetwork for a particular operator by a given amount using hints.
