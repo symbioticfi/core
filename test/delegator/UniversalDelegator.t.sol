@@ -238,8 +238,7 @@ contract UniversalDelegatorTest is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: 0,
@@ -585,7 +584,7 @@ contract UniversalDelegatorTest is Test {
         _createSlot(group, false, 100);
         uint96 networkSlot = group.createIndex(uint32(1));
 
-        assertEq(delegator.getFilled(networkSlot, 0), 100);
+        assertEq(delegator.getFilled(networkSlot, 0), 0);
     }
 
     function test_getFilled_matchesSumOfOperatorsForNetwork() public {

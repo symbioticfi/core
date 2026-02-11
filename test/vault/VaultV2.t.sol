@@ -432,8 +432,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 )
             )
@@ -466,8 +465,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 )
             )
@@ -500,8 +498,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 )
             )
@@ -534,8 +531,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 )
             )
@@ -568,8 +564,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 )
             )
@@ -600,8 +595,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -659,8 +653,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -718,8 +711,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -753,8 +745,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -780,8 +771,7 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice,
-                    pluginsData: new IVaultV2.PluginData[](0)
+                    allocatePluginRoleHolder: alice
                 })
             )
         );
@@ -836,8 +826,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -883,8 +872,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -930,8 +918,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -975,8 +962,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -1002,8 +988,7 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice,
-                    pluginsData: new IVaultV2.PluginData[](0)
+                    allocatePluginRoleHolder: alice
                 })
             )
         );
@@ -1046,8 +1031,7 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice,
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: alice
                     })
                 )
             )
@@ -3607,38 +3591,6 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.plugins(0), address(plugin));
     }
 
-    function test_CreateRevertPluginDataInvalidAddress() public {
-        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
-        params.pluginsData = new IVaultV2.PluginData[](1);
-        params.pluginsData[0] = IVaultV2.PluginData({plugin: address(0), limit: 1});
-        uint64 lastVersion = vaultFactory.lastVersion();
-
-        vm.expectRevert(IVaultV2.InvalidAddress.selector);
-        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
-    }
-
-    function test_CreateRevertPluginDataZeroLimit() public {
-        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
-        params.pluginsData = new IVaultV2.PluginData[](1);
-        params.pluginsData[0] = IVaultV2.PluginData({plugin: makeAddr("plugin"), limit: 0});
-        uint64 lastVersion = vaultFactory.lastVersion();
-
-        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
-        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
-    }
-
-    function test_CreateRevertDuplicatePluginData() public {
-        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
-        address plugin = makeAddr("duplicatePlugin");
-        params.pluginsData = new IVaultV2.PluginData[](2);
-        params.pluginsData[0] = IVaultV2.PluginData({plugin: plugin, limit: 1});
-        params.pluginsData[1] = IVaultV2.PluginData({plugin: plugin, limit: 2});
-        uint64 lastVersion = vaultFactory.lastVersion();
-
-        vm.expectRevert(IVaultV2.DuplicatePlugin.selector);
-        vaultFactory.create(lastVersion, alice, _getEncodedVaultParams(params));
-    }
-
     function test_CreateRevertDepositorToWhitelistInvalidAddress() public {
         IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
         params.depositorToWhitelist = address(0);
@@ -3673,22 +3625,6 @@ contract VaultV2Test is Test {
         vm.expectRevert(IVaultV2.NotWhitelistedDepositor.selector);
         vault.deposit(notWhitelisted, 1);
         vm.stopPrank();
-    }
-
-    function test_CreateWithPluginData() public {
-        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
-        address plugin1 = makeAddr("plugin1");
-        address plugin2 = makeAddr("plugin2");
-        params.pluginsData = new IVaultV2.PluginData[](2);
-        params.pluginsData[0] = IVaultV2.PluginData({plugin: plugin1, limit: 11});
-        params.pluginsData[1] = IVaultV2.PluginData({plugin: plugin2, limit: 22});
-
-        vault = IVaultV2(vaultFactory.create(vaultFactory.lastVersion(), alice, _getEncodedVaultParams(params)));
-        assertEq(vault.pluginsLength(), 2);
-        assertEq(vault.plugins(0), plugin1);
-        assertEq(vault.plugins(1), plugin2);
-        assertEq(vault.pluginLimit(plugin1), 11);
-        assertEq(vault.pluginLimit(plugin2), 22);
     }
 
     function _latestWithdrawalBucket() internal view returns (uint256) {
@@ -4122,8 +4058,7 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice,
-                    pluginsData: new IVaultV2.PluginData[](0)
+                    allocatePluginRoleHolder: alice
                 })
             );
         }
@@ -4219,8 +4154,7 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice,
-                    pluginsData: new IVaultV2.PluginData[](0)
+                    allocatePluginRoleHolder: alice
                 })
             );
         }
@@ -4290,8 +4224,7 @@ contract VaultV2Test is Test {
             isDepositLimitSetRoleHolder: alice,
             depositLimitSetRoleHolder: alice,
             setPluginLimitRoleHolder: alice,
-            allocatePluginRoleHolder: alice,
-            pluginsData: new IVaultV2.PluginData[](0)
+            allocatePluginRoleHolder: alice
         });
     }
 

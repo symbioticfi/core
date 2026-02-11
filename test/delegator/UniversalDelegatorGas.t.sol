@@ -144,8 +144,7 @@ contract UniversalDelegatorGasTest is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0),
-                        pluginsData: new IVaultV2.PluginData[](0)
+                        allocatePluginRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: 0,
