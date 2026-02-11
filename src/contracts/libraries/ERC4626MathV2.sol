@@ -4,7 +4,8 @@ pragma solidity ^0.8.0;
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
 /**
- * @dev This library adds helper functions for ERC4626 math operations.
+ * @title ERC4626Math
+ * @notice Library implementing an ERC4626 share-and-asset conversion helper set.
  */
 library ERC4626Math {
     using Math for uint256;

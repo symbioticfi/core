@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
@@ -12,18 +13,16 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title FullRestakeDelegator
+/// @notice Contract for full restake delegation with network and operator limits.
 contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     bytes32 public constant OPERATOR_NETWORK_LIMIT_SET_ROLE = keccak256("OPERATOR_NETWORK_LIMIT_SET_ROLE");
 
     mapping(bytes32 subnetwork => Checkpoints.Trace256 value) internal _networkLimit;
@@ -49,23 +48,17 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         )
     {}
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     function networkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _networkLimit[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     function operatorNetworkLimitAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
         public
         view
@@ -74,16 +67,12 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         return _operatorNetworkLimit[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     function operatorNetworkLimit(bytes32 subnetwork, address operator) public view returns (uint256) {
         return _operatorNetworkLimit[subnetwork][operator].latest();
     }
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     function setNetworkLimit(bytes32 subnetwork, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (amount > maxNetworkLimit[subnetwork]) {
             revert ExceedsMaxNetworkLimit();
@@ -98,9 +87,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         emit SetNetworkLimit(subnetwork, amount);
     }
 
-    /**
-     * @inheritdoc IFullRestakeDelegator
-     */
+    /// @inheritdoc IFullRestakeDelegator
     function setOperatorNetworkLimit(bytes32 subnetwork, address operator, uint256 amount)
         external
         onlyRole(OPERATOR_NETWORK_LIMIT_SET_ROLE)

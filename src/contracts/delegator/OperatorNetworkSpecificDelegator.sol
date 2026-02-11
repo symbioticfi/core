@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
@@ -14,26 +15,22 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title OperatorNetworkSpecificDelegator
+/// @notice Contract for operator allocations scoped to a single network.
 contract OperatorNetworkSpecificDelegator is BaseDelegator, IOperatorNetworkSpecificDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
     using Subnetwork for bytes32;
 
-    /**
-     * @inheritdoc IOperatorNetworkSpecificDelegator
-     */
+    /// @inheritdoc IOperatorNetworkSpecificDelegator
     address public immutable OPERATOR_REGISTRY;
 
     mapping(bytes32 subnetwork => Checkpoints.Trace256 value) internal _maxNetworkLimit;
 
-    /**
-     * @inheritdoc IOperatorNetworkSpecificDelegator
-     */
+    /// @inheritdoc IOperatorNetworkSpecificDelegator
     address public network;
 
-    /**
-     * @inheritdoc IOperatorNetworkSpecificDelegator
-     */
+    /// @inheritdoc IOperatorNetworkSpecificDelegator
     address public operator;
 
     constructor(
@@ -57,9 +54,7 @@ contract OperatorNetworkSpecificDelegator is BaseDelegator, IOperatorNetworkSpec
         OPERATOR_REGISTRY = operatorRegistry;
     }
 
-    /**
-     * @inheritdoc IOperatorNetworkSpecificDelegator
-     */
+    /// @inheritdoc IOperatorNetworkSpecificDelegator
     function maxNetworkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _maxNetworkLimit[subnetwork].upperLookupRecent(timestamp, hint);
     }

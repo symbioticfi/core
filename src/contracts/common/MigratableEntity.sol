@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
@@ -7,10 +8,10 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
+/// @title MigratableEntity
+/// @notice Base contract for controlled upgradeable entity migration lifecycle.
 abstract contract MigratableEntity is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IMigratableEntity {
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     address public immutable FACTORY;
 
     modifier notInitialized() {
@@ -27,16 +28,12 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         FACTORY = factory;
     }
 
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     function version() external view returns (uint64) {
         return _getInitializedVersion();
     }
 
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     function initialize(uint64 initialVersion, address owner_, bytes calldata data)
         external
         notInitialized
@@ -51,9 +48,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         _initialize(initialVersion, owner_, data);
     }
 
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     function migrate(uint64 newVersion, bytes calldata data) external nonReentrant {
         if (msg.sender != FACTORY) {
             revert NotFactory();

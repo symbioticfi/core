@@ -3,6 +3,8 @@ pragma solidity ^0.8.25;
 
 import {IStaticDelegateCallable} from "../../interfaces/common/IStaticDelegateCallable.sol";
 
+/// @title Hints
+/// @notice Base contract for self static-delegate hint computation.
 abstract contract Hints {
     address private immutable _SELF;
 

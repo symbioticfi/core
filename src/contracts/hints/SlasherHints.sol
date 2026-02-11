@@ -13,6 +13,8 @@ import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title BaseSlasherHints
+/// @notice Base contract for reusable slasher checkpoint hint construction.
 contract BaseSlasherHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -79,6 +81,8 @@ contract BaseSlasherHints is Hints {
     }
 }
 
+/// @title SlasherHints
+/// @notice Contract for slasher call hint construction.
 contract SlasherHints is Hints {
     address public immutable BASE_SLASHER_HINTS;
 
@@ -105,6 +109,8 @@ contract SlasherHints is Hints {
     }
 }
 
+/// @title VetoSlasherHints
+/// @notice Contract for veto slasher request, execute, and veto hint construction.
 contract VetoSlasherHints is Hints {
     using Checkpoints for Checkpoints.Trace208;
 

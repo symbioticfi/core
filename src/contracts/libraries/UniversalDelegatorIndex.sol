@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+/**
+ * @title UniversalDelegatorIndex
+ * @notice Library implementing a hierarchical slot index encoding and decoding helper set.
+ */
 library UniversalDelegatorIndex {
     error NotParentIndex();
     error ZeroIndex();

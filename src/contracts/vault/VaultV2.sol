@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
 import {DelegatorFactory} from "../DelegatorFactory.sol";
@@ -41,8 +42,8 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 
-/// @dev total supply of `collateral()` must be <= 2^255 - 1 from the VaultV2 perspective
-/// @dev total supply of `collateral()` must be <= 2^128 - 1 from the UniversalDelegator perspective
+/// @title VaultV2
+/// @notice Contract for upgradeable vault collateral, withdrawals, plugins, and migrations.
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
@@ -87,9 +88,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         REWARDS = rewards;
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function isInitialized() public view returns (bool) {
         return _isDelegatorInitialized && _isSlasherInitialized;
     }
@@ -98,18 +97,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* * PUBLIC FUNCTIONS * */
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function totalStake() public view returns (uint256) {
         unchecked {
             return activeStake() + activeWithdrawals();
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             if (duration > epochDuration) {
@@ -124,9 +119,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function activeWithdrawalsFor(uint48 duration) public view returns (uint256 amount) {
         unchecked {
             if (duration > epochDuration) {
@@ -140,39 +133,29 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
         return activeWithdrawalsForAt(0, timestamp);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function activeWithdrawals() public view returns (uint256) {
         return activeWithdrawalsFor(0);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function activeBalanceOfAt(address account, uint48 timestamp, bytes memory) public view returns (uint256) {
         return ERC4626Math.previewRedeem(
             activeSharesOfAt(account, timestamp, ""), activeStakeAt(timestamp, ""), activeSharesAt(timestamp, "")
         );
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function activeBalanceOf(address account) public view returns (uint256) {
         return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function withdrawalsOfLength(address account) public view returns (uint256) {
         unchecked {
             if (__migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0) {
@@ -184,9 +167,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function withdrawalSharesOf(uint256 index, address account) public view returns (uint256 shares) {
         unchecked {
             shares = _withdrawalSharesOf[index][account];
@@ -201,9 +182,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48 timestamp) {
         unchecked {
             if (__migrateTimestamp == 0) {
@@ -221,9 +200,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function withdrawalsOf(uint256 index, address account) public view returns (uint256 amount) {
         unchecked {
             uint48 migrateEpoch = __migrateEpoch;
@@ -244,39 +221,29 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function decimals() public view override returns (uint8) {
         return IERC20Metadata(collateral).decimals();
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function totalSupply() public view override returns (uint256) {
         return activeShares();
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function balanceOf(address account) public view override returns (uint256) {
         return activeSharesOf(account);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function allocatable() public view returns (uint256) {
         return
             totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize())
                 .saturatingSub(pluginsAllocated);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function deposit(address onBehalfOf, uint256 amount)
         public
         withSkimPlugins
@@ -313,16 +280,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
             emit Transfer(address(0), onBehalfOf, mintedShares);
 
-            // allocate only non-fee-on-transfer tokens
+            // Allocate only non-fee-on-transfer tokens.
             if (depositedAmount == amount && plugins.length > 0) {
                 _allocatePlugin(plugins[0], depositedAmount);
             }
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function withdraw(address claimer, uint256 amount)
         public
         withSkimPlugins
@@ -341,9 +306,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function redeem(address claimer, uint256 shares)
         public
         withSkimPlugins
@@ -362,9 +325,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function instantWithdraw(address recipient, uint256 amount)
         public
         returns (uint256 withdrawnAssets, uint256 burnedShares)
@@ -393,9 +354,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function claim(address recipient, uint256 index)
         public
         withDeallocatePlugins(true)
@@ -424,9 +383,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function claimBatch(address recipient, uint256[] calldata indexes) public returns (uint256 amount) {
         unchecked {
             for (uint256 i; i < indexes.length; ++i) {
@@ -559,17 +516,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* * PUBLIC FUNCTIONS * */
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function setDepositWhitelist(bool newStatus) public nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         depositWhitelist = newStatus;
         emit SetDepositWhitelist(newStatus);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function setDepositorWhitelistStatus(address account, bool newStatus)
         public
         nonReentrant
@@ -580,17 +533,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         emit SetDepositorWhitelistStatus(account, newStatus);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function setIsDepositLimit(bool newStatus) public nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         isDepositLimit = newStatus;
         emit SetIsDepositLimit(newStatus);
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function setDepositLimit(uint256 newLimit) public nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         depositLimit = newLimit;
         emit SetDepositLimit(newLimit);
@@ -600,9 +549,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* * PUBLIC FUNCTIONS * */
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
         unchecked {
             uint256 migrateTimestamp = __migrateTimestamp;
@@ -647,9 +594,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function swapPlugins(address plugin1, address plugin2) public nonReentrant onlyRole(SWAP_PLUGINS_ROLE) {
         unchecked {
             uint256 index1 = type(uint256).max;
@@ -668,9 +613,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function allocatePlugin(address plugin, uint256 amount)
         public
         onlyRole(ALLOCATE_PLUGIN_ROLE)
@@ -701,9 +644,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function deallocatePlugin(address plugin, uint256 amount)
         public
         onlyRole(DEALLOCATE_PLUGIN_ROLE)
@@ -732,7 +673,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert NotSlasher();
         }
 
-        // use only unclaimable (either active stake or active _withdrawals) funds for slashing
+        // Use only unclaimable (either active stake or active _withdrawals) funds for slashing.
         slashedAmount = Math.min(amount, _availableToSlash());
         _revertIfZero(slashedAmount);
         collateral.safeTransfer(burner, slashedAmount);
@@ -742,9 +683,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* * INTERNAL FUNCTIONS * */
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function skimPlugins() public {
         unchecked {
             for (uint256 i; i < plugins.length; ++i) {
@@ -753,9 +692,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
-    /**
-     * @inheritdoc IVaultV2
-     */
+    /// @inheritdoc IVaultV2
     function deallocatePlugins() public {
         unchecked {
             uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
@@ -832,11 +769,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* * INTERNAL FUNCTIONS * */
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function _update(address from, address to, uint256 value) internal override {
-        // _update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
+        // _Update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
         _activeSharesOf[from].push(uint48(block.timestamp), balanceOf(from) - value);
         unchecked {
             _activeSharesOf[to].push(uint48(block.timestamp), balanceOf(to) + value);

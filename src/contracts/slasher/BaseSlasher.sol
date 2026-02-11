@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
 import {Entity} from "../common/Entity.sol";
@@ -18,43 +19,31 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title BaseSlasher
+/// @notice Base contract for shared slashing flow, middleware checks, and burner hooks.
 abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     uint256 public constant BURNER_GAS_LIMIT = 150_000;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     uint256 public constant BURNER_RESERVE = 20_000;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     address public immutable VAULT_FACTORY;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     address public vault;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     bool public isBurnerHook;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
 
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
@@ -72,9 +61,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
         public
         view
@@ -83,16 +70,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         return _cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     function cumulativeSlash(bytes32 subnetwork, address operator) public view returns (uint256) {
         return _cumulativeSlash[subnetwork][operator].latest();
     }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
         public
         view

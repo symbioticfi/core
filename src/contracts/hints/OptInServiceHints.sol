@@ -5,6 +5,8 @@ import {Hints} from "./Hints.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 
+/// @title OptInServiceHints
+/// @notice Contract for opt-in service checkpoint hint construction.
 contract OptInServiceHints is Hints {
     using Checkpoints for Checkpoints.Trace208;
 

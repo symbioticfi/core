@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
@@ -12,18 +13,16 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title NetworkRestakeDelegator
+/// @notice Contract for network restake delegation with operator share weighting.
 contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     bytes32 public constant OPERATOR_NETWORK_SHARES_SET_ROLE = keccak256("OPERATOR_NETWORK_SHARES_SET_ROLE");
 
     mapping(bytes32 subnetwork => Checkpoints.Trace256 value) internal _networkLimit;
@@ -51,23 +50,17 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         )
     {}
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function networkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _networkLimit[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function totalOperatorNetworkSharesAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint)
         public
         view
@@ -76,16 +69,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return _totalOperatorNetworkShares[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function totalOperatorNetworkShares(bytes32 subnetwork) public view returns (uint256) {
         return _totalOperatorNetworkShares[subnetwork].latest();
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function operatorNetworkSharesAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
         public
         view
@@ -94,16 +83,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return _operatorNetworkShares[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function operatorNetworkShares(bytes32 subnetwork, address operator) public view returns (uint256) {
         return _operatorNetworkShares[subnetwork][operator].latest();
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function setNetworkLimit(bytes32 subnetwork, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (amount > maxNetworkLimit[subnetwork]) {
             revert ExceedsMaxNetworkLimit();
@@ -118,9 +103,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         emit SetNetworkLimit(subnetwork, amount);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function setOperatorNetworkShares(bytes32 subnetwork, address operator, uint256 shares)
         external
         onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE)

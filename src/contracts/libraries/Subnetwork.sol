@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 /**
- * @dev This library adds functions to work with subnetworks.
+ * @title Subnetwork
+ * @notice Library implementing a subnetwork identifier encoding and parsing helper set.
  */
 library Subnetwork {
     function subnetwork(address network_, uint96 identifier_) internal pure returns (bytes32) {

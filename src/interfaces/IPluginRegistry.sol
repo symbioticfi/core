@@ -3,6 +3,10 @@ pragma solidity ^0.8.0;
 
 import {IRegistry} from "./common/IRegistry.sol";
 
+/**
+ * @title IPluginRegistry
+ * @notice Interface for the PluginRegistry contract.
+ */
 interface IPluginRegistry is IRegistry {
     error PluginAlreadyWhitelisted();
 

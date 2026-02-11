@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
 import {Entity} from "../common/Entity.sol";
@@ -24,6 +25,8 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
+/// @title UniversalSlasher
+/// @notice Contract for slash request lifecycle, resolver updates, and owed slash synchronization.
 contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IUniversalSlasher {
     using Math for uint256;
     using Checkpoints for Checkpoints.Trace208;
@@ -35,24 +38,16 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
     address internal immutable NETWORK_REGISTRY;
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     address public vault;
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     bool public isBurnerHook;
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     uint48 public vetoDuration;
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     uint48 public resolverSetDelay;
 
     SlashRequest[] internal _slashRequests;
@@ -83,17 +78,13 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         NETWORK_REGISTRY = networkRegistry;
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function slashRequestsLength() public view returns (uint256) {
         return _slashRequests.length;
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     * @dev add comment that the resolver here can change depnding on the timestamp when called
-     */
+    /// @inheritdoc IUniversalSlasher
+    /// @dev Add comment that the resolver here can change depnding on the timestamp when called.
     function slashRequests(uint256 slashIndex) public view returns (SlashRequest memory request) {
         unchecked {
             request = _slashRequests[slashIndex];
@@ -121,9 +112,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function resolver(bytes32 subnetwork) public view returns (address) {
         return uint48(uint256(pendingResolverData[subnetwork])) == 0
             || block.timestamp < uint48(uint256(pendingResolverData[subnetwork]))
@@ -131,9 +120,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             : address(uint160(uint256(pendingResolverData[subnetwork]) >> 48));
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory)
         public
         view
@@ -165,9 +152,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata hints)
         public
         nonReentrant
@@ -201,9 +186,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function executeSlash(uint256 slashIndex, bytes calldata) public nonReentrant returns (uint256 slashedAmount) {
         unchecked {
             SlashRequest memory request = slashRequests(slashIndex);
@@ -257,9 +240,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function vetoSlash(uint256 slashIndex) public nonReentrant {
         SlashRequest memory request = slashRequests(slashIndex);
 
@@ -280,9 +261,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         emit VetoSlash(slashIndex, msg.sender);
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function setResolver(uint96 identifier, address newResolver) public nonReentrant {
         unchecked {
             if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
@@ -304,9 +283,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         }
     }
 
-    /**
-     * @inheritdoc IUniversalSlasher
-     */
+    /// @inheritdoc IUniversalSlasher
     function syncOwedSlash(bytes32 subnetwork, address operator) public returns (uint256 slashedAmount) {
         unchecked {
             uint256 curOwed = owed[subnetwork][operator];

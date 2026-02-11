@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
 import {Entity} from "../common/Entity.sol";
@@ -38,6 +39,8 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
+/// @title UniversalDelegator
+/// @notice Contract for hierarchical stake allocation across groups, networks, and operators.
 contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
@@ -78,19 +81,15 @@ contract UniversalDelegator is
         Checkpoints.Trace208 clearedChildrenPendingCumulative;
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     address public vault;
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     address public hook;
 
     uint256 internal _noPluginsSize;
 
-    // @dev index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}
+    // @dev Index is {32 bytes of child index at depth 1}{32 bytes - depth 2}{32 bytes - depth 3}.
     mapping(uint96 index => SlotStorage slot) internal slots;
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
     mapping(uint96 index => bytes32 subnetwork) internal _slotToNetwork;
@@ -160,18 +159,14 @@ contract UniversalDelegator is
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function VERSION() public pure returns (uint64) {
         return 2;
     }
 
     /* VIEW FUNCTIONS */
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         public
         view
@@ -180,16 +175,12 @@ contract UniversalDelegator is
         return getAllocatedAt(subnetwork, operator, duration, timestamp);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
         return getAllocated(subnetwork, operator, duration);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         public
         view
@@ -201,16 +192,12 @@ contract UniversalDelegator is
         return getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration(), timestamp);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
         return getAllocated(subnetwork, operator, IVaultV2(vault).epochDuration());
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlot(uint96 index) public view returns (Slot memory) {
         return Slot({
             exists: slots[index].exists,
@@ -227,9 +214,7 @@ contract UniversalDelegator is
         });
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getChildrenPendingAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -249,9 +234,7 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getChildrenPending(uint96 index, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -270,9 +253,7 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getPendingAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -292,9 +273,7 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getPending(uint96 index, uint48 duration) public view returns (uint208) {
         unchecked {
             SlotStorage storage slot = slots[index];
@@ -310,10 +289,8 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     * @dev Returns the collateral balance of a given slot.
-     */
+    /// @inheritdoc IUniversalDelegator
+    /// @dev Returns the collateral balance of a given slot.
     function getBalanceAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             return index > 0
@@ -323,9 +300,7 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
             return index > 0
@@ -334,25 +309,19 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     * @dev Returns the available to allocate balance in the given slot.
-     */
+    /// @inheritdoc IUniversalDelegator
+    /// @dev Returns the available to allocate balance in the given slot.
     function getAvailableAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         return getBalanceAt(index, duration, timestamp).saturatingSub(getChildrenPendingAt(index, duration, timestamp));
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getAvailable(uint96 index, uint48 duration) public view returns (uint256) {
         return getBalance(index, duration).saturatingSub(getChildrenPending(index, duration));
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     * @dev Returns the allocation of the given slot.
-     */
+    /// @inheritdoc IUniversalDelegator
+    /// @dev Returns the allocation of the given slot.
     function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             if (duration > IVaultV2(vault).epochDuration()) {
@@ -381,16 +350,14 @@ contract UniversalDelegator is
             if (!parent.isShared) {
                 slotAvailable = slotAvailable.saturatingSub(prevSum);
             }
-            // the current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp)
+            // The current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp).
             return
                 Math.min(slotAvailable, slot.size.upperLookupRecent(timestamp))
                     + getPendingAt(index, duration, timestamp);
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
             if (duration > IVaultV2(vault).epochDuration()) {
@@ -423,51 +390,37 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint96) {
         return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp));
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlotOfNetwork(bytes32 subnetwork) public view returns (uint96) {
         return uint96(_networkToSlot[subnetwork].latest());
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlotOfOperatorAt(uint96 parentIndex, address operator, uint48 timestamp) public view returns (uint96) {
         return uint96(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp));
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlotOfOperator(uint96 parentIndex, address operator) public view returns (uint96) {
         return uint96(_operatorToSlot[parentIndex][operator].latest());
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint96) {
         return getSlotOfOperatorAt(getSlotOfNetworkAt(subnetwork, timestamp), operator, timestamp);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint96) {
         return getSlotOfOperator(getSlotOfNetwork(subnetwork), operator);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         public
         view
@@ -477,9 +430,7 @@ contract UniversalDelegator is
         return index > 0 ? getAllocatedAt(index, duration, timestamp) : 0;
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getAllocated(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
         uint96 index = getSlotOf(subnetwork, operator);
         return index > 0 ? getAllocated(index, duration) : 0;
@@ -535,9 +486,7 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function getIsShared(bytes32 subnetwork) public view returns (bool) {
         uint96 index = getSlotOfNetwork(subnetwork);
         if (index == 0) {
@@ -564,9 +513,7 @@ contract UniversalDelegator is
 
     /* CURATOR FUNCTIONS */
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
@@ -638,11 +585,9 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     * @dev if size increase: just change the size if slot not fully allocated or last child, otherwise use unallocated funds
-     *      if size decrease: just change the size if slot not allocated, otherwise increase pending free
-     */
+    /// @inheritdoc IUniversalDelegator
+    /// @dev If size increase: just change the size if slot not fully allocated or last child, otherwise use unallocated funds
+    /// if size decrease: just change the size if slot not allocated, otherwise increase pending free.
     function setSize(uint96 index, uint128 newSize)
         public
         onlyRole(SET_SIZE_ROLE)
@@ -699,9 +644,7 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function swapSlots(uint96 index1, uint96 index2)
         public
         onlyRole(SWAP_SLOTS_ROLE)
@@ -872,18 +815,14 @@ contract UniversalDelegator is
         }
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) public onlyRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE) {
         _withdrawalBufferSlot().size.push(uint48(block.timestamp), newWithdrawalBufferSize);
 
         emit SetWithdrawalBufferSize(newWithdrawalBufferSize);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function setHook(address newHook) public nonReentrant onlyRole(HOOK_SET_ROLE) {
         hook = newHook;
 
@@ -992,21 +931,17 @@ contract UniversalDelegator is
         __migrateTimestamp = uint48(block.timestamp);
         __oldDelegator = IVaultV2(vault).delegator();
 
-        // TODO: more smooth migration
+        // TODO: more smooth migration.
         _rootSlot().childrenPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
         _noPluginsPendingCumulative.push(uint48(block.timestamp), type(uint128).max);
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function maxNetworkLimit(bytes32) public pure returns (uint256) {
         return type(uint256).max;
     }
 
-    /**
-     * @inheritdoc IUniversalDelegator
-     */
+    /// @inheritdoc IUniversalDelegator
     function setMaxNetworkLimit(uint96, uint256) public {}
 
     function _getNoPluginsPending() internal view returns (uint208) {

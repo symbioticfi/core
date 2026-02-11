@@ -14,6 +14,8 @@ import {INetworkRestakeDelegator} from "../../interfaces/delegator/INetworkResta
 import {IOperatorNetworkSpecificDelegator} from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../interfaces/delegator/IOperatorSpecificDelegator.sol";
 
+/// @title BaseDelegatorHints
+/// @notice Base contract for reusable delegator checkpoint hint construction.
 contract BaseDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
@@ -88,6 +90,8 @@ contract BaseDelegatorHints is Hints {
     }
 }
 
+/// @title NetworkRestakeDelegatorHints
+/// @notice Contract for network restake delegator hint construction.
 contract NetworkRestakeDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -225,6 +229,8 @@ contract NetworkRestakeDelegatorHints is Hints {
     }
 }
 
+/// @title FullRestakeDelegatorHints
+/// @notice Contract for full restake delegator hint construction.
 contract FullRestakeDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -329,6 +335,8 @@ contract FullRestakeDelegatorHints is Hints {
     }
 }
 
+/// @title OperatorSpecificDelegatorHints
+/// @notice Contract for operator-specific delegator hint construction.
 contract OperatorSpecificDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -399,6 +407,8 @@ contract OperatorSpecificDelegatorHints is Hints {
     }
 }
 
+/// @title OperatorNetworkSpecificDelegatorHints
+/// @notice Contract for operator-network-specific delegator hint construction.
 contract OperatorNetworkSpecificDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 

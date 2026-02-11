@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
 import {Vault} from "./Vault.sol";
@@ -12,6 +13,8 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title VaultTokenized
+/// @notice Contract for ERC20-tokenized vault share accounting.
 contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -19,30 +22,22 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         Vault(delegatorFactory, slasherFactory, vaultFactory)
     {}
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function decimals() public view override returns (uint8) {
         return IERC20Metadata(collateral).decimals();
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function totalSupply() public view override returns (uint256) {
         return activeShares();
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function balanceOf(address account) public view override returns (uint256) {
         return activeSharesOf(account);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function deposit(address onBehalfOf, uint256 amount)
         public
         override(Vault, IVault)
@@ -63,12 +58,10 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(msg.sender, address(0), burnedShares);
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function _update(address from, address to, uint256 value) internal override {
         if (from == address(0)) {
-            // Overflow check required: The rest of the code assumes that totalSupply never overflows
+            // Overflow check required: The rest of the code assumes that totalSupply never overflows.
             _activeShares.push(Time.timestamp(), totalSupply() + value);
         } else {
             uint256 fromBalance = balanceOf(from);

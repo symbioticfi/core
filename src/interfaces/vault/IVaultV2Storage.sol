@@ -2,16 +2,8 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title IVaultStorage
- * @dev Removed signatures:
- *      epochDurationInit()
- *      epochAt(uint48)
- *      currentEpoch()
- *      currentEpochStart()
- *      previousEpochStart()
- *      nextEpochStart()
- *      isDelegatorInitialized()
- *      isSlasherInitialized()
+ * @title IVaultV2Storage
+ * @notice Interface for the VaultV2Storage contract.
  */
 interface IVaultV2Storage {
     error InvalidTimestamp();
@@ -19,128 +11,128 @@ interface IVaultV2Storage {
 
     /**
      * @notice Get a vault collateral.
-     * @return address of the underlying collateral
+     * @return Address Of the underlying collateral.
      */
     function collateral() external view returns (address);
 
     /**
      * @notice Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
-     * @return address of the burner
+     * @return Address Of the burner.
      */
     function burner() external view returns (address);
 
     /**
      * @notice Get a delegator (it delegates the vault's stake to networks and operators).
-     * @return address of the delegator
+     * @return Address Of the delegator.
      */
     function delegator() external view returns (address);
 
     /**
      * @notice Get a slasher (it provides networks a slashing mechanism).
-     * @return address of the slasher
+     * @return Address Of the slasher.
      */
     function slasher() external view returns (address);
 
     /**
      * @notice Get a duration of the vault withdrawal delay.
-     * @return duration of the withdrawal delay
+     * @return Duration Of the withdrawal delay.
      */
     function epochDuration() external view returns (uint48);
 
     /**
      * @notice Get if the deposit whitelist is enabled.
-     * @return if the deposit whitelist is enabled
+     * @return If The deposit whitelist is enabled.
      */
     function depositWhitelist() external view returns (bool);
 
     /**
      * @notice Get if a given account is whitelisted as a depositor.
-     * @param account address to check
-     * @return if the account is whitelisted as a depositor
+     * @param account Address to check.
+     * @return If The account is whitelisted as a depositor.
      */
     function isDepositorWhitelisted(address account) external view returns (bool);
 
     /**
      * @notice Get if the deposit limit is set.
-     * @return if the deposit limit is set
+     * @return If The deposit limit is set.
      */
     function isDepositLimit() external view returns (bool);
 
     /**
      * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
-     * @return deposit limit
+     * @return Deposit Limit.
      */
     function depositLimit() external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault at a given timestamp using a hint.
-     * @param timestamp time point to get the total number of active shares at
-     * @param hint hint for the checkpoint index
-     * @return total number of active shares at the timestamp
+     * @param timestamp Time point to get the total number of active shares at.
+     * @param hint Hint for the checkpoint index.
+     * @return Total Number of active shares at the timestamp.
      */
     function activeSharesAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault.
-     * @return total number of active shares
+     * @return Total Number of active shares.
      */
     function activeShares() external view returns (uint256);
 
     /**
      * @notice Get a total amount of active stake in the vault at a given timestamp using a hint.
-     * @param timestamp time point to get the total active stake at
-     * @param hint hint for the checkpoint index
-     * @return total amount of active stake at the timestamp
+     * @param timestamp Time point to get the total active stake at.
+     * @param hint Hint for the checkpoint index.
+     * @return Total Amount of active stake at the timestamp.
      */
     function activeStakeAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a total amount of active stake in the vault.
-     * @return total amount of active stake
+     * @return Total Amount of active stake.
      */
     function activeStake() external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares for a particular account at a given timestamp using a hint.
-     * @param account account to get the number of active shares for
-     * @param timestamp time point to get the number of active shares for the account at
-     * @param hint hint for the checkpoint index
-     * @return number of active shares for the account at the timestamp
+     * @param account Account to get the number of active shares for.
+     * @param timestamp Time point to get the number of active shares for the account at.
+     * @param hint Hint for the checkpoint index.
+     * @return Number Of active shares for the account at the timestamp.
      */
     function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) external view returns (uint256);
 
     /**
      * @notice Get a number of active shares for a particular account.
-     * @param account account to get the number of active shares for
-     * @return number of active shares for the account
+     * @param account Account to get the number of active shares for.
+     * @return Number Of active shares for the account.
      */
     function activeSharesOf(address account) external view returns (uint256);
 
     /**
      * @notice Get a index of the last withdrawal bucket.
-     * @return index of the last withdrawal bucket
+     * @return Index Of the last withdrawal bucket.
      */
     function withdrawalBucket() external view returns (uint208);
 
     /**
      * @notice Get a total amount of the withdrawals at a given bucket index.
-     * @param index index to get the total amount of the withdrawals at
-     * @return total amount of the withdrawals at the bucket index
+     * @param index Index to get the total amount of the withdrawals at.
+     * @return Total Amount of the withdrawals at the bucket index.
      */
     function withdrawals(uint256 index) external view returns (uint256);
 
     /**
      * @notice Get a total number of withdrawal shares at a given bucket index.
-     * @param index index to get the total number of withdrawal shares at
-     * @return total number of withdrawal shares at the bucket index
+     * @param index Index to get the total number of withdrawal shares at.
+     * @return Total Number of withdrawal shares at the bucket index.
      */
     function withdrawalShares(uint256 index) external view returns (uint256);
 
     /**
      * @notice Get if the withdrawal is claimed for a particular account at a given index.
-     * @param index index to check the withdrawal for the account at
-     * @param account account to check the withdrawal for
-     * @return if the withdrawal is claimed for the account at the index
+     * @param index Index to check the withdrawal for the account at.
+     * @param account Account to check the withdrawal for.
+     * @return If The withdrawal is claimed for the account at the index.
      */
     function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
 

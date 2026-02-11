@@ -5,8 +5,8 @@ import {Checkpoints as OZCheckpoints} from "@openzeppelin/contracts/utils/struct
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
- * @dev This library defines the `Trace*` struct, for checkpointing values as they change at different points in
- * time, and later looking up past values by key.
+ * @title Checkpoints
+ * @notice Library implementing a timestamped checkpoint lookup and mutation primitive set.
  */
 library Checkpoints {
     using OZCheckpoints for OZCheckpoints.Trace208;
@@ -342,7 +342,7 @@ library Checkpoints {
 
     /**
      * @dev Return the index of the last (most recent) checkpoint with a key lower or equal than the search key, or `high`
-     * if there is none. `low` and `high` define a section where to do the search, with inclusive `low` and exclusive
+     * if there is none. `low` and `high` define a section where to do the search, with inclusive `low` and exclusive.
      * `high`.
      *
      * WARNING: `high` should not be greater than the array's length.
