@@ -164,6 +164,7 @@ interface IVaultV2Storage {
      * @notice Get a total number of withdrawal shares at a given bucket index.
      * @param index Index to get the total number of withdrawal shares at.
      * @return Total Number of withdrawal shares at the bucket index.
+     * @dev Warning: doesn't provide legacy epoch data before.
      */
     function withdrawalShares(uint256 index) external view returns (uint256);
 
@@ -171,6 +172,7 @@ interface IVaultV2Storage {
      * @notice Get a total amount of the withdrawals at a given bucket index.
      * @param index Index to get the total amount of the withdrawals at.
      * @return Total Amount of the withdrawals at the bucket index.
+     * @dev Warning: doesn't provide legacy epoch data before.
      */
     function withdrawals(uint256 index) external view returns (uint256);
 

@@ -1395,6 +1395,28 @@ contract VaultV2Test is Test {
         assertEq(vault.activeSharesOf(alice), 1);
     }
 
+    function test_DepositRevertWhenMintedSharesRoundDownToZero() public {
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        (, uint256 mintedShares) = _deposit(alice, 1);
+        assertEq(mintedShares, 1);
+
+        uint256 donation = collateral.balanceOf(address(this)) - 1;
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        collateral.transfer(bob, 1);
+        vm.startPrank(bob);
+        collateral.approve(address(vault), 1);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        vault.deposit(bob, 1);
+        vm.stopPrank();
+    }
+
     function test_DonateRevertNotRewards() public {
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
@@ -1693,6 +1715,19 @@ contract VaultV2Test is Test {
 
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _redeem(alice, 0);
+    }
+
+    function test_RedeemRevertWhenWithdrawnAssetsRoundDownToZeroAfterSlash() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        vm.prank(address(slasher));
+        VaultV2(address(vault)).onSlash(100, false);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        vault.redeem(alice, 1);
+        vm.stopPrank();
     }
 
     function test_RedeemRevertTooMuchRedeem(uint256 amount1) public {
@@ -2636,7 +2671,7 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyCurrentEpochWithdrawals);
     }
 
-    function test_MigrateWithdrawals_SecondPostMigrationWithdrawalHasZeroUnlockAfter() public {
+    function test_MigrateWithdrawals_SecondPostMigrationWithdrawalHasNonZeroUnlockAfter() public {
         uint48 epochDuration = 10;
         uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -2662,7 +2697,8 @@ contract VaultV2Test is Test {
 
         _deposit(bob, 500);
 
-        vm.warp(blockTimestamp + 2 * epochDuration + epochDuration / 2);
+        uint256 migrateTimestamp = blockTimestamp + 2 * epochDuration + epochDuration / 2;
+        vm.warp(migrateTimestamp);
         bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
         vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
 
@@ -2677,7 +2713,14 @@ contract VaultV2Test is Test {
 
         uint256 secondIndex = vaultV2.withdrawalsOfLength(bob) - 1;
         uint48 secondUnlockAfter = vaultV2.withdrawalUnlockAfter(secondIndex, bob);
-        assertEq(secondUnlockAfter, 0);
+        assertEq(secondUnlockAfter, uint48(block.timestamp + epochDuration));
+
+        vm.startPrank(bob);
+        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
+        vaultV2.claim(bob, secondIndex);
+        vm.stopPrank();
+
+        vm.warp(uint256(secondUnlockAfter) + 1);
 
         uint256 bobBalanceBefore = collateral.balanceOf(bob);
         vm.startPrank(bob);
@@ -3039,6 +3082,33 @@ contract VaultV2Test is Test {
         assertEq(allocated, 0);
     }
 
+    function test_AllocatePlugin_respectsRemainingPluginLimit() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), 60);
+
+        vm.prank(address(plugin));
+        uint256 allocated = vault.allocatePlugin(address(plugin), 50);
+        assertEq(allocated, 50);
+
+        vm.prank(address(plugin));
+        allocated = vault.allocatePlugin(address(plugin), 50);
+        assertEq(allocated, 10);
+
+        vm.prank(address(plugin));
+        allocated = vault.allocatePlugin(address(plugin), 1);
+        assertEq(allocated, 0);
+
+        assertEq(vault.pluginAllocated(address(plugin)), 60);
+        assertEq(vault.pluginsAllocated(), 60);
+    }
+
     function test_RemovePlugin_revertsWhenOwed() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
@@ -3249,6 +3319,33 @@ contract VaultV2Test is Test {
         assertEq(withdrawnAssets, amount);
         assertGt(burnedShares, 0);
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, amount);
+    }
+
+    function test_InstantWithdraw_deallocatesPluginsWhenOverAllocated() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(collateral.balanceOf(address(vault)), 20);
+
+        vm.prank(address(slasher));
+        VaultV2(address(vault)).onSlash(80, false);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+
+        uint256 amount = Math.min(IUniversalDelegator(vault.delegator()).getWithdrawalBuffer(), uint256(10));
+        assertGt(amount, 0);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets,) = VaultV2(address(vault)).instantWithdraw(alice, amount);
+
+        assertEq(withdrawnAssets, amount);
+        assertEq(vault.pluginAllocated(address(plugin)), 20);
     }
 
     function test_InstantWithdrawRevertInsufficientAmount() public {

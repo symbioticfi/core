@@ -491,6 +491,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Get how many withdrawals a particular account requested.
      * @param account Account to check the withdrawals for.
      * @return The Number of withdrawals requested by the account.
+     * @dev Includes legacy epoch data with index equal to epoch number.
      */
     function withdrawalsOfLength(address account) external view returns (uint256);
 
@@ -499,6 +500,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param index Index to get the number of withdrawal shares for the account at.
      * @param account Account to get the number of withdrawal shares for.
      * @return Number Of withdrawal shares for the account at the index.
+     * @dev Includes legacy epoch data with index equal to epoch number.
      */
     function withdrawalSharesOf(uint256 index, address account) external view returns (uint256);
 
@@ -507,6 +509,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param index Index to check the withdrawals for the account at.
      * @param account Account to check the withdrawal for.
      * @return When The withdrawal is claimable for the account at the index.
+     * @dev Simplifies legacy epoch data by returning 0 for all epochs before migration.
      */
     function withdrawalUnlockAfter(uint256 index, address account) external view returns (uint48);
 
@@ -515,6 +518,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param index Index to get the withdrawals for the account at.
      * @param account Account to get the withdrawals for.
      * @return Withdrawals For the account at the index.
+     * @dev Includes legacy epoch data with index equal to epoch number.
      */
     function withdrawalsOf(uint256 index, address account) external view returns (uint256);
 

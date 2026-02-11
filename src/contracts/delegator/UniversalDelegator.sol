@@ -642,13 +642,17 @@ contract UniversalDelegator is
                 parent.lastChild.push(uint48(block.timestamp), index1.getChildIndex());
             }
 
-            (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
+            uint32 nextSlot1 = uint32(slot1.nextSlot.latest());
+            slot1.nextSlot.push(uint48(block.timestamp), uint32(slot2.nextSlot.latest()));
+            slot2.nextSlot.push(uint48(block.timestamp), nextSlot1);
+
             if (slot1.nextSlot.latest() > 0) {
                 slots[parentIndex.createIndex(uint32(slot1.nextSlot.latest()))].prevSlot = index1.getChildIndex();
             }
             slots[parentIndex.createIndex(uint32(slot2.nextSlot.latest()))].prevSlot = index2.getChildIndex();
 
             (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
+
             slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot
                 .push(uint48(block.timestamp), index1.getChildIndex());
             if (slot2.prevSlot > 0) {
@@ -696,7 +700,8 @@ contract UniversalDelegator is
                         index.getDepth() > 1 || nextChildIndex < WITHDRAWAL_BUFFER_CHILD_INDEX ? nextChildIndex : 0
                     );
             } else {
-                slots[index.getParentIndex().createIndex(slot.prevSlot)].nextSlot = slot.nextSlot;
+                slots[index.getParentIndex().createIndex(slot.prevSlot)].nextSlot
+                    .push(uint48(block.timestamp), uint32(slot.nextSlot.latest()));
             }
             if (index.getChildIndex() == parent.lastChild.latest()) {
                 parent.lastChild.push(uint48(block.timestamp), slot.prevSlot);

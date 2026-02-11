@@ -185,18 +185,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48 timestamp) {
         unchecked {
-            if (__migrateTimestamp == 0) {
-                return _withdrawalUnlockAfter[index][account];
+            if (__migrateTimestamp > 0) {
+                // Legacy support.
+                uint48 migrateEpoch = __migrateEpoch;
+                if (index == migrateEpoch) {
+                    return __migrateNextEpochTimestamp;
+                }
+                if (index == migrateEpoch + 1) {
+                    return __migrateTimestamp + epochDuration;
+                }
             }
 
-            // Legacy support.
-            uint48 migrateEpoch = __migrateEpoch;
-            if (index == migrateEpoch) {
-                return __migrateNextEpochTimestamp;
-            }
-            if (index == migrateEpoch + 1) {
-                return __migrateTimestamp + epochDuration;
-            }
+            return _withdrawalUnlockAfter[index][account];
         }
     }
 
@@ -272,6 +272,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 curActiveShares = activeShares();
 
             mintedShares = ERC4626Math.previewDeposit(depositedAmount, curActiveShares, curActiveStake);
+            _revertIfZero(mintedShares);
 
             uint256 newActiveShares = curActiveShares + mintedShares;
             require(newActiveShares >= curActiveShares);
@@ -301,6 +302,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _revertIfZero(amount);
 
             burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
+            _revertIfZero(burnedShares);
             if (burnedShares > activeSharesOf(msg.sender)) {
                 revert TooMuchWithdraw();
             }
@@ -317,6 +319,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     {
         unchecked {
             _revertIfZero(claimer);
+            _revertIfZero(shares);
             if (shares > activeSharesOf(msg.sender)) {
                 revert TooMuchRedeem();
             }
@@ -330,6 +333,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function instantWithdraw(address recipient, uint256 amount)
         public
+        withDeallocatePlugins(true)
+        nonReentrant
         returns (uint256 withdrawnAssets, uint256 burnedShares)
     {
         unchecked {
@@ -410,7 +415,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 curActiveStake = activeStake();
             uint256 curActiveWithdrawals = activeWithdrawals();
             uint256 curWithdrawalBucket = withdrawalBucket();
-            uint256 withdrawalsDonated = amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
+            uint256 withdrawalsDonated = curActiveWithdrawals > 0
+                ? amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals)
+                : 0;
             _withdrawals[curWithdrawalBucket].push(
                 uint48(block.timestamp), withdrawals(curWithdrawalBucket) + withdrawalsDonated
             );
@@ -499,6 +506,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
 
             mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, curWithdrawalShares, curWithdrawals);
+            _revertIfZero(mintedShares);
 
             uint256 newWithdrawalShares = curWithdrawalShares + mintedShares;
             require(newWithdrawalShares >= curWithdrawalShares);
@@ -629,7 +637,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function _allocatePlugin(address plugin, uint256 amount) internal returns (uint256 allocated) {
         unchecked {
             allocated = Math.min(
-                Math.min(Math.min(amount, pluginLimit[plugin]), allocatable()), IPluginBase(plugin).allocatable()
+                Math.min(Math.min(amount, pluginLimit[plugin] - pluginAllocated[plugin]), allocatable()),
+                IPluginBase(plugin).allocatable()
             );
 
             if (allocated > 0) {

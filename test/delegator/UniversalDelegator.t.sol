@@ -1717,6 +1717,30 @@ contract UniversalDelegatorTest is Test {
         assertEq(slot2After.prevSlot, slot3.getChildIndex());
     }
 
+    function test_getFilledAt_afterSwap_historicalTraversalNoLoop() public {
+        _deposit(alice, 120);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 group = _rootIndex(uint32(1));
+
+        _createSlot(group, false, 120);
+        uint96 networkSlot = group.createIndex(uint32(1));
+
+        _createSlot(networkSlot, false, 40);
+        _createSlot(networkSlot, false, 40);
+        _createSlot(networkSlot, false, 40);
+
+        uint96 op2 = networkSlot.createIndex(uint32(2));
+        uint96 op3 = networkSlot.createIndex(uint32(3));
+        uint48 beforeSwap = uint48(block.timestamp);
+
+        vm.warp(uint256(beforeSwap) + 1);
+        delegator.swapSlots(op2, op3);
+
+        assertEq(delegator.getFilledAt(networkSlot, 0, beforeSwap), 120);
+        assertEq(delegator.getFilled(networkSlot, 0), 120);
+    }
+
     function test_swapSlots_revertsNotSameParent() public {
         _deposit(alice, 100);
 
