@@ -3474,6 +3474,40 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
+    function test_MorphoAllocatePlugin_donatesDuringDepositAndWithdrawOperations() public {
+        vault = _getUniversalVault(7 days);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoAllocatePlugin morphoPlugin =
+            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        pluginRegistry.whitelistPlugin(address(morphoPlugin));
+
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(morphoPlugin), type(uint208).max);
+
+        _deposit(alice, 100);
+        assertEq(vault.pluginAllocated(address(morphoPlugin)), 100);
+        assertEq(vault.activeStake(), 100);
+
+        collateral.approve(address(morphoVault), 20);
+        morphoVault.donateYield(20);
+
+        _deposit(bob, 10);
+        assertEq(vault.activeStake(), 130);
+        assertEq(vault.pluginAllocated(address(morphoPlugin)), 110);
+        assertEq(collateral.balanceOf(address(rewards)), 0);
+
+        collateral.approve(address(morphoVault), 10);
+        morphoVault.donateYield(10);
+
+        _withdraw(alice, 30);
+        assertEq(vault.activeStake(), 110);
+        assertEq(vault.activeWithdrawals(), 30);
+        assertEq(vault.pluginAllocated(address(morphoPlugin)), 110);
+        assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
     function test_MorphoBorrowPlugin_deallocateSkimsAndDonatesRewards() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
