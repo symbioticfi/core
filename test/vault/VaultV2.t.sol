@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {Test, console2, stdError} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
@@ -3513,6 +3514,68 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginAllocated(address(plugin1)), 50);
         assertEq(vault.pluginAllocated(address(plugin2)), 30);
         assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
+    function test_MorphoBorrowPlugin_borrowDeallocatesMorphoThenAllocatesBorrow() public {
+        vault = _getUniversalVault(7 days);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoAllocatePlugin morphoPlugin =
+            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        MockMorphoBorrowPlugin borrowPlugin =
+            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        pluginRegistry.whitelistPlugin(address(morphoPlugin));
+        pluginRegistry.whitelistPlugin(address(borrowPlugin));
+
+        _grantAddPluginRole(alice, alice);
+        vm.startPrank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(morphoPlugin), type(uint208).max);
+        VaultV2(address(vault)).setPluginLimit(address(borrowPlugin), type(uint208).max);
+        vm.stopPrank();
+
+        _deposit(alice, 100);
+        assertEq(vault.pluginAllocated(address(morphoPlugin)), 100);
+        assertEq(vault.pluginAllocated(address(borrowPlugin)), 0);
+
+        vm.recordLogs();
+        vm.prank(address(borrowPlugin));
+        uint256 borrowed = borrowPlugin.borrow(30);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bytes32 deallocateSig = keccak256("Deallocate(address,uint256)");
+        bytes32 allocateSig = keccak256("Allocate(address,uint256)");
+        uint8[2] memory kinds;
+        address[2] memory plugins_;
+        uint256[2] memory amounts;
+        uint256 found;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(vault) || logs[i].topics.length < 2) {
+                continue;
+            }
+            bytes32 sig = logs[i].topics[0];
+            if (sig != deallocateSig && sig != allocateSig) {
+                continue;
+            }
+
+            kinds[found] = sig == deallocateSig ? 1 : 2;
+            plugins_[found] = address(uint160(uint256(logs[i].topics[1])));
+            amounts[found] = abi.decode(logs[i].data, (uint256));
+            ++found;
+            if (found == 2) {
+                break;
+            }
+        }
+
+        assertEq(borrowed, 30);
+        assertEq(found, 2);
+        assertEq(kinds[0], 1);
+        assertEq(plugins_[0], address(morphoPlugin));
+        assertEq(amounts[0], 30);
+        assertEq(kinds[1], 2);
+        assertEq(plugins_[1], address(borrowPlugin));
+        assertEq(amounts[1], 30);
+        assertEq(vault.pluginAllocated(address(morphoPlugin)), 70);
+        assertEq(vault.pluginAllocated(address(borrowPlugin)), 30);
     }
 
     function test_DeallocatePlugins() public {
