@@ -271,13 +271,36 @@ def map_execute(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
     _require("ReentrancyGuard::_nonReentrantBefore", "ReentrancyGuard::_nonReentrantBefore")
     _require("UniversalSlasher::slashRequests", "UniversalSlasher::slashRequests")
     _require("UniversalSlasher::_checkNetworkMiddleware", "UniversalSlasher::_checkNetworkMiddleware")
-    _require("MigratableEntityProxy::fallback", "VaultV2::epochDuration (via proxy)")
-    _require(
+
+    slashable_idx = _find_next_index(
+        children,
+        idx,
         ("UniversalSlasher::slashableStake", "UniversalSlasher::_slashableStake"),
-        "UniversalSlasher::slashableStake",
     )
-    _require("MigratableEntityProxy::fallback", "VaultV2::delegator (via proxy)")
-    _require(("onSlash", "UniversalDelegator::onSlash"), "UniversalDelegator::onSlash")
+    if slashable_idx is None:
+        raise ValueError(f"Unexpected {context} trace shape.")
+
+    epoch_fallback_idx = _find_next_index(children, idx, "MigratableEntityProxy::fallback")
+    if epoch_fallback_idx is not None and epoch_fallback_idx < slashable_idx:
+        mapped.append(("VaultV2::epochDuration (via proxy)", children[epoch_fallback_idx][1]))
+    else:
+        mapped.append(("VaultV2::epochDuration (via proxy)", 0))
+
+    mapped.append(("UniversalSlasher::slashableStake", children[slashable_idx][1]))
+    idx = slashable_idx + 1
+
+    on_slash_idx = _find_next_index(children, idx, ("onSlash", "UniversalDelegator::onSlash"))
+    if on_slash_idx is None:
+        raise ValueError(f"Unexpected {context} trace shape.")
+
+    delegator_fallback_idx = _find_next_index(children, idx, "MigratableEntityProxy::fallback")
+    if delegator_fallback_idx is not None and delegator_fallback_idx < on_slash_idx:
+        mapped.append(("VaultV2::delegator (via proxy)", children[delegator_fallback_idx][1]))
+    else:
+        mapped.append(("VaultV2::delegator (via proxy)", 0))
+
+    mapped.append(("UniversalDelegator::onSlash", children[on_slash_idx][1]))
+    idx = on_slash_idx + 1
 
     burner_idx = _find_next_index(children, idx, "UniversalSlasher::_burnerOnSlash")
     if burner_idx is None:
@@ -325,29 +348,54 @@ def map_execute(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
 
 
 def map_vault(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
-    expected: list[tuple[tuple[str, ...] | str, str, bool]] = [
-        ("VaultV2::deallocatePlugins", "VaultV2::deallocatePlugins", False),
-        ("ReentrancyGuard::_nonReentrantBefore", "ReentrancyGuard::_nonReentrantBefore", True),
-        ("VaultV2Storage::activeStake", "VaultV2Storage::activeStake", True),
-        ("VaultV2Storage::withdrawalBucket", "VaultV2Storage::withdrawalBucket", True),
-        ("Checkpoints::upperLookupRecent", "Checkpoints::upperLookupRecent", True),
-        ("Checkpoints::latest", "Checkpoints::latest", True),
-        ("VaultV2::activeWithdrawals", "VaultV2::activeWithdrawals", True),
-        ("VaultV2::activeWithdrawals", "VaultV2::activeWithdrawals", True),
-        ("VaultV2Storage::withdrawals", "VaultV2Storage::withdrawals", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("VaultV2Storage::withdrawalShares", "VaultV2Storage::withdrawalShares", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("FixedPointMathLib::mulDiv", "FixedPointMathLib::mulDiv", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("Checkpoints::push", "Checkpoints::push", True),
-        ("VaultV2::_availableToSlash", "VaultV2::_availableToSlash", True),
-        ("SafeTransferLib::safeTransfer", "SafeTransferLib::safeTransfer", False),
-        ("ReentrancyGuard::_nonReentrantAfter", "ReentrancyGuard::_nonReentrantAfter", False),
+    context = "VaultV2::onSlash"
+
+    def _gas_by_occurrence(
+        names: tuple[str, ...] | str,
+        occurrence: int = 0,
+        required: bool = True,
+    ) -> int:
+        if isinstance(names, str):
+            names = (names,)
+        found = -1
+        for name, gas in children:
+            if name in names:
+                found += 1
+                if found == occurrence:
+                    return gas
+        if required:
+            raise ValueError(f"Unexpected {context} trace shape.")
+        return 0
+
+    push_values = [gas for name, gas in children if name == "Checkpoints::push"]
+    if len(push_values) < 6:
+        raise ValueError(f"Unexpected {context} trace shape.")
+
+    return [
+        ("VaultV2::deallocatePlugins", _gas_by_occurrence("VaultV2::deallocatePlugins", required=False)),
+        ("ReentrancyGuard::_nonReentrantBefore", _gas_by_occurrence("ReentrancyGuard::_nonReentrantBefore")),
+        ("VaultV2Storage::activeStake", _gas_by_occurrence("VaultV2Storage::activeStake")),
+        ("VaultV2Storage::withdrawalBucket", _gas_by_occurrence("VaultV2Storage::withdrawalBucket")),
+        (
+            "Checkpoints::upperLookupRecent",
+            _gas_by_occurrence(("Checkpoints::upperLookupRecent", "VaultV2::_activeWithdrawalSharesFor")),
+        ),
+        ("Checkpoints::latest", _gas_by_occurrence("Checkpoints::latest", required=False)),
+        ("VaultV2::activeWithdrawals", _gas_by_occurrence("VaultV2::activeWithdrawals", occurrence=0)),
+        ("VaultV2::activeWithdrawals", _gas_by_occurrence("VaultV2::activeWithdrawals", occurrence=1)),
+        ("VaultV2Storage::withdrawals", _gas_by_occurrence("VaultV2Storage::withdrawals")),
+        ("Checkpoints::push", push_values[0]),
+        ("Checkpoints::push", push_values[1]),
+        ("VaultV2Storage::withdrawalShares", _gas_by_occurrence("VaultV2Storage::withdrawalShares")),
+        ("Checkpoints::push", push_values[2]),
+        ("Checkpoints::push", push_values[3]),
+        ("FixedPointMathLib::mulDiv", _gas_by_occurrence(("FixedPointMathLib::mulDiv", "FixedPointMathLib::fullMulDiv"))),
+        ("Checkpoints::push", push_values[4]),
+        ("Checkpoints::push", push_values[5]),
+        ("VaultV2::_availableToSlash", _gas_by_occurrence("VaultV2::_availableToSlash")),
+        ("SafeTransferLib::safeTransfer", _gas_by_occurrence("SafeTransferLib::safeTransfer", required=False)),
+        ("ReentrancyGuard::_nonReentrantAfter", _gas_by_occurrence("ReentrancyGuard::_nonReentrantAfter", required=False)),
     ]
-    return _map_sequence(children, expected, "VaultV2::onSlash")
 
 
 def component_gas(components: list[tuple[str, int]], label: str, context: str) -> int:
