@@ -7,6 +7,7 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 Operators to be slashed are first and second to maximize gas costs for slashing call
 
 Notes:
+
 - Different operators, same group/network.
 - “Fully isolated” runs request1, request2, then execute1, execute2, with a block time jump between the phases.
 - “Single transaction” uses two transactions: batch two requests, then batch two executes.
@@ -21,21 +22,20 @@ Note: costs are lower because `latest()` state is used.
 ### Fully isolated and in different blocks
 
 | Call | Request slash gas | Execute slash gas |
-| --- | ---: | ---: |
-| 1st | 304,395 ($0.07) | 788,840 ($0.17) |
-| 2nd | 282,782 ($0.06) | 562,209 ($0.12) |
+| ---- | ----------------: | ----------------: |
+| 1st  |   304,395 ($0.07) |   788,840 ($0.17) |
+| 2nd  |   282,782 ($0.06) |   562,209 ($0.12) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
-| --- | ---: | ---: |
-| 1st | 282,894 ($0.06) | 778,187 ($0.17) |
-| 2nd | 161,470 ($0.04) | 402,729 ($0.09) |
+| ---- | ----------------: | ----------------: |
+| 1st  |   282,894 ($0.06) |   778,187 ($0.17) |
+| 2nd  |   161,470 ($0.04) |   402,729 ($0.09) |
 
 ### Stake For Timestamp
 
-| Call | Stake gas |
-| --- | ---: |
+| Call            |       Stake gas |
+| --------------- | --------------: |
 | Before slashing | 140,945 ($0.03) |
-| After slashing | 269,639 ($0.06) |
-
+| After slashing  | 269,639 ($0.06) |

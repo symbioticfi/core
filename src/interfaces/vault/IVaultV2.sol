@@ -35,11 +35,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     /* ERRORS */
 
     /**
-     * @notice Raised when the caller is not the configured rewards address.
-     */
-    error NotRewards();
-
-    /**
      * @notice Raised when a withdrawal is already claimed.
      */
     error AlreadyClaimed();
@@ -60,14 +55,29 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error DepositLimitReached();
 
     /**
-     * @notice Raised when there is nothing claimable for the request.
+     * @notice Raised when trying to whitelist a depositor that is already whitelisted.
      */
-    error InsufficientClaim();
+    error DuplicateDepositor();
+
+    /**
+     * @notice Raised when trying to add a plugin that is already configured.
+     */
+    error DuplicatePlugin();
+
+    /**
+     * @notice Raised when fee-on-transfer behavior is unsupported for the operation.
+     */
+    error FeeOnTransferNotSupported();
 
     /**
      * @notice Raised when the provided amount is zero or insufficient.
      */
     error InsufficientAmount();
+
+    /**
+     * @notice Raised when there is nothing claimable for the request.
+     */
+    error InsufficientClaim();
 
     /**
      * @notice Raised when redemption output is insufficient.
@@ -105,9 +115,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidDelegator();
 
     /**
-     * @notice Raised when epoch duration is outside allowed bounds.
+     * @notice Raised when depositor address provided for whitelist initialization is invalid.
      */
-    error TooLongDuration();
+    error InvalidDepositorToWhitelist();
 
     /**
      * @notice Raised when epochs-length input is invalid.
@@ -140,14 +150,19 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error NotDelegator();
 
     /**
-     * @notice Raised when the provided slasher is not recognized.
-     */
-    error NotSlasher();
-
-    /**
      * @notice Raised when the provided plugin is not whitelisted in plugin registry.
      */
     error NotPlugin();
+
+    /**
+     * @notice Raised when the caller is not the configured rewards address.
+     */
+    error NotRewards();
+
+    /**
+     * @notice Raised when the provided slasher is not recognized.
+     */
+    error NotSlasher();
 
     /**
      * @notice Raised when depositor is not in the whitelist while whitelist is enabled.
@@ -155,9 +170,24 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error NotWhitelistedDepositor();
 
     /**
+     * @notice Raised when plugin allocation exceeds or conflicts with limits.
+     */
+    error PluginAllocated();
+
+    /**
      * @notice Raised when slasher initialization is attempted more than once.
      */
     error SlasherAlreadyInitialized();
+
+    /**
+     * @notice Raised when epoch duration is outside allowed bounds.
+     */
+    error TooLongDuration();
+
+    /**
+     * @notice Raised when plugin count exceeds the configured maximum.
+     */
+    error TooManyPlugins();
 
     /**
      * @notice Raised when redeeming more shares than available.
@@ -173,36 +203,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Raised when withdrawal is not yet matured.
      */
     error WithdrawalNotMatured();
-
-    /**
-     * @notice Raised when fee-on-transfer behavior is unsupported for the operation.
-     */
-    error FeeOnTransferNotSupported();
-
-    /**
-     * @notice Raised when trying to add a plugin that is already configured.
-     */
-    error DuplicatePlugin();
-
-    /**
-     * @notice Raised when plugin allocation exceeds or conflicts with limits.
-     */
-    error PluginAllocated();
-
-    /**
-     * @notice Raised when plugin count exceeds the configured maximum.
-     */
-    error TooManyPlugins();
-
-    /**
-     * @notice Raised when trying to whitelist a depositor that is already whitelisted.
-     */
-    error DuplicateDepositor();
-
-    /**
-     * @notice Raised when depositor address provided for whitelist initialization is invalid.
-     */
-    error InvalidDepositorToWhitelist();
 
     /* STRUCTS */
 

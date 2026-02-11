@@ -35,14 +35,59 @@ interface IUniversalDelegator {
     /* ERRORS */
 
     /**
+     * @notice Raised when a network or operator is already assigned to a slot.
+     */
+    error AlreadyAssigned();
+
+    /**
+     * @notice Raised when there is not enough gas for the hook call.
+     */
+    error InsufficientHookGas();
+
+    /**
+     * @notice Raised when an operation is incompatible with shared mode.
+     */
+    error IsShared();
+
+    /**
+     * @notice Raised when no slot is assigned for the requested subject.
+     */
+    error NotAssigned();
+
+    /**
      * @notice Raised when there is not enough available stake for the operation.
      */
     error NotEnoughAvailable();
 
     /**
+     * @notice Raised when requested no-plugins capacity exceeds available amount.
+     */
+    error NotEnoughNoPlugins();
+
+    /**
+     * @notice Raised when migration functions are called outside migration mode.
+     */
+    error NotMigrating();
+
+    /**
      * @notice Raised when the caller is not a registered network.
      */
     error NotNetwork();
+
+    /**
+     * @notice Raised when the caller is neither a network nor its middleware.
+     */
+    error NotNetworkOrMiddleware();
+
+    /**
+     * @notice Raised when two slots are not in the same allocation state.
+     */
+    error NotSameAllocated();
+
+    /**
+     * @notice Raised when two slots do not have the same parent.
+     */
+    error NotSameParent();
 
     /**
      * @notice Raised when the caller is not the vault slasher.
@@ -55,14 +100,9 @@ interface IUniversalDelegator {
     error NotVault();
 
     /**
-     * @notice Raised when two slots do not have the same parent.
+     * @notice Raised when the connected vault version is older than required.
      */
-    error NotSameParent();
-
-    /**
-     * @notice Raised when two slots are not in the same allocation state.
-     */
-    error NotSameAllocated();
+    error OldVault();
 
     /**
      * @notice Raised when a slot is only partially allocated and cannot be moved.
@@ -70,24 +110,9 @@ interface IUniversalDelegator {
     error PartiallyAllocated();
 
     /**
-     * @notice Raised when no slot is assigned for the requested subject.
-     */
-    error NotAssigned();
-
-    /**
      * @notice Raised when trying to remove a slot that still has allocation.
      */
     error SlotAllocated();
-
-    /**
-     * @notice Raised when a slot operation is attempted at an invalid hierarchy depth.
-     */
-    error WrongDepth();
-
-    /**
-     * @notice Raised when an operation is incompatible with shared mode.
-     */
-    error IsShared();
 
     /**
      * @notice Raised when the requested slot does not exist.
@@ -95,44 +120,19 @@ interface IUniversalDelegator {
     error SlotNotCreated();
 
     /**
-     * @notice Raised when the connected vault version is older than required.
+     * @notice Raised when the maximum number of children for a slot is exceeded.
      */
-    error OldVault();
+    error TooManyChildren();
 
     /**
-     * @notice Raised when migration functions are called outside migration mode.
+     * @notice Raised when a slot operation is attempted at an invalid hierarchy depth.
      */
-    error NotMigrating();
-
-    /**
-     * @notice Raised when the caller is neither a network nor its middleware.
-     */
-    error NotNetworkOrMiddleware();
-
-    /**
-     * @notice Raised when a network or operator is already assigned to a slot.
-     */
-    error AlreadyAssigned();
-
-    /**
-     * @notice Raised when there is not enough gas for the hook call.
-     */
-    error InsufficientHookGas();
-
-    /**
-     * @notice Raised when requested no-plugins capacity exceeds available amount.
-     */
-    error NotEnoughNoPlugins();
+    error WrongDepth();
 
     /**
      * @notice Raised when slot ordering constraints are violated.
      */
     error WrongOrder();
-
-    /**
-     * @notice Raised when the maximum number of children for a slot is exceeded.
-     */
-    error TooManyChildren();
 
     /* STRUCTS */
 

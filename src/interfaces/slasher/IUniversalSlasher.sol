@@ -19,6 +19,11 @@ interface IUniversalSlasher {
     error AlreadySet();
 
     /**
+     * @notice Raised when there is not enough gas left for the burner hook call.
+     */
+    error InsufficientBurnerGas();
+
+    /**
      * @notice Raised when the requested slash amount is zero after validation.
      */
     error InsufficientSlash();
@@ -39,9 +44,19 @@ interface IUniversalSlasher {
     error InvalidVetoDuration();
 
     /**
+     * @notice Raised when burner-hook mode is enabled but the vault has no burner.
+     */
+    error NoBurner();
+
+    /**
      * @notice Raised when an operation requires a resolver but none is configured.
      */
     error NoResolver();
+
+    /**
+     * @notice Raised when migration functions are called outside migration mode.
+     */
+    error NotMigrating();
 
     /**
      * @notice Raised when the caller is not a registered network.
@@ -49,9 +64,24 @@ interface IUniversalSlasher {
     error NotNetwork();
 
     /**
+     * @notice Raised when the caller is not the network middleware for the subnetwork.
+     */
+    error NotNetworkMiddleware();
+
+    /**
      * @notice Raised when the caller is not the configured resolver.
      */
     error NotResolver();
+
+    /**
+     * @notice Raised when the provided vault is invalid.
+     */
+    error NotVault();
+
+    /**
+     * @notice Raised when the connected vault version is older than required.
+     */
+    error OldVault();
 
     /**
      * @notice Raised when the slash request has already been completed.
@@ -72,36 +102,6 @@ interface IUniversalSlasher {
      * @notice Raised when the veto period has not ended yet.
      */
     error VetoPeriodNotEnded();
-
-    /**
-     * @notice Raised when the connected vault version is older than required.
-     */
-    error OldVault();
-
-    /**
-     * @notice Raised when migration functions are called outside migration mode.
-     */
-    error NotMigrating();
-
-    /**
-     * @notice Raised when burner-hook mode is enabled but the vault has no burner.
-     */
-    error NoBurner();
-
-    /**
-     * @notice Raised when there is not enough gas left for the burner hook call.
-     */
-    error InsufficientBurnerGas();
-
-    /**
-     * @notice Raised when the caller is not the network middleware for the subnetwork.
-     */
-    error NotNetworkMiddleware();
-
-    /**
-     * @notice Raised when the provided vault is invalid.
-     */
-    error NotVault();
 
     /* STRUCTS */
 
