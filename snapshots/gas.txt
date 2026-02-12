@@ -1,8 +1,8 @@
 No files changed, compilation skipped
 
-Ran 1 test for test/common/MigratableEntityProxy.t.sol:MigratableEntityProxyTest
-[PASS] test_MigrateRevertProxyDeniedAdminAccess() (gas: 1775688)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 672.58µs (236.38µs CPU time)
+Ran 1 test for test/common/Entity.t.sol:EntityTest
+[PASS] test_Create() (gas: 1095698)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 933.79µs (163.67µs CPU time)
 
 Ran 7 tests for test/common/Factory.t.sol:FactoryTest
 [PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 454048)
@@ -12,33 +12,29 @@ Ran 7 tests for test/common/Factory.t.sol:FactoryTest
 [PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 375164)
 [PASS] test_WhitelistRevertInvalidImplementation1() (gas: 306578)
 [PASS] test_WhitelistRevertInvalidImplementation2() (gas: 677567)
-Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 754.00µs (472.63µs CPU time)
-
-Ran 1 test for test/SlasherFactory.t.sol:SlasherFactoryTest
-[PASS] test_Create() (gas: 1494652)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.60ms (284.21µs CPU time)
-
-Ran 1 test for test/common/Entity.t.sol:EntityTest
-[PASS] test_Create() (gas: 1095698)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.97ms (5.68ms CPU time)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 1.75ms (1.05ms CPU time)
 
 Ran 1 test for test/DelegatorFactory.t.sol:DelegatorFactoryTest
 [PASS] test_Create() (gas: 1646017)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 7.59ms (326.79µs CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.97ms (323.75µs CPU time)
+
+Ran 1 test for test/common/MigratableEntityProxy.t.sol:MigratableEntityProxyTest
+[PASS] test_MigrateRevertProxyDeniedAdminAccess() (gas: 1775688)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.49ms (170.63µs CPU time)
+
+Ran 3 tests for test/OperatorRegistry.t.sol:OperatorRegistryTest
+[PASS] test_Create() (gas: 30489)
+[PASS] test_Register() (gas: 121424)
+[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143454)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 2.33ms (2.04ms CPU time)
 
 Ran 1 test for test/common/Registry.t.sol:FactoryTest
 [PASS] test_Create() (gas: 304158)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 271.50µs (90.29µs CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 890.83µs (321.08µs CPU time)
 
-Ran 1 test for test/POC.t.sol:POCTest
-[PASS] test_POC() (gas: 253)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 11.65ms (19.13µs CPU time)
-
-Ran 3 tests for test/PluginRegistry.t.sol:PluginRegistryTest
-[PASS] test_whitelistPlugin() (gas: 107756)
-[PASS] test_whitelistPluginRevertNotOwner() (gas: 36630)
-[PASS] test_whitelistPluginRevertPluginAlreadyWhitelisted() (gas: 132051)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 273.29µs (75.71µs CPU time)
+Ran 1 test for test/SlasherFactory.t.sol:SlasherFactoryTest
+[PASS] test_Create() (gas: 1494652)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.81ms (472.46µs CPU time)
 
 Ran 5 tests for test/slasher/UniversalSlasher.t.sol:UniversalSlasherMigrationTest
 [PASS] test_MigrateFromSlasher_ToUniversalSlasher() (gas: 2235168)
@@ -46,7 +42,7 @@ Ran 5 tests for test/slasher/UniversalSlasher.t.sol:UniversalSlasherMigrationTes
 [PASS] test_MigrateFromVetoSlasher_ToUniversalSlasher() (gas: 2304561)
 [PASS] test_MigrateFromVetoSlasher_ToUniversalSlasher_preservesResolverSetDelay() (gas: 2263239)
 [PASS] test_MigrateWithoutSlasher_DoesNotCreateNewSlasher() (gas: 1775145)
-Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 13.83ms (5.01ms CPU time)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 4.41ms (2.23ms CPU time)
 
 Ran 33 tests for test/slasher/UniversalSlasher.t.sol:UniversalSlasherRuntimeCoverageTest
 [PASS] test_burnerHookExecutesCall() (gas: 191956)
@@ -82,68 +78,87 @@ Ran 33 tests for test/slasher/UniversalSlasher.t.sol:UniversalSlasherRuntimeCove
 [PASS] test_vetoSlashReverts_NotResolver() (gas: 208131)
 [PASS] test_vetoSlashReverts_VetoPeriodEnded() (gas: 206119)
 [PASS] test_vetoSlash_marksCompleted() (gas: 223410)
-Suite result: ok. 33 passed; 0 failed; 0 skipped; finished in 2.17ms (1.55ms CPU time)
+Suite result: ok. 33 passed; 0 failed; 0 skipped; finished in 2.18ms (1.56ms CPU time)
 
-Ran 2 tests for test/delegator/UniversalDelegator.t.sol:UniversalDelegatorMigrationTest
-[PASS] test_MigrateLegacyDelegators_ToUniversal() (gas: 7409043)
-[PASS] test_MigratedUniversalDelegator_StakeAtBeforeMigrateTimestamp_UsesLegacyPath() (gas: 1795150)
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 11.03ms (4.50ms CPU time)
+Ran 1 test for test/POC.t.sol:POCTest
+[PASS] test_POC() (gas: 253)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 10.26ms (25.96µs CPU time)
+
+Ran 3 tests for test/PluginRegistry.t.sol:PluginRegistryTest
+[PASS] test_whitelistPlugin() (gas: 107756)
+[PASS] test_whitelistPluginRevertNotOwner() (gas: 36630)
+[PASS] test_whitelistPluginRevertPluginAlreadyWhitelisted() (gas: 132051)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 985.50µs (169.25µs CPU time)
 
 Ran 3 tests for test/service/NetworkMiddlewareService.t.sol:MiddlewareServiceTest
-[PASS] test_Create(address) (runs: 100, μ: 200988, ~: 201045)
-[PASS] test_SetMiddlewareRevertAlreadySet(address) (runs: 100, μ: 207163, ~: 207230)
-[PASS] test_SetMiddlewareRevertNotNetwork(address) (runs: 100, μ: 59270, ~: 59328)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 23.18ms (23.01ms CPU time)
+[PASS] test_Create(address) (runs: 100, μ: 200994, ~: 201045)
+[PASS] test_SetMiddlewareRevertAlreadySet(address) (runs: 100, μ: 207155, ~: 207230)
+[PASS] test_SetMiddlewareRevertNotNetwork(address) (runs: 100, μ: 59295, ~: 59328)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 43.49ms (74.95ms CPU time)
 
 Ran 3 tests for test/NetworkRegistry.t.sol:NetworkRegistryTest
 [PASS] test_Create() (gas: 30489)
 [PASS] test_Register() (gas: 121446)
 [PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143498)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 271.29µs (133.92µs CPU time)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 289.63µs (148.42µs CPU time)
+
+Ran 3 tests for test/service/MetadataService.t.sol:MetadataServiceTest
+[PASS] test_Create(string) (runs: 100, μ: 218391, ~: 201921)
+[PASS] test_SetMetadataURLRevertAlreadySet(string) (runs: 100, μ: 235445, ~: 211525)
+[PASS] test_SetMetadataURLRevertNotEntity(string) (runs: 100, μ: 60484, ~: 60537)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 27.49ms (45.65ms CPU time)
+
+Ran 2 tests for test/delegator/UniversalDelegator.t.sol:UniversalDelegatorMigrationTest
+[PASS] test_MigrateLegacyDelegators_ToUniversal() (gas: 7409043)
+[PASS] test_MigratedUniversalDelegator_StakeAtBeforeMigrateTimestamp_UsesLegacyPath() (gas: 1795150)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 4.45ms (2.17ms CPU time)
 
 Ran 1 test for test/delegator/UniversalDelegatorGas.t.sol:UniversalDelegatorGasTest
 [PASS] test_Gas_StakeForAt_ExecuteSlash() (gas: 8570239)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 25.70ms (10.14ms CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 15.46ms (5.12ms CPU time)
 
-Ran 3 tests for test/service/MetadataService.t.sol:MetadataServiceTest
-[PASS] test_Create(string) (runs: 100, μ: 226088, ~: 202020)
-[PASS] test_SetMetadataURLRevertAlreadySet(string) (runs: 100, μ: 239458, ~: 260818)
-[PASS] test_SetMetadataURLRevertNotEntity(string) (runs: 100, μ: 60387, ~: 60304)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 36.69ms (36.50ms CPU time)
+Ran 1 test for test/VaultConfigurator.t.sol:VaultConfiguratorTest
+[PASS] test_Create(address,address,uint48,bool,bool,uint256,bool,address) (runs: 100, μ: 1501894, ~: 1402691)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 71.14ms (69.78ms CPU time)
+
+Ran 1 test for test/VaultFactory.t.sol:VaultFactoryTest
+[PASS] test_Create() (gas: 1010609)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.55ms (178.58µs CPU time)
 
 Ran 10 tests for test/common/MigratablesFactory.t.sol:MigratablesFactoryTest
 [PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 722114)
 [PASS] test_BlacklistRevertInvalidVersion() (gas: 31915)
 [PASS] test_Create() (gas: 2510820)
 [PASS] test_CreateRevertInvalidVersion() (gas: 730555)
-[PASS] test_Migrate(uint256) (runs: 100, μ: 2480993, ~: 2481151)
+[PASS] test_Migrate(uint256) (runs: 100, μ: 2480989, ~: 2481121)
 [PASS] test_MigrateRevertImproperOwner() (gas: 1800871)
 [PASS] test_MigrateRevertInvalidVersion() (gas: 1804738)
 [PASS] test_MigrateRevertOldVersion() (gas: 1792211)
 [PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 673398)
 [PASS] test_WhitelistRevertInvalidImplementation() (gas: 575058)
-Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 78.91ms (79.01ms CPU time)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 1.09s (1.09s CPU time)
 
-Ran 4 tests for test/common/MigratableEntity.t.sol:MigratableEntityTest
-[PASS] test_Create() (gas: 1112840)
-[PASS] test_Migrate(uint256,uint256,uint256,uint256) (runs: 100, μ: 2642553, ~: 2642651)
-[PASS] test_MigrateRevertNotFactory() (gas: 1793689)
-[PASS] test_ReinitRevertAlreadyInitialized() (gas: 1743671)
-Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 78.91ms (78.68ms CPU time)
-
-Ran 1 test for test/VaultConfigurator.t.sol:VaultConfiguratorTest
-[PASS] test_Create(address,address,uint48,bool,bool,uint256,bool,address) (runs: 100, μ: 1515367, ~: 1515702)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 81.72ms (80.33ms CPU time)
-
-Ran 1 test for test/VaultFactory.t.sol:VaultFactoryTest
-[PASS] test_Create() (gas: 1010609)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.74ms (187.67µs CPU time)
-
-Ran 3 tests for test/OperatorRegistry.t.sol:OperatorRegistryTest
-[PASS] test_Create() (gas: 30489)
-[PASS] test_Register() (gas: 121424)
-[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143454)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 414.50µs (265.21µs CPU time)
+Ran 19 tests for test/delegator/OperatorSpecificDelegator.t.sol:OperatorSpecificDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1315801, ~: 1315583)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1395905, ~: 1395700)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1360933, ~: 1360716)
+[PASS] test_CreateRevertNotOperator(uint48) (runs: 100, μ: 1369396, ~: 1369214)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1317717, ~: 1317469)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1367193, ~: 1366967)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1201308, ~: 1201154)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1678465, ~: 1678165)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1445647, ~: 1445376)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1801739, ~: 1804414)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1407448, ~: 1407366)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1349974, ~: 1349829)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2024013, ~: 2024359)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1539371, ~: 1539287)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1401977, ~: 1401918)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3450406, ~: 3456298)
+[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 100, μ: 3287094, ~: 3295257)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 100, μ: 3308530, ~: 3191850)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3369598, ~: 3370289)
+Suite result: ok. 19 passed; 0 failed; 0 skipped; finished in 1.24s (2.11s CPU time)
 
 Ran 12 tests for test/service/OptInService.t.sol:OperatorOptInServiceTest
 [PASS] test_Create() (gas: 730915)
@@ -158,33 +173,32 @@ Ran 12 tests for test/service/OptInService.t.sol:OperatorOptInServiceTest
 [PASS] test_OptOutWithExpiredDeadline() (gas: 370247)
 [PASS] test_OptOutWithInvalidSignature() (gas: 376875)
 [PASS] test_OptOutWithSignature() (gas: 427778)
-Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 12.55ms (12.11ms CPU time)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 2.87ms (2.53ms CPU time)
 
-Ran 23 tests for test/delegator/FullRestakeDelegator.t.sol:FullRestakeDelegatorTest
-[PASS] test_Create(uint48) (runs: 100, μ: 1241868, ~: 1241589)
-[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1292667, ~: 1292431)
-[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 100, μ: 1317567, ~: 1317373)
-[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1265161, ~: 1264960)
-[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1219453, ~: 1219273)
-[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1266028, ~: 1265787)
-[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 100, μ: 1290988, ~: 1290740)
-[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1102303, ~: 1102103)
-[PASS] test_SetHook(uint48) (runs: 100, μ: 1955046, ~: 1954750)
-[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1534197, ~: 1533971)
-[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1706349, ~: 1707722)
-[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1308421, ~: 1308255)
-[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1250991, ~: 1250820)
-[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1926446, ~: 1927155)
-[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1440214, ~: 1440113)
-[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1305431, ~: 1305325)
-[PASS] test_SetOperatorNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1967968, ~: 1968710)
-[PASS] test_SetOperatorNetworkLimitBoth(uint48,uint256,uint256,uint256) (runs: 100, μ: 1879394, ~: 1879340)
-[PASS] test_SetOperatorNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1475567, ~: 1475450)
-[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3698803, ~: 3711883)
-[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 100, μ: 4136543, ~: 4144574)
-[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 4141000, ~: 4275080)
-[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4887122, ~: 4890700)
-Suite result: ok. 23 passed; 0 failed; 0 skipped; finished in 2.08s (3.51s CPU time)
+Ran 15 tests for test/delegator/OperatorNetworkSpecificDelegator.t.sol:OperatorNetworkSpecificDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1447633, ~: 1447434)
+[PASS] test_CreateRevertNotNetwork(uint48) (runs: 100, μ: 1521964, ~: 1521704)
+[PASS] test_CreateRevertNotOperator(uint48) (runs: 100, μ: 1527473, ~: 1527247)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1470964, ~: 1470691)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1357824, ~: 1357575)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1795251, ~: 1794981)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1582238, ~: 1581955)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1980108, ~: 1980369)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1504652, ~: 1504681)
+[PASS] test_SetMaxNetworkLimitRevertInvalidNetwork(uint48,uint256) (runs: 100, μ: 1661161, ~: 1661087)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1352995, ~: 1352865)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3404748, ~: 3412748)
+[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 100, μ: 3174158, ~: 3165980)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 100, μ: 3022834, ~: 3009626)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3448452, ~: 3448446)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 1.29s (1.44s CPU time)
+
+Ran 4 tests for test/common/MigratableEntity.t.sol:MigratableEntityTest
+[PASS] test_Create() (gas: 1112840)
+[PASS] test_Migrate(uint256,uint256,uint256,uint256) (runs: 100, μ: 2642539, ~: 2642693)
+[PASS] test_MigrateRevertNotFactory() (gas: 1793689)
+[PASS] test_ReinitRevertAlreadyInitialized() (gas: 1743671)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 1.30s (1.30s CPU time)
 
 Ran 9 tests for test/integration/actions/ActionScripts.t.sol:ActionScriptsTest
 [PASS] test_OptInNetwork() (gas: 904031)
@@ -196,99 +210,91 @@ Ran 9 tests for test/integration/actions/ActionScripts.t.sol:ActionScriptsTest
 [PASS] test_SetOperatorNetworkShares() (gas: 978677)
 [PASS] test_SetResolver() (gas: 721061)
 [PASS] test_VetoSlash() (gas: 3205583)
-Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 3.07s (6.00ms CPU time)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 2.33s (11.97ms CPU time)
 
-Ran 56 tests for test/vault/VaultTokenized.t.sol:VaultTokenizedTest
-[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 2001306, ~: 2001364)
-[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2346762, ~: 2346686)
-[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2222755, ~: 2222616)
-[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2232521, ~: 2232754)
-[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2222431, ~: 2222316)
-[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2158439, ~: 2158392)
-[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2188644, ~: 2188570)
-[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1979986, ~: 1980765)
-[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1889636, ~: 1890335)
-[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1879037, ~: 1880320)
-[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1875567, ~: 1875608)
-[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 2115299, ~: 2115594)
-[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 209612, ~: 209449)
-[PASS] test_CreateRevertInvalidEpochDuration() (gas: 207443)
-[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 198823, ~: 198605)
-[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 198884, ~: 198664)
-[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 199174, ~: 198909)
-[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 198930, ~: 198703)
-[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 199077, ~: 198841)
-[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2627933, ~: 2627976)
-[PASS] test_DepositRevertInsufficientDeposit() (gas: 1135171)
-[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1121005, ~: 1121269)
-[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3261123, ~: 3261117)
-[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3214805, ~: 3214877)
-[PASS] test_OnSlashRevertNotSlasher() (gas: 1119173)
-[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1586941, ~: 1587252)
-[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1558793, ~: 1558490)
-[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1568223, ~: 1567973)
-[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3528195, ~: 3528128)
-[PASS] test_SetDelegator() (gas: 1184164)
-[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1170158)
-[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1781066)
-[PASS] test_SetDelegatorRevertNotDelegator() (gas: 759660)
-[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1813033, ~: 1812952)
-[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1320924, ~: 1320820)
-[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1912505, ~: 1912374)
-[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1353342, ~: 1353303)
-[PASS] test_SetDepositWhitelist() (gas: 1230201)
-[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1207183)
-[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1646109)
-[PASS] test_SetDepositorWhitelistStatus() (gas: 1955009)
-[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1314843)
-[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1255739)
-[PASS] test_SetIsDepositLimit() (gas: 1230637)
-[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1207525)
-[PASS] test_SetSlasher() (gas: 1083452)
-[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1684298)
-[PASS] test_SetSlasherRevertNotSlasher() (gas: 1014623)
-[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1073510)
-[PASS] test_SetSlasherZeroAddress() (gas: 766791)
-[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4466765, ~: 4468799)
-[PASS] test_Transfer(uint256,uint256) (runs: 100, μ: 1883655, ~: 2076486)
-[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1559117, ~: 1558856)
-[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1558908, ~: 1559270)
-[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1586978, ~: 1586646)
-[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3606179, ~: 3606109)
-Suite result: ok. 56 passed; 0 failed; 0 skipped; finished in 2.13s (5.24s CPU time)
+Ran 23 tests for test/delegator/FullRestakeDelegator.t.sol:FullRestakeDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1241837, ~: 1241577)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1292703, ~: 1292431)
+[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 100, μ: 1317629, ~: 1317373)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1265172, ~: 1264960)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1219443, ~: 1219273)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1266018, ~: 1265787)
+[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 100, μ: 1291013, ~: 1290728)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1102329, ~: 1102103)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1955036, ~: 1954750)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1534273, ~: 1533971)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1706940, ~: 1707736)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1308478, ~: 1308355)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1251034, ~: 1250892)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1926338, ~: 1927149)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1440255, ~: 1440107)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1305489, ~: 1305409)
+[PASS] test_SetOperatorNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1968035, ~: 1968780)
+[PASS] test_SetOperatorNetworkLimitBoth(uint48,uint256,uint256,uint256) (runs: 100, μ: 1878574, ~: 1879274)
+[PASS] test_SetOperatorNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1475537, ~: 1475480)
+[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3696608, ~: 3702313)
+[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 100, μ: 4136748, ~: 4144562)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 4136659, ~: 4146931)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4887410, ~: 4891058)
+Suite result: ok. 23 passed; 0 failed; 0 skipped; finished in 2.54s (2.37s CPU time)
 
-Ran 30 tests for test/slasher/VetoSlasher.t.sol:VetoSlasherTest
-[PASS] test_Create(uint48,uint48) (runs: 100, μ: 1465853, ~: 1467687)
-[PASS] test_CreateRevertInvalidResolverSetEpochsDelay(uint48,uint48,uint256) (runs: 100, μ: 1277918, ~: 1277695)
-[PASS] test_CreateRevertInvalidVetoDuration(uint48,uint48,uint256) (runs: 100, μ: 1277398, ~: 1277292)
-[PASS] test_CreateRevertNotVault(uint48,uint48,uint256) (runs: 100, μ: 1221307, ~: 1221245)
-[PASS] test_ExecuteSlash1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 4071698, ~: 4073968)
-[PASS] test_ExecuteSlash2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3960550, ~: 3962841)
-[PASS] test_ExecuteSlashRevertInsufficientSlash1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3191243, ~: 3195932)
-[PASS] test_ExecuteSlashRevertInsufficientSlash2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3425697, ~: 3434791)
-[PASS] test_ExecuteSlashRevertNotNetworkMiddleware(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2834288, ~: 2835996)
-[PASS] test_ExecuteSlashRevertSlashPeriodEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2850232, ~: 2851597)
-[PASS] test_ExecuteSlashRevertSlashRequestCompleted(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3291458, ~: 3292703)
-[PASS] test_ExecuteSlashRevertSlashRequestNotExist(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2824805, ~: 2826133)
-[PASS] test_ExecuteSlashRevertVetoPeriodNotEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2924614, ~: 2924649)
-[PASS] test_ExecuteSlashWithoutResolver1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3263748, ~: 3272790)
-[PASS] test_ExecuteSlashWithoutResolver2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3428392, ~: 3439486)
-[PASS] test_RequestSlash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3479795, ~: 3480477)
-[PASS] test_RequestSlashRevertInsufficientSlash(uint48,uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3232657, ~: 3234000)
-[PASS] test_RequestSlashRevertInvalidCaptureTimestamp(uint48,uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 2611007, ~: 2611061)
-[PASS] test_RequestSlashRevertNotNetworkMiddleware(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3006240, ~: 3006853)
-[PASS] test_SetResolver(uint48,uint48,address,address) (runs: 100, μ: 2173803, ~: 2175255)
-[PASS] test_SetResolverRevertAlreadySet1(uint48,uint48) (runs: 100, μ: 1523629, ~: 1524742)
-[PASS] test_SetResolverRevertAlreadySet2(uint48,uint48) (runs: 100, μ: 1606927, ~: 1608627)
-[PASS] test_SetResolverRevertNotNetwork(uint48,uint48) (runs: 100, μ: 1521352, ~: 1521818)
-[PASS] test_VetoSlash(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3019500, ~: 3019491)
-[PASS] test_VetoSlashRevertNoResolver1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2832344, ~: 2832332)
-[PASS] test_VetoSlashRevertNoResolver2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2998853, ~: 2998862)
-[PASS] test_VetoSlashRevertNotResolver(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2917793, ~: 2917846)
-[PASS] test_VetoSlashRevertSlashRequestCompleted(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2963130, ~: 2963164)
-[PASS] test_VetoSlashRevertSlashRequestNotExist(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2906330, ~: 2906304)
-[PASS] test_VetoSlashRevertVetoPeriodEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2918671, ~: 2918615)
-Suite result: ok. 30 passed; 0 failed; 0 skipped; finished in 2.08s (7.38s CPU time)
+Ran 55 tests for test/vault/Vault.t.sol:VaultTest
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 1945804, ~: 1946548)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2289411, ~: 2290027)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2166082, ~: 2165966)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2175756, ~: 2175728)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2165805, ~: 2166222)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2101435, ~: 2101448)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2132189, ~: 2132574)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1925707, ~: 1925891)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1835289, ~: 1835438)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1825319, ~: 1825435)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1819346, ~: 1820723)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1969234, ~: 1969348)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 203079, ~: 202881)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 201824)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 193365, ~: 193111)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 193406, ~: 193146)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 193626, ~: 193403)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 193410, ~: 193175)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 193513, ~: 193313)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2487923, ~: 2487899)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1083982)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1069721, ~: 1069441)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3124184, ~: 3124219)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3157471, ~: 3157567)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1067955)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1533783, ~: 1533462)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1505714, ~: 1505394)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1515231, ~: 1514945)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3471197, ~: 3471169)
+[PASS] test_SetDelegator() (gas: 1133070)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1119147)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1678875)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 708583)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1759715, ~: 1759565)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1269637, ~: 1269564)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1859162, ~: 1859164)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1301964, ~: 1301921)
+[PASS] test_SetDepositWhitelist() (gas: 1179015)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1156062)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1593099)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1900224)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1263681)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1204621)
+[PASS] test_SetIsDepositLimit() (gas: 1179210)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1156186)
+[PASS] test_SetSlasher() (gas: 1032453)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1582039)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 963486)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1022373)
+[PASS] test_SetSlasherZeroAddress() (gas: 715647)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4407978, ~: 4412879)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1506115, ~: 1506445)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1505819, ~: 1505555)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1534030, ~: 1534039)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3471291, ~: 3471249)
+Suite result: ok. 55 passed; 0 failed; 0 skipped; finished in 3.07s (3.63s CPU time)
 
 Ran 112 tests for test/vault/VaultV2Tokenized.t.sol:VaultV2TokenizedTest
 [PASS] test_AddRemovePlugin() (gas: 2370331)
@@ -296,37 +302,37 @@ Ran 112 tests for test/vault/VaultV2Tokenized.t.sol:VaultV2TokenizedTest
 [PASS] test_AllocatePluginRevertFeeOnTransferNotSupported() (gas: 2941429)
 [PASS] test_AllocatePluginRevertMissingRoles() (gas: 2346981)
 [PASS] test_AllocatePlugin_respectsRemainingPluginLimit() (gas: 3189591)
-[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 2480704, ~: 2480797)
-[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2973334, ~: 2973221)
-[PASS] test_ClaimBatchEmptyIndexesNoop(uint256,uint256,uint256) (runs: 100, μ: 2783048, ~: 2783070)
-[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2894081, ~: 2893963)
-[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2790232, ~: 2790150)
-[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2904785, ~: 2904653)
-[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2783755, ~: 2783629)
-[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 2465552, ~: 2465749)
-[PASS] test_ClaimRevertInvalidIndex(uint256,uint256) (runs: 100, μ: 2353140, ~: 2353903)
-[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 2325981, ~: 2326647)
-[PASS] test_ClaimRevertWithdrawalNotMatured(uint256,uint256) (runs: 100, μ: 2333655, ~: 2333769)
-[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1813440, ~: 1813352)
-[PASS] test_CreateAllowsMissingRoles1(uint48) (runs: 100, μ: 649255, ~: 649028)
-[PASS] test_CreateAllowsMissingRoles2(uint48) (runs: 100, μ: 649255, ~: 649027)
-[PASS] test_CreateAllowsMissingRoles3(uint48) (runs: 100, μ: 674191, ~: 673930)
-[PASS] test_CreateAllowsMissingRoles4(uint48) (runs: 100, μ: 669216, ~: 668918)
-[PASS] test_CreateAllowsMissingRoles5(uint48) (runs: 100, μ: 674147, ~: 673916)
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 2480686, ~: 2480815)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2973392, ~: 2973389)
+[PASS] test_ClaimBatchEmptyIndexesNoop(uint256,uint256,uint256) (runs: 100, μ: 2783285, ~: 2783184)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2894196, ~: 2894121)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2790316, ~: 2790192)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2904729, ~: 2904623)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2783792, ~: 2783755)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 2465774, ~: 2465803)
+[PASS] test_ClaimRevertInvalidIndex(uint256,uint256) (runs: 100, μ: 2353066, ~: 2353779)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 2326590, ~: 2326689)
+[PASS] test_ClaimRevertWithdrawalNotMatured(uint256,uint256) (runs: 100, μ: 2333779, ~: 2333799)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1813344, ~: 1813412)
+[PASS] test_CreateAllowsMissingRoles1(uint48) (runs: 100, μ: 649235, ~: 649028)
+[PASS] test_CreateAllowsMissingRoles2(uint48) (runs: 100, μ: 649231, ~: 649027)
+[PASS] test_CreateAllowsMissingRoles3(uint48) (runs: 100, μ: 674126, ~: 673918)
+[PASS] test_CreateAllowsMissingRoles4(uint48) (runs: 100, μ: 669185, ~: 668918)
+[PASS] test_CreateAllowsMissingRoles5(uint48) (runs: 100, μ: 674185, ~: 673916)
 [PASS] test_CreateRevertDepositorToWhitelistInvalidAddress() (gas: 195473)
-[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 186071, ~: 185875)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 186100, ~: 185875)
 [PASS] test_CreateRevertInvalidEpochDuration() (gas: 184376)
 [PASS] test_CreateSetsDepositorToWhitelist() (gas: 807942)
 [PASS] test_CreateWithDepositorWhitelisted() (gas: 1401881)
 [PASS] test_DeallocatePluginRevertMissingRoles() (gas: 2346958)
 [PASS] test_DeallocatePlugins() (gas: 3270709)
 [PASS] test_DepositAutoAllocatesFirstPlugin() (gas: 3737707)
-[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2798735, ~: 2798745)
-[PASS] test_DepositDonation(uint256) (runs: 100, μ: 1990709, ~: 1990444)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2798612, ~: 2798655)
+[PASS] test_DepositDonation(uint256) (runs: 100, μ: 1990660, ~: 1990354)
 [PASS] test_DepositRevertInsufficientDeposit() (gas: 1389764)
 [PASS] test_DepositRevertWhenMintedSharesRoundDownToZero() (gas: 2119644)
-[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3356769, ~: 3356815)
-[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3363380, ~: 3363450)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3356717, ~: 3356797)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3363314, ~: 3363450)
 [PASS] test_DonateRevertNotRewards() (gas: 1470838)
 [PASS] test_Donate_syncsClaimableAndActiveWithdrawalsBuckets() (gas: 3948647)
 [PASS] test_InstantWithdraw() (gas: 2116003)
@@ -353,20 +359,20 @@ Ran 112 tests for test/vault/VaultV2Tokenized.t.sol:VaultV2TokenizedTest
 [PASS] test_OnSlash_withoutClaimableWithdrawals_keepsCurrentBucket() (gas: 2726044)
 [PASS] test_PullPlugins_duringWithdrawKeepsOwed() (gas: 3449574)
 [PASS] test_PullPush_tracksOwed() (gas: 3146403)
-[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1815619, ~: 1815618)
-[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1815369, ~: 1815670)
-[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1824796, ~: 1824538)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1815597, ~: 1815352)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1815260, ~: 1814972)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1824768, ~: 1824490)
 [PASS] test_RedeemRevertWhenWithdrawnAssetsRoundDownToZeroAfterSlash() (gas: 2016593)
-[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 4075485, ~: 4075394)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 4075586, ~: 4076004)
 [PASS] test_RemovePlugin_revertsWhenOwed() (gas: 2985808)
 [PASS] test_SetDelegator() (gas: 1235475)
 [PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1248272)
 [PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1937238)
 [PASS] test_SetDelegatorRevertNotDelegator() (gas: 837720)
-[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 2038098, ~: 2037978)
-[PASS] test_SetDepositLimitIdempotent(uint256) (runs: 100, μ: 1547772, ~: 1547659)
-[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 2138908, ~: 2138919)
-[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1576815, ~: 1576740)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 2038031, ~: 2037898)
+[PASS] test_SetDepositLimitIdempotent(uint256) (runs: 100, μ: 1547769, ~: 1547647)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 2138886, ~: 2138773)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1576814, ~: 1576776)
 [PASS] test_SetDepositWhitelist() (gas: 1468471)
 [PASS] test_SetDepositWhitelistIdempotent() (gas: 1448763)
 [PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1887906)
@@ -384,26 +390,26 @@ Ran 112 tests for test/vault/VaultV2Tokenized.t.sol:VaultV2TokenizedTest
 [PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1151565)
 [PASS] test_SetSlasherZeroAddress() (gas: 844872)
 [PASS] test_SkimPlugins() (gas: 2974854)
-[PASS] test_SlashTwice(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4371675, ~: 4371673)
-[PASS] test_Slash_MaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4312024, ~: 4312319)
-[PASS] test_Slash_NoWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3143072, ~: 3131520)
-[PASS] test_Slash_NotMaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4252514, ~: 4252336)
+[PASS] test_SlashTwice(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4371523, ~: 4371104)
+[PASS] test_Slash_MaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4312121, ~: 4312289)
+[PASS] test_Slash_NoWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3142209, ~: 3131462)
+[PASS] test_Slash_NotMaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4252591, ~: 4252583)
 [PASS] test_SwapPlugins() (gas: 3230171)
 [PASS] test_SwapPluginsRevertPluginsNotFound() (gas: 3006416)
 [PASS] test_SyncOwedSlashRevertNotSlasher() (gas: 1446845)
 [PASS] test_SyncOwedSlash_respectsUnclaimed() (gas: 2355460)
 [PASS] test_SyncOwedSlash_revertsWhenOnlyUnclaimed() (gas: 2283319)
-[PASS] test_TotalStakeUnlockBoundary(uint256,uint256) (runs: 100, μ: 2580743, ~: 2583321)
-[PASS] test_Transfer(uint256,uint256) (runs: 100, μ: 2115485, ~: 2315591)
+[PASS] test_TotalStakeUnlockBoundary(uint256,uint256) (runs: 100, μ: 2580738, ~: 2583365)
+[PASS] test_Transfer(uint256,uint256) (runs: 100, μ: 2119715, ~: 2315591)
 [PASS] test_TransferUpdatesActiveShares() (gas: 1995892)
 [PASS] test_ViewWrappersAndERC20Views() (gas: 2701382)
-[PASS] test_WithdrawRecordsClaimer(uint256,uint256) (runs: 100, μ: 2349569, ~: 2352435)
-[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1815653, ~: 1815388)
-[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1815407, ~: 1815665)
-[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1843689, ~: 1843437)
-[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 4127746, ~: 4127628)
-[PASS] test_WithdrawUnlockAfterAndLength(uint256,uint256,uint256) (runs: 100, μ: 2809130, ~: 2809081)
-Suite result: ok. 112 passed; 0 failed; 0 skipped; finished in 2.14s (6.37s CPU time)
+[PASS] test_WithdrawRecordsClaimer(uint256,uint256) (runs: 100, μ: 2349484, ~: 2352351)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1815718, ~: 1816010)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1815422, ~: 1815782)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1843647, ~: 1843437)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 4127810, ~: 4127740)
+[PASS] test_WithdrawUnlockAfterAndLength(uint256,uint256,uint256) (runs: 100, μ: 2809173, ~: 2809069)
+Suite result: ok. 112 passed; 0 failed; 0 skipped; finished in 1.46s (5.65s CPU time)
 
 Ran 110 tests for test/vault/VaultV2.t.sol:VaultV2Test
 [PASS] test_AddRemovePlugin() (gas: 2370331)
@@ -411,37 +417,37 @@ Ran 110 tests for test/vault/VaultV2.t.sol:VaultV2Test
 [PASS] test_AllocatePluginRevertFeeOnTransferNotSupported() (gas: 2941429)
 [PASS] test_AllocatePluginRevertMissingRoles() (gas: 2346959)
 [PASS] test_AllocatePlugin_respectsRemainingPluginLimit() (gas: 3189591)
-[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 2480068, ~: 2480843)
-[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2973091, ~: 2973076)
-[PASS] test_ClaimBatchEmptyIndexesNoop(uint256,uint256,uint256) (runs: 100, μ: 2783213, ~: 2783130)
-[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2894236, ~: 2894409)
-[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2790303, ~: 2790214)
-[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2904786, ~: 2904651)
-[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2783656, ~: 2783580)
-[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 2465766, ~: 2465813)
-[PASS] test_ClaimRevertInvalidIndex(uint256,uint256) (runs: 100, μ: 2353787, ~: 2353903)
-[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 2326532, ~: 2326693)
-[PASS] test_ClaimRevertWithdrawalNotMatured(uint256,uint256) (runs: 100, μ: 2333693, ~: 2333781)
-[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1725853, ~: 1725936)
-[PASS] test_CreateAllowsMissingRoles1(uint48) (runs: 100, μ: 649245, ~: 649006)
-[PASS] test_CreateAllowsMissingRoles2(uint48) (runs: 100, μ: 649251, ~: 649049)
-[PASS] test_CreateAllowsMissingRoles3(uint48) (runs: 100, μ: 674156, ~: 673918)
-[PASS] test_CreateAllowsMissingRoles4(uint48) (runs: 100, μ: 669218, ~: 668940)
-[PASS] test_CreateAllowsMissingRoles5(uint48) (runs: 100, μ: 674164, ~: 673938)
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 2480732, ~: 2480843)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2973150, ~: 2973100)
+[PASS] test_ClaimBatchEmptyIndexesNoop(uint256,uint256,uint256) (runs: 100, μ: 2783182, ~: 2783142)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2894114, ~: 2894111)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2790127, ~: 2790142)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2904751, ~: 2904681)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2783652, ~: 2783586)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 2465828, ~: 2465819)
+[PASS] test_ClaimRevertInvalidIndex(uint256,uint256) (runs: 100, μ: 2353162, ~: 2353891)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 2326580, ~: 2326693)
+[PASS] test_ClaimRevertWithdrawalNotMatured(uint256,uint256) (runs: 100, μ: 2333043, ~: 2333769)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1725828, ~: 1725924)
+[PASS] test_CreateAllowsMissingRoles1(uint48) (runs: 100, μ: 649257, ~: 649018)
+[PASS] test_CreateAllowsMissingRoles2(uint48) (runs: 100, μ: 649306, ~: 649061)
+[PASS] test_CreateAllowsMissingRoles3(uint48) (runs: 100, μ: 674152, ~: 673918)
+[PASS] test_CreateAllowsMissingRoles4(uint48) (runs: 100, μ: 669179, ~: 668934)
+[PASS] test_CreateAllowsMissingRoles5(uint48) (runs: 100, μ: 674150, ~: 673938)
 [PASS] test_CreateRevertDepositorToWhitelistInvalidAddress() (gas: 195495)
-[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 186020, ~: 185853)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 186101, ~: 185853)
 [PASS] test_CreateRevertInvalidEpochDuration() (gas: 184376)
 [PASS] test_CreateSetsDepositorToWhitelist() (gas: 807942)
 [PASS] test_CreateWithDepositorWhitelisted() (gas: 1401881)
 [PASS] test_DeallocatePluginRevertMissingRoles() (gas: 2346958)
 [PASS] test_DeallocatePlugins() (gas: 3270664)
 [PASS] test_DepositAutoAllocatesFirstPlugin() (gas: 3737707)
-[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2733291, ~: 2733355)
-[PASS] test_DepositDonation(uint256) (runs: 100, μ: 1990806, ~: 1991102)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2733289, ~: 2733301)
+[PASS] test_DepositDonation(uint256) (runs: 100, μ: 1990733, ~: 1990462)
 [PASS] test_DepositRevertInsufficientDeposit() (gas: 1389786)
 [PASS] test_DepositRevertWhenMintedSharesRoundDownToZero() (gas: 2119644)
-[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3310842, ~: 3310851)
-[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3363554, ~: 3363627)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3310847, ~: 3310851)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3363596, ~: 3363591)
 [PASS] test_DonateRevertNotRewards() (gas: 1470838)
 [PASS] test_Donate_syncsClaimableAndActiveWithdrawalsBuckets() (gas: 3948647)
 [PASS] test_InstantWithdraw() (gas: 2116025)
@@ -467,20 +473,20 @@ Ran 110 tests for test/vault/VaultV2.t.sol:VaultV2Test
 [PASS] test_OnSlash_withoutClaimableWithdrawals_keepsCurrentBucket() (gas: 2726077)
 [PASS] test_PullPlugins_duringWithdrawKeepsOwed() (gas: 3449574)
 [PASS] test_PullPush_tracksOwed() (gas: 3146403)
-[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1815626, ~: 1815374)
-[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1815269, ~: 1814996)
-[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1824699, ~: 1824471)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1815668, ~: 1815982)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1815325, ~: 1815092)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1824677, ~: 1824419)
 [PASS] test_RedeemRevertWhenWithdrawnAssetsRoundDownToZeroAfterSlash() (gas: 2016593)
-[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 4074865, ~: 4075421)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 4075673, ~: 4075989)
 [PASS] test_RemovePlugin_revertsWhenOwed() (gas: 2985808)
 [PASS] test_SetDelegator() (gas: 1235475)
 [PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1248205)
 [PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1937238)
 [PASS] test_SetDelegatorRevertNotDelegator() (gas: 837742)
-[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 2037928, ~: 2037808)
-[PASS] test_SetDepositLimitIdempotent(uint256) (runs: 100, μ: 1547771, ~: 1547645)
-[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 2138853, ~: 2138795)
-[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1576821, ~: 1576770)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 2037937, ~: 2037738)
+[PASS] test_SetDepositLimitIdempotent(uint256) (runs: 100, μ: 1547751, ~: 1547645)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 2138827, ~: 2138770)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1576827, ~: 1576758)
 [PASS] test_SetDepositWhitelist() (gas: 1468471)
 [PASS] test_SetDepositWhitelistIdempotent() (gas: 1448785)
 [PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1887928)
@@ -498,226 +504,261 @@ Ran 110 tests for test/vault/VaultV2.t.sol:VaultV2Test
 [PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1151587)
 [PASS] test_SetSlasherZeroAddress() (gas: 844872)
 [PASS] test_SkimPlugins() (gas: 2974854)
-[PASS] test_SlashTwice(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4371707, ~: 4371848)
-[PASS] test_Slash_MaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4311588, ~: 4312157)
-[PASS] test_Slash_NoWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3142016, ~: 3131400)
-[PASS] test_Slash_NotMaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4252500, ~: 4252547)
+[PASS] test_SlashTwice(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4371763, ~: 4371721)
+[PASS] test_Slash_MaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4312135, ~: 4312142)
+[PASS] test_Slash_NoWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3139478, ~: 3131402)
+[PASS] test_Slash_NotMaturedWithdrawals(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 101, μ: 4252435, ~: 4252547)
 [PASS] test_SwapPlugins() (gas: 3230171)
 [PASS] test_SwapPluginsRevertPluginsNotFound() (gas: 3006438)
 [PASS] test_SyncOwedSlashRevertNotSlasher() (gas: 1446867)
 [PASS] test_SyncOwedSlash_respectsUnclaimed() (gas: 2355527)
 [PASS] test_SyncOwedSlash_revertsWhenOnlyUnclaimed() (gas: 2283319)
-[PASS] test_TotalStakeUnlockBoundary(uint256,uint256) (runs: 100, μ: 2581539, ~: 2583547)
+[PASS] test_TotalStakeUnlockBoundary(uint256,uint256) (runs: 100, μ: 2582880, ~: 2583553)
 [PASS] test_TransferUpdatesActiveShares() (gas: 1995839)
 [PASS] test_ViewWrappersAndERC20Views() (gas: 2701382)
-[PASS] test_WithdrawRecordsClaimer(uint256,uint256) (runs: 100, μ: 2350785, ~: 2352499)
-[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1815705, ~: 1815939)
-[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1815385, ~: 1815146)
-[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1843709, ~: 1843513)
-[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 4075761, ~: 4075637)
-[PASS] test_WithdrawUnlockAfterAndLength(uint256,uint256,uint256) (runs: 100, μ: 2809149, ~: 2809105)
-Suite result: ok. 110 passed; 0 failed; 0 skipped; finished in 2.48s (6.89s CPU time)
+[PASS] test_WithdrawRecordsClaimer(uint256,uint256) (runs: 100, μ: 2347732, ~: 2352423)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1815635, ~: 1815352)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1815386, ~: 1815150)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1843729, ~: 1844003)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 4075757, ~: 4075613)
+[PASS] test_WithdrawUnlockAfterAndLength(uint256,uint256,uint256) (runs: 100, μ: 2809268, ~: 2809183)
+Suite result: ok. 110 passed; 0 failed; 0 skipped; finished in 2.09s (5.48s CPU time)
+
+Ran 30 tests for test/slasher/VetoSlasher.t.sol:VetoSlasherTest
+[PASS] test_Create(uint48,uint48) (runs: 100, μ: 1466566, ~: 1467675)
+[PASS] test_CreateRevertInvalidResolverSetEpochsDelay(uint48,uint48,uint256) (runs: 100, μ: 1277832, ~: 1277683)
+[PASS] test_CreateRevertInvalidVetoDuration(uint48,uint48,uint256) (runs: 100, μ: 1277374, ~: 1277190)
+[PASS] test_CreateRevertNotVault(uint48,uint48,uint256) (runs: 100, μ: 1221300, ~: 1221113)
+[PASS] test_ExecuteSlash1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 4072337, ~: 4074006)
+[PASS] test_ExecuteSlash2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3962250, ~: 3963087)
+[PASS] test_ExecuteSlashRevertInsufficientSlash1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3195161, ~: 3205180)
+[PASS] test_ExecuteSlashRevertInsufficientSlash2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3424907, ~: 3434737)
+[PASS] test_ExecuteSlashRevertNotNetworkMiddleware(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2834710, ~: 2836018)
+[PASS] test_ExecuteSlashRevertSlashPeriodEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2850042, ~: 2851621)
+[PASS] test_ExecuteSlashRevertSlashRequestCompleted(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3292150, ~: 3292603)
+[PASS] test_ExecuteSlashRevertSlashRequestNotExist(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2825055, ~: 2825989)
+[PASS] test_ExecuteSlashRevertVetoPeriodNotEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2924565, ~: 2924551)
+[PASS] test_ExecuteSlashWithoutResolver1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3263244, ~: 3272814)
+[PASS] test_ExecuteSlashWithoutResolver2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3428173, ~: 3439462)
+[PASS] test_RequestSlash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3478999, ~: 3480360)
+[PASS] test_RequestSlashRevertInsufficientSlash(uint48,uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3230676, ~: 3233370)
+[PASS] test_RequestSlashRevertInvalidCaptureTimestamp(uint48,uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 2611267, ~: 2611117)
+[PASS] test_RequestSlashRevertNotNetworkMiddleware(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3006037, ~: 3006917)
+[PASS] test_SetResolver(uint48,uint48,address,address) (runs: 100, μ: 2173298, ~: 2175267)
+[PASS] test_SetResolverRevertAlreadySet1(uint48,uint48) (runs: 100, μ: 1523694, ~: 1524742)
+[PASS] test_SetResolverRevertAlreadySet2(uint48,uint48) (runs: 100, μ: 1607750, ~: 1608627)
+[PASS] test_SetResolverRevertNotNetwork(uint48,uint48) (runs: 100, μ: 1520705, ~: 1521818)
+[PASS] test_VetoSlash(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3019619, ~: 3019627)
+[PASS] test_VetoSlashRevertNoResolver1(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2832333, ~: 2832314)
+[PASS] test_VetoSlashRevertNoResolver2(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2998795, ~: 2998730)
+[PASS] test_VetoSlashRevertNotResolver(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2917841, ~: 2917880)
+[PASS] test_VetoSlashRevertSlashRequestCompleted(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2962935, ~: 2962821)
+[PASS] test_VetoSlashRevertSlashRequestNotExist(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2906360, ~: 2906310)
+[PASS] test_VetoSlashRevertVetoPeriodEnded(uint48,uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2918606, ~: 2918573)
+Suite result: ok. 30 passed; 0 failed; 0 skipped; finished in 1.05s (5.23s CPU time)
+
+Ran 56 tests for test/vault/VaultTokenized.t.sol:VaultTokenizedTest
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 2001283, ~: 2001364)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2346742, ~: 2346638)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2222687, ~: 2222604)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2232318, ~: 2232216)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2222386, ~: 2222286)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2158440, ~: 2158284)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2188828, ~: 2189222)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1980692, ~: 1980783)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1890207, ~: 1890335)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1879653, ~: 1880320)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1875559, ~: 1875596)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 2115014, ~: 2115486)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 209716, ~: 209461)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 207443)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 198823, ~: 198605)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 198967, ~: 198664)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 199109, ~: 198909)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 198965, ~: 198703)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 199139, ~: 198853)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2627967, ~: 2627958)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1135171)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1121055, ~: 1121269)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3260940, ~: 3261009)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3214904, ~: 3214913)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1119173)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1586874, ~: 1586630)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1558772, ~: 1558518)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1568288, ~: 1568063)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3528217, ~: 3528152)
+[PASS] test_SetDelegator() (gas: 1184164)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1170158)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1781066)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 759660)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1812908, ~: 1812760)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1320910, ~: 1320820)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1912496, ~: 1912368)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1353339, ~: 1353285)
+[PASS] test_SetDepositWhitelist() (gas: 1230201)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1207183)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1646109)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1955009)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1314843)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1255739)
+[PASS] test_SetIsDepositLimit() (gas: 1230637)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1207525)
+[PASS] test_SetSlasher() (gas: 1083452)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1684298)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 1014623)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1073510)
+[PASS] test_SetSlasherZeroAddress() (gas: 766791)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4464322, ~: 4468811)
+[PASS] test_Transfer(uint256,uint256) (runs: 100, μ: 1883799, ~: 2076486)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1559111, ~: 1558784)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1558880, ~: 1559139)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1586990, ~: 1586766)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3606148, ~: 3606085)
+Suite result: ok. 56 passed; 0 failed; 0 skipped; finished in 2.16s (7.68s CPU time)
 
 Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace208Test
-[PASS] testAt(uint48[],uint208[],uint32) (runs: 100, μ: 4676152, ~: 4848954)
-[PASS] testLatest(uint48[],uint208[]) (runs: 100, μ: 4937395, ~: 5267509)
-[PASS] testLatestCheckpoint(uint48[],uint208[]) (runs: 100, μ: 4765355, ~: 4901265)
-[PASS] testLength(uint48[],uint208[]) (runs: 100, μ: 4895210, ~: 5268952)
-[PASS] testLookup(uint48[],uint208[],uint48) (runs: 100, μ: 4577967, ~: 4560201)
-[PASS] testPop(uint48[],uint208[]) (runs: 100, μ: 4501874, ~: 4942772)
-[PASS] testPush(uint48[],uint208[],uint48) (runs: 100, μ: 5358142, ~: 5637044)
-[PASS] testUpperLookupRecentCheckpoint(uint48[],uint208[],uint48) (runs: 100, μ: 4844393, ~: 5047699)
-[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4569923, ~: 4895574)
-[PASS] testUpperLookupRecentWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4752392, ~: 4949153)
-Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 3.91s (3.90s CPU time)
-
-Ran 55 tests for test/vault/Vault.t.sol:VaultTest
-[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 1945041, ~: 1946542)
-[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2290210, ~: 2290069)
-[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2165916, ~: 2165882)
-[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2175721, ~: 2175630)
-[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2165045, ~: 2165594)
-[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2101634, ~: 2101638)
-[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2131962, ~: 2131892)
-[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1925217, ~: 1925927)
-[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1835321, ~: 1835450)
-[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1825344, ~: 1825447)
-[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1819972, ~: 1820711)
-[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1968901, ~: 1969468)
-[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 203121, ~: 202881)
-[PASS] test_CreateRevertInvalidEpochDuration() (gas: 201824)
-[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 193362, ~: 193099)
-[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 193427, ~: 193146)
-[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 193635, ~: 193403)
-[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 193482, ~: 193187)
-[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 193533, ~: 193313)
-[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2487944, ~: 2487935)
-[PASS] test_DepositRevertInsufficientDeposit() (gas: 1083982)
-[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1069839, ~: 1070069)
-[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3124194, ~: 3124255)
-[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3157522, ~: 3157549)
-[PASS] test_OnSlashRevertNotSlasher() (gas: 1067955)
-[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1533862, ~: 1533624)
-[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1505773, ~: 1505514)
-[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1515265, ~: 1515041)
-[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3471255, ~: 3471133)
-[PASS] test_SetDelegator() (gas: 1133070)
-[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1119147)
-[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1678875)
-[PASS] test_SetDelegatorRevertNotDelegator() (gas: 708583)
-[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1759609, ~: 1759526)
-[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1269627, ~: 1269540)
-[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1859337, ~: 1859444)
-[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1301964, ~: 1301897)
-[PASS] test_SetDepositWhitelist() (gas: 1179015)
-[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1156062)
-[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1593099)
-[PASS] test_SetDepositorWhitelistStatus() (gas: 1900224)
-[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1263681)
-[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1204621)
-[PASS] test_SetIsDepositLimit() (gas: 1179210)
-[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1156186)
-[PASS] test_SetSlasher() (gas: 1032453)
-[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1582039)
-[PASS] test_SetSlasherRevertNotSlasher() (gas: 963486)
-[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1022373)
-[PASS] test_SetSlasherZeroAddress() (gas: 715647)
-[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4409510, ~: 4413025)
-[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1505988, ~: 1505697)
-[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1505905, ~: 1506287)
-[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1533990, ~: 1533767)
-[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3471344, ~: 3471245)
-Suite result: ok. 55 passed; 0 failed; 0 skipped; finished in 3.91s (6.85s CPU time)
-
-Ran 15 tests for test/delegator/OperatorNetworkSpecificDelegator.t.sol:OperatorNetworkSpecificDelegatorTest
-[PASS] test_Create(uint48) (runs: 100, μ: 1447696, ~: 1447434)
-[PASS] test_CreateRevertNotNetwork(uint48) (runs: 100, μ: 1521879, ~: 1521692)
-[PASS] test_CreateRevertNotOperator(uint48) (runs: 100, μ: 1527542, ~: 1527259)
-[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1470946, ~: 1470679)
-[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1357840, ~: 1357581)
-[PASS] test_SetHook(uint48) (runs: 100, μ: 1795246, ~: 1794981)
-[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1582258, ~: 1581955)
-[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1979296, ~: 1980033)
-[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1504676, ~: 1504711)
-[PASS] test_SetMaxNetworkLimitRevertInvalidNetwork(uint48,uint256) (runs: 100, μ: 1661183, ~: 1661045)
-[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1353069, ~: 1352961)
-[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3404095, ~: 3412454)
-[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 100, μ: 3173832, ~: 3165900)
-[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 100, μ: 3028759, ~: 3043237)
-[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3448388, ~: 3448424)
-Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 3.77s (3.05s CPU time)
-
-Ran 12 tests for test/slasher/Slasher.t.sol:SlasherTest
-[PASS] test_Create(uint48) (runs: 100, μ: 1391928, ~: 1391735)
-[PASS] test_CreateRevertNoBurner(uint48) (runs: 100, μ: 1289095, ~: 1288793)
-[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1210882, ~: 1210648)
-[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 6151946, ~: 6183799)
-[PASS] test_SlashRevertInsufficientSlash1(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3307452, ~: 3315402)
-[PASS] test_SlashRevertInsufficientSlash2(uint48,uint256,uint256,uint256,uint256,bool) (runs: 100, μ: 2523768, ~: 2523757)
-[PASS] test_SlashRevertInvalidCaptureTimestamp(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 2556214, ~: 2555790)
-[PASS] test_SlashRevertNotNetworkMiddleware(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2637227, ~: 2637163)
-[PASS] test_SlashSubnetworks(uint48,uint256,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 9969248, ~: 10008921)
-[PASS] test_SlashWithBurner(uint256,uint256,uint256,uint256) (runs: 100, μ: 3205704, ~: 3205566)
-[PASS] test_SlashWithBurnerDisabled(uint256,uint256,uint256,uint256) (runs: 100, μ: 3134452, ~: 3134691)
-[PASS] test_SlashWithBurnerGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 3347867, ~: 3422793)
-Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 4.63s (5.44s CPU time)
-
-Ran 19 tests for test/delegator/OperatorSpecificDelegator.t.sol:OperatorSpecificDelegatorTest
-[PASS] test_Create(uint48) (runs: 100, μ: 1315764, ~: 1315583)
-[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1395938, ~: 1395700)
-[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1360965, ~: 1360716)
-[PASS] test_CreateRevertNotOperator(uint48) (runs: 100, μ: 1369408, ~: 1369214)
-[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1317704, ~: 1317469)
-[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1367216, ~: 1366967)
-[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1201399, ~: 1201154)
-[PASS] test_SetHook(uint48) (runs: 100, μ: 1678419, ~: 1678165)
-[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1445651, ~: 1445376)
-[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1802588, ~: 1804438)
-[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1407450, ~: 1407354)
-[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1350023, ~: 1349919)
-[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2024369, ~: 2024641)
-[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1539237, ~: 1539137)
-[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1401886, ~: 1401780)
-[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3450542, ~: 3456023)
-[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 100, μ: 3286085, ~: 3277519)
-[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 100, μ: 3291896, ~: 3187686)
-[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3368306, ~: 3369865)
-Suite result: ok. 19 passed; 0 failed; 0 skipped; finished in 3.88s (1.84s CPU time)
+[PASS] testAt(uint48[],uint208[],uint32) (runs: 100, μ: 4803210, ~: 5076556)
+[PASS] testLatest(uint48[],uint208[]) (runs: 100, μ: 5005858, ~: 5457710)
+[PASS] testLatestCheckpoint(uint48[],uint208[]) (runs: 100, μ: 4918628, ~: 5169403)
+[PASS] testLength(uint48[],uint208[]) (runs: 100, μ: 4768381, ~: 4941704)
+[PASS] testLookup(uint48[],uint208[],uint48) (runs: 100, μ: 4781232, ~: 5145944)
+[PASS] testPop(uint48[],uint208[]) (runs: 100, μ: 4876378, ~: 5316044)
+[PASS] testPush(uint48[],uint208[],uint48) (runs: 100, μ: 5400772, ~: 5846185)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint208[],uint48) (runs: 100, μ: 4837811, ~: 5072336)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4731378, ~: 5013097)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4534677, ~: 4769911)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 3.27s (4.63s CPU time)
 
 Ran 22 tests for test/delegator/NetworkRestakeDelegator.t.sol:NetworkRestakeDelegatorTest
-[PASS] test_Create(uint48) (runs: 100, μ: 1251580, ~: 1251351)
-[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1292600, ~: 1292401)
-[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 100, μ: 1317629, ~: 1317366)
-[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1265141, ~: 1264898)
-[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1219370, ~: 1219194)
-[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1265936, ~: 1265690)
-[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 100, μ: 1290838, ~: 1290654)
-[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1102399, ~: 1102164)
-[PASS] test_SetHook(uint48) (runs: 100, μ: 1954870, ~: 1954680)
-[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1534267, ~: 1534033)
-[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1704839, ~: 1707888)
-[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1308387, ~: 1308331)
-[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1250999, ~: 1250900)
-[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1927230, ~: 1928038)
-[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1440083, ~: 1440037)
-[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1305284, ~: 1305183)
-[PASS] test_SetOperatorNetworkSharesBoth(uint48,uint256,uint256,uint256) (runs: 100, μ: 3597140, ~: 3598948)
-[PASS] test_SetOperatorNetworkSharesRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1568696, ~: 1568714)
-[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4385495, ~: 4384939)
-[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 100, μ: 4389291, ~: 4397356)
-[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 4355274, ~: 4507052)
-[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4758676, ~: 4758710)
-Suite result: ok. 22 passed; 0 failed; 0 skipped; finished in 4.56s (3.24s CPU time)
+[PASS] test_Create(uint48) (runs: 100, μ: 1251600, ~: 1251351)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1292667, ~: 1292413)
+[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 100, μ: 1317532, ~: 1317366)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1265145, ~: 1264886)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1219451, ~: 1219194)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1265932, ~: 1265690)
+[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 100, μ: 1290891, ~: 1290654)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1102355, ~: 1102164)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1954970, ~: 1954692)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1534255, ~: 1534033)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1706567, ~: 1707936)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1308438, ~: 1308343)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1251005, ~: 1250926)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1926383, ~: 1927660)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1440242, ~: 1440073)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1305230, ~: 1305165)
+[PASS] test_SetOperatorNetworkSharesBoth(uint48,uint256,uint256,uint256) (runs: 100, μ: 3596209, ~: 3599128)
+[PASS] test_SetOperatorNetworkSharesRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1568637, ~: 1568516)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4385569, ~: 4384885)
+[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 100, μ: 4386743, ~: 4380790)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 4322960, ~: 4168947)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4768699, ~: 4762752)
+Suite result: ok. 22 passed; 0 failed; 0 skipped; finished in 3.27s (5.95s CPU time)
 
-Ran 85 tests for test/delegator/UniversalDelegator.t.sol:UniversalDelegatorTest
-[PASS] testFuzz_isolatedGroups_followPriority(uint256,uint256,uint256) (runs: 100, μ: 1143019, ~: 1148546)
-[PASS] testFuzz_isolatedOperators_followPriority(uint256,uint256,uint256) (runs: 100, μ: 1876943, ~: 1877271)
-[PASS] testFuzz_isolatedShares_captureInvariantAcrossNetworks(uint256,uint256,uint256) (runs: 100, μ: 3257044, ~: 3218492)
-[PASS] testFuzz_isolatedShares_captureInvariantAcrossOperators(uint256,uint256,uint256) (runs: 100, μ: 2901633, ~: 2893729)
-[PASS] testFuzz_isolatedShares_doNotOverlapAtRoot(uint256,uint256,uint256) (runs: 100, μ: 1190375, ~: 1191348)
-[PASS] testFuzz_isolatedShares_doNotOverlapInGroup(uint256,uint256,uint256) (runs: 100, μ: 1595482, ~: 1597713)
-[PASS] testFuzz_isolatedSlots_depositWithdraw_overTime(uint256,uint256,uint256,uint256) (runs: 100, μ: 1747548, ~: 1769319)
-[PASS] test_assignmentFlags_revertWhenNotAssigned() (gas: 29372)
-[PASS] test_checkpointTracksHistory_andDefaults() (gas: 1297660)
-[PASS] test_childrenPending_accumulatesOnRepeatedOperatorDecrease() (gas: 2761412)
-[PASS] test_childrenPending_respectsAllocationWhenResizingChildren() (gas: 3302402)
+Ran 3 tests for test/integration/SymbioticCoreIntegrationExample.t.sol:SymbioticCoreIntegrationExample
+[PASS] test_Network() (gas: 23179411)
+[PASS] test_NetworkAdvanced() (gas: 177209432)
+[PASS] test_Simple() (gas: 2068517)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 5.94s (313.77ms CPU time)
+
+Ran 12 tests for test/slasher/Slasher.t.sol:SlasherTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1391996, ~: 1391735)
+[PASS] test_CreateRevertNoBurner(uint48) (runs: 100, μ: 1289007, ~: 1288769)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1210862, ~: 1210648)
+[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 6147528, ~: 6157307)
+[PASS] test_SlashRevertInsufficientSlash1(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3305149, ~: 3315090)
+[PASS] test_SlashRevertInsufficientSlash2(uint48,uint256,uint256,uint256,uint256,bool) (runs: 100, μ: 2523653, ~: 2523547)
+[PASS] test_SlashRevertInvalidCaptureTimestamp(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 2556300, ~: 2555862)
+[PASS] test_SlashRevertNotNetworkMiddleware(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2637474, ~: 2637443)
+[PASS] test_SlashSubnetworks(uint48,uint256,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 9976601, ~: 10006185)
+[PASS] test_SlashWithBurner(uint256,uint256,uint256,uint256) (runs: 100, μ: 3205736, ~: 3205966)
+[PASS] test_SlashWithBurnerDisabled(uint256,uint256,uint256,uint256) (runs: 100, μ: 3134372, ~: 3134601)
+[PASS] test_SlashWithBurnerGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 3318929, ~: 3224741)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 16.42s (8.53s CPU time)
+
+Ran 2 tests for test/invariant/VaultInvariants.t.sol:VaultInvariantsTest
+[PASS] invariant_Totals() (runs: 256, calls: 128000, reverts: 0)
+
+╭--------------+----------+-------+---------+----------╮
+| Contract     | Selector | Calls | Reverts | Discards |
++======================================================+
+| VaultHandler | claim    | 25878 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | deposit  | 25707 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | redeem   | 25550 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | slash    | 25324 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | withdraw | 25541 | 0       | 0        |
+╰--------------+----------+-------+---------+----------╯
+
+[PASS] invariant_UserBalance() (runs: 256, calls: 128000, reverts: 0)
+
+╭--------------+----------+-------+---------+----------╮
+| Contract     | Selector | Calls | Reverts | Discards |
++======================================================+
+| VaultHandler | claim    | 25615 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | deposit  | 25557 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | redeem   | 25719 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | slash    | 25357 | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | withdraw | 25752 | 0       | 0        |
+╰--------------+----------+-------+---------+----------╯
+
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 16.72s (31.08s CPU time)
+
+Ran 86 tests for test/delegator/UniversalDelegator.t.sol:UniversalDelegatorTest
+[PASS] testFuzz_isolatedGroups_followPriority(uint256,uint256,uint256) (runs: 100, μ: 1146099, ~: 1148530)
+[PASS] testFuzz_isolatedOperators_followPriority(uint256,uint256,uint256) (runs: 100, μ: 1876558, ~: 1877385)
+[PASS] testFuzz_isolatedShares_captureInvariantAcrossNetworks(uint256,uint256,uint256) (runs: 100, μ: 3270452, ~: 3307973)
+[PASS] testFuzz_isolatedShares_captureInvariantAcrossOperators(uint256,uint256,uint256) (runs: 100, μ: 2904234, ~: 2947507)
+[PASS] testFuzz_isolatedShares_doNotOverlapAtRoot(uint256,uint256,uint256) (runs: 100, μ: 1191140, ~: 1191048)
+[PASS] testFuzz_isolatedShares_doNotOverlapInGroup(uint256,uint256,uint256) (runs: 100, μ: 1595146, ~: 1597522)
+[PASS] testFuzz_isolatedSlots_depositWithdraw_overTime(uint256,uint256,uint256,uint256) (runs: 100, μ: 1754798, ~: 1769493)
+[PASS] test_assignmentFlags_revertWhenNotAssigned() (gas: 29394)
+[PASS] test_checkpointTracksHistory_andDefaults() (gas: 1297705)
+[PASS] test_childrenPending_accumulatesOnRepeatedOperatorDecrease() (gas: 2761434)
+[PASS] test_childrenPending_respectsAllocationWhenResizingChildren() (gas: 3302291)
 [PASS] test_createSlot_noPluginsAndSetSizeNoPlugins() (gas: 1908979)
 [PASS] test_createSlot_returnsCreatedIndex() (gas: 437466)
-[PASS] test_createSlot_revertsForMissingParentSlot() (gas: 38372)
+[PASS] test_createSlot_revertsForMissingParentSlot() (gas: 38417)
 [PASS] test_createSlot_revertsTooManyGroups() (gas: 1950894)
-[PASS] test_createSlot_revertsTooManyNetworksPerGroup() (gas: 4170749)
+[PASS] test_createSlot_revertsTooManyNetworksPerGroup() (gas: 4170771)
 [PASS] test_createSlot_revertsTooManyOperatorsPerNetwork() (gas: 6173789)
-[PASS] test_createSlot_root_allowsDepth1() (gas: 371893)
+[PASS] test_createSlot_root_allowsDepth1() (gas: 371915)
 [PASS] test_decreaseLimit_schedulesPending_untilDelayExpires() (gas: 2042802)
-[PASS] test_depth3Operators_areIsolatedWithinNetwork() (gas: 1941713)
-[PASS] test_depthGuards_enforced() (gas: 633079)
+[PASS] test_depth3Operators_areIsolatedWithinNetwork() (gas: 1941627)
+[PASS] test_depthGuards_enforced() (gas: 633101)
 [PASS] test_getAvailableAt_doesNotUnderflowForSmallTimestamps() (gas: 1121537)
-[PASS] test_getAvailableAt_pendingHints_matchNoHintPath() (gas: 2871755)
+[PASS] test_getAvailableAt_pendingHints_matchNoHintPath() (gas: 2871777)
 [PASS] test_getFilledAt_afterSwap_historicalTraversalNoLoop() (gas: 2538627)
-[PASS] test_getFilled_invariant_afterSlashingResetRemovalAndStakeChanges() (gas: 8748270)
+[PASS] test_getFilled_invariant_afterSlashingResetRemovalAndStakeChanges() (gas: 8748292)
 [PASS] test_getFilled_invariant_afterSwapsResizesAndStakeChanges() (gas: 8263139)
 [PASS] test_getFilled_invariant_repeatedSetSizes_withDepositWithdraw() (gas: 7567431)
-[PASS] test_getFilled_matchesSumOfOperatorsForNetwork() (gas: 2094798)
+[PASS] test_getFilled_matchesSumOfOperatorsForNetwork() (gas: 2094820)
 [PASS] test_getFilled_numericTrace_multiDepthMultipleSizeChanges() (gas: 7583531)
 [PASS] test_getFilled_respectsDurationWindowForPending() (gas: 2925611)
 [PASS] test_getFilled_zeroWhenNetworkHasNoOperators() (gas: 1052269)
-[PASS] test_increaseLimit_allowsLastChild_withoutUnallocated() (gas: 1431433)
+[PASS] test_increaseLimit_allowsLastChild_withoutUnallocated() (gas: 1431455)
 [PASS] test_increaseLimit_allowsWhenNotFullyAllocated_evenIfNotLastChild() (gas: 1773183)
-[PASS] test_increaseLimit_consumesUnallocated_andUpdatesPrevSums() (gas: 1515629)
-[PASS] test_increaseLimit_revertsWhenFullyAllocatedNonLast_withoutUnallocated() (gas: 1109221)
-[PASS] test_initializeReverts_NotVault_OldVault_AndAllowsMissingRoleHolders() (gas: 1237510)
-[PASS] test_isShared_falseWhenGroupNotShared() (gas: 1322455)
+[PASS] test_increaseLimit_consumesUnallocated_andUpdatesPrevSums() (gas: 1515519)
+[PASS] test_increaseLimit_revertsWhenFullyAllocatedNonLast_withoutUnallocated() (gas: 1109243)
+[PASS] test_initializeReverts_NotVault_OldVault_AndAllowsMissingRoleHolders() (gas: 1237532)
+[PASS] test_isShared_falseWhenGroupNotShared() (gas: 1322367)
 [PASS] test_isShared_trueWhenGroupIsShared() (gas: 1322376)
 [PASS] test_isolatedGroups_prioritizedOverTime() (gas: 2015460)
-[PASS] test_isolatedNetworks_followGroupPriority() (gas: 1578972)
+[PASS] test_isolatedNetworks_followGroupPriority() (gas: 1578927)
 [PASS] test_isolatedOperators_prioritizedAfterStakeDecrease() (gas: 2653186)
-[PASS] test_isolatedSlots_childrenPending_delaysReallocation() (gas: 1807612)
+[PASS] test_isolatedSlots_childrenPending_delaysReallocation() (gas: 1807634)
 [PASS] test_isolatedSlots_lateSizeIncrease_doesNotAffectEarlier() (gas: 1901734)
-[PASS] test_migrateReverts_NotVault() (gas: 34672)
-[PASS] test_migrate_fromVault_createsNoPluginsGroup() (gas: 375956)
-[PASS] test_miscViewsAndDeprecatedMethods() (gas: 97566)
-[PASS] test_modifiers_slotExistsAndSyncPrevSums_harness() (gas: 5309338)
-[PASS] test_modifiers_syncPrevSums_harness_withChildren() (gas: 5807945)
+[PASS] test_migrateReverts_NotVault() (gas: 34650)
+[PASS] test_migrate_fromVault_createsNoPluginsGroup() (gas: 375978)
+[PASS] test_miscViewsAndDeprecatedMethods() (gas: 97588)
+[PASS] test_modifiers_slotExistsAndSyncPrevSums_harness() (gas: 5303172)
+[PASS] test_modifiers_syncPrevSums_harness_withChildren() (gas: 5801757)
 [PASS] test_multicall_bubblesRevertReason() (gas: 40318)
 [PASS] test_multicall_executesCallsSequentially() (gas: 613606)
 [PASS] test_networkAssignment_duplicateAndUnassignChecks() (gas: 647902)
@@ -727,89 +768,49 @@ Ran 85 tests for test/delegator/UniversalDelegator.t.sol:UniversalDelegatorTest
 [PASS] test_operatorAssignment_duplicateAndUnassignChecks() (gas: 924798)
 [PASS] test_operatorAssignment_revertsWhenSlotAlreadyAssigned() (gas: 919276)
 [PASS] test_removeSlot_clearsNetworkAndOperatorAssignments() (gas: 1547358)
-[PASS] test_removeSlot_revertsWhenAllocated() (gas: 911942)
-[PASS] test_resetAllocation_noPluginsPathAndSyncPrevSums() (gas: 2960352)
+[PASS] test_removeSlot_revertsWhenAllocated() (gas: 911964)
+[PASS] test_resetAllocation_clearsOnlyRemovedNoPluginsPending() (gas: 3160563)
+[PASS] test_resetAllocation_noPluginsPathAndSyncPrevSums() (gas: 2952829)
 [PASS] test_resetAllocation_revertsUnauthorizedAndNotAssigned() (gas: 234367)
-[PASS] test_resetAllocation_singleNetworkClearsAssignmentAndAllowsReassign() (gas: 1102013)
-[PASS] test_setHookAndOnSlashPaths() (gas: 4002565)
+[PASS] test_resetAllocation_singleNetworkClearsAssignmentAndAllowsReassign() (gas: 1102035)
+[PASS] test_setHookAndOnSlashPaths() (gas: 4002587)
 [PASS] test_setSize_allowsNonZeroCurrentSize() (gas: 472908)
 [PASS] test_setSize_sameValue_afterSlashSync_returnsZero() (gas: 1663027)
 [PASS] test_setWithdrawalBufferSize_requiresRole_andUpdatesValue() (gas: 732957)
-[PASS] test_sharedGroup_allowsNetworkRestaking_betweenDepth2Siblings() (gas: 1566710)
-[PASS] test_sharedGroup_slashAllowsNewStake_laterCaptureTimestamp() (gas: 3255573)
-[PASS] test_sharedGroup_slashCappedAcrossNetworks_differentCaptureTimestamp() (gas: 3255573)
-[PASS] test_sharedGroup_slashCappedAcrossNetworks_sameCaptureTimestamp() (gas: 4700891)
+[PASS] test_sharedGroup_allowsNetworkRestaking_betweenDepth2Siblings() (gas: 1566732)
+[PASS] test_sharedGroup_slashAllowsNewStake_laterCaptureTimestamp() (gas: 3255595)
+[PASS] test_sharedGroup_slashCappedAcrossNetworks_differentCaptureTimestamp() (gas: 3255595)
+[PASS] test_sharedGroup_slashCappedAcrossNetworks_sameCaptureTimestamp() (gas: 4700913)
 [PASS] test_slotAllocation_partialFill() (gas: 1308539)
 [PASS] test_slotAllocation_partialFill_2() (gas: 1308538)
 [PASS] test_slotAllocation_respectsOrderAndLimits() (gas: 1308611)
 [PASS] test_slotCounters_trackTotalAndExistingChildren() (gas: 611598)
 [PASS] test_slotExists_revertsForMissingSlot() (gas: 37716)
-[PASS] test_slotExists_revertsForMissingSlot_swapAndRemove() (gas: 124774)
+[PASS] test_slotExists_revertsForMissingSlot_swapAndRemove() (gas: 124796)
 [PASS] test_swapSlots_adjacentTail_preservesLinks() (gas: 1100783)
-[PASS] test_swapSlots_keepsAllocationAfterStakeDecrease() (gas: 2013291)
-[PASS] test_swapSlots_revertsIsShared() (gas: 1439026)
+[PASS] test_swapSlots_keepsAllocationAfterStakeDecrease() (gas: 2013269)
+[PASS] test_swapSlots_revertsIsShared() (gas: 1439048)
 [PASS] test_swapSlots_revertsNotSameAllocated() (gas: 1443483)
 [PASS] test_swapSlots_revertsNotSameParent() (gas: 1362009)
 [PASS] test_swapSlots_revertsPartiallyAllocated() (gas: 1451571)
-[PASS] test_swapSlots_revertsWrongOrder() (gas: 643791)
-[PASS] test_syncPrevSums_modifier_clearsInjectedFlag() (gas: 5558859)
-[PASS] test_syncPrevSums_pathForNonRootParent_afterSlash() (gas: 1951670)
-[PASS] test_viewWrappersAndHints() (gas: 2899639)
-Suite result: ok. 85 passed; 0 failed; 0 skipped; finished in 4.65s (4.86s CPU time)
+[PASS] test_swapSlots_revertsWrongOrder() (gas: 643813)
+[PASS] test_syncPrevSums_modifier_clearsInjectedFlag() (gas: 5552693)
+[PASS] test_syncPrevSums_pathForNonRootParent_afterSlash() (gas: 1951692)
+[PASS] test_viewWrappersAndHints() (gas: 2899661)
+Suite result: ok. 86 passed; 0 failed; 0 skipped; finished in 17.17s (17.39s CPU time)
 
 Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace256Test
-[PASS] testAt(uint48[],uint256[],uint32) (runs: 100, μ: 8535571, ~: 8777336)
-[PASS] testLatest(uint48[],uint256[]) (runs: 100, μ: 8573046, ~: 9235997)
-[PASS] testLatestCheckpoint(uint48[],uint256[]) (runs: 100, μ: 8482135, ~: 9100030)
-[PASS] testLength(uint48[],uint256[]) (runs: 100, μ: 7955264, ~: 8502516)
-[PASS] testLookup(uint48[],uint256[],uint48) (runs: 100, μ: 8884900, ~: 9391350)
-[PASS] testPop(uint48[],uint256[]) (runs: 100, μ: 9051699, ~: 9585945)
-[PASS] testPush(uint48[],uint256[],uint48) (runs: 100, μ: 8705542, ~: 9043690)
-[PASS] testUpperLookupRecentCheckpoint(uint48[],uint256[],uint48) (runs: 100, μ: 8792856, ~: 9431480)
-[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8666008, ~: 9174535)
-[PASS] testUpperLookupRecentWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8746575, ~: 9240251)
-Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 4.90s (20.79s CPU time)
-
-Ran 3 tests for test/integration/SymbioticCoreIntegrationExample.t.sol:SymbioticCoreIntegrationExample
-[PASS] test_Network() (gas: 23179411)
-[PASS] test_NetworkAdvanced() (gas: 177209432)
-[PASS] test_Simple() (gas: 2068517)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 6.46s (194.65ms CPU time)
-
-Ran 2 tests for test/invariant/VaultInvariants.t.sol:VaultInvariantsTest
-[PASS] invariant_Totals() (runs: 256, calls: 128000, reverts: 2)
-
-╭--------------+----------+-------+---------+----------╮
-| Contract     | Selector | Calls | Reverts | Discards |
-+======================================================+
-| VaultHandler | claim    | 25696 | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | deposit  | 25708 | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | redeem   | 25355 | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | slash    | 25660 | 2       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | withdraw | 25581 | 0       | 0        |
-╰--------------+----------+-------+---------+----------╯
-
-[PASS] invariant_UserBalance() (runs: 256, calls: 128000, reverts: 1)
-
-╭--------------+----------+-------+---------+----------╮
-| Contract     | Selector | Calls | Reverts | Discards |
-+======================================================+
-| VaultHandler | claim    | 25416 | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | deposit  | 25730 | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | redeem   | 25599 | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | slash    | 25524 | 1       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | withdraw | 25731 | 0       | 0        |
-╰--------------+----------+-------+---------+----------╯
-
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU time)
+[PASS] testAt(uint48[],uint256[],uint32) (runs: 100, μ: 8780996, ~: 8791629)
+[PASS] testLatest(uint48[],uint256[]) (runs: 100, μ: 8790478, ~: 9441934)
+[PASS] testLatestCheckpoint(uint48[],uint256[]) (runs: 100, μ: 8594198, ~: 8615878)
+[PASS] testLength(uint48[],uint256[]) (runs: 100, μ: 9060699, ~: 10495364)
+[PASS] testLookup(uint48[],uint256[],uint48) (runs: 100, μ: 8313524, ~: 8727249)
+[PASS] testPop(uint48[],uint256[]) (runs: 100, μ: 8331797, ~: 9205052)
+[PASS] testPush(uint48[],uint256[],uint48) (runs: 100, μ: 9238289, ~: 9473425)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint256[],uint48) (runs: 100, μ: 8966566, ~: 9228589)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8592866, ~: 9542078)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8532331, ~: 8745667)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 17.88s (5.00s CPU time)
 
 ╭-------------------------------------+-----------------+------+--------+------+---------╮
 | script/utils/Logs.sol:Logs Contract |                 |      |        |      |         |
@@ -836,13 +837,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | Function Name                                                | Min             | Avg    | Median | Max    | # Calls |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| create                                                       | 154028          | 208641 | 206270 | 336631 | 2735    |
+| create                                                       | 154028          | 208671 | 206270 | 336631 | 2735    |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| isEntity                                                     | 603             | 604    | 603    | 2603   | 37733   |
+| isEntity                                                     | 603             | 604    | 603    | 2603   | 37729   |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| totalTypes                                                   | 442             | 2440   | 2442   | 2442   | 3506    |
+| totalTypes                                                   | 442             | 2440   | 2442   | 2442   | 3508    |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| whitelist                                                    | 78993           | 84601  | 79125  | 96237  | 3420    |
+| whitelist                                                    | 78993           | 84608  | 79125  | 96237  | 3422    |
 ╰--------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
 
 ╭------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -856,9 +857,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | Function Name                                              | Min             | Avg   | Median | Max   | # Calls |
 |------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| isEntity                                                   | 551             | 2550  | 2551   | 2551  | 31972   |
+| isEntity                                                   | 551             | 2550  | 2551   | 2551  | 31975   |
 |------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| registerNetwork                                            | 23569           | 89136 | 89502  | 89502 | 10141   |
+| registerNetwork                                            | 23569           | 89134 | 89502  | 89502 | 10143   |
 ╰------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭--------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -904,7 +905,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+---------+---------+---------+---------|
 | Function Name                                                  | Min             | Avg     | Median  | Max     | # Calls |
 |----------------------------------------------------------------+-----------------+---------+---------+---------+---------|
-| create                                                         | 154858          | 1104810 | 1034115 | 1357002 | 25840   |
+| create                                                         | 154858          | 1104780 | 1034115 | 1357002 | 25841   |
 ╰----------------------------------------------------------------+-----------------+---------+---------+---------+---------╯
 
 ╭------------------------------------------------------+-----------------+---------+---------+---------+---------╮
@@ -920,13 +921,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |------------------------------------------------------+-----------------+---------+---------+---------+---------|
 | create                                               | 166017          | 400492  | 604160  | 753914  | 2051    |
 |------------------------------------------------------+-----------------+---------+---------+---------+---------|
-| isEntity                                             | 553             | 1012    | 553     | 2553    | 48989   |
+| isEntity                                             | 553             | 1012    | 553     | 2553    | 48985   |
 |------------------------------------------------------+-----------------+---------+---------+---------+---------|
-| lastVersion                                          | 477             | 2476    | 2477    | 2477    | 27788   |
+| lastVersion                                          | 477             | 2476    | 2477    | 2477    | 27789   |
 |------------------------------------------------------+-----------------+---------+---------+---------+---------|
 | migrate                                              | 767075          | 1062868 | 1008116 | 1412012 | 21      |
 |------------------------------------------------------+-----------------+---------+---------+---------+---------|
-| whitelist                                            | 78058           | 86057   | 78103   | 95181   | 1181    |
+| whitelist                                            | 78058           | 86051   | 78103   | 95181   | 1184    |
 ╰------------------------------------------------------+-----------------+---------+---------+---------+---------╯
 
 ╭---------------------------------------------------+-----------------+--------+--------+--------+---------╮
@@ -960,13 +961,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 +=====================================================================================================================================+
 | Deployment Cost                                                               | Deployment Size |       |        |        |         |
 |-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
-| 0                                                                             | 2653            |       |        |        |         |
+| 0                                                                             | 2973            |       |        |        |         |
 |-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
 |                                                                               |                 |       |        |        |         |
 |-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
 | Function Name                                                                 | Min             | Avg   | Median | Max    | # Calls |
 |-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
-| fallback                                                                      | 620             | 66752 | 12194  | 529629 | 433860  |
+| fallback                                                                      | 833             | 66700 | 12194  | 529629 | 433499  |
 |-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
 | upgradeToAndCall                                                              | 22750           | 22750 | 22750  | 22750  | 1       |
 ╰-------------------------------------------------------------------------------+-----------------+-------+--------+--------+---------╯
@@ -994,7 +995,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | lastVersion                                                             | 2477            | 2477   | 2477   | 2477   | 307     |
 |-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| migrate                                                                 | 24969           | 83395  | 84497  | 84821  | 204     |
+| migrate                                                                 | 24969           | 83403  | 84509  | 84821  | 204     |
 |-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | whitelist                                                               | 27212           | 83688  | 78045  | 95135  | 621     |
 ╰-------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
@@ -1036,27 +1037,27 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | maxNetworkLimit                                                                | 2502            | 2502   | 2502   | 2502   | 300     |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| networkLimit                                                                   | 2692            | 8855   | 9280   | 9280   | 1552    |
+| networkLimit                                                                   | 2692            | 8854   | 9280   | 9280   | 1549    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | networkLimitAt                                                                 | 3450            | 10865  | 10554  | 13071  | 1700    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| onSlash                                                                        | 12513           | 15751  | 14001  | 92197  | 14886   |
+| onSlash                                                                        | 12039           | 15741  | 14001  | 92197  | 14855   |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| operatorNetworkLimit                                                           | 2868            | 9149   | 9456   | 9456   | 2152    |
+| operatorNetworkLimit                                                           | 2868            | 9149   | 9456   | 9456   | 2149    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | operatorNetworkLimitAt                                                         | 3658            | 11246  | 10762  | 13279  | 1600    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setHook                                                                        | 10029           | 21815  | 22894  | 31444  | 400     |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setMaxNetworkLimit                                                             | 10973           | 37165  | 37333  | 79947  | 5406    |
+| setMaxNetworkLimit                                                             | 10973           | 37172  | 37333  | 79947  | 5406    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setNetworkLimit                                                                | 4975            | 89533  | 99302  | 99302  | 5706    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setOperatorNetworkLimit                                                        | 11942           | 89063  | 97773  | 97773  | 7962    |
+| setOperatorNetworkLimit                                                        | 11942           | 89074  | 97773  | 97773  | 7959    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | stake                                                                          | 8442            | 39963  | 47559  | 54147  | 2100    |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| stakeAt                                                                        | 20418           | 59267  | 59500  | 71415  | 27188   |
+| stakeAt                                                                        | 13945           | 59252  | 59500  | 71415  | 27157   |
 |--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | vault                                                                          | 401             | 417    | 401    | 2401   | 13568   |
 ╰--------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
@@ -1104,29 +1105,29 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | maxNetworkLimit                                                                      | 2502            | 2502   | 2502   | 2502   | 300     |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| networkLimit                                                                         | 2737            | 8800   | 9325   | 9325   | 1255    |
+| networkLimit                                                                         | 2737            | 8795   | 9325   | 9325   | 1245    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | networkLimitAt                                                                       | 3515            | 10886  | 10622  | 13139  | 2000    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| onSlash                                                                              | 12602           | 55821  | 18678  | 115021 | 757     |
+| onSlash                                                                              | 2979            | 54902  | 18678  | 115021 | 749     |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| operatorNetworkShares                                                                | 2867            | 9149   | 9455   | 9455   | 2155    |
+| operatorNetworkShares                                                                | 2867            | 9147   | 9455   | 9455   | 2145    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | operatorNetworkSharesAt                                                              | 3641            | 11314  | 10748  | 13265  | 3100    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setHook                                                                              | 10074           | 21860  | 22939  | 31489  | 400     |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setMaxNetworkLimit                                                                   | 10951           | 36471  | 37311  | 79925  | 1200    |
+| setMaxNetworkLimit                                                                   | 10951           | 36570  | 37311  | 79925  | 1200    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setNetworkLimit                                                                      | 4953            | 72541  | 99280  | 99280  | 1200    |
+| setNetworkLimit                                                                      | 4953            | 72491  | 99280  | 99280  | 1200    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setOperatorNetworkShares                                                             | 11972           | 124732 | 129253 | 190853 | 1755    |
+| setOperatorNetworkShares                                                             | 11972           | 124981 | 129253 | 190853 | 1745    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| stake                                                                                | 8442            | 37512  | 21331  | 63627  | 2000    |
+| stake                                                                                | 8442            | 37516  | 21331  | 63627  | 2000    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| stakeAt                                                                              | 2710            | 64266  | 66410  | 87289  | 2361    |
+| stakeAt                                                                              | 4116            | 64658  | 66410  | 87289  | 2352    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| totalOperatorNetworkShares                                                           | 2670            | 8771   | 9258   | 9258   | 1355    |
+| totalOperatorNetworkShares                                                           | 2670            | 8768   | 9258   | 9258   | 1345    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | totalOperatorNetworkSharesAt                                                         | 3494            | 10803  | 10601  | 13118  | 1400    |
 |--------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1176,7 +1177,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setHook                                                                                                | 10074           | 21860  | 22939  | 31489  | 400     |
 |--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setMaxNetworkLimit                                                                                     | 10929           | 85013  | 81021  | 129509 | 1500    |
+| setMaxNetworkLimit                                                                                     | 10929           | 85021  | 81021  | 129509 | 1500    |
 |--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | stake                                                                                                  | 8420            | 24226  | 23253  | 42528  | 1300    |
 |--------------------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1220,23 +1221,23 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | maxNetworkLimit                                                                          | 2502            | 2502   | 2502   | 2502   | 300     |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| networkLimit                                                                             | 2737            | 8794   | 9325   | 9325   | 1241    |
+| networkLimit                                                                             | 2737            | 8797   | 9325   | 9325   | 1249    |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | networkLimitAt                                                                           | 3519            | 10887  | 10623  | 13140  | 2000    |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| onSlash                                                                                  | 12513           | 44855  | 18589  | 84633  | 744     |
+| onSlash                                                                                  | 12513           | 45301  | 18589  | 84633  | 749     |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | operator                                                                                 | 2425            | 2425   | 2425   | 2425   | 100     |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setHook                                                                                  | 10074           | 21860  | 22939  | 31489  | 400     |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setMaxNetworkLimit                                                                       | 10929           | 36504  | 37289  | 79903  | 1200    |
+| setMaxNetworkLimit                                                                       | 10929           | 36443  | 37289  | 79903  | 1200    |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setNetworkLimit                                                                          | 4953            | 69173  | 68480  | 99280  | 1441    |
+| setNetworkLimit                                                                          | 4953            | 68988  | 68480  | 99280  | 1449    |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | stake                                                                                    | 8442            | 23981  | 21090  | 47161  | 1300    |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| stakeAt                                                                                  | 6442            | 45125  | 46237  | 61644  | 1146    |
+| stakeAt                                                                                  | 19770           | 45244  | 46237  | 61644  | 1149    |
 |------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | vault                                                                                    | 401             | 500    | 401    | 2401   | 2001    |
 ╰------------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
@@ -1246,29 +1247,29 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 +===================================================================================================================================+
 | Deployment Cost                                                            | Deployment Size |        |        |        |         |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| 4808461                                                                    | 22493           |        |        |        |         |
+| 4802368                                                                    | 22465           |        |        |        |         |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 |                                                                            |                 |        |        |        |         |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | Function Name                                                              | Min             | Avg    | Median | Max    | # Calls |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| FACTORY                                                                    | 327             | 327    | 327    | 327    | 315     |
+| FACTORY                                                                    | 327             | 327    | 327    | 327    | 316     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| TYPE                                                                       | 348             | 348    | 348    | 348    | 324     |
+| TYPE                                                                       | 348             | 348    | 348    | 348    | 325     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | VERSION                                                                    | 344             | 344    | 344    | 344    | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| createSlot                                                                 | 3159            | 258750 | 251412 | 376794 | 2546    |
+| createSlot                                                                 | 3159            | 258939 | 256084 | 376794 | 2550    |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getAllocated(bytes32,address,uint48)                                       | 119998          | 119998 | 119998 | 119998 | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| getAllocated(uint96,uint48)                                                | 13053           | 79076  | 76701  | 153490 | 1149    |
+| getAllocated(uint96,uint48)                                                | 13053           | 79123  | 76701  | 153490 | 1149    |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getAllocatedAt(bytes32,address,uint48,uint48)                              | 127723          | 127723 | 127723 | 127723 | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getAllocatedAt(uint96,uint48,uint48)                                       | 13108           | 74417  | 61539  | 164809 | 17      |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| getAvailable                                                               | 34847           | 50824  | 53940  | 128533 | 321     |
+| getAvailable                                                               | 34847           | 50884  | 53940  | 128533 | 321     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getAvailableAt                                                             | 40734           | 84512  | 100955 | 124335 | 5       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1288,19 +1289,19 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getIsShared                                                                | 2712            | 5858   | 7431   | 7431   | 3       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| getNoPluginsSize                                                           | 3243            | 11780  | 13243  | 25745  | 123     |
+| getNoPluginsSize                                                           | 3243            | 12008  | 13243  | 28200  | 127     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| getPending                                                                 | 18399           | 21150  | 21150  | 23901  | 8       |
+| getPending                                                                 | 18399           | 21150  | 21150  | 23901  | 11      |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getPendingAt                                                               | 18757           | 23661  | 24480  | 27748  | 3       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| getSlot                                                                    | 18034           | 22579  | 20528  | 58053  | 33      |
+| getSlot                                                                    | 18034           | 23596  | 20528  | 58053  | 35      |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getSlotOf                                                                  | 9815            | 9815   | 9815   | 9815   | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getSlotOfAt                                                                | 11207           | 11207  | 11207  | 11207  | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| getSlotOfNetwork                                                           | 4970            | 4970   | 4970   | 4970   | 10      |
+| getSlotOfNetwork                                                           | 4970            | 4970   | 4970   | 4970   | 11      |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getSlotOfNetworkAt                                                         | 5760            | 5760   | 5760   | 5760   | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1314,7 +1315,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | hook                                                                       | 2469            | 2469   | 2469   | 2469   | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| initialize                                                                 | 29470           | 232478 | 222647 | 247326 | 174     |
+| initialize                                                                 | 29470           | 232421 | 222647 | 247326 | 175     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | maxNetworkLimit                                                            | 386             | 386    | 386    | 386    | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1326,13 +1327,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | removeSlot                                                                 | 2874            | 97400  | 106795 | 216704 | 7       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| resetAllocation                                                            | 8356            | 112783 | 81298  | 278985 | 5       |
+| resetAllocation                                                            | 8356            | 141686 | 132521 | 293727 | 6       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setHook                                                                    | 11439           | 21389  | 21389  | 31339  | 2       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setMaxNetworkLimit                                                         | 381             | 381    | 381    | 381    | 1       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| setSize                                                                    | 2977            | 202249 | 223135 | 364141 | 234     |
+| setSize                                                                    | 2977            | 209252 | 226960 | 364141 | 236     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | setWithdrawalBufferSize                                                    | 2847            | 7279   | 7295   | 11695  | 6       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1340,13 +1341,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | stakeAt                                                                    | 13230           | 72468  | 72468  | 131707 | 2       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| stakeFor                                                                   | 55028           | 116442 | 113047 | 267729 | 432     |
+| stakeFor                                                                   | 55028           | 116687 | 113047 | 267729 | 432     |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | stakeForAt                                                                 | 127799          | 152346 | 157255 | 171985 | 3       |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | swapSlots                                                                  | 2954            | 155501 | 85891  | 385869 | 12      |
 |----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| vault                                                                      | 423             | 436    | 423    | 2423   | 151     |
+| vault                                                                      | 423             | 436    | 423    | 2423   | 152     |
 ╰----------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
 
 ╭--------------------------------------------------------------------+-----------------+-------+--------+--------+---------╮
@@ -1360,9 +1361,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
 | Function Name                                                      | Min             | Avg   | Median | Max    | # Calls |
 |--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
-| metadataURL                                                        | 3088            | 4212  | 3177   | 9645   | 200     |
+| metadataURL                                                        | 3088            | 3884  | 3177   | 9645   | 200     |
 |--------------------------------------------------------------------+-----------------+-------+--------+--------+---------|
-| setMetadataURL                                                     | 27386           | 53753 | 45507  | 121155 | 400     |
+| setMetadataURL                                                     | 27386           | 51016 | 45471  | 121107 | 400     |
 ╰--------------------------------------------------------------------+-----------------+-------+--------+--------+---------╯
 
 ╭--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -1378,9 +1379,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | NETWORK_REGISTRY                                                                     | 225             | 225   | 225    | 225   | 100     |
 |--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| middleware                                                                           | 511             | 2510  | 2511   | 2511  | 20603   |
+| middleware                                                                           | 174             | 2510  | 2511   | 2511  | 20560   |
 |--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| setMiddleware                                                                        | 26947           | 50578 | 51024  | 51024 | 10327   |
+| setMiddleware                                                                        | 26947           | 50578 | 51024  | 51024 | 10329   |
 ╰--------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭--------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
@@ -1402,7 +1403,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | isOptedIn                                                    | 2875            | 4794   | 5171   | 5171   | 12209   |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| isOptedInAt                                                  | 189             | 6361   | 6362   | 8817   | 61142   |
+| isOptedInAt                                                  | 3550            | 6361   | 6362   | 8817   | 61164   |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | nonces                                                       | 2800            | 2800   | 2800   | 2800   | 4       |
 |--------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1440,17 +1441,17 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
 | cumulativeSlashAt                                  | 3663            | 9367   | 10470  | 13231  | 2500    |
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
-| initialize                                         | 29449           | 73058  | 73238  | 86738  | 9885    |
+| initialize                                         | 29449           | 73058  | 73238  | 86738  | 9879    |
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
 | isBurnerHook                                       | 2348            | 2348   | 2348   | 2348   | 10      |
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
 | latestSlashedCaptureTimestamp                      | 2650            | 2650   | 2650   | 2650   | 500     |
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
-| slash                                              | 1               | 272356 | 276224 | 416972 | 16336   |
+| slash                                              | 55              | 272192 | 276224 | 416972 | 16311   |
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
-| slashableStake                                     | 13789           | 61740  | 85313  | 102625 | 3700    |
+| slashableStake                                     | 13789           | 61744  | 85313  | 102625 | 3700    |
 |----------------------------------------------------+-----------------+--------+--------+--------+---------|
-| vault                                              | 423             | 456    | 423    | 2423   | 9730    |
+| vault                                              | 423             | 455    | 423    | 2423   | 9718    |
 ╰----------------------------------------------------+-----------------+--------+--------+--------+---------╯
 
 ╭----------------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
@@ -1464,13 +1465,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | Function Name                                                        | Min             | Avg    | Median | Max    | # Calls |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| FACTORY                                                              | 294             | 294    | 294    | 294    | 315     |
+| FACTORY                                                              | 294             | 294    | 294    | 294    | 316     |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| TYPE                                                                 | 237             | 237    | 237    | 237    | 322     |
+| TYPE                                                                 | 237             | 237    | 237    | 237    | 323     |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | executeSlash                                                         | 294542          | 476383 | 544633 | 550800 | 11      |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| initialize                                                           | 100888          | 100888 | 100888 | 100888 | 101     |
+| initialize                                                           | 100888          | 100888 | 100888 | 100888 | 102     |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | isBurnerHook                                                         | 2437            | 2437   | 2437   | 2437   | 1       |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1482,9 +1483,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | slashRequestsLength                                                  | 2402            | 2402   | 2402   | 2402   | 7       |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| slashableStake                                                       | 132133          | 133640 | 132133 | 138351 | 400     |
+| slashableStake                                                       | 132133          | 133905 | 132133 | 138351 | 400     |
 |----------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| vault                                                                | 434             | 434    | 434    | 434    | 86      |
+| vault                                                                | 434             | 434    | 434    | 434    | 87      |
 ╰----------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
 
 ╭------------------------------------------------------------+-----------------+--------+--------+--------+---------╮
@@ -1512,15 +1513,15 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | cumulativeSlashAt                                          | 6111            | 9028   | 10761  | 13220  | 1200    |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| executeSlash                                               | 7953            | 209599 | 290439 | 353742 | 1500    |
+| executeSlash                                               | 7953            | 209645 | 290439 | 353742 | 1500    |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| initialize                                                 | 29483           | 113370 | 119014 | 132514 | 3006    |
+| initialize                                                 | 29483           | 113483 | 119014 | 132514 | 3006    |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | isBurnerHook                                               | 2370            | 2370   | 2370   | 2370   | 5       |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | latestSlashedCaptureTimestamp                              | 2695            | 2695   | 2695   | 2695   | 600     |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| requestSlash                                               | 11467           | 185054 | 212653 | 212653 | 2700    |
+| requestSlash                                               | 11467           | 185019 | 212653 | 212653 | 2700    |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | resolver                                                   | 3506            | 7324   | 8781   | 8781   | 700     |
 |------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1562,7 +1563,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | DEPOSIT_WHITELIST_SET_ROLE                   | 327             | 327    | 327    | 327    | 206     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| FACTORY                                      | 306             | 306    | 306    | 306    | 498     |
+| FACTORY                                      | 306             | 306    | 306    | 306    | 499     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | IS_DEPOSIT_LIMIT_SET_ROLE                    | 286             | 286    | 286    | 286    | 502     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1582,9 +1583,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | activeStake                                  | 2548            | 8419   | 9136   | 9136   | 4600    |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| activeStakeAt                                | 207             | 13310  | 12912  | 18495  | 34492   |
+| activeStakeAt                                | 3352            | 13301  | 12912  | 18495  | 34455   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| burner                                       | 427             | 689    | 427    | 2427   | 6135    |
+| burner                                       | 427             | 690    | 427    | 2427   | 6115    |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | claim                                        | 5541            | 32318  | 17932  | 75605  | 602     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1596,9 +1597,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | currentEpochStart                            | 1260            | 2336   | 3260   | 3260   | 1300    |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| delegator                                    | 403             | 1537   | 2403   | 2403   | 37882   |
+| delegator                                    | 403             | 1537   | 2403   | 2403   | 37811   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| deposit                                      | 5587            | 260554 | 252144 | 338404 | 59460   |
+| deposit                                      | 5587            | 260592 | 252144 | 338404 | 59282   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | depositLimit                                 | 2360            | 2360   | 2360   | 2360   | 500     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1606,7 +1607,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | epochAt                                      | 2558            | 2886   | 2927   | 2927   | 900     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| epochDuration                                | 420             | 1622   | 2420   | 2420   | 54893   |
+| epochDuration                                | 420             | 1622   | 2420   | 2420   | 54822   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | epochDurationInit                            | 2441            | 2441   | 2441   | 2441   | 100     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1614,7 +1615,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | hasRole                                      | 2812            | 2812   | 2812   | 2812   | 700     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| initialize                                   | 72355           | 238161 | 244659 | 264559 | 15748   |
+| initialize                                   | 72355           | 238164 | 244659 | 264559 | 15748   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | isDelegatorInitialized                       | 2428            | 2428   | 2428   | 2428   | 102     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1630,7 +1631,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | nextEpochStart                               | 3356            | 3356   | 3356   | 3356   | 400     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| onSlash                                      | 7643            | 82864  | 83957  | 111494 | 16083   |
+| onSlash                                      | 7643            | 82927  | 83957  | 111494 | 16046   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | owner                                        | 2442            | 2442   | 2442   | 2442   | 220     |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1652,13 +1653,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | slashableBalanceOf                           | 26390           | 44357  | 46154  | 46154  | 1100    |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| slasher                                      | 2470            | 2470   | 2470   | 2470   | 16992   |
+| slasher                                      | 2470            | 2470   | 2470   | 2470   | 16957   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| totalStake                                   | 9664            | 16151  | 16252  | 16252  | 13782   |
+| totalStake                                   | 9664            | 16141  | 16252  | 16252  | 13783   |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | version                                      | 2527            | 2527   | 2527   | 2527   | 21      |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
-| withdraw                                     | 5585            | 218899 | 268810 | 268810 | 2716    |
+| withdraw                                     | 5585            | 218921 | 268810 | 268810 | 2716    |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
 | withdrawalShares                             | 2547            | 2547   | 2547   | 2547   | 1500    |
 |----------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1688,7 +1689,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | DEPOSIT_WHITELIST_SET_ROLE                                     | 327             | 327    | 327    | 327    | 106     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| FACTORY                                                        | 283             | 283    | 283    | 283    | 371     |
+| FACTORY                                                        | 283             | 283    | 283    | 283    | 372     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | IS_DEPOSIT_LIMIT_SET_ROLE                                      | 330             | 330    | 330    | 330    | 402     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1708,7 +1709,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | activeStake                                                    | 2570            | 8651   | 9158   | 9158   | 1300    |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| activeStakeAt                                                  | 3379            | 11667  | 12938  | 17110  | 3300    |
+| activeStakeAt                                                  | 3379            | 11666  | 12938  | 17110  | 3300    |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | allowance                                                      | 2882            | 2882   | 2882   | 2882   | 154     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1748,7 +1749,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | hasRole                                                        | 2746            | 2746   | 2746   | 2746   | 200     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| initialize                                                     | 75899           | 257582 | 293834 | 293834 | 3623    |
+| initialize                                                     | 75899           | 257576 | 293834 | 293834 | 3623    |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | isDelegatorInitialized                                         | 2405            | 2405   | 2405   | 2405   | 102     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1766,7 +1767,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | nextEpochStart                                                 | 3400            | 3400   | 3400   | 3400   | 400     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| onSlash                                                        | 7687            | 78047  | 48595  | 111527 | 201     |
+| onSlash                                                        | 7687            | 77951  | 48595  | 111690 | 201     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | owner                                                          | 2486            | 2486   | 2486   | 2486   | 101     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1798,11 +1799,11 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | transfer                                                       | 9727            | 63729  | 109731 | 109731 | 100     |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| transferFrom                                                   | 36766           | 36766  | 36766  | 36766  | 54      |
+| transferFrom                                                   | 36766           | 37399  | 36766  | 53866  | 54      |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | version                                                        | 2593            | 2593   | 2593   | 2593   | 1       |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| withdraw                                                       | 5585            | 232593 | 270668 | 270668 | 2400    |
+| withdraw                                                       | 5585            | 232668 | 270668 | 270668 | 2400    |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | withdrawalShares                                               | 2569            | 2569   | 2569   | 2569   | 1500    |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -1824,21 +1825,21 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | DEFAULT_ADMIN_ROLE                               | 349             | 349     | 349    | 349     | 200     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| FACTORY                                          | 328             | 328     | 328    | 328     | 315     |
+| FACTORY                                          | 328             | 328     | 328    | 328     | 316     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeBalanceOf                                  | 8461            | 26428   | 28225  | 28225   | 2200    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeBalanceOfAt                                | 9846            | 32712   | 31209  | 38706   | 5800    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| activeShares                                     | 2615            | 7740    | 9203   | 9203    | 3604    |
+| activeShares                                     | 2615            | 7741    | 9203   | 9203    | 3606    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeSharesAt                                   | 3478            | 11665   | 10581  | 17208   | 5400    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| activeSharesOf                                   | 2811            | 8903    | 9399   | 9399    | 2661    |
+| activeSharesOf                                   | 2811            | 8904    | 9399   | 9399    | 2664    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeSharesOfAt                                 | 3590            | 11384   | 10693  | 17320   | 5000    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| activeStake                                      | 1159            | 8315    | 9159   | 9159    | 8487    |
+| activeStake                                      | 1159            | 8313    | 9159   | 9159    | 8491    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeStakeAt                                    | 3498            | 11698   | 10601  | 17228   | 6229    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1846,21 +1847,21 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeWithdrawalsAt                              | 28607           | 28607   | 28607  | 28607   | 2       |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| activeWithdrawalsFor                             | 1272            | 7686    | 5272   | 26365   | 2453    |
+| activeWithdrawalsFor                             | 1272            | 7702    | 5272   | 26365   | 2457    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | activeWithdrawalsForAt                           | 5616            | 8521    | 5616   | 28633   | 31      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| allocatable                                      | 5716            | 16163   | 17716  | 58897   | 52      |
+| allocatable                                      | 5716            | 16687   | 17716  | 58897   | 54      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | allocatePlugin                                   | 2925            | 119650  | 126258 | 224687  | 40      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| allowance                                        | 2816            | 2816    | 2816   | 2816    | 151     |
+| allowance                                        | 2816            | 2816    | 2816   | 2816    | 152     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| approve                                          | 24844           | 24844   | 24844  | 24844   | 51      |
+| approve                                          | 24844           | 24844   | 24844  | 24844   | 52      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| balanceOf                                        | 2894            | 8611    | 9482   | 9482    | 757     |
+| balanceOf                                        | 2894            | 8615    | 9482   | 9482    | 760     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| burner                                           | 493             | 736     | 493    | 2493    | 8319    |
+| burner                                           | 493             | 736     | 493    | 2493    | 8320    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | claim                                            | 7716            | 53077   | 34638  | 114717  | 1628    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1876,7 +1877,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | delegator                                        | 425             | 2349    | 2425   | 2425    | 686     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| deposit                                          | 12032           | 319669  | 333954 | 560886  | 8142    |
+| deposit                                          | 12032           | 319671  | 333954 | 560886  | 8143    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | depositLimit                                     | 2427            | 2427    | 2427   | 2427    | 1000    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1884,13 +1885,13 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | donate                                           | 5447            | 57494   | 52877  | 299118  | 216     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| epochDuration                                    | 442             | 837     | 442    | 2442    | 15218   |
+| epochDuration                                    | 442             | 838     | 442    | 2442    | 15237   |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | grantRole                                        | 7549            | 7627    | 7549   | 29786   | 1696    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | hasRole                                          | 2835            | 2835    | 2835   | 2835    | 400     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| initialize                                       | 49522           | 325577  | 346282 | 370603  | 8522    |
+| initialize                                       | 49522           | 325563  | 346282 | 370603  | 8523    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | instantWithdraw                                  | 76756           | 181987  | 141578 | 312011  | 10      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1908,7 +1909,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | name                                             | 3261            | 3261    | 3261   | 3261    | 103     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| onSlash                                          | 7690            | 136989  | 141611 | 316286  | 1033    |
+| onSlash                                          | 7690            | 136796  | 141611 | 316286  | 1033    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | owner                                            | 2465            | 2465    | 2465   | 2465    | 200     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1922,9 +1923,9 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | pluginsLength                                    | 2360            | 2360    | 2360   | 2360    | 12      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| redeem                                           | 7695            | 187944  | 16759  | 480383  | 1002    |
+| redeem                                           | 7695            | 188003  | 16759  | 480383  | 1002    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| setDelegator                                     | 7628            | 26328   | 26329  | 42629   | 7302    |
+| setDelegator                                     | 7628            | 26328   | 26329  | 42629   | 7303    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | setDepositLimit                                  | 11213           | 23384   | 31113  | 31113   | 1400    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1936,7 +1937,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | setPluginLimit                                   | 10326           | 118940  | 133518 | 137811  | 92      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| setSlasher                                       | 7604            | 26603   | 26604  | 42904   | 7304    |
+| setSlasher                                       | 7604            | 26603   | 26604  | 42904   | 7305    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | skimPlugins                                      | 27031           | 27031   | 27031  | 27031   | 2       |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1952,15 +1953,15 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | totalStake                                       | 9556            | 33862   | 35768  | 40223   | 2004    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| totalSupply                                      | 2651            | 8148    | 9239   | 9239    | 604     |
+| totalSupply                                      | 2651            | 8151    | 9239   | 9239    | 606     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| transfer                                         | 9713            | 61616   | 109602 | 109602  | 102     |
+| transfer                                         | 9713            | 62595   | 109602 | 109602  | 102     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| transferFrom                                     | 36527           | 36527   | 36527  | 36527   | 51      |
+| transferFrom                                     | 36527           | 36855   | 36527  | 53627   | 52      |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| version                                          | 527             | 584     | 527    | 2527    | 280     |
+| version                                          | 527             | 583     | 527    | 2527    | 282     |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
-| withdraw                                         | 7780            | 406939  | 429094 | 505912  | 6541    |
+| withdraw                                         | 7780            | 406950  | 429094 | 505912  | 6542    |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
 | withdrawalBucket                                 | 2529            | 2529    | 2529   | 2529    | 2       |
 |--------------------------------------------------+-----------------+---------+--------+---------+---------|
@@ -1982,7 +1983,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 +===========================================================================================================================================+
 | Deployment Cost                                                                    | Deployment Size |        |        |        |         |
 |------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| 5077159                                                                            | 23434           |        |        |        |         |
+| 5070981                                                                            | 23406           |        |        |        |         |
 |------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 |                                                                                    |                 |        |        |        |         |
 |------------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -2222,15 +2223,15 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | Function Name                                                  | Min             | Avg    | Median | Max    | # Calls |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| claim                                                          | 5667            | 6221   | 6352   | 6352   | 51334   |
+| claim                                                          | 5667            | 6221   | 6352   | 6352   | 51690   |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| deposit                                                        | 453387          | 649011 | 654605 | 750429 | 51645   |
+| deposit                                                        | 453595          | 649104 | 654605 | 750429 | 51467   |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | getDepositors                                                  | 2708            | 2708   | 2708   | 2708   | 1       |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| redeem                                                         | 5713            | 6267   | 6398   | 6398   | 51129   |
+| redeem                                                         | 5713            | 6267   | 6398   | 6398   | 51458   |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| slash                                                          | 3576            | 78652  | 4261   | 413761 | 51374   |
+| slash                                                          | 3576            | 79230  | 4261   | 413761 | 50894   |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | totalClaimed                                                   | 2394            | 2394   | 2394   | 2394   | 2       |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
@@ -2242,7 +2243,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
 | vaultBalance                                                   | 9887            | 9887   | 9887   | 9887   | 1       |
 |----------------------------------------------------------------+-----------------+--------+--------+--------+---------|
-| withdraw                                                       | 5712            | 6266   | 6397   | 6397   | 51515   |
+| withdraw                                                       | 5712            | 6264   | 6397   | 6397   | 51491   |
 ╰----------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
 
 ╭-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -2256,7 +2257,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | Function Name                                                     | Min             | Avg   | Median | Max   | # Calls |
 |-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| push                                                              | 26412           | 26534 | 26478  | 26736 | 100     |
+| push                                                              | 26436           | 26541 | 26496  | 26736 | 100     |
 ╰-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -2270,7 +2271,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | Function Name                                                     | Min             | Avg   | Median | Max   | # Calls |
 |-------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| push                                                              | 32000           | 32131 | 32048  | 32396 | 100     |
+| push                                                              | 32000           | 32125 | 32060  | 32396 | 100     |
 ╰-------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭-----------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -2386,7 +2387,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |---------------------------------------------------+-----------------+------+--------+------+---------|
 | Function Name                                     | Min             | Avg  | Median | Max  | # Calls |
 |---------------------------------------------------+-----------------+------+--------+------+---------|
-| counter1                                          | 2260            | 2260 | 2260   | 2260 | 263     |
+| counter1                                          | 2260            | 2260 | 2260   | 2260 | 249     |
 ╰---------------------------------------------------+-----------------+------+--------+------+---------╯
 
 ╭---------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -2394,7 +2395,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 +========================================================================================================+
 | Deployment Cost                                   | Deployment Size |       |        |       |         |
 |---------------------------------------------------+-----------------+-------+--------+-------+---------|
-| 231538                                            | 1131            |       |        |       |         |
+| 231526                                            | 1131            |       |        |       |         |
 |---------------------------------------------------+-----------------+-------+--------+-------+---------|
 |                                                   |                 |       |        |       |         |
 |---------------------------------------------------+-----------------+-------+--------+-------+---------|
@@ -2418,7 +2419,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | Function Name                                                                         | Min             | Avg   | Median | Max   | # Calls |
 |---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| setData                                                                               | 33585           | 52177 | 52181  | 70777 | 400     |
+| setData                                                                               | 33585           | 52180 | 52181  | 70777 | 400     |
 ╰---------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------╮
@@ -2442,7 +2443,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | owner                                                                 | 2374            | 2374  | 2374   | 2374  | 203     |
 |-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| setA                                                                  | 22376           | 22376 | 22376  | 22376 | 100     |
+| setA                                                                  | 2476            | 21978 | 22376  | 22376 | 100     |
 |-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | version                                                               | 2463            | 2463  | 2463   | 2463  | 203     |
 ╰-----------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
@@ -2466,7 +2467,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | migrate                                                                   | 13238           | 32939 | 33138  | 33138 | 200     |
 |---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| setA                                                                      | 5387            | 5387  | 5387   | 5387  | 100     |
+| setA                                                                      | 5387            | 5729  | 5387   | 22487 | 100     |
 |---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | setB                                                                      | 5211            | 5382  | 5211   | 22311 | 100     |
 |---------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
@@ -2484,7 +2485,7 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
 | Function Name                                                                               | Min             | Avg   | Median | Max   | # Calls |
 |---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------|
-| setData                                                                                     | 33585           | 52194 | 52181  | 70777 | 400     |
+| setData                                                                                     | 33585           | 52192 | 52181  | 70777 | 400     |
 ╰---------------------------------------------------------------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭---------------------------------------------------------------------------------------------------------------+-----------------+------+--------+------+---------╮
@@ -2532,15 +2533,15 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 |-------------------------------------+-----------------+-------+--------+-------+---------|
 | Function Name                       | Min             | Avg   | Median | Max   | # Calls |
 |-------------------------------------+-----------------+-------+--------+-------+---------|
-| approve                             | 46282           | 46398 | 46414  | 46414 | 69992   |
+| approve                             | 46294           | 46397 | 46414  | 46414 | 69815   |
 |-------------------------------------+-----------------+-------+--------+-------+---------|
-| balanceOf                           | 559             | 2208  | 2559   | 2559  | 400330  |
+| balanceOf                           | 559             | 2208  | 2559   | 2559  | 399176  |
 |-------------------------------------+-----------------+-------+--------+-------+---------|
 | decimals                            | 176             | 176   | 176    | 176   | 5119    |
 |-------------------------------------+-----------------+-------+--------+-------+---------|
 | totalSupply                         | 2325            | 2325  | 2325   | 2325  | 76      |
 |-------------------------------------+-----------------+-------+--------+-------+---------|
-| transfer                            | 26937           | 51606 | 51625  | 51661 | 18258   |
+| transfer                            | 26937           | 51605 | 51625  | 51661 | 18259   |
 ╰-------------------------------------+-----------------+-------+--------+-------+---------╯
 
 ╭---------------------------------------------------------+-----------------+------+--------+------+---------╮
@@ -2770,4 +2771,4 @@ Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 30.00s (44.71s CPU 
 ╰------------------------------------------------------------------------------+-----------------+--------+--------+--------+---------╯
 
 
-Ran 37 test suites in 31.55s (85.04s CPU time): 670 tests passed, 0 failed, 0 skipped (670 total tests)
+Ran 37 test suites in 23.21s (100.50s CPU time): 671 tests passed, 0 failed, 0 skipped (671 total tests)

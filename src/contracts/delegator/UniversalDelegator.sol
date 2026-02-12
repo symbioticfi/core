@@ -769,12 +769,9 @@ contract UniversalDelegator is
 
                 // Clear no-plugins pending.
                 if (slot.noPlugins) {
-                    uint208 noPluginsPending = _getNoPluginsPending();
-                    if (noPluginsPending > 0) {
-                        _clearedNoPluginsPendingCumulative.push(
-                            uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + noPluginsPending
-                        );
-                    }
+                    _clearedNoPluginsPendingCumulative.push(
+                        uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pending
+                    );
                 }
             }
 

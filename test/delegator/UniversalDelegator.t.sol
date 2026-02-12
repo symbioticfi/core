@@ -2152,6 +2152,45 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getSlot(slot2).size, 2);
     }
 
+    function test_resetAllocation_clearsOnlyRemovedNoPluginsPending() public {
+        address network1 = makeAddr("reset-network-no-plugins-1");
+        address middleware1 = makeAddr("reset-middleware-no-plugins-1");
+        _registerNetwork(network1, middleware1);
+        bytes32 subnetwork1 = network1.subnetwork(0);
+
+        address network2 = makeAddr("reset-network-no-plugins-2");
+        address middleware2 = makeAddr("reset-middleware-no-plugins-2");
+        _registerNetwork(network2, middleware2);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+
+        _deposit(alice, 200);
+
+        uint96 noPluginsGroup1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 noPluginsGroup2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+
+        delegator.createSlot(subnetwork1, noPluginsGroup1, false, false, 100);
+        delegator.createSlot(subnetwork2, noPluginsGroup2, false, false, 100);
+
+        vm.warp(1);
+        delegator.setSize(noPluginsGroup1, 50);
+        vm.warp(2);
+        delegator.setSize(noPluginsGroup2, 60);
+
+        assertEq(delegator.getPending(noPluginsGroup1, 0), 50);
+        assertEq(delegator.getPending(noPluginsGroup2, 0), 40);
+        assertEq(delegator.getNoPluginsSize(), 200);
+
+        vm.warp(3);
+        vm.prank(network1);
+        delegator.resetAllocation(subnetwork1);
+
+        assertFalse(delegator.getSlot(noPluginsGroup1).exists);
+        assertEq(delegator.getSlotOfNetwork(subnetwork1), 0);
+        assertEq(delegator.getNoPluginsSize(), 100);
+        assertTrue(delegator.getSlot(noPluginsGroup2).exists);
+        assertEq(delegator.getPending(noPluginsGroup2, 0), 40);
+    }
+
     function test_resetAllocation_singleNetworkClearsAssignmentAndAllowsReassign() public {
         address network = makeAddr("reset-single-network");
         address middleware = makeAddr("reset-single-middleware");
