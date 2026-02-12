@@ -37,6 +37,8 @@ import {
     DEPOSIT_LIMIT_SET_ROLE,
     SET_PLUGIN_LIMIT_ROLE,
     SWAP_PLUGINS_ROLE,
+    ALLOCATE_PLUGIN_ROLE,
+    DEALLOCATE_PLUGIN_ROLE,
     MAX_PLUGINS
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
@@ -3058,6 +3060,8 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginsLength(), 1);
         assertEq(vault.plugins(0), address(plugin));
         assertEq(vault.pluginLimit(address(plugin)), type(uint208).max);
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
 
         _grantRemovePluginRole(alice, alice);
         vm.prank(alice);
@@ -3065,6 +3069,8 @@ contract VaultV2Test is Test {
 
         assertEq(vault.pluginsLength(), 0);
         assertEq(vault.pluginLimit(address(plugin)), 0);
+        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
     }
 
     function test_DepositAutoAllocatesFirstPlugin() public {

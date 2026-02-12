@@ -599,6 +599,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     if (plugin == plugins[i]) {
                         plugins[i] = plugins[numPlugins - 1];
                         plugins.pop();
+                        _revokeRole(ALLOCATE_PLUGIN_ROLE, plugin);
+                        _revokeRole(DEALLOCATE_PLUGIN_ROLE, plugin);
                         break;
                     }
                 }
