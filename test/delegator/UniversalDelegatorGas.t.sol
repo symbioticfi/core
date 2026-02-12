@@ -39,6 +39,7 @@ contract UniversalDelegatorGasTest is Test {
     uint128 internal constant NETWORK_SIZE = 1000 ether;
     uint128 internal constant OPERATOR_SIZE = 100 ether;
     uint256 internal constant DEPOSIT_AMOUNT = 9000 ether;
+    uint256 internal constant WITHDRAW_AMOUNT = 1 ether;
     string internal constant VAULT_NAME = "Test";
     string internal constant VAULT_SYMBOL = "TEST";
 
@@ -177,6 +178,7 @@ contract UniversalDelegatorGasTest is Test {
         uint48 setupTimestamp = START_TIMESTAMP + EPOCH_DURATION;
         vm.warp(setupTimestamp);
         _deposit(owner, DEPOSIT_AMOUNT);
+        _withdraw(owner, WITHDRAW_AMOUNT);
         _setupTopology();
         vm.warp(setupTimestamp + CAPTURE_OFFSET + 1);
     }
@@ -414,6 +416,12 @@ contract UniversalDelegatorGasTest is Test {
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
         vault.deposit(user, amount);
+        vm.stopPrank();
+    }
+
+    function _withdraw(address user, uint256 amount) internal {
+        vm.startPrank(user);
+        vault.withdraw(user, amount);
         vm.stopPrank();
     }
 }

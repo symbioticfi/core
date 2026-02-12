@@ -368,31 +368,43 @@ def map_vault(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
         return 0
 
     push_values = [gas for name, gas in children if name == "Checkpoints::push"]
-    if len(push_values) < 6:
-        raise ValueError(f"Unexpected {context} trace shape.")
+
+    def _push_by_occurrence(occurrence: int) -> int:
+        return push_values[occurrence] if occurrence < len(push_values) else 0
+
+    # Newer traces may merge legacy storage/checkpoint subcalls into this one.
+    sync_claimable = _gas_by_occurrence("VaultV2::_syncClaimableWithdrawals", required=False)
+    active_withdrawals_first = _gas_by_occurrence("VaultV2::activeWithdrawals", occurrence=0, required=False)
+    active_withdrawals_second = _gas_by_occurrence("VaultV2::activeWithdrawals", occurrence=1, required=False)
+    withdrawals_storage = _gas_by_occurrence("VaultV2Storage::withdrawals", required=False)
 
     return [
         ("VaultV2::deallocatePlugins", _gas_by_occurrence("VaultV2::deallocatePlugins", required=False)),
-        ("ReentrancyGuard::_nonReentrantBefore", _gas_by_occurrence("ReentrancyGuard::_nonReentrantBefore")),
-        ("VaultV2Storage::activeStake", _gas_by_occurrence("VaultV2Storage::activeStake")),
-        ("VaultV2Storage::withdrawalBucket", _gas_by_occurrence("VaultV2Storage::withdrawalBucket")),
+        ("ReentrancyGuard::_nonReentrantBefore", _gas_by_occurrence("ReentrancyGuard::_nonReentrantBefore", required=False)),
+        ("VaultV2Storage::activeStake", _gas_by_occurrence("VaultV2Storage::activeStake", required=False)),
+        ("VaultV2Storage::withdrawalBucket", _gas_by_occurrence("VaultV2Storage::withdrawalBucket", required=False)),
         (
             "Checkpoints::upperLookupRecent",
-            _gas_by_occurrence(("Checkpoints::upperLookupRecent", "VaultV2::_activeWithdrawalSharesFor")),
+            _gas_by_occurrence(("Checkpoints::upperLookupRecent", "VaultV2::_activeWithdrawalSharesFor"), required=False),
         ),
         ("Checkpoints::latest", _gas_by_occurrence("Checkpoints::latest", required=False)),
-        ("VaultV2::activeWithdrawals", _gas_by_occurrence("VaultV2::activeWithdrawals", occurrence=0)),
-        ("VaultV2::activeWithdrawals", _gas_by_occurrence("VaultV2::activeWithdrawals", occurrence=1)),
-        ("VaultV2Storage::withdrawals", _gas_by_occurrence("VaultV2Storage::withdrawals")),
-        ("Checkpoints::push", push_values[0]),
-        ("Checkpoints::push", push_values[1]),
-        ("VaultV2Storage::withdrawalShares", _gas_by_occurrence("VaultV2Storage::withdrawalShares")),
-        ("Checkpoints::push", push_values[2]),
-        ("Checkpoints::push", push_values[3]),
-        ("FixedPointMathLib::mulDiv", _gas_by_occurrence(("FixedPointMathLib::mulDiv", "FixedPointMathLib::fullMulDiv"))),
-        ("Checkpoints::push", push_values[4]),
-        ("Checkpoints::push", push_values[5]),
-        ("VaultV2::_availableToSlash", _gas_by_occurrence("VaultV2::_availableToSlash")),
+        ("VaultV2::activeWithdrawals", active_withdrawals_first),
+        ("VaultV2::activeWithdrawals", active_withdrawals_second),
+        # Backward-compatible slot: old traces report VaultV2Storage::withdrawals here,
+        # new traces report the merged sync call.
+        ("VaultV2Storage::withdrawals", withdrawals_storage if withdrawals_storage > 0 else sync_claimable),
+        ("Checkpoints::push", _push_by_occurrence(0)),
+        ("Checkpoints::push", _push_by_occurrence(1)),
+        ("VaultV2Storage::withdrawalShares", _gas_by_occurrence("VaultV2Storage::withdrawalShares", required=False)),
+        ("Checkpoints::push", _push_by_occurrence(2)),
+        ("Checkpoints::push", _push_by_occurrence(3)),
+        (
+            "FixedPointMathLib::mulDiv",
+            _gas_by_occurrence(("FixedPointMathLib::mulDiv", "FixedPointMathLib::fullMulDiv"), required=False),
+        ),
+        ("Checkpoints::push", _push_by_occurrence(4)),
+        ("Checkpoints::push", _push_by_occurrence(5)),
+        ("VaultV2::_availableToSlash", _gas_by_occurrence("VaultV2::_availableToSlash", required=False)),
         ("SafeTransferLib::safeTransfer", _gas_by_occurrence("SafeTransferLib::safeTransfer", required=False)),
         ("ReentrancyGuard::_nonReentrantAfter", _gas_by_occurrence("ReentrancyGuard::_nonReentrantAfter", required=False)),
     ]

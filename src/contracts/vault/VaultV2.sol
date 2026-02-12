@@ -415,13 +415,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             uint256 curActiveStake = activeStake();
             uint256 curActiveWithdrawals = activeWithdrawals();
-            uint256 curWithdrawalBucket = withdrawalBucket();
-            uint256 withdrawalsDonated = curActiveWithdrawals > 0
-                ? amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals)
-                : 0;
-            _withdrawals[curWithdrawalBucket].push(
-                uint48(block.timestamp), withdrawals(curWithdrawalBucket) + withdrawalsDonated
-            );
+            uint256 withdrawalsDonated = amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
+
+            if (withdrawalsDonated > 0) {
+                _updateWithdrawalsSharePrice(curActiveWithdrawals + withdrawalsDonated);
+            }
             _activeStake.push(uint48(block.timestamp), amount - withdrawalsDonated + curActiveStake);
 
             emit Donate(amount);
@@ -441,26 +439,16 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             }
 
             uint256 curActiveStake = activeStake();
-            uint208 curWithdrawalBucket = withdrawalBucket();
-            uint256 curActiveWithdrawalShares = _activeWithdrawalSharesFor(0);
             uint256 curActiveWithdrawals = activeWithdrawals();
-            uint256 curClaimableWithdrawals = withdrawals(curWithdrawalBucket) - activeWithdrawals();
             uint256 slashableStake = curActiveStake + curActiveWithdrawals;
 
             slashedAmount = Math.min(amount, slashableStake);
             if (slashedAmount > 0) {
-                _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawals);
-                _withdrawalShares[curWithdrawalBucket].push(
-                    uint48(block.timestamp), withdrawalShares(curWithdrawalBucket) - curActiveWithdrawalShares
-                );
-                _withdrawalShares[curWithdrawalBucket + 1].push(uint48(block.timestamp), curActiveWithdrawalShares);
-                _unlockToBucket.push(uint48(block.timestamp), curWithdrawalBucket + 1);
-                _unclaimedRaw += int256(curClaimableWithdrawals);
-
                 uint256 activeSlashed = slashedAmount.fullMulDiv(curActiveStake, slashableStake);
                 _activeStake.push(uint48(block.timestamp), curActiveStake - activeSlashed);
-                _withdrawals[curWithdrawalBucket
-                        + 1].push(uint48(block.timestamp), curActiveWithdrawals - (slashedAmount - activeSlashed));
+                if (curActiveWithdrawals > 0) {
+                    _updateWithdrawalsSharePrice(curActiveWithdrawals - (slashedAmount - activeSlashed));
+                }
 
                 owedAmount = slashedAmount.saturatingSub(_availableToSlash());
 
@@ -524,6 +512,24 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
             emit Transfer(msg.sender, address(0), burnedShares);
+        }
+    }
+
+    function _updateWithdrawalsSharePrice(uint256 newActiveWithdrawals) internal {
+        unchecked {
+            uint208 curWithdrawalBucket = withdrawalBucket();
+            uint256 curActiveWithdrawalShares = _activeWithdrawalSharesFor(0);
+            uint256 curClaimableWithdrawals = withdrawals(curWithdrawalBucket) - activeWithdrawals();
+            uint256 curClaimableWithdrawalShares = withdrawalShares(curWithdrawalBucket) - curActiveWithdrawalShares;
+            if (curClaimableWithdrawalShares > 0) {
+                _unclaimedRaw += int256(curClaimableWithdrawals);
+                _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawals);
+                _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawalShares);
+
+                _unlockToBucket.push(uint48(block.timestamp), curWithdrawalBucket + 1);
+                _withdrawals[curWithdrawalBucket + 1].push(uint48(block.timestamp), newActiveWithdrawals);
+                _withdrawalShares[curWithdrawalBucket + 1].push(uint48(block.timestamp), curActiveWithdrawalShares);
+            }
         }
     }
 

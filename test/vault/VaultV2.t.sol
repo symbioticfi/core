@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {Test, console2, stdError} from "forge-std/Test.sol";
+import {Test, stdError} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
@@ -1421,6 +1421,57 @@ contract VaultV2Test is Test {
         vm.stopPrank();
     }
 
+    function test_Donate_syncsClaimableAndActiveWithdrawalsBuckets() public {
+        vault = _getUniversalVault(7 days);
+
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        vm.warp(block.timestamp + uint256(vault.epochDuration()) + 1);
+        _withdraw(bob, 30);
+
+        uint256 donation = 20;
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAfter(0, alice);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAfter(0, bob);
+        uint256 bucketBefore = _latestWithdrawalBucket();
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 expectedWithdrawalsDonated;
+        uint256 expectedNewActiveWithdrawals;
+        uint256 expectedBobWithdrawalsAfter;
+        {
+            uint256 curActiveWithdrawals = vault.activeWithdrawals();
+            uint256 curActiveWithdrawalShares = _unmaturedWithdrawalShares(uint48(block.timestamp));
+            uint256 bobSharesBefore = vault.withdrawalSharesOf(0, bob);
+
+            expectedWithdrawalsDonated = donation.mulDiv(curActiveWithdrawals, activeStakeBefore + curActiveWithdrawals);
+            expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
+            expectedBobWithdrawalsAfter =
+                ERC4626Math.previewRedeem(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
+        }
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        uint256 bucketAfter = _latestWithdrawalBucket();
+        assertEq(bucketAfter, bucketBefore + 1);
+
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), aliceUnlockAfter), bucketBefore);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), bobUnlockAfter), bucketAfter);
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(vault.withdrawalsOf(0, bob), expectedBobWithdrawalsAfter);
+        assertEq(vault.withdrawals(bucketBefore), claimableBefore);
+        assertEq(vault.withdrawals(bucketAfter), expectedNewActiveWithdrawals);
+        assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
+    }
+
     function test_DepositRevertInsufficientDeposit() public {
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
@@ -2814,7 +2865,7 @@ contract VaultV2Test is Test {
         uint256 tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
         assertEq(_slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), ""), slashAmountReal);
         assertEq(collateral.balanceOf(address(vault.burner())) - tokensBeforeBurner, slashAmountReal);
-        assertApproxEqAbs(vault.activeStake(), activeStake - slashAmountReal, 10);
+        assertEq(vault.activeStake(), activeStake - slashAmountReal);
     }
 
     function test_Slash_NotMaturedWithdrawals(
@@ -2865,8 +2916,6 @@ contract VaultV2Test is Test {
         state.slashableStake = state.activeStake + state.unmaturedWithdrawals;
         state.slashAmountReal = Math.min(slashAmount1, state.slashableStake);
         state.tokensBeforeBurner = collateral.balanceOf(address(vault.burner()));
-        console2.log("-------slasher", address(slasher));
-
         assertEq(
             _slash(alice, alice, alice, slashAmount1, uint48(state.blockTimestamp - captureAgo), ""),
             state.slashAmountReal
@@ -2875,11 +2924,19 @@ contract VaultV2Test is Test {
 
         state.activeSlashed = state.slashAmountReal.mulDiv(state.activeStake, state.slashableStake);
         state.activeStakeAfter = state.activeStake - state.activeSlashed;
-        assertApproxEqAbs(vault.activeStake(), state.activeStakeAfter, 10);
+        assertEq(vault.activeStake(), state.activeStakeAfter);
 
         state.unmaturedSlashed = state.slashAmountReal - state.activeSlashed;
         state.withdrawalsAfter = state.unmaturedWithdrawals - state.unmaturedSlashed;
-        assertApproxEqAbs(vault.withdrawals(state.lastBucket + 1), state.withdrawalsAfter, 10);
+        uint256 claimableWithdrawalShares = state.lastWithdrawalShares - state.unmaturedWithdrawalShares;
+        if (claimableWithdrawalShares > 0) {
+            assertEq(_latestWithdrawalBucket(), state.lastBucket + 1);
+            assertEq(vault.withdrawals(state.lastBucket + 1), state.withdrawalsAfter);
+        } else {
+            assertEq(_latestWithdrawalBucket(), state.lastBucket);
+            assertEq(vault.withdrawals(state.lastBucket), state.lastWithdrawals);
+            assertEq(vault.withdrawals(state.lastBucket + 1), 0);
+        }
     }
 
     function test_SlashTwice(
@@ -2919,7 +2976,7 @@ contract VaultV2Test is Test {
         vm.warp(blockTimestamp);
 
         // First slash
-        uint256 slashAmountReal1 = _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
+        _slash(alice, alice, alice, slashAmount1, uint48(blockTimestamp - captureAgo), "");
 
         blockTimestamp = blockTimestamp + captureAgo;
         vm.warp(blockTimestamp);
@@ -2942,12 +2999,19 @@ contract VaultV2Test is Test {
         // Calculate state after second slash
         uint256 activeSlashed2 = slashAmountReal2.mulDiv(activeStake2, slashableStake2);
         uint256 activeStakeAfter = activeStake2 - activeSlashed2;
-        assertApproxEqAbs(vault.activeStake(), activeStakeAfter, 10);
+        assertEq(vault.activeStake(), activeStakeAfter);
 
         // The unmatured withdrawals are slashed proportionally
         uint256 unmaturedSlashed2 = slashAmountReal2 - activeSlashed2;
         uint256 withdrawalsAfter = unmaturedWithdrawals2 - unmaturedSlashed2;
-        assertApproxEqAbs(vault.withdrawals(lastBucket2 + 1), withdrawalsAfter, 10);
+        if (lastWithdrawalShares2 > unmaturedWithdrawalShares2) {
+            assertEq(_latestWithdrawalBucket(), lastBucket2 + 1);
+            assertEq(vault.withdrawals(lastBucket2 + 1), withdrawalsAfter);
+        } else {
+            assertEq(_latestWithdrawalBucket(), lastBucket2);
+            assertEq(vault.withdrawals(lastBucket2), lastWithdrawals2);
+            assertEq(vault.withdrawals(lastBucket2 + 1), 0);
+        }
     }
 
     function test_AddRemovePlugin() public {
@@ -3263,6 +3327,75 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginAllocated(address(plugin)), 40);
     }
 
+    function test_OnSlash_syncsClaimableAndActiveWithdrawalsBuckets() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        vm.warp(block.timestamp + uint256(vault.epochDuration()) + 1);
+        _withdraw(bob, 30);
+
+        uint256 slashAmount = 20;
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAfter(0, alice);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAfter(0, bob);
+        uint256 bucketBefore = _latestWithdrawalBucket();
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 activeBefore = vault.withdrawalsOf(0, bob);
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, activeStakeBefore + activeBefore);
+        uint256 expectedActiveAfter = activeBefore - (slashAmount - expectedActiveSlashed);
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        uint256 bucketAfter = _latestWithdrawalBucket();
+        assertEq(slashedAmount, slashAmount);
+        assertEq(owed, 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, slashAmount);
+        assertEq(bucketAfter, bucketBefore + 1);
+
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), aliceUnlockAfter), bucketBefore);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), bobUnlockAfter), bucketAfter);
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(vault.withdrawalsOf(0, bob), expectedActiveAfter);
+        assertEq(vault.withdrawals(bucketBefore), claimableBefore);
+        assertEq(vault.withdrawals(bucketAfter), expectedActiveAfter);
+        assertEq(vault.activeStake(), activeStakeBefore - expectedActiveSlashed);
+    }
+
+    function test_OnSlash_withoutClaimableWithdrawals_keepsCurrentBucket() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        uint256 slashAmount = 20;
+        uint256 bucketBefore = _latestWithdrawalBucket();
+        uint256 activeBefore = vault.withdrawalsOf(0, alice);
+        uint256 bucketWithdrawalsBefore = vault.withdrawals(bucketBefore);
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, activeStakeBefore + activeBefore);
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        assertEq(slashedAmount, slashAmount);
+        assertEq(owed, 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, slashAmount);
+        assertEq(_latestWithdrawalBucket(), bucketBefore);
+        assertEq(vault.withdrawals(bucketBefore), bucketWithdrawalsBefore);
+        assertEq(vault.withdrawals(bucketBefore + 1), 0);
+        assertEq(vault.withdrawalsOf(0, alice), activeBefore);
+        assertEq(vault.activeStake(), activeStakeBefore - expectedActiveSlashed);
+    }
+
     function test_ViewWrappersAndERC20Views() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
@@ -3505,6 +3638,62 @@ contract VaultV2Test is Test {
         assertEq(vault.activeStake(), 110);
         assertEq(vault.activeWithdrawals(), 30);
         assertEq(vault.pluginAllocated(address(morphoPlugin)), 110);
+        assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
+    function test_MorphoPluginSkimDuringDeposit_doesNotDiluteClaimableWithdrawals() public {
+        vault = _getUniversalVault(7 days);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoAllocatePlugin morphoPlugin =
+            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        pluginRegistry.whitelistPlugin(address(morphoPlugin));
+
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(morphoPlugin), type(uint208).max);
+
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        vm.warp(block.timestamp + uint256(vault.epochDuration()) + 1);
+        _withdraw(bob, 30);
+
+        uint256 donation = 20;
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAfter(0, alice);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAfter(0, bob);
+        uint256 aliceClaimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 bucketBefore = _latestWithdrawalBucket();
+        uint256 expectedBobAfter;
+        {
+            uint256 curActiveStake = vault.activeStake();
+            uint256 curActiveWithdrawals = vault.activeWithdrawals();
+            uint256 curActiveWithdrawalShares = _unmaturedWithdrawalShares(uint48(block.timestamp));
+            uint256 bobSharesBefore = vault.withdrawalSharesOf(0, bob);
+            uint256 expectedWithdrawalsDonated =
+                donation.mulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
+            uint256 expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
+            expectedBobAfter =
+                ERC4626Math.previewRedeem(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
+        }
+
+        collateral.approve(address(morphoVault), donation);
+        morphoVault.donateYield(donation);
+
+        _deposit(alice, 2);
+
+        uint256 aliceClaimableAfter = vault.withdrawalsOf(0, alice);
+        uint256 bobActiveAfter = vault.withdrawalsOf(0, bob);
+        uint256 bucketAfter = _latestWithdrawalBucket();
+
+        assertEq(aliceClaimableAfter, aliceClaimableBefore);
+        assertEq(bobActiveAfter, expectedBobAfter);
+        assertEq(bucketAfter, bucketBefore + 1);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), aliceUnlockAfter), bucketBefore);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), bobUnlockAfter), bucketAfter);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 

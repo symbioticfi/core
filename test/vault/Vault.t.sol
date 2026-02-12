@@ -2490,7 +2490,6 @@ contract VaultTest is Test {
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
-    //     assertApproxEqRel(gasStruct.gasSpent1, gasStruct.gasSpent2, 0.05e18);
     // }
 
     // function test_ActiveStakeHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
