@@ -3541,6 +3541,15 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).instantWithdraw(alice, 0);
     }
 
+    function test_InstantWithdrawRevertInvalidRecipient() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        VaultV2(address(vault)).instantWithdraw(address(0), 1);
+    }
+
     function test_InstantWithdrawRevertTooMuchWithdraw() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
