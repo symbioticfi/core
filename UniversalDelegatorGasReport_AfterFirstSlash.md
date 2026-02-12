@@ -7,8 +7,8 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call           | Hints |             Gas |
 | -------------- | ----- | --------------: |
-| `stakeForAt`   | no    | 179,741 ($0.04) |
-| `stakeForAt`   | yes   | 179,741 ($0.04) |
+| `stakeForAt`   | no    | 182,196 ($0.04) |
+| `stakeForAt`   | yes   | 182,196 ($0.04) |
 | `requestSlash` | no    | 294,056 ($0.06) |
 | `requestSlash` | yes   | 294,056 ($0.06) |
 | `executeSlash` | no    | 447,825 ($0.10) |

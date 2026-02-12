@@ -1472,6 +1472,41 @@ contract VaultV2Test is Test {
         assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
     }
 
+    function test_Donate_withoutClaimableWithdrawals_keepsCurrentBucketAndUpdatesActive() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        uint256 donation = 20;
+        uint256 bucketBefore = _latestWithdrawalBucket();
+        uint256 activeBefore = vault.activeWithdrawals();
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 balanceBefore = collateral.balanceOf(address(vault));
+        uint256 totalStakeBefore = vault.totalStake();
+        uint256 aliceSharesBefore = vault.withdrawalSharesOf(0, alice);
+        uint256 totalWithdrawalSharesBefore = vault.withdrawalShares(bucketBefore);
+        uint256 expectedWithdrawalsDonated = donation.mulDiv(activeBefore, activeStakeBefore + activeBefore);
+        uint256 expectedActiveAfter = activeBefore + expectedWithdrawalsDonated;
+        uint256 expectedAliceWithdrawalsAfter =
+            ERC4626Math.previewRedeem(aliceSharesBefore, expectedActiveAfter, totalWithdrawalSharesBefore);
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(_latestWithdrawalBucket(), bucketBefore);
+        assertEq(vault.withdrawals(bucketBefore), expectedActiveAfter);
+        assertEq(vault.withdrawals(bucketBefore + 1), 0);
+        assertEq(vault.withdrawalsOf(0, alice), expectedAliceWithdrawalsAfter);
+        assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
+        assertEq(vault.totalStake(), totalStakeBefore + donation);
+        assertEq(collateral.balanceOf(address(vault)), balanceBefore + donation);
+    }
+
     function test_DepositRevertInsufficientDeposit() public {
         uint48 epochDuration = 1;
         vault = _getVault(epochDuration);
@@ -2934,7 +2969,7 @@ contract VaultV2Test is Test {
             assertEq(vault.withdrawals(state.lastBucket + 1), state.withdrawalsAfter);
         } else {
             assertEq(_latestWithdrawalBucket(), state.lastBucket);
-            assertEq(vault.withdrawals(state.lastBucket), state.lastWithdrawals);
+            assertEq(vault.withdrawals(state.lastBucket), state.withdrawalsAfter);
             assertEq(vault.withdrawals(state.lastBucket + 1), 0);
         }
     }
@@ -3009,7 +3044,7 @@ contract VaultV2Test is Test {
             assertEq(vault.withdrawals(lastBucket2 + 1), withdrawalsAfter);
         } else {
             assertEq(_latestWithdrawalBucket(), lastBucket2);
-            assertEq(vault.withdrawals(lastBucket2), lastWithdrawals2);
+            assertEq(vault.withdrawals(lastBucket2), withdrawalsAfter);
             assertEq(vault.withdrawals(lastBucket2 + 1), 0);
         }
     }
@@ -3378,10 +3413,10 @@ contract VaultV2Test is Test {
         uint256 slashAmount = 20;
         uint256 bucketBefore = _latestWithdrawalBucket();
         uint256 activeBefore = vault.withdrawalsOf(0, alice);
-        uint256 bucketWithdrawalsBefore = vault.withdrawals(bucketBefore);
         uint256 activeStakeBefore = vault.activeStake();
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, activeStakeBefore + activeBefore);
+        uint256 expectedActiveAfter = activeBefore - (slashAmount - expectedActiveSlashed);
 
         vm.prank(address(slasher));
         (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(slashAmount, false);
@@ -3390,9 +3425,9 @@ contract VaultV2Test is Test {
         assertEq(owed, 0);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, slashAmount);
         assertEq(_latestWithdrawalBucket(), bucketBefore);
-        assertEq(vault.withdrawals(bucketBefore), bucketWithdrawalsBefore);
+        assertEq(vault.withdrawals(bucketBefore), expectedActiveAfter);
         assertEq(vault.withdrawals(bucketBefore + 1), 0);
-        assertEq(vault.withdrawalsOf(0, alice), activeBefore);
+        assertEq(vault.withdrawalsOf(0, alice), expectedActiveAfter);
         assertEq(vault.activeStake(), activeStakeBefore - expectedActiveSlashed);
     }
 

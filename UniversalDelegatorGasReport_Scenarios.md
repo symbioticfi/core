@@ -30,8 +30,8 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   294,145 ($0.06) |   556,585 ($0.12) |
-| 2nd  |   156,721 ($0.03) |   295,312 ($0.06) |
+| 1st  |   294,145 ($0.06) |   606,405 ($0.13) |
+| 2nd  |   156,721 ($0.03) |   297,047 ($0.06) |
 
 ### Stake For Timestamp
 

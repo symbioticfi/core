@@ -521,15 +521,17 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint256 curActiveWithdrawalShares = _activeWithdrawalSharesFor(0);
             uint256 curClaimableWithdrawals = withdrawals(curWithdrawalBucket) - activeWithdrawals();
             uint256 curClaimableWithdrawalShares = withdrawalShares(curWithdrawalBucket) - curActiveWithdrawalShares;
-            if (curClaimableWithdrawalShares > 0) {
-                _unclaimedRaw += int256(curClaimableWithdrawals);
-                _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawals);
-                _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawalShares);
 
-                _unlockToBucket.push(uint48(block.timestamp), curWithdrawalBucket + 1);
-                _withdrawals[curWithdrawalBucket + 1].push(uint48(block.timestamp), newActiveWithdrawals);
-                _withdrawalShares[curWithdrawalBucket + 1].push(uint48(block.timestamp), curActiveWithdrawalShares);
+            if (curClaimableWithdrawalShares > 0) {
+                _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawalShares);
+                _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawals);
+                _unclaimedRaw += int256(curClaimableWithdrawals);
+
+                ++curWithdrawalBucket;
+                _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curActiveWithdrawalShares);
+                _unlockToBucket.push(uint48(block.timestamp), curWithdrawalBucket);
             }
+            _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), newActiveWithdrawals);
         }
     }
 
