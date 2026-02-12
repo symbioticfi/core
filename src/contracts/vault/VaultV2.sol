@@ -358,7 +358,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             collateral.safeTransfer(recipient, withdrawnAssets);
 
-            emit InstantWithdraw(msg.sender, withdrawnAssets);
+            emit InstantWithdraw(msg.sender, withdrawnAssets, burnedShares);
+            emit Transfer(msg.sender, address(0), burnedShares);
         }
     }
 

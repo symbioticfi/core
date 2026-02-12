@@ -285,8 +285,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Emitted when an instant withdrawal is made.
      * @param recipient Account that received the collateral.
      * @param amount Amount of the collateral withdrawn.
+     * @param burnedShares Amount of the active shares burned.
      */
-    event InstantWithdraw(address indexed recipient, uint256 amount);
+    event InstantWithdraw(address indexed recipient, uint256 amount, uint256 burnedShares);
 
     /**
      * @notice Emitted when a claim is made.
