@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #fffdf7;
+  --bg-2: #f6f1e3;
+  --ink: #1a1a1a;
+  --ink-muted: #4b4b4b;
+  --ink-subtle: #7a6f5e;
+  --panel: #fffaf0;
+  --panel-border: #e7dbc1;
+  --ember: #e4572e;
+  --tide: #137c70;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "IBM Plex Sans", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(228, 87, 46, 0.18), transparent 42%),
+    radial-gradient(circle at 80% 6%, rgba(19, 124, 112, 0.12), transparent 38%),
+    linear-gradient(180deg, var(--bg), var(--bg-2));
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.mesh-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(228, 87, 46, 0.22) 0,
+    rgba(228, 87, 46, 0.22) 8px,
+    rgba(19, 124, 112, 0.12) 8px,
+    rgba(19, 124, 112, 0.12) 16px
+  );
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+.panel-surface {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 12px 30px rgba(20, 15, 10, 0.08);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #f1e6cc;
+  color: #6b4d2a;
+  white-space: nowrap;
+}
+
+.tag-teal {
+  background: #d8f0ea;
+  color: #0b5f56;
+}
+
+.tag-ember {
+  background: #f9d7c8;
+  color: #b43414;
+}
+
+.input-base {
+  width: 100%;
+  border: 1px solid #d9cdb2;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  background: #fff;
+}
+
+.button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #d9cdb2;
+  background: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button-base:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(20, 15, 10, 0.12);
+}
+
+.button-base:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.button-ember {
+  background: #e4572e;
+  border-color: #d1471f;
+  color: #fff;
+}
+
+.button-ink {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+
+.button-outline {
+  background: transparent;
+}
+
+.small-muted {
+  font-size: 12px;
+  color: var(--ink-subtle);
+}
+
+.mono {
+  font-family: "IBM Plex Mono", monospace;
+}

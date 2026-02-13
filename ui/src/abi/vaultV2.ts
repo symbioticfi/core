@@ -1,0 +1,51 @@
+export const vaultV2Abi = [
+  {
+    type: "function",
+    name: "epochDuration",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "duration", type: "uint48" }],
+  },
+  {
+    type: "function",
+    name: "allocatable",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "amount", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "activeStake",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "amount", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "activeWithdrawalsFor",
+    stateMutability: "view",
+    inputs: [{ name: "duration", type: "uint48" }],
+    outputs: [{ name: "amount", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "collateral",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "collateral", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "delegator",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "delegator", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "slasher",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "slasher", type: "address" }],
+  },
+] as const;

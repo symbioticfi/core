@@ -1,12 +1,20 @@
 # Symbiotic Core Mirror AGENTS
 
+## Stack decisions (non-negotiable)
+
+- Smart contracts: Solidity + Foundry (forge/cast/anvil). Do NOT use Hardhat.
+- UI: Vite + TypeScript + viem/wagmi + Privy + daisyUI. Do NOT use Next.js.
+- Web3 libs: Do NOT use ethers. Use viem and wagmi.
+- Auth/wallet: Use Privy (not WalletConnect, not RainbowKit).
+- JS package manager: pnpm (not npm).
+
 Build/lint/test:
 
 - `forge build`
 - `forge test`
 - Single test: `forge test --match-test <TestName>` or `forge test --match-path test/<File>.t.sol`
 - Format: `forge fmt`
-- UI (Vite): `npm --prefix ui run dev|build|lint|preview`
+- UI (Vite): `pnpm --prefix ui run dev|build|lint|preview`
 
 Architecture/structure:
 
