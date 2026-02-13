@@ -647,7 +647,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             allocated = Math.min(
                 Math.min(Math.min(amount, pluginLimit[plugin] - pluginAllocated[plugin]), allocatable()),
-                IPluginBase(plugin).allocatable()
+                IPluginBase(plugin).allocatable(address(this))
             );
 
             if (allocated > 0) {

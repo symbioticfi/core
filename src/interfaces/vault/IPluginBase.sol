@@ -14,9 +14,10 @@ interface IPluginBase {
 
     /**
      * @notice Get the amount of collateral that can be allocated to the plugin.
+     * @param vault Address of the vault.
      * @return Amount Of collateral that can be allocated to the plugin.
      */
-    function allocatable() external view returns (uint256);
+    function allocatable(address vault) external view returns (uint256);
 
     /**
      * @notice Get the amount of collateral that can be deallocated from the plugin instantly.
