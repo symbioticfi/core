@@ -225,7 +225,10 @@ contract UniversalDelegator is
             isShared: slots[index].isShared,
             noPlugins: slots[index].noPlugins,
             size: uint128(slots[index].size.latest()),
-            prevSum: _getPrevSum(index)
+            prevSum: _getPrevSum(index),
+            subnetworkOrOperator: index.getDepth() == 3
+                ? bytes20(_slotToOperator[index])
+                : index.getDepth() == 2 ? _slotToNetwork[index] : bytes32(0)
         });
     }
 

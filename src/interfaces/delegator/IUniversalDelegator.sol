@@ -149,6 +149,7 @@ interface IUniversalDelegator {
      * @param noPlugins Whether slot stake must stay outside plugins.
      * @param size Slot size value.
      * @param prevSum Prefix sum of previous sibling sizes.
+     * @param subnetworkOrOperator Subnetwork or operator identifier or zero if not assigned.
      */
     struct Slot {
         bool exists;
@@ -162,6 +163,7 @@ interface IUniversalDelegator {
         bool noPlugins;
         uint128 size;
         uint208 prevSum;
+        bytes32 subnetworkOrOperator;
     }
 
     /**
