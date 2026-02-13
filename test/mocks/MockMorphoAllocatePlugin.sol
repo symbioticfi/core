@@ -141,8 +141,8 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
 
     /* IMMUTABLE VARIABLES */
 
-    address public immutable REWARDS;
-    address public immutable CURATOR;
+    address internal immutable REWARDS;
+    address internal immutable CURATOR_REGISTRY;
 
     /* STATE VARIABLES */
 
@@ -158,7 +158,7 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
     /* MODIFIERS */
 
     modifier onlyCurator(address vault) {
-        if (ICuratorRegistry(CURATOR).getCurator(vault) != msg.sender) {
+        if (ICuratorRegistry(CURATOR_REGISTRY).getCurator(vault) != msg.sender) {
             revert NotCurator();
         }
         _;
@@ -166,8 +166,9 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
 
     /* CONSTRUCTOR */
 
-    constructor(address rewards) Ownable(msg.sender) {
+    constructor(address rewards, address curatorRegistry) Ownable(msg.sender) {
         REWARDS = rewards;
+        CURATOR_REGISTRY = curatorRegistry;
     }
 
     /* VIEW FUNCTIONS */
@@ -198,14 +199,18 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
         address morphoVault = morphoVaults[msg.sender];
 
         if (amount > 0) {
+            address collateral = IMorphoVault(morphoVault).asset();
+            if (IERC20(collateral).allowance(address(this), msg.sender) == 0) {
+                collateral.safeApprove(msg.sender, type(uint256).max);
+            }
+
             IMorphoVault(morphoVault).asset().safeApprove(address(morphoVault), amount);
             IMorphoVault(morphoVault).deposit(amount, address(this));
 
-            vaultShares[
-                morphoVault
-            ][
-                msg.sender
-            ] += ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getPluginAssets(morphoVault));
+            uint256 newShares =
+                ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getPluginAssets(morphoVault));
+            vaultShares[morphoVault][msg.sender] += newShares;
+            totalVaultShares[morphoVault] += newShares;
 
             _lastBalance[msg.sender] = _getVaultAssets(msg.sender);
         }
@@ -223,7 +228,7 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
         if (amount > 0) {
             IMorphoVault(morphoVault).withdraw(amount, address(this), address(this));
 
-            _lastBalance[msg.sender] = _getVaultAssets(morphoVault);
+            _lastBalance[msg.sender] = _getVaultAssets(msg.sender);
         }
 
         return amount;
