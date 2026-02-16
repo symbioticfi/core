@@ -26,7 +26,7 @@ contract MockPlugin is IPluginBase {
         return collateral.balanceOf(address(this));
     }
 
-    function allocatable() external view returns (uint256) {
+    function allocatable(address) external view returns (uint256) {
         if (shouldFail) {
             return 0;
         }

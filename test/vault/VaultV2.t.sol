@@ -3625,8 +3625,7 @@ contract VaultV2Test is Test {
         _deposit(alice, 100);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin plugin =
-            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        MockMorphoAllocatePlugin plugin = new MockMorphoAllocatePlugin(address(rewards), address(0));
         pluginRegistry.whitelistPlugin(address(plugin));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
@@ -3661,8 +3660,7 @@ contract VaultV2Test is Test {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin morphoPlugin =
-            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        MockMorphoAllocatePlugin morphoPlugin = new MockMorphoAllocatePlugin(address(rewards), address(0));
         pluginRegistry.whitelistPlugin(address(morphoPlugin));
 
         _grantAddPluginRole(alice, alice);
@@ -3695,8 +3693,7 @@ contract VaultV2Test is Test {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin morphoPlugin =
-            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        MockMorphoAllocatePlugin morphoPlugin = new MockMorphoAllocatePlugin(address(rewards), address(0));
         pluginRegistry.whitelistPlugin(address(morphoPlugin));
 
         _grantAddPluginRole(alice, alice);
@@ -3752,8 +3749,7 @@ contract VaultV2Test is Test {
         _deposit(alice, 100);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin plugin1 =
-            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        MockMorphoAllocatePlugin plugin1 = new MockMorphoAllocatePlugin(address(rewards), address(0));
         MockMorphoBorrowPlugin plugin2 =
             new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
         pluginRegistry.whitelistPlugin(address(plugin1));
@@ -3793,8 +3789,7 @@ contract VaultV2Test is Test {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin morphoPlugin =
-            new MockMorphoAllocatePlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        MockMorphoAllocatePlugin morphoPlugin = new MockMorphoAllocatePlugin(address(rewards), address(0));
         MockMorphoBorrowPlugin borrowPlugin =
             new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
         pluginRegistry.whitelistPlugin(address(morphoPlugin));

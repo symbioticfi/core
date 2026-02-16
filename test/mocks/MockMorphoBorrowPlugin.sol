@@ -35,7 +35,7 @@ contract MockMorphoBorrowPlugin is IPluginBase {
         return collateral.balanceOf(address(this));
     }
 
-    function allocatable() external view returns (uint256) {
+    function allocatable(address) external view returns (uint256) {
         if (block.timestamp < borrowUnlockAt) {
             return borrowedAmount < type(uint256).max ? type(uint256).max - borrowedAmount : 0;
         }

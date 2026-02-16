@@ -174,8 +174,7 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
     /* VIEW FUNCTIONS */
 
     function skimmable(address vault) public view returns (uint256) {
-        address morphoVault = morphoVaults[vault];
-        return _getPluginAssets(morphoVault).saturatingSub(_lastBalance[vault]);
+        return _getVaultAssets(vault).saturatingSub(_lastBalance[vault]);
     }
 
     function allocatable(address vault) public view returns (uint256) {
@@ -185,7 +184,7 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
 
     function deallocatable(address vault) public view returns (uint256) {
         address morphoVault = morphoVaults[vault];
-        return Math.max(
+        return Math.min(
             Math.min(_getVaultAssets(vault), IMorphoVault(morphoVault).asset().balanceOf(morphoVault)),
             IVaultV2(vault).pluginAllocated(address(this))
         );
@@ -204,11 +203,12 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
                 collateral.safeApprove(msg.sender, type(uint256).max);
             }
 
+            uint256 newShares =
+                ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getPluginAssets(morphoVault));
+
             IMorphoVault(morphoVault).asset().safeApprove(address(morphoVault), amount);
             IMorphoVault(morphoVault).deposit(amount, address(this));
 
-            uint256 newShares =
-                ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getPluginAssets(morphoVault));
             vaultShares[morphoVault][msg.sender] += newShares;
             totalVaultShares[morphoVault] += newShares;
 
