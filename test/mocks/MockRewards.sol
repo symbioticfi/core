@@ -14,7 +14,11 @@ contract MockRewards is IRewards {
     event Donate(address indexed vault, uint256 amount);
 
     function donate(address vault, uint256 amount) external {
-        IERC20(IVaultV2Storage(vault).collateral()).approve(vault, amount);
+        IERC20 collateral = IERC20(IVaultV2Storage(vault).collateral());
+        if (!collateral.transferFrom(msg.sender, address(this), amount)) {
+            revert();
+        }
+        collateral.approve(vault, amount);
         IVaultDonate(vault).donate(amount);
     }
 

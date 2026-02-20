@@ -19,14 +19,7 @@ export type SimulationPanelProps = {
   txHash?: string;
 };
 
-export function SimulationPanel({
-  state,
-  onSimulate,
-  onExecute,
-  onCopy,
-  hasOps,
-  txHash,
-}: SimulationPanelProps) {
+export function SimulationPanel({ state, onSimulate, onExecute, onCopy, hasOps, txHash }: SimulationPanelProps) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-sand-200 bg-white/80 p-4 shadow-panel">
       <div className="flex items-center justify-between">
@@ -69,9 +62,7 @@ export function SimulationPanel({
           )}
           {state.error.name && <p className="mt-1 text-xs">Error: {state.error.name}</p>}
           {state.error.message && <p className="mt-1 text-xs">Message: {state.error.message}</p>}
-          {state.error.data && (
-            <p className="mt-2 break-all font-mono text-xs">{state.error.data}</p>
-          )}
+          {state.error.data && <p className="mt-2 break-all font-mono text-xs">{state.error.data}</p>}
         </div>
       )}
 

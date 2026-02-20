@@ -50,10 +50,10 @@ export function SlotBoard({
   const [operatorAddress, setOperatorAddress] = useState("");
   const [operatorSize, setOperatorSize] = useState("");
   const [bufferInput, setBufferInput] = useState(
-    withdrawalBuffer !== undefined ? formatToken(withdrawalBuffer, tokenDecimals) : ""
+    withdrawalBuffer !== undefined ? formatToken(withdrawalBuffer, tokenDecimals) : "",
   );
   const [bufferQueued, setBufferQueued] = useState<bigint | null>(
-    withdrawalBuffer !== undefined ? withdrawalBuffer : null
+    withdrawalBuffer !== undefined ? withdrawalBuffer : null,
   );
 
   useEffect(() => {
@@ -186,10 +186,7 @@ export function SlotBoard({
         </div>
       )}
       {children.map((child, idx) => {
-        const ratio =
-          totalSize > 0n
-            ? Number((child.size * 10000n) / totalSize) / 10000
-            : fallbackRatio;
+        const ratio = totalSize > 0n ? Number((child.size * 10000n) / totalSize) / 10000 : fallbackRatio;
         const prev = idx > 0 ? children[idx - 1] : null;
         const next = idx < children.length - 1 ? children[idx + 1] : null;
 

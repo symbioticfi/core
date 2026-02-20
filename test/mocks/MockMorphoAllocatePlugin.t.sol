@@ -56,11 +56,11 @@ contract MockRewardsPull {
 contract MockMorphoVaultWithPreview is MockMorphoVault {
     constructor(address asset_) MockMorphoVault(asset_) {}
 
-    function balanceOf(address account) external view returns (uint256) {
+    function balanceOf(address account) external view override returns (uint256) {
         return sharesOf[account];
     }
 
-    function previewRedeem(uint256 shares) external view returns (uint256) {
+    function previewRedeem(uint256 shares) external view override returns (uint256) {
         uint256 supply = totalShares;
         if (supply == 0) {
             return 0;

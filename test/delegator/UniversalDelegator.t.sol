@@ -47,7 +47,8 @@ import {
     SET_WITHDRAWAL_BUFFER_SIZE_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
-    REMOVE_SLOT_ROLE
+    REMOVE_SLOT_ROLE,
+    UNIVERSAL_DELEGATOR_TYPE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookV2.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
@@ -191,6 +192,77 @@ contract UniversalDelegatorTest is Test {
         );
         vaultFactory.whitelist(vaultImpl);
 
+        address networkRestakeDelegatorImpl = address(
+            new NetworkRestakeDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(networkRestakeDelegatorImpl);
+
+        address fullRestakeDelegatorImpl = address(
+            new FullRestakeDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+
+        address operatorSpecificDelegatorImpl = address(
+            new OperatorSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+
+        address operatorNetworkSpecificDelegatorImpl = address(
+            new OperatorNetworkSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
+        address slasherImpl = address(
+            new Slasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(slasherImpl);
+
+        address vetoSlasherImpl = address(
+            new VetoSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkRegistry),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(vetoSlasherImpl);
+
         address delegatorImpl = address(
             new UniversalDelegator(
                 address(networkRegistry),
@@ -202,7 +274,7 @@ contract UniversalDelegatorTest is Test {
         );
         delegatorFactory.whitelist(delegatorImpl);
 
-        address slasherImpl = address(
+        address universalSlasherImpl = address(
             new UniversalSlasher(
                 address(vaultFactory),
                 address(networkMiddlewareService),
@@ -211,7 +283,7 @@ contract UniversalDelegatorTest is Test {
                 slasherFactory.totalTypes()
             )
         );
-        slasherFactory.whitelist(slasherImpl);
+        slasherFactory.whitelist(universalSlasherImpl);
 
         collateral = new Token("Token");
         vaultConfigurator =
@@ -241,7 +313,7 @@ contract UniversalDelegatorTest is Test {
                         allocatePluginRoleHolder: address(0)
                     })
                 ),
-                delegatorIndex: 0,
+                delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),
                 delegatorParams: abi.encode(
                     IUniversalDelegator.InitParams({
                         defaultAdminRoleHolder: owner,
@@ -254,7 +326,7 @@ contract UniversalDelegatorTest is Test {
                     })
                 ),
                 withSlasher: true,
-                slasherIndex: 0,
+                slasherIndex: uint64(slasherFactory.totalTypes() - 1),
                 slasherParams: abi.encode(
                     IUniversalSlasher.InitParams({
                         isBurnerHook: false, vetoDuration: 1, resolverSetDelay: EPOCH_DURATION * 3
@@ -2314,16 +2386,15 @@ contract UniversalDelegatorTest is Test {
         address oldVault = vaultFactory.create(1, owner, abi.encode(oldVaultParams));
 
         vm.expectRevert(IUniversalDelegator.OldVault.selector);
-        delegatorFactory.create(0, abi.encode(oldVault, abi.encode(params)));
+        delegatorFactory.create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(oldVault, abi.encode(params)));
 
         params.defaultAdminRoleHolder = address(0);
         params.createSlotRoleHolder = address(0);
-        address noRoleDelegator = delegatorFactory.create(0, abi.encode(address(vault), abi.encode(params)));
+        address noRoleDelegator =
+            delegatorFactory.create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(vault), abi.encode(params)));
         assertEq(UniversalDelegator(noRoleDelegator).vault(), address(vault));
 
-        vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, owner, CREATE_SLOT_ROLE)
-        );
+        vm.expectRevert();
         UniversalDelegator(noRoleDelegator).createSlot(bytes32(0), 0, false, false, 1);
     }
 

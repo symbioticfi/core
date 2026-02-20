@@ -33,16 +33,12 @@ export function TopBar({
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-ink-subtle">UniversalDelegator Admin</p>
         <h1 className="font-display text-2xl text-ink">Delegation Ops Console</h1>
-        <p className="text-sm text-ink-subtle">
-          Wallet RPC only · Explicit ops · Multicall execution
-        </p>
+        <p className="text-sm text-ink-subtle">Wallet RPC only · Explicit ops · Multicall execution</p>
       </div>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-end gap-2 text-sm">
           <span className="tag tag-teal">{chainName ?? "No chain"}</span>
-          {!supportedChain && (
-            <span className="tag tag-ember">Unsupported chain</span>
-          )}
+          {!supportedChain && <span className="tag tag-ember">Unsupported chain</span>}
           {connected ? (
             <button type="button" className="button-base" onClick={onDisconnect}>
               {formatAddress(address)} · Disconnect

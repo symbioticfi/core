@@ -13,8 +13,8 @@ import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
+import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -754,7 +754,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert NotDelegator();
         }
 
-        if (IBaseDelegator(newDelegator).vault() != address(this)) {
+        if (
+            IUniversalDelegator(newDelegator).vault() != address(this)
+                || IEntity(newDelegator).TYPE() < UNIVERSAL_DELEGATOR_TYPE
+        ) {
             revert InvalidDelegator();
         }
 
@@ -776,7 +779,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert NotSlasher();
             }
 
-            if (IBaseSlasher(newSlasher).vault() != address(this)) {
+            if (
+                IBaseSlasher(newSlasher).vault() != address(this) || IEntity(newSlasher).TYPE() < UNIVERSAL_SLASHER_TYPE
+            ) {
                 revert InvalidSlasher();
             }
 

@@ -2,14 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useSetActiveWallet } from "@privy-io/wagmi";
 import { useAccount, useWalletClient } from "wagmi";
-import {
-  decodeErrorResult,
-  getAddress,
-  publicActions,
-  type Address,
-  type Hex,
-  type PublicClient,
-} from "viem";
+import { decodeErrorResult, getAddress, publicActions, type Address, type Hex, type PublicClient } from "viem";
 import { universalDelegatorAbi } from "./abi/universalDelegator";
 import { vaultV2Abi } from "./abi/vaultV2";
 import { erc20Abi } from "./abi/erc20";
@@ -20,14 +13,7 @@ import { SimulationPanel, type SimulationState } from "./components/SimulationPa
 import { SlotBoard } from "./components/SlotBoard";
 import { TopBar } from "./components/TopBar";
 import { formatIndex } from "./lib/format";
-import {
-  applyOps,
-  encodeMulticall,
-  encodeOp,
-  type Metrics,
-  type Op,
-  type SlotNode,
-} from "./lib/ops";
+import { applyOps, encodeMulticall, encodeOp, type Metrics, type Op, type SlotNode } from "./lib/ops";
 import { encodeOperator, encodeSubnetwork } from "./lib/subnetwork";
 import { WITHDRAWAL_BUFFER_CHILD_INDEX, createIndex } from "./lib/indexing";
 
@@ -93,13 +79,7 @@ function findPath(root: SlotNode, target: bigint): SlotNode[] | null {
 
 function extractErrorData(error: unknown): Hex | undefined {
   const err = error as any;
-  return (
-    err?.data ??
-    err?.cause?.data ??
-    err?.details?.data ??
-    err?.error?.data ??
-    err?.cause?.error?.data
-  );
+  return err?.data ?? err?.cause?.data ?? err?.details?.data ?? err?.error?.data ?? err?.cause?.error?.data;
 }
 
 function extractErrorMessage(error: unknown): string | undefined {
@@ -161,7 +141,7 @@ export default function App() {
           ? "Holesky"
           : chainId === 31337
             ? "Anvil"
-          : "Unknown"
+            : "Unknown"
     : "Unsupported";
 
   const publicClient = useMemo(() => {
@@ -202,7 +182,7 @@ export default function App() {
       }
       return publicClient.readContract({ address, abi, functionName, args });
     },
-    [publicClient]
+    [publicClient],
   );
 
   const buildTree = useCallback(
@@ -335,7 +315,7 @@ export default function App() {
 
       return node;
     },
-    [readContract]
+    [readContract],
   );
 
   const loadDelegator = useCallback(async () => {
@@ -372,20 +352,19 @@ export default function App() {
       ]);
 
       const vaultAddr = getAddress(vault as Address);
-      const [epochDuration, allocatable, activeStake, activeWithdrawals, collateral, slasher] =
-        await Promise.all([
-          readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "epochDuration" }),
-          readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "allocatable" }),
-          readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "activeStake" }),
-          readContract({
-            address: vaultAddr,
-            abi: vaultV2Abi,
-            functionName: "activeWithdrawalsFor",
-            args: [0],
-          }),
-          readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "collateral" }),
-          readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "slasher" }),
-        ]);
+      const [epochDuration, allocatable, activeStake, activeWithdrawals, collateral, slasher] = await Promise.all([
+        readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "epochDuration" }),
+        readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "allocatable" }),
+        readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "activeStake" }),
+        readContract({
+          address: vaultAddr,
+          abi: vaultV2Abi,
+          functionName: "activeWithdrawalsFor",
+          args: [0],
+        }),
+        readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "collateral" }),
+        readContract({ address: vaultAddr, abi: vaultV2Abi, functionName: "slasher" }),
+      ]);
 
       let collateralDecimals: number | undefined;
       try {
@@ -394,7 +373,7 @@ export default function App() {
             address: collateral as Address,
             abi: erc20Abi,
             functionName: "decimals",
-          })
+          }),
         );
       } catch {
         collateralDecimals = undefined;
@@ -511,7 +490,6 @@ export default function App() {
   const queueWithdrawalBuffer = (size: bigint) => {
     setOps((prev) => [...prev, { id: nextOpId(), kind: "setWithdrawalBufferSize", size }]);
   };
-
 
   const simulateMulticall = async () => {
     if (!walletClient || !delegatorAddress || ops.length === 0) {
@@ -636,9 +614,7 @@ export default function App() {
       />
 
       {loadError && (
-        <div className="rounded-2xl border border-ember-400/50 bg-ember-400/10 p-3 text-sm text-ink">
-          {loadError}
-        </div>
+        <div className="rounded-2xl border border-ember-400/50 bg-ember-400/10 p-3 text-sm text-ink">{loadError}</div>
       )}
 
       {!authenticated && (
@@ -649,8 +625,8 @@ export default function App() {
 
       {authenticated && !walletClient && (
         <div className="rounded-2xl border border-sand-200 bg-white/70 p-4 text-sm text-ink-subtle">
-          Wallet connected via Privy but wagmi has no active wallet yet. Select a wallet in Privy
-          or reconnect to enable reads.
+          Wallet connected via Privy but wagmi has no active wallet yet. Select a wallet in Privy or reconnect to enable
+          reads.
         </div>
       )}
 

@@ -37,6 +37,9 @@ contract MockMorphoVault {
 
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
         uint256 totalAssets = asset.balanceOf(address(this));
+        if (totalAssets == 0 || totalShares == 0) {
+            return 0;
+        }
         shares = assets * totalShares / totalAssets;
         if (shares > sharesOf[owner]) {
             shares = sharesOf[owner];
@@ -47,6 +50,17 @@ contract MockMorphoVault {
         totalShares -= shares;
         asset.transfer(receiver, assets);
         return shares;
+    }
+
+    function balanceOf(address account) external view virtual returns (uint256) {
+        return sharesOf[account];
+    }
+
+    function previewRedeem(uint256 shares) external view virtual returns (uint256) {
+        if (totalShares == 0) {
+            return 0;
+        }
+        return shares * asset.balanceOf(address(this)) / totalShares;
     }
 
     function donateYield(uint256 amount) external {

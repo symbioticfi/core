@@ -34,8 +34,7 @@ export function SlotCard({
   }, [node.size, tokenDecimals]);
   const depthLabel = node.depth === 1 ? "Group" : node.depth === 2 ? "Network" : "Operator";
   const childIndex = Number((node.index >> BigInt(32 * (3 - node.depth))) & 0xffffffffn);
-  const childIndexOf = (index: bigint, depth: number) =>
-    Number((index >> BigInt(32 * (3 - depth))) & 0xffffffffn);
+  const childIndexOf = (index: bigint, depth: number) => Number((index >> BigInt(32 * (3 - depth))) & 0xffffffffn);
   const hoverClass = "hover:border-black/35";
 
   return (
@@ -178,10 +177,10 @@ export function SlotCard({
                       event.stopPropagation();
                       onSelectChild?.(child.index);
                     }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="tag tag-teal">Net {childIdx}</span>
-                      </div>
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="tag tag-teal">Net {childIdx}</span>
+                    </div>
                     <div className="mt-2">
                       <div className="mono text-[11px] text-ink">
                         Avail {formatToken(child.metrics.available, tokenDecimals)}
@@ -232,10 +231,10 @@ export function SlotCard({
                       event.stopPropagation();
                       onSelectChild?.(child.index);
                     }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="tag tag-ember">Op {childIdx}</span>
-                      </div>
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="tag tag-ember">Op {childIdx}</span>
+                    </div>
                     <div className="mt-2 mono text-[11px] text-ink-muted">
                       {child.operator ? formatAddress(child.operator) : "-"}
                     </div>

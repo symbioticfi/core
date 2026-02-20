@@ -24,8 +24,7 @@ body {
   min-height: 100vh;
   font-family: "IBM Plex Sans", sans-serif;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 12% 18%, rgba(228, 87, 46, 0.18), transparent 42%),
+  background: radial-gradient(circle at 12% 18%, rgba(228, 87, 46, 0.18), transparent 42%),
     radial-gradient(circle at 80% 6%, rgba(19, 124, 112, 0.12), transparent 38%),
     linear-gradient(180deg, var(--bg), var(--bg-2));
   background-attachment: fixed;

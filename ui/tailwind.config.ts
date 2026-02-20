@@ -43,7 +43,7 @@ export default {
         panel: "0 12px 26px rgba(20, 15, 10, 0.08)",
       },
       backgroundImage: {
-        "grain": "radial-gradient(circle at 1px 1px, rgba(30, 30, 30, 0.05) 1px, transparent 0)",
+        grain: "radial-gradient(circle at 1px 1px, rgba(30, 30, 30, 0.05) 1px, transparent 0)",
       },
     },
   },

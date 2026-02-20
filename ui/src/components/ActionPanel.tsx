@@ -61,11 +61,7 @@ export function ActionPanel({
         <h2 className="font-display text-base text-ink">Queue ops</h2>
       </div>
 
-      {disabled && (
-        <p className="mt-3 text-xs text-ink-subtle">
-          Load a delegator to enable ops creation.
-        </p>
-      )}
+      {disabled && <p className="mt-3 text-xs text-ink-subtle">Load a delegator to enable ops creation.</p>}
       {!disabled && error && <p className="mt-3 text-xs text-ember-600">{error}</p>}
 
       {focusDepth === 0 && (
