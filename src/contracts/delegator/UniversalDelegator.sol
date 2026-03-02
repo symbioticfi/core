@@ -107,6 +107,8 @@ contract UniversalDelegator is
     Checkpoints.Trace208 internal _noPluginsPendingCumulative;
     /// @dev Cumulative cleared pending no-plugins amounts.
     Checkpoints.Trace208 internal _clearedNoPluginsPendingCumulative;
+    /// @dev Maximum network limit per subnetwork.
+    mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _maxNetworkLimit;
 
     /// @dev Timestamp when migration from the previous delegator occurred.
     uint48 internal __migrateTimestamp;
@@ -192,7 +194,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
-        return getAllocated(subnetwork, operator, duration);
+        return Math.min(getAllocated(subnetwork, operator, duration), _maxNetworkLimit[subnetwork].latest());
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -204,7 +206,10 @@ contract UniversalDelegator is
         if (timestamp < __migrateTimestamp) {
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
-        return getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration(), timestamp);
+        return Math.min(
+            getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration(), timestamp),
+            _maxNetworkLimit[subnetwork].upperLookupRecent(timestamp)
+        );
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -445,6 +450,11 @@ contract UniversalDelegator is
                 getBalance(index, duration)
             );
         }
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function maxNetworkLimit(bytes32 subnetwork) public view returns (uint256) {
+        return _maxNetworkLimit[subnetwork].latest();
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -695,8 +705,12 @@ contract UniversalDelegator is
         }
 
         if (_slotToNetwork[index] != bytes32(0)) {
-            _networkToSlot[_slotToNetwork[index]].push(uint48(block.timestamp), 0);
+            bytes32 subnetwork = _slotToNetwork[index];
+            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
             _slotToNetwork[index] = bytes32(0);
+            if (_maxNetworkLimit[subnetwork].latest() > 0) {
+                _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
+            }
         } else if (_slotToOperator[index] != address(0)) {
             _operatorToSlot[index.getParentIndex()][_slotToOperator[index]].push(uint48(block.timestamp), 0);
             _slotToOperator[index] = address(0);
@@ -734,7 +748,38 @@ contract UniversalDelegator is
         }
     }
 
+    /// @inheritdoc IUniversalDelegator
+    function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) public onlyRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE) {
+        _withdrawalBufferSlot().size.push(uint48(block.timestamp), newWithdrawalBufferSize);
+
+        emit SetWithdrawalBufferSize(newWithdrawalBufferSize);
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function setHook(address newHook) public nonReentrant onlyRole(HOOK_SET_ROLE) {
+        hook = newHook;
+
+        emit SetHook(newHook);
+    }
+
     /* PUBLIC FUNCTIONS (NETWORK) */
+
+    /// @inheritdoc IUniversalDelegator
+    function setMaxNetworkLimit(uint96 identifier, uint256 amount) public {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
+        }
+
+        amount = Math.min(amount, type(uint208).max);
+        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
+        if (amount <= _maxNetworkLimit[subnetwork].latest()) {
+            revert LimitTooLow();
+        }
+
+        _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), uint208(amount));
+
+        emit SetMaxNetworkLimit(subnetwork, amount);
+    }
 
     /// @inheritdoc IUniversalDelegator
     function resetAllocation(bytes32 subnetwork) public {
@@ -755,6 +800,9 @@ contract UniversalDelegator is
 
             _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
             _slotToNetwork[index] = bytes32(0);
+            if (_maxNetworkLimit[subnetwork].latest() > 0) {
+                _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
+            }
 
             if (slots[index.getParentIndex()].existChildren == 1) {
                 index = index.getParentIndex();
@@ -797,19 +845,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @inheritdoc IUniversalDelegator
-    function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) public onlyRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE) {
-        _withdrawalBufferSlot().size.push(uint48(block.timestamp), newWithdrawalBufferSize);
-
-        emit SetWithdrawalBufferSize(newWithdrawalBufferSize);
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function setHook(address newHook) public nonReentrant onlyRole(HOOK_SET_ROLE) {
-        hook = newHook;
-
-        emit SetHook(newHook);
-    }
+    /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
     /// @dev Apply slash accounting updates across the affected slot chain and invoke the optional hook.
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
@@ -919,16 +955,6 @@ contract UniversalDelegator is
 
         _createSlot(bytes32(0), 0, true, true, uint128(Math.min(IVaultV2(vault).allocatable(), type(uint128).max)));
     }
-
-    /* DEPRECATED FUNCTIONS */
-
-    /// @inheritdoc IUniversalDelegator
-    function maxNetworkLimit(bytes32) public pure returns (uint256) {
-        return type(uint256).max;
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function setMaxNetworkLimit(uint96, uint256) public {}
 
     /* UTILITY FUNCTIONS */
 

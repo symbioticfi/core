@@ -346,7 +346,10 @@ contract UniversalDelegatorGasTest is Test {
                 address network =
                     address(uint160(uint256(keccak256(abi.encodePacked("network", subvaultIndex, networkIndex)))));
                 _registerNetwork(network);
-                bytes32 subnetwork = network.subnetwork(uint96(networkIndex + 1));
+                uint96 networkIdentifier = uint96(networkIndex + 1);
+                bytes32 subnetwork = network.subnetwork(networkIdentifier);
+                vm.prank(network);
+                delegator.setMaxNetworkLimit(networkIdentifier, NETWORK_SIZE);
 
                 uint96 networkSlot = delegator.createSlot(subnetwork, subvaultSlot, false, false, NETWORK_SIZE);
 

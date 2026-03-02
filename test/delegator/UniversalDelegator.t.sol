@@ -971,6 +971,10 @@ contract UniversalDelegatorTest is Test {
 
         testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
         testStruct.subnetwork2 = testStruct.network2.subnetwork(0);
+        vm.prank(testStruct.network1);
+        delegator.setMaxNetworkLimit(0, 300);
+        vm.prank(testStruct.network2);
+        delegator.setMaxNetworkLimit(0, 200);
 
         _deposit(alice, 500);
 
@@ -1196,6 +1200,12 @@ contract UniversalDelegatorTest is Test {
         testStruct.subnetwork1 = testStruct.network1.subnetwork(0);
         testStruct.subnetwork2 = testStruct.network2.subnetwork(0);
         testStruct.subnetwork3 = testStruct.network3.subnetwork(0);
+        vm.prank(testStruct.network1);
+        delegator.setMaxNetworkLimit(0, 60);
+        vm.prank(testStruct.network2);
+        delegator.setMaxNetworkLimit(0, 60);
+        vm.prank(testStruct.network3);
+        delegator.setMaxNetworkLimit(0, 40);
 
         _createSlot(0, true, 60);
         _createSlot(0, false, 40);
@@ -1244,6 +1254,10 @@ contract UniversalDelegatorTest is Test {
 
         bytes32 subnetwork1 = network1.subnetwork(0);
         bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, 60);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, 60);
 
         _createSlot(0, true, 60);
         uint96 subvault = _rootIndex(uint32(1));
@@ -1283,6 +1297,10 @@ contract UniversalDelegatorTest is Test {
 
         bytes32 subnetwork1 = network1.subnetwork(0);
         bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, 200);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, 200);
 
         _createSlot(0, true, 200);
         uint96 subvault = _rootIndex(uint32(1));
@@ -1872,10 +1890,29 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAvailableAt(0, EPOCH_DURATION, 4), 100);
     }
 
-    function test_miscViewsAndDeprecatedMethods() public {
+    function test_miscViewsAndMaxNetworkLimitMethods() public {
+        address network = makeAddr("misc-network");
+        address middleware = makeAddr("misc-middleware");
+        _registerNetwork(network, middleware);
+        bytes32 subnetwork = network.subnetwork(1);
+
         assertEq(delegator.VERSION(), 2);
-        assertEq(delegator.maxNetworkLimit(bytes32(0)), type(uint256).max);
+        assertEq(delegator.maxNetworkLimit(bytes32(0)), 0);
+
+        vm.expectRevert(IUniversalDelegator.NotNetwork.selector);
         delegator.setMaxNetworkLimit(1, 123);
+
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(1, 123);
+        assertEq(delegator.maxNetworkLimit(subnetwork), 123);
+
+        vm.prank(network);
+        vm.expectRevert(IUniversalDelegator.LimitTooLow.selector);
+        delegator.setMaxNetworkLimit(1, 123);
+
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(1, type(uint256).max);
+        assertEq(delegator.maxNetworkLimit(subnetwork), type(uint208).max);
         assertEq(delegator.getWithdrawalBuffer(), 0);
     }
 
@@ -2029,7 +2066,11 @@ contract UniversalDelegatorTest is Test {
         _deposit(alice, 100);
 
         address network = makeAddr("wrap-network");
+        address middleware = makeAddr("wrap-middleware");
+        _registerNetwork(network, middleware);
         bytes32 subnetwork = network.subnetwork(0);
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, 70);
 
         _createSlot(0, false, 100);
         uint96 subvault = _rootIndex(uint32(1));
@@ -2039,9 +2080,9 @@ contract UniversalDelegatorTest is Test {
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
 
         assertEq(delegator.stake(subnetwork, alice), 80);
-        assertEq(delegator.stakeFor(subnetwork, alice, 0), 80);
+        assertEq(delegator.stakeFor(subnetwork, alice, 0), 70);
         assertEq(delegator.stakeForAt(subnetwork, alice, 0, uint48(block.timestamp)), 80);
-        assertEq(delegator.stakeAt(subnetwork, alice, uint48(block.timestamp), ""), 80);
+        assertEq(delegator.stakeAt(subnetwork, alice, uint48(block.timestamp), ""), 70);
 
         assertEq(delegator.getSlotOfNetworkAt(subnetwork, uint48(block.timestamp)), networkSlot);
         assertEq(delegator.getSlotOfNetwork(subnetwork), networkSlot);
@@ -2164,7 +2205,10 @@ contract UniversalDelegatorTest is Test {
         uint96 subvault = _rootIndex(uint32(1));
 
         bytes32 subnetwork1 = makeAddr("remove-network-1").subnetwork(0);
-        bytes32 subnetwork2 = makeAddr("remove-network-2").subnetwork(0);
+        address network2 = makeAddr("remove-network-2");
+        address middleware2 = makeAddr("remove-middleware-2");
+        _registerNetwork(network2, middleware2);
+        bytes32 subnetwork2 = network2.subnetwork(0);
         bytes32 subnetwork3 = makeAddr("remove-network-3").subnetwork(0);
         delegator.createSlot(subnetwork1, subvault, false, false, 0);
         delegator.createSlot(subnetwork2, subvault, false, false, 0);
@@ -2172,8 +2216,11 @@ contract UniversalDelegatorTest is Test {
         uint96 networkSlot1 = subvault.createIndex(uint32(1));
         uint96 networkSlot2 = subvault.createIndex(uint32(2));
 
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, 123);
         delegator.removeSlot(networkSlot2);
         assertEq(delegator.getSlotOfNetwork(subnetwork2), 0);
+        assertEq(delegator.maxNetworkLimit(subnetwork2), 0);
 
         delegator.createSlot(_operatorKey(alice), networkSlot1, false, false, 0);
         uint96 operatorSlot = networkSlot1.createIndex(uint32(1));
@@ -2236,6 +2283,10 @@ contract UniversalDelegatorTest is Test {
         address middleware2 = makeAddr("reset-middleware-no-plugins-2");
         _registerNetwork(network2, middleware2);
         bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, 100);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, 100);
 
         _deposit(alice, 200);
 
@@ -2260,6 +2311,8 @@ contract UniversalDelegatorTest is Test {
 
         assertFalse(delegator.getSlot(noPluginsSubvault1).exists);
         assertEq(delegator.getSlotOfNetwork(subnetwork1), 0);
+        assertEq(delegator.maxNetworkLimit(subnetwork1), 0);
+        assertEq(delegator.maxNetworkLimit(subnetwork2), 100);
         assertEq(delegator.getNoPluginsSize(), 100);
         assertTrue(delegator.getSlot(noPluginsSubvault2).exists);
         assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
@@ -2270,15 +2323,19 @@ contract UniversalDelegatorTest is Test {
         address middleware = makeAddr("reset-single-middleware");
         _registerNetwork(network, middleware);
         bytes32 subnetwork = network.subnetwork(0);
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, 77);
 
         uint96 subvault = delegator.createSlot(bytes32(0), 0, false, false, 0);
         uint96 slot = delegator.createSlot(subnetwork, subvault, false, false, 0);
         assertEq(delegator.getSlotOfNetwork(subnetwork), slot);
+        assertEq(delegator.maxNetworkLimit(subnetwork), 77);
 
         vm.prank(middleware);
         delegator.resetAllocation(subnetwork);
 
         assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
+        assertEq(delegator.maxNetworkLimit(subnetwork), 0);
 
         uint96 newSubvault = delegator.createSlot(bytes32(0), 0, false, false, 0);
         uint96 newSlot = delegator.createSlot(subnetwork, newSubvault, false, false, 0);

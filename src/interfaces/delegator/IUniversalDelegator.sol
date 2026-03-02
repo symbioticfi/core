@@ -100,6 +100,11 @@ interface IUniversalDelegator {
     error NotVault();
 
     /**
+     * @notice Raised when the provided maximum network limit is too low.
+     */
+    error LimitTooLow();
+
+    /**
      * @notice Raised when the connected vault version is older than required.
      */
     error OldVault();
@@ -241,6 +246,13 @@ interface IUniversalDelegator {
      * @param newWithdrawalBufferSize New withdrawal buffer size.
      */
     event SetWithdrawalBufferSize(uint128 newWithdrawalBufferSize);
+
+    /**
+     * @notice Emitted when a subnetwork's maximum limit is set.
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param amount New maximum subnetwork's limit (how much stake the subnetwork is ready to get).
+     */
+    event SetMaxNetworkLimit(bytes32 indexed subnetwork, uint256 amount);
 
     /**
      * @notice Emitted when a hook is set.
@@ -521,6 +533,16 @@ interface IUniversalDelegator {
     function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint96 index);
 
     /**
+     * @notice Get the legacy maximum limit value for a subnetwork.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @return limit Maximum possible uint256 value.
+     * @dev The function changed its behavior:
+     *      - it is nullified once the subnetwork is removed/reset,
+     *      - it returns maximum 2^208-1 even if 2^256-1 was set.
+     */
+    function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256 limit);
+
+    /**
      * @notice Check whether a subnetwork is assigned to a shared slot.
      * @param subnetwork Full identifier of the subnetwork.
      * @return isShared Whether the slot is shared.
@@ -585,13 +607,6 @@ interface IUniversalDelegator {
     function removeSlot(uint96 index) external;
 
     /**
-     * @notice Reset allocation for a subnetwork.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @dev Only a network or its middleware can call this function.
-     */
-    function resetAllocation(bytes32 subnetwork) external;
-
-    /**
      * @notice Update withdrawal buffer size.
      * @param newWithdrawalBufferSize New withdrawal buffer size.
      * @dev Only a SET_WITHDRAWAL_BUFFER_SIZE_ROLE holder can call this function.
@@ -606,18 +621,19 @@ interface IUniversalDelegator {
     function setHook(address hook) external;
 
     /**
-     * @notice Get the legacy maximum limit value for a subnetwork.
+     * @notice Reset allocation for a subnetwork.
      * @param subnetwork Full identifier of the subnetwork.
-     * @return limit Maximum possible uint256 value.
-     * @dev This function is deprecated and always returns type(uint256).max.
+     * @dev Only a network or its middleware can call this function.
      */
-    function maxNetworkLimit(bytes32 subnetwork) external pure returns (uint256 limit);
+    function resetAllocation(bytes32 subnetwork) external;
 
     /**
      * @notice Set the maximum limit for a subnetwork.
      * @param identifier Subnetwork identifier.
      * @param amount New maximum limit.
-     * @dev This function is deprecated and performs no action.
+     * @dev Max network limit changed its behavior:
+     *      - it is nullified once the subnetwork is removed/reset,
+     *      - it returns the maximum limit to 2^208-1 even if 2^256-1 was set.
      */
     function setMaxNetworkLimit(uint96 identifier, uint256 amount) external;
 }
