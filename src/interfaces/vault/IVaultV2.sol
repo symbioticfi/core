@@ -55,16 +55,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error DepositLimitReached();
 
     /**
-     * @notice Raised when trying to whitelist a depositor that is already whitelisted.
-     */
-    error DuplicateDepositor();
-
-    /**
-     * @notice Raised when trying to add a plugin that is already configured.
-     */
-    error DuplicatePlugin();
-
-    /**
      * @notice Raised when fee-on-transfer behavior is unsupported for the operation.
      */
     error FeeOnTransferNotSupported();
@@ -297,15 +287,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param amount Amount of the collateral claimed.
      */
     event Claim(address indexed claimer, address indexed recipient, uint256 index, uint256 amount);
-
-    /**
-     * @notice Emitted when a batch claim is made.
-     * @param claimer Account that claimed.
-     * @param recipient Account that received the collateral.
-     * @param indexes Indexes the collateral was claimed for.
-     * @param amount Amount of the collateral claimed.
-     */
-    event ClaimBatch(address indexed claimer, address indexed recipient, uint256[] indexes, uint256 amount);
 
     /**
      * @notice Emitted when collateral is donated into vault accounting.
