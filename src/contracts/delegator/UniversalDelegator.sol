@@ -104,8 +104,6 @@ contract UniversalDelegator is
     mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
     /// @dev Mapping from slot index to operator address.
     mapping(uint96 index => address operator) internal _slotToOperator;
-    /// @dev Cumulative slashed amounts per slot.
-    mapping(uint96 index => Checkpoints.Trace208 amount) internal _cumulativeSlash;
     /// @dev Cumulative pending no-plugins amounts.
     Checkpoints.Trace208 internal _noPluginsPendingCumulative;
     /// @dev Cumulative cleared pending no-plugins amounts.
