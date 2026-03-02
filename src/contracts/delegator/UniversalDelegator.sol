@@ -137,6 +137,9 @@ contract UniversalDelegator is
     /// @dev Synchronize cumulative child prefix sums for a parent slot.
     function _syncPrevSums(uint96 parentIndex) internal {
         unchecked {
+            if (slots[parentIndex].isShared) {
+                return;
+            }
             uint208 prevSum;
             for (uint32 childIndex = uint32(slots[parentIndex].firstChild.latest()); childIndex > 0;) {
                 SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
@@ -604,7 +607,7 @@ contract UniversalDelegator is
                     revert NotEnoughNoPlugins();
                 }
             } else {
-                if (!parent.isShared && slot.prevSum.latest() < available) {
+                if (slot.prevSum.latest() < available) {
                     pending = uint208((getAllocated(index, 0) - getPending(index, 0)).saturatingSub(newSize));
                     if (pending > 0) {
                         parent.childrenPendingCumulative
@@ -705,14 +708,14 @@ contract UniversalDelegator is
             revert SlotAllocated();
         }
 
-        if (_slotToNetwork[index] != bytes32(0)) {
+        if (index.getDepth() == 2) {
             bytes32 subnetwork = _slotToNetwork[index];
             _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
             _slotToNetwork[index] = bytes32(0);
             if (_maxNetworkLimit[subnetwork].latest() > 0) {
                 _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
             }
-        } else if (_slotToOperator[index] != address(0)) {
+        } else if (index.getDepth() == 3) {
             _operatorToSlot[index.getParentIndex()][_slotToOperator[index]].push(uint48(block.timestamp), 0);
             _slotToOperator[index] = address(0);
         }
@@ -831,7 +834,9 @@ contract UniversalDelegator is
             if (slotSize > 0) {
                 // Clear slot's size.
                 slot.size.push(uint48(block.timestamp), 0);
-                parent.needPrevSumsSync.push(uint48(block.timestamp), 1);
+                if (index.getDepth() != 2 || !parent.isShared) {
+                    parent.needPrevSumsSync.push(uint48(block.timestamp), 1);
+                }
 
                 // Clear no-plugins size.
                 if (index.getDepth() == 1 && slot.noPlugins) {
@@ -858,6 +863,7 @@ contract UniversalDelegator is
             // Adjust slot's and its parents' allocations.
             for (uint96 index = getSlotOf(subnetwork, operator); index > 0;) {
                 SlotStorage storage slot = slots[index];
+                SlotStorage storage parent = slots[index.getParentIndex()];
                 uint208 pendingSlashed = uint208(Math.min(getPending(index, 0), amount));
                 if (pendingSlashed > 0) {
                     // Clear slot's pending.
@@ -865,10 +871,9 @@ contract UniversalDelegator is
                         .push(uint48(block.timestamp), slot.clearedPendingCumulative.latest() + pendingSlashed);
 
                     // Clear parent's children-pending.
-                    slots[index.getParentIndex()].clearedChildrenPendingCumulative
+                    parent.clearedChildrenPendingCumulative
                         .push(
-                            uint48(block.timestamp),
-                            slots[index.getParentIndex()].clearedChildrenPendingCumulative.latest() + pendingSlashed
+                            uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pendingSlashed
                         );
 
                     // Clear no-plugins pending.
@@ -883,7 +888,9 @@ contract UniversalDelegator is
                 if (sizeSlashed > 0) {
                     // Clear slot's size.
                     slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
-                    slots[index.getParentIndex()].needPrevSumsSync.push(uint48(block.timestamp), 1);
+                    if (index.getDepth() != 2 || !parent.isShared) {
+                        parent.needPrevSumsSync.push(uint48(block.timestamp), 1);
+                    }
 
                     // Clear no-plugins size.
                     if (index.getDepth() == 1 && slot.noPlugins) {
@@ -971,6 +978,9 @@ contract UniversalDelegator is
         }
         uint96 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
         if (parent.needPrevSumsSync.upperLookupRecent(timestamp) == 0) {
             return slots[index].prevSum.upperLookupRecent(timestamp);
         }
@@ -991,6 +1001,9 @@ contract UniversalDelegator is
         }
         uint96 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
         if (parent.needPrevSumsSync.latest() == 0) {
             return slots[index].prevSum.latest();
         }

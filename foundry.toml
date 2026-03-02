@@ -15,11 +15,6 @@ dynamic_test_linking = true
 ignored_warnings_from = ["test/","script/"]
 ffi = true
 
-[profile.proof]
-# Compile only tests under `test_proof/` to avoid nested fixture projects under `test/`
-# (e.g., `test/rfqEngine/**`, `test/curator-app/**`) that include incompatible Solidity deps.
-test = "test_proof"
-
 [rpc_endpoints]
 mainnet = "${ETH_RPC_URL}"
 hoodi = "${ETH_RPC_URL_HOODI}"

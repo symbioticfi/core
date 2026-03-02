@@ -639,6 +639,60 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getAllocated(net2, 0), 80);
     }
 
+    function test_sharedSubvault_networkPrevSumsStayZero() public {
+        _deposit(alice, 200);
+
+        _createSlot(0, true, 200);
+        uint96 subvault = _rootIndex(uint32(1));
+
+        _createSlot(subvault, false, 120);
+        _createSlot(subvault, false, 80);
+        uint96 net1 = subvault.createIndex(uint32(1));
+        uint96 net2 = subvault.createIndex(uint32(2));
+
+        assertEq(delegator.getSlot(net1).prevSum, 0);
+        assertEq(delegator.getSlot(net2).prevSum, 0);
+
+        vm.warp(1);
+        delegator.setSize(net1, 60);
+
+        assertEq(delegator.getSlot(net1).prevSum, 0);
+        assertEq(delegator.getSlot(net2).prevSum, 0);
+    }
+
+    function test_sharedSubvault_setSizeDecreaseKeepsRequestedSlashExecutable() public {
+        address network = makeAddr("issue23-network");
+        address middleware = makeAddr("issue23-middleware");
+        address operator = alice;
+        _registerNetwork(network, middleware);
+        _registerOperator(operator);
+        _optIn(operator, network);
+
+        bytes32 subnetwork = network.subnetwork(0);
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, 100);
+
+        _createSlot(0, true, 100);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, 100);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot, operator, 100);
+
+        _deposit(operator, 100);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork, operator, 90, 0, "");
+
+        vm.warp(1);
+        uint208 pending = delegator.setSize(networkSlot, 0);
+        assertGt(pending, 0);
+        assertEq(delegator.getAllocated(networkSlot, 0), 100);
+        assertEq(delegator.getAllocated(networkSlot, EPOCH_DURATION), 0);
+
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 90);
+    }
+
     function test_depth3Operators_areIsolatedWithinNetwork() public {
         _deposit(alice, 100);
 
