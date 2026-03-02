@@ -16,7 +16,7 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 Notes:
 
-- Worst-case operator/network/group position with 3 groups × 3 networks × 10 operators.
+- Worst-case operator/network/subvault position with 3 subvaults × 3 networks × 10 operators.
 - “Hints” corresponds to the hints payload used by the test in `test/delegator/UniversalDelegatorGas.t.sol`.
 - Gas values are from the test logs (console output).
 - USD values are shown as a 3-month average using baseFeePerGas samples (~30 samples over 90d) from Etherscan and ETH/USD from CoinGecko.

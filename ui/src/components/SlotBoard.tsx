@@ -10,7 +10,7 @@ export type SlotBoardProps = {
   onQueueSize: (index: bigint, size: bigint) => void;
   onQueueSwap: (index1: bigint, index2: bigint) => void;
   onQueueRemove: (index: bigint) => void;
-  onCreateGroup: (size: bigint, isShared: boolean, noPlugins: boolean) => void;
+  onCreateSubvault: (size: bigint, isShared: boolean, noPlugins: boolean) => void;
   onCreateNetwork: (network: Address, identifier: bigint, size: bigint) => void;
   onCreateOperator: (operator: Address, size: bigint) => void;
   onSetWithdrawalBuffer: (size: bigint) => void;
@@ -25,7 +25,7 @@ export function SlotBoard({
   onQueueSize,
   onQueueSwap,
   onQueueRemove,
-  onCreateGroup,
+  onCreateSubvault,
   onCreateNetwork,
   onCreateOperator,
   onSetWithdrawalBuffer,
@@ -39,9 +39,9 @@ export function SlotBoard({
 
   const fallbackRatio = children.length > 0 ? 1 / children.length : 1;
 
-  const [groupSize, setGroupSize] = useState("");
-  const [groupShared, setGroupShared] = useState(false);
-  const [groupNoPlugins, setGroupNoPlugins] = useState(false);
+  const [subvaultSize, setSubvaultSize] = useState("");
+  const [subvaultShared, setSubvaultShared] = useState(false);
+  const [subvaultNoPlugins, setSubvaultNoPlugins] = useState(false);
 
   const [networkAddress, setNetworkAddress] = useState("");
   const [networkId, setNetworkId] = useState("");
@@ -267,8 +267,8 @@ export function SlotBoard({
                 <label className="flex items-center gap-2 whitespace-nowrap">
                   <input
                     type="checkbox"
-                    checked={groupShared}
-                    onChange={(event) => setGroupShared(event.target.checked)}
+                    checked={subvaultShared}
+                    onChange={(event) => setSubvaultShared(event.target.checked)}
                     className="h-5 w-5"
                   />
                   Shared
@@ -276,8 +276,8 @@ export function SlotBoard({
                 <label className="flex items-center gap-2 whitespace-nowrap">
                   <input
                     type="checkbox"
-                    checked={groupNoPlugins}
-                    onChange={(event) => setGroupNoPlugins(event.target.checked)}
+                    checked={subvaultNoPlugins}
+                    onChange={(event) => setSubvaultNoPlugins(event.target.checked)}
                     className="h-5 w-5"
                   />
                   No plugins
@@ -286,14 +286,14 @@ export function SlotBoard({
               <input
                 className="input-base w-full"
                 placeholder="Size"
-                value={groupSize}
-                onChange={(event) => setGroupSize(event.target.value)}
+                value={subvaultSize}
+                onChange={(event) => setSubvaultSize(event.target.value)}
               />
               <button
                 type="button"
                 className="button-base button-ember mt-2 w-full whitespace-nowrap"
                 onClick={() => {
-                  const value = groupSize.trim();
+                  const value = subvaultSize.trim();
                   if (!value) {
                     return;
                   }
@@ -302,14 +302,14 @@ export function SlotBoard({
                     if (parsed === null) {
                       return;
                     }
-                    onCreateGroup(parsed, groupShared, groupNoPlugins);
-                    setGroupSize("");
+                    onCreateSubvault(parsed, subvaultShared, subvaultNoPlugins);
+                    setSubvaultSize("");
                   } catch {
                     // ignore invalid
                   }
                 }}
               >
-                Add group
+                Add subvault
               </button>
             </div>
           </div>

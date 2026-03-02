@@ -540,11 +540,11 @@ def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
 Date: {today}
 Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-internal --isolate`
 
-3 groups, 3 networks in each, 10 operators in each
+3 subvaults, 3 networks in each, 10 operators in each
 Operators to be slashed are first and second to maximize gas costs for slashing call
 
 Notes:
-- Different operators, same group/network.
+- Different operators, same subvault/network.
 - “Fully isolated” runs request1, request2, then execute1, execute2, with a block time jump between the phases.
 - “Single transaction” uses two transactions: batch two requests, then batch two executes.
 - “Stake For Timestamp” measures stakeForAt before any slashing and after the first slash (uses stakeFor when captureTimestamp = 0).
@@ -658,7 +658,7 @@ Note: costs are lower because `latest()` state is used.
         report_2_lines = REPORT_2.read_text().splitlines()
         update_table(
             report_2_lines,
-            "## Summary (same group/network, second operator)",
+            "## Summary (same subvault/network, second operator)",
             [
                 (("`stakeForAt`", "no"), logs["stakeForAt2_no_hints"]),
                 (("`stakeForAt`", "yes"), logs["stakeForAt2_with_hints"]),

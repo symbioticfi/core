@@ -32,7 +32,7 @@ export function SlotCard({
     setSizeInput(formatToken(node.size, tokenDecimals));
     lastQueued.current = node.size;
   }, [node.size, tokenDecimals]);
-  const depthLabel = node.depth === 1 ? "Group" : node.depth === 2 ? "Network" : "Operator";
+  const depthLabel = node.depth === 1 ? "Subvault" : node.depth === 2 ? "Network" : "Operator";
   const childIndex = Number((node.index >> BigInt(32 * (3 - node.depth))) & 0xffffffffn);
   const childIndexOf = (index: bigint, depth: number) => Number((index >> BigInt(32 * (3 - depth))) & 0xffffffffn);
   const hoverClass = "hover:border-black/35";

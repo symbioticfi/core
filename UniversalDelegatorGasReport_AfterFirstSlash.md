@@ -3,7 +3,7 @@
 Date: 2026-02-03
 Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-internal --isolate`
 
-## Summary (same group/network, second operator)
+## Summary (same subvault/network, second operator)
 
 | Call           | Hints |             Gas |
 | -------------- | ----- | --------------: |
@@ -16,8 +16,8 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 Notes:
 
-- Scenario: slash operator A (worst-case slot), then slash operator B in the **same** group/network.
-- Operator B is the next operator slot in the same subnetwork (group=2, network=2, operatorIndex=8).
+- Scenario: slash operator A (worst-case slot), then slash operator B in the **same** subvault/network.
+- Operator B is the next operator slot in the same subnetwork (subvault=2, network=2, operatorIndex=8).
 - “Hints” corresponds to the hints payload used by the test in `test/delegator/UniversalDelegatorGas.t.sol`.
 - Gas values are from the test logs (console output).
 - USD values are shown as a 3-month average using baseFeePerGas samples (~30 samples over 90d) from Etherscan and ETH/USD from CoinGecko.

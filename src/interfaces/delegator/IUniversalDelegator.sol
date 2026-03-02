@@ -23,7 +23,7 @@ bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a
 // Keccak256("SET_WITHDRAWAL_BUFFER_SIZE_ROLE").
 bytes32 constant SET_WITHDRAWAL_BUFFER_SIZE_ROLE = 0x6f48b129515ad8dd335666ffdfdf6533e7a5a9a9cd01b8a62f938f739fc9a4ce;
 
-uint256 constant MAX_GROUPS = 10;
+uint256 constant MAX_SUBVAULTS = 10;
 uint256 constant MAX_NETWORKS = 15;
 uint256 constant MAX_OPERATORS = 20;
 

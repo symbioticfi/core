@@ -5,7 +5,7 @@ import type { SlotNode } from "../lib/ops";
 export type ActionPanelProps = {
   focus: SlotNode | null;
   disabled?: boolean;
-  onCreateGroup: (size: bigint, isShared: boolean, noPlugins: boolean) => void;
+  onCreateSubvault: (size: bigint, isShared: boolean, noPlugins: boolean) => void;
   onCreateNetwork: (network: Address, identifier: bigint, size: bigint) => void;
   onCreateOperator: (operator: Address, size: bigint) => void;
   onSetWithdrawalBuffer: (size: bigint) => void;
@@ -26,15 +26,15 @@ function parseBigInt(value: string): bigint | null {
 export function ActionPanel({
   focus,
   disabled = false,
-  onCreateGroup,
+  onCreateSubvault,
   onCreateNetwork,
   onCreateOperator,
   onSetWithdrawalBuffer,
   onSetHook,
 }: ActionPanelProps) {
-  const [groupSize, setGroupSize] = useState("");
-  const [groupShared, setGroupShared] = useState(false);
-  const [groupNoPlugins, setGroupNoPlugins] = useState(false);
+  const [subvaultSize, setSubvaultSize] = useState("");
+  const [subvaultShared, setSubvaultShared] = useState(false);
+  const [subvaultNoPlugins, setSubvaultNoPlugins] = useState(false);
 
   const [networkAddress, setNetworkAddress] = useState("");
   const [networkId, setNetworkId] = useState("");
@@ -66,20 +66,20 @@ export function ActionPanel({
 
       {focusDepth === 0 && (
         <div className="mt-4 space-y-3">
-          <p className="text-sm text-ink">Add group slot</p>
+          <p className="text-sm text-ink">Add subvault slot</p>
           <input
             className="input-base"
             placeholder="Size"
-            value={groupSize}
-            onChange={(event) => setGroupSize(event.target.value)}
+            value={subvaultSize}
+            onChange={(event) => setSubvaultSize(event.target.value)}
             disabled={disabled}
           />
           <div className="flex gap-3 text-xs">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={groupShared}
-                onChange={(event) => setGroupShared(event.target.checked)}
+                checked={subvaultShared}
+                onChange={(event) => setSubvaultShared(event.target.checked)}
                 disabled={disabled}
               />
               Shared
@@ -87,8 +87,8 @@ export function ActionPanel({
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={groupNoPlugins}
-                onChange={(event) => setGroupNoPlugins(event.target.checked)}
+                checked={subvaultNoPlugins}
+                onChange={(event) => setSubvaultNoPlugins(event.target.checked)}
                 disabled={disabled}
               />
               No plugins
@@ -98,18 +98,18 @@ export function ActionPanel({
             type="button"
             className="button-base button-ember"
             onClick={() => {
-              const size = parseBigInt(groupSize);
+              const size = parseBigInt(subvaultSize);
               if (size === null) {
-                setError("Enter a valid group size.");
+                setError("Enter a valid subvault size.");
                 return;
               }
-              onCreateGroup(size, groupShared, groupNoPlugins);
+              onCreateSubvault(size, subvaultShared, subvaultNoPlugins);
               setError(null);
-              setGroupSize("");
+              setSubvaultSize("");
             }}
             disabled={disabled}
           >
-            Queue group
+            Queue subvault
           </button>
         </div>
       )}

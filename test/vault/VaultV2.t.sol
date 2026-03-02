@@ -4748,10 +4748,10 @@ contract VaultV2Test is Test {
         assertEq(IEntity(vaultV2.slasher()).TYPE(), slasherFactory.totalTypes() - 1);
         IUniversalDelegator.Slot memory root = IUniversalDelegator(vaultV2.delegator()).getSlot(0);
         assertEq(root.existChildren, 1);
-        IUniversalDelegator.Slot memory noPluginsGroup =
+        IUniversalDelegator.Slot memory noPluginsSubvault =
             IUniversalDelegator(vaultV2.delegator()).getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noPluginsGroup.noPlugins);
-        assertEq(uint256(noPluginsGroup.size), IUniversalDelegator(vaultV2.delegator()).getNoPluginsSize());
+        assertTrue(noPluginsSubvault.noPlugins);
+        assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(vaultV2.delegator()).getNoPluginsSize());
         uint256 expectedSlashRequestsLength = 0;
         if (oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == 1) {
             expectedSlashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();

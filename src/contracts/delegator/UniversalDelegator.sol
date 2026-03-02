@@ -17,7 +17,7 @@ import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddle
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IUniversalDelegator,
-    MAX_GROUPS,
+    MAX_SUBVAULTS,
     MAX_NETWORKS,
     MAX_OPERATORS,
     CREATE_SLOT_ROLE,
@@ -40,7 +40,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
 /// @title UniversalDelegator
-/// @notice Contract for hierarchical stake allocation across groups, networks, and operators.
+/// @notice Contract for hierarchical stake allocation across subvaults, networks, and operators.
 contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
@@ -89,7 +89,7 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     address public hook;
 
-    /// @dev Total slot size marked as no-plugins across root groups.
+    /// @dev Total slot size marked as no-plugins across root subvaults.
     uint256 internal _noPluginsSize;
     /// @dev Slot storage keyed by encoded slot index.
     mapping(uint96 index => SlotStorage slot) internal slots;
@@ -502,7 +502,7 @@ contract UniversalDelegator is
             if (
                 ++parent.existChildren
                     > (parentIndex.getDepth() == 0
-                            ? MAX_GROUPS
+                            ? MAX_SUBVAULTS
                             : parentIndex.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS)
             ) {
                 revert TooManyChildren();

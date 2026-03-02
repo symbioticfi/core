@@ -41,7 +41,7 @@ contract UniversalDelegatorGasTest is Test {
     uint48 internal constant CAPTURE_OFFSET = 4;
     uint48 internal constant START_TIMESTAMP = 1000;
     uint256 internal constant SECOND_CALL_WARP = 12;
-    uint128 internal constant GROUP_SIZE = 3000 ether;
+    uint128 internal constant SUBVAULT_SIZE = 3000 ether;
     uint128 internal constant NETWORK_SIZE = 1000 ether;
     uint128 internal constant OPERATOR_SIZE = 100 ether;
     uint256 internal constant DEPOSIT_AMOUNT = 9000 ether;
@@ -339,31 +339,31 @@ contract UniversalDelegatorGasTest is Test {
     }
 
     function _setupTopology() internal {
-        for (uint256 groupIndex = 0; groupIndex < 3; ++groupIndex) {
-            uint96 groupSlot = delegator.createSlot(bytes32(0), 0, false, false, GROUP_SIZE);
+        for (uint256 subvaultIndex = 0; subvaultIndex < 3; ++subvaultIndex) {
+            uint96 subvaultSlot = delegator.createSlot(bytes32(0), 0, false, false, SUBVAULT_SIZE);
 
             for (uint256 networkIndex = 0; networkIndex < 3; ++networkIndex) {
                 address network =
-                    address(uint160(uint256(keccak256(abi.encodePacked("network", groupIndex, networkIndex)))));
+                    address(uint160(uint256(keccak256(abi.encodePacked("network", subvaultIndex, networkIndex)))));
                 _registerNetwork(network);
                 bytes32 subnetwork = network.subnetwork(uint96(networkIndex + 1));
 
-                uint96 networkSlot = delegator.createSlot(subnetwork, groupSlot, false, false, NETWORK_SIZE);
+                uint96 networkSlot = delegator.createSlot(subnetwork, subvaultSlot, false, false, NETWORK_SIZE);
 
                 for (uint256 operatorIndex = 0; operatorIndex < 10; ++operatorIndex) {
                     address operator = address(
                         uint160(
-                            uint256(keccak256(abi.encodePacked("operator", groupIndex, networkIndex, operatorIndex)))
+                            uint256(keccak256(abi.encodePacked("operator", subvaultIndex, networkIndex, operatorIndex)))
                         )
                     );
                     delegator.createSlot(_operatorKey(operator), networkSlot, false, false, OPERATOR_SIZE);
 
-                    if (groupIndex == 2 && networkIndex == 2 && operatorIndex == 9) {
+                    if (subvaultIndex == 2 && networkIndex == 2 && operatorIndex == 9) {
                         targetSubnetwork = subnetwork;
                         targetOperator = operator;
                     }
 
-                    if (groupIndex == 2 && networkIndex == 2 && operatorIndex == 8) {
+                    if (subvaultIndex == 2 && networkIndex == 2 && operatorIndex == 8) {
                         nextOperator = operator;
                     }
                 }
@@ -433,8 +433,8 @@ contract UniversalDelegatorGasTest is Test {
             stakeHints: _allocatedHints(),
             cumulativeSlashFromHint: bytes(""),
             slotOfHints: bytes(""),
-            groupAllocatedHints: bytes(""),
-            groupCumulativeSlashFromHint: bytes("")
+            subvaultAllocatedHints: bytes(""),
+            subvaultCumulativeSlashFromHint: bytes("")
         });
 
         return abi.encode(hints);
@@ -444,14 +444,14 @@ contract UniversalDelegatorGasTest is Test {
         return abi.encode(_slotOfHints(), "");
     }
 
-    function _groupAllocatedHints() internal pure returns (bytes memory) {
+    function _subvaultAllocatedHints() internal pure returns (bytes memory) {
         return _baseAllocatedHints(_rootAvailableHints());
     }
 
     function _operatorAllocatedHints() internal pure returns (bytes memory) {
-        bytes memory groupAllocated = _groupAllocatedHints();
-        bytes memory groupAvailable = _availableHints(groupAllocated);
-        bytes memory networkAllocated = _baseAllocatedHints(groupAvailable);
+        bytes memory subvaultAllocated = _subvaultAllocatedHints();
+        bytes memory subvaultAvailable = _availableHints(subvaultAllocated);
+        bytes memory networkAllocated = _baseAllocatedHints(subvaultAvailable);
         bytes memory networkAvailable = _availableHints(networkAllocated);
         return _baseAllocatedHints(networkAvailable);
     }

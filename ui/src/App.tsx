@@ -436,7 +436,7 @@ export default function App() {
     setOps((prev) => [...prev, { id: nextOpId(), kind: "removeSlot", index }]);
   };
 
-  const queueCreateGroup = (size: bigint, isShared: boolean, noPlugins: boolean) => {
+  const queueCreateSubvault = (size: bigint, isShared: boolean, noPlugins: boolean) => {
     setOps((prev) => [
       ...prev,
       {
@@ -664,7 +664,7 @@ export default function App() {
           onQueueSize={queueSetSize}
           onQueueSwap={queueSwap}
           onQueueRemove={queueRemove}
-          onCreateGroup={queueCreateGroup}
+          onCreateSubvault={queueCreateSubvault}
           onCreateNetwork={queueCreateNetwork}
           onCreateOperator={queueCreateOperator}
           onSetWithdrawalBuffer={queueWithdrawalBuffer}

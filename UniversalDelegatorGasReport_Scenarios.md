@@ -3,12 +3,12 @@
 Date: 2026-02-12
 Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-internal --isolate`
 
-3 groups, 3 networks in each, 10 operators in each
+3 subvaults, 3 networks in each, 10 operators in each
 Operators to be slashed are first and second to maximize gas costs for slashing call
 
 Notes:
 
-- Different operators, same group/network.
+- Different operators, same subvault/network.
 - “Fully isolated” runs request1, request2, then execute1, execute2, with a block time jump between the phases.
 - “Single transaction” uses two transactions: batch two requests, then batch two executes.
 - “Stake For Timestamp” measures stakeForAt before any slashing and after the first slash (uses stakeFor when captureTimestamp = 0).

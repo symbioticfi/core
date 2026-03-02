@@ -149,15 +149,15 @@ interface IUniversalSlasher {
      * @param stakeHints Hints for the stake checkpoints.
      * @param cumulativeSlashFromHint Hint for the cumulative slash amount at a capture timestamp.
      * @param slotOfHints Hints for the slot lookup.
-     * @param groupAllocatedHints Hints for the group allocation lookup.
-     * @param groupCumulativeSlashFromHint Hint for the group cumulative slash amount at a capture timestamp.
+     * @param subvaultAllocatedHints Hints for the subvault allocation lookup.
+     * @param subvaultCumulativeSlashFromHint Hint for the subvault cumulative slash amount at a capture timestamp.
      */
     struct SlashableStakeHints {
         bytes stakeHints;
         bytes cumulativeSlashFromHint;
         bytes slotOfHints;
-        bytes groupAllocatedHints;
-        bytes groupCumulativeSlashFromHint;
+        bytes subvaultAllocatedHints;
+        bytes subvaultCumulativeSlashFromHint;
     }
 
     /**
