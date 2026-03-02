@@ -1,0 +1,6 @@
+# Exclude nested dev-app fixtures that vendor their own node_modules / legacy Solidity.
+test/rfqEngine/**
+test/curator-app/**
+
+# Never compile JS workspace dependencies.
+**/node_modules/**
