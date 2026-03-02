@@ -1024,11 +1024,6 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return storage pointer to the root slot.
-    function _rootSlot() internal view returns (SlotStorage storage) {
-        return slots[0];
-    }
-
     /// @dev Return storage pointer to the withdrawal buffer slot.
     function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
         return slots[WITHDRAWAL_BUFFER_INDEX];
