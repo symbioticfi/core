@@ -3092,6 +3092,41 @@ contract VaultV2Test is Test {
 
         assertEq(vault.pluginsLength(), 0);
         assertEq(vault.pluginLimit(address(plugin)), 0);
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+    }
+
+    function test_RevokePluginRolesBlockedWhileLimitIsNonZero() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        vm.prank(alice);
+        VaultV2(address(vault)).revokeRole(ALLOCATE_PLUGIN_ROLE, address(plugin));
+        vm.prank(alice);
+        VaultV2(address(vault)).revokeRole(DEALLOCATE_PLUGIN_ROLE, address(plugin));
+
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+    }
+
+    function test_RevokePluginRolesAfterLimitBecomesZero() public {
+        vault = _getVault(7 days);
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+
+        _grantRemovePluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
+
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+
+        vm.prank(alice);
+        VaultV2(address(vault)).revokeRole(ALLOCATE_PLUGIN_ROLE, address(plugin));
+        vm.prank(alice);
+        VaultV2(address(vault)).revokeRole(DEALLOCATE_PLUGIN_ROLE, address(plugin));
+
         assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
         assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
     }

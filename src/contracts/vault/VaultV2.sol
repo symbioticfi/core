@@ -728,6 +728,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /// @inheritdoc AccessControlUpgradeable
+    function _revokeRole(bytes32 role, address account) internal override returns (bool) {
+        if ((role == ALLOCATE_PLUGIN_ROLE || role == DEALLOCATE_PLUGIN_ROLE) && pluginLimit[account] > 0) {
+            return false;
+        }
+        return super._revokeRole(role, account);
+    }
+
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
     // @dev Internal dev function to handle owed slashing.
