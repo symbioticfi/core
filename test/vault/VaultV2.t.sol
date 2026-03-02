@@ -3580,6 +3580,39 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, amount);
     }
 
+    function test_InstantWithdraw_eventEmitsWithdrawer() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        uint256 amount = Math.min(IUniversalDelegator(vault.delegator()).getWithdrawalBuffer(), uint256(10));
+        assertGt(amount, 0);
+
+        vm.recordLogs();
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(bob, amount);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bytes32 instantWithdrawSig = keccak256("InstantWithdraw(address,uint256,uint256)");
+        bool found;
+        for (uint256 i; i < logs.length; ++i) {
+            if (
+                logs[i].emitter != address(vault) || logs[i].topics.length < 2
+                    || logs[i].topics[0] != instantWithdrawSig
+            ) {
+                continue;
+            }
+
+            found = true;
+            assertEq(address(uint160(uint256(logs[i].topics[1]))), alice);
+            (uint256 amountLogged, uint256 burnedSharesLogged) = abi.decode(logs[i].data, (uint256, uint256));
+            assertEq(amountLogged, withdrawnAssets);
+            assertEq(burnedSharesLogged, burnedShares);
+            break;
+        }
+
+        assertTrue(found);
+    }
+
     function test_InstantWithdraw_deallocatesPluginsWhenOverAllocated() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
