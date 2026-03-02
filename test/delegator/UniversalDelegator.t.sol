@@ -33,7 +33,10 @@ import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IOperatorNetworkSpecificDelegator} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
+import {
+    IOperatorNetworkSpecificDelegator,
+    OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE
+} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
 import {
     IUniversalDelegator,
@@ -74,6 +77,14 @@ contract UniversalDelegatorHookMock is IDelegatorHook {
         lastAmount = amount;
         lastData = data;
         ++calls;
+    }
+}
+
+contract MockLegacyDelegatorType {
+    uint64 public immutable TYPE;
+
+    constructor(uint64 type_) {
+        TYPE = type_;
     }
 }
 
@@ -2463,8 +2474,9 @@ contract UniversalDelegatorTest is Test {
     }
 
     function test_migrate_fromVault_createsNoPluginsSubvault() public {
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
         vm.prank(address(vault));
-        delegator.migrate(address(0xBEEF));
+        delegator.migrate(address(oldDelegator));
 
         IUniversalDelegator.Slot memory root = delegator.getSlot(0);
         assertEq(root.existChildren, 1);
@@ -2472,6 +2484,22 @@ contract UniversalDelegatorTest is Test {
 
         IUniversalDelegator.Slot memory noPluginsSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
         assertTrue(noPluginsSubvault.noPlugins);
+        assertTrue(noPluginsSubvault.isShared);
+        assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(address(delegator)).getNoPluginsSize());
+    }
+
+    function test_migrate_fromVault_operatorNetworkSpecificLegacy_createsNonSharedNoPluginsSubvault() public {
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        IUniversalDelegator.Slot memory root = delegator.getSlot(0);
+        assertEq(root.existChildren, 1);
+        assertEq(root.firstChild, 1);
+
+        IUniversalDelegator.Slot memory noPluginsSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
+        assertTrue(noPluginsSubvault.noPlugins);
+        assertFalse(noPluginsSubvault.isShared);
         assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(address(delegator)).getNoPluginsSize());
     }
 
@@ -2880,6 +2908,7 @@ contract UniversalDelegatorMigrationTest is Test {
         IUniversalDelegator.Slot memory noPluginsSubvault =
             IUniversalDelegator(newDelegator).getSlot(uint96(0).createIndex(root.firstChild));
         assertTrue(noPluginsSubvault.noPlugins);
+        assertEq(noPluginsSubvault.isShared, legacyType < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
         assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(newDelegator).getNoPluginsSize());
     }
 }

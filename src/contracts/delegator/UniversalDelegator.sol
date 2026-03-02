@@ -31,6 +31,9 @@ import {
     WITHDRAWAL_BUFFER_INDEX,
     WITHDRAWAL_BUFFER_CHILD_INDEX
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {
+    OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE
+} from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
@@ -953,7 +956,13 @@ contract UniversalDelegator is
         __migrateTimestamp = uint48(block.timestamp);
         __oldDelegator = oldDelegator;
 
-        _createSlot(bytes32(0), 0, true, true, uint128(Math.min(IVaultV2(vault).allocatable(), type(uint128).max)));
+        _createSlot(
+            bytes32(0),
+            0,
+            IEntity(oldDelegator).TYPE() < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
+            true,
+            uint128(Math.min(IVaultV2(vault).allocatable(), type(uint128).max))
+        );
     }
 
     /* UTILITY FUNCTIONS */
