@@ -354,7 +354,7 @@ contract UniversalDelegator is
 
             uint96 parentIndex = index.getParentIndex();
             uint256 slotAvailable = getAvailableAt(parentIndex, duration, timestamp);
-            if (!slots[parentIndex].isShared) {
+            if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
                 slotAvailable = slotAvailable.saturatingSub(_getPrevSumAt(index, timestamp));
             }
             // The current allocation of the slot + the pending allocation (to support slashing w/o captureTimestamp).
@@ -372,7 +372,7 @@ contract UniversalDelegator is
 
             uint96 parentIndex = index.getParentIndex();
             uint256 slotAvailable = getAvailable(parentIndex, duration);
-            if (!slots[parentIndex].isShared) {
+            if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
                 slotAvailable = slotAvailable.saturatingSub(_getPrevSum(index));
             }
             return Math.min(slotAvailable, slots[index].size.latest()) + getPending(index, duration);
