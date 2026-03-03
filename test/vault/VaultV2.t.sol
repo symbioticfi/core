@@ -1650,6 +1650,17 @@ contract VaultV2Test is Test {
         assertEq(vault.withdrawalUnlockAfter(1, alice), uint48(blockTimestamp + epochDuration));
     }
 
+    function test_WithdrawalsOf_NonMigrated_UsesCurrentPathForAnyIndex() public {
+        uint48 epochDuration = 7;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, 100);
+        _withdraw(alice, 10);
+
+        assertGt(vault.withdrawalsOf(0, alice), 0);
+        assertEq(vault.withdrawalsOf(type(uint256).max, alice), 0);
+    }
+
     function test_WithdrawRecordsClaimer(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, amount1);

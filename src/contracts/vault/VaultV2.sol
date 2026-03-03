@@ -204,7 +204,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function withdrawalsOf(uint256 index, address account) public view returns (uint256 amount) {
         unchecked {
             uint48 migrateEpoch = __migrateEpoch;
-            if (migrateEpoch == 0 || index >= migrateEpoch) {
+            if (index >= migrateEpoch) {
                 uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAfter(index, account));
                 uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
                 return withdrawalShares_ > 0
