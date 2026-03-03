@@ -476,7 +476,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @return When The withdrawal is claimable for the account at the index.
      * @dev Simplifies legacy epoch data by returning 0 for all epochs before migration.
      */
-    function withdrawalUnlockAfter(uint256 index, address account) external view returns (uint48);
+    function withdrawalUnlockAt(uint256 index, address account) external view returns (uint48);
 
     /**
      * @notice Get withdrawals for a particular account at a given index (zero if claimed).

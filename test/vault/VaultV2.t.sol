@@ -1459,8 +1459,8 @@ contract VaultV2Test is Test {
         _withdraw(bob, 30);
 
         uint256 donation = 20;
-        uint48 aliceUnlockAfter = vault.withdrawalUnlockAfter(0, alice);
-        uint48 bobUnlockAfter = vault.withdrawalUnlockAfter(0, bob);
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
         uint256 bucketBefore = _latestWithdrawalBucket();
         uint256 claimableBefore = vault.withdrawalsOf(0, alice);
         uint256 activeStakeBefore = vault.activeStake();
@@ -1639,7 +1639,7 @@ contract VaultV2Test is Test {
         _withdraw(alice, amount2);
 
         assertEq(vault.withdrawalsOfLength(alice), 1);
-        assertEq(vault.withdrawalUnlockAfter(0, alice), uint48(blockTimestamp + epochDuration));
+        assertEq(vault.withdrawalUnlockAt(0, alice), uint48(blockTimestamp + epochDuration));
 
         blockTimestamp = blockTimestamp + 2;
         vm.warp(blockTimestamp);
@@ -1647,7 +1647,7 @@ contract VaultV2Test is Test {
         _withdraw(alice, amount3);
 
         assertEq(vault.withdrawalsOfLength(alice), 2);
-        assertEq(vault.withdrawalUnlockAfter(1, alice), uint48(blockTimestamp + epochDuration));
+        assertEq(vault.withdrawalUnlockAt(1, alice), uint48(blockTimestamp + epochDuration));
     }
 
     function test_WithdrawalsOf_NonMigrated_UsesCurrentPathForAnyIndex() public {
@@ -1683,7 +1683,7 @@ contract VaultV2Test is Test {
 
         assertEq(vault.withdrawalsOfLength(alice), 0);
         assertEq(vault.withdrawalsOfLength(bob), 1);
-        assertEq(vault.withdrawalUnlockAfter(0, bob), uint48(blockTimestamp + epochDuration));
+        assertEq(vault.withdrawalUnlockAt(0, bob), uint48(blockTimestamp + epochDuration));
         assertEq(vault.withdrawalSharesOf(0, bob), mintedShares);
     }
 
@@ -2228,18 +2228,71 @@ contract VaultV2Test is Test {
 
         _withdraw(alice, amount2);
 
-        uint48 unlockAfter = vault.withdrawalUnlockAfter(0, alice);
-        assertEq(unlockAfter, uint48(blockTimestamp + epochDuration));
+        uint48 unlockAt = vault.withdrawalUnlockAt(0, alice);
+        assertEq(unlockAt, uint48(blockTimestamp + epochDuration));
         assertEq(vault.totalStake(), amount1);
 
-        vm.warp(unlockAfter);
-        assertEq(vault.totalStake(), amount1 - amount2);
-
+        vm.warp(uint256(unlockAt) - 1);
         vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
         _claim(alice, 0);
 
-        vm.warp(uint256(unlockAfter) + 1);
+        vm.warp(unlockAt);
+        assertEq(vault.totalStake(), amount1 - amount2);
         assertEq(_claim(alice, 0), amount2);
+    }
+
+    function test_OnSlashAtUnlockAt_DoesNotSlashFreshlyMaturedWithdrawal() public {
+        uint48 epochDuration = 10;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        uint48 unlockAt = vault.withdrawalUnlockAt(0, alice);
+        vm.warp(unlockAt);
+
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 activeStakeBefore = vault.activeStake();
+        assertEq(claimableBefore, 40);
+        assertEq(activeStakeBefore, 60);
+
+        vm.prank(vault.slasher());
+        (uint256 slashedAmount,) = VaultV2(address(vault)).onSlash(10, false);
+        assertEq(slashedAmount, 10);
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(vault.activeStake(), activeStakeBefore - slashedAmount);
+        assertEq(_claim(alice, 0), claimableBefore);
+    }
+
+    function test_OnSlashOneSecondBeforeUnlockAt_SlashesWithdrawalThenClaimsReducedAmount() public {
+        uint48 epochDuration = 10;
+        vault = _getVault(epochDuration);
+
+        _deposit(alice, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        uint48 unlockAt = vault.withdrawalUnlockAt(0, alice);
+        vm.warp(uint256(unlockAt) - 1);
+
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 activeStakeBefore = vault.activeStake();
+        assertEq(claimableBefore, 40);
+        assertEq(activeStakeBefore, 60);
+
+        vm.prank(vault.slasher());
+        (uint256 slashedAmount,) = VaultV2(address(vault)).onSlash(10, false);
+        assertEq(slashedAmount, 10);
+
+        uint256 claimableAfterSlash = vault.withdrawalsOf(0, alice);
+        assertEq(claimableAfterSlash, 36);
+
+        vm.warp(unlockAt);
+        assertEq(_claim(alice, 0), claimableAfterSlash);
     }
 
     function test_SetDepositWhitelist() public {
@@ -2572,9 +2625,9 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalsOfLength(alice), legacyEpochIndex + 2);
 
         {
-            assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex, bob), state.nextEpochStart);
-            assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex, alice), state.nextEpochStart);
-            assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex + 1, bob), postMigrateUnlockAfter);
+            assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), state.nextEpochStart);
+            assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, alice), state.nextEpochStart);
+            assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex + 1, bob), postMigrateUnlockAfter);
 
             assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 0);
         }
@@ -2690,7 +2743,7 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, state.expectedEpoch1);
         assertEq(vaultV2.isWithdrawalsClaimed(legacyEpochIndex - 1, alice), true);
 
-        uint48 firstUnlockAfter = vaultV2.withdrawalUnlockAfter(legacyEpochIndex, alice);
+        uint48 firstUnlockAfter = vaultV2.withdrawalUnlockAt(legacyEpochIndex, alice);
         state.nextEpochStart = firstUnlockAfter;
         vm.warp(uint256(state.nextEpochStart) + 1);
 
@@ -2753,7 +2806,7 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.withdrawalShares(0), expectedLegacyCurrentEpochWithdrawals);
 
         assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 2);
-        assertEq(vaultV2.withdrawalUnlockAfter(legacyEpochIndex, bob), expectedUnlockAfter);
+        assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), expectedUnlockAfter);
         assertEq(vaultV2.withdrawalsOf(legacyEpochIndex - 1, bob), expectedLegacyPrevEpochWithdrawals);
         assertEq(vaultV2.withdrawalsOf(legacyEpochIndex, bob), expectedLegacyCurrentEpochWithdrawals);
 
@@ -2817,7 +2870,7 @@ contract VaultV2Test is Test {
         _withdraw(bob, secondWithdrawAmount);
 
         uint256 secondIndex = vaultV2.withdrawalsOfLength(bob) - 1;
-        uint48 secondUnlockAfter = vaultV2.withdrawalUnlockAfter(secondIndex, bob);
+        uint48 secondUnlockAfter = vaultV2.withdrawalUnlockAt(secondIndex, bob);
         assertEq(secondUnlockAfter, uint48(block.timestamp + epochDuration));
 
         vm.startPrank(bob);
@@ -3518,8 +3571,8 @@ contract VaultV2Test is Test {
         _withdraw(bob, 30);
 
         uint256 slashAmount = 20;
-        uint48 aliceUnlockAfter = vault.withdrawalUnlockAfter(0, alice);
-        uint48 bobUnlockAfter = vault.withdrawalUnlockAfter(0, bob);
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
         uint256 bucketBefore = _latestWithdrawalBucket();
         uint256 claimableBefore = vault.withdrawalsOf(0, alice);
         uint256 activeBefore = vault.withdrawalsOf(0, bob);
@@ -3886,8 +3939,8 @@ contract VaultV2Test is Test {
         _withdraw(bob, 30);
 
         uint256 donation = 20;
-        uint48 aliceUnlockAfter = vault.withdrawalUnlockAfter(0, alice);
-        uint48 bobUnlockAfter = vault.withdrawalUnlockAfter(0, bob);
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
         uint256 aliceClaimableBefore = vault.withdrawalsOf(0, alice);
         uint256 bucketBefore = _latestWithdrawalBucket();
         uint256 expectedBobAfter;

@@ -140,7 +140,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             if (captureTimestamp == 0 || captureTimestamp >= __migrateTimestamp) {
                 if (
                     captureTimestamp > 0
-                        && captureTimestamp < block.timestamp.saturatingSub(IVault(vault).epochDuration())
+                        && captureTimestamp <= block.timestamp.saturatingSub(IVault(vault).epochDuration())
                 ) {
                     return 0;
                 }
@@ -149,7 +149,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
             // Legacy support.
             if (
-                captureTimestamp < block.timestamp.saturatingSub(IVault(vault).epochDuration())
+                captureTimestamp <= block.timestamp.saturatingSub(IVault(vault).epochDuration())
                     || captureTimestamp >= block.timestamp
                     || captureTimestamp < _latestSlashedCaptureTimestamp(subnetwork, operator)
             ) {

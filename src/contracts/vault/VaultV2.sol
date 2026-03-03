@@ -183,7 +183,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @inheritdoc IVaultV2
-    function withdrawalUnlockAfter(uint256 index, address account) public view returns (uint48 timestamp) {
+    function withdrawalUnlockAt(uint256 index, address account) public view returns (uint48 timestamp) {
         unchecked {
             if (__migrateTimestamp > 0) {
                 // Legacy support.
@@ -196,7 +196,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 }
             }
 
-            return _withdrawalUnlockAfter[index][account];
+            return _withdrawalUnlockAt[index][account];
         }
     }
 
@@ -205,7 +205,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             uint48 migrateEpoch = __migrateEpoch;
             if (index >= migrateEpoch) {
-                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAfter(index, account));
+                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAt(index, account));
                 uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
                 return withdrawalShares_ > 0
                     ? ERC4626Math.previewRedeem(
@@ -378,7 +378,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             if (isWithdrawalsClaimed[index][msg.sender]) {
                 revert AlreadyClaimed();
             }
-            if (block.timestamp <= withdrawalUnlockAfter(index, msg.sender)) {
+            if (block.timestamp < withdrawalUnlockAt(index, msg.sender)) {
                 revert WithdrawalNotMatured();
             }
 
@@ -505,13 +505,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), newWithdrawalShares);
             _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawals + withdrawnAssets);
 
-            uint48 unlockAfter = uint48(block.timestamp) + epochDuration;
+            uint48 unlockAt = uint48(block.timestamp) + epochDuration;
             uint256 curWithdrawalsOfLength = withdrawalsOfLength(claimer);
 
             _withdrawalsOfLength[claimer] = curWithdrawalsOfLength + 1;
             _withdrawalSharesOf[curWithdrawalsOfLength][claimer] = mintedShares;
-            _withdrawalUnlockAfter[curWithdrawalsOfLength][claimer] = unlockAfter;
-            _withdrawalSharesCumulative.push(unlockAfter, _withdrawalSharesCumulative.latest() + mintedShares);
+            _withdrawalUnlockAt[curWithdrawalsOfLength][claimer] = unlockAt;
+            _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
 
             emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
             emit Transfer(msg.sender, address(0), burnedShares);

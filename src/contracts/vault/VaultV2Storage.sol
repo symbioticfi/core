@@ -81,7 +81,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /// @dev Number of withdrawal requests per account.
     mapping(address account => uint256 value) internal _withdrawalsOfLength;
     /// @dev Withdrawal unlock timestamp per withdrawal index and account.
-    mapping(uint256 index => mapping(address account => uint48 timestamp)) internal _withdrawalUnlockAfter;
+    mapping(uint256 index => mapping(address account => uint48 timestamp)) internal _withdrawalUnlockAt;
     /// @dev Checkpointed withdrawal shares per bucket.
     mapping(uint256 bucketIndex => CheckpointsV2.Trace256 shares) internal _withdrawalShares;
     /// @dev Checkpointed withdrawal amounts per bucket.

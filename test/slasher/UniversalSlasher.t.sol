@@ -912,6 +912,48 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(slasher.slashableStake(subnetwork, operator, 30, ""), 85);
     }
 
+    function test_slashableStake_newPath_LastPossibleSecondBoundary() public {
+        vm.warp(1000);
+
+        assertEq(slasher.slashableStake(subnetwork, operator, uint48(block.timestamp - EPOCH_DURATION), ""), 0);
+        assertEq(slasher.slashableStake(subnetwork, operator, uint48(block.timestamp - EPOCH_DURATION + 1), ""), 100);
+    }
+
+    function test_executeSlash_WithVetoDurationEpochMinusOne_LastPossibleSecondSucceeds() public {
+        vm.warp(1000);
+        slasher.setVetoDurationRaw(EPOCH_DURATION - 1);
+
+        vm.prank(network);
+        slasher.setResolver(0, resolver1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork, operator, 10, 0, "");
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(slashIndex);
+        assertEq(request.createdAt, uint48(1000));
+        assertEq(request.vetoDeadline, uint48(1000 + EPOCH_DURATION - 1));
+
+        vm.warp(request.vetoDeadline);
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 10);
+    }
+
+    function test_executeSlash_WithVetoDurationEpochMinusOne_OneSecondLateReverts() public {
+        vm.warp(1000);
+        slasher.setVetoDurationRaw(EPOCH_DURATION - 1);
+
+        vm.prank(network);
+        slasher.setResolver(0, resolver1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork, operator, 10, 0, "");
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(slashIndex);
+
+        vm.warp(uint256(request.vetoDeadline) + 1);
+        vm.prank(middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        slasher.executeSlash(slashIndex, "");
+    }
+
     function test_executeSlashReverts_VetoPeriodNotEnded() public {
         _pushRequest(10, uint48(block.timestamp - 1), uint48(block.timestamp + 1), resolver1, false);
 
