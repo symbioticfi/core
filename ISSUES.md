@@ -570,7 +570,7 @@ Generated: 2026-03-02 08:36:29 +04
 - IDs: f24f3539-8ec2-4f94-9479-19089293ca36
 - Sources: FINDINGS1.json
 - Status: review
-- Accepted: true
+- Accepted: false
 
 ### Description
 

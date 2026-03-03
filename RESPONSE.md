@@ -87,12 +87,12 @@
 
 ### Issue 18
 
-- Maintainer note: Valid.
-- Codex comment: Agree; storage-gap correctness is important for upgrade safety.
+- Maintainer note: Invalid.
+- Codex comment: Agree; mark invalid in triage.
 
 ### Issue 19
 
-- Maintainer note: Valid.
+- Maintainer note: Acknowledged.
 - Codex comment: Agree; custom error improves debuggability and makes failures explicit.
 
 ### Issue 20
