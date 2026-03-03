@@ -623,6 +623,68 @@ contract UniversalDelegatorTest is Test {
         assertLe(allocatedAfter, allocatedBefore);
     }
 
+    function test_pendingWindow_afterSlash_keepsRecentPendingWhenOldPendingExpires() public {
+        bytes32 subnetwork = makeAddr("issue5-window-network").subnetwork(0);
+
+        _deposit(alice, 200);
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, 200);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot, alice, 200);
+        uint96 operatorSlot = networkSlot.createIndex(uint32(1));
+
+        vm.warp(1);
+        delegator.setSize(operatorSlot, 100);
+        vm.warp(2);
+        delegator.setSize(operatorSlot, 200);
+        vm.warp(3);
+        delegator.setSize(operatorSlot, 70);
+
+        assertEq(delegator.getPending(operatorSlot, 0), 130);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 130);
+
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, alice, 100, bytes(""));
+
+        assertEq(delegator.getPending(operatorSlot, 0), 30);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 30);
+
+        vm.warp(4);
+        assertEq(delegator.getPending(operatorSlot, 0), 30);
+        assertEq(delegator.getChildrenPending(networkSlot, 0), 30);
+    }
+
+    function test_noPluginsPendingWindow_afterSlash_keepsRecentPendingWhenOldPendingExpires() public {
+        bytes32 subnetwork = makeAddr("issue5-no-plugins-network").subnetwork(0);
+
+        _deposit(alice, 200);
+
+        uint96 noPluginsSubvault = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, noPluginsSubvault, false, false, 100);
+        delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 100);
+
+        vm.warp(1);
+        delegator.setSize(noPluginsSubvault, 0);
+        vm.warp(2);
+        delegator.setSize(noPluginsSubvault, 100);
+        vm.warp(3);
+        delegator.setSize(noPluginsSubvault, 70);
+
+        assertEq(delegator.getPending(noPluginsSubvault, 0), 130);
+        assertEq(delegator.getNoPluginsSize(), 200);
+
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, alice, 100, bytes(""));
+
+        assertEq(delegator.getPending(noPluginsSubvault, 0), 30);
+        assertEq(delegator.getNoPluginsSize(), 100);
+
+        vm.warp(4);
+        assertEq(delegator.getPending(noPluginsSubvault, 0), 30);
+        assertEq(delegator.getNoPluginsSize(), 100);
+    }
+
     function test_sharedSubvault_allowsNetworkRestaking_betweenDepth2Siblings() public {
         _deposit(alice, 100);
 

@@ -82,9 +82,9 @@ contract UniversalDelegator is
         Checkpoints.Trace208 firstChild;
         Checkpoints.Trace208 needPrevSumsSync;
         Checkpoints.Trace208 pendingCumulative;
-        Checkpoints.Trace208 clearedPendingCumulative;
+        Checkpoints.Trace208 clearedPendingCursor;
         Checkpoints.Trace208 childrenPendingCumulative;
-        Checkpoints.Trace208 clearedChildrenPendingCumulative;
+        Checkpoints.Trace208 clearedChildrenPendingCursor;
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -107,7 +107,7 @@ contract UniversalDelegator is
     /// @dev Cumulative pending no-plugins amounts.
     Checkpoints.Trace208 internal _noPluginsPendingCumulative;
     /// @dev Cumulative cleared pending no-plugins amounts.
-    Checkpoints.Trace208 internal _clearedNoPluginsPendingCumulative;
+    Checkpoints.Trace208 internal _clearedNoPluginsPendingCursor;
     /// @dev Maximum network limit per subnetwork.
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _maxNetworkLimit;
 
@@ -248,15 +248,12 @@ contract UniversalDelegator is
             uint48 fromTimestamp = uint48(
                 uint256(timestamp).saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration))
             );
-            return uint208(
-                uint256(
-                        slot.childrenPendingCumulative.upperLookupRecent(timestamp)
-                            - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
-                    .saturatingSub(
-                        slot.clearedChildrenPendingCumulative.upperLookupRecent(timestamp)
-                            - slot.clearedChildrenPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
+            return slot.childrenPendingCumulative.upperLookupRecent(timestamp)
+                - uint208(
+                Math.max(
+                slot.clearedChildrenPendingCursor.upperLookupRecent(timestamp),
+                slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
+            )
             );
         }
     }
@@ -267,15 +264,12 @@ contract UniversalDelegator is
             SlotStorage storage slot = slots[index];
             uint48 fromTimestamp =
                 uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration)));
-            return uint208(
-                uint256(
-                        slot.childrenPendingCumulative.latest()
-                            - slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
-                    .saturatingSub(
-                        slot.clearedChildrenPendingCumulative.latest()
-                            - slot.clearedChildrenPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
+            return slot.childrenPendingCumulative.latest()
+                - uint208(
+                Math.max(
+                slot.clearedChildrenPendingCursor.latest(),
+                slot.childrenPendingCumulative.upperLookupRecent(fromTimestamp)
+            )
             );
         }
     }
@@ -287,15 +281,12 @@ contract UniversalDelegator is
             uint48 fromTimestamp = uint48(
                 uint256(timestamp).saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration))
             );
-            return uint208(
-                uint256(
-                        slot.pendingCumulative.upperLookupRecent(timestamp)
-                            - slot.pendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
-                    .saturatingSub(
-                        slot.clearedPendingCumulative.upperLookupRecent(timestamp)
-                            - slot.clearedPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
+            return slot.pendingCumulative.upperLookupRecent(timestamp)
+                - uint208(
+                Math.max(
+                slot.clearedPendingCursor.upperLookupRecent(timestamp),
+                slot.pendingCumulative.upperLookupRecent(fromTimestamp)
+            )
             );
         }
     }
@@ -306,12 +297,9 @@ contract UniversalDelegator is
             SlotStorage storage slot = slots[index];
             uint48 fromTimestamp =
                 uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration)));
-            return uint208(
-                uint256(slot.pendingCumulative.latest() - slot.pendingCumulative.upperLookupRecent(fromTimestamp))
-                    .saturatingSub(
-                        slot.clearedPendingCumulative.latest()
-                            - slot.clearedPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
+            return slot.pendingCumulative.latest()
+                - uint208(
+                Math.max(slot.clearedPendingCursor.latest(), slot.pendingCumulative.upperLookupRecent(fromTimestamp))
             );
         }
     }
@@ -842,13 +830,18 @@ contract UniversalDelegator is
                 // Do not clear slot's pending because the slot will be completely removed anyway.
 
                 // Clear parent's children-pending for slot.
-                parent.clearedChildrenPendingCumulative
-                    .push(uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pending);
+                parent.clearedChildrenPendingCursor
+                    .push(
+                        uint48(block.timestamp),
+                        _getPendingCursor(parent.childrenPendingCumulative, parent.clearedChildrenPendingCursor)
+                            + pending
+                    );
 
                 // Clear no-plugins pending.
                 if (slot.noPlugins) {
-                    _clearedNoPluginsPendingCumulative.push(
-                        uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pending
+                    _clearedNoPluginsPendingCursor.push(
+                        uint48(block.timestamp),
+                        _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor) + pending
                     );
                 }
             }
@@ -890,19 +883,26 @@ contract UniversalDelegator is
                 uint208 pendingSlashed = uint208(Math.min(getPending(index, 0), amount));
                 if (pendingSlashed > 0) {
                     // Clear slot's pending.
-                    slot.clearedPendingCumulative
-                        .push(uint48(block.timestamp), slot.clearedPendingCumulative.latest() + pendingSlashed);
+                    slot.clearedPendingCursor
+                        .push(
+                            uint48(block.timestamp),
+                            _getPendingCursor(slot.pendingCumulative, slot.clearedPendingCursor) + pendingSlashed
+                        );
 
                     // Clear parent's children-pending.
-                    parent.clearedChildrenPendingCumulative
+                    parent.clearedChildrenPendingCursor
                         .push(
-                            uint48(block.timestamp), parent.clearedChildrenPendingCumulative.latest() + pendingSlashed
+                            uint48(block.timestamp),
+                            _getPendingCursor(parent.childrenPendingCumulative, parent.clearedChildrenPendingCursor)
+                                + pendingSlashed
                         );
 
                     // Clear no-plugins pending.
                     if (index.getDepth() == 1 && slot.noPlugins) {
-                        _clearedNoPluginsPendingCumulative.push(
-                            uint48(block.timestamp), _clearedNoPluginsPendingCumulative.latest() + pendingSlashed
+                        _clearedNoPluginsPendingCursor.push(
+                            uint48(block.timestamp),
+                            _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor)
+                                + pendingSlashed
                         );
                     }
                 }
@@ -1045,17 +1045,27 @@ contract UniversalDelegator is
     function _getNoPluginsPending() internal view returns (uint208) {
         unchecked {
             uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
-            return uint208(
-                uint256(
-                        _noPluginsPendingCumulative.latest()
-                            - _noPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
-                    .saturatingSub(
-                        _clearedNoPluginsPendingCumulative.latest()
-                            - _clearedNoPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
-                    )
+            return _noPluginsPendingCumulative.latest()
+                - uint208(
+                Math.max(
+                _clearedNoPluginsPendingCursor.latest(), _noPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
+            )
             );
         }
+    }
+
+    function _getPendingCursor(
+        Checkpoints.Trace208 storage pendingCumulative,
+        Checkpoints.Trace208 storage clearedCursor
+    ) internal view returns (uint208) {
+        return uint208(
+            Math.max(
+                clearedCursor.latest(),
+                pendingCumulative.upperLookupRecent(
+                    uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration()))
+                )
+            )
+        );
     }
 
     /// @dev Return storage pointer to the withdrawal buffer slot.

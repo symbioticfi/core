@@ -22,7 +22,7 @@
 
 ### Issue 5
 
-- Maintainer note: Valid (underreport is real), but the original recommendation in the finding is not correct.
+- Maintainer note: Can be valid, but need to verify deeply (underreport seems not so bad as overreport).
 - Codex comment: Repro sketch (window = `epochDuration`): add pending 100 at `t=0`, add pending 30 at `t=50`, clear 100 at `t=80`, then at `t=110` the add at `t=0` is out-of-window while the clear at `t=80` is still in-window, so `getPending(..., 0)` can report `0` even though `30` is still pending. Fix direction is to attribute clears to add-time buckets (FIFO queue or time buckets), otherwise a rolling-window delta of clears will inevitably “outlive” some adds.
 
 ### Issue 6
