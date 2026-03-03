@@ -2291,6 +2291,26 @@ contract UniversalDelegatorTest is Test {
         delegator.removeSlot(slot);
     }
 
+    function test_removeSlot_lastRootSubvault_resetsWithdrawalBufferPrevSum() public {
+        delegator.grantRole(REMOVE_SLOT_ROLE, owner);
+
+        _deposit(alice, 100);
+        _createSlot(0, false, 100);
+        uint96 slot = _rootIndex(uint32(1));
+
+        assertEq(delegator.getWithdrawalBuffer(), 0);
+
+        _withdraw(alice, 100);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        assertEq(delegator.getAllocated(slot, 0), 0);
+
+        delegator.removeSlot(slot);
+        assertFalse(delegator.getSlot(slot).exists);
+
+        _deposit(alice, 100);
+        assertEq(delegator.getWithdrawalBuffer(), 100);
+    }
+
     function test_removeSlot_clearsNetworkAndOperatorAssignments() public {
         delegator.grantRole(REMOVE_SLOT_ROLE, owner);
         _createSlot(0, false, 100);
@@ -2335,6 +2355,34 @@ contract UniversalDelegatorTest is Test {
         delegator.removeSlot(noPluginsSubvault);
         assertFalse(delegator.getSlot(noPluginsSubvault).exists);
         assertEq(delegator.getNoPluginsSize(), 0);
+    }
+
+    function test_resetAllocation_lastRootSubvault_keepsWithdrawalBufferConsistent() public {
+        address network = makeAddr("reset-last-subvault-network");
+        address middleware = makeAddr("reset-last-subvault-middleware");
+        _registerNetwork(network, middleware);
+        bytes32 subnetwork = network.subnetwork(0);
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _deposit(alice, 100);
+        uint96 subvault = delegator.createSlot(bytes32(0), 0, false, false, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, subvault, false, false, 100);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), networkSlot);
+        assertEq(delegator.getWithdrawalBuffer(), 0);
+
+        _withdraw(alice, 100);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        assertEq(delegator.getAllocated(networkSlot, 0), 0);
+
+        vm.prank(middleware);
+        delegator.resetAllocation(subnetwork);
+
+        assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
+        assertFalse(delegator.getSlot(subvault).exists);
+
+        _deposit(alice, 100);
+        assertEq(delegator.getWithdrawalBuffer(), 100);
     }
 
     function test_resetAllocation_revertsUnauthorizedAndNotAssigned() public {

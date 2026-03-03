@@ -32,7 +32,7 @@
 
 ### Issue 7
 
-- Maintainer note: Valid, but not Medium (registration is just permissionless call of single function, so even registered network can not be able to slash).
+- Maintainer note: Acknowledged (registration is just permissionless call of single function, so even registered network can not be able to slash).
 - Codex comment: Agree on downgrading severity: since curator controls slot creation and slashing is middleware-gated, this is primarily consistency/cleanliness unless other invariants rely on registry membership.
 
 ### Issue 8
@@ -47,8 +47,8 @@
 
 ### Issue 10
 
-- Maintainer note: Valid, but seems easier to remove this "slotExists" check for consistency (not sure regarding Medium though; only non-affecting anything actions are possible on such slots).
-- Codex comment: I would not remove `slotExists` broadly; it prevents accidental mutation of inactive indices. The safer direction is parent-liveness checks and/or making `resetAllocation/removeSlot` clean descendants so orphaned-but-`exists=true` slots don’t remain reachable.
+- Maintainer note: Acknowledged / Invalid.
+- Codex comment:
 
 ### Issue 11
 

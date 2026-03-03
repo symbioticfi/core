@@ -203,6 +203,8 @@ Generated: 2026-03-02 08:36:29 +04
 
 - IDs: 47
 - Sources: FINDINGS2.json
+- Status: acknowledged
+- Accepted: true
 - Affected: src/contracts/delegator/UniversalDelegator.sol:511-516
 
 ### Description
@@ -314,6 +316,8 @@ Generated: 2026-03-02 08:36:29 +04
 
 - IDs: 1
 - Sources: FINDINGS2.json
+- Status: acknowledged, invalid
+- Accepted: false
 - Affected: src/contracts/delegator/UniversalDelegator.sol:756-758,790-791
 
 ### Description

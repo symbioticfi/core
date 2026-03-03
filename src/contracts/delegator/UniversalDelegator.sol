@@ -768,6 +768,9 @@ contract UniversalDelegator is
                 slots[index.getParentIndex().createIndex(uint32(slot.nextSlot.latest()))].prevSlot = slot.prevSlot;
             }
             --parent.existChildren;
+            if (index.getDepth() == 1 && parent.existChildren == 0) {
+                _withdrawalBufferSlot().prevSum.push(uint48(block.timestamp), 0);
+            }
             slot.exists = false;
         }
     }
@@ -854,7 +857,7 @@ contract UniversalDelegator is
             if (slotSize > 0) {
                 // Clear slot's size.
                 slot.size.push(uint48(block.timestamp), 0);
-                if (index.getDepth() != 2 || !parent.isShared) {
+                if (index.getDepth() == 1 || !parent.isShared) {
                     parent.needPrevSumsSync.push(uint48(block.timestamp), 1);
                 }
 
