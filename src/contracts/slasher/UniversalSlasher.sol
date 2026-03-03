@@ -29,10 +29,10 @@ import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol
 /// @notice Contract for slash request lifecycle, resolver updates, and owed slash synchronization.
 contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IUniversalSlasher {
     using Math for uint256;
-    using Checkpoints for Checkpoints.Trace208;
-    using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Checkpoints for Checkpoints.Trace208;
+    using Checkpoints for Checkpoints.Trace256;
 
     /* IMMUTABLES */
 

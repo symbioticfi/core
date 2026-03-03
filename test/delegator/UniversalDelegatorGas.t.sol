@@ -349,7 +349,7 @@ contract UniversalDelegatorGasTest is Test {
                 uint96 networkIdentifier = uint96(networkIndex + 1);
                 bytes32 subnetwork = network.subnetwork(networkIdentifier);
                 vm.prank(network);
-                delegator.setMaxNetworkLimit(networkIdentifier, NETWORK_SIZE);
+                delegator.setMaxNetworkLimit(networkIdentifier, type(uint256).max);
 
                 uint96 networkSlot = delegator.createSlot(subnetwork, subvaultSlot, false, false, NETWORK_SIZE);
 

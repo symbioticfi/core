@@ -7,12 +7,12 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call           | Hints |             Gas |
 | -------------- | ----- | --------------: |
-| `stakeForAt` | no | 178,890 ($0.04) |
-| `stakeForAt` | yes | 178,890 ($0.04) |
-| `requestSlash` | no | 295,381 ($0.06) |
-| `requestSlash` | yes | 295,381 ($0.06) |
-| `executeSlash` | no | 449,917 ($0.10) |
-| `executeSlash` | yes | 449,917 ($0.10) |
+| `stakeForAt` | no | 184,152 ($0.04) |
+| `stakeForAt` | yes | 184,152 ($0.04) |
+| `requestSlash` | no | 295,361 ($0.06) |
+| `requestSlash` | yes | 295,361 ($0.06) |
+| `executeSlash` | no | 449,897 ($0.10) |
+| `executeSlash` | yes | 449,897 ($0.10) |
 
 Notes:
 
@@ -32,7 +32,7 @@ Immediate child calls of `UniversalSlasher::executeSlash` from the trace (inclus
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,569 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 0 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 284,363 ($0.06) | heavy path (read-only) |
+| `UniversalSlasher::slashableStake` | 284,343 ($0.06) | heavy path (read-only) |
 | `VaultV2::delegator` (via proxy) | 861 ($0.00) | delegator address lookup |
 | `UniversalDelegator::onSlash` | 67,675 ($0.01) | delegator hook |
 | `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 861 ($0.00) | delegator address lookup |
@@ -51,7 +51,7 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 | `UniversalSlasher::slashRequests` | 11,131 ($0.00) | load slash request |
 | `UniversalSlasher::_checkNetworkMiddleware` | 5,569 ($0.00) | middleware check |
 | `VaultV2::epochDuration` (via proxy) | 0 ($0.00) | reads epoch duration |
-| `UniversalSlasher::slashableStake` | 284,363 ($0.06) | higher due to hint decoding/usage |
+| `UniversalSlasher::slashableStake` | 284,343 ($0.06) | higher due to hint decoding/usage |
 | `VaultV2::delegator` (via proxy) | 861 ($0.00) | delegator address lookup |
 | `UniversalDelegator::onSlash` | 67,675 ($0.01) | delegator hook |
 | `VaultV2::delegator` (via proxy, for getIsNoPlugins) | 861 ($0.00) | delegator address lookup |

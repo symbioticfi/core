@@ -40,6 +40,11 @@ interface IUniversalDelegator {
     error AlreadyAssigned();
 
     /**
+     * @notice Raised when a maximum network limit is already set.
+     */
+    error AlreadySet();
+
+    /**
      * @notice Raised when there is not enough gas for the hook call.
      */
     error InsufficientHookGas();
@@ -100,9 +105,9 @@ interface IUniversalDelegator {
     error NotVault();
 
     /**
-     * @notice Raised when the provided maximum network limit is too low.
+     * @notice Raised when the provided maximum network limit is not 2^256-1.
      */
-    error LimitTooLow();
+    error LimitNotUint256Max();
 
     /**
      * @notice Raised when the connected vault version is older than required.
@@ -538,7 +543,7 @@ interface IUniversalDelegator {
      * @return limit Maximum possible uint256 value.
      * @dev The function changed its behavior:
      *      - it is nullified once the subnetwork is removed/reset,
-     *      - it returns maximum 2^208-1 even if 2^256-1 was set.
+     *      - it returns either 0 or 2^208-1 if set.
      */
     function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256 limit);
 
@@ -631,9 +636,9 @@ interface IUniversalDelegator {
      * @notice Set the maximum limit for a subnetwork.
      * @param identifier Subnetwork identifier.
      * @param amount New maximum limit.
-     * @dev Max network limit changed its behavior:
-     *      - it is nullified once the subnetwork is removed/reset,
-     *      - it returns the maximum limit to 2^208-1 even if 2^256-1 was set.
+     * @dev This function changed its behavior:
+     *      - it accepts only 2^256-1 once setting the maximum limit,
+     *      - the max network limit can be reset only via `resetAllocation()`.
      */
     function setMaxNetworkLimit(uint96 identifier, uint256 amount) external;
 }

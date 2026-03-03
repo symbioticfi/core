@@ -22,20 +22,20 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Request slash gas | Execute slash gas |
 | --- | ---: | ---: |
-| 1st | 316,971 ($0.07) | 563,163 ($0.12) |
-| 2nd | 295,358 ($0.06) | 449,917 ($0.10) |
+| 1st | 316,951 ($0.07) | 563,143 ($0.12) |
+| 2nd | 295,338 ($0.06) | 449,897 ($0.10) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
 | --- | ---: | ---: |
-| 1st | 295,470 ($0.06) | 608,497 ($0.13) |
-| 2nd | 158,046 ($0.03) | 299,139 ($0.07) |
+| 1st | 295,450 ($0.06) | 608,477 ($0.13) |
+| 2nd | 158,026 ($0.03) | 299,119 ($0.07) |
 
 ### Stake For Timestamp
 
 | Call | Stake gas |
 | --- | ---: |
-| Before slashing | 155,103 ($0.03) |
-| After slashing | 276,793 ($0.06) |
+| Before slashing | 155,083 ($0.03) |
+| After slashing | 276,773 ($0.06) |
 

@@ -45,12 +45,12 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 /// @title VaultV2
 /// @notice Contract for upgradeable vault collateral, withdrawals, plugins, and migrations.
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
+    using Math for uint256;
+    using SafeERC20 for address;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
     using CheckpointsV2 for CheckpointsV2.Trace208;
     using CheckpointsV2 for CheckpointsV2.Trace256;
-    using Math for uint256;
-    using SafeERC20 for address;
 
     /* MODIFIERS */
 

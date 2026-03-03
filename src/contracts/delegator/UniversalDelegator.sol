@@ -51,11 +51,11 @@ contract UniversalDelegator is
     ReentrancyGuardUpgradeable,
     IUniversalDelegator
 {
-    using UniversalDelegatorIndex for uint96;
-    using Checkpoints for Checkpoints.Trace208;
     using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using UniversalDelegatorIndex for uint96;
+    using Checkpoints for Checkpoints.Trace208;
 
     /* IMMUTABLES */
 
@@ -193,12 +193,14 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        return getAllocatedAt(subnetwork, operator, duration, timestamp);
+        return _maxNetworkLimit[subnetwork].upperLookupRecent(timestamp) > 0
+            ? getAllocatedAt(subnetwork, operator, duration, timestamp)
+            : 0;
     }
 
     /// @inheritdoc IUniversalDelegator
     function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
-        return Math.min(getAllocated(subnetwork, operator, duration), _maxNetworkLimit[subnetwork].latest());
+        return _maxNetworkLimit[subnetwork].latest() > 0 ? getAllocated(subnetwork, operator, duration) : 0;
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -208,12 +210,10 @@ contract UniversalDelegator is
         returns (uint256)
     {
         if (timestamp < __migrateTimestamp) {
+            // Legacy support.
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
-        return Math.min(
-            getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration(), timestamp),
-            _maxNetworkLimit[subnetwork].upperLookupRecent(timestamp)
-        );
+        return getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration(), timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -458,6 +458,10 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function maxNetworkLimit(bytes32 subnetwork) public view returns (uint256) {
+        if (_maxNetworkLimit[subnetwork].length() == 0 && __migrateTimestamp > 0) {
+            // Legacy support.
+            return IBaseDelegator(__oldDelegator).maxNetworkLimit(subnetwork) > 0 ? type(uint208).max : 0;
+        }
         return _maxNetworkLimit[subnetwork].latest();
     }
 
@@ -531,6 +535,16 @@ contract UniversalDelegator is
                 }
                 _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
                 _slotToNetwork[index] = subnetworkOrOperator;
+
+                // Legacy support.
+                if (_maxNetworkLimit[subnetworkOrOperator].length() == 0 && __migrateTimestamp > 0) {
+                    _maxNetworkLimit[subnetworkOrOperator].push(
+                        uint48(block.timestamp),
+                        maxNetworkLimit(subnetworkOrOperator) > 0 && parentIndex.getChildIndex() == 1
+                            ? type(uint208).max
+                            : 0
+                    );
+                }
             } else if (parentIndex.getDepth() == 2) {
                 if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() > 0) {
                     revert AlreadyAssigned();
@@ -773,14 +787,14 @@ contract UniversalDelegator is
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
         }
-
-        amount = Math.min(amount, type(uint208).max);
         bytes32 subnetwork = (msg.sender).subnetwork(identifier);
-        if (amount <= _maxNetworkLimit[subnetwork].latest()) {
-            revert LimitTooLow();
+        if (maxNetworkLimit(subnetwork) > 0) {
+            revert AlreadySet();
         }
-
-        _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), uint208(amount));
+        if (amount < type(uint256).max) {
+            revert LimitNotUint256Max();
+        }
+        _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), type(uint208).max);
 
         emit SetMaxNetworkLimit(subnetwork, amount);
     }
