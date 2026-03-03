@@ -2320,6 +2320,23 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getSlotOfOperator(networkSlot1, alice), 0);
     }
 
+    function test_removeSlot_noPluginsSubvault_decrementsNoPluginsSize() public {
+        delegator.grantRole(REMOVE_SLOT_ROLE, owner);
+
+        _deposit(alice, 100);
+        uint96 noPluginsSubvault = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        assertEq(delegator.getNoPluginsSize(), 100);
+        assertEq(delegator.getAllocated(noPluginsSubvault, 0), 100);
+
+        _withdraw(alice, 100);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        assertEq(delegator.getAllocated(noPluginsSubvault, 0), 0);
+
+        delegator.removeSlot(noPluginsSubvault);
+        assertFalse(delegator.getSlot(noPluginsSubvault).exists);
+        assertEq(delegator.getNoPluginsSize(), 0);
+    }
+
     function test_resetAllocation_revertsUnauthorizedAndNotAssigned() public {
         address network = makeAddr("reset-network");
         address middleware = makeAddr("reset-middleware");

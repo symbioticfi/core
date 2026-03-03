@@ -734,7 +734,15 @@ contract UniversalDelegator is
             _slotToOperator[index] = address(0);
         }
 
+        // Clear no-plugins size.
+        SlotStorage storage slot = slots[index];
+        if (index.getDepth() == 1 && slot.noPlugins) {
+            _noPluginsSize -= slot.size.latest();
+        }
+
         _removeSlot(index);
+
+        emit RemoveSlot(index);
     }
 
     /// @dev Remove a slot from the linked-list structure and mark it as non-existent.
@@ -761,8 +769,6 @@ contract UniversalDelegator is
             }
             --parent.existChildren;
             slot.exists = false;
-
-            emit RemoveSlot(index);
         }
     }
 
