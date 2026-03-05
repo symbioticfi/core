@@ -33,8 +33,9 @@ import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 
 import {MockRewards} from "../mocks/MockRewards.sol";
 import {Token} from "../mocks/Token.sol";
+import {CoreV2StakeForInvariantHelper} from "../helpers/CoreV2StakeForInvariantHelper.sol";
 
-contract UniversalDelegatorGasTest is Test {
+contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
     using Subnetwork for address;
 
     uint48 internal constant EPOCH_DURATION = 16;
@@ -72,6 +73,7 @@ contract UniversalDelegatorGasTest is Test {
     bytes32 internal targetSubnetwork;
     address internal targetOperator;
     address internal nextOperator;
+    uint96[] internal operatorSlots;
 
     function setUp() public {
         owner = address(this);
@@ -257,6 +259,7 @@ contract UniversalDelegatorGasTest is Test {
         _deposit(owner, DEPOSIT_AMOUNT);
         _withdraw(owner, WITHDRAW_AMOUNT);
         _setupTopology();
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.warp(setupTimestamp + CAPTURE_OFFSET + 1);
     }
 
@@ -265,22 +268,29 @@ contract UniversalDelegatorGasTest is Test {
         bytes memory noHints = "";
 
         uint256 snapshot = vm.snapshotState();
+        _assertStakeForInvariantAcrossOperatorSlots();
         _measureIsolatedSequential("with_capture", timestamp, noHints);
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.revertToState(snapshot);
 
         _measureSingleTx("with_capture", timestamp, noHints, noHints);
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.revertToState(snapshot);
 
         _measureStakeForTimestamp("with_capture", timestamp, noHints, noHints);
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.revertToState(snapshot);
 
         _measureIsolatedSequential("no_capture", 0, noHints);
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.revertToState(snapshot);
 
         _measureSingleTx("no_capture", 0, noHints, noHints);
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.revertToState(snapshot);
 
         _measureStakeForTimestamp("no_capture", 0, noHints, noHints);
+        _assertStakeForInvariantAcrossOperatorSlots();
     }
 
     function _measureIsolatedSequential(string memory labelPrefix, uint48 captureTimestamp, bytes memory executeHints)
@@ -359,7 +369,9 @@ contract UniversalDelegatorGasTest is Test {
                             uint256(keccak256(abi.encodePacked("operator", subvaultIndex, networkIndex, operatorIndex)))
                         )
                     );
-                    delegator.createSlot(_operatorKey(operator), networkSlot, false, false, OPERATOR_SIZE);
+                    uint96 operatorSlot =
+                        delegator.createSlot(_operatorKey(operator), networkSlot, false, false, OPERATOR_SIZE);
+                    operatorSlots.push(operatorSlot);
 
                     if (subvaultIndex == 2 && networkIndex == 2 && operatorIndex == 9) {
                         targetSubnetwork = subnetwork;
@@ -372,6 +384,15 @@ contract UniversalDelegatorGasTest is Test {
                 }
             }
         }
+    }
+
+    function _assertStakeForInvariantAcrossOperatorSlots() internal view {
+        uint96[] memory slots = new uint96[](operatorSlots.length);
+        for (uint256 i = 0; i < operatorSlots.length; ++i) {
+            slots[i] = operatorSlots[i];
+        }
+
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), slots, EPOCH_DURATION);
     }
 
     function _setMiddleware(bytes32 subnetwork, address middleware_) internal {

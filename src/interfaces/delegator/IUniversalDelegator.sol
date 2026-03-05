@@ -158,7 +158,7 @@ interface IUniversalDelegator {
      * @param isShared Whether slot allocation is shared among children.
      * @param noPlugins Whether slot stake must stay outside plugins.
      * @param size Slot size value.
-     * @param prevSum Prefix sum of previous sibling sizes.
+     * @param prevSizeSum Prefix sum of previous sibling sizes.
      * @param subnetworkOrOperator Subnetwork or operator identifier or zero if not assigned.
      */
     struct Slot {
@@ -172,7 +172,7 @@ interface IUniversalDelegator {
         bool isShared;
         bool noPlugins;
         uint128 size;
-        uint208 prevSum;
+        uint208 prevSizeSum;
         bytes32 subnetworkOrOperator;
     }
 
@@ -356,26 +356,6 @@ interface IUniversalDelegator {
     function getSlot(uint96 index) external view returns (Slot memory slot);
 
     /**
-     * @notice Get children pending amount at a timestamp.
-     * @param index Parent slot index.
-     * @param duration Duration window.
-     * @param timestamp Lookup timestamp.
-     * @return pending Children pending amount.
-     */
-    function getChildrenPendingAt(uint96 index, uint48 duration, uint48 timestamp)
-        external
-        view
-        returns (uint208 pending);
-
-    /**
-     * @notice Get current children pending amount.
-     * @param index Parent slot index.
-     * @param duration Duration window.
-     * @return pending Children pending amount.
-     */
-    function getChildrenPending(uint96 index, uint48 duration) external view returns (uint208 pending);
-
-    /**
      * @notice Get slot pending amount at a timestamp.
      * @param index Slot index.
      * @param duration Duration window.
@@ -408,23 +388,6 @@ interface IUniversalDelegator {
      * @return balance Slot balance.
      */
     function getBalance(uint96 index, uint48 duration) external view returns (uint256 balance);
-
-    /**
-     * @notice Get available slot balance at a timestamp.
-     * @param index Slot index.
-     * @param duration Duration window.
-     * @param timestamp Lookup timestamp.
-     * @return available Available balance.
-     */
-    function getAvailableAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256 available);
-
-    /**
-     * @notice Get current available slot balance.
-     * @param index Slot index.
-     * @param duration Duration window.
-     * @return available Available balance.
-     */
-    function getAvailable(uint96 index, uint48 duration) external view returns (uint256 available);
 
     /**
      * @notice Get allocated amount for a slot index at a timestamp.

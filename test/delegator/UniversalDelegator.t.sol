@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {Test} from "forge-std/Test.sol";
+import {console2} from "forge-std/console2.sol";
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
@@ -63,6 +64,7 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
+import {CoreV2StakeForInvariantHelper} from "../helpers/CoreV2StakeForInvariantHelper.sol";
 
 contract UniversalDelegatorHookMock is IDelegatorHook {
     bytes32 public lastSubnetwork;
@@ -97,14 +99,6 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
         slots[index].exists = exists_;
     }
 
-    function setNeedPrevSumsSyncRaw(uint96 parentIndex, bool value) external {
-        slots[parentIndex].needPrevSumsSync.push(uint48(block.timestamp), value ? 1 : 0);
-    }
-
-    function needPrevSumsSyncRaw(uint96 parentIndex) external view returns (bool) {
-        return slots[parentIndex].needPrevSumsSync.latest() > 0;
-    }
-
     function setParentChildrenRaw(
         uint96 parentIndex,
         uint32 firstChild,
@@ -127,16 +121,10 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
         slots[index].size.push(key, size);
     }
 
-    function prevSumLatestRaw(uint96 index) external view returns (uint208) {
-        return slots[index].prevSum.latest();
-    }
-
     function exposeSlotExists(uint96 index) external slotExists(index) {}
-
-    function exposeSyncPrevSums(uint96 parentIndex) external syncPrevSums(parentIndex) {}
 }
 
-contract UniversalDelegatorTest is Test {
+contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     using UniversalDelegatorIndex for uint96;
     using Subnetwork for address;
 
@@ -168,6 +156,18 @@ contract UniversalDelegatorTest is Test {
     IUniversalSlasher internal slasher;
     uint96 internal dummyNetworkId;
     uint160 internal dummyOperatorId;
+
+    struct StakeTimelineSnapshot {
+        uint48 timestamp;
+        uint256 activeStake;
+        uint256 activeWithdrawals0;
+        uint256 activeWithdrawals1;
+        uint256 activeWithdrawalsEpoch;
+        uint256 stakeFor0;
+        uint256 stakeFor1;
+        uint256 stakeForMaxDuration;
+        uint256 stakeForEpoch;
+    }
 
     function setUp() public {
         vm.warp(0);
@@ -364,7 +364,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(7);
         delegator.setSize(slot1, 20);
         assertEq(delegator.getAllocatedAt(slot1, 0, 7), 30);
-        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION, 9), 20);
+        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION - 1, 9), 20);
+        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION, 9), 0);
     }
 
     function test_createSlot_root_allowsDepth1() public {
@@ -501,13 +502,11 @@ contract UniversalDelegatorTest is Test {
         delegator.setSize(slot1, 40);
 
         vm.warp(2);
-        assertEq(delegator.getAvailable(0, 0), 80);
         assertEq(delegator.getAllocated(slot1, 0), 60);
         assertEq(delegator.getAllocated(slot2, 0), 30);
-        assertEq(_unallocated2(0, slot1, slot2), 0);
+        assertEq(_unallocated2(0, slot1, slot2), 10);
 
         vm.warp(4);
-        assertEq(delegator.getAvailable(0, 0), 100);
         assertEq(delegator.getAllocated(slot1, 0), 40);
         assertEq(delegator.getAllocated(slot2, 0), 30);
         assertEq(_unallocated2(0, slot1, slot2), 30);
@@ -532,23 +531,15 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(networkSlot, 222);
 
-        assertEq(delegator.getAvailable(subvault, 0), 333);
+        assertEq(delegator.getPending(networkSlot, 0), 222);
         assertEq(delegator.getAllocated(networkSlot, 0), 444);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
 
         vm.warp(2);
         delegator.setSize(operatorSlot, 222);
 
-        assertEq(delegator.getAvailable(networkSlot, 0), 222);
+        assertEq(delegator.getPending(operatorSlot, 0), 222);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
-
-        uint256 subvaultPending = delegator.getBalance(subvault, 0) - delegator.getAvailable(subvault, 0);
-        uint256 networkPending = delegator.getBalance(networkSlot, 0) - delegator.getAvailable(networkSlot, 0);
-        uint256 operatorPending = delegator.getBalance(operatorSlot, 0) - delegator.getAvailable(operatorSlot, 0);
-
-        assertEq(subvaultPending, 222);
-        assertEq(networkPending, 222);
-        assertEq(operatorPending, 0);
     }
 
     function test_childrenPending_accumulatesOnRepeatedOperatorDecrease() public {
@@ -566,20 +557,15 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(operatorSlot, 222);
 
-        uint256 pendingAfterFirst = delegator.getBalance(networkSlot, 0) - delegator.getAvailable(networkSlot, 0);
-        assertEq(pendingAfterFirst, 222);
+        assertEq(delegator.getPending(operatorSlot, 0), 222);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
 
         vm.warp(2);
         delegator.setSize(operatorSlot, 0);
 
-        uint256 pendingAfterSecond = delegator.getBalance(networkSlot, 0) - delegator.getAvailable(networkSlot, 0);
-        assertEq(pendingAfterSecond, 444);
+        assertEq(delegator.getPending(operatorSlot, 0), 444);
         assertEq(delegator.getAllocated(networkSlot, 0), 444);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
-
-        uint256 subvaultPending = delegator.getBalance(subvault, 0) - delegator.getAvailable(subvault, 0);
-        assertEq(subvaultPending, 0);
     }
 
     function test_getAvailableAt_pendingHints_matchNoHintPath() public {
@@ -603,23 +589,19 @@ contract UniversalDelegatorTest is Test {
 
         uint48 timestampBeforeSlash = uint48(block.timestamp);
         uint208 pendingBefore = delegator.getPendingAt(operatorSlot, 0, timestampBeforeSlash);
-        uint208 childrenPendingBefore = delegator.getChildrenPendingAt(networkSlot, 0, timestampBeforeSlash);
-        uint256 availableBefore = delegator.getAvailableAt(networkSlot, 0, timestampBeforeSlash);
+        uint256 balanceBefore = delegator.getBalanceAt(networkSlot, 0, timestampBeforeSlash);
         uint256 allocatedBefore = delegator.getAllocatedAt(operatorSlot, 0, timestampBeforeSlash);
         assertGt(pendingBefore, 0);
-        assertGt(childrenPendingBefore, 0);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 20, bytes(""));
         uint48 timestampAfterSlash = uint48(block.timestamp);
         uint208 pendingAfter = delegator.getPendingAt(operatorSlot, 0, timestampAfterSlash);
-        uint208 childrenPendingAfter = delegator.getChildrenPendingAt(networkSlot, 0, timestampAfterSlash);
-        uint256 availableAfter = delegator.getAvailableAt(networkSlot, 0, timestampAfterSlash);
+        uint256 balanceAfter = delegator.getBalanceAt(networkSlot, 0, timestampAfterSlash);
         uint256 allocatedAfter = delegator.getAllocatedAt(operatorSlot, 0, timestampAfterSlash);
 
         assertLe(pendingAfter, pendingBefore);
-        assertLe(childrenPendingAfter, childrenPendingBefore);
-        assertLe(availableAfter, availableBefore);
+        assertLe(balanceAfter, balanceBefore);
         assertLe(allocatedAfter, allocatedBefore);
     }
 
@@ -642,17 +624,14 @@ contract UniversalDelegatorTest is Test {
         delegator.setSize(operatorSlot, 70);
 
         assertEq(delegator.getPending(operatorSlot, 0), 130);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 130);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 100, bytes(""));
 
         assertEq(delegator.getPending(operatorSlot, 0), 30);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 30);
 
         vm.warp(4);
         assertEq(delegator.getPending(operatorSlot, 0), 30);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 30);
     }
 
     function test_noPluginsPendingWindow_afterSlash_keepsRecentPendingWhenOldPendingExpires() public {
@@ -712,14 +691,14 @@ contract UniversalDelegatorTest is Test {
         uint96 net1 = subvault.createIndex(uint32(1));
         uint96 net2 = subvault.createIndex(uint32(2));
 
-        assertEq(delegator.getSlot(net1).prevSum, 0);
-        assertEq(delegator.getSlot(net2).prevSum, 0);
+        assertEq(delegator.getSlot(net1).prevSizeSum, 0);
+        assertEq(delegator.getSlot(net2).prevSizeSum, 0);
 
         vm.warp(1);
         delegator.setSize(net1, 60);
 
-        assertEq(delegator.getSlot(net1).prevSum, 0);
-        assertEq(delegator.getSlot(net2).prevSum, 0);
+        assertEq(delegator.getSlot(net1).prevSizeSum, 0);
+        assertEq(delegator.getSlot(net2).prevSizeSum, 0);
     }
 
     function test_sharedSubvault_setSizeDecreaseKeepsRequestedSlashExecutable() public {
@@ -753,6 +732,71 @@ contract UniversalDelegatorTest is Test {
 
         vm.prank(middleware);
         assertEq(slasher.executeSlash(slashIndex, ""), 90);
+    }
+
+    function test_sharedSubvault_sharedRisk_secondRequestCanBecomeUnexecutable() public {
+        address network1 = makeAddr("issue3-network1");
+        address network2 = makeAddr("issue3-network2");
+        address network3 = makeAddr("issue3-network3");
+        address middleware = makeAddr("issue3-middleware");
+        address operator3 = makeAddr("issue3-operator3");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerNetwork(network3, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _registerOperator(operator3);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+        _optIn(operator3, network3);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        bytes32 subnetwork3 = network3.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network3);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        _createSlot(0, false, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        uint96 isolatedSubvault = _rootIndex(uint32(2));
+
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(1)), alice, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(2)), bob, 10);
+
+        _createNetworkSlot(isolatedSubvault, subnetwork3, 10);
+        _createOperatorSlot(isolatedSubvault.createIndex(uint32(1)), operator3, 10);
+
+        _deposit(alice, 20);
+        vm.warp(1);
+
+        assertEq(delegator.stake(subnetwork1, alice), 10);
+        assertEq(delegator.stake(subnetwork2, bob), 10);
+        assertEq(delegator.stake(subnetwork3, operator3), 10);
+
+        vm.startPrank(middleware);
+        uint256 slashIndex1 = slasher.requestSlash(subnetwork1, alice, 10, 0, "");
+        uint256 slashIndex2 = slasher.requestSlash(subnetwork2, bob, 10, 0, "");
+        assertEq(slasher.executeSlash(slashIndex1, ""), 10);
+        vm.stopPrank();
+
+        // Shared-risk model: a slash in one network shrinks the shared parent and affects sibling stake.
+        assertEq(delegator.stake(subnetwork1, alice), 0);
+        assertEq(delegator.stake(subnetwork2, bob), 0);
+        assertEq(delegator.stake(subnetwork3, operator3), 10);
+
+        vm.prank(middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        slasher.executeSlash(slashIndex2, "");
+
+        assertEq(delegator.stake(subnetwork3, operator3), 10);
     }
 
     function test_depth3Operators_areIsolatedWithinNetwork() public {
@@ -822,16 +866,19 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(op1, 50);
 
+        vm.warp(2);
+        uint48 maxDuration = EPOCH_DURATION - 1;
         uint256 expectedWithPendingWindow = delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0);
-        uint256 expectedWithoutPendingWindow =
-            delegator.getAllocated(op1, EPOCH_DURATION) + delegator.getAllocated(op2, EPOCH_DURATION);
+        uint256 expectedWithMaxDurationWindow =
+            delegator.getAllocated(op1, maxDuration) + delegator.getAllocated(op2, maxDuration);
 
         assertEq(expectedWithPendingWindow, 200);
-        assertEq(expectedWithoutPendingWindow, 150);
+        assertEq(expectedWithMaxDurationWindow, 150);
         assertEq(delegator.getFilled(networkSlot, 0), expectedWithPendingWindow);
-        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), expectedWithoutPendingWindow);
+        assertEq(delegator.getFilled(networkSlot, maxDuration), expectedWithMaxDurationWindow);
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 0);
         assertEq(delegator.getFilled(networkSlot, 0), 200);
-        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 150);
+        assertEq(delegator.getFilled(networkSlot, maxDuration), 150);
     }
 
     function test_getFilled_numericTrace_multiDepthMultipleSizeChanges() public {
@@ -871,7 +918,7 @@ contract UniversalDelegatorTest is Test {
         // Decrease network size: allocation stays 500 due to pending=80.
         vm.warp(1);
         delegator.setSize(network1, 420);
-        assertEq(delegator.getChildrenPending(subvault1, 0), 80);
+        assertEq(delegator.getPending(network1, 0), 80);
         assertEq(delegator.getAllocated(network1, 0), 500);
         assertEq(delegator.getAllocated(network2, 0), 200);
         assertEq(delegator.getFilled(network1, 0), 500);
@@ -880,7 +927,6 @@ contract UniversalDelegatorTest is Test {
         vm.warp(2);
         delegator.setSize(op2, 120);
         assertEq(delegator.getPending(op2, 0), 60);
-        assertEq(delegator.getChildrenPending(network1, 0), 60);
         assertEq(delegator.getAllocated(op1, 0), 220);
         assertEq(delegator.getAllocated(op2, 0), 180);
         assertEq(delegator.getAllocated(op3, 0), 100);
@@ -894,7 +940,6 @@ contract UniversalDelegatorTest is Test {
         vm.warp(3);
         delegator.setSize(op3, 100);
         assertEq(delegator.getPending(op3, 0), 0);
-        assertEq(delegator.getChildrenPending(network1, 0), 60);
         assertEq(delegator.getAllocated(op3, 0), 100);
 
         // Attempting operator1 increase 220 -> 260 reverts in this state (no tail unallocated amount).
@@ -904,8 +949,8 @@ contract UniversalDelegatorTest is Test {
 
         // After pending windows expire, the same topology has lower filled amount.
         vm.warp(6);
-        assertEq(delegator.getChildrenPending(subvault1, 0), 0);
-        assertEq(delegator.getChildrenPending(network1, 0), 0);
+        assertEq(delegator.getPending(network1, 0), 0);
+        assertEq(delegator.getPending(op2, 0), 0);
         assertEq(delegator.getAllocated(network1, 0), 420);
         assertEq(delegator.getAllocated(op1, 0), 220);
         assertEq(delegator.getAllocated(op2, 0), 120);
@@ -950,22 +995,24 @@ contract UniversalDelegatorTest is Test {
         vm.warp(2);
         delegator.setSize(op1, 170);
         assertEq(delegator.getPending(op1, 0), 30);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 60);
+        assertEq(delegator.getPending(op1, 0) + delegator.getPending(op2, 0) + delegator.getPending(op3, 0), 60);
 
+        uint48 maxDuration = EPOCH_DURATION - 1;
         uint256 filledWithPending = delegator.getFilled(networkSlot, 0);
-        uint256 filledWithoutPending = delegator.getFilled(networkSlot, EPOCH_DURATION);
+        uint256 filledMaxDuration = delegator.getFilled(networkSlot, maxDuration);
         assertEq(
             filledWithPending,
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
         );
         assertEq(
-            filledWithoutPending,
-            delegator.getAllocated(op1, EPOCH_DURATION) + delegator.getAllocated(op2, EPOCH_DURATION)
-                + delegator.getAllocated(op3, EPOCH_DURATION)
+            filledMaxDuration,
+            delegator.getAllocated(op1, maxDuration) + delegator.getAllocated(op2, maxDuration)
+                + delegator.getAllocated(op3, maxDuration)
         );
-        assertGe(filledWithPending, filledWithoutPending);
+        assertGe(filledWithPending, filledMaxDuration);
         assertEq(filledWithPending, 400);
-        assertEq(filledWithoutPending, 400);
+        assertEq(filledMaxDuration, 400);
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 0);
 
         vm.warp(3);
         _withdraw(alice, 100);
@@ -977,14 +1024,16 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getFilled(networkSlot, 0), 400);
 
         vm.warp(EPOCH_DURATION + 4);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 0);
+        assertEq(delegator.getPending(op1, 0), 0);
+        assertEq(delegator.getPending(op2, 0), 0);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
         );
         assertEq(delegator.getFilled(networkSlot, 0), 380);
-        assertEq(delegator.getFilled(networkSlot, 0), delegator.getFilled(networkSlot, EPOCH_DURATION));
-        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 380);
+        assertEq(delegator.getFilled(networkSlot, 0), delegator.getFilled(networkSlot, maxDuration));
+        assertEq(delegator.getFilled(networkSlot, maxDuration), 380);
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 0);
     }
 
     function test_getFilled_invariant_afterSwapsResizesAndStakeChanges() public {
@@ -1020,7 +1069,6 @@ contract UniversalDelegatorTest is Test {
         vm.warp(2);
         delegator.setSize(op3, 70);
         assertEq(delegator.getPending(op3, 0), 30);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 30);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
@@ -1045,14 +1093,16 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getFilled(networkSlot, 0), 300);
 
         vm.warp(EPOCH_DURATION + 5);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 0);
+        assertEq(delegator.getPending(op3, 0), 0);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
         );
         assertEq(delegator.getFilled(networkSlot, 0), 230);
-        assertEq(delegator.getFilled(networkSlot, 0), delegator.getFilled(networkSlot, EPOCH_DURATION));
-        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 230);
+        uint48 maxDuration = EPOCH_DURATION - 1;
+        assertEq(delegator.getFilled(networkSlot, 0), delegator.getFilled(networkSlot, maxDuration));
+        assertEq(delegator.getFilled(networkSlot, maxDuration), 230);
+        assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 0);
     }
 
     struct Test_GetFilledInvariantAfterSlashingResetRemovalStruct {
@@ -1247,12 +1297,10 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(slot1, 30);
 
-        assertEq(delegator.getAvailable(0, 0), 60);
         assertEq(delegator.getAllocated(slot1, 0), 70);
         assertEq(delegator.getAllocated(slot2, 0), 30);
 
         vm.warp(1 + EPOCH_DURATION);
-        assertEq(delegator.getAvailable(0, 0), 100);
         assertEq(delegator.getAllocated(slot1, 0), 30);
         assertEq(delegator.getAllocated(slot2, 0), 70);
     }
@@ -1521,7 +1569,7 @@ contract UniversalDelegatorTest is Test {
             _withdraw(alice, withdraw);
         }
 
-        uint256 available = delegator.getAvailable(0, 0);
+        uint256 available = delegator.getBalance(0, 0);
         uint256 expected1 = available < cap1 ? available : cap1;
         uint256 remaining = available > cap1 ? available - cap1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
@@ -1542,7 +1590,7 @@ contract UniversalDelegatorTest is Test {
 
         _deposit(alice, amount);
 
-        uint256 available = delegator.getAvailable(0, 0);
+        uint256 available = delegator.getBalance(0, 0);
         uint256 expected1 = available < cap1 ? available : cap1;
         uint256 remaining = available > cap1 ? available - cap1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
@@ -1568,7 +1616,7 @@ contract UniversalDelegatorTest is Test {
 
         _deposit(alice, amount);
 
-        uint256 available = delegator.getAvailable(subvault, 0);
+        uint256 available = delegator.getBalance(subvault, 0);
         uint256 expected1 = available < cap1 ? available : cap1;
         uint256 remaining = available > expected1 ? available - expected1 : 0;
         uint256 expected2 = remaining < cap2 ? remaining : cap2;
@@ -1989,7 +2037,7 @@ contract UniversalDelegatorTest is Test {
         delegator.swapSlots(slot1, slot2);
     }
 
-    function test_swapSlots_revertsPartiallyAllocated() public {
+    function test_swapSlots_revertsPartiallyAllocated_whenPartiallyAllocatedAtDurationZero() public {
         _deposit(alice, 70);
 
         _createSlot(0, false, 100);
@@ -2004,7 +2052,26 @@ contract UniversalDelegatorTest is Test {
         delegator.swapSlots(slot1, slot2);
     }
 
-    function test_getAvailableAt_doesNotUnderflowForSmallTimestamps() public {
+    function test_swapSlots_allowsWhenPendingExistsInMaxDurationWindow() public {
+        _deposit(alice, 100);
+
+        _createSlot(0, false, 50);
+        _createSlot(0, false, 50);
+        uint96 slot1 = _rootIndex(uint32(1));
+        uint96 slot2 = _rootIndex(uint32(2));
+
+        // Pending withdrawals are still included for maxDuration = epochDuration - 1,
+        // so the slot is treated as fully allocated in that window.
+        _withdraw(alice, 30);
+        assertEq(delegator.getBalance(0, 0), 100);
+        assertEq(delegator.getBalance(0, EPOCH_DURATION - 1), 100);
+
+        delegator.swapSlots(slot1, slot2);
+        assertEq(delegator.getAllocated(slot1, 0), 50);
+        assertEq(delegator.getAllocated(slot2, 0), 50);
+    }
+
+    function test_getPendingAt_doesNotUnderflowForSmallTimestamps() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 60);
@@ -2013,8 +2080,8 @@ contract UniversalDelegatorTest is Test {
         vm.warp(1);
         delegator.setSize(slot1, 40);
 
-        assertEq(delegator.getAvailableAt(0, EPOCH_DURATION, 2), 100);
-        assertEq(delegator.getAvailableAt(0, EPOCH_DURATION, 4), 100);
+        assertEq(delegator.getPendingAt(slot1, 0, 2), 20);
+        assertEq(delegator.getPendingAt(slot1, 0, 4), 0);
     }
 
     function test_miscViewsAndMaxNetworkLimitMethods() public {
@@ -2067,7 +2134,7 @@ contract UniversalDelegatorTest is Test {
         delegator.setSize(_rootIndex(uint32(1)), 1);
     }
 
-    function test_modifiers_slotExistsAndSyncPrevSums_harness() public {
+    function test_modifier_slotExists_harness() public {
         UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
 
         vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
@@ -2075,35 +2142,6 @@ contract UniversalDelegatorTest is Test {
 
         harness.setSlotExistsRaw(_rootIndex(uint32(1)), true);
         harness.exposeSlotExists(_rootIndex(uint32(1)));
-
-        harness.setNeedPrevSumsSyncRaw(0, true);
-        harness.exposeSyncPrevSums(0);
-        assertFalse(harness.needPrevSumsSyncRaw(0));
-    }
-
-    function test_modifiers_syncPrevSums_harness_withChildren() public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
-
-        uint96 parent = _rootIndex(uint32(1));
-        uint96 child1 = parent.createIndex(uint32(1));
-        uint96 child2 = parent.createIndex(uint32(2));
-
-        harness.setSlotExistsRaw(parent, true);
-        harness.setSlotExistsRaw(child1, true);
-        harness.setSlotExistsRaw(child2, true);
-
-        harness.setParentChildrenRaw(parent, 1, 2, 2, 2);
-        harness.setSlotLinksRaw(child1, 0, 2);
-        harness.setSlotLinksRaw(child2, 1, 0);
-        harness.pushSizeRaw(child1, 1, 5);
-        harness.pushSizeRaw(child2, 1, 7);
-        harness.setNeedPrevSumsSyncRaw(parent, true);
-
-        harness.exposeSyncPrevSums(parent);
-
-        assertFalse(harness.needPrevSumsSyncRaw(parent));
-        assertEq(harness.prevSumLatestRaw(child1), 0);
-        assertEq(harness.prevSumLatestRaw(child2), 5);
     }
 
     function test_createSlot_revertsForMissingParentSlot() public {
@@ -2171,25 +2209,6 @@ contract UniversalDelegatorTest is Test {
         assertEq(pending, 0);
     }
 
-    function test_syncPrevSums_modifier_clearsInjectedFlag() public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
-
-        uint96 parent = _rootIndex(uint32(1));
-        uint96 child = parent.createIndex(uint32(1));
-
-        harness.setSlotExistsRaw(parent, true);
-        harness.setSlotExistsRaw(child, true);
-        harness.setParentChildrenRaw(parent, 1, 1, 1, 1);
-        harness.setSlotLinksRaw(child, 0, 0);
-        harness.pushSizeRaw(child, 1, 60);
-        harness.setNeedPrevSumsSyncRaw(parent, true);
-
-        harness.exposeSyncPrevSums(parent);
-
-        assertFalse(harness.needPrevSumsSyncRaw(parent));
-        assertEq(harness.prevSumLatestRaw(child), 0);
-    }
-
     function test_viewWrappersAndHints() public {
         _deposit(alice, 100);
 
@@ -2227,12 +2246,8 @@ contract UniversalDelegatorTest is Test {
         assertEq(delegator.getBalanceAt(operatorSlot, 0, uint48(block.timestamp)), 80);
         assertEq(delegator.getBalanceAt(0, 0, uint48(block.timestamp)), 100);
         assertEq(delegator.getBalance(operatorSlot, 0), 80);
-        assertEq(delegator.getAvailableAt(operatorSlot, 0, uint48(block.timestamp)), 80);
-        assertEq(delegator.getAvailable(operatorSlot, 0), 80);
         assertEq(delegator.getPendingAt(operatorSlot, 0, uint48(block.timestamp)), 0);
         assertEq(delegator.getPending(operatorSlot, 0), 0);
-        assertEq(delegator.getChildrenPendingAt(networkSlot, 0, uint48(block.timestamp)), 0);
-        assertEq(delegator.getChildrenPending(networkSlot, 0), 0);
     }
 
     function test_stakeFor_usesMaxNetworkLimitAsGate_notAsCap() public {
@@ -2259,6 +2274,211 @@ contract UniversalDelegatorTest is Test {
 
         assertEq(delegator.stakeFor(subnetwork, alice, 0), 80);
         assertEq(delegator.stakeForAt(subnetwork, alice, 0, uint48(block.timestamp)), 80);
+    }
+
+    function test_stakeFor_simulation_twoEpochTimeline_withReports() public {
+        address network = makeAddr("stake-sim-network");
+        address middleware = makeAddr("stake-sim-middleware");
+        _registerNetwork(network, middleware);
+        bytes32 subnetwork = network.subnetwork(0);
+
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, false, MAX_AMOUNT);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, MAX_AMOUNT);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot, alice, MAX_AMOUNT);
+        uint96 operatorSlot = networkSlot.createIndex(uint32(1));
+
+        _deposit(alice, 200);
+
+        StakeTimelineSnapshot memory snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t0/start", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.timestamp, 0);
+        assertEq(snapshot.activeStake, 200);
+        assertEq(snapshot.activeWithdrawals0, 0);
+        assertEq(snapshot.stakeFor0, 200);
+        assertEq(snapshot.stakeFor1, 200);
+        assertEq(snapshot.stakeForMaxDuration, 200);
+        assertEq(snapshot.stakeForEpoch, 0);
+
+        vm.warp(1);
+        _withdraw(alice, 40);
+        delegator.setSize(operatorSlot, 150);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t1/withdraw+setSize", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 160);
+        assertEq(snapshot.activeWithdrawals0, 40);
+        assertEq(snapshot.stakeFor0, 200);
+        assertEq(snapshot.stakeForMaxDuration, 200);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertEq(snapshot.stakeFor0, snapshot.stakeForMaxDuration);
+
+        vm.warp(2);
+        _deposit(bob, 30);
+        delegator.setSize(operatorSlot, 110);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t2/deposit+setSize", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 190);
+        assertEq(snapshot.activeWithdrawals0, 40);
+        assertEq(snapshot.stakeFor0, 200);
+        assertEq(snapshot.stakeForMaxDuration, 150);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertGt(snapshot.stakeFor0, snapshot.stakeForMaxDuration);
+
+        vm.warp(3);
+        _withdraw(bob, 20);
+        delegator.setSize(operatorSlot, 140);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t3/withdraw+setSize", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 170);
+        assertEq(snapshot.activeWithdrawals0, 60);
+        assertEq(snapshot.activeWithdrawals1, 20);
+        assertEq(snapshot.activeWithdrawalsEpoch, 0);
+        assertEq(snapshot.stakeFor0, 230);
+        assertEq(snapshot.stakeFor1, 180);
+        assertEq(snapshot.stakeForMaxDuration, 140);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertGt(snapshot.stakeFor0, snapshot.stakeFor1);
+        assertGt(snapshot.stakeFor1, snapshot.stakeForMaxDuration);
+
+        vm.warp(4);
+        _deposit(alice, 25);
+        delegator.setSize(operatorSlot, 130);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t4/deposit+setSize", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 195);
+        assertEq(snapshot.activeWithdrawals0, 20);
+        assertEq(snapshot.stakeFor0, 180);
+        assertEq(snapshot.stakeForMaxDuration, 140);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertGt(snapshot.stakeFor0, snapshot.stakeForMaxDuration);
+
+        vm.warp(5);
+        _withdraw(alice, 15);
+        delegator.setSize(operatorSlot, 160);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t5/withdraw+setSize", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 180);
+        assertEq(snapshot.activeWithdrawals0, 35);
+        assertEq(snapshot.stakeFor0, 170);
+        assertEq(snapshot.stakeForMaxDuration, 160);
+        assertEq(snapshot.stakeForEpoch, 0);
+
+        vm.warp(7);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("t7/2-epochs", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 180);
+        assertEq(snapshot.activeWithdrawals0, 15);
+        assertEq(snapshot.stakeFor0, 160);
+        assertEq(snapshot.stakeForMaxDuration, 160);
+        assertEq(snapshot.stakeForEpoch, 0);
+
+        assertEq(delegator.getSlotOfOperator(networkSlot, alice), operatorSlot);
+    }
+
+    function test_stakeFor_simulation_setSizesDepositWithdrawEpochMinusOne_thenSetSizeZero() public {
+        address network = makeAddr("stake-sim2-network");
+        address middleware = makeAddr("stake-sim2-middleware");
+        _registerNetwork(network, middleware);
+        bytes32 subnetwork = network.subnetwork(0);
+
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, false, 0);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, 0);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot, alice, 0);
+        uint96 operatorSlot = networkSlot.createIndex(uint32(1));
+
+        // setSizes(100)
+        delegator.setSize(subvault, 100);
+        delegator.setSize(networkSlot, 100);
+        delegator.setSize(operatorSlot, 100);
+
+        StakeTimelineSnapshot memory snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("s0/setSizes(100)", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.timestamp, 0);
+        assertEq(snapshot.activeStake, 0);
+        assertEq(snapshot.activeWithdrawals0, 0);
+        assertEq(snapshot.stakeFor0, 0);
+        assertEq(snapshot.stakeFor1, 0);
+        assertEq(snapshot.stakeForMaxDuration, 0);
+        assertEq(snapshot.stakeForEpoch, 0);
+
+        // deposit(100)
+        vm.warp(1);
+        _deposit(alice, 100);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("s1/deposit(100)", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 100);
+        assertEq(snapshot.activeWithdrawals0, 0);
+        assertEq(snapshot.stakeFor0, 100);
+        assertEq(snapshot.stakeFor1, 100);
+        assertEq(snapshot.stakeForMaxDuration, 100);
+        assertEq(snapshot.stakeForEpoch, 0);
+
+        // withdraw(100)
+        vm.warp(2);
+        _withdraw(alice, 100);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("s2/withdraw(100)", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 0);
+        assertEq(snapshot.activeWithdrawals0, 100);
+        assertEq(snapshot.activeWithdrawals1, 100);
+        assertEq(snapshot.activeWithdrawalsEpoch, 0);
+        assertEq(snapshot.stakeFor0, 100);
+        assertEq(snapshot.stakeFor1, 100);
+        assertEq(snapshot.stakeForMaxDuration, 100);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertEq(snapshot.stakeFor0, snapshot.stakeForMaxDuration);
+        assertGt(snapshot.activeWithdrawals0, snapshot.activeWithdrawalsEpoch);
+
+        // wait epoch-1, setSize(0) for operator
+        vm.warp(4);
+        delegator.setSize(operatorSlot, 0);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("s3/wait(epoch-1)+setSize(0)", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 0);
+        assertEq(snapshot.activeWithdrawals0, 100);
+        assertEq(snapshot.activeWithdrawals1, 0);
+        assertEq(snapshot.activeWithdrawalsEpoch, 0);
+        assertEq(snapshot.stakeFor0, 100);
+        assertEq(snapshot.stakeFor1, 0);
+        assertEq(snapshot.stakeForMaxDuration, 0);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertGt(snapshot.stakeFor0, snapshot.stakeForEpoch);
+        assertEq(snapshot.stakeFor1, snapshot.stakeForEpoch);
+
+        // wait 1
+        vm.warp(5);
+        snapshot = _snapshotStakeTimeline(subnetwork, alice);
+        _reportStakeTimeline("s4/wait(1)", snapshot);
+        _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), operatorSlot, 0, 0, EPOCH_DURATION);
+        assertEq(snapshot.activeStake, 0);
+        assertEq(snapshot.activeWithdrawals0, 0);
+        assertEq(snapshot.activeWithdrawals1, 0);
+        assertEq(snapshot.activeWithdrawalsEpoch, 0);
+        assertEq(snapshot.stakeFor0, 0);
+        assertEq(snapshot.stakeFor1, 0);
+        assertEq(snapshot.stakeForMaxDuration, 0);
+        assertEq(snapshot.stakeForEpoch, 0);
+        assertEq(snapshot.stakeFor0, snapshot.stakeForEpoch);
     }
 
     function test_assignmentFlags_revertWhenNotAssigned() public {
@@ -2762,7 +2982,7 @@ contract UniversalDelegatorTest is Test {
     }
 
     function _unallocated2(uint96 parentIndex, uint96 slot1, uint96 slot2) internal view returns (uint256) {
-        uint256 available = delegator.getAvailable(parentIndex, 0);
+        uint256 available = delegator.getBalance(parentIndex, 0);
         uint256 allocated = delegator.getAllocated(slot1, 0) + delegator.getAllocated(slot2, 0);
         return available > allocated ? available - allocated : 0;
     }
@@ -2772,7 +2992,7 @@ contract UniversalDelegatorTest is Test {
         view
         returns (uint256)
     {
-        uint256 available = delegator.getAvailable(parentIndex, 0);
+        uint256 available = delegator.getBalance(parentIndex, 0);
         uint256 allocated =
             delegator.getAllocated(slot1, 0) + delegator.getAllocated(slot2, 0) + delegator.getAllocated(slot3, 0);
         return available > allocated ? available - allocated : 0;
@@ -2811,6 +3031,37 @@ contract UniversalDelegatorTest is Test {
         vm.startPrank(user);
         vault.withdraw(user, amount);
         vm.stopPrank();
+    }
+
+    function _snapshotStakeTimeline(bytes32 subnetwork, address operator)
+        internal
+        view
+        returns (StakeTimelineSnapshot memory)
+    {
+        return StakeTimelineSnapshot({
+            timestamp: uint48(block.timestamp),
+            activeStake: vault.activeStake(),
+            activeWithdrawals0: vault.activeWithdrawalsFor(0),
+            activeWithdrawals1: vault.activeWithdrawalsFor(1),
+            activeWithdrawalsEpoch: vault.activeWithdrawalsFor(EPOCH_DURATION),
+            stakeFor0: delegator.stakeFor(subnetwork, operator, 0),
+            stakeFor1: delegator.stakeFor(subnetwork, operator, 1),
+            stakeForMaxDuration: delegator.stakeFor(subnetwork, operator, EPOCH_DURATION - 1),
+            stakeForEpoch: delegator.stakeFor(subnetwork, operator, EPOCH_DURATION)
+        });
+    }
+
+    function _reportStakeTimeline(string memory label, StakeTimelineSnapshot memory snapshot) internal view {
+        console2.log("checkpoint", label);
+        console2.log("timestamp", uint256(snapshot.timestamp));
+        console2.log("activeStake", snapshot.activeStake);
+        console2.log("activeWithdrawalsFor(0)", snapshot.activeWithdrawals0);
+        console2.log("activeWithdrawalsFor(1)", snapshot.activeWithdrawals1);
+        console2.log("activeWithdrawalsFor(epoch)", snapshot.activeWithdrawalsEpoch);
+        console2.log("stakeFor(0)", snapshot.stakeFor0);
+        console2.log("stakeFor(1)", snapshot.stakeFor1);
+        console2.log("stakeFor(epoch-1)", snapshot.stakeForMaxDuration);
+        console2.log("stakeFor(epoch)", snapshot.stakeForEpoch);
     }
 }
 
