@@ -198,9 +198,10 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
     function test_simulationTimeline_depositWithdrawCreateSlotSetSize_overTwoEpochs() public {
         uint48 baseTimestamp = 1;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(1);
 
         _deposit(alice, 1000 ether);
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, uint128(400 ether));
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), uint128(400 ether));
         uint96 slot2;
         uint96 slot3;
 
@@ -211,7 +212,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
 
         vm.warp(baseTimestamp + 1 days);
         _deposit(bob, 250 ether);
-        slot2 = delegator.createSlot(bytes32(0), 0, false, false, uint128(250 ether));
+        slot2 = _createOperatorSlot(network, _operator(2), uint128(250 ether));
         delegator.setSize(slot1, uint128(520 ether));
         _withdraw(alice, 180 ether);
 
@@ -221,7 +222,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         _reportPendingForThreeSlots("t1", slot1, slot2, slot3);
 
         vm.warp(baseTimestamp + 2 days);
-        slot3 = delegator.createSlot(bytes32(0), 0, false, false, uint128(120 ether));
+        slot3 = _createOperatorSlot(network, _operator(3), uint128(120 ether));
         delegator.setSize(slot2, uint128(320 ether));
         _deposit(alice, 90 ether);
         _withdraw(bob, 110 ether);
@@ -288,10 +289,11 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
     function test_simulationTimeline_trackSecondSlot_withNetOutflowAtEnd() public {
         uint48 baseTimestamp = 11;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(2);
 
         _deposit(alice, 130 ether);
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, uint128(80 ether));
-        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, uint128(50 ether));
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), uint128(80 ether));
+        uint96 slot2 = _createOperatorSlot(network, _operator(2), uint128(50 ether));
 
         StakeTimelineSnapshot memory s0 = _snapshotStakeTimeline(slot2);
         _reportStakeTimeline("alt t0: first deposit + two slots (track slot2)", s0);
@@ -301,7 +303,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
 
         vm.warp(baseTimestamp + 1 days);
         _deposit(bob, 70 ether);
-        uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, uint128(20 ether));
+        uint96 slot3 = _createOperatorSlot(network, _operator(3), uint128(20 ether));
         delegator.setSize(slot2, uint128(70 ether));
         _withdraw(alice, 60 ether);
 
@@ -377,11 +379,12 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         uint48 t6Timestamp = t0Timestamp + 3 * EPOCH_DURATION;
         uint48 t8Timestamp = t0Timestamp + 4 * EPOCH_DURATION;
         uint48 t10Timestamp = t0Timestamp + 5 * EPOCH_DURATION;
+        (, uint96 network) = _createOperatorTree(3);
 
         uint96[8] memory slots;
-        slots[0] = delegator.createSlot(bytes32(0), 0, false, false, 0);
-        slots[1] = delegator.createSlot(bytes32(0), 0, false, false, 0);
-        slots[2] = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        slots[0] = _createOperatorSlot(network, _operator(1), 0);
+        slots[1] = _createOperatorSlot(network, _operator(2), 0);
+        slots[2] = _createOperatorSlot(network, _operator(3), 0);
 
         vm.warp(baseTimestamp + 1);
         delegator.setSize(slots[0], uint128(220 ether));
@@ -406,7 +409,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         vm.warp(t2Timestamp - 3);
         _withdraw(alice, 50 ether);
         vm.warp(t2Timestamp - 2);
-        slots[3] = delegator.createSlot(bytes32(0), 0, false, false, uint128(40 ether));
+        slots[3] = _createOperatorSlot(network, _operator(4), uint128(40 ether));
         vm.warp(t2Timestamp - 1);
         delegator.setSize(slots[0], uint128(240 ether));
         vm.warp(t2Timestamp);
@@ -427,7 +430,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         vm.warp(t4Timestamp - 2);
         delegator.setSize(slots[2], uint128(65 ether));
         vm.warp(t4Timestamp - 1);
-        slots[4] = delegator.createSlot(bytes32(0), 0, false, false, uint128(110 ether));
+        slots[4] = _createOperatorSlot(network, _operator(5), uint128(110 ether));
         vm.warp(t4Timestamp);
 
         StakeTimelineSnapshot memory s2 = _snapshotStakeTimeline(slots[0]);
@@ -442,7 +445,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         vm.warp(t6Timestamp - 3);
         _withdraw(alice, 40 ether);
         vm.warp(t6Timestamp - 2);
-        slots[5] = delegator.createSlot(bytes32(0), 0, false, false, uint128(5 ether));
+        slots[5] = _createOperatorSlot(network, _operator(6), uint128(5 ether));
         vm.warp(t6Timestamp - 1);
         delegator.setSize(slots[0], uint128(250 ether));
         vm.warp(t6Timestamp);
@@ -463,7 +466,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         vm.warp(t8Timestamp - 2);
         delegator.setSize(slots[3], uint128(25 ether));
         vm.warp(t8Timestamp - 1);
-        slots[6] = delegator.createSlot(bytes32(0), 0, false, false, uint128(10 ether));
+        slots[6] = _createOperatorSlot(network, _operator(7), uint128(10 ether));
         vm.warp(t8Timestamp);
 
         StakeTimelineSnapshot memory s4 = _snapshotStakeTimeline(slots[0]);
@@ -480,7 +483,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         vm.warp(t10Timestamp - 2);
         delegator.setSize(slots[0], uint128(255 ether));
         vm.warp(t10Timestamp - 1);
-        slots[7] = delegator.createSlot(bytes32(0), 0, false, false, uint128(5 ether));
+        slots[7] = _createOperatorSlot(network, _operator(8), uint128(5 ether));
         vm.warp(t10Timestamp);
 
         StakeTimelineSnapshot memory s5 = _snapshotStakeTimeline(slots[0]);
@@ -516,11 +519,12 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
     function test_simulationTimeline_pendingTailImpactsHalfStakeFor() public {
         uint48 baseTimestamp = 21;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(4);
 
         _deposit(alice, 400 ether);
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, uint128(220 ether));
-        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, uint128(120 ether));
-        uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, uint128(60 ether));
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), uint128(220 ether));
+        uint96 slot2 = _createOperatorSlot(network, _operator(2), uint128(120 ether));
+        uint96 slot3 = _createOperatorSlot(network, _operator(3), uint128(60 ether));
         _withdraw(alice, 150 ether);
 
         StakeTimelineSnapshot memory s0 = _snapshotStakeTimeline(slot1);
@@ -560,10 +564,11 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
     function test_simulationTimeline_setSizesDepositWithdraw_waitEpochMinusOne_thenZeroSize() public {
         uint48 baseTimestamp = 31;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(5);
 
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, 0);
-        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, 0);
-        uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), 0);
+        uint96 slot2 = _createOperatorSlot(network, _operator(2), 0);
+        uint96 slot3 = _createOperatorSlot(network, _operator(3), 0);
 
         delegator.setSize(slot1, uint128(100 ether));
         delegator.setSize(slot2, uint128(100 ether));
@@ -624,10 +629,11 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         uint48 baseTimestamp = 41 days;
         uint48 maxDuration = MAX_DURATION;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(6);
 
         _deposit(alice, 50 ether);
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, uint128(50 ether));
-        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, uint128(50 ether));
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), uint128(50 ether));
+        uint96 slot2 = _createOperatorSlot(network, _operator(2), uint128(50 ether));
         _withdraw(alice, 50 ether);
 
         StakeTimelineSnapshot memory s0 = _snapshotStakeTimeline(slot1);
@@ -677,14 +683,15 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
     function test_simulationTimeline_middleGrowth_revertsBeforeStealingTailStake() public {
         uint48 baseTimestamp = 81;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(7);
 
         _deposit(alice, 130 ether);
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, uint128(80 ether));
-        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, uint128(50 ether));
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), uint128(80 ether));
+        uint96 slot2 = _createOperatorSlot(network, _operator(2), uint128(50 ether));
 
         vm.warp(baseTimestamp + 1 days);
         _deposit(bob, 70 ether);
-        uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, uint128(20 ether));
+        uint96 slot3 = _createOperatorSlot(network, _operator(3), uint128(20 ether));
         delegator.setSize(slot2, uint128(70 ether));
         _withdraw(alice, 60 ether);
 
@@ -722,14 +729,15 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
     function test_simulationTimeline_firstGrowth_revertsBeforeStealingLongDurationFromMiddleSlot() public {
         uint48 baseTimestamp = 91;
         vm.warp(baseTimestamp);
+        (, uint96 network) = _createOperatorTree(8);
 
         _deposit(alice, 130 ether);
-        uint96 slot1 = delegator.createSlot(bytes32(0), 0, false, false, uint128(80 ether));
-        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, uint128(50 ether));
+        uint96 slot1 = _createOperatorSlot(network, _operator(1), uint128(80 ether));
+        uint96 slot2 = _createOperatorSlot(network, _operator(2), uint128(50 ether));
 
         vm.warp(baseTimestamp + 1 days);
         _deposit(bob, 70 ether);
-        uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, uint128(20 ether));
+        uint96 slot3 = _createOperatorSlot(network, _operator(3), uint128(20 ether));
         delegator.setSize(slot2, uint128(70 ether));
         _withdraw(alice, 60 ether);
 
@@ -782,6 +790,23 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
 
     function _stakeFor(uint96 slot, uint48 duration) internal view returns (uint256) {
         return delegator.getAllocated(slot, duration);
+    }
+
+    function _operator(uint256 id) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked("compact-new-operator", id)))));
+    }
+
+    function _subnetwork(uint256 id) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("compact-new-subnetwork", id));
+    }
+
+    function _createOperatorTree(uint256 id) internal returns (uint96 subvault, uint96 network) {
+        subvault = delegator.createSlot(bytes32(0), 0, false, false, type(uint128).max);
+        network = delegator.createSlot(_subnetwork(id), subvault, false, false, type(uint128).max);
+    }
+
+    function _createOperatorSlot(uint96 network, address operator, uint128 size) internal returns (uint96) {
+        return delegator.createSlot(bytes32(uint256(uint160(operator))), network, false, false, size);
     }
 
     function _snapshotStakeTimeline(uint96 slot) internal view returns (StakeTimelineSnapshot memory) {

@@ -16,7 +16,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
 /// @title UniversalDelegatorCompactNew
-/// @notice Compact delegator with a single (root -> slots) depth and isolated allocation only.
+/// @notice Compact delegator simulation with root -> subvault -> network -> operator support.
 contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     using Math for uint256;
     using UniversalDelegatorIndex for uint96;
@@ -44,6 +44,8 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
 
     struct SlotStorage {
         bool exists;
+        bool isShared;
+        bool noPlugins;
         uint32 prevSlot;
         uint32 totalChildren;
         uint32 existChildren;
@@ -54,6 +56,24 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         Checkpoints.Trace208 firstChild;
         Checkpoints.Trace208 pendingCumulative;
         Checkpoints.Trace208 clearedPendingCursor;
+        Checkpoints.Trace208 sizeSlashedPendingCumulative;
+        Checkpoints.Trace208 sharedPendingClearedCursor;
+    }
+
+    struct Slot {
+        bool exists;
+        bool isShared;
+        bool noPlugins;
+        uint32 prevSlot;
+        uint32 totalChildren;
+        uint32 existChildren;
+        uint32 nextSlot;
+        uint32 lastChild;
+        uint32 firstChild;
+        uint128 size;
+        uint208 prevSum;
+        uint208 sizeSlashedPendingCumulative;
+        bytes32 subnetworkOrOperator;
     }
 
     /* CONSTANTS */
@@ -74,10 +94,14 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     /// @notice Connected vault.
     address public vault;
 
-    /// @dev Slot storage keyed by encoded slot index (depth 1 only).
+    /// @dev Slot storage keyed by encoded slot index.
     mapping(uint96 index => SlotStorage slot) internal slots;
-    /// @dev Mapping from operator to slot index (depth 1 only).
-    mapping(address operator => uint96 index) internal _operatorToSlot;
+    /// @dev Mapping from subnetwork id to network slot index checkpoints.
+    mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
+    /// @dev Mapping from slot index to subnetwork id.
+    mapping(uint96 index => bytes32 subnetwork) internal _slotToNetwork;
+    /// @dev Mapping from parent slot and operator to slot index checkpoints.
+    mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
     /// @dev Mapping from slot index to operator address.
     mapping(uint96 index => address operator) internal _slotToOperator;
 
@@ -136,8 +160,50 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         return getAllocated(subnetwork, operator, IVaultV2(vault).epochDuration() - 1);
     }
 
-    function getSlotOf(bytes32, address operator) public view returns (uint96) {
-        return _operatorToSlot[operator];
+    function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint96) {
+        return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp));
+    }
+
+    function getSlotOfNetwork(bytes32 subnetwork) public view returns (uint96) {
+        return uint96(_networkToSlot[subnetwork].latest());
+    }
+
+    function getSlotOfOperatorAt(uint96 parentIndex, address operator, uint48 timestamp) public view returns (uint96) {
+        return uint96(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp));
+    }
+
+    function getSlotOfOperator(uint96 parentIndex, address operator) public view returns (uint96) {
+        return uint96(_operatorToSlot[parentIndex][operator].latest());
+    }
+
+    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint96) {
+        uint96 networkIndex = getSlotOfNetworkAt(subnetwork, timestamp);
+        return networkIndex > 0 ? getSlotOfOperatorAt(networkIndex, operator, timestamp) : 0;
+    }
+
+    function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint96) {
+        uint96 networkIndex = getSlotOfNetwork(subnetwork);
+        return networkIndex > 0 ? getSlotOfOperator(networkIndex, operator) : 0;
+    }
+
+    function getSlot(uint96 index) public view returns (Slot memory) {
+        return Slot({
+            exists: slots[index].exists,
+            isShared: slots[index].isShared,
+            noPlugins: slots[index].noPlugins,
+            prevSlot: slots[index].prevSlot,
+            totalChildren: slots[index].totalChildren,
+            existChildren: slots[index].existChildren,
+            nextSlot: uint32(slots[index].nextSlot.latest()),
+            lastChild: uint32(slots[index].lastChild.latest()),
+            firstChild: uint32(slots[index].firstChild.latest()),
+            size: uint128(slots[index].size.latest()),
+            prevSum: _getPrevSum(index, 0),
+            sizeSlashedPendingCumulative: slots[index].sizeSlashedPendingCumulative.latest(),
+            subnetworkOrOperator: index.getDepth() == 3
+                ? bytes32(bytes20(_slotToOperator[index]))
+                : index.getDepth() == 2 ? _slotToNetwork[index] : bytes32(0)
+        });
     }
 
     function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
@@ -145,7 +211,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         view
         returns (uint256)
     {
-        uint96 index = getSlotOf(subnetwork, operator);
+        uint96 index = getSlotOfAt(subnetwork, operator, timestamp);
         return index > 0 ? getAllocatedAt(index, duration, timestamp) : 0;
     }
 
@@ -209,7 +275,15 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                 return 0;
             }
 
-            return _getAggregatedAt(index, duration, timestamp);
+            uint96 parentIndex = index.getParentIndex();
+            SlotStorage storage parent = slots[parentIndex];
+            uint256 slotAvailable = getBalanceAt(parentIndex, duration, timestamp);
+            if (parentIndex.getDepth() != 1 || !parent.isShared) {
+                slotAvailable = slotAvailable.saturatingSub(_getPrevSumAt(index, 0, timestamp));
+            }
+            return Math.min(
+                slotAvailable, slots[index].size.upperLookupRecent(timestamp) + getPendingAt(index, duration, timestamp)
+            );
         }
     }
 
@@ -219,7 +293,17 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                 return 0;
             }
 
-            return _getAggregated(index, duration);
+            uint96 parentIndex = index.getParentIndex();
+            SlotStorage storage parent = slots[parentIndex];
+            uint256 slotAvailable = getBalance(parentIndex, duration);
+            if (parentIndex.getDepth() != 1 || !parent.isShared) {
+                slotAvailable = slotAvailable.saturatingSub(_getPrevSum(index, 0));
+            } else if (IVaultV2(vault).slasher() == msg.sender) {
+                // duration is ignored as UniversalDelegator uses only stakeFor(0)
+                slotAvailable += _getSharedPendingAddBack(parentIndex, index, duration);
+                slotAvailable += uint256(_getSlashPending(parentIndex)).saturatingSub(_getSlashPending(index));
+            }
+            return Math.min(slotAvailable, slots[index].size.latest() + getPending(index, duration));
         }
     }
 
@@ -233,17 +317,22 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         return _createSlot(subnetworkOrOperator, parentIndex, isShared, noPlugins, size);
     }
 
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data)
+        public
+        returns (uint256 slashed)
+    {
         unchecked {
             data;
             if (IVaultV2(vault).slasher() != msg.sender) {
                 revert NotSlasher();
             }
 
-            for (uint96 index = getSlotOf(subnetwork, operator); index > 0;) {
-                SlotStorage storage slot = slots[index];
+            slashed = amount;
+            uint96 index = getSlotOf(subnetwork, operator);
+            for (uint96 curIndex = index; curIndex > 0;) {
+                SlotStorage storage slot = slots[curIndex];
 
-                uint208 pendingSlashed = uint208(Math.min(getPending(index, 0), amount));
+                uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
                 if (pendingSlashed > 0) {
                     slot.clearedPendingCursor
                         .push(
@@ -257,7 +346,29 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                     slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
                 }
 
-                index = index.getParentIndex();
+                if (curIndex.getDepth() == 1 && slot.isShared) {
+                    slashed = pendingSlashed + sizeSlashed;
+
+                    if (pendingSlashed > 0) {
+                        uint96 networkIndex = index.getParentIndex();
+                        slots[networkIndex].sharedPendingClearedCursor.push(
+                            uint48(block.timestamp),
+                            _getPendingCursor(slot.pendingCumulative, slots[networkIndex].sharedPendingClearedCursor)
+                                + pendingSlashed
+                        );
+                    }
+                    if (sizeSlashed > 0) {
+                        slot.sizeSlashedPendingCumulative
+                            .push(uint48(block.timestamp), slot.sizeSlashedPendingCumulative.latest() + sizeSlashed);
+                        slots[index.getParentIndex()].sizeSlashedPendingCumulative
+                            .push(
+                                uint48(block.timestamp),
+                                slots[index.getParentIndex()].sizeSlashedPendingCumulative.latest() + sizeSlashed
+                            );
+                    }
+                }
+
+                curIndex = curIndex.getParentIndex();
             }
 
             emit OnSlash(subnetwork, operator, amount);
@@ -275,7 +386,10 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
             if (uint256(subnetworkOrOperator) <= type(uint160).max) {
                 operator = address(uint160(uint256(subnetworkOrOperator)));
             }
-            if (parentIndex.getDepth() > 0) {
+            if (parentIndex.getDepth() > 2) {
+                revert WrongDepth();
+            }
+            if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
                 revert WrongDepth();
             }
 
@@ -289,12 +403,20 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
 
             SlotStorage storage slot = slots[index];
             slot.exists = true;
+            slot.isShared = isShared;
+            slot.noPlugins = noPlugins;
 
-            if (operator != address(0)) {
-                if (_operatorToSlot[operator] > 0) {
+            if (parentIndex.getDepth() == 1) {
+                if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
                     revert AlreadyAssigned();
                 }
-                _operatorToSlot[operator] = index;
+                _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
+                _slotToNetwork[index] = subnetworkOrOperator;
+            } else if (operator != address(0) && parentIndex.getDepth() == 2) {
+                if (_operatorToSlot[parentIndex][operator].latest() > 0) {
+                    revert AlreadyAssigned();
+                }
+                _operatorToSlot[parentIndex][operator].push(uint48(block.timestamp), index);
                 _slotToOperator[index] = operator;
             }
 
@@ -317,6 +439,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     function setSize(uint96 index, uint128 newSize) public onlyRole(SET_SIZE_ROLE) slotExists(index) {
         unchecked {
             SlotStorage storage slot = slots[index];
+            SlotStorage storage parent = slots[index.getParentIndex()];
             uint128 curSize = uint128(slot.size.latest());
             if (curSize == newSize) {
                 return;
@@ -326,9 +449,8 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                 uint48 maxDuration = IVaultV2(vault).epochDuration() - 1;
                 uint256 curBalance = getBalance(index.getParentIndex(), 0);
                 uint256 minBalance = getBalance(index.getParentIndex(), maxDuration);
-                if (_getPrevSum(index, maxDuration) < curBalance && slot.nextSlot.latest() > 0) {
-                    uint96 lastIndex =
-                        index.getParentIndex().createIndex(uint32(slots[index.getParentIndex()].lastChild.latest()));
+                if (!parent.isShared && _getPrevSum(index, maxDuration) < curBalance && slot.nextSlot.latest() > 0) {
+                    uint96 lastIndex = index.getParentIndex().createIndex(uint32(parent.lastChild.latest()));
                     if (
                         newSize - curSize
                             > minBalance.saturatingSub(
@@ -359,6 +481,9 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
             SlotStorage storage slot2 = slots[index2];
 
             if (parentIndex != index2.getParentIndex()) {
+                revert();
+            }
+            if (parent.isShared) {
                 revert();
             }
             for (
@@ -459,6 +584,9 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         }
         uint96 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
         for (uint32 childIndex = uint32(parent.firstChild.upperLookupRecent(timestamp)); childIndex > 0;) {
             uint96 curIndex = parentIndex.createIndex(childIndex);
             if (index == curIndex) {
@@ -470,12 +598,55 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         }
     }
 
+    function _getSlashPending(uint96 index) internal view returns (uint208) {
+        unchecked {
+            SlotStorage storage slot = slots[index];
+            if (slot.sizeSlashedPendingCumulative.length() == 0) {
+                return 0;
+            }
+
+            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
+            (, uint48 lastSlashKey, uint208 slashPendingCumulativeLatest) =
+                slot.sizeSlashedPendingCumulative.latestCheckpoint();
+            if (lastSlashKey < fromTimestamp) {
+                return 0;
+            }
+
+            if (fromTimestamp == 0) {
+                return slashPendingCumulativeLatest;
+            }
+
+            return slashPendingCumulativeLatest
+                - slot.sizeSlashedPendingCumulative.upperLookupRecent(uint48(uint256(fromTimestamp) - 1));
+        }
+    }
+
+    function _getSharedPendingAddBack(uint96 sharedIndex, uint96 networkIndex, uint48 duration)
+        internal
+        view
+        returns (uint256)
+    {
+        unchecked {
+            uint48 fromTimestamp =
+                uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration)));
+            uint208 pendingFloor = slots[sharedIndex].pendingCumulative.upperLookupRecent(fromTimestamp);
+            uint208 clearedAll = slots[sharedIndex].clearedPendingCursor.latest();
+            uint208 clearedByNetwork =
+                uint208(Math.max(slots[networkIndex].sharedPendingClearedCursor.latest(), pendingFloor));
+
+            return uint256(Math.max(clearedAll, pendingFloor)).saturatingSub(clearedByNetwork);
+        }
+    }
+
     function _getPrevSum(uint96 index, uint48 duration) internal view returns (uint208 prevSum) {
         if (index == 0) {
             return 0;
         }
         uint96 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
         for (uint32 childIndex = uint32(parent.firstChild.latest()); childIndex > 0;) {
             uint96 curIndex = parentIndex.createIndex(childIndex);
             if (index == curIndex) {
@@ -485,22 +656,6 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
             prevSum += child.size.latest() + getPending(curIndex, duration);
             childIndex = uint32(child.nextSlot.latest());
         }
-    }
-
-    function _getAggregatedAt(uint96 index, uint48 duration, uint48 timestamp) internal view returns (uint256) {
-        uint96 parentIndex = index.getParentIndex();
-        uint256 slotAvailable = getBalanceAt(parentIndex, duration, timestamp);
-        slotAvailable = slotAvailable.saturatingSub(_getPrevSumAt(index, 0, timestamp));
-        return Math.min(
-            slotAvailable, slots[index].size.upperLookupRecent(timestamp) + getPendingAt(index, duration, timestamp)
-        );
-    }
-
-    function _getAggregated(uint96 index, uint48 duration) internal view returns (uint256) {
-        uint96 parentIndex = index.getParentIndex();
-        uint256 slotAvailable = getBalance(parentIndex, duration);
-        slotAvailable = slotAvailable.saturatingSub(_getPrevSum(index, 0));
-        return Math.min(slotAvailable, slots[index].size.latest() + getPending(index, duration));
     }
 
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
