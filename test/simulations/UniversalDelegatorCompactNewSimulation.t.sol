@@ -367,6 +367,152 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         assertLt(s4.activeStake, s3.activeStake);
     }
 
+    function test_simulationTimeline_longTermRollingEpochs_withContinuousFlows() public {
+        uint48 baseTimestamp = 101;
+        vm.warp(baseTimestamp);
+
+        uint48 t0Timestamp = baseTimestamp + 5;
+        uint48 t2Timestamp = t0Timestamp + EPOCH_DURATION;
+        uint48 t4Timestamp = t0Timestamp + 2 * EPOCH_DURATION;
+        uint48 t6Timestamp = t0Timestamp + 3 * EPOCH_DURATION;
+        uint48 t8Timestamp = t0Timestamp + 4 * EPOCH_DURATION;
+        uint48 t10Timestamp = t0Timestamp + 5 * EPOCH_DURATION;
+
+        uint96[8] memory slots;
+        slots[0] = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        slots[1] = delegator.createSlot(bytes32(0), 0, false, false, 0);
+        slots[2] = delegator.createSlot(bytes32(0), 0, false, false, 0);
+
+        vm.warp(baseTimestamp + 1);
+        delegator.setSize(slots[0], uint128(220 ether));
+        vm.warp(baseTimestamp + 2);
+        delegator.setSize(slots[1], uint128(140 ether));
+        vm.warp(baseTimestamp + 3);
+        delegator.setSize(slots[2], uint128(90 ether));
+        vm.warp(baseTimestamp + 4);
+        _deposit(alice, 700 ether);
+        vm.warp(t0Timestamp);
+        _withdraw(alice, 80 ether);
+
+        StakeTimelineSnapshot memory s0 = _snapshotStakeTimeline(slots[0]);
+        uint96[] memory tracked0 = _trackedSlots(slots, 3);
+        _reportStakeTimeline("roll t0: genesis setSizes + deposit + withdraw", s0);
+        _reportStakeForTrackedSlots("roll t0", tracked0);
+        _reportPendingForTrackedSlots("roll t0", tracked0);
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), tracked0, EPOCH_DURATION);
+
+        vm.warp(t2Timestamp - 4);
+        _deposit(bob, 60 ether);
+        vm.warp(t2Timestamp - 3);
+        _withdraw(alice, 50 ether);
+        vm.warp(t2Timestamp - 2);
+        slots[3] = delegator.createSlot(bytes32(0), 0, false, false, uint128(40 ether));
+        vm.warp(t2Timestamp - 1);
+        delegator.setSize(slots[0], uint128(240 ether));
+        vm.warp(t2Timestamp);
+
+        StakeTimelineSnapshot memory s1 = _snapshotStakeTimeline(slots[0]);
+        uint96[] memory tracked1 = _trackedSlots(slots, 4);
+        _reportStakeTimeline("roll t1: +1 epoch add slot4 + increase slot1 + deposit + withdraw", s1);
+        _reportStakeForTrackedSlots("roll t1", tracked1);
+        _reportPendingForTrackedSlots("roll t1", tracked1);
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), tracked1, EPOCH_DURATION);
+
+        vm.warp(t4Timestamp - 5);
+        _deposit(alice, 50 ether);
+        vm.warp(t4Timestamp - 4);
+        _withdraw(bob, 55 ether);
+        vm.warp(t4Timestamp - 3);
+        delegator.setSize(slots[1], uint128(155 ether));
+        vm.warp(t4Timestamp - 2);
+        delegator.setSize(slots[2], uint128(65 ether));
+        vm.warp(t4Timestamp - 1);
+        slots[4] = delegator.createSlot(bytes32(0), 0, false, false, uint128(110 ether));
+        vm.warp(t4Timestamp);
+
+        StakeTimelineSnapshot memory s2 = _snapshotStakeTimeline(slots[0]);
+        uint96[] memory tracked2 = _trackedSlots(slots, 5);
+        _reportStakeTimeline("roll t2: +2 epochs add slot5 + increase slot2 + decrease slot3 + deposit + withdraw", s2);
+        _reportStakeForTrackedSlots("roll t2", tracked2);
+        _reportPendingForTrackedSlots("roll t2", tracked2);
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), tracked2, EPOCH_DURATION);
+
+        vm.warp(t6Timestamp - 4);
+        _deposit(bob, 45 ether);
+        vm.warp(t6Timestamp - 3);
+        _withdraw(alice, 40 ether);
+        vm.warp(t6Timestamp - 2);
+        slots[5] = delegator.createSlot(bytes32(0), 0, false, false, uint128(5 ether));
+        vm.warp(t6Timestamp - 1);
+        delegator.setSize(slots[0], uint128(250 ether));
+        vm.warp(t6Timestamp);
+
+        StakeTimelineSnapshot memory s3 = _snapshotStakeTimeline(slots[0]);
+        uint96[] memory tracked3 = _trackedSlots(slots, 6);
+        _reportStakeTimeline("roll t3: +3 epochs add slot6 + increase slot1 + deposit + withdraw", s3);
+        _reportStakeForTrackedSlots("roll t3", tracked3);
+        _reportPendingForTrackedSlots("roll t3", tracked3);
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), tracked3, EPOCH_DURATION);
+
+        vm.warp(t8Timestamp - 5);
+        _deposit(alice, 55 ether);
+        vm.warp(t8Timestamp - 4);
+        _withdraw(bob, 50 ether);
+        vm.warp(t8Timestamp - 3);
+        delegator.setSize(slots[1], uint128(165 ether));
+        vm.warp(t8Timestamp - 2);
+        delegator.setSize(slots[3], uint128(25 ether));
+        vm.warp(t8Timestamp - 1);
+        slots[6] = delegator.createSlot(bytes32(0), 0, false, false, uint128(10 ether));
+        vm.warp(t8Timestamp);
+
+        StakeTimelineSnapshot memory s4 = _snapshotStakeTimeline(slots[0]);
+        uint96[] memory tracked4 = _trackedSlots(slots, 7);
+        _reportStakeTimeline("roll t4: +4 epochs add slot7 + increase slot2 + decrease slot4 + deposit + withdraw", s4);
+        _reportStakeForTrackedSlots("roll t4", tracked4);
+        _reportPendingForTrackedSlots("roll t4", tracked4);
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), tracked4, EPOCH_DURATION);
+
+        vm.warp(t10Timestamp - 4);
+        _deposit(bob, 35 ether);
+        vm.warp(t10Timestamp - 3);
+        _withdraw(alice, 30 ether);
+        vm.warp(t10Timestamp - 2);
+        delegator.setSize(slots[0], uint128(255 ether));
+        vm.warp(t10Timestamp - 1);
+        slots[7] = delegator.createSlot(bytes32(0), 0, false, false, uint128(5 ether));
+        vm.warp(t10Timestamp);
+
+        StakeTimelineSnapshot memory s5 = _snapshotStakeTimeline(slots[0]);
+        uint96[] memory tracked5 = _trackedSlots(slots, 8);
+        _reportStakeTimeline("roll t5: +5 epochs add slot8 + increase slot1 + deposit + withdraw", s5);
+        _reportStakeForTrackedSlots("roll t5", tracked5);
+        _reportPendingForTrackedSlots("roll t5", tracked5);
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), tracked5, EPOCH_DURATION);
+
+        assertEq(s0.activeStake, 620 ether);
+        assertEq(s1.activeStake, 630 ether);
+        assertEq(s2.activeStake, 625 ether);
+        assertEq(s3.activeStake, 630 ether);
+        assertEq(s4.activeStake, 635 ether);
+        assertEq(s5.activeStake, 640 ether);
+
+        assertEq(s0.activeWithdrawals0, 80 ether);
+        assertEq(s1.activeWithdrawals0, 50 ether);
+        assertEq(s2.activeWithdrawals0, 55 ether);
+        assertEq(s3.activeWithdrawals0, 40 ether);
+        assertEq(s4.activeWithdrawals0, 50 ether);
+        assertEq(s5.activeWithdrawals0, 30 ether);
+
+        assertEq(s0.stakeFor0, 220 ether);
+        assertEq(s1.stakeFor0, 240 ether);
+        assertEq(s2.stakeFor0, 240 ether);
+        assertEq(s3.stakeFor0, 250 ether);
+        assertEq(s4.stakeFor0, 250 ether);
+        assertEq(s5.stakeFor0, 255 ether);
+        assertEq(delegator.getAllocatedAt(slots[4], MAX_DURATION, s2.timestamp), 100 ether);
+    }
+
     function test_simulationTimeline_pendingTailImpactsHalfStakeFor() public {
         uint48 baseTimestamp = 21;
         vm.warp(baseTimestamp);
@@ -573,7 +719,7 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         assertEq(s1.stakeForHalf, s0.stakeForHalf);
     }
 
-    function test_simulationTimeline_firstGrowth_canStillStealLongDurationFromMiddleSlot() public {
+    function test_simulationTimeline_firstGrowth_revertsBeforeStealingLongDurationFromMiddleSlot() public {
         uint48 baseTimestamp = 91;
         vm.warp(baseTimestamp);
 
@@ -598,10 +744,11 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         _reportPendingForThreeSlots("cross2 t0", slot1, slot2, slot3);
         _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), slot1, slot2, slot3, EPOCH_DURATION);
 
+        vm.expectRevert(UniversalDelegatorCompactNew.NotEnoughAvailable.selector);
         delegator.setSize(slot1, uint128(101 ether));
 
         StakeTimelineSnapshot memory s1 = _snapshotStakeTimeline(slot2);
-        _reportStakeTimeline("cross2 t1: first-slot growth steals middle maxDuration stake", s1);
+        _reportStakeTimeline("cross2 t1: first-slot growth is blocked before middle stake changes", s1);
         _reportStakeForThreeSlots("cross2 t1", slot1, slot2, slot3);
         _reportPendingForThreeSlots("cross2 t1", slot1, slot2, slot3);
         _assertStakeForInvariantForThreeSlots(address(vault), address(delegator), slot1, slot2, slot3, EPOCH_DURATION);
@@ -611,11 +758,11 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         assertEq(s0.stakeForMaxDuration, 61 ether);
         assertEq(s1.stakeFor0, 70 ether);
         assertEq(s1.stakeForHalf, 70 ether);
-        assertEq(s1.stakeForMaxDuration, 40 ether);
+        assertEq(s1.stakeForMaxDuration, 61 ether);
         assertEq(s0.timestamp, s1.timestamp);
         assertEq(s1.stakeFor0, s0.stakeFor0);
         assertEq(s1.stakeForHalf, s0.stakeForHalf);
-        assertLt(s1.stakeForMaxDuration, s0.stakeForMaxDuration);
+        assertEq(s1.stakeForMaxDuration, s0.stakeForMaxDuration);
     }
 
     function _deposit(address user, uint256 amount) internal {
@@ -696,6 +843,33 @@ contract UniversalDelegatorCompactNewSimulationTest is Test, CoreV2StakeForInvar
         console2.log("pendingForSlot(0)", pending0);
         console2.log("pendingForSlot(half)", pendingHalf);
         console2.log("pendingForSlot(maxDuration)", pendingMaxDuration);
+    }
+
+    function _reportStakeForTrackedSlots(string memory label, uint96[] memory slots) internal view {
+        console2.log("stakeForTrackedSlots", label);
+        for (uint256 i = 0; i < slots.length; ++i) {
+            console2.log("slotIndex", i + 1);
+            console2.log("stakeForSlot(0)", _stakeFor(slots[i], 0));
+            console2.log("stakeForSlot(half)", _stakeFor(slots[i], HALF_DURATION));
+            console2.log("stakeForSlot(maxDuration)", _stakeFor(slots[i], MAX_DURATION));
+        }
+    }
+
+    function _reportPendingForTrackedSlots(string memory label, uint96[] memory slots) internal view {
+        console2.log("pendingForTrackedSlots", label);
+        for (uint256 i = 0; i < slots.length; ++i) {
+            console2.log("slotIndex", i + 1);
+            console2.log("pendingForSlot(0)", delegator.getPending(slots[i], 0));
+            console2.log("pendingForSlot(half)", delegator.getPending(slots[i], HALF_DURATION));
+            console2.log("pendingForSlot(maxDuration)", delegator.getPending(slots[i], MAX_DURATION));
+        }
+    }
+
+    function _trackedSlots(uint96[8] memory allSlots, uint256 count) internal pure returns (uint96[] memory slots_) {
+        slots_ = new uint96[](count);
+        for (uint256 i = 0; i < count; ++i) {
+            slots_[i] = allSlots[i];
+        }
     }
 
     function _hasDiversity(uint256 v1, uint256 v2, uint256 v3, uint256 v4, uint256 v5) internal pure returns (bool) {

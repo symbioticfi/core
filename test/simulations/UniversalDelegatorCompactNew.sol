@@ -95,6 +95,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     event Initialize(InitParams params);
     event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
     event SetSize(uint96 indexed index, uint128 size);
+    event SwapSlots(uint96 indexed index1, uint96 indexed index2);
     event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
 
     /* CONSTRUCTOR */
@@ -208,8 +209,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                 return 0;
             }
 
-            uint256 aggregated = _getAggregatedAt(index, duration, timestamp);
-            return duration == 0 ? aggregated : Math.min(aggregated, _getAggregatedAt(index, 0, timestamp));
+            return _getAggregatedAt(index, duration, timestamp);
         }
     }
 
@@ -219,8 +219,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                 return 0;
             }
 
-            uint256 aggregated = _getAggregated(index, duration);
-            return duration == 0 ? aggregated : Math.min(aggregated, _getAggregated(index, 0));
+            return _getAggregated(index, duration);
         }
     }
 
@@ -315,50 +314,102 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         }
     }
 
-    function setSize(uint96 index, uint128 newSize)
-        public
-        onlyRole(SET_SIZE_ROLE)
-        slotExists(index)
-        returns (uint208 pending)
-    {
+    function setSize(uint96 index, uint128 newSize) public onlyRole(SET_SIZE_ROLE) slotExists(index) {
         unchecked {
             SlotStorage storage slot = slots[index];
             uint128 curSize = uint128(slot.size.latest());
             if (curSize == newSize) {
-                return 0;
+                return;
             }
 
-            SlotStorage storage parent = slots[index.getParentIndex()];
-            uint48 maxDuration = uint48(IVaultV2(vault).epochDuration() - 1);
-            uint256 available = getBalance(index.getParentIndex(), 0);
-
             if (newSize > curSize) {
-                uint256 minAvailable = getBalance(index.getParentIndex(), maxDuration);
-                uint208 prevSum = _getPrevSum(index, maxDuration);
-                if (uint256(prevSum) + curSize < available && slot.nextSlot.latest() > 0) {
-                    uint96 lastIndex = index.getParentIndex().createIndex(uint32(parent.lastChild.latest()));
+                uint48 maxDuration = IVaultV2(vault).epochDuration() - 1;
+                uint256 curBalance = getBalance(index.getParentIndex(), 0);
+                uint256 minBalance = getBalance(index.getParentIndex(), maxDuration);
+                if (_getPrevSum(index, maxDuration) < curBalance && slot.nextSlot.latest() > 0) {
+                    uint96 lastIndex =
+                        index.getParentIndex().createIndex(uint32(slots[index.getParentIndex()].lastChild.latest()));
                     if (
                         newSize - curSize
-                            > minAvailable.saturatingSub(
-                                uint256(_getPrevSum(lastIndex, 0)) + slots[lastIndex].size.latest()
-                                    + getPending(lastIndex, 0)
+                            > minBalance.saturatingSub(
+                                _getPrevSum(lastIndex, 0) + slots[lastIndex].size.latest() + getPending(lastIndex, 0)
                             )
                     ) {
                         revert NotEnoughAvailable();
                     }
                 }
             } else {
-                if (uint256(_getPrevSum(index, 0)) < available) {
-                    pending = uint208(getAllocated(index, 0).saturatingSub(getPending(index, 0)).saturatingSub(newSize));
-                    if (pending > 0) {
-                        slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + pending);
-                    }
+                uint208 addPending =
+                    uint208(getAllocated(index, 0).saturatingSub(getPending(index, 0)).saturatingSub(newSize));
+                if (addPending > 0) {
+                    slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + addPending);
                 }
             }
 
             slot.size.push(uint48(block.timestamp), newSize);
-
             emit SetSize(index, newSize);
+        }
+    }
+
+    function swapSlots(uint96 index1, uint96 index2) public slotExists(index1) slotExists(index2) {
+        unchecked {
+            uint96 parentIndex = index1.getParentIndex();
+            SlotStorage storage parent = slots[parentIndex];
+            SlotStorage storage slot1 = slots[index1];
+            SlotStorage storage slot2 = slots[index2];
+
+            if (parentIndex != index2.getParentIndex()) {
+                revert();
+            }
+            for (
+                uint32 childIndex = index2.getChildIndex();
+                childIndex > 0;
+                childIndex = uint32(slots[parentIndex.createIndex(childIndex)].nextSlot.latest())
+            ) {
+                if (childIndex == index1.getChildIndex()) {
+                    revert();
+                }
+            }
+
+            {
+                uint48 maxDuration = IVaultV2(vault).epochDuration() - 1;
+                uint256 balanceMaxDuration = getBalance(parentIndex, maxDuration);
+                uint256 curPrevSum = _getPrevSum(index2, 0);
+                if (curPrevSum < balanceMaxDuration) {
+                    if (curPrevSum + slots[index2].size.latest() + getPending(index2, 0) > balanceMaxDuration) {
+                        revert();
+                    }
+                } else if (_getPrevSum(index1, maxDuration) < getBalance(parentIndex, 0)) {
+                    revert();
+                }
+            }
+
+            if (index1.getChildIndex() == parent.firstChild.latest()) {
+                parent.firstChild.push(uint48(block.timestamp), index2.getChildIndex());
+            }
+            if (index2.getChildIndex() == parent.lastChild.latest()) {
+                parent.lastChild.push(uint48(block.timestamp), index1.getChildIndex());
+            }
+
+            uint32 nextSlot1 = uint32(slot1.nextSlot.latest());
+            slot1.nextSlot.push(uint48(block.timestamp), uint32(slot2.nextSlot.latest()));
+            slot2.nextSlot.push(uint48(block.timestamp), nextSlot1);
+
+            if (slot1.nextSlot.latest() > 0) {
+                slots[parentIndex.createIndex(uint32(slot1.nextSlot.latest()))].prevSlot = index1.getChildIndex();
+            }
+            slots[parentIndex.createIndex(uint32(slot2.nextSlot.latest()))].prevSlot = index2.getChildIndex();
+
+            (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
+
+            slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot
+                .push(uint48(block.timestamp), index1.getChildIndex());
+            if (slot2.prevSlot > 0) {
+                slots[parentIndex.createIndex(uint32(slot2.prevSlot))].nextSlot
+                    .push(uint48(block.timestamp), index2.getChildIndex());
+            }
+
+            emit SwapSlots(index1, index2);
         }
     }
 
@@ -439,7 +490,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     function _getAggregatedAt(uint96 index, uint48 duration, uint48 timestamp) internal view returns (uint256) {
         uint96 parentIndex = index.getParentIndex();
         uint256 slotAvailable = getBalanceAt(parentIndex, duration, timestamp);
-        slotAvailable = slotAvailable.saturatingSub(_getPrevSumAt(index, duration, timestamp));
+        slotAvailable = slotAvailable.saturatingSub(_getPrevSumAt(index, 0, timestamp));
         return Math.min(
             slotAvailable, slots[index].size.upperLookupRecent(timestamp) + getPendingAt(index, duration, timestamp)
         );
@@ -448,7 +499,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     function _getAggregated(uint96 index, uint48 duration) internal view returns (uint256) {
         uint96 parentIndex = index.getParentIndex();
         uint256 slotAvailable = getBalance(parentIndex, duration);
-        slotAvailable = slotAvailable.saturatingSub(_getPrevSum(index, duration));
+        slotAvailable = slotAvailable.saturatingSub(_getPrevSum(index, 0));
         return Math.min(slotAvailable, slots[index].size.latest() + getPending(index, duration));
     }
 
