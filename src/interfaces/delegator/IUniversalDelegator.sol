@@ -241,7 +241,7 @@ interface IUniversalDelegator {
 
     /**
      * @notice Emitted when a subnetwork allocation is reset.
-     * @param index Slot index that was reset.
+     * @param index Slot index that was removed.
      * @param subnetwork Full subnetwork identifier.
      */
     event ResetAllocation(uint96 indexed index, bytes32 indexed subnetwork);
