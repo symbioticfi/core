@@ -513,7 +513,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _withdrawalUnlockAt[curWithdrawalsOfLength][claimer] = unlockAt;
             _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
 
-            emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
+            emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares, curWithdrawalsOfLength);
             emit Transfer(msg.sender, address(0), burnedShares);
         }
     }

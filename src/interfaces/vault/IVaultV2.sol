@@ -266,9 +266,10 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param amount Amount of the collateral withdrawn.
      * @param burnedShares Amount of the active shares burned.
      * @param mintedShares Amount of the epoch withdrawal shares minted.
+     * @param index Index of the withdrawal.
      */
     event Withdraw(
-        address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares
+        address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares, uint256 index
     );
 
     /**
