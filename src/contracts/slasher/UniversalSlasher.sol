@@ -139,7 +139,8 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             if (captureTimestamp == 0 || captureTimestamp >= __migrateTimestamp) {
                 if (
                     captureTimestamp > 0
-                        && captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
+                        && (captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
+                            || captureTimestamp > block.timestamp)
                 ) {
                     return 0;
                 }

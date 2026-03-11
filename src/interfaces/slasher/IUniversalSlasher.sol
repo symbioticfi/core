@@ -303,7 +303,7 @@ interface IUniversalSlasher {
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @param operator Address of the operator.
      * @param amount Maximum amount of the collateral to be slashed.
-     * @param captureTimestamp Legacy parameter reserved for compatibility (can use 0 as a capture timestamp to get the current stake amount).
+     * @param captureTimestamp Legacy parameter reserved for compatibility (can just use 0 instead).
      * @param hints Reserved hints payload for compatibility.
      * @return slashIndex Index of the slash request.
      * @dev Only a network middleware can call this function.
