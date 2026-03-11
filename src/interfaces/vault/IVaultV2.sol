@@ -546,6 +546,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param recipient Account that receives the collateral.
      * @param indexes Indexes to claim the collateral for.
      * @return amount Amount of the collateral claimed.
+     * @dev Deprecated. Use `multicall()` of `claim()` calls instead.
      */
     function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
 
