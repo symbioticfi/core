@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
+import {VaultV2} from "../vault/VaultV2.sol";
 
 import {Checkpoints} from "../libraries/CheckpointsV2.sol";
 import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
@@ -34,8 +35,7 @@ import {
 import {
     OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE
 } from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
-import {IVaultV2, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
+import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -219,12 +219,12 @@ contract UniversalDelegator is
             // Legacy support.
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
-        return getAllocatedAt(subnetwork, operator, IVaultV2(vault).epochDuration() - 1, timestamp);
+        return getAllocatedAt(subnetwork, operator, VaultV2(vault).epochDuration() - 1, timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
     function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
-        return getAllocated(subnetwork, operator, IVaultV2(vault).epochDuration() - 1);
+        return getAllocated(subnetwork, operator, VaultV2(vault).epochDuration() - 1);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -256,7 +256,7 @@ contract UniversalDelegator is
             }
 
             uint48 fromTimestamp = uint48(
-                uint256(timestamp).saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration))
+                uint256(timestamp).saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration))
             );
             (, uint48 lastPendingAtKey, uint208 pendingCumulativeAt,) =
                 slot.pendingCumulative.upperLookupRecentCheckpoint(timestamp);
@@ -283,7 +283,7 @@ contract UniversalDelegator is
             }
 
             uint48 fromTimestamp =
-                uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration)));
+                uint48(block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration)));
             (, uint48 lastPendingKey, uint208 pendingCumulativeLatest) = slot.pendingCumulative.latestCheckpoint();
             if (lastPendingKey <= fromTimestamp) {
                 return 0;
@@ -301,8 +301,8 @@ contract UniversalDelegator is
         unchecked {
             return index > 0
                 ? getAllocatedAt(index, duration, timestamp)
-                : IVaultV2(vault).activeStakeAt(timestamp, "")
-                    + IVaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
+                : VaultV2(vault).activeStakeAt(timestamp, "")
+                    + VaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
         }
     }
 
@@ -311,14 +311,14 @@ contract UniversalDelegator is
         unchecked {
             return index > 0
                 ? getAllocated(index, duration)
-                : IVaultV2(vault).activeStake() + IVaultV2(vault).activeWithdrawalsFor(duration);
+                : VaultV2(vault).activeStake() + VaultV2(vault).activeWithdrawalsFor(duration);
         }
     }
 
     /// @inheritdoc IUniversalDelegator
     function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
-            if (duration >= IVaultV2(vault).epochDuration()) {
+            if (duration >= VaultV2(vault).epochDuration()) {
                 return 0;
             }
 
@@ -334,7 +334,7 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
-            if (duration >= IVaultV2(vault).epochDuration()) {
+            if (duration >= VaultV2(vault).epochDuration()) {
                 return 0;
             }
 
@@ -541,7 +541,7 @@ contract UniversalDelegator is
                 slots[index].nextSlot.push(uint48(block.timestamp), WITHDRAWAL_BUFFER_CHILD_INDEX);
                 slot.isShared = isShared;
                 if (noPlugins) {
-                    if (size > IVaultV2(vault).allocatable()) {
+                    if (size > VaultV2(vault).allocatable()) {
                         revert NotEnoughNoPlugins();
                     }
                     slot.noPlugins = true;
@@ -570,12 +570,12 @@ contract UniversalDelegator is
             SlotStorage storage parent = slots[parentIndex];
 
             if (newSize > curSize) {
-                uint48 maxDuration = IVaultV2(vault).epochDuration() - 1;
+                uint48 maxDuration = VaultV2(vault).epochDuration() - 1;
                 uint256 curBalance = getBalance(parentIndex, 0);
                 uint256 minBalance = getBalance(parentIndex, maxDuration);
                 if (
-                    !parent.isShared && _getPrevSum(index, maxDuration) + curSize < curBalance && slot.nextSlot.latest() > 0
-                        && slot.nextSlot.latest() < WITHDRAWAL_BUFFER_CHILD_INDEX
+                    !parent.isShared && _getPrevSum(index, maxDuration) + curSize < curBalance
+                        && slot.nextSlot.latest() > 0 && slot.nextSlot.latest() < WITHDRAWAL_BUFFER_CHILD_INDEX
                 ) {
                     uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
                     if (
@@ -587,7 +587,7 @@ contract UniversalDelegator is
                         revert NotEnoughBalance();
                     }
                 }
-                if (slot.noPlugins && newSize - curSize > IVaultV2(vault).allocatable()) {
+                if (slot.noPlugins && newSize - curSize > VaultV2(vault).allocatable()) {
                     revert NotEnoughNoPlugins();
                 }
             } else {
@@ -640,7 +640,7 @@ contract UniversalDelegator is
                 }
             }
             {
-                uint48 maxDuration = IVaultV2(vault).epochDuration() - 1;
+                uint48 maxDuration = VaultV2(vault).epochDuration() - 1;
                 uint256 minBalance = getBalance(parentIndex, maxDuration);
                 uint256 curPrevSum = _getPrevSum(index2, 0);
 
@@ -854,7 +854,7 @@ contract UniversalDelegator is
     /// @dev Apply slash accounting updates across the affected slot chain and invoke the optional hook.
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
         unchecked {
-            if (IVault(vault).slasher() != msg.sender) {
+            if (VaultV2(vault).slasher() != msg.sender) {
                 revert NotSlasher();
             }
 
@@ -968,7 +968,7 @@ contract UniversalDelegator is
             0,
             IEntity(oldDelegator).TYPE() < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
             true,
-            uint128(Math.min(IVaultV2(vault).allocatable(), type(uint128).max))
+            uint128(Math.min(VaultV2(vault).allocatable(), type(uint128).max))
         );
     }
 
@@ -1071,7 +1071,7 @@ contract UniversalDelegator is
             }
             if (
                 parent._childrenPendingAt
-                    <= block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration()).saturatingSub(duration))
+                    <= block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration))
             ) {
                 return 0;
             }
@@ -1101,7 +1101,7 @@ contract UniversalDelegator is
     /// @dev Return pending no-plugins allocation over the current slashable window.
     function _getNoPluginsPending() internal view returns (uint208) {
         unchecked {
-            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(IVaultV2(vault).epochDuration())));
+            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration())));
             return _noPluginsPendingCumulative.latest()
                 - uint208(
                 Math.max(
@@ -1119,7 +1119,7 @@ contract UniversalDelegator is
             Math.max(
                 clearedCursor.latest(),
                 pendingCumulative.upperLookupRecent(
-                    uint48(block.timestamp.saturatingSub(IVaultV2(vault).epochDuration()))
+                    uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration()))
                 )
             )
         );

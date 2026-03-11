@@ -17,8 +17,7 @@ import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/slasher/IUniversalSlasher.sol";
-import {IVaultV2, VAULT_V2_VERSION, MAX_DURATION} from "../../interfaces/vault/IVaultV2.sol";
-import {IVault} from "../../interfaces/vault/IVault.sol";
+import {VAULT_V2_VERSION, MAX_DURATION} from "../../interfaces/vault/IVaultV2.sol";
 import {IVetoSlasher, VETO_SLASHER_TYPE} from "../../interfaces/slasher/IVetoSlasher.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -140,22 +139,22 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             if (captureTimestamp == 0 || captureTimestamp >= __migrateTimestamp) {
                 if (
                     captureTimestamp > 0
-                        && captureTimestamp <= block.timestamp.saturatingSub(IVault(vault).epochDuration())
+                        && captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
                 ) {
                     return 0;
                 }
-                return UniversalDelegator(IVaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
+                return UniversalDelegator(VaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
             }
 
             // Legacy support.
             if (
-                captureTimestamp <= block.timestamp.saturatingSub(IVault(vault).epochDuration())
+                captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
                     || captureTimestamp >= block.timestamp
                     || captureTimestamp < _latestSlashedCaptureTimestamp(subnetwork, operator)
             ) {
                 return 0;
             }
-            return UniversalDelegator(IVaultV2(vault).delegator()).stakeAt(subnetwork, operator, captureTimestamp, "")
+            return UniversalDelegator(VaultV2(vault).delegator()).stakeAt(subnetwork, operator, captureTimestamp, "")
                 .saturatingSub(
                     _cumulativeSlash(subnetwork, operator) - _cumulativeSlashAt(subnetwork, operator, captureTimestamp)
                 );
@@ -222,7 +221,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             _slashRequests[slashIndex].completed = true;
 
             if (request.createdAt >= __migrateTimestamp) {
-                UniversalDelegator(IVault(vault).delegator())
+                UniversalDelegator(VaultV2(vault).delegator())
                     .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
             } else {
                 // Legacy support.
@@ -239,7 +238,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                 .onSlash(
                     slashedAmount,
                     request.createdAt >= __migrateTimestamp
-                        ? !UniversalDelegator(IVault(vault).delegator()).getIsNoPlugins(request.subnetwork)
+                        ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoPlugins(request.subnetwork)
                         : false
                 );
             if (owedAmount > 0) {
@@ -322,7 +321,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
         unchecked {
             if (isBurnerHook) {
-                address burner = IVault(vault).burner();
+                address burner = VaultV2(vault).burner();
                 bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
 
                 if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
@@ -352,15 +351,15 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         InitParams memory params = abi.decode(initData, (InitParams));
 
-        if (params.vetoDuration >= IVaultV2(initVault).epochDuration()) {
+        if (params.vetoDuration >= VaultV2(initVault).epochDuration()) {
             revert InvalidVetoDuration();
         }
 
-        if (params.resolverSetDelay <= IVaultV2(initVault).epochDuration() || params.resolverSetDelay > MAX_DURATION) {
+        if (params.resolverSetDelay <= VaultV2(initVault).epochDuration() || params.resolverSetDelay > MAX_DURATION) {
             revert InvalidResolverSetEpochsDelay();
         }
 
-        if (IVault(initVault).burner() == address(0) && params.isBurnerHook) {
+        if (VaultV2(initVault).burner() == address(0) && params.isBurnerHook) {
             revert NoBurner();
         }
 
@@ -398,7 +397,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             vetoDuration = IVetoSlasher(oldSlasher).vetoDuration();
             resolverSetDelay = uint48(
                 Math.min(
-                    IVetoSlasher(oldSlasher).resolverSetEpochsDelay() * IVaultV2(vault).epochDuration(), MAX_DURATION
+                    IVetoSlasher(oldSlasher).resolverSetEpochsDelay() * VaultV2(vault).epochDuration(), MAX_DURATION
                 )
             );
         }
