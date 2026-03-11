@@ -121,7 +121,43 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
         slots[index].size.push(key, size);
     }
 
+    function pushSyncPrevSizeSumsRaw(uint96 index, uint48 key, uint208 value) external {
+        slots[index].syncPrevSizeSums.push(key, value);
+    }
+
+    function setIsSharedRaw(uint96 index, bool isShared_) external {
+        slots[index].isShared = isShared_;
+    }
+
+    function getSyncPrevSizeSumsLatestRaw(uint96 index) external view returns (uint208) {
+        return slots[index].syncPrevSizeSums.latest();
+    }
+
+    function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
+
+    function exposePrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
+        return _getPrevSizeSumAt(index, timestamp);
+    }
+
+    function exposePrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint208) {
+        return _getPrevPendingSumAt(index, duration, timestamp);
+    }
+
+    function exposePrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPrevPendingSum(index, duration);
+    }
+
     function exposeSlotExists(uint96 index) external slotExists(index) {}
+}
+
+contract UniversalDelegatorInitCoverageHarness is UniversalDelegator {
+    constructor(address networkRegistry, address vaultFactory, address networkMiddlewareService)
+        UniversalDelegator(networkRegistry, vaultFactory, address(0), 0, networkMiddlewareService)
+    {}
+
+    function exposeInitialize(bytes calldata data) external {
+        _initialize(data);
+    }
 }
 
 contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
@@ -2149,6 +2185,37 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         harness.exposeSlotExists(_rootIndex(uint32(1)));
     }
 
+    function test_modifier_syncPrevSizeSums_harness_clearsFlagAndHandlesSharedZeroCases() public {
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+
+        harness.pushSyncPrevSizeSumsRaw(0, uint48(block.timestamp), 1);
+        harness.exposeSyncPrevSizeSums(0);
+
+        assertEq(harness.getSlot(0).prevSizeSum, 0);
+        assertEq(harness.getSyncPrevSizeSumsLatestRaw(0), 0);
+    }
+
+    function test_internalPrevSumHelpers_harness_zeroAndSharedBranches() public {
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+
+        assertEq(harness.exposePrevSizeSumAt(0, uint48(block.timestamp)), 0);
+        assertEq(harness.exposePrevPendingSumAt(0, 0, uint48(block.timestamp)), 0);
+        assertEq(harness.exposePrevPendingSum(0, 0), 0);
+
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        harness.setSlotExistsRaw(sharedSubvault, true);
+        harness.setIsSharedRaw(sharedSubvault, true);
+        harness.setParentChildrenRaw(0, uint32(1), uint32(1), 1, 1);
+        // network child under the shared subvault
+        uint96 networkSlot = sharedSubvault.createIndex(uint32(1));
+        harness.setSlotExistsRaw(networkSlot, true);
+        harness.setParentChildrenRaw(sharedSubvault, uint32(1), uint32(1), 1, 1);
+
+        assertEq(harness.exposePrevSizeSumAt(networkSlot, uint48(block.timestamp)), 0);
+        assertEq(harness.exposePrevPendingSumAt(networkSlot, 0, uint48(block.timestamp)), 0);
+        assertEq(harness.exposePrevPendingSum(networkSlot, 0), 0);
+    }
+
     function test_createSlot_revertsForMissingParentSlot() public {
         vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
         delegator.createSlot(bytes32(0), _rootIndex(uint32(1)), false, false, 1);
@@ -2644,6 +2711,41 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getNoPluginsSize(), 0);
     }
 
+    function test_removeSlot_clearsOnlyRemovedNoPluginsPending() public {
+        delegator.grantRole(REMOVE_SLOT_ROLE, owner);
+
+        _deposit(alice, 200);
+        uint96 noPluginsSubvault1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 noPluginsSubvault2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+
+        vm.warp(1);
+        _withdraw(alice, 200);
+
+        vm.warp(2);
+        delegator.setSize(noPluginsSubvault1, 50);
+        vm.warp(3);
+        delegator.setSize(noPluginsSubvault2, 60);
+
+        vm.warp(5);
+        assertEq(delegator.getAllocated(noPluginsSubvault1, 0), 0);
+        assertEq(delegator.getAllocated(noPluginsSubvault2, 0), 0);
+        assertEq(delegator.getPending(noPluginsSubvault1, 0), 0);
+        assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
+        assertEq(delegator.getNoPluginsSize(), 150);
+        assertEq(
+            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size - delegator.getSlot(noPluginsSubvault2).size,
+            40
+        );
+
+        delegator.removeSlot(noPluginsSubvault2);
+
+        assertFalse(delegator.getSlot(noPluginsSubvault2).exists);
+        assertTrue(delegator.getSlot(noPluginsSubvault1).exists);
+        assertEq(delegator.getPending(noPluginsSubvault1, 0), 0);
+        assertEq(delegator.getNoPluginsSize(), 50);
+        assertEq(delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size, 0);
+    }
+
     function test_resetAllocation_lastRootSubvault_keepsWithdrawalBufferConsistent() public {
         address network = makeAddr("reset-last-subvault-network");
         address middleware = makeAddr("reset-last-subvault-middleware");
@@ -2748,6 +2850,10 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getPending(noPluginsSubvault1, 0), 50);
         assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
         assertEq(delegator.getNoPluginsSize(), 200);
+        assertEq(
+            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size - delegator.getSlot(noPluginsSubvault2).size,
+            90
+        );
 
         vm.warp(3);
         vm.prank(network1);
@@ -2760,6 +2866,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getNoPluginsSize(), 100);
         assertTrue(delegator.getSlot(noPluginsSubvault2).exists);
         assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
+        assertEq(delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault2).size, 40);
     }
 
     function test_resetAllocation_singleNetworkClearsAssignmentAndAllowsReassign() public {
@@ -2899,6 +3006,15 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.expectRevert();
         UniversalDelegator(noRoleDelegator).createSlot(bytes32(0), 0, false, false, 1);
+    }
+
+    function test_initialize_harness_revertsNotVault() public {
+        UniversalDelegatorInitCoverageHarness harness = new UniversalDelegatorInitCoverageHarness(
+            address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
+        );
+
+        vm.expectRevert(IUniversalDelegator.NotVault.selector);
+        harness.exposeInitialize(abi.encode(address(0xBEEF), abi.encode(_defaultDelegatorInitParams())));
     }
 
     function test_migrateReverts_NotVault() public {

@@ -583,9 +583,8 @@ contract MockLegacySlasher {
     }
 
     function resolverAt(bytes32, uint48 timestamp, bytes memory) external view returns (address) {
-        return resolverSwitchTimestamp_ > 0 && timestamp >= resolverSwitchTimestamp_
-            ? resolverAtAfter_
-            : resolverAtBefore_;
+        return
+            resolverSwitchTimestamp_ > 0 && timestamp >= resolverSwitchTimestamp_ ? resolverAtAfter_ : resolverAtBefore_;
     }
 
     function vetoDuration() external view returns (uint48) {

@@ -699,26 +699,7 @@ contract UniversalDelegator is
             revert SlotAllocated();
         }
 
-        if (index.getDepth() == 2) {
-            bytes32 subnetwork = _slotToNetwork[index];
-            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-            _slotToNetwork[index] = bytes32(0);
-            if (_maxNetworkLimit[subnetwork].latest() > 0) {
-                _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
-            }
-        } else if (index.getDepth() == 3) {
-            _operatorToSlot[index.getParentIndex()][_slotToOperator[index]].push(uint48(block.timestamp), 0);
-            _slotToOperator[index] = address(0);
-        }
-
-        // Clear no-plugins size.
-        SlotStorage storage slot = slots[index];
-        if (index.getDepth() == 1 && slot.noPlugins) {
-            _noPluginsSize -= slot.size.latest();
-        }
-
         _removeSlot(index);
-
         emit RemoveSlot(index);
     }
 
@@ -726,7 +707,35 @@ contract UniversalDelegator is
     function _removeSlot(uint96 index) internal {
         unchecked {
             SlotStorage storage slot = slots[index];
-            SlotStorage storage parent = slots[index.getParentIndex()];
+            uint96 parentIndex = index.getParentIndex();
+            SlotStorage storage parent = slots[parentIndex];
+
+            if (index.getDepth() == 1) {
+                for (
+                    uint32 childIndex = uint32(slot.firstChild.latest());
+                    childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
+
+                ) {
+                    uint96 curIndex = index.createIndex(childIndex);
+                    bytes32 subnetwork = _slotToNetwork[curIndex];
+                    _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+                    _slotToNetwork[curIndex] = bytes32(0);
+                    if (_maxNetworkLimit[subnetwork].latest() > 0) {
+                        _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
+                    }
+                    childIndex = uint32(slots[curIndex].nextSlot.latest());
+                }
+            } else if (index.getDepth() == 2) {
+                bytes32 subnetwork = _slotToNetwork[index];
+                _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+                _slotToNetwork[index] = bytes32(0);
+                if (_maxNetworkLimit[subnetwork].latest() > 0) {
+                    _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
+                }
+            } else if (index.getDepth() == 3) {
+                _operatorToSlot[parentIndex][_slotToOperator[index]].push(uint48(block.timestamp), 0);
+                _slotToOperator[index] = address(0);
+            }
 
             if (index.getChildIndex() == parent.firstChild.latest()) {
                 uint32 nextChildIndex = uint32(slot.nextSlot.latest());
@@ -736,14 +745,27 @@ contract UniversalDelegator is
                         index.getDepth() > 1 || nextChildIndex < WITHDRAWAL_BUFFER_CHILD_INDEX ? nextChildIndex : 0
                     );
             } else {
-                slots[index.getParentIndex().createIndex(slot.prevSlot)].nextSlot
+                slots[parentIndex.createIndex(slot.prevSlot)].nextSlot
                     .push(uint48(block.timestamp), uint32(slot.nextSlot.latest()));
             }
             if (index.getChildIndex() == parent.lastChild.latest()) {
                 parent.lastChild.push(uint48(block.timestamp), slot.prevSlot);
             } else {
-                slots[index.getParentIndex().createIndex(uint32(slot.nextSlot.latest()))].prevSlot = slot.prevSlot;
+                slots[parentIndex.createIndex(uint32(slot.nextSlot.latest()))].prevSlot = slot.prevSlot;
             }
+
+            if (index.getDepth() == 1 && slot.noPlugins) {
+                uint208 pending = getPending(index, 0);
+                if (pending > 0) {
+                    _clearedNoPluginsPendingCursor.push(
+                        uint48(block.timestamp),
+                        _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor) + pending
+                    );
+                }
+
+                _noPluginsSize -= slot.size.latest();
+            }
+
             --parent.existChildren;
             slot.exists = false;
         }
@@ -798,48 +820,17 @@ contract UniversalDelegator is
             if (index == 0) {
                 revert NotAssigned();
             }
-
-            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-            _slotToNetwork[index] = bytes32(0);
-            if (_maxNetworkLimit[subnetwork].latest() > 0) {
-                _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
-            }
-
             if (slots[index.getParentIndex()].existChildren == 1) {
                 index = index.getParentIndex();
             }
             SlotStorage storage slot = slots[index];
             SlotStorage storage parent = slots[index.getParentIndex()];
 
-            uint208 pending = getPending(index, 0);
-            if (pending > 0) {
-                // Do not clear slot's pending because the slot will be completely removed anyway.
-
-                // Clear no-plugins pending.
-                if (slot.noPlugins) {
-                    _clearedNoPluginsPendingCursor.push(
-                        uint48(block.timestamp),
-                        _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor) + pending
-                    );
-                }
-            }
-
-            uint208 slotSize = slot.size.latest();
-            if (slotSize > 0) {
-                // Do not clear slot's size because the slot will be completely removed anyway.
-
-                // Create syncPrevSizeSums request.
-                if (
-                    parent.syncPrevSizeSums.latest() == 0
-                        && (index.getDepth() == 1 || (!parent.isShared && slot.nextSlot.latest() > 0))
-                ) {
-                    parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
-                }
-
-                // Clear no-plugins size.
-                if (index.getDepth() == 1 && slot.noPlugins) {
-                    _noPluginsSize -= slotSize;
-                }
+            if (
+                slot.size.latest() > 0 && parent.syncPrevSizeSums.latest() == 0
+                    && (index.getDepth() == 1 || (!parent.isShared && slot.nextSlot.latest() > 0))
+            ) {
+                parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
             }
 
             // Remove slot to restrict from slashing.
@@ -929,7 +920,6 @@ contract UniversalDelegator is
         if (!IRegistry(VAULT_FACTORY).isEntity(initVault)) {
             revert NotVault();
         }
-
         if (IMigratableEntity(initVault).version() < VAULT_V2_VERSION) {
             revert OldVault();
         }

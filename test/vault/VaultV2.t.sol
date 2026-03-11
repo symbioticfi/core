@@ -40,7 +40,8 @@ import {
     SWAP_PLUGINS_ROLE,
     ALLOCATE_PLUGIN_ROLE,
     DEALLOCATE_PLUGIN_ROLE,
-    MAX_PLUGINS
+    MAX_PLUGINS,
+    MAX_DURATION
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
@@ -84,6 +85,18 @@ contract MockCuratorRegistryHarnessVaultV2 {
 
     function getCurator(address vault) external view returns (address) {
         return curators[vault];
+    }
+}
+
+contract VaultV2CoverageHarness is VaultV2 {
+    constructor() VaultV2(address(0), address(0), address(0), address(0), address(0)) {}
+
+    function setEpochDurationRaw(uint48 epochDuration_) external {
+        epochDuration = epochDuration_;
+    }
+
+    function exposeMigrate(bytes calldata data) external {
+        _migrate(1, VAULT_V2_VERSION, data);
     }
 }
 
@@ -402,6 +415,15 @@ contract VaultV2Test is Test {
             false,
             0
         );
+    }
+
+    function test_activeWithdrawalsFor_returnsZeroAboveEpochDuration() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+        _withdraw(alice, 40);
+
+        assertEq(VaultV2(address(vault)).activeWithdrawalsFor(7 days + 1), 0);
+        assertEq(VaultV2(address(vault)).activeWithdrawalsForAt(7 days + 1, uint48(block.timestamp)), 0);
     }
 
     function test_CreateRevertInvalidCollateral(uint48 epochDuration) public {
@@ -2519,6 +2541,13 @@ contract VaultV2Test is Test {
 
         _setDepositLimit(alice, limit);
         assertEq(vault.depositLimit(), limit);
+    }
+
+    function test_MigrateReverts_TooLongDurationOnLegacyVault() public {
+        VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
+        harness.setEpochDurationRaw(MAX_DURATION + 1);
+        vm.expectRevert(IVaultV2.TooLongDuration.selector);
+        harness.exposeMigrate("");
     }
 
     function test_MigrateWithdrawals_FactoryUpgradePath() public {

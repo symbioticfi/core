@@ -1258,24 +1258,11 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
             return (op, effect);
         }
         if (op == 1) {
-            address user = r % 2 == 0 ? alice : bob;
-            vm.prank(user);
-            (bool ok,) = address(vault)
-                .call(abi.encodeWithSelector(vault.withdraw.selector, user, ((r >> 8) % 90 + 1) * 1 ether));
-            ok;
+            _tryWithdraw(r);
             return (op, effect);
         }
         if (op == 2 || op == 3) {
-            uint256 idx = (r >> 16) % 4;
-            uint128 cur = sizes[idx];
-            uint128 newSize = op == 2
-                ? uint128((uint256(cur) * ((r >> 24) % 11)) / 10)
-                : cur + uint128((((r >> 24) % 40) + 1) * 1 ether);
-            (bool ok,) =
-                address(delegator).call(abi.encodeWithSelector(delegator.setSize.selector, slots[idx], newSize));
-            if (ok) {
-                sizes[idx] = newSize;
-            }
+            _tryResize(r, op, slots, sizes);
             return (op, effect);
         }
         if (op == 4) {
@@ -1284,6 +1271,25 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         }
 
         return (op, _applySlash(r, subnetwork, slots, sizes, operators));
+    }
+
+    function _tryWithdraw(uint256 r) internal {
+        address user = r % 2 == 0 ? alice : bob;
+        uint256 amount = ((r >> 8) % 90 + 1) * 1 ether;
+        vm.prank(user);
+        (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.withdraw.selector, user, amount));
+        ok;
+    }
+
+    function _tryResize(uint256 r, uint256 op, uint96[4] memory slots, uint128[4] memory sizes) internal {
+        uint256 idx = (r >> 16) % 4;
+        uint128 cur = sizes[idx];
+        uint128 newSize =
+            op == 2 ? uint128((uint256(cur) * ((r >> 24) % 11)) / 10) : cur + uint128((((r >> 24) % 40) + 1) * 1 ether);
+        (bool ok,) = address(delegator).call(abi.encodeWithSelector(delegator.setSize.selector, slots[idx], newSize));
+        if (ok) {
+            sizes[idx] = newSize;
+        }
     }
 
     function _applySlash(

@@ -865,8 +865,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             __migrateTimestamp = uint48(block.timestamp);
             uint48 migrateEpoch = uint48((block.timestamp - __epochDurationInit) / epochDuration);
-            uint48 migrateNextEpochTimestamp = __epochDurationInit + (migrateEpoch + 1) * epochDuration;
             __migrateEpoch = migrateEpoch;
+            uint48 migrateNextEpochTimestamp = __epochDurationInit + (migrateEpoch + 1) * epochDuration;
             __migrateNextEpochTimestamp = migrateNextEpochTimestamp;
 
             MigrateParams memory params = abi.decode(data, (MigrateParams));

@@ -269,7 +269,12 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param index Index of the withdrawal.
      */
     event Withdraw(
-        address indexed withdrawer, address indexed claimer, uint256 amount, uint256 burnedShares, uint256 mintedShares, uint256 index
+        address indexed withdrawer,
+        address indexed claimer,
+        uint256 amount,
+        uint256 burnedShares,
+        uint256 mintedShares,
+        uint256 index
     );
 
     /**
