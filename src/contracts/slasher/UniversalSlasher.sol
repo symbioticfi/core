@@ -52,9 +52,11 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     uint48 public vetoDuration;
     /// @inheritdoc IUniversalSlasher
     uint48 public resolverSetDelay;
-
     /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
+
+    /// @inheritdoc IUniversalSlasher
+    uint256 public totalOwed;
     /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => mapping(address operator => uint256 amount)) public owed;
 
@@ -246,6 +248,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                         : false
                 );
             if (owedAmount > 0) {
+                totalOwed += owedAmount;
                 owed[request.subnetwork][request.operator] += owedAmount;
             }
 
@@ -306,6 +309,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             uint256 curOwed = owed[subnetwork][operator];
             slashedAmount = VaultV2(vault).syncOwedSlash(curOwed);
             owed[subnetwork][operator] = curOwed - slashedAmount;
+            totalOwed -= slashedAmount;
             _burnerOnSlash(subnetwork, operator, slashedAmount);
 
             emit SyncOwedSlash(subnetwork, operator, slashedAmount);

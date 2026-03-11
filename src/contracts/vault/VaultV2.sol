@@ -13,11 +13,9 @@ import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
-import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {
     IVaultV2,
     MAX_DURATION,
@@ -44,6 +42,11 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 
 /// @title VaultV2
 /// @notice Contract for upgradeable vault collateral, withdrawals, plugins, and migrations.
+/// @dev Priority over funds utilization:
+///      1. No-plugins subvaults can always slash full amount.
+///      2. Firstly, incoming funds are used for claimable withdrawals.
+///      3. Secondly, incoming funds are used to sync owed slashes.
+///      4. Remaining funds are used for instant withdrawals and plugins allocation simultaneously.
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
     using Math for uint256;
     using SafeERC20 for address;
@@ -51,20 +54,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     using Checkpoints for Checkpoints.Trace256;
     using CheckpointsV2 for CheckpointsV2.Trace208;
     using CheckpointsV2 for CheckpointsV2.Trace256;
-
-    /* MODIFIERS */
-
-    modifier withDeallocatePlugins(bool withPlugins) {
-        if (withPlugins) {
-            deallocatePlugins();
-        }
-        _;
-    }
-
-    modifier withSkimPlugins() {
-        skimPlugins();
-        _;
-    }
 
     /* MULTICALL */
 
@@ -238,9 +227,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /// @inheritdoc IVaultV2
     function allocatable() public view returns (uint256) {
-        return
-            totalStake().saturatingSub(IUniversalDelegator(delegator).getNoPluginsSize())
-                .saturatingSub(pluginsAllocated);
+        return _maxAllocatable().saturatingSub(pluginsAllocated);
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
@@ -248,21 +235,18 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function deposit(address onBehalfOf, uint256 amount)
         public
-        withSkimPlugins
         nonReentrant
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             _revertIfZero(onBehalfOf);
             if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
                 revert NotWhitelistedDepositor();
             }
 
-            uint256 balanceBefore = collateral.balanceOf(address(this));
-            collateral.safeTransferFrom(msg.sender, address(this), amount);
-            depositedAmount = collateral.balanceOf(address(this)) - balanceBefore;
-
-            _revertIfZero(depositedAmount);
+            depositedAmount = _safeTransferIn(msg.sender, amount);
 
             if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
                 revert DepositLimitReached();
@@ -293,11 +277,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function withdraw(address claimer, uint256 amount)
         public
-        withSkimPlugins
         nonReentrant
         returns (uint256 burnedShares, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             _revertIfZero(claimer);
             _revertIfZero(amount);
 
@@ -313,11 +298,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function redeem(address claimer, uint256 shares)
         public
-        withSkimPlugins
         nonReentrant
         returns (uint256 withdrawnAssets, uint256 mintedShares)
     {
         unchecked {
+            skimPlugins();
+
             _revertIfZero(claimer);
             _revertIfZero(shares);
             if (shares > activeSharesOf(msg.sender)) {
@@ -333,17 +319,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function instantWithdraw(address recipient, uint256 amount)
         public
-        withDeallocatePlugins(true)
         nonReentrant
         returns (uint256 withdrawnAssets, uint256 burnedShares)
     {
         unchecked {
             _revertIfZero(recipient);
 
-            withdrawnAssets =
-                Math.min(Math.min(amount, _availableToSlash()), IUniversalDelegator(delegator).getWithdrawalBuffer());
-
-            _revertIfZero(withdrawnAssets);
+            withdrawnAssets = Math.min(amount, UniversalDelegator(delegator).getWithdrawalBuffer());
 
             uint256 curActiveStake = activeStake();
             uint256 curActiveShares = activeShares();
@@ -358,7 +340,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _activeStake.push(uint48(block.timestamp), curActiveStake - withdrawnAssets);
             _activeShares.push(uint48(block.timestamp), curActiveShares - burnedShares);
 
-            collateral.safeTransfer(recipient, withdrawnAssets);
+            deallocatePlugins();
+
+            if (_maxAllocatable() < pluginsAllocated) {
+                revert InsufficientAmount();
+            }
+
+            _safeTransferOut(recipient, withdrawnAssets);
 
             emit InstantWithdraw(msg.sender, withdrawnAssets, burnedShares);
             emit Transfer(msg.sender, address(0), burnedShares);
@@ -366,13 +354,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @inheritdoc IVaultV2
-    function claim(address recipient, uint256 index)
-        public
-        withDeallocatePlugins(true)
-        nonReentrant
-        returns (uint256 amount)
-    {
+    function claim(address recipient, uint256 index) public nonReentrant returns (uint256 amount) {
         unchecked {
+            deallocatePlugins();
+
             _revertIfZero(recipient);
 
             if (isWithdrawalsClaimed[index][msg.sender]) {
@@ -383,12 +368,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             }
 
             amount = withdrawalsOf(index, msg.sender);
-            _revertIfZero(amount);
 
             isWithdrawalsClaimed[index][msg.sender] = true;
             _unclaimedRaw -= int256(amount);
 
-            collateral.safeTransfer(recipient, amount);
+            _safeTransferOut(recipient, amount);
 
             emit Claim(msg.sender, recipient, index, amount);
         }
@@ -404,17 +388,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @dev Credit rewards donation into active stake after pulling collateral from the rewards address.
-    function donate(uint256 amount) public nonReentrant {
+    function donate(uint256 amount) public {
         unchecked {
             if (REWARDS != msg.sender) {
                 revert NotRewards();
             }
 
-            uint256 balanceBefore = collateral.balanceOf(address(this));
-            collateral.safeTransferFrom(msg.sender, address(this), amount);
-            amount = collateral.balanceOf(address(this)) - balanceBefore;
-
-            _revertIfZero(amount);
+            amount = _safeTransferIn(msg.sender, amount);
 
             uint256 curActiveStake = activeStake();
             uint256 curActiveWithdrawals = activeWithdrawals();
@@ -432,7 +412,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     // @dev Internal dev function to handle slashing.
     function onSlash(uint256 amount, bool withPlugins)
         public
-        withDeallocatePlugins(withPlugins)
         nonReentrant
         returns (uint256 slashedAmount, uint256 owedAmount)
     {
@@ -453,11 +432,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     _updateWithdrawalsSharePrice(curActiveWithdrawals - (slashedAmount - activeSlashed));
                 }
 
-                owedAmount = slashedAmount.saturatingSub(_availableToSlash());
-
-                if (owedAmount < slashedAmount) {
-                    collateral.safeTransfer(burner, slashedAmount - owedAmount);
+                if (withPlugins) {
+                    deallocatePlugins();
+                    owedAmount = Math.min(slashedAmount, _pluginsOwe());
                 }
+
+                _safeTransferOut(burner, slashedAmount - owedAmount);
             }
         }
 
@@ -649,7 +629,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 pluginAllocated[plugin] += allocated;
 
                 uint256 balanceBefore = collateral.balanceOf(plugin);
-                collateral.safeTransfer(plugin, allocated);
+                _safeTransferOut(plugin, allocated);
                 if (collateral.balanceOf(plugin) - balanceBefore < allocated) {
                     revert FeeOnTransferNotSupported();
                 }
@@ -673,7 +653,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function _deallocatePlugin(address plugin, uint256 amount) internal returns (uint256 deallocated) {
         deallocated = IPluginBase(plugin).deallocate(amount);
         if (deallocated > 0) {
-            collateral.safeTransferFrom(plugin, address(this), deallocated);
+            _safeTransferIn(plugin, deallocated);
 
             pluginAllocated[plugin] -= deallocated;
             unchecked {
@@ -688,38 +668,34 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /// @inheritdoc IVaultV2
     function skimPlugins() public {
-        unchecked {
-            for (uint256 i; i < plugins.length; ++i) {
-                IPluginBase(plugins[i]).skim(address(this));
-            }
+        for (uint256 i; i < plugins.length; ++i) {
+            IPluginBase(plugins[i]).skim(address(this));
         }
     }
 
     /// @inheritdoc IVaultV2
     function deallocatePlugins() public {
-        unchecked {
-            for (uint256 i; i < plugins.length; ++i) {
-                uint256 toDeallocate = pluginsAllocated.saturatingSub(totalStake());
-                if (toDeallocate == uint256(0)) {
-                    break;
-                }
-                address plugin = plugins[i];
-                uint256 curPluginAllocated = pluginAllocated[plugin];
-                if (curPluginAllocated > 0) {
-                    _deallocatePlugin(plugin, Math.min(curPluginAllocated, toDeallocate));
-                }
+        for (uint256 i; i < plugins.length; ++i) {
+            uint256 toDeallocate = _pluginsOwe();
+            if (toDeallocate == uint256(0)) {
+                break;
+            }
+            address plugin = plugins[i];
+            uint256 curPluginAllocated = pluginAllocated[plugin];
+            if (curPluginAllocated > 0) {
+                _deallocatePlugin(plugin, Math.min(curPluginAllocated, toDeallocate));
             }
         }
     }
 
     /* INTERNAL FUNCTIONS (PLUGINS) */
 
-    /// @dev Return collateral currently available for slashing.
-    function _availableToSlash() internal view returns (uint256) {
-        unchecked {
-            return collateral.balanceOf(address(this))
-                .saturatingSub(uint256(_unclaimedRaw + int256(withdrawals(withdrawalBucket()) - activeWithdrawals())));
-        }
+    function _maxAllocatable() internal view returns (uint256) {
+        return totalStake().saturatingSub(UniversalDelegator(delegator).getNoPluginsSize());
+    }
+
+    function _pluginsOwe() internal view returns (uint256) {
+        return pluginsAllocated.saturatingSub(_maxAllocatable());
     }
 
     /// @inheritdoc AccessControlUpgradeable
@@ -738,10 +714,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert NotSlasher();
         }
 
-        // Use only unclaimable (either active stake or active _withdrawals) funds for slashing.
-        slashedAmount = Math.min(amount, _availableToSlash());
-        _revertIfZero(slashedAmount);
-        collateral.safeTransfer(burner, slashedAmount);
+        slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(_pluginsOwe()));
+        _safeTransferOut(burner, slashedAmount);
 
         emit SyncOwedSlash(slashedAmount);
     }
@@ -752,16 +726,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert DelegatorAlreadyInitialized();
         }
 
-        if (!IRegistry(DELEGATOR_FACTORY).isEntity(newDelegator)) {
-            revert NotDelegator();
-        }
-
-        if (
-            IUniversalDelegator(newDelegator).vault() != address(this)
-                || IEntity(newDelegator).TYPE() < UNIVERSAL_DELEGATOR_TYPE
-        ) {
-            revert InvalidDelegator();
-        }
+        _validateEntity(newDelegator, DELEGATOR_FACTORY, UNIVERSAL_DELEGATOR_TYPE, InvalidDelegator.selector);
 
         delegator = newDelegator;
 
@@ -777,15 +742,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         if (newSlasher != address(0)) {
-            if (!IRegistry(SLASHER_FACTORY).isEntity(newSlasher)) {
-                revert NotSlasher();
-            }
-
-            if (
-                IBaseSlasher(newSlasher).vault() != address(this) || IEntity(newSlasher).TYPE() < UNIVERSAL_SLASHER_TYPE
-            ) {
-                revert InvalidSlasher();
-            }
+            _validateEntity(newSlasher, SLASHER_FACTORY, UNIVERSAL_SLASHER_TYPE, InvalidSlasher.selector);
 
             slasher = newSlasher;
         }
@@ -922,10 +879,37 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /// @dev Revert when an entity is invalid.
+    function _validateEntity(address entity, address factory, uint64 minType, bytes4 errorSelector) internal view {
+        if (
+            !IRegistry(factory).isEntity(entity) || UniversalDelegator(entity).vault() != address(this)
+                || IEntity(entity).TYPE() < minType
+        ) {
+            assembly ("memory-safe") {
+                mstore(0x00, errorSelector)
+                revert(0x00, 0x04)
+            }
+        }
+    }
+
     /// @dev Grant a role when the holder address is not zero.
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
         if (holder != address(0)) {
             _grantRole(role, holder);
         }
+    }
+
+    /// @dev Transfer collateral from a source address to the vault.
+    function _safeTransferIn(address from, uint256 amount) internal returns (uint256 amountIn) {
+        uint256 balanceBefore = collateral.balanceOf(address(this));
+        collateral.safeTransferFrom(from, address(this), amount);
+        amountIn = collateral.balanceOf(address(this)) - balanceBefore;
+        _revertIfZero(amountIn);
+    }
+
+    /// @dev Transfer collateral from the vault to a recipient address.
+    function _safeTransferOut(address to, uint256 amount) internal {
+        _revertIfZero(amount);
+        collateral.safeTransfer(to, amount);
     }
 }

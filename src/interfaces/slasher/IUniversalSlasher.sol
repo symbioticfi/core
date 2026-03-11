@@ -227,46 +227,52 @@ interface IUniversalSlasher {
 
     /**
      * @notice Get the vault's address.
-     * @return Address Of the vault to perform slashings on.
+     * @return Address of the vault to perform slashings on.
      */
     function vault() external view returns (address);
 
     /**
      * @notice Get if the burner is needed to be called on a slashing.
-     * @return If The burner is a hook.
+     * @return If the burner is a hook.
      */
     function isBurnerHook() external view returns (bool);
 
     /**
      * @notice Get a duration during which resolvers can veto slash requests.
-     * @return Duration Of the veto period.
+     * @return Duration of the veto period.
      */
     function vetoDuration() external view returns (uint48);
 
     /**
      * @notice Get a delay for networks in seconds to update a resolver.
-     * @return Updating Resolver delay in seconds.
+     * @return Updating resolver delay in seconds.
      */
     function resolverSetDelay() external view returns (uint48);
 
     /**
      * @notice Get pending resolver activation data for a subnetwork.
      * @param subnetwork Full identifier of the subnetwork.
-     * @return Data Encoded pending resolver address and activation timestamp.
+     * @return data Encoded pending resolver address and activation timestamp.
      */
     function pendingResolverData(bytes32 subnetwork) external view returns (bytes32);
+
+    /**
+     * @notice Get a total amount of owed slashing.
+     * @return Total amount of owed slashing.
+     */
+    function totalOwed() external view returns (uint256);
 
     /**
      * @notice Get owed slash amount for a subnetwork and operator.
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Address of the operator.
-     * @return Amount Outstanding slash amount not yet synced to burner.
+     * @return amount Outstanding slash amount not yet synced to burner.
      */
     function owed(bytes32 subnetwork, address operator) external view returns (uint256);
 
     /**
      * @notice Get a total number of slash requests.
-     * @return Total Number of slash requests.
+     * @return Total number of slash requests.
      */
     function slashRequestsLength() external view returns (uint256);
 
@@ -280,7 +286,7 @@ interface IUniversalSlasher {
     /**
      * @notice Get a resolver for a given subnetwork.
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
-     * @return Address Of the resolver.
+     * @return Address of the resolver.
      */
     function resolver(bytes32 subnetwork) external view returns (address);
 
@@ -290,7 +296,7 @@ interface IUniversalSlasher {
      * @param operator Address of the operator.
      * @param captureTimestamp Time point to get the stake amount at.
      * @param hints Reserved hints payload for compatibility.
-     * @return Slashable Amount of the stake.
+     * @return Slashable amount of the stake.
      * @dev Can use 0 as a capture timestamp to get the current stake amount.
      */
     function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)

@@ -719,7 +719,7 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).setDelegator(address(delegator_));
     }
 
-    function test_SetDelegatorRevertNotDelegator() public {
+    function test_SetDelegatorRevertInvalidDelegatorWhenNotFactoryEntity() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vault = IVaultV2(
@@ -749,7 +749,7 @@ contract VaultV2Test is Test {
             )
         );
 
-        vm.expectRevert(IVaultV2.NotDelegator.selector);
+        vm.expectRevert(IVaultV2.InvalidDelegator.selector);
         VaultV2(address(vault)).setDelegator(address(1));
     }
 
@@ -934,7 +934,7 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).setSlasher(address(slasher_));
     }
 
-    function test_SetSlasherRevertNotSlasher() public {
+    function test_SetSlasherRevertInvalidSlasherWhenNotFactoryEntity() public {
         uint64 lastVersion = vaultFactory.lastVersion();
 
         vault = IVaultV2(
@@ -964,21 +964,7 @@ contract VaultV2Test is Test {
             )
         );
 
-        UniversalSlasher slasher_ = UniversalSlasher(
-            slasherFactory.create(
-                UNIVERSAL_SLASHER_TYPE,
-                abi.encode(
-                    address(vault),
-                    abi.encode(
-                        IUniversalSlasher.InitParams({
-                            isBurnerHook: false, vetoDuration: 1, resolverSetDelay: 7 days * 3
-                        })
-                    )
-                )
-            )
-        );
-
-        vm.expectRevert(IVaultV2.NotSlasher.selector);
+        vm.expectRevert(IVaultV2.InvalidSlasher.selector);
         VaultV2(address(vault)).setSlasher(address(1));
     }
 
@@ -2230,6 +2216,73 @@ contract VaultV2Test is Test {
 
         vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
         _claimBatch(alice, indexes);
+    }
+
+    function test_Claim_deallocatesPluginsWhenNeeded() public {
+        vault = _getUniversalVault(7 days);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoBorrowPlugin plugin =
+            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        pluginRegistry.whitelistPlugin(address(plugin));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+
+        _deposit(alice, 100);
+        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 60);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(vault.pluginAllocated(address(plugin)), 100);
+
+        vm.warp(block.timestamp + 8 days);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), 60);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, 60);
+        assertEq(vault.pluginAllocated(address(plugin)), 40);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+    }
+
+    function test_Claim_revertsWhenPluginsCannotDeallocateEnough() public {
+        vault = _getUniversalVault(7 days);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoBorrowPlugin plugin =
+            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        pluginRegistry.whitelistPlugin(address(plugin));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+
+        _deposit(alice, 100);
+        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 60);
+
+        // Drain plugin liquidity so claim-time deallocation is insufficient.
+        vm.prank(address(morphoVault));
+        collateral.transfer(address(0xBEEF), 50);
+
+        vm.warp(block.timestamp + 8 days);
+
+        vm.expectRevert();
+        _claim(alice, 0);
     }
 
     function test_TotalStakeUnlockBoundary(uint256 amount1, uint256 amount2) public {
@@ -3509,27 +3562,182 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginAllocated(address(plugin)), 80);
     }
 
-    function test_SyncOwedSlash_respectsUnclaimed() public {
-        uint256 blockTimestamp = vm.getBlockTimestamp();
-        if (blockTimestamp == 0) {
-            vm.warp(1_720_700_948);
-            blockTimestamp = vm.getBlockTimestamp();
-        }
-
-        uint48 epochDuration = 1;
-        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(epochDuration);
-
+    function test_OnSlash_withPluginsDeallocatesToAvoidOwedWhenVaultLiquidityIsInsufficient() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
-        _withdraw(alice, 60);
 
-        vm.warp(blockTimestamp + epochDuration + 1);
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+
+        assertEq(collateral.balanceOf(address(vault)), 20);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true);
+
+        assertEq(slashedAmount, 60);
+        assertEq(owed, 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 60);
+        assertEq(vault.pluginAllocated(address(plugin)), 40);
+        assertEq(vault.pluginsAllocated(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+    }
+
+    function test_PluginNoDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+
+        plugin.setShouldFail(true);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).instantWithdraw(alice, 60);
+
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(collateral.balanceOf(address(vault)), 20);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         vm.prank(address(slasher));
-        uint256 owed = VaultV2(address(vault)).syncOwedSlash(80);
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true);
 
+        assertEq(slashedAmount, 60);
         assertEq(owed, 40);
-        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 40);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        vm.prank(address(slasher));
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).syncOwedSlash(1);
+    }
+
+    function test_PluginPartialDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+
+        vm.prank(address(plugin));
+        collateral.transfer(bob, 50);
+        assertEq(collateral.balanceOf(address(plugin)), 30);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).instantWithdraw(alice, 60);
+
+        assertEq(collateral.balanceOf(address(plugin)), 30);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(collateral.balanceOf(address(vault)), 20);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true);
+
+        assertEq(slashedAmount, 60);
+        assertEq(owed, 10);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 50);
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.pluginsAllocated(), 50);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        vm.prank(address(slasher));
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).syncOwedSlash(1);
+    }
+
+    function test_UniversalSlasher_syncOwedSlash_closesOutstandingOwedAfterDeposit() public {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        universalSlasher = UniversalSlasher(address(slasher));
+
+        address network = makeAddr("sync-owed-network");
+        address middleware = makeAddr("sync-owed-middleware");
+        _registerNetwork(network, middleware);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, network);
+
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        vm.startPrank(alice);
+        uint96 subvaultSlot = universalDelegator.createSlot(bytes32("subvault"), 0, false, false, 100);
+        uint96 networkSlot = universalDelegator.createSlot(network.subnetwork(0), subvaultSlot, false, false, 100);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoBorrowPlugin plugin =
+            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
+        pluginRegistry.whitelistPlugin(address(plugin));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+
+        _deposit(alice, 100);
+        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(morphoVault)), 100);
+
+        vm.prank(address(morphoVault));
+        collateral.transfer(address(0xBEEF), 40);
+        assertEq(collateral.balanceOf(address(morphoVault)), 60);
+
+        vm.prank(middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(network.subnetwork(0), alice, 80, 0, "");
+        vm.warp(block.timestamp + 1);
+        vm.prank(middleware);
+        uint256 slashedAmount = universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 80);
+        assertEq(universalSlasher.totalOwed(), 20);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 20);
+        assertEq(vault.pluginAllocated(address(plugin)), 40);
+        assertEq(vault.pluginsAllocated(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        _deposit(bob, 30);
+
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.pluginsAllocated(), 50);
+        assertEq(collateral.balanceOf(address(vault)), 20);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = universalSlasher.syncOwedSlash(network.subnetwork(0), alice);
+
+        assertEq(synced, 20);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(collateral.balanceOf(address(vault)), 0);
     }
 
     function test_SyncOwedSlash_revertsWhenOnlyUnclaimed() public {
@@ -3731,33 +3939,6 @@ contract VaultV2Test is Test {
         assertTrue(found);
     }
 
-    function test_InstantWithdraw_deallocatesPluginsWhenOverAllocated() public {
-        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
-        _deposit(alice, 100);
-
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
-
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
-        assertEq(collateral.balanceOf(address(vault)), 20);
-
-        vm.prank(address(slasher));
-        VaultV2(address(vault)).onSlash(80, false);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
-
-        uint256 amount = Math.min(IUniversalDelegator(vault.delegator()).getWithdrawalBuffer(), uint256(10));
-        assertGt(amount, 0);
-
-        vm.prank(alice);
-        (uint256 withdrawnAssets,) = VaultV2(address(vault)).instantWithdraw(alice, amount);
-
-        assertEq(withdrawnAssets, amount);
-        assertEq(vault.pluginAllocated(address(plugin)), 20);
-    }
-
     function test_InstantWithdraw_capsByAvailableToSlash() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
@@ -3779,10 +3960,93 @@ contract VaultV2Test is Test {
         vm.prank(alice);
         (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 60);
 
-        assertEq(withdrawnAssets, liquidBefore);
+        assertEq(withdrawnAssets, 60);
         assertGt(burnedShares, 0);
         assertEq(collateral.balanceOf(address(vault)), 0);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 40);
+    }
+
+    function test_InstantWithdraw_revertsWhenItWouldConsumeNoPluginsReserve() public {
+        (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
+        vm.prank(alice);
+        universalDelegator.createSlot(address(0xA11CE).subnetwork(0), 0, false, true, 40);
+        assertEq(universalDelegator.getNoPluginsSize(), 40);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 60);
+        assertEq(collateral.balanceOf(address(vault)), 40);
+
+        plugin.setShouldFail(true);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        VaultV2(address(vault)).instantWithdraw(alice, 10);
+    }
+
+    function test_InstantWithdraw_deallocatesPluginToPreserveNoPluginsReserve() public {
+        (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
+        vm.prank(alice);
+        universalDelegator.createSlot(address(0xA11CE).subnetwork(0), 0, false, true, 40);
+        assertEq(universalDelegator.getNoPluginsSize(), 40);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+
+        assertEq(vault.pluginAllocated(address(plugin)), 60);
+        assertEq(collateral.balanceOf(address(vault)), 40);
+        assertEq(plugin.deallocatable(address(vault)), 60);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
+
+        assertEq(withdrawnAssets, 10);
+        assertGt(burnedShares, 0);
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(collateral.balanceOf(address(vault)), 40);
+        assertEq(universalDelegator.getNoPluginsSize(), 40);
+    }
+
+    function test_InstantWithdraw_allowsLiquidityAboveNoPluginsReserve() public {
+        (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
+        vm.prank(alice);
+        universalDelegator.createSlot(address(0xB0B).subnetwork(0), 0, false, true, 40);
+        assertEq(universalDelegator.getNoPluginsSize(), 40);
+
+        MockPlugin plugin = _createPlugin();
+        _addPlugin(plugin);
+        _activatePluginLimit();
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 50);
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(collateral.balanceOf(address(vault)), 50);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
+
+        assertEq(withdrawnAssets, 10);
+        assertGt(burnedShares, 0);
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(collateral.balanceOf(address(vault)), 40);
+        assertEq(universalDelegator.getNoPluginsSize(), 40);
     }
 
     function test_InstantWithdrawRevertInsufficientAmount() public {
@@ -3907,6 +4171,84 @@ contract VaultV2Test is Test {
         assertEq(vault.pluginAllocated(address(plugin)), 70);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
         assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + deallocated);
+        assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
+    function test_MorphoAllocatePlugin_skimPluginsDonatesRewards() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoAllocatePlugin plugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndPlugin(plugin, address(vault), address(morphoVault));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+
+        collateral.approve(address(morphoVault), 20);
+        morphoVault.donateYield(20);
+
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+        uint256 expectedSkimmed = plugin.skimmable(address(vault));
+
+        VaultV2(address(vault)).skimPlugins();
+
+        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
+        assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
+    function test_MorphoAllocatePlugin_instantWithdrawDeallocatesAndDonatesRewards() public {
+        (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
+        MockMorphoAllocatePlugin plugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndPlugin(plugin, address(vault), address(morphoVault));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+        _grantAddPluginRole(alice, alice);
+        vm.prank(alice);
+        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+
+        IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
+        vm.prank(alice);
+        universalDelegator.createSlot(address(0xD00D).subnetwork(0), 0, false, true, 40);
+        assertEq(universalDelegator.getNoPluginsSize(), 40);
+
+        vm.prank(address(plugin));
+        vault.allocatePlugin(address(plugin), 80);
+        assertEq(vault.pluginAllocated(address(plugin)), 60);
+
+        collateral.approve(address(morphoVault), 20);
+        morphoVault.donateYield(20);
+
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+        uint256 expectedSkimmed = plugin.skimmable(address(vault));
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
+
+        assertEq(withdrawnAssets, 10);
+        assertGt(burnedShares, 0);
+        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.activeStake(), activeStakeBefore - withdrawnAssets + expectedSkimmed);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + 10 - withdrawnAssets);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -4215,6 +4557,175 @@ contract VaultV2Test is Test {
         vm.expectRevert(IVaultV2.NotWhitelistedDepositor.selector);
         vault.deposit(notWhitelisted, 1);
         vm.stopPrank();
+    }
+
+    function test_TokenizedMetadataAndErc20Views() public {
+        uint48 epochDuration = 7 days;
+        vault = _getVault(epochDuration);
+
+        VaultV2 tokenizedVault = VaultV2(address(vault));
+        assertEq(tokenizedVault.balanceOf(alice), 0);
+        assertEq(tokenizedVault.totalSupply(), 0);
+        assertEq(tokenizedVault.allowance(alice, alice), 0);
+        assertEq(tokenizedVault.decimals(), collateral.decimals());
+        assertEq(tokenizedVault.symbol(), VAULT_SYMBOL);
+        assertEq(tokenizedVault.name(), VAULT_NAME);
+    }
+
+    function test_TokenizedBalances_matchSharesAfterDepositTwice(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        (, uint256 shares1) = _deposit(alice, amount1);
+        vm.warp(block.timestamp + 1);
+        (, uint256 shares2) = _deposit(alice, amount2);
+
+        VaultV2 tokenizedVault = VaultV2(address(vault));
+        assertEq(tokenizedVault.balanceOf(alice), shares1 + shares2);
+        assertEq(tokenizedVault.totalSupply(), shares1 + shares2);
+    }
+
+    function test_TokenizedBalances_matchSharesAfterDepositBoth(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+
+        uint48 epochDuration = 1;
+        vault = _getVault(epochDuration);
+
+        (, uint256 shares1) = _deposit(alice, amount1);
+        vm.warp(block.timestamp + 1);
+        (, uint256 shares2) = _deposit(bob, amount2);
+
+        VaultV2 tokenizedVault = VaultV2(address(vault));
+        assertEq(tokenizedVault.balanceOf(alice), shares1);
+        assertEq(tokenizedVault.balanceOf(bob), shares2);
+        assertEq(tokenizedVault.totalSupply(), shares1 + shares2);
+    }
+
+    function test_TokenizedBalances_matchSharesAfterWithdrawTwice(uint256 amount1, uint256 amount2, uint256 amount3)
+        public
+    {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        amount3 = bound(amount3, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2 + amount3);
+
+        vault = _getVault(1);
+
+        _deposit(alice, amount1);
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, amount2);
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, amount3);
+
+        VaultV2 tokenizedVault = VaultV2(address(vault));
+        assertEq(tokenizedVault.balanceOf(alice), vault.activeSharesOf(alice));
+        assertEq(tokenizedVault.totalSupply(), vault.activeShares());
+    }
+
+    function test_Transfer(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        vault = _getVault(1);
+
+        (, uint256 mintedShares) = _deposit(alice, amount1);
+
+        VaultV2 tokenizedVault = VaultV2(address(vault));
+        assertEq(tokenizedVault.balanceOf(alice), mintedShares);
+        assertEq(tokenizedVault.totalSupply(), mintedShares);
+        assertEq(vault.activeSharesOf(alice), mintedShares);
+        assertEq(vault.activeShares(), mintedShares);
+
+        if (amount2 > mintedShares) {
+            vm.startPrank(alice);
+            vm.expectRevert();
+            tokenizedVault.transfer(bob, amount2);
+            vm.stopPrank();
+            return;
+        }
+
+        vm.startPrank(alice);
+        tokenizedVault.transfer(bob, amount2);
+        vm.stopPrank();
+
+        assertEq(tokenizedVault.balanceOf(alice), mintedShares - amount2);
+        assertEq(tokenizedVault.totalSupply(), mintedShares);
+        assertEq(vault.activeSharesOf(alice), mintedShares - amount2);
+        assertEq(vault.activeShares(), mintedShares);
+
+        assertEq(tokenizedVault.balanceOf(bob), amount2);
+        assertEq(vault.activeSharesOf(bob), amount2);
+
+        vm.startPrank(bob);
+        tokenizedVault.approve(alice, amount2);
+        vm.stopPrank();
+
+        assertEq(tokenizedVault.allowance(bob, alice), amount2);
+
+        vm.startPrank(alice);
+        tokenizedVault.transferFrom(bob, alice, amount2);
+        vm.stopPrank();
+
+        assertEq(tokenizedVault.balanceOf(alice), mintedShares);
+        assertEq(tokenizedVault.totalSupply(), mintedShares);
+        assertEq(vault.activeSharesOf(alice), mintedShares);
+        assertEq(vault.activeShares(), mintedShares);
+    }
+
+    function test_Migrate_FactoryUpgradePath_preservesNameAndSymbol() public {
+        uint48 epochDuration = 10;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        uint48 vetoDuration = epochDuration > 1 ? 1 : 0;
+        bytes memory vetoSlasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                vetoDuration: vetoDuration,
+                resolverSetEpochsDelay: 3
+            })
+        );
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            2,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this),
+            1,
+            vetoSlasherParams
+        );
+        vault = IVaultV2(address(vault_));
+        address oldSlasher = vault.slasher();
+
+        assertEq(VaultV2(address(vault)).name(), VAULT_NAME);
+        assertEq(VaultV2(address(vault)).symbol(), VAULT_SYMBOL);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vault));
+        _assertMigrationState(vaultV2, oldSlasher);
+        assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
+        assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
     }
 
     function _latestWithdrawalBucket() internal view returns (uint256) {
@@ -4947,176 +5458,5 @@ contract VaultV2Test is Test {
 
     function _getEncodedVaultParams(IVaultV2.InitParams memory params) internal pure virtual returns (bytes memory) {
         return abi.encode(params);
-    }
-}
-
-contract VaultV2TokenizedTest is VaultV2Test {
-    function setUp() public override {
-        super.setUp();
-    }
-
-    function test_Create2(
-        address burner,
-        uint48 epochDuration,
-        bool depositWhitelist,
-        bool isDepositLimit,
-        uint256 depositLimit
-    ) public override {
-        epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
-        super.test_Create2(burner, epochDuration, depositWhitelist, isDepositLimit, depositLimit);
-
-        VaultV2 tokenizedVault = VaultV2(address(vault));
-        assertEq(tokenizedVault.balanceOf(alice), 0);
-        assertEq(tokenizedVault.totalSupply(), 0);
-        assertEq(tokenizedVault.allowance(alice, alice), 0);
-        assertEq(tokenizedVault.decimals(), collateral.decimals());
-        assertEq(tokenizedVault.symbol(), "TEST");
-        assertEq(tokenizedVault.name(), "Test");
-    }
-
-    function test_DepositTwice(uint256 amount1, uint256 amount2) public override {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-
-        super.test_DepositTwice(amount1, amount2);
-        uint256 shares1 = amount1 * 10 ** 0;
-        uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
-
-        VaultV2 tokenizedVault = VaultV2(address(vault));
-        assertEq(tokenizedVault.balanceOf(alice), shares1 + shares2);
-        assertEq(tokenizedVault.totalSupply(), shares1 + shares2);
-    }
-
-    function test_DepositBoth(uint256 amount1, uint256 amount2) public override {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-
-        super.test_DepositBoth(amount1, amount2);
-        uint256 shares1 = amount1 * 10 ** 0;
-        uint256 shares2 = amount2 * (shares1 + 10 ** 0) / (amount1 + 1);
-
-        VaultV2 tokenizedVault = VaultV2(address(vault));
-        assertEq(tokenizedVault.balanceOf(alice), shares1);
-        assertEq(tokenizedVault.balanceOf(bob), shares2);
-        assertEq(tokenizedVault.totalSupply(), shares1 + shares2);
-    }
-
-    function test_WithdrawTwice(uint256 amount1, uint256 amount2, uint256 amount3) public override {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        amount3 = bound(amount3, 1, 100 * 10 ** 18);
-        vm.assume(amount1 >= amount2 + amount3);
-
-        super.test_WithdrawTwice(amount1, amount2, amount3);
-
-        VaultV2 tokenizedVault = VaultV2(address(vault));
-        assertEq(tokenizedVault.balanceOf(alice), amount1 - amount2 - amount3);
-        assertEq(tokenizedVault.totalSupply(), amount1 - amount2 - amount3);
-    }
-
-    function test_Transfer(uint256 amount1, uint256 amount2) public {
-        amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-
-        uint256 blockTimestamp = vm.getBlockTimestamp();
-        blockTimestamp = blockTimestamp + 1_720_700_948;
-        vm.warp(blockTimestamp);
-
-        uint48 epochDuration = 1;
-        vault = _getVault(epochDuration);
-
-        (, uint256 mintedShares) = _deposit(alice, amount1);
-
-        VaultV2 tokenizedVault = VaultV2(address(vault));
-        assertEq(tokenizedVault.balanceOf(alice), mintedShares);
-        assertEq(tokenizedVault.totalSupply(), mintedShares);
-        assertEq(vault.activeSharesOf(alice), mintedShares);
-        assertEq(vault.activeShares(), mintedShares);
-
-        if (amount2 > mintedShares) {
-            vm.startPrank(alice);
-
-            vm.expectRevert();
-            tokenizedVault.transfer(bob, amount2);
-
-            vm.stopPrank();
-        } else {
-            vm.startPrank(alice);
-
-            tokenizedVault.transfer(bob, amount2);
-
-            assertEq(tokenizedVault.balanceOf(alice), mintedShares - amount2);
-            assertEq(tokenizedVault.totalSupply(), mintedShares);
-            assertEq(vault.activeSharesOf(alice), mintedShares - amount2);
-            assertEq(vault.activeShares(), mintedShares);
-
-            assertEq(tokenizedVault.balanceOf(bob), amount2);
-            assertEq(vault.activeSharesOf(bob), amount2);
-
-            vm.stopPrank();
-
-            vm.startPrank(bob);
-            tokenizedVault.approve(alice, amount2);
-            vm.stopPrank();
-
-            assertEq(tokenizedVault.allowance(bob, alice), amount2);
-
-            vm.startPrank(alice);
-            tokenizedVault.transferFrom(bob, alice, amount2);
-            vm.stopPrank();
-
-            assertEq(tokenizedVault.balanceOf(alice), mintedShares);
-            assertEq(tokenizedVault.totalSupply(), mintedShares);
-            assertEq(vault.activeSharesOf(alice), mintedShares);
-            assertEq(vault.activeShares(), mintedShares);
-        }
-    }
-
-    function test_MigrateTokenized_FactoryUpgradePath() public {
-        uint48 epochDuration = 10;
-
-        uint256 blockTimestamp = vm.getBlockTimestamp();
-        blockTimestamp = blockTimestamp + 1_720_700_948;
-        vm.warp(blockTimestamp);
-
-        address[] memory networkLimitSetRoleHolders = new address[](1);
-        networkLimitSetRoleHolders[0] = alice;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
-        operatorNetworkSharesSetRoleHolders[0] = alice;
-
-        uint48 vetoDuration = epochDuration > 1 ? 1 : 0;
-        bytes memory vetoSlasherParams = abi.encode(
-            IVetoSlasher.InitParams({
-                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
-                vetoDuration: vetoDuration,
-                resolverSetEpochsDelay: 3
-            })
-        );
-        (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
-            epochDuration,
-            networkLimitSetRoleHolders,
-            operatorNetworkSharesSetRoleHolders,
-            2,
-            address(0xdEaD),
-            false,
-            false,
-            0,
-            address(this),
-            1,
-            vetoSlasherParams
-        );
-        vault = IVaultV2(address(vault_));
-        address oldSlasher = vault.slasher();
-
-        assertEq(VaultV2(address(vault)).name(), VAULT_NAME);
-        assertEq(VaultV2(address(vault)).symbol(), VAULT_SYMBOL);
-
-        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
-        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), migrateData);
-
-        IVaultV2 vaultV2 = IVaultV2(address(vault));
-        _assertMigrationState(vaultV2, oldSlasher);
-        assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
-        assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
     }
 }

@@ -2733,7 +2733,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
         assertEq(delegator.getNoPluginsSize(), 150);
         assertEq(
-            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size - delegator.getSlot(noPluginsSubvault2).size,
+            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size
+                - delegator.getSlot(noPluginsSubvault2).size,
             40
         );
 
@@ -2851,7 +2852,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
         assertEq(delegator.getNoPluginsSize(), 200);
         assertEq(
-            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size - delegator.getSlot(noPluginsSubvault2).size,
+            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size
+                - delegator.getSlot(noPluginsSubvault2).size,
             90
         );
 

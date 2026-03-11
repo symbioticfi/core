@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {Token} from "./Token.sol";
 import {MockMorphoVault} from "./MockMorphoVault.sol";
@@ -44,8 +45,8 @@ interface IVaultDonateHarness {
     function donate(uint256 amount) external;
 }
 
-contract MockRewardsPull {
-    function donate(address vault, uint256 amount) external {
+contract MockRewardsPull is ReentrancyGuard {
+    function donate(address vault, uint256 amount) external nonReentrant {
         address collateral = IVaultDonateHarness(vault).collateral();
         IERC20(collateral).transferFrom(msg.sender, address(this), amount);
         IERC20(collateral).approve(vault, amount);

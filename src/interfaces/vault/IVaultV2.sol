@@ -135,11 +135,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error MissingRoles();
 
     /**
-     * @notice Raised when the provided delegator is not recognized.
-     */
-    error NotDelegator();
-
-    /**
      * @notice Raised when the provided plugin is not whitelisted in plugin registry.
      */
     error NotPlugin();
