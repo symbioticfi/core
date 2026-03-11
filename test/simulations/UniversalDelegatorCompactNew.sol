@@ -351,11 +351,13 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
 
                     if (pendingSlashed > 0) {
                         uint96 networkIndex = index.getParentIndex();
-                        slots[networkIndex].sharedPendingClearedCursor.push(
-                            uint48(block.timestamp),
-                            _getPendingCursor(slot.pendingCumulative, slots[networkIndex].sharedPendingClearedCursor)
-                                + pendingSlashed
-                        );
+                        slots[networkIndex].sharedPendingClearedCursor
+                            .push(
+                                uint48(block.timestamp),
+                                _getPendingCursor(
+                                        slot.pendingCumulative, slots[networkIndex].sharedPendingClearedCursor
+                                    ) + pendingSlashed
+                            );
                     }
                     if (sizeSlashed > 0) {
                         slot.sizeSlashedPendingCumulative

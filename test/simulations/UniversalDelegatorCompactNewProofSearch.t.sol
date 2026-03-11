@@ -144,11 +144,9 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         bytes32 networkB = bytes32(uint256(2));
         uint96 subvault = delegator.createSlot(bytes32(0), 0, true, false, 10 ether);
         uint96 network1 = delegator.createSlot(networkA, subvault, false, false, 10 ether);
-        uint96 operator1 =
-            delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
+        uint96 operator1 = delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
         uint96 network2 = delegator.createSlot(networkB, subvault, false, false, 10 ether);
-        uint96 operator2 =
-            delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
+        uint96 operator2 = delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
 
         vm.startPrank(slasherAddress);
         uint256 actualFirstSlash = delegator.onSlash(networkA, alice, 10 ether, "");
@@ -194,8 +192,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         uint96 network1 = delegator.createSlot(networkA, subvault, false, false, 10 ether);
         delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
         uint96 network2 = delegator.createSlot(networkB, subvault, false, false, 10 ether);
-        uint96 operator2 =
-            delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
+        uint96 operator2 = delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
 
         vm.startPrank(slasherAddress);
         uint256 actualSlash = delegator.onSlash(networkA, alice, 10 ether, "");
@@ -232,8 +229,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         uint96 network1 = delegator.createSlot(subnetworkA, subvault, false, false, 10 ether);
         delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
         uint96 network2 = delegator.createSlot(subnetworkB, subvault, false, false, 10 ether);
-        uint96 operator2 =
-            delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
+        uint96 operator2 = delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
 
         vm.startPrank(middleware);
         uint256 slashIndex = slasher.requestSlash(subnetworkA, alice, 10 ether, 0, "");
@@ -381,9 +377,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         assertEq(slasher.slashableStake(subnetworkB, charlie, 0, ""), 0);
     }
 
-    function test_sharedSubvault_freshNetworkInheritsOldSlashCreditAndOverstatesFreshOperatorSlashableStake()
-        public
-    {
+    function test_sharedSubvault_freshNetworkInheritsOldSlashCreditAndOverstatesFreshOperatorSlashableStake() public {
         _installSlasher();
 
         address networkAAddr = makeAddr("shared-network-a-fresh");
@@ -399,7 +393,13 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         bytes32 subnetworkA = networkAAddr.subnetwork(0);
         bytes32 subnetworkB = networkBAddr.subnetwork(0);
         uint96 subvault = delegator.createSlot(bytes32(0), 0, true, false, 100 ether);
-        delegator.createSlot(bytes32(uint256(uint160(alice))), delegator.createSlot(subnetworkA, subvault, false, false, 100 ether), false, false, 100 ether);
+        delegator.createSlot(
+            bytes32(uint256(uint160(alice))),
+            delegator.createSlot(subnetworkA, subvault, false, false, 100 ether),
+            false,
+            false,
+            100 ether
+        );
 
         vm.startPrank(middleware);
         uint256 slashIndex1 = slasher.requestSlash(subnetworkA, alice, 80 ether, 0, "");
@@ -489,7 +489,8 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
 
         uint256 slashableBeforeDepositB1 = slasher.slashableStake(subnetworks[1], operators[1], 0, "");
         uint256 slashableBeforeDepositB2 = slasher.slashableStake(subnetworks[3], operators[3], 0, "");
-        uint256 currentSubvaultBeforeDeposit = delegator.getAllocated(subvaults[0], 0) + delegator.getAllocated(subvaults[1], 0);
+        uint256 currentSubvaultBeforeDeposit =
+            delegator.getAllocated(subvaults[0], 0) + delegator.getAllocated(subvaults[1], 0);
 
         assertEq(slashableBeforeDepositB1, 10 ether);
         assertEq(slashableBeforeDepositB2, 10 ether);
@@ -500,16 +501,14 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
 
         uint256 slashableAfterDepositB1 = slasher.slashableStake(subnetworks[1], operators[1], 0, "");
         uint256 slashableAfterDepositB2 = slasher.slashableStake(subnetworks[3], operators[3], 0, "");
-        uint256 currentSubvaultAfterDeposit = delegator.getAllocated(subvaults[0], 0) + delegator.getAllocated(subvaults[1], 0);
+        uint256 currentSubvaultAfterDeposit =
+            delegator.getAllocated(subvaults[0], 0) + delegator.getAllocated(subvaults[1], 0);
 
         assertEq(currentSubvaultAfterDeposit, currentSubvaultBeforeDeposit);
         assertEq(slashableAfterDepositB1, slashableBeforeDepositB1);
         assertEq(slashableAfterDepositB2, slashableBeforeDepositB2);
         assertLe(slashableAfterDepositB1 + slashableAfterDepositB2, currentSubvaultAfterDeposit);
-        assertLe(
-            slashableAfterDepositB1 + slashableAfterDepositB2,
-            vault.activeStake() + vault.activeWithdrawalsFor(0)
-        );
+        assertLe(slashableAfterDepositB1 + slashableAfterDepositB2, vault.activeStake() + vault.activeWithdrawalsFor(0));
     }
 
     function test_sharedSubvault_futureDepositDoesNotReviveOldPendingSlashAcrossMultipleSubvaults() public {
@@ -696,8 +695,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         uint96 network1 = delegator.createSlot(networkA, subvault, false, false, 10 ether);
         delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
         uint96 network2 = delegator.createSlot(networkB, subvault, false, false, 10 ether);
-        uint96 operator2 =
-            delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
+        uint96 operator2 = delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
 
         vm.startPrank(slasherAddress);
         uint256 actualSlash = delegator.onSlash(networkA, alice, 10 ether, "");
@@ -727,8 +725,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         uint96 network1 = delegator.createSlot(networkA, subvault, false, false, 10 ether);
         delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
         uint96 network2 = delegator.createSlot(networkB, subvault, false, false, 10 ether);
-        uint96 operator2 =
-            delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
+        uint96 operator2 = delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
 
         vm.startPrank(slasherAddress);
         uint256 actualSlash = delegator.onSlash(networkA, alice, 10 ether, "");
@@ -757,8 +754,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         uint96 network1 = delegator.createSlot(networkA, subvault, false, false, 10 ether);
         delegator.createSlot(bytes32(uint256(uint160(alice))), network1, false, false, 10 ether);
         uint96 network2 = delegator.createSlot(networkB, subvault, false, false, 10 ether);
-        uint96 operator2 =
-            delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
+        uint96 operator2 = delegator.createSlot(bytes32(uint256(uint160(bob))), network2, false, false, 10 ether);
 
         vm.startPrank(slasherAddress);
         uint256 actualSlash = delegator.onSlash(networkA, alice, 10 ether, "");
@@ -1000,12 +996,8 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
     function _setupSharedOverState(uint256 seed, uint128 initialDeposit) internal returns (SharedOverState memory s) {
         address middleware = _seededAddress(seed, 1);
         s.middleware = middleware;
-        address[4] memory networks = [
-            _seededAddress(seed, 11),
-            _seededAddress(seed, 12),
-            _seededAddress(seed, 13),
-            _seededAddress(seed, 14)
-        ];
+        address[4] memory networks =
+            [_seededAddress(seed, 11), _seededAddress(seed, 12), _seededAddress(seed, 13), _seededAddress(seed, 14)];
         for (uint256 i = 0; i < networks.length; ++i) {
             _registerNetwork(networks[i], middleware);
             s.subnetworks[i] = networks[i].subnetwork(0);
@@ -1111,8 +1103,7 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
         uint256 slashableB2First = slasher.slashableStake(subnetworks[3], operators[4], 0, "");
         uint256 slashableB2Second = slasher.slashableStake(subnetworks[3], operators[5], 0, "");
         uint256 totalSlashable = slashableB1First + slashableB1Second + slashableB2First + slashableB2Second;
-        uint256 totalCurrentSubvault =
-            delegator.getAllocated(subvaults[0], 0) + delegator.getAllocated(subvaults[1], 0);
+        uint256 totalCurrentSubvault = delegator.getAllocated(subvaults[0], 0) + delegator.getAllocated(subvaults[1], 0);
 
         assertEq(vault.activeStake(), 20 ether);
         assertEq(totalCurrentSubvault, 20 ether);

@@ -451,11 +451,11 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint96 slot1 = _rootIndex(uint32(1));
         uint96 slot2 = _rootIndex(uint32(2));
 
-        vm.expectRevert(IUniversalDelegator.NotEnoughAvailable.selector);
+        vm.expectRevert(IUniversalDelegator.NotEnoughBalance.selector);
         delegator.setSize(slot1, 80);
     }
 
-    function test_increaseLimit_allowsWhenNotFullyAllocated_evenIfNotLastChild() public {
+    function test_increaseLimit_allowsWhenNotLastChild_ifLaterSiblingsHaveNoCurrentAllocation() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 60);
@@ -466,8 +466,13 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint96 slot2 = _rootIndex(uint32(2));
         uint96 slot3 = _rootIndex(uint32(3));
 
+        assertEq(delegator.getAllocated(slot1, 0), 60);
+        assertEq(delegator.getAllocated(slot2, 0), 40);
+        assertEq(delegator.getAllocated(slot3, 0), 0);
+
         delegator.setSize(slot2, 80);
 
+        assertEq(delegator.getAllocated(slot1, 0), 60);
         assertEq(delegator.getAllocated(slot2, 0), 40);
         assertEq(delegator.getAllocated(slot3, 0), 0);
         assertEq(_unallocated3(0, slot1, slot2, slot3), 0);
@@ -725,8 +730,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint256 slashIndex = slasher.requestSlash(subnetwork, operator, 90, 0, "");
 
         vm.warp(1);
-        uint208 pending = delegator.setSize(networkSlot, 0);
-        assertGt(pending, 0);
+        delegator.setSize(networkSlot, 0);
+        assertGt(delegator.getPending(networkSlot, 0), 0);
         assertEq(delegator.getAllocated(networkSlot, 0), 100);
         assertEq(delegator.getAllocated(networkSlot, EPOCH_DURATION), 0);
 
@@ -944,7 +949,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         // Attempting operator1 increase 220 -> 260 reverts in this state (no tail unallocated amount).
         vm.warp(4);
-        vm.expectRevert(IUniversalDelegator.NotEnoughAvailable.selector);
+        vm.expectRevert(IUniversalDelegator.NotEnoughBalance.selector);
         delegator.setSize(op1, 260);
 
         // After pending windows expire, the same topology has lower filled amount.
@@ -1011,7 +1016,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         );
         assertGe(filledWithPending, filledMaxDuration);
         assertEq(filledWithPending, 400);
-        assertEq(filledMaxDuration, 400);
+        assertEq(filledMaxDuration, 370);
         assertEq(delegator.getFilled(networkSlot, EPOCH_DURATION), 0);
 
         vm.warp(3);
@@ -2205,8 +2210,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.onSlash(subnetwork, alice, 1, bytes(""));
 
         uint128 currentSize = delegator.getSlot(operatorSlot).size;
-        uint208 pending = delegator.setSize(operatorSlot, currentSize);
-        assertEq(pending, 0);
+        delegator.setSize(operatorSlot, currentSize);
+        assertEq(delegator.getPending(operatorSlot, 0), 0);
     }
 
     function test_viewWrappersAndHints() public {
@@ -2508,8 +2513,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.setSize(subvault, 200);
 
         vm.warp(1);
-        uint208 pending = delegator.setSize(subvault, 10);
-        assertEq(pending, 30);
+        delegator.setSize(subvault, 10);
+        assertEq(delegator.getPending(subvault, 0), 30);
         assertEq(delegator.getNoPluginsSize(), 40);
 
         vm.warp(EPOCH_DURATION + 1);
@@ -2858,8 +2863,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.onSlash(subnetwork, alice, 1, bytes(""));
 
         uint128 currentSize = delegator.getSlot(subvault).size;
-        uint208 pending = delegator.setSize(subvault, currentSize);
-        assertEq(pending, 0);
+        delegator.setSize(subvault, currentSize);
+        assertEq(delegator.getPending(subvault, 0), 0);
     }
 
     function test_initializeReverts_NotVault_OldVault_AndAllowsMissingRoleHolders() public {

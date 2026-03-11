@@ -60,9 +60,9 @@ interface IUniversalDelegator {
     error NotAssigned();
 
     /**
-     * @notice Raised when there is not enough available stake for the operation.
+     * @notice Raised when there is not enough balance for the operation.
      */
-    error NotEnoughAvailable();
+    error NotEnoughBalance();
 
     /**
      * @notice Raised when requested no-plugins capacity exceeds available amount.
@@ -554,10 +554,9 @@ interface IUniversalDelegator {
      * @notice Update slot size.
      * @param index Slot index.
      * @param size New slot size.
-     * @return pending Newly created pending amount.
      * @dev Only a SET_SIZE_ROLE holder can call this function.
      */
-    function setSize(uint96 index, uint128 size) external returns (uint208 pending);
+    function setSize(uint96 index, uint128 size) external;
 
     /**
      * @notice Swap two sibling slots.
