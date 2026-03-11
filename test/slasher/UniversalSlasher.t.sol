@@ -478,7 +478,9 @@ contract MockLegacySlasher {
     uint48 public vetoDuration_;
     uint256 public resolverSetEpochsDelay_;
     bool public isBurnerHook_;
-    address public resolverAt_;
+    uint48 public resolverSwitchTimestamp_;
+    address public resolverAtBefore_;
+    address public resolverAtAfter_;
     uint48 public latestSlashedCaptureTimestamp_;
     uint256 public cumulativeSlashAt_;
     uint256 public cumulativeSlash_;
@@ -511,7 +513,15 @@ contract MockLegacySlasher {
     }
 
     function setResolverAt(address value) external {
-        resolverAt_ = value;
+        resolverSwitchTimestamp_ = 0;
+        resolverAtBefore_ = value;
+        resolverAtAfter_ = value;
+    }
+
+    function setResolverTimeline(uint48 switchTimestamp, address beforeValue, address afterValue) external {
+        resolverSwitchTimestamp_ = switchTimestamp;
+        resolverAtBefore_ = beforeValue;
+        resolverAtAfter_ = afterValue;
     }
 
     function setLatestSlashedCaptureTimestamp(uint48 value) external {
@@ -572,8 +582,10 @@ contract MockLegacySlasher {
         );
     }
 
-    function resolverAt(bytes32, uint48, bytes memory) external view returns (address) {
-        return resolverAt_;
+    function resolverAt(bytes32, uint48 timestamp, bytes memory) external view returns (address) {
+        return resolverSwitchTimestamp_ > 0 && timestamp >= resolverSwitchTimestamp_
+            ? resolverAtAfter_
+            : resolverAtBefore_;
     }
 
     function vetoDuration() external view returns (uint48) {
@@ -1089,6 +1101,30 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(request.vetoDeadline, 15);
         assertTrue(request.completed);
         assertEq(request.resolver, resolver1);
+    }
+
+    function test_slashRequests_legacyKeepsCaptureResolverWhenCurrentResolverChanges() public {
+        vm.warp(20);
+        slasher.setOldSlasherRaw(address(legacySlasher));
+        legacySlasher.setSlashRequest(subnetwork, operator, 33, 11, 15, true);
+        legacySlasher.setResolverTimeline(12, resolver1, resolver2);
+
+        _pushRequest(0, 0, 0, address(0), false);
+
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(0);
+        assertEq(request.resolver, resolver1);
+    }
+
+    function test_slashRequests_legacyClearsResolverWhenCurrentResolverRemoved() public {
+        vm.warp(20);
+        slasher.setOldSlasherRaw(address(legacySlasher));
+        legacySlasher.setSlashRequest(subnetwork, operator, 33, 11, 15, true);
+        legacySlasher.setResolverTimeline(12, resolver1, address(0));
+
+        _pushRequest(0, 0, 0, address(0), false);
+
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(0);
+        assertEq(request.resolver, address(0));
     }
 
     function test_latestSlashedCaptureTimestamp_usesStorageThenLegacy() public {

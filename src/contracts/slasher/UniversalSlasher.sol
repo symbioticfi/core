@@ -113,9 +113,12 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                     request.completed = true;
                 }
                 request.resolver = IVetoSlasher(__oldSlasher).resolverAt(request.subnetwork, request.createdAt, "");
-                if (request.resolver != address(0)) {
-                    request.resolver =
-                        IVetoSlasher(__oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "");
+                if (
+                    request.resolver != address(0)
+                        && IVetoSlasher(__oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "")
+                            == address(0)
+                ) {
+                    request.resolver = address(0);
                 }
             }
         }
