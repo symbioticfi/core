@@ -363,6 +363,8 @@ contract MockUniversalDelegator {
     uint256 public stakeAtValue;
     bool public isNoPlugins;
     bool public revertOnGetIsNoPlugins;
+    uint256 public onSlashReturnValue;
+    bool public useExplicitOnSlashReturnValue;
 
     bytes32 public lastSlashSubnetwork;
     address public lastSlashOperator;
@@ -378,6 +380,11 @@ contract MockUniversalDelegator {
         stakeAtValue = value;
     }
 
+    function setOnSlashReturnValue(uint256 value) external {
+        onSlashReturnValue = value;
+        useExplicitOnSlashReturnValue = true;
+    }
+
     function setIsNoPlugins(bool value) external {
         isNoPlugins = value;
     }
@@ -390,16 +397,24 @@ contract MockUniversalDelegator {
         return stakeForValue;
     }
 
+    function stake(bytes32, address) external view returns (uint256) {
+        return stakeForValue;
+    }
+
     function stakeAt(bytes32, address, uint48, bytes memory) external view returns (uint256) {
         return stakeAtValue;
     }
 
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) external {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data)
+        external
+        returns (uint256)
+    {
         lastSlashSubnetwork = subnetwork;
         lastSlashOperator = operator;
         lastSlashAmount = amount;
         lastSlashData = data;
         ++onSlashCalls;
+        return useExplicitOnSlashReturnValue ? onSlashReturnValue : amount;
     }
 
     function getIsNoPlugins(bytes32) external view returns (bool) {
@@ -1045,6 +1060,20 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(synced, 5);
         assertEq(slasher.owed(subnetwork, operator), 2);
         assertEq(vault.lastSyncOwedAmount(), 7);
+    }
+
+    function test_executeSlash_doesNotBookSharedGuaranteeGapAsOwed() public {
+        delegator.setStakeForValue(10);
+        delegator.setOnSlashReturnValue(0);
+        _pushRequest(10, uint48(block.timestamp), 0, resolver1, false);
+
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(0, ""), 0);
+
+        assertEq(delegator.onSlashCalls(), 1);
+        assertEq(delegator.lastSlashAmount(), 10);
+        assertEq(vault.lastOnSlashAmount(), 0);
+        assertEq(slasher.owed(subnetwork, operator), 0);
     }
 
     function test_vetoSlashReverts_NotExist() public {

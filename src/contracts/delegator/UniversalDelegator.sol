@@ -84,6 +84,8 @@ contract UniversalDelegator is
         Checkpoints.Trace208 firstChild;
         Checkpoints.Trace208 pendingCumulative;
         Checkpoints.Trace208 clearedPendingCursor;
+        Checkpoints.Trace208 sharedPendingConsumedCursor;
+        Checkpoints.Trace208 sharedSizeConsumedCumulative;
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -342,6 +344,9 @@ contract UniversalDelegator is
             uint256 slotBalance = getBalance(parentIndex, duration);
             if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
                 slotBalance = slotBalance.saturatingSub(_getPrevSum(index, 0));
+            } else if (msg.sender == VaultV2(vault).slasher()) {
+                slotBalance = slotBalance.saturatingSub(getPending(parentIndex, duration))
+                    + _getSharedPendingGuarantee(index, duration) + _getSharedSizeGuarantee(index);
             }
             return Math.min(slotBalance, _getPendingSize(index, duration));
         }
@@ -547,6 +552,11 @@ contract UniversalDelegator is
                     slot.noPlugins = true;
                     _noPluginsSize += size;
                 }
+            } else if (parentIndex.getDepth() == 1 && parent.isShared) {
+                slot.sharedPendingConsumedCursor.push(uint48(block.timestamp), parent.pendingCumulative.latest());
+                slot.sharedSizeConsumedCumulative.push(
+                    uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest()
+                );
             }
 
             emit CreateSlot(index, isShared, noPlugins, size);
@@ -843,18 +853,29 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
     /// @dev Apply slash accounting updates across the affected slot chain and invoke the optional hook.
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public nonReentrant {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data)
+        public
+        nonReentrant
+        returns (uint256 actualAmount)
+    {
         unchecked {
             if (VaultV2(vault).slasher() != msg.sender) {
                 revert NotSlasher();
             }
 
-            // Adjust slot's and its parents' allocations.
-            for (uint96 index = getSlotOf(subnetwork, operator); index > 0;) {
-                SlotStorage storage slot = slots[index];
-                SlotStorage storage parent = slots[index.getParentIndex()];
+            actualAmount = amount;
+            uint96 index = getSlotOf(subnetwork, operator);
+            uint96 networkIndex = index.getParentIndex();
 
-                uint208 pendingSlashed = uint208(Math.min(getPending(index, 0), amount));
+            // Adjust slot's and its parents' allocations.
+            for (uint96 curIndex = index; curIndex > 0;) {
+                SlotStorage storage slot = slots[curIndex];
+                SlotStorage storage parent = slots[curIndex.getParentIndex()];
+                uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
+                uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
+                if (curIndex.getDepth() == 1 && slot.isShared) {
+                    actualAmount = Math.min(pendingSlashed + sizeSlashed, getAllocated(curIndex, 0));
+                }
                 if (pendingSlashed > 0) {
                     // Clear slot's pending.
                     slot.clearedPendingCursor
@@ -864,33 +885,43 @@ contract UniversalDelegator is
                         );
 
                     // Clear no-plugins pending.
-                    if (index.getDepth() == 1 && slot.noPlugins) {
+                    if (curIndex.getDepth() == 1 && slot.noPlugins) {
                         _clearedNoPluginsPendingCursor.push(
                             uint48(block.timestamp),
                             _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor)
                                 + pendingSlashed
                         );
                     }
-                }
 
-                uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
+                    if (curIndex.getDepth() == 1 && slot.isShared) {
+                        slots[networkIndex].sharedPendingConsumedCursor
+                            .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingSlashed);
+                    }
+                }
                 if (sizeSlashed > 0) {
                     // Clear slot's size.
                     slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
                     if (
                         parent.syncPrevSizeSums.latest() == 0
-                            && (index.getDepth() == 1
-                                || ((index.getDepth() == 3 || !parent.isShared) && slot.nextSlot.latest() > 0))
+                            && (curIndex.getDepth() == 1
+                                || ((curIndex.getDepth() == 3 || !parent.isShared) && slot.nextSlot.latest() > 0))
                     ) {
                         parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
                     }
 
                     // Clear no-plugins size.
-                    if (index.getDepth() == 1 && slot.noPlugins) {
+                    if (curIndex.getDepth() == 1 && slot.noPlugins) {
                         _noPluginsSize -= sizeSlashed;
                     }
+
+                    if (curIndex.getDepth() == 1 && slot.isShared) {
+                        slot.sharedSizeConsumedCumulative
+                            .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
+                        slots[networkIndex].sharedSizeConsumedCumulative
+                            .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeSlashed);
+                    }
                 }
-                index = index.getParentIndex();
+                curIndex = curIndex.getParentIndex();
             }
 
             // Make a call to the custom hook.
@@ -1112,6 +1143,41 @@ contract UniversalDelegator is
                     uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration()))
                 )
             )
+        );
+    }
+
+    function _getSharedPendingCursor(uint96 index) internal view returns (uint208) {
+        return uint208(
+            Math.max(
+                slots[index].sharedPendingConsumedCursor.latest(),
+                slots[index.getParentIndex()].pendingCumulative
+                    .upperLookupRecent(uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration())))
+            )
+        );
+    }
+
+    function _getSharedPendingGuarantee(uint96 index, uint48 duration) internal view returns (uint208) {
+        uint48 fromTimestamp =
+            uint48(block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration)));
+        uint208 floor = slots[index.getParentIndex()].pendingCumulative.upperLookupRecent(fromTimestamp);
+        uint208 cursor = uint208(Math.max(slots[index].sharedPendingConsumedCursor.latest(), floor));
+        return uint208(uint256(slots[index.getParentIndex()].pendingCumulative.latest()).saturatingSub(cursor));
+    }
+
+    function _getSharedSizeCursor(uint96 index) internal view returns (uint208) {
+        return uint208(
+            Math.max(
+                slots[index].sharedSizeConsumedCumulative.latest(),
+                slots[index.getParentIndex()].sharedSizeConsumedCumulative
+                    .upperLookupRecent(uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration())))
+            )
+        );
+    }
+
+    function _getSharedSizeGuarantee(uint96 index) internal view returns (uint208) {
+        return uint208(
+            uint256(slots[index.getParentIndex()].sharedSizeConsumedCumulative.latest())
+                .saturatingSub(_getSharedSizeCursor(index))
         );
     }
 

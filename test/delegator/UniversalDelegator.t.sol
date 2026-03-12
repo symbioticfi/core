@@ -775,7 +775,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(slasher.executeSlash(slashIndex, ""), 90);
     }
 
-    function test_sharedSubvault_sharedRisk_secondRequestCanBecomeUnexecutable() public {
+    function test_sharedSubvault_firstSlashDoesNotReduceSiblingSlashableStake() public {
         address network1 = makeAddr("issue3-network1");
         address network2 = makeAddr("issue3-network2");
         address network3 = makeAddr("issue3-network3");
@@ -828,16 +828,160 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(slasher.executeSlash(slashIndex1, ""), 10);
         vm.stopPrank();
 
-        // Shared-risk model: a slash in one network shrinks the shared parent and affects sibling stake.
         assertEq(delegator.stake(subnetwork1, alice), 0);
         assertEq(delegator.stake(subnetwork2, bob), 0);
         assertEq(delegator.stake(subnetwork3, operator3), 10);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 10);
+
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex2, ""), 0);
+        assertEq(delegator.stake(subnetwork3, operator3), 10);
+        assertEq(slasher.owed(subnetwork2, bob), 0);
+        assertEq(vault.activeStake(), 10);
+    }
+
+    function test_sharedSubvault_freshNetworkDoesNotInheritOldSharedSlashCredit() public {
+        address network1 = makeAddr("fresh-shared-network1");
+        address network2 = makeAddr("fresh-shared-network2");
+        address middleware = makeAddr("fresh-shared-middleware");
+        address charlie = makeAddr("fresh-shared-charlie");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _registerOperator(charlie);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+        _optIn(charlie, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 100);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+
+        _createNetworkSlot(sharedSubvault, subnetwork1, 100);
+        uint96 networkSlot1 = sharedSubvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot1, alice, 100);
+
+        _deposit(alice, 100);
+        vm.warp(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex1 = slasher.requestSlash(subnetwork1, alice, 80, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex1, ""), 80);
+
+        _createNetworkSlot(sharedSubvault, subnetwork2, 100);
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+        _createOperatorSlot(networkSlot2, bob, 50);
+        _createOperatorSlot(networkSlot2, charlie, 50);
+
+        assertEq(delegator.stake(subnetwork2, bob), 20);
+        assertEq(delegator.stake(subnetwork2, charlie), 0);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 20);
+        assertEq(slasher.slashableStake(subnetwork2, charlie, 0, ""), 0);
 
         vm.prank(middleware);
         vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
-        slasher.executeSlash(slashIndex2, "");
+        slasher.requestSlash(subnetwork2, charlie, 1, 0, "");
+    }
 
-        assertEq(delegator.stake(subnetwork3, operator3), 10);
+    function test_sharedSubvault_freshOperatorInExistingNetworkInheritsOldSharedSlashCredit() public {
+        address network1 = makeAddr("fresh-operator-network1");
+        address network2 = makeAddr("fresh-operator-network2");
+        address middleware = makeAddr("fresh-operator-middleware");
+        address charlie = makeAddr("fresh-operator-charlie");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _registerOperator(charlie);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+        _optIn(charlie, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(1)), alice, 10);
+        _createOperatorSlot(networkSlot2, bob, 5);
+
+        _deposit(alice, 10);
+        vm.warp(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork1, alice, 10, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 10);
+
+        _createOperatorSlot(networkSlot2, charlie, 5);
+
+        assertEq(delegator.stake(subnetwork2, bob), 0);
+        assertEq(delegator.stake(subnetwork2, charlie), 0);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 5);
+        assertEq(slasher.slashableStake(subnetwork2, charlie, 0, ""), 5);
+    }
+
+    function test_sharedSubvault_pendingSlashDoesNotReduceSiblingSlashableStakeUntilExpiry() public {
+        address network1 = makeAddr("pending-shared-network1");
+        address network2 = makeAddr("pending-shared-network2");
+        address middleware = makeAddr("pending-shared-middleware");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(1)), alice, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(2)), bob, 10);
+
+        _deposit(alice, 10);
+        vm.warp(1);
+        delegator.setSize(sharedSubvault, 0);
+
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 10);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork1, alice, 10, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 10);
+
+        assertEq(delegator.stake(subnetwork2, bob), 0);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 10);
+
+        vm.warp(EPOCH_DURATION + 2);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 0);
     }
 
     function test_depth3Operators_areIsolatedWithinNetwork() public {

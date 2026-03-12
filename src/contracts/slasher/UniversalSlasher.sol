@@ -227,7 +227,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             _slashRequests[slashIndex].completed = true;
 
             if (request.createdAt >= __migrateTimestamp) {
-                UniversalDelegator(VaultV2(vault).delegator())
+                slashedAmount = UniversalDelegator(VaultV2(vault).delegator())
                     .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
             } else {
                 // Legacy support.

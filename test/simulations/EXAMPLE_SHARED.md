@@ -1,62 +1,128 @@
 > Amounts are shown in whole tokens (1 token = 1e18).
 > Epoch duration: `3 days`.
-> This is a valid shared-subvault under-slashing witness against the current `CompactNew` logic.
+> This file reflects the current production `UniversalDelegator` shared-subvault slashing behavior.
+> It shows the current intended production behavior after the shared-subvault settlement fix.
 
-## Scenario
+## Core Idea
 
-1. `deposit(30)`
-2. `createSlot(subvault, shared, 20)`
-3. `createSlot(networkA, parent=subvault, 10)`
-4. `createSlot(operatorA=alice, parent=networkA, 10)`
-5. `createSlot(networkB, parent=subvault, 20)`
-6. `createSlot(operatorB1=bob, parent=networkB, 10)`
-7. `createSlot(operatorB2=charlie, parent=networkB, 10)`
-8. `middleware.requestSlash(subnetworkA, alice, 10, 0, "")`
-9. wait `2s`
-10. `middleware.executeSlash(slashIndexA, "")`
-11. wait `epoch - 2s`
-12. `middleware.requestSlash(subnetworkB, charlie, 10, 0, "")`
-13. wait `3s`
-14. `middleware.executeSlash(slashIndexB, "")`
+Public `stakeFor()` remains real-time actual.
 
-## Checkpoints
+Slasher `slashableStake()` is still determined from current `stakeFor(..., 0)`, but for networks under a shared `subvault` it preserves sibling-network guarantees through network-scoped shared consumed traces:
 
-| Checkpoint | Public `stakeFor(B, charlie, 0)` | Slasher `stakeFor(B, charlie, 0)` | `slashableStake(B, charlie, capture)` |
-| ---------- | -------------------------------- | --------------------------------- | ------------------------------------- |
-| `t0` right after slash `A` | `0` | `10` | n/a |
-| `t1` when request `B/charlie` is created | `0` | `10` | `10` |
-| `t2` three seconds later | `0` | `0` | `0` |
+1. `sharedPendingConsumedCursor`
+2. `sharedSizeConsumedCumulative`
 
-At `t2`:
+So:
 
-1. `t2 - requestCreatedAt = 3s`
-2. so the request is still strictly inside its own `epoch` capture window
-3. but `slashableStake(...)` is already `0`
+1. slashing `network A` does not reduce `slashableStake()` of sibling `network B`
+2. a fresh network does not inherit old shared slash credit
+3. pending-based sibling preservation lasts only until the original pending expiry
 
-## Why This Proves The Current Logic Is Wrong
+## Example 1: Sibling Slashable Stake Is Preserved, And Second Execution Settles Zero
 
-Your rule is:
+### Scenario
 
-1. slashing one network in a shared `subvault` must not destroy earlier slash rights for operators in other networks
+1. `create sharedSubvault(10)`
+2. `create isolatedSubvault(10)`
+3. `create networkA(10) under sharedSubvault`
+4. `create networkB(10) under sharedSubvault`
+5. `create operator alice(10) under networkA`
+6. `create operator bob(10) under networkB`
+7. `create networkC(10) under isolatedSubvault`
+8. `create operator carol(10) under networkC`
+9. `deposit(20)`
+10. `requestSlash(networkA, alice, 10)`
+11. `requestSlash(networkB, bob, 10)`
+12. `executeSlash(networkA, alice, 10)`
+13. `executeSlash(networkB, bob, 10)`
 
-But current `CompactNew` preserves those sibling slash rights only until:
+### Checkpoints
 
-1. `firstSlashTimestamp + epochDuration`
 
-Instead of until:
+| Checkpoint                | `stakeFor(A, alice, 0)` | `stakeFor(B, bob, 0)` | `stakeFor(C, carol, 0)` | `slashableStake(B, bob, 0)` | Actual shared funds left | `executeSlash(B)` | `owed(B, bob)` |
+| ------------------------- | ----------------------- | --------------------- | ----------------------- | --------------------------- | ------------------------ | ---------------- | -------------- |
+| before first slash        | `10`                    | `10`                  | `10`                    | `10`                        | `10`                     | `-`              | `0`            |
+| after first slash on `A`  | `0`                     | `0`                   | `10`                    | `10`                        | `0`                      | `-`              | `0`            |
+| after second slash on `B` | `0`                     | `0`                   | `10`                    | `0`                         | `0`                      | `0`              | `0`            |
 
-1. `thisSiblingRequestTimestamp + epochDuration`
 
-So a sibling slash request can be:
+### Meaning
 
-1. valid at creation time
-2. still inside its own allowed capture window
-3. but impossible to execute a few seconds later
+1. Public view after slashing `A`: `bob` is `0`
+2. Slasher view after slashing `A`: `bob` is still slashable for `10`
+3. The shared `subvault` had only `10`, so after slashing `A` there are no shared funds left for `B`
+4. Executing the second slash on `B` does not drain unrelated `carol` funds anymore
+5. The second slash settles `0` and does not create `owed`, because the shared-overlap gap is not vault debt
 
-That is under-slashing caused by the shared add-back expiring too early.
+Pinned by:
 
-## Test
+- `test_sharedSubvault_firstSlashDoesNotReduceSiblingSlashableStake`
 
-This witness is pinned by:
+## Example 2: Fresh Network Does Not Inherit Old Shared Slash Credit
 
-- `test_sharedSubvault_siblingRequestCanExpireBeforeItsOwnSlashWindowEnds`
+### Scenario
+
+1. `create sharedSubvault(100)`
+2. `create networkA(100) under sharedSubvault`
+3. `create operator alice(100) under networkA`
+4. `deposit(100)`
+5. `requestSlash(networkA, alice, 80)`
+6. `executeSlash(networkA, alice, 80)`
+7. `create networkB(100) under sharedSubvault`
+8. `create operator bob(50) under networkB`
+9. `create operator charlie(50) under networkB`
+
+### Checkpoint
+
+
+| Operator  | Public `stakeFor(0)` | `slashableStake(0)` |
+| --------- | -------------------- | ------------------- |
+| `bob`     | `20`                 | `20`                |
+| `charlie` | `0`                  | `0`                 |
+
+
+### Meaning
+
+1. The fresh network gets only what is currently funded
+2. It does not inherit the old shared slash credit from before it existed
+3. So `charlie` cannot be newly slashable just because `alice` was slashed earlier
+
+Pinned by:
+
+- `test_sharedSubvault_freshNetworkDoesNotInheritOldSharedSlashCredit`
+
+## Example 3: Pending Slash Preserves Sibling Slashable Stake Until Expiry
+
+### Scenario
+
+1. `create sharedSubvault(10)`
+2. `create networkA(10) under sharedSubvault`
+3. `create networkB(10) under sharedSubvault`
+4. `create operator alice(10) under networkA`
+5. `create operator bob(10) under networkB`
+6. `deposit(10)`
+7. `wait(1s)`
+8. `setSize(sharedSubvault, 0)` to move all shared policy into pending
+9. `requestSlash(networkA, alice, 10)`
+10. `executeSlash(networkA, alice, 10)`
+11. `wait(epoch + 1s)`
+
+### Checkpoints
+
+
+| Checkpoint           | Public `stakeFor(B, bob, 0)` | `slashableStake(B, bob, 0)` |
+| -------------------- | ---------------------------- | --------------------------- |
+| before slash on `A`  | `10`                         | `10`                        |
+| after slash on `A`   | `0`                          | `10`                        |
+| after pending expiry | `0`                          | `0`                         |
+
+
+### Meaning
+
+1. Shared pending guarantee is preserved for sibling `B` during the original pending window
+2. That preserved slashability disappears when the original pending expires
+3. It is not extended indefinitely
+
+Pinned by:
+
+- `test_sharedSubvault_pendingSlashDoesNotReduceSiblingSlashableStakeUntilExpiry`
