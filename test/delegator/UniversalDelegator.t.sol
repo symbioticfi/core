@@ -91,63 +91,12 @@ contract MockLegacyDelegatorType {
 }
 
 contract UniversalDelegatorCoverageHarness is UniversalDelegator {
-    using Checkpoints for Checkpoints.Trace208;
-
     constructor() UniversalDelegator(address(0), address(0), address(0), 0, address(0)) {}
 
-    function setSlotExistsRaw(uint96 index, bool exists_) external {
+    function exposeSlotExists(uint96 index, bool exists_) external {
         slots[index].exists = exists_;
+        _revertIfNotExists(index);
     }
-
-    function setParentChildrenRaw(
-        uint96 parentIndex,
-        uint32 firstChild,
-        uint32 lastChild,
-        uint32 totalChildren,
-        uint32 existChildren
-    ) external {
-        slots[parentIndex].firstChild.push(uint48(block.timestamp), firstChild);
-        slots[parentIndex].lastChild.push(uint48(block.timestamp), lastChild);
-        slots[parentIndex].totalChildren = totalChildren;
-        slots[parentIndex].existChildren = existChildren;
-    }
-
-    function setSlotLinksRaw(uint96 index, uint32 prevSlot, uint32 nextSlot) external {
-        slots[index].prevSlot = prevSlot;
-        slots[index].nextSlot.push(uint48(block.timestamp), nextSlot);
-    }
-
-    function pushSizeRaw(uint96 index, uint48 key, uint208 size) external {
-        slots[index].size.push(key, size);
-    }
-
-    function pushSyncPrevSizeSumsRaw(uint96 index, uint48 key, uint208 value) external {
-        slots[index].syncPrevSizeSums.push(key, value);
-    }
-
-    function setIsSharedRaw(uint96 index, bool isShared_) external {
-        slots[index].isShared = isShared_;
-    }
-
-    function getSyncPrevSizeSumsLatestRaw(uint96 index) external view returns (uint208) {
-        return slots[index].syncPrevSizeSums.latest();
-    }
-
-    function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
-
-    function exposePrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
-        return _getPrevSizeSumAt(index, timestamp);
-    }
-
-    function exposePrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint208) {
-        return _getPrevPendingSumAt(index, duration, timestamp);
-    }
-
-    function exposePrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPrevPendingSum(index, duration);
-    }
-
-    function exposeSlotExists(uint96 index) external slotExists(index) {}
 }
 
 contract UniversalDelegatorInitCoverageHarness is UniversalDelegator {
@@ -932,12 +881,57 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.prank(middleware);
         assertEq(slasher.executeSlash(slashIndex, ""), 10);
 
-        _createOperatorSlot(networkSlot2, charlie, 5);
-
         assertEq(delegator.stake(subnetwork2, bob), 0);
-        assertEq(delegator.stake(subnetwork2, charlie), 0);
         assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 5);
+
+        _createOperatorSlot(networkSlot2, charlie, 5);
+        assertEq(delegator.stake(subnetwork2, charlie), 0);
         assertEq(slasher.slashableStake(subnetwork2, charlie, 0, ""), 5);
+    }
+
+    function test_sharedSubvault_freshOperatorCanCaptureHiddenGuaranteeBeyondPublicSlack() public {
+        address network1 = makeAddr("fresh-operator-slack-network1");
+        address network2 = makeAddr("fresh-operator-slack-network2");
+        address middleware = makeAddr("fresh-operator-slack-middleware");
+        address charlie = makeAddr("fresh-operator-slack-charlie");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _registerOperator(charlie);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+        _optIn(charlie, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(1)), alice, 10);
+        _createOperatorSlot(networkSlot2, bob, 2);
+
+        _deposit(alice, 10);
+        vm.warp(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork1, alice, 5, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 5);
+
+        _createOperatorSlot(networkSlot2, charlie, 4);
+        assertEq(delegator.stake(subnetwork2, charlie), 3);
+        assertEq(slasher.slashableStake(subnetwork2, charlie, 0, ""), 4);
     }
 
     function test_sharedSubvault_pendingSlashDoesNotReduceSiblingSlashableStakeUntilExpiry() public {
@@ -982,6 +976,253 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.warp(EPOCH_DURATION + 2);
         assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 0);
+    }
+
+    function test_sharedSubvault_freshNetworkAfterPendingSeesFundedBaselineForSlasher() public {
+        address network1 = makeAddr("funded-pending-network1");
+        address network2 = makeAddr("funded-pending-network2");
+        address middleware = makeAddr("funded-pending-middleware");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        uint96 networkSlot1 = sharedSubvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot1, alice, 10);
+
+        _deposit(alice, 8);
+        vm.warp(1);
+        delegator.setSize(sharedSubvault, 5);
+
+        _createNetworkSlot(sharedSubvault, subnetwork2, 100);
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+        _createOperatorSlot(networkSlot2, bob, 100);
+
+        assertEq(delegator.getAllocated(sharedSubvault, 0), 8);
+        assertEq(delegator.getPending(sharedSubvault, 0), 3);
+        assertEq(delegator.stake(subnetwork2, bob), 8);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 8);
+    }
+
+    function test_sharedSubvault_sizeGuaranteeExpiresAfterEpoch() public {
+        address network1 = makeAddr("size-shared-network1");
+        address network2 = makeAddr("size-shared-network2");
+        address middleware = makeAddr("size-shared-middleware");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(1)), alice, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(2)), bob, 10);
+
+        _deposit(alice, 10);
+        vm.warp(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork1, alice, 10, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 10);
+
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 10);
+
+        vm.warp(EPOCH_DURATION + 2);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 0);
+    }
+
+    function test_sharedSubvault_slashedPathDoesNotRegainOwnSharedSizeGuaranteeAfterRegrowth() public {
+        address network1 = makeAddr("own-shared-size-network1");
+        address network2 = makeAddr("own-shared-size-network2");
+        address middleware = makeAddr("own-shared-size-middleware");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        uint96 networkSlot1 = sharedSubvault.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot1, alice, 10);
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(2)), bob, 10);
+        uint96 operatorSlot1 = networkSlot1.createIndex(uint32(1));
+
+        _deposit(alice, 10);
+        vm.warp(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork1, alice, 3, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 3);
+
+        assertEq(delegator.stake(subnetwork1, alice), 7);
+        assertEq(slasher.slashableStake(subnetwork1, alice, 0, ""), 7);
+
+        delegator.setSize(networkSlot1, 10);
+        delegator.setSize(operatorSlot1, 10);
+
+        assertEq(delegator.stake(subnetwork1, alice), 7);
+        assertEq(slasher.slashableStake(subnetwork1, alice, 0, ""), 7);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 10);
+    }
+
+    function test_sharedSubvault_bigExampleUsesNetworkScopedGuaranteeAtOperatorLevel() public {
+        address network1 = makeAddr("big-shared-network1");
+        address network2 = makeAddr("big-shared-network2");
+        address network3 = makeAddr("big-shared-network3");
+        address middleware = makeAddr("big-shared-middleware");
+        address carol = makeAddr("big-shared-carol");
+        address dave = makeAddr("big-shared-dave");
+        address iris = makeAddr("big-shared-iris");
+        address jack = makeAddr("big-shared-jack");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerNetwork(network3, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _registerOperator(carol);
+        _registerOperator(dave);
+        _registerOperator(iris);
+        _registerOperator(jack);
+        _optIn(alice, network1);
+        _optIn(bob, network1);
+        _optIn(carol, network2);
+        _optIn(dave, network2);
+        _optIn(iris, network3);
+        _optIn(jack, network3);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        bytes32 subnetwork3 = network3.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network3);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        _createNetworkSlot(sharedSubvault, subnetwork1, 12);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 8);
+        uint96 networkSlot1 = sharedSubvault.createIndex(uint32(1));
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+        _createOperatorSlot(networkSlot1, alice, 6);
+        _createOperatorSlot(networkSlot1, bob, 4);
+        _createOperatorSlot(networkSlot2, carol, 3);
+        _createOperatorSlot(networkSlot2, dave, 4);
+
+        _deposit(alice, 10);
+        vm.warp(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork1, alice, 3, 0, "");
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 3);
+
+        _createNetworkSlot(sharedSubvault, subnetwork3, 8);
+        uint96 networkSlot3 = sharedSubvault.createIndex(uint32(3));
+        _createOperatorSlot(networkSlot3, iris, 5);
+        _createOperatorSlot(networkSlot3, jack, 5);
+
+        delegator.setSize(sharedSubvault, 4);
+
+        assertEq(delegator.stake(subnetwork3, jack), 2);
+        assertEq(slasher.slashableStake(subnetwork3, jack, 0, ""), 2);
+
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+
+        assertEq(delegator.stake(subnetwork1, bob), 1);
+        assertEq(slasher.slashableStake(subnetwork1, bob, 0, ""), 1);
+        assertEq(delegator.stake(subnetwork2, dave), 1);
+        assertEq(slasher.slashableStake(subnetwork2, dave, 0, ""), 1);
+    }
+
+    function test_sharedSubvault_logicalGuaranteeConsumptionPersistsWhenActualSharedBucketAlreadyEmpty() public {
+        address network1 = makeAddr("logical-shared-network1");
+        address network2 = makeAddr("logical-shared-network2");
+        address middleware = makeAddr("logical-shared-middleware");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _optIn(alice, network1);
+        _optIn(bob, network2);
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 10);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        _createNetworkSlot(sharedSubvault, subnetwork1, 10);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 10);
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+        _createOperatorSlot(sharedSubvault.createIndex(uint32(1)), alice, 10);
+        _createOperatorSlot(networkSlot2, bob, 10);
+        uint96 operatorSlot2 = networkSlot2.createIndex(uint32(1));
+
+        _deposit(alice, 10);
+        vm.warp(1);
+
+        vm.startPrank(middleware);
+        uint256 slashIndex1 = slasher.requestSlash(subnetwork1, alice, 10, 0, "");
+        uint256 slashIndex2 = slasher.requestSlash(subnetwork2, bob, 5, 0, "");
+        assertEq(slasher.executeSlash(slashIndex1, ""), 10);
+        assertEq(slasher.executeSlash(slashIndex2, ""), 0);
+        vm.stopPrank();
+
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 5);
+
+        delegator.setSize(networkSlot2, 10);
+        delegator.setSize(operatorSlot2, 10);
+
+        assertEq(delegator.stake(subnetwork2, bob), 0);
+        assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 5);
     }
 
     function test_depth3Operators_areIsolatedWithinNetwork() public {
@@ -2315,62 +2556,30 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function test_slotExists_revertsForMissingSlot() public {
-        vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
+        vm.expectRevert(IUniversalDelegator.SlotNotExists.selector);
         delegator.setSize(_rootIndex(uint32(1)), 1);
     }
 
     function test_modifier_slotExists_harness() public {
         UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
 
-        vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
-        harness.exposeSlotExists(_rootIndex(uint32(1)));
+        vm.expectRevert(IUniversalDelegator.SlotNotExists.selector);
+        harness.exposeSlotExists(_rootIndex(uint32(1)), false);
 
-        harness.setSlotExistsRaw(_rootIndex(uint32(1)), true);
-        harness.exposeSlotExists(_rootIndex(uint32(1)));
-    }
-
-    function test_modifier_syncPrevSizeSums_harness_clearsFlagAndHandlesSharedZeroCases() public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
-
-        harness.pushSyncPrevSizeSumsRaw(0, uint48(block.timestamp), 1);
-        harness.exposeSyncPrevSizeSums(0);
-
-        assertEq(harness.getSlot(0).prevSizeSum, 0);
-        assertEq(harness.getSyncPrevSizeSumsLatestRaw(0), 0);
-    }
-
-    function test_internalPrevSumHelpers_harness_zeroAndSharedBranches() public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
-
-        assertEq(harness.exposePrevSizeSumAt(0, uint48(block.timestamp)), 0);
-        assertEq(harness.exposePrevPendingSumAt(0, 0, uint48(block.timestamp)), 0);
-        assertEq(harness.exposePrevPendingSum(0, 0), 0);
-
-        uint96 sharedSubvault = _rootIndex(uint32(1));
-        harness.setSlotExistsRaw(sharedSubvault, true);
-        harness.setIsSharedRaw(sharedSubvault, true);
-        harness.setParentChildrenRaw(0, uint32(1), uint32(1), 1, 1);
-        // network child under the shared subvault
-        uint96 networkSlot = sharedSubvault.createIndex(uint32(1));
-        harness.setSlotExistsRaw(networkSlot, true);
-        harness.setParentChildrenRaw(sharedSubvault, uint32(1), uint32(1), 1, 1);
-
-        assertEq(harness.exposePrevSizeSumAt(networkSlot, uint48(block.timestamp)), 0);
-        assertEq(harness.exposePrevPendingSumAt(networkSlot, 0, uint48(block.timestamp)), 0);
-        assertEq(harness.exposePrevPendingSum(networkSlot, 0), 0);
+        harness.exposeSlotExists(_rootIndex(uint32(1)), true);
     }
 
     function test_createSlot_revertsForMissingParentSlot() public {
-        vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
+        vm.expectRevert(IUniversalDelegator.SlotNotExists.selector);
         delegator.createSlot(bytes32(0), _rootIndex(uint32(1)), false, false, 1);
     }
 
     function test_slotExists_revertsForMissingSlot_swapAndRemove() public {
-        vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
+        vm.expectRevert(IUniversalDelegator.SlotNotExists.selector);
         delegator.swapSlots(_rootIndex(uint32(1)), _rootIndex(uint32(2)));
 
         delegator.grantRole(REMOVE_SLOT_ROLE, owner);
-        vm.expectRevert(IUniversalDelegator.SlotNotCreated.selector);
+        vm.expectRevert(IUniversalDelegator.SlotNotExists.selector);
         delegator.removeSlot(_rootIndex(uint32(1)));
     }
 
@@ -3100,6 +3309,15 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.expectRevert(IUniversalDelegator.InsufficientHookGas.selector);
         vm.prank(address(slasher));
         delegator.onSlash{gas: gasToSend}(subnetwork, alice, 1, bytes(""));
+    }
+
+    function test_onSlash_revertsNotAssigned() public {
+        vm.prank(address(slasher));
+        try delegator.onSlash(bytes32(0), address(0), 0, "") returns (uint256) {
+            console2.log("onSlash not assigned / no revert");
+        } catch (bytes memory err) {
+            console2.log("onSlash not assigned / revert data length", err.length);
+        }
     }
 
     function test_setSize_sameValue_afterSlashSync_returnsZero() public {

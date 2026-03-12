@@ -30,7 +30,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     error NotSlasher();
     error AlreadyAssigned();
     error NotEnoughAvailable();
-    error SlotNotCreated();
+    error SlotNotExists();
     error TooManyChildren();
     error WrongDepth();
 
@@ -109,7 +109,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
 
     modifier slotExists(uint96 index) {
         if (index > 0 && !slots[index].exists) {
-            revert SlotNotCreated();
+            revert SlotNotExists();
         }
         _;
     }

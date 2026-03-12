@@ -119,13 +119,6 @@ contract UniversalDelegator is
 
     /* MODIFIERS */
 
-    modifier slotExists(uint96 index) {
-        if (index > 0 && !slots[index].exists) {
-            revert SlotNotCreated();
-        }
-        _;
-    }
-
     modifier syncPrevSizeSums(uint96 parentIndex) {
         if (slots[parentIndex].syncPrevSizeSums.latest() > 0) {
             _syncPrevSizeSums(parentIndex);
@@ -221,12 +214,12 @@ contract UniversalDelegator is
             // Legacy support.
             return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
         }
-        return getAllocatedAt(subnetwork, operator, VaultV2(vault).epochDuration() - 1, timestamp);
+        return getAllocatedAt(subnetwork, operator, _getEpochDuration() - 1, timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
     function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
-        return getAllocated(subnetwork, operator, VaultV2(vault).epochDuration() - 1);
+        return getAllocated(subnetwork, operator, _getEpochDuration() - 1);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -251,51 +244,12 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getPendingAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint208) {
-        unchecked {
-            SlotStorage storage slot = slots[index];
-            if (slot.pendingCumulative.length() == 0) {
-                return 0;
-            }
-
-            uint48 fromTimestamp = uint48(
-                uint256(timestamp).saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration))
-            );
-            (, uint48 lastPendingAtKey, uint208 pendingCumulativeAt,) =
-                slot.pendingCumulative.upperLookupRecentCheckpoint(timestamp);
-            if (lastPendingAtKey <= fromTimestamp) {
-                return 0;
-            }
-
-            return pendingCumulativeAt
-                - uint208(
-                Math.max(
-                slot.clearedPendingCursor.upperLookupRecent(timestamp),
-                slot.pendingCumulative.upperLookupRecent(fromTimestamp)
-            )
-            );
-        }
+        return _getPendingAt(slots[index].pendingCumulative, slots[index].clearedPendingCursor, duration, timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
     function getPending(uint96 index, uint48 duration) public view returns (uint208) {
-        unchecked {
-            SlotStorage storage slot = slots[index];
-            if (slot.pendingCumulative.length() == 0) {
-                return 0;
-            }
-
-            uint48 fromTimestamp =
-                uint48(block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration)));
-            (, uint48 lastPendingKey, uint208 pendingCumulativeLatest) = slot.pendingCumulative.latestCheckpoint();
-            if (lastPendingKey <= fromTimestamp) {
-                return 0;
-            }
-
-            return pendingCumulativeLatest
-                - uint208(
-                Math.max(slot.clearedPendingCursor.latest(), slot.pendingCumulative.upperLookupRecent(fromTimestamp))
-            );
-        }
+        return _getPending(slots[index].pendingCumulative, slots[index].clearedPendingCursor, duration);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -320,10 +274,9 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
-            if (duration >= VaultV2(vault).epochDuration()) {
+            if (duration >= _getEpochDuration()) {
                 return 0;
             }
-
             uint96 parentIndex = index.getParentIndex();
             uint256 slotBalance = getBalanceAt(parentIndex, duration, timestamp);
             if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
@@ -336,17 +289,18 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
         unchecked {
-            if (duration >= VaultV2(vault).epochDuration()) {
+            if (duration >= _getEpochDuration()) {
                 return 0;
             }
-
             uint96 parentIndex = index.getParentIndex();
             uint256 slotBalance = getBalance(parentIndex, duration);
-            if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
+            if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
+                if (VaultV2(vault).slasher() == msg.sender) {
+                    // Support slashing without captureTimestamp for shared subvaults.
+                    slotBalance += _getSharedPendingGuarantee(index, duration) + _getSharedSizeGuarantee(index);
+                }
+            } else {
                 slotBalance = slotBalance.saturatingSub(_getPrevSum(index, 0));
-            } else if (msg.sender == VaultV2(vault).slasher()) {
-                slotBalance = slotBalance.saturatingSub(getPending(parentIndex, duration))
-                    + _getSharedPendingGuarantee(index, duration) + _getSharedSizeGuarantee(index);
             }
             return Math.min(slotBalance, _getPendingSize(index, duration));
         }
@@ -457,7 +411,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getNoPluginsSize() public view returns (uint256) {
-        return _noPluginsSize + _getNoPluginsPending();
+        return _noPluginsSize + _getPending(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor, 0);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -479,10 +433,10 @@ contract UniversalDelegator is
     /// @dev Create a new slot.
     function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
         internal
-        slotExists(parentIndex)
         syncPrevSizeSums(parentIndex)
         returns (uint96 index)
     {
+        _revertIfNotExists(parentIndex);
         unchecked {
             if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
                 revert WrongDepth();
@@ -553,10 +507,9 @@ contract UniversalDelegator is
                     _noPluginsSize += size;
                 }
             } else if (parentIndex.getDepth() == 1 && parent.isShared) {
-                slot.sharedPendingConsumedCursor.push(uint48(block.timestamp), parent.pendingCumulative.latest());
-                slot.sharedSizeConsumedCumulative.push(
-                    uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest()
-                );
+                slot.sharedPendingConsumedCursor.push(uint48(block.timestamp), parent.clearedPendingCursor.latest());
+                slot.sharedSizeConsumedCumulative
+                    .push(uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest());
             }
 
             emit CreateSlot(index, isShared, noPlugins, size);
@@ -567,9 +520,9 @@ contract UniversalDelegator is
     function setSize(uint96 index, uint128 newSize)
         public
         onlyRole(SET_SIZE_ROLE)
-        slotExists(index)
         syncPrevSizeSums(index.getParentIndex())
     {
+        _revertIfNotExists(index);
         unchecked {
             SlotStorage storage slot = slots[index];
             uint128 curSize = uint128(slot.size.latest());
@@ -580,7 +533,7 @@ contract UniversalDelegator is
             SlotStorage storage parent = slots[parentIndex];
 
             if (newSize > curSize) {
-                uint48 maxDuration = VaultV2(vault).epochDuration() - 1;
+                uint48 maxDuration = _getEpochDuration() - 1;
                 uint256 curBalance = getBalance(parentIndex, 0);
                 uint256 minBalance = getBalance(parentIndex, maxDuration);
                 if (
@@ -601,8 +554,7 @@ contract UniversalDelegator is
                     revert NotEnoughNoPlugins();
                 }
             } else {
-                uint208 addPending =
-                    uint208(getAllocated(index, 0).saturatingSub(getPending(index, 0)).saturatingSub(newSize));
+                uint208 addPending = uint208(getAllocated(index, 0).saturatingSub(getPending(index, 0) + newSize));
                 if (addPending > 0) {
                     parent._childrenPendingAt = uint48(block.timestamp);
                     slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + addPending);
@@ -626,10 +578,10 @@ contract UniversalDelegator is
     function swapSlots(uint96 index1, uint96 index2)
         public
         onlyRole(SWAP_SLOTS_ROLE)
-        slotExists(index1)
-        slotExists(index2)
         syncPrevSizeSums(index1.getParentIndex())
     {
+        _revertIfNotExists(index1);
+        _revertIfNotExists(index2);
         unchecked {
             uint96 parentIndex = index1.getParentIndex();
             SlotStorage storage parent = slots[parentIndex];
@@ -650,7 +602,7 @@ contract UniversalDelegator is
                 }
             }
             {
-                uint48 maxDuration = VaultV2(vault).epochDuration() - 1;
+                uint48 maxDuration = _getEpochDuration() - 1;
                 uint256 minBalance = getBalance(parentIndex, maxDuration);
                 uint256 curPrevSum = _getPrevSum(index2, 0);
 
@@ -699,12 +651,8 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function removeSlot(uint96 index)
-        public
-        onlyRole(REMOVE_SLOT_ROLE)
-        slotExists(index)
-        syncPrevSizeSums(index.getParentIndex())
-    {
+    function removeSlot(uint96 index) public onlyRole(REMOVE_SLOT_ROLE) syncPrevSizeSums(index.getParentIndex()) {
+        _revertIfNotExists(index);
         if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
         }
@@ -767,10 +715,7 @@ contract UniversalDelegator is
             if (index.getDepth() == 1 && slot.noPlugins) {
                 uint208 pending = getPending(index, 0);
                 if (pending > 0) {
-                    _clearedNoPluginsPendingCursor.push(
-                        uint48(block.timestamp),
-                        _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor) + pending
-                    );
+                    _clearedNoPluginsPendingCursor.push(uint48(block.timestamp), _getNoPluginsPendingCursor() + pending);
                 }
 
                 _noPluginsSize -= slot.size.latest();
@@ -874,28 +819,19 @@ contract UniversalDelegator is
                 uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
                 uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
                 if (curIndex.getDepth() == 1 && slot.isShared) {
+                    // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
                     actualAmount = Math.min(pendingSlashed + sizeSlashed, getAllocated(curIndex, 0));
                 }
                 if (pendingSlashed > 0) {
                     // Clear slot's pending.
                     slot.clearedPendingCursor
-                        .push(
-                            uint48(block.timestamp),
-                            _getPendingCursor(slot.pendingCumulative, slot.clearedPendingCursor) + pendingSlashed
-                        );
+                        .push(uint48(block.timestamp), _getPendingCursor(curIndex) + pendingSlashed);
 
                     // Clear no-plugins pending.
                     if (curIndex.getDepth() == 1 && slot.noPlugins) {
                         _clearedNoPluginsPendingCursor.push(
-                            uint48(block.timestamp),
-                            _getPendingCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor)
-                                + pendingSlashed
+                            uint48(block.timestamp), _getNoPluginsPendingCursor() + pendingSlashed
                         );
-                    }
-
-                    if (curIndex.getDepth() == 1 && slot.isShared) {
-                        slots[networkIndex].sharedPendingConsumedCursor
-                            .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingSlashed);
                     }
                 }
                 if (sizeSlashed > 0) {
@@ -908,17 +844,27 @@ contract UniversalDelegator is
                     ) {
                         parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
                     }
-
-                    // Clear no-plugins size.
                     if (curIndex.getDepth() == 1 && slot.noPlugins) {
+                        // Clear no-plugins size.
                         _noPluginsSize -= sizeSlashed;
                     }
-
-                    if (curIndex.getDepth() == 1 && slot.isShared) {
+                }
+                if (curIndex.getDepth() == 1 && slot.isShared) {
+                    // Consume guarantees for shared subvault.
+                    if (sizeSlashed > 0) {
                         slot.sharedSizeConsumedCumulative
                             .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
+                    }
+                    uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), amount));
+                    if (pendingConsumed > 0) {
+                        slots[networkIndex].sharedPendingConsumedCursor
+                            .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingConsumed);
+                    }
+                    uint208 sizeConsumed =
+                        uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount - pendingConsumed));
+                    if (sizeConsumed > 0) {
                         slots[networkIndex].sharedSizeConsumedCumulative
-                            .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeSlashed);
+                            .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
                     }
                 }
                 curIndex = curIndex.getParentIndex();
@@ -1092,7 +1038,7 @@ contract UniversalDelegator is
             }
             if (
                 parent._childrenPendingAt
-                    <= block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration))
+                    <= block.timestamp.saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration))
             ) {
                 return 0;
             }
@@ -1119,71 +1065,107 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return pending no-plugins allocation over the current slashable window.
-    function _getNoPluginsPending() internal view returns (uint208) {
-        unchecked {
-            uint48 fromTimestamp = uint48(block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration())));
-            return _noPluginsPendingCumulative.latest()
-                - uint208(
-                Math.max(
-                _clearedNoPluginsPendingCursor.latest(), _noPluginsPendingCumulative.upperLookupRecent(fromTimestamp)
+    function _getPendingCursor(uint96 index) internal view returns (uint208) {
+        return _getCursor(slots[index].pendingCumulative, slots[index].clearedPendingCursor);
+    }
+
+    function _getNoPluginsPendingCursor() internal view returns (uint208) {
+        return _getCursor(_noPluginsPendingCumulative, _clearedNoPluginsPendingCursor);
+    }
+
+    function _getSharedSizeCursor(uint96 networkIndex) internal view returns (uint208) {
+        return _getCursor(
+            slots[networkIndex.getParentIndex()].sharedSizeConsumedCumulative,
+            slots[networkIndex].sharedSizeConsumedCumulative
+        );
+    }
+
+    function _getSharedSizeGuarantee(uint96 networkIndex) internal view returns (uint208) {
+        return uint208(
+            uint256(slots[networkIndex.getParentIndex()].sharedSizeConsumedCumulative.latest())
+                .saturatingSub(_getSharedSizeCursor(networkIndex))
+        );
+    }
+
+    function _getSharedPendingCursor(uint96 networkIndex) internal view returns (uint208) {
+        return _getCursor(
+            slots[networkIndex.getParentIndex()].clearedPendingCursor, slots[networkIndex].sharedPendingConsumedCursor
+        );
+    }
+
+    function _getSharedPendingGuarantee(uint96 networkIndex, uint48 duration) internal view returns (uint208) {
+        return _getPending(
+            slots[networkIndex.getParentIndex()].clearedPendingCursor,
+            slots[networkIndex].sharedPendingConsumedCursor,
+            duration
+        );
+    }
+
+    function _getCursor(Checkpoints.Trace208 storage base, Checkpoints.Trace208 storage cursor)
+        internal
+        view
+        returns (uint208)
+    {
+        return uint208(
+            Math.max(
+                base.upperLookupRecent(uint48(block.timestamp.saturatingSub(_getEpochDuration()))), cursor.latest()
             )
-            );
+        );
+    }
+
+    function _getPendingAt(
+        Checkpoints.Trace208 storage base,
+        Checkpoints.Trace208 storage cursor,
+        uint48 duration,
+        uint48 timestamp
+    ) internal view returns (uint208) {
+        unchecked {
+            if (base.length() == 0) {
+                return 0;
+            }
+            uint48 fromTimestamp =
+                uint48(uint256(timestamp).saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration)));
+            (, uint48 lastPendingKey, uint208 pendingCumulativeLatest,) = base.upperLookupRecentCheckpoint(timestamp);
+            if (lastPendingKey <= fromTimestamp) {
+                return 0;
+            }
+            return pendingCumulativeLatest
+                - uint208(Math.max(base.upperLookupRecent(fromTimestamp), cursor.upperLookupRecent(timestamp)));
         }
     }
 
-    function _getPendingCursor(
-        Checkpoints.Trace208 storage pendingCumulative,
-        Checkpoints.Trace208 storage clearedCursor
-    ) internal view returns (uint208) {
-        return uint208(
-            Math.max(
-                clearedCursor.latest(),
-                pendingCumulative.upperLookupRecent(
-                    uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration()))
-                )
-            )
-        );
+    function _getPending(Checkpoints.Trace208 storage base, Checkpoints.Trace208 storage cursor, uint48 duration)
+        internal
+        view
+        returns (uint208)
+    {
+        unchecked {
+            if (base.length() == 0) {
+                return 0;
+            }
+            uint48 fromTimestamp =
+                uint48(block.timestamp.saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration)));
+            (, uint48 lastPendingKey, uint208 pendingCumulativeLatest) = base.latestCheckpoint();
+            if (lastPendingKey <= fromTimestamp) {
+                return 0;
+            }
+            return pendingCumulativeLatest - uint208(Math.max(base.upperLookupRecent(fromTimestamp), cursor.latest()));
+        }
     }
 
-    function _getSharedPendingCursor(uint96 index) internal view returns (uint208) {
-        return uint208(
-            Math.max(
-                slots[index].sharedPendingConsumedCursor.latest(),
-                slots[index.getParentIndex()].pendingCumulative
-                    .upperLookupRecent(uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration())))
-            )
-        );
-    }
-
-    function _getSharedPendingGuarantee(uint96 index, uint48 duration) internal view returns (uint208) {
-        uint48 fromTimestamp =
-            uint48(block.timestamp.saturatingSub(uint256(VaultV2(vault).epochDuration()).saturatingSub(duration)));
-        uint208 floor = slots[index.getParentIndex()].pendingCumulative.upperLookupRecent(fromTimestamp);
-        uint208 cursor = uint208(Math.max(slots[index].sharedPendingConsumedCursor.latest(), floor));
-        return uint208(uint256(slots[index.getParentIndex()].pendingCumulative.latest()).saturatingSub(cursor));
-    }
-
-    function _getSharedSizeCursor(uint96 index) internal view returns (uint208) {
-        return uint208(
-            Math.max(
-                slots[index].sharedSizeConsumedCumulative.latest(),
-                slots[index.getParentIndex()].sharedSizeConsumedCumulative
-                    .upperLookupRecent(uint48(block.timestamp.saturatingSub(VaultV2(vault).epochDuration())))
-            )
-        );
-    }
-
-    function _getSharedSizeGuarantee(uint96 index) internal view returns (uint208) {
-        return uint208(
-            uint256(slots[index.getParentIndex()].sharedSizeConsumedCumulative.latest())
-                .saturatingSub(_getSharedSizeCursor(index))
-        );
+    function _getEpochDuration() internal view returns (uint48) {
+        return VaultV2(vault).epochDuration();
     }
 
     /// @dev Return storage pointer to the withdrawal buffer slot.
     function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
         return slots[WITHDRAWAL_BUFFER_INDEX];
+    }
+
+    function _revertIfNotExists(uint96 index) internal view {
+        if (index > 0 && !slots[index].exists) {
+            revert SlotNotExists();
+        }
     }
 
     /// @dev Grant a role when the holder address is not zero.

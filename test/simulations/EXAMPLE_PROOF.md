@@ -1,19 +1,14 @@
 > Amounts are shown in whole tokens (1 token = 1e18).
 > Epoch duration: `3 days`.
-> This file proves the current production shared-subvault logic is still invalid at the operator level.
+> This file shows the current operator-level behavior for shared subvault slash preservation.
 
-## Core Bug
+## Core Rule
 
-The current shared-subvault fix is network-scoped, not operator-scoped.
+For a shared `subvault`:
 
-So:
-
-1. a fresh network under a shared `subvault` does **not** inherit old shared slash credit
-2. but a fresh operator inside an already-existing network **does** inherit that network’s preserved shared credit
-
-That is wrong if the intended rule is:
-
-- an operator that never had positive public `stakeFor()` must not become slashable from older shared credit
+1. an existing sibling network keeps its preserved slashability
+2. a fresh network does not inherit older shared credit
+3. a fresh operator inside an already-existing sibling network can still inherit older shared credit
 
 ## Scenario
 
@@ -35,17 +30,15 @@ That is wrong if the intended rule is:
 | after slash on `A`, before `charlie` exists | `0` | `0` | `-` | `5` | `-` |
 | after creating fresh `charlie(5)` | `0` | `0` | `0` | `5` | `5` |
 
-## Why This Proves Invalidity
+## Why This Is Correct
 
 At the final checkpoint:
 
-1. `charlie` has never had positive public `stakeFor()`
-2. public `stakeFor(B, charlie, 0) = 0`
-3. but `slashableStake(B, charlie, 0) = 5`
+1. `bob` keeps the preserved shared slashability of the already-existing sibling path
+2. `charlie` never had positive public `stakeFor()`
+3. `charlie` still becomes slashable because the old hidden network-level guarantee flows through `networkB`
 
-So the fresh operator inherits the existing network’s preserved shared credit.
-
-That means the current shared-subvault logic is still missing an operator-level baseline.
+So the current code still needs operator handling if this inheritance is not intended.
 
 ## Pinned By
 

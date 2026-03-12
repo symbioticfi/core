@@ -127,7 +127,7 @@ interface IUniversalDelegator {
     /**
      * @notice Raised when the requested slot does not exist.
      */
-    error SlotNotCreated();
+    error SlotNotExists();
 
     /**
      * @notice Raised when the maximum number of children for a slot is exceeded.
