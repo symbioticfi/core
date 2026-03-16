@@ -194,7 +194,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             uint48 migrateEpoch = __migrateEpoch;
             if (index >= migrateEpoch) {
-                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(withdrawalUnlockAt(index, account));
+                uint48 unlockAt = withdrawalUnlockAt(index, account);
+                uint256 bucketIndex = _unlockToBucket.upperLookupRecent(unlockAt > 0 ? unlockAt - 1 : 0);
                 uint256 withdrawalShares_ = withdrawalShares(bucketIndex);
                 return withdrawalShares_ > 0
                     ? ERC4626Math.previewRedeem(

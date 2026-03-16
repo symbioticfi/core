@@ -1505,6 +1505,151 @@ contract VaultV2Test is Test {
         assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
     }
 
+    function test_Donate_atUnlockBoundary_doesNotAffectCurrentClaimableWithdrawal() public {
+        vault = _getUniversalVault(7 days);
+        (uint48 aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawals();
+
+        uint256 donation = 20;
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(_claim(alice, 0), claimableBefore);
+        assertEq(vault.withdrawalUnlockAt(0, alice), aliceUnlockAfter);
+    }
+
+    function test_Donate_atUnlockBoundary_affectsNextTimestampWithdrawal() public {
+        vault = _getUniversalVault(7 days);
+        (, uint48 bobUnlockAfter) = _prepareAdjacentUnlockWithdrawals();
+
+        uint256 donation = 20;
+        uint256 bobBefore = vault.withdrawalsOf(0, bob);
+        uint256 expectedNewActiveWithdrawals;
+        uint256 expectedActiveStakeAfter;
+        uint256 expectedBobWithdrawalsAfter;
+        {
+            uint256 curActiveWithdrawals = vault.activeWithdrawals();
+            uint256 activeStakeBefore = vault.activeStake();
+            uint256 curActiveWithdrawalShares = _unmaturedWithdrawalShares(uint48(block.timestamp));
+            uint256 bobSharesBefore = vault.withdrawalSharesOf(0, bob);
+            uint256 expectedWithdrawalsDonated =
+                donation.mulDiv(curActiveWithdrawals, activeStakeBefore + curActiveWithdrawals);
+
+            expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
+            expectedActiveStakeAfter = activeStakeBefore + donation - expectedWithdrawalsDonated;
+            expectedBobWithdrawalsAfter =
+                ERC4626Math.previewRedeem(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
+        }
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(vault.withdrawalUnlockAt(0, bob), uint48(block.timestamp) + 1);
+        assertGt(expectedBobWithdrawalsAfter, bobBefore);
+        assertEq(vault.withdrawalsOf(0, bob), expectedBobWithdrawalsAfter);
+        assertEq(vault.activeWithdrawals(), expectedNewActiveWithdrawals);
+        assertEq(vault.activeStake(), expectedActiveStakeAfter);
+
+        vm.warp(bobUnlockAfter);
+        assertEq(_claim(bob, 0), expectedBobWithdrawalsAfter);
+    }
+
+    function test_Donate_atUnlockBoundary_historicalCurrentTimestampTracksUpdatedState() public {
+        vault = _getUniversalVault(7 days);
+        (uint48 aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawals();
+
+        uint256 donation = 20;
+        uint48 previousTimestamp = aliceUnlockAfter - 1;
+        uint256 historicalPrevActiveBefore = vault.activeWithdrawalsAt(previousTimestamp);
+        uint256 historicalPrevStakeBefore = vault.activeStakeAt(previousTimestamp, "");
+        uint256 expectedNewActiveWithdrawals;
+        uint256 expectedActiveStakeAfter;
+        {
+            uint256 curActiveWithdrawals = vault.activeWithdrawals();
+            uint256 activeStakeBefore = vault.activeStake();
+            uint256 expectedWithdrawalsDonated =
+                donation.mulDiv(curActiveWithdrawals, activeStakeBefore + curActiveWithdrawals);
+            expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
+            expectedActiveStakeAfter = activeStakeBefore + donation - expectedWithdrawalsDonated;
+        }
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(vault.activeWithdrawals(), expectedNewActiveWithdrawals);
+        assertEq(vault.activeStake(), expectedActiveStakeAfter);
+        assertEq(vault.activeWithdrawalsAt(previousTimestamp), historicalPrevActiveBefore);
+        assertEq(vault.activeStakeAt(previousTimestamp, ""), historicalPrevStakeBefore);
+        assertEq(vault.activeWithdrawalsAt(aliceUnlockAfter), expectedNewActiveWithdrawals);
+        assertEq(vault.activeStakeAt(aliceUnlockAfter, ""), expectedActiveStakeAfter);
+    }
+
+    function test_WithdrawalsBoundary_durationWindows_alignWithDelegatorBalanceAt() public {
+        UniversalDelegator universalDelegator;
+        uint48 aliceUnlockAfter;
+        (universalDelegator,, aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawalsWithUniversalNetwork();
+
+        uint48 previousTimestamp = aliceUnlockAfter - 1;
+        uint256 activeStakeBefore = vault.activeStakeAt(previousTimestamp, "");
+        uint256 activeStakeAtBoundary = vault.activeStakeAt(aliceUnlockAfter, "");
+
+        assertEq(vault.withdrawalsOf(0, alice), 40);
+        assertEq(vault.activeWithdrawalsForAt(0, previousTimestamp), 70);
+        assertEq(vault.activeWithdrawalsForAt(1, previousTimestamp), 30);
+        assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
+
+        assertEq(universalDelegator.getBalanceAt(0, 0, previousTimestamp), activeStakeBefore + 70);
+        assertEq(universalDelegator.getBalanceAt(0, 1, previousTimestamp), activeStakeBefore + 30);
+        assertEq(universalDelegator.getBalanceAt(0, 0, aliceUnlockAfter), activeStakeAtBoundary + 30);
+        assertEq(universalDelegator.getBalanceAt(0, 1, aliceUnlockAfter), activeStakeAtBoundary);
+    }
+
+    function test_Donate_atUnlockBoundary_durationWindows_alignWithDelegatorBalanceAt() public {
+        UniversalDelegator universalDelegator;
+        uint48 aliceUnlockAfter;
+        (universalDelegator,, aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawalsWithUniversalNetwork();
+
+        uint256 donation = 20;
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 expectedNewActiveWithdrawals;
+        uint256 expectedActiveStakeAfter;
+        {
+            uint256 curActiveWithdrawals = vault.activeWithdrawals();
+            uint256 activeStakeBefore = vault.activeStake();
+            uint256 expectedWithdrawalsDonated =
+                donation.mulDiv(curActiveWithdrawals, activeStakeBefore + curActiveWithdrawals);
+            expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
+            expectedActiveStakeAfter = activeStakeBefore + donation - expectedWithdrawalsDonated;
+        }
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), expectedNewActiveWithdrawals);
+        assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
+        assertEq(
+            universalDelegator.getBalanceAt(0, 0, aliceUnlockAfter),
+            expectedActiveStakeAfter + expectedNewActiveWithdrawals
+        );
+        assertEq(universalDelegator.getBalanceAt(0, 1, aliceUnlockAfter), expectedActiveStakeAfter);
+    }
+
     function test_Donate_withoutClaimableWithdrawals_keepsCurrentBucketAndUpdatesActive() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
@@ -3837,6 +3982,110 @@ contract VaultV2Test is Test {
         assertEq(vault.activeStake(), activeStakeBefore - expectedActiveSlashed);
     }
 
+    function test_OnSlash_atUnlockBoundary_doesNotAffectCurrentClaimableWithdrawal() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        (uint48 aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawals();
+
+        uint256 slashAmount = 20;
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+
+        vm.prank(address(slasher));
+        VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(_claim(alice, 0), claimableBefore);
+        assertEq(vault.withdrawalUnlockAt(0, alice), aliceUnlockAfter);
+    }
+
+    function test_OnSlash_atUnlockBoundary_affectsNextTimestampWithdrawal() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        (, uint48 bobUnlockAfter) = _prepareAdjacentUnlockWithdrawals();
+
+        uint256 slashAmount = 20;
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 bobBefore = vault.withdrawalsOf(0, bob);
+        uint256 expectedActiveAfter;
+        uint256 expectedActiveStakeAfter;
+        {
+            uint256 activeBefore = vault.activeWithdrawals();
+            uint256 activeStakeBefore = vault.activeStake();
+            uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, activeStakeBefore + activeBefore);
+            expectedActiveAfter = activeBefore - (slashAmount - expectedActiveSlashed);
+            expectedActiveStakeAfter = activeStakeBefore - expectedActiveSlashed;
+        }
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        assertEq(slashedAmount, slashAmount);
+        assertEq(owed, 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, slashAmount);
+        assertEq(vault.withdrawalUnlockAt(0, bob), uint48(block.timestamp) + 1);
+        assertLt(expectedActiveAfter, bobBefore);
+        assertEq(vault.withdrawalsOf(0, bob), expectedActiveAfter);
+        assertEq(vault.activeWithdrawals(), expectedActiveAfter);
+        assertEq(vault.activeStake(), expectedActiveStakeAfter);
+
+        vm.warp(bobUnlockAfter);
+        assertEq(_claim(bob, 0), expectedActiveAfter);
+    }
+
+    function test_OnSlash_atUnlockBoundary_historicalCurrentTimestampTracksUpdatedState() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        (uint48 aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawals();
+
+        uint256 slashAmount = 20;
+        uint48 previousTimestamp = aliceUnlockAfter - 1;
+        uint256 historicalPrevActiveBefore = vault.activeWithdrawalsAt(previousTimestamp);
+        uint256 historicalPrevStakeBefore = vault.activeStakeAt(previousTimestamp, "");
+        uint256 expectedActiveAfter;
+        uint256 expectedActiveStakeAfter;
+        {
+            uint256 activeBefore = vault.activeWithdrawals();
+            uint256 activeStakeBefore = vault.activeStake();
+            uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, activeStakeBefore + activeBefore);
+            expectedActiveAfter = activeBefore - (slashAmount - expectedActiveSlashed);
+            expectedActiveStakeAfter = activeStakeBefore - expectedActiveSlashed;
+        }
+
+        vm.prank(address(slasher));
+        VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        assertEq(vault.activeWithdrawalsAt(previousTimestamp), historicalPrevActiveBefore);
+        assertEq(vault.activeStakeAt(previousTimestamp, ""), historicalPrevStakeBefore);
+        assertEq(vault.activeWithdrawalsAt(aliceUnlockAfter), expectedActiveAfter);
+        assertEq(vault.activeStakeAt(aliceUnlockAfter, ""), expectedActiveStakeAfter);
+    }
+
+    function test_OnSlash_atUnlockBoundary_durationWindows_alignWithDelegatorBalanceAt() public {
+        UniversalDelegator universalDelegator;
+        uint48 aliceUnlockAfter;
+        (universalDelegator, slasher, aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawalsWithUniversalNetwork();
+
+        uint256 slashAmount = 20;
+        uint256 claimableBefore = vault.withdrawalsOf(0, alice);
+        uint256 expectedActiveAfter;
+        uint256 expectedActiveStakeAfter;
+        {
+            uint256 activeBefore = vault.activeWithdrawals();
+            uint256 activeStakeBefore = vault.activeStake();
+            uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, activeStakeBefore + activeBefore);
+            expectedActiveAfter = activeBefore - (slashAmount - expectedActiveSlashed);
+            expectedActiveStakeAfter = activeStakeBefore - expectedActiveSlashed;
+        }
+
+        vm.prank(address(slasher));
+        VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), expectedActiveAfter);
+        assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
+        assertEq(
+            universalDelegator.getBalanceAt(0, 0, aliceUnlockAfter), expectedActiveStakeAfter + expectedActiveAfter
+        );
+        assertEq(universalDelegator.getBalanceAt(0, 1, aliceUnlockAfter), expectedActiveStakeAfter);
+    }
+
     function test_OnSlash_withoutClaimableWithdrawals_keepsCurrentBucket() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
@@ -4735,6 +4984,47 @@ contract VaultV2Test is Test {
     function _unmaturedWithdrawalShares(uint48 timestamp) internal view returns (uint256) {
         return vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault))
             - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), timestamp);
+    }
+
+    function _prepareAdjacentUnlockWithdrawals() internal returns (uint48 aliceUnlockAfter, uint48 bobUnlockAfter) {
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+        aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 30);
+        bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
+
+        vm.warp(aliceUnlockAfter);
+    }
+
+    function _prepareAdjacentUnlockWithdrawalsWithUniversalNetwork()
+        internal
+        returns (
+            UniversalDelegator universalDelegator,
+            Slasher slasher_,
+            uint48 aliceUnlockAfter,
+            uint48 bobUnlockAfter
+        )
+    {
+        (vault, universalDelegator, slasher_) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        delegator = FullRestakeDelegator(address(universalDelegator));
+        slasher = slasher_;
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+        aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 30);
+        bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
+
+        vm.warp(aliceUnlockAfter);
     }
 
     function _expectedTotalStake(uint48 timestamp) internal view returns (uint256) {
