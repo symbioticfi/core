@@ -19,10 +19,10 @@ Current `CompactNew` does not produce that state in the matching pending-window 
 
 The closest CompactNew state is:
 
-| Slot | `stakeFor(0)` | `stakeFor(half)` | `stakeFor(maxDuration)` |
-| ---- | ------------- | ---------------- | ----------------------- |
-| `slot1` | `50` | `0` | `0` |
-| `slot2` | `0` | `0` | `0` |
+| Slot    | `stakeFor(0)` | `stakeFor(half)` | `stakeFor(maxDuration)` |
+| ------- | ------------- | ---------------- | ----------------------- |
+| `slot1` | `50`          | `0`              | `0`                     |
+| `slot2` | `0`           | `0`              | `0`                     |
 
 and `swapSlots(slot1, slot2)` reverts there.
 

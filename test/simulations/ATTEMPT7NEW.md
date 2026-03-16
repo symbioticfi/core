@@ -9,11 +9,11 @@
 
 ## Key checkpoints
 
-| Checkpoint | activeStake | activeWithdrawalsFor 0/half/max | slot2 pending 0/half/max | slot3 stakeFor 0/half/max (CompactNew) | slot3 stakeFor 0/half/max (Proper) |
-| ---------- | ----------- | -------------------------------- | ------------------------ | -------------------------------------- | ---------------------------------- |
-| `t0` after initial setup | 244 | `0 / 0 / 0` | `0 / 0 / 0` | `85 / 85 / 85` | `85 / 85 / 85` |
-| `t1` after `withdraw, withdraw, setSize(slot2,4), deposit` | 171 | `105 / 105 / 105` | `36 / 36 / 36` | `85 / 85 / 85` | `85 / 85 / 85` |
-| `t2 = t1 + 1.5d` | 171 | `105 / 0 / 0` | `36 / 0 / 0` | `85 / 53 / 53` | `85 / 85 / 85` |
+| Checkpoint                                                 | activeStake | activeWithdrawalsFor 0/half/max | slot2 pending 0/half/max | slot3 stakeFor 0/half/max (CompactNew) | slot3 stakeFor 0/half/max (Proper) |
+| ---------------------------------------------------------- | ----------- | ------------------------------- | ------------------------ | -------------------------------------- | ---------------------------------- |
+| `t0` after initial setup                                   | 244         | `0 / 0 / 0`                     | `0 / 0 / 0`              | `85 / 85 / 85`                         | `85 / 85 / 85`                     |
+| `t1` after `withdraw, withdraw, setSize(slot2,4), deposit` | 171         | `105 / 105 / 105`               | `36 / 36 / 36`           | `85 / 85 / 85`                         | `85 / 85 / 85`                     |
+| `t2 = t1 + 1.5d`                                           | 171         | `105 / 0 / 0`                   | `36 / 0 / 0`             | `85 / 53 / 53`                         | `85 / 85 / 85`                     |
 
 ## Why it is wrong
 

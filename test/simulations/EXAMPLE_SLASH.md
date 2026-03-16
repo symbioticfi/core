@@ -25,10 +25,10 @@ This is the deterministic replay witness from `seed = 3`:
 
 ## Checkpoints
 
-| Checkpoint | Timestamp | activeStake | activeWithdrawalsFor 0/half/maxDuration | slot1 `stakeFor` | slot2 `stakeFor` | slot3 `stakeFor` | slot4 `stakeFor` |
-| ---------- | --------- | ----------- | --------------------------------------- | ---------------- | ---------------- | ---------------- | ---------------- |
-| `t1` before slash | `1004` | `263` | `0 / 0 / 0` | `86 / 86 / 86` | `44 / 44 / 44` | `69 / 69 / 34.5` | `64 / 64 / 64` |
-| `t2` after slash | `1004` | `248` | `0 / 0 / 0` | `71 / 71 / 71` | `44 / 44 / 44` | `69 / 69 / 34.5` | `64 / 64 / 64` |
+| Checkpoint        | Timestamp | activeStake | activeWithdrawalsFor 0/half/maxDuration | slot1 `stakeFor` | slot2 `stakeFor` | slot3 `stakeFor` | slot4 `stakeFor` |
+| ----------------- | --------- | ----------- | --------------------------------------- | ---------------- | ---------------- | ---------------- | ---------------- |
+| `t1` before slash | `1004`    | `263`       | `0 / 0 / 0`                             | `86 / 86 / 86`   | `44 / 44 / 44`   | `69 / 69 / 34.5` | `64 / 64 / 64`   |
+| `t2` after slash  | `1004`    | `248`       | `0 / 0 / 0`                             | `71 / 71 / 71`   | `44 / 44 / 44`   | `69 / 69 / 34.5` | `64 / 64 / 64`   |
 
 ## Slashed slot bound
 

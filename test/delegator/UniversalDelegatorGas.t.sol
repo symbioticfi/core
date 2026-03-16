@@ -258,12 +258,11 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(setupTimestamp);
         _deposit(owner, DEPOSIT_AMOUNT);
         _withdraw(owner, WITHDRAW_AMOUNT);
-        _setupTopology();
-        _assertStakeForInvariantAcrossOperatorSlots();
-        vm.warp(setupTimestamp + CAPTURE_OFFSET + 1);
     }
 
     function test_Gas_StakeForAt_ExecuteSlash() public {
+        _prepareScenario(false);
+
         uint48 timestamp = _currentCaptureTimestamp();
         bytes memory noHints = "";
 
@@ -291,6 +290,29 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
 
         _measureStakeForTimestamp("no_capture", 0, noHints, noHints);
         _assertStakeForInvariantAcrossOperatorSlots();
+    }
+
+    function test_Gas_StakeForAt_ExecuteSlash_SharedSubvault() public {
+        _prepareScenario(true);
+
+        bytes memory noHints = "";
+
+        uint256 snapshot = vm.snapshotState();
+        _measureIsolatedSequential("shared_no_capture", 0, noHints);
+        vm.revertToState(snapshot);
+
+        _measureSingleTx("shared_no_capture", 0, noHints, noHints);
+        vm.revertToState(snapshot);
+
+        _measureStakeForTimestamp("shared_no_capture", 0, noHints, noHints);
+    }
+
+    function _prepareScenario(bool sharedTargetSubvault) internal {
+        _setupTopology(sharedTargetSubvault);
+        if (!sharedTargetSubvault) {
+            _assertStakeForInvariantAcrossOperatorSlots();
+        }
+        vm.warp(uint256(START_TIMESTAMP + EPOCH_DURATION + CAPTURE_OFFSET + 1));
     }
 
     function _measureIsolatedSequential(string memory labelPrefix, uint48 captureTimestamp, bytes memory executeHints)
@@ -348,9 +370,15 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
         console2.log(string.concat(labelPrefix, "_stake_after"), stakeAfter);
     }
 
-    function _setupTopology() internal {
+    function _setupTopology(bool sharedTargetSubvault) internal {
+        delete operatorSlots;
+        targetSubnetwork = bytes32(0);
+        targetOperator = address(0);
+        nextOperator = address(0);
+
         for (uint256 subvaultIndex = 0; subvaultIndex < 3; ++subvaultIndex) {
-            uint96 subvaultSlot = delegator.createSlot(bytes32(0), 0, false, false, SUBVAULT_SIZE);
+            bool isShared = sharedTargetSubvault && subvaultIndex == 2;
+            uint96 subvaultSlot = delegator.createSlot(bytes32(0), 0, isShared, false, SUBVAULT_SIZE);
 
             for (uint256 networkIndex = 0; networkIndex < 3; ++networkIndex) {
                 address network =

@@ -55,6 +55,11 @@ interface IUniversalDelegator {
     error IsShared();
 
     /**
+     * @notice Raised when the provided maximum network limit is not 2^256-1.
+     */
+    error LimitNotUint256Max();
+
+    /**
      * @notice Raised when no slot is assigned for the requested subject.
      */
     error NotAssigned();
@@ -103,11 +108,6 @@ interface IUniversalDelegator {
      * @notice Raised when the provided vault is invalid.
      */
     error NotVault();
-
-    /**
-     * @notice Raised when the provided maximum network limit is not 2^256-1.
-     */
-    error LimitNotUint256Max();
 
     /**
      * @notice Raised when the connected vault version is older than required.

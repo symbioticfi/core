@@ -17,8 +17,8 @@ import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/slasher/IUniversalSlasher.sol";
-import {VAULT_V2_VERSION, MAX_DURATION} from "../../interfaces/vault/IVaultV2.sol";
 import {IVetoSlasher, VETO_SLASHER_TYPE} from "../../interfaces/slasher/IVetoSlasher.sol";
+import {VAULT_V2_VERSION, MAX_DURATION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 

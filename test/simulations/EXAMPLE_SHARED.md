@@ -35,11 +35,11 @@ Slasher `slashableStake()` can preserve shared guarantees inside a shared `subva
 
 ### Checkpoints
 
-| Checkpoint | `stakeFor(A, alice, 0)` | `stakeFor(B, bob, 0)` | `stakeFor(C, carol, 0)` | `slashableStake(B, bob, 0)` | Actual shared funds left | `executeSlash(B)` | `owed(B, bob)` |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| before first slash | `10` | `10` | `10` | `10` | `10` | `-` | `0` |
-| after first slash on `A` | `0` | `0` | `10` | `10` | `0` | `-` | `0` |
-| after second slash on `B` | `0` | `0` | `10` | `0` | `0` | `0` | `0` |
+| Checkpoint                | `stakeFor(A, alice, 0)` | `stakeFor(B, bob, 0)` | `stakeFor(C, carol, 0)` | `slashableStake(B, bob, 0)` | Actual shared funds left | `executeSlash(B)` | `owed(B, bob)` |
+| ------------------------- | ----------------------: | --------------------: | ----------------------: | --------------------------: | -----------------------: | ----------------: | -------------: |
+| before first slash        |                    `10` |                  `10` |                    `10` |                        `10` |                     `10` |               `-` |            `0` |
+| after first slash on `A`  |                     `0` |                   `0` |                    `10` |                        `10` |                      `0` |               `-` |            `0` |
+| after second slash on `B` |                     `0` |                   `0` |                    `10` |                         `0` |                      `0` |               `0` |            `0` |
 
 ### Meaning
 
@@ -67,10 +67,10 @@ Pinned by:
 
 ### Checkpoint
 
-| Operator | Public `stakeFor(0)` | `slashableStake(0)` |
-| --- | ---: | ---: |
-| `bob` | `20` | `20` |
-| `charlie` | `0` | `0` |
+| Operator  | Public `stakeFor(0)` | `slashableStake(0)` |
+| --------- | -------------------: | ------------------: |
+| `bob`     |                 `20` |                `20` |
+| `charlie` |                  `0` |                 `0` |
 
 ### Meaning
 
@@ -97,10 +97,10 @@ Pinned by:
 
 ### Checkpoint
 
-| Operator | Public `stakeFor(0)` | `slashableStake(0)` |
-| --- | ---: | ---: |
-| `bob` | `0` | `5` |
-| `charlie` | `0` | `5` |
+| Operator  | Public `stakeFor(0)` | `slashableStake(0)` |
+| --------- | -------------------: | ------------------: |
+| `bob`     |                  `0` |                 `5` |
+| `charlie` |                  `0` |                 `5` |
 
 ### Meaning
 
@@ -129,12 +129,12 @@ Pinned by:
 
 ### Checkpoints
 
-| Value | Current actual |
-| --- | ---: |
-| `getAllocated(sharedSubvault, 0)` | `8` |
-| `getPending(sharedSubvault, 0)` | `3` |
-| public `stakeFor(B, bob, 0)` | `8` |
-| `slashableStake(B, bob, 0)` | `8` |
+| Value                             | Current actual |
+| --------------------------------- | -------------: |
+| `getAllocated(sharedSubvault, 0)` |            `8` |
+| `getPending(sharedSubvault, 0)`   |            `3` |
+| public `stakeFor(B, bob, 0)`      |            `8` |
+| `slashableStake(B, bob, 0)`       |            `8` |
 
 ### Meaning
 
@@ -166,12 +166,12 @@ Sourced from:
 
 ### Checkpoints
 
-| Value | Current actual |
-| --- | ---: |
-| `getAllocated(sharedSubvault, 0)` | `6` |
-| `getPending(sharedSubvault, 0)` | `8` |
-| public `stakeFor(B, bob, 0)` | `6` |
-| `slashableStake(B, bob, 0)` | `6` |
+| Value                             | Current actual |
+| --------------------------------- | -------------: |
+| `getAllocated(sharedSubvault, 0)` |            `6` |
+| `getPending(sharedSubvault, 0)`   |            `8` |
+| public `stakeFor(B, bob, 0)`      |            `6` |
+| `slashableStake(B, bob, 0)`       |            `6` |
 
 ### Meaning
 
@@ -200,10 +200,10 @@ Sourced from:
 
 ### Checkpoints
 
-| Checkpoint | `stakeFor(A, alice, 0)` | `slashableStake(A, alice, 0)` | `slashableStake(B, bob, 0)` |
-| --- | ---: | ---: | ---: |
-| right after slash on `A` | `7` | `7` | `10` |
-| after regrowing `A` and `alice` | `7` | `7` | `10` |
+| Checkpoint                      | `stakeFor(A, alice, 0)` | `slashableStake(A, alice, 0)` | `slashableStake(B, bob, 0)` |
+| ------------------------------- | ----------------------: | ----------------------------: | --------------------------: |
+| right after slash on `A`        |                     `7` |                           `7` |                        `10` |
+| after regrowing `A` and `alice` |                     `7` |                           `7` |                        `10` |
 
 ### Meaning
 
@@ -223,10 +223,10 @@ Sourced from:
 
 ### Checkpoint
 
-| Value | Current actual |
-| --- | ---: |
-| revert data length | `4` |
-| observed selector | `ZeroIndex()` |
+| Value              | Current actual |
+| ------------------ | -------------: |
+| revert data length |            `4` |
+| observed selector  |  `ZeroIndex()` |
 
 ### Meaning
 

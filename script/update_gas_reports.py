@@ -507,6 +507,23 @@ def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
 
     missing_scenario = [key for key in scenario_required if key not in logs]
     has_scenario = not missing_scenario
+    shared_scenario_required = [
+        "shared_no_capture_isolated_request1",
+        "shared_no_capture_isolated_request2",
+        "shared_no_capture_isolated_execute1",
+        "shared_no_capture_isolated_execute2",
+        "shared_no_capture_single_request1",
+        "shared_no_capture_single_request2",
+        "shared_no_capture_single_execute1",
+        "shared_no_capture_single_execute2",
+        "shared_no_capture_stake_before",
+        "shared_no_capture_stake_after",
+    ]
+    shared_scenario_present = any(key in logs for key in shared_scenario_required)
+    missing_shared_scenario = [key for key in shared_scenario_required if key not in logs]
+    has_shared_scenario = not missing_shared_scenario
+    if shared_scenario_present and not has_shared_scenario:
+        raise ValueError(f"Missing shared scenario gas logs: {', '.join(missing_shared_scenario)}")
     missing_legacy = [key for key in legacy_required if key not in logs]
     has_legacy = not missing_legacy
     synthetic_legacy = False
@@ -535,6 +552,35 @@ def update_reports(log_path: Path, usd_per_gas_90d: float) -> list[Path]:
 
     if has_scenario:
         today = datetime.now().date().isoformat()
+        shared_section = ""
+        if has_shared_scenario:
+            shared_section = f"""
+## Shared-subvault target (captureTimestamp = 0)
+
+Note: target operators live under a shared subvault; one of the three top-level subvaults is created with `isShared = true`.
+
+### Fully isolated and in different blocks
+
+| Call | Request slash gas | Execute slash gas |
+| --- | ---: | ---: |
+| 1st | {gas_fmt(logs["shared_no_capture_isolated_request1"])} | {gas_fmt(logs["shared_no_capture_isolated_execute1"])} |
+| 2nd | {gas_fmt(logs["shared_no_capture_isolated_request2"])} | {gas_fmt(logs["shared_no_capture_isolated_execute2"])} |
+
+### Single transaction (not isolated, same block)
+
+| Call | Request slash gas | Execute slash gas |
+| --- | ---: | ---: |
+| 1st | {gas_fmt(logs["shared_no_capture_single_request1"])} | {gas_fmt(logs["shared_no_capture_single_execute1"])} |
+| 2nd | {gas_fmt(logs["shared_no_capture_single_request2"])} | {gas_fmt(logs["shared_no_capture_single_execute2"])} |
+
+### Stake For Timestamp
+
+| Call | Stake gas |
+| --- | ---: |
+| Before slashing | {gas_fmt(logs["shared_no_capture_stake_before"])} |
+| After slashing | {gas_fmt(logs["shared_no_capture_stake_after"])} |
+
+"""
         report = f"""# UniversalDelegator Gas Report (Scenarios)
 
 Date: {today}
@@ -551,7 +597,7 @@ Notes:
 - “Without capture timestamp” passes captureTimestamp = 0 into requestSlash
 - USD values show a 3-month average using baseFeePerGas samples (~30 samples over 90d) from Etherscan and ETH/USD from CoinGecko.
 
-## Without capture timestamp (captureTimestamp = 0)
+## Non-shared target (captureTimestamp = 0)
 
 Note: costs are lower because `latest()` state is used.
 
@@ -575,6 +621,8 @@ Note: costs are lower because `latest()` state is used.
 | --- | ---: |
 | Before slashing | {gas_fmt(logs["no_capture_stake_before"])} |
 | After slashing | {gas_fmt(logs["no_capture_stake_after"])} |
+
+{shared_section}
 
 """
         REPORT_SCENARIOS.write_text(report)

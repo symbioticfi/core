@@ -21,10 +21,10 @@ The slash is valid because before step `9`:
 
 ## Checkpoints
 
-| Checkpoint | Public `stakeFor(A, alice, 0)` | Public `stakeFor(B, bob, 0)` | Public `stakeFor(B, charlie, 0)` | Slasher `stakeFor(B, bob, 0)` | Slasher `stakeFor(B, charlie, 0)` | `UniversalSlasher.slashableStake(B, bob, 0)` | `UniversalSlasher.slashableStake(B, charlie, 0)` |
-| ---------- | ------------------------------ | ---------------------------- | -------------------------------- | ----------------------------- | --------------------------------- | --------------------------------------------- | ------------------------------------------------- |
-| `t0` before slash | `10` | `10` | `10` | `10` | `10` | `10` | `10` |
-| `t1` after slashing `A` | `0` | `10` | `0` | `10` | `10` | `10` | `10` |
+| Checkpoint              | Public `stakeFor(A, alice, 0)` | Public `stakeFor(B, bob, 0)` | Public `stakeFor(B, charlie, 0)` | Slasher `stakeFor(B, bob, 0)` | Slasher `stakeFor(B, charlie, 0)` | `UniversalSlasher.slashableStake(B, bob, 0)` | `UniversalSlasher.slashableStake(B, charlie, 0)` |
+| ----------------------- | ------------------------------ | ---------------------------- | -------------------------------- | ----------------------------- | --------------------------------- | -------------------------------------------- | ------------------------------------------------ |
+| `t0` before slash       | `10`                           | `10`                         | `10`                             | `10`                          | `10`                              | `10`                                         | `10`                                             |
+| `t1` after slashing `A` | `0`                            | `10`                         | `0`                              | `10`                          | `10`                              | `10`                                         | `10`                                             |
 
 ## Why This Is The Right Shared-Clearing Behavior
 

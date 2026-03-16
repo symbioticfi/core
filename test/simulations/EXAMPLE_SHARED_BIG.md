@@ -75,69 +75,72 @@ That order drives the root-funded curve.
 
 ## Root-Funded Subvault Curve
 
-| Checkpoint | `activeStake` | `activeWithdrawalsFor(0)` | `isolatedX` funded | `sharedA` funded | `isolatedY` funded | `sharedB` funded |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `t0` after `deposit(20)` | `20` | `0` | `6` | `10` | `4` | `0` |
-| `t1` after slash `A/alice = 3` | `17` | `0` | `6` | `7` | `4` | `0` |
-| `t2` after first `withdraw(5)` | `12` | `5` | `6` | `7` | `4` | `0` |
-| `t3` after fresh `networkA3` | `12` | `5` | `6` | `7` | `4` | `0` |
-| `t4` after pending-creating `setSize(...)` calls | `12` | `5` | `6` | `7` | `4` | `0` |
-| `t4w` after extra `withdraw(2)` while pending is active | `10` | `7` | `6` | `7` | `4` | `0` |
-| `t5` after pending and withdrawals expire | `10` | `0` | `6` | `4` | `0` | `0` |
-| `t6` after `deposit(8)` | `18` | `0` | `6` | `4` | `4` | `4` |
+| Checkpoint                                              | `activeStake` | `activeWithdrawalsFor(0)` | `isolatedX` funded | `sharedA` funded | `isolatedY` funded | `sharedB` funded |
+| ------------------------------------------------------- | ------------: | ------------------------: | -----------------: | ---------------: | -----------------: | ---------------: |
+| `t0` after `deposit(20)`                                |          `20` |                       `0` |                `6` |             `10` |                `4` |              `0` |
+| `t1` after slash `A/alice = 3`                          |          `17` |                       `0` |                `6` |              `7` |                `4` |              `0` |
+| `t2` after first `withdraw(5)`                          |          `12` |                       `5` |                `6` |              `7` |                `4` |              `0` |
+| `t3` after fresh `networkA3`                            |          `12` |                       `5` |                `6` |              `7` |                `4` |              `0` |
+| `t4` after pending-creating `setSize(...)` calls        |          `12` |                       `5` |                `6` |              `7` |                `4` |              `0` |
+| `t4w` after extra `withdraw(2)` while pending is active |          `10` |                       `7` |                `6` |              `7` |                `4` |              `0` |
+| `t5` after pending and withdrawals expire               |          `10` |                       `0` |                `6` |              `4` |                `0` |              `0` |
+| `t6` after `deposit(8)`                                 |          `18` |                       `0` |                `6` |              `4` |                `4` |              `4` |
 
 ## Public `stakeFor(..., 0)`
 
 | Checkpoint | `alice` | `bob` | `carol` | `dave` | `iris` | `jack` | `xavier` | `yves` | `erin` | `frank` | `gina` | `hank` |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `t0` | `6` | `4` | `3` | `4` | `-` | `-` | `6` | `4` | `0` | `0` | `0` | `0` |
-| `t1` | `3` | `4` | `3` | `4` | `-` | `-` | `6` | `4` | `0` | `0` | `0` | `0` |
-| `t2` | `3` | `4` | `3` | `4` | `-` | `-` | `6` | `4` | `0` | `0` | `0` | `0` |
-| `t3` | `3` | `4` | `3` | `4` | `5` | `2` | `6` | `4` | `0` | `0` | `0` | `0` |
-| `t4` | `3` | `4` | `3` | `4` | `5` | `2` | `6` | `4` | `0` | `0` | `0` | `0` |
-| `t4w` | `3` | `1` | `2` | `1` | `4` | `0` | `6` | `4` | `0` | `0` | `0` | `0` |
-| `t5` | `3` | `1` | `2` | `2` | `4` | `0` | `6` | `0` | `0` | `0` | `0` | `0` |
-| `t6` | `3` | `1` | `2` | `2` | `4` | `0` | `6` | `4` | `4` | `0` | `2` | `2` |
+| ---------- | ------: | ----: | ------: | -----: | -----: | -----: | -------: | -----: | -----: | ------: | -----: | -----: |
+| `t0`       |     `6` |   `4` |     `3` |    `4` |    `-` |    `-` |      `6` |    `4` |    `0` |     `0` |    `0` |    `0` |
+| `t1`       |     `3` |   `4` |     `3` |    `4` |    `-` |    `-` |      `6` |    `4` |    `0` |     `0` |    `0` |    `0` |
+| `t2`       |     `3` |   `4` |     `3` |    `4` |    `-` |    `-` |      `6` |    `4` |    `0` |     `0` |    `0` |    `0` |
+| `t3`       |     `3` |   `4` |     `3` |    `4` |    `5` |    `2` |      `6` |    `4` |    `0` |     `0` |    `0` |    `0` |
+| `t4`       |     `3` |   `4` |     `3` |    `4` |    `5` |    `2` |      `6` |    `4` |    `0` |     `0` |    `0` |    `0` |
+| `t4w`      |     `3` |   `1` |     `2` |    `1` |    `4` |    `0` |      `6` |    `4` |    `0` |     `0` |    `0` |    `0` |
+| `t5`       |     `3` |   `1` |     `2` |    `2` |    `4` |    `0` |      `6` |    `0` |    `0` |     `0` |    `0` |    `0` |
+| `t6`       |     `3` |   `1` |     `2` |    `2` |    `4` |    `0` |      `6` |    `4` |    `4` |     `0` |    `2` |    `2` |
 
 ## Slasher `slashableStake(..., 0)`
 
 | Checkpoint | `alice` | `bob` | `carol` | `dave` | `iris` | `jack` | `erin` | `frank` | `gina` | `hank` |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `t0` | `6` | `4` | `3` | `4` | `-` | `-` | `0` | `0` | `0` | `0` |
-| `t1` | `3` | `4` | `3` | `4` | `-` | `-` | `0` | `0` | `0` | `0` |
-| `t2` | `3` | `4` | `3` | `4` | `-` | `-` | `0` | `0` | `0` | `0` |
-| `t3` | `3` | `4` | `3` | `4` | `5` | `2` | `0` | `0` | `0` | `0` |
-| `t4` | `3` | `4` | `3` | `4` | `5` | `2` | `0` | `0` | `0` | `0` |
-| `t4w` | `3` | `4` | `3` | `4` | `5` | `2` | `0` | `0` | `0` | `0` |
-| `t5` | `3` | `1` | `2` | `2` | `4` | `0` | `0` | `0` | `0` | `0` |
-| `t6` | `3` | `1` | `2` | `2` | `4` | `0` | `4` | `0` | `2` | `2` |
+| ---------- | ------: | ----: | ------: | -----: | -----: | -----: | -----: | ------: | -----: | -----: |
+| `t0`       |     `6` |   `4` |     `3` |    `4` |    `-` |    `-` |    `0` |     `0` |    `0` |    `0` |
+| `t1`       |     `3` |   `4` |     `3` |    `4` |    `-` |    `-` |    `0` |     `0` |    `0` |    `0` |
+| `t2`       |     `3` |   `4` |     `3` |    `4` |    `-` |    `-` |    `0` |     `0` |    `0` |    `0` |
+| `t3`       |     `3` |   `4` |     `3` |    `4` |    `5` |    `2` |    `0` |     `0` |    `0` |    `0` |
+| `t4`       |     `3` |   `4` |     `3` |    `4` |    `5` |    `2` |    `0` |     `0` |    `0` |    `0` |
+| `t4w`      |     `3` |   `4` |     `3` |    `4` |    `5` |    `2` |    `0` |     `0` |    `0` |    `0` |
+| `t5`       |     `3` |   `1` |     `2` |    `2` |    `4` |    `0` |    `0` |     `0` |    `0` |    `0` |
+| `t6`       |     `3` |   `1` |     `2` |    `2` |    `4` |    `0` |    `4` |     `0` |    `2` |    `2` |
 
 ## Pending `getPending(..., 0)`
 
 The big scenario now includes pending at three levels inside `sharedSubvaultA`.
 
 | Checkpoint | `sharedA` pending | `networkA2` pending | `dave` pending |
-| --- | ---: | ---: | ---: |
-| `t0` | `0` | `0` | `0` |
-| `t1` | `0` | `0` | `0` |
-| `t2` | `0` | `0` | `0` |
-| `t3` | `0` | `0` | `0` |
-| `t4` | `3` | `3` | `2` |
-| `t4w` | `3` | `3` | `2` |
-| `t5` | `0` | `0` | `0` |
-| `t6` | `0` | `0` | `0` |
+| ---------- | ----------------: | ------------------: | -------------: |
+| `t0`       |               `0` |                 `0` |            `0` |
+| `t1`       |               `0` |                 `0` |            `0` |
+| `t2`       |               `0` |                 `0` |            `0` |
+| `t3`       |               `0` |                 `0` |            `0` |
+| `t4`       |               `3` |                 `3` |            `2` |
+| `t4w`      |               `3` |                 `3` |            `2` |
+| `t5`       |               `0` |                 `0` |            `0` |
+| `t6`       |               `0` |                 `0` |            `0` |
 
 ## What This Shows
 
 1. Multiple operators in multiple networks under one shared subvault:
+
    - `networkA1`, `networkA2`, and later `networkA3` all live under `sharedSubvaultA`
    - `networkB1` and `networkB2` both live under `sharedSubvaultB`
 
 2. Shared and isolated subvaults before and after each other matter:
+
    - `isolatedSubvaultX` always takes its `6` first
    - `sharedSubvaultB` is completely starved until the final deposit because it sits after `isolatedX`, `sharedA`, and `isolatedY`
 
 3. Partial filling at several levels happens naturally:
+
    - network caps are no longer equal to the sum of operator caps
    - some networks have slack (`networkX`, `networkA1`, `networkA2`, `networkY`, `networkB2`)
    - some networks are overcommitted by operators (`networkA3`, `networkB1`)
@@ -145,11 +148,13 @@ The big scenario now includes pending at three levels inside `sharedSubvaultA`.
    - `t6`: `sharedB` is funded for `4`, so `networkB1` is partial (`erin = 4`, `frank = 0`) while `networkB2` is also partial (`gina = 2`, `hank = 2`)
 
 4. A fresh network created after an earlier shared slash starts from the current shared baseline:
+
    - `networkA3` appears only at `t3`
    - it is funded from the then-current `sharedA` balance
    - it does not pick up any older pre-creation shared history before `t3`
 
 5. The big scenario now shows pending at multiple depths in one shared subtree:
+
    - `sharedA` has subvault-level pending `3` at `t4`
    - `networkA2` has network-level pending `3` at `t4`
    - `dave` has operator-level pending `2` at `t4`
@@ -157,6 +162,7 @@ The big scenario now includes pending at three levels inside `sharedSubvaultA`.
    - all three expire together by `t5`
 
 6. Withdrawals can coexist with those pending slots in the same window:
+
    - `t4w` adds another withdrawal while shared/network/operator pending is still live
    - `activeWithdrawalsFor(0)` becomes `7`
    - public funding drops immediately (`bob: 4 -> 1`, `carol: 3 -> 2`, `dave: 4 -> 1`, `jack: 2 -> 0`)
@@ -164,6 +170,7 @@ The big scenario now includes pending at three levels inside `sharedSubvaultA`.
    - this does not mean shared pending itself became sibling guarantee; the preserved difference here comes from the existing shared-size path plus ordinary local pending/public allocation
 
 7. After the epoch window, shared slasher visibility collapses back to public for this subtree:
+
    - after `t5`, `bob` in the slashed `networkA1` drops to `1 / 1`
    - `carol` and `dave` in the unslashed `networkA2` settle to `2 / 2`
    - `jack` drops from `0 / 2` at `t4w` to `0 / 0` at `t5`

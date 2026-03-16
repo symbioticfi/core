@@ -24,11 +24,11 @@ For a shared `subvault`:
 
 ## Checkpoints
 
-| Checkpoint | Public `stakeFor(A, alice, 0)` | Public `stakeFor(B, bob, 0)` | Public `stakeFor(B, charlie, 0)` | `slashableStake(B, bob, 0)` | `slashableStake(B, charlie, 0)` |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| before slash on `A` | `10` | `0` | `-` | `10` | `-` |
-| after slash on `A`, before `charlie` exists | `0` | `0` | `-` | `5` | `-` |
-| after creating fresh `charlie(5)` | `0` | `0` | `0` | `5` | `5` |
+| Checkpoint                                  | Public `stakeFor(A, alice, 0)` | Public `stakeFor(B, bob, 0)` | Public `stakeFor(B, charlie, 0)` | `slashableStake(B, bob, 0)` | `slashableStake(B, charlie, 0)` |
+| ------------------------------------------- | -----------------------------: | ---------------------------: | -------------------------------: | --------------------------: | ------------------------------: |
+| before slash on `A`                         |                           `10` |                          `0` |                              `-` |                        `10` |                             `-` |
+| after slash on `A`, before `charlie` exists |                            `0` |                          `0` |                              `-` |                         `5` |                             `-` |
+| after creating fresh `charlie(5)`           |                            `0` |                          `0` |                              `0` |                         `5` |                             `5` |
 
 ## Why This Is Correct
 

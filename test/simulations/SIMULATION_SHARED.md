@@ -18,11 +18,11 @@ The slash is valid because `stakeFor(network1, alice, 0)` is `10` before the sla
 
 ## Checkpoints
 
-| Checkpoint | activeStake | subvault `size / slashPending / alloc(user) / alloc(slasher)` | network1 `size / slashPending / alloc(user) / alloc(slasher)` | operator1 `size / slashPending / alloc(user) / alloc(slasher)` | network2 `size / slashPending / alloc(user) / alloc(slasher)` | operator2 `size / slashPending / alloc(user) / alloc(slasher)` |
-| ---------- | ----------- | ------------------------------------------------------------ | ------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| `t0` before slash | `20` | `10 / 0 / 10 / 10` | `10 / 0 / 10 / 10` | `10 / 0 / 10 / 10` | `10 / 0 / 10 / 10` | `10 / 0 / 10 / 10` |
-| `t1` after `slash(network1, alice, 10)` | `10` | `0 / 10 / 0 / 0` | `0 / 10 / 0 / 0` | `0 / 0 / 0 / 0` | `10 / 0 / 0 / 10` | `10 / 0 / 0 / 10` |
-| `t2` after `epoch + 1s` | `10` | `0 / 10 / 0 / 0` | `0 / 10 / 0 / 0` | `0 / 0 / 0 / 0` | `10 / 0 / 0 / 0` | `10 / 0 / 0 / 0` |
+| Checkpoint                              | activeStake | subvault `size / slashPending / alloc(user) / alloc(slasher)` | network1 `size / slashPending / alloc(user) / alloc(slasher)` | operator1 `size / slashPending / alloc(user) / alloc(slasher)` | network2 `size / slashPending / alloc(user) / alloc(slasher)` | operator2 `size / slashPending / alloc(user) / alloc(slasher)` |
+| --------------------------------------- | ----------- | ------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
+| `t0` before slash                       | `20`        | `10 / 0 / 10 / 10`                                            | `10 / 0 / 10 / 10`                                            | `10 / 0 / 10 / 10`                                             | `10 / 0 / 10 / 10`                                            | `10 / 0 / 10 / 10`                                             |
+| `t1` after `slash(network1, alice, 10)` | `10`        | `0 / 10 / 0 / 0`                                              | `0 / 10 / 0 / 0`                                              | `0 / 0 / 0 / 0`                                                | `10 / 0 / 0 / 10`                                             | `10 / 0 / 0 / 10`                                              |
+| `t2` after `epoch + 1s`                 | `10`        | `0 / 10 / 0 / 0`                                              | `0 / 10 / 0 / 0`                                              | `0 / 0 / 0 / 0`                                                | `10 / 0 / 0 / 0`                                              | `10 / 0 / 0 / 0`                                               |
 
 ## Interpretation
 
