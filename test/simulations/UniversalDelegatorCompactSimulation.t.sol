@@ -141,7 +141,12 @@ contract UniversalDelegatorCompactSimulationTest is Test, CoreV2StakeForInvarian
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards), address(0)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(vaultFactory),
+                address(0),
+                address(rewards),
+                address(0)
             )
         );
         vaultFactory.whitelist(vaultImpl);

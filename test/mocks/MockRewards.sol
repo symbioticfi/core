@@ -14,6 +14,10 @@ interface IVaultDonate {
 contract MockRewards is IRewards, ReentrancyGuard {
     event Donate(address indexed vault, uint256 amount);
 
+    uint256 public donationRewardCalls;
+    address public lastDonationVault;
+    uint256 public lastDonationAmount;
+
     function donate(address vault, uint256 amount) external nonReentrant {
         IERC20 collateral = IERC20(IVaultV2Storage(vault).collateral());
         if (!collateral.transferFrom(msg.sender, address(this), amount)) {
@@ -24,6 +28,9 @@ contract MockRewards is IRewards, ReentrancyGuard {
     }
 
     function distributeDonationRewards(address vault, uint256 amount) external {
+        ++donationRewardCalls;
+        lastDonationVault = vault;
+        lastDonationAmount = amount;
         emit Donate(vault, amount);
     }
 }

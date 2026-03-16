@@ -76,7 +76,9 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         symbioticCore.vaultFactory
             .whitelist(address(new VaultTokenized(delegatorFactory, slasherFactory, vaultFactory)));
         symbioticCore.vaultFactory
-            .whitelist(address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, rewards, address(0))));
+            .whitelist(
+                address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(0), rewards, address(0)))
+            );
     }
 
     function _whitelistDelegatorImplementations() internal virtual override {

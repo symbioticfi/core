@@ -43,6 +43,7 @@ import {
     MAX_PLUGINS,
     MAX_DURATION
 } from "../../src/interfaces/vault/IVaultV2.sol";
+import {MAX_FEE} from "../../src/interfaces/vault/IFeeRegistry.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
@@ -74,6 +75,7 @@ import {MockPlugin} from "../mocks/MockPlugin.sol";
 import {MockMorphoAllocatePlugin} from "../mocks/MockMorphoAllocatePlugin.sol";
 import {MockMorphoBorrowPlugin} from "../mocks/MockMorphoBorrowPlugin.sol";
 import {MockMorphoVault} from "../mocks/MockMorphoVault.sol";
+import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
 
 contract MockCuratorRegistryHarnessVaultV2 {
@@ -89,7 +91,7 @@ contract MockCuratorRegistryHarnessVaultV2 {
 }
 
 contract VaultV2CoverageHarness is VaultV2 {
-    constructor() VaultV2(address(0), address(0), address(0), address(0), address(0)) {}
+    constructor() VaultV2(address(0), address(0), address(0), address(0), address(0), address(0)) {}
 
     function setEpochDurationRaw(uint48 epochDuration_) external {
         epochDuration = epochDuration_;
@@ -128,6 +130,7 @@ contract VaultV2Test is Test {
     FeeOnTransferToken feeOnTransferCollateral;
     VaultConfigurator vaultConfigurator;
     VaultV2TestHelper vaultTestHelper;
+    MockFeeRegistry feeRegistry;
     MockRewards rewards;
     PluginRegistry pluginRegistry;
     MockCuratorRegistryHarnessVaultV2 curatorRegistry;
@@ -219,6 +222,7 @@ contract VaultV2Test is Test {
             new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+        feeRegistry = new MockFeeRegistry();
         rewards = new MockRewards();
         pluginRegistry = new PluginRegistry(owner);
         curatorRegistry = new MockCuratorRegistryHarnessVaultV2();
@@ -4188,6 +4192,53 @@ contract VaultV2Test is Test {
         assertTrue(found);
     }
 
+    function test_InstantWithdraw_withFee_distributesRewardsAndTransfersNetAmount() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        uint256 amount = Math.min(IUniversalDelegator(vault.delegator()).getWithdrawalBuffer(), uint256(10));
+        assertGt(amount, 0);
+
+        feeRegistry.setInstantWithdrawFee(address(vault), 1000);
+        uint256 expectedFee = amount.mulDiv(1000, MAX_FEE, Math.Rounding.Ceil);
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(bob, amount);
+
+        assertEq(withdrawnAssets, amount);
+        assertGt(burnedShares, 0);
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, amount - expectedFee);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore - amount + expectedFee);
+        assertEq(rewards.donationRewardCalls(), 1);
+        assertEq(rewards.lastDonationVault(), address(vault));
+        assertEq(rewards.lastDonationAmount(), expectedFee);
+    }
+
+    function test_InstantWithdraw_withFee_usesCappedWithdrawnAmountNotRequestedAmount() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        uint256 buffer = IUniversalDelegator(vault.delegator()).getWithdrawalBuffer();
+        assertEq(buffer, 100);
+
+        feeRegistry.setInstantWithdrawFee(address(vault), 1000);
+        uint256 expectedFee = buffer.mulDiv(1000, MAX_FEE, Math.Rounding.Ceil);
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, buffer + 50);
+
+        assertEq(withdrawnAssets, buffer);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, buffer - expectedFee);
+        assertEq(rewards.donationRewardCalls(), 1);
+        assertEq(rewards.lastDonationVault(), address(vault));
+        assertEq(rewards.lastDonationAmount(), expectedFee);
+        assertEq(vault.activeSharesOf(alice), 0);
+        assertGt(burnedShares, 0);
+    }
+
     function test_InstantWithdraw_capsByAvailableToSlash() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
@@ -5351,7 +5402,14 @@ contract VaultV2Test is Test {
         returns (address)
     {
         return address(
-            new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(rewards), address(pluginRegistry))
+            new VaultV2(
+                delegatorFactory,
+                slasherFactory,
+                vaultFactory,
+                address(feeRegistry),
+                address(rewards),
+                address(pluginRegistry)
+            )
         );
     }
 

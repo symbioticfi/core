@@ -14,8 +14,10 @@ import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IEntity} from "../../interfaces/common/IEntity.sol";
+import {IFeeRegistry, MAX_FEE} from "../../interfaces/vault/IFeeRegistry.sol";
 import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IRewards} from "../../interfaces/vault/IRewards.sol";
 import {
     IVaultV2,
     MAX_DURATION,
@@ -76,9 +78,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         address delegatorFactory,
         address slasherFactory,
         address vaultFactory,
+        address feeRegistry,
         address rewards,
         address pluginRegistry
-    ) VaultV2Storage(delegatorFactory, slasherFactory, rewards, pluginRegistry) MigratableEntity(vaultFactory) {}
+    )
+        VaultV2Storage(delegatorFactory, slasherFactory, feeRegistry, rewards, pluginRegistry)
+        MigratableEntity(vaultFactory)
+    {}
 
     /* VIEW FUNCTIONS */
 
@@ -329,11 +335,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         unchecked {
             _revertIfZero(recipient);
 
-            withdrawnAssets = Math.min(amount, UniversalDelegator(delegator).getWithdrawalBuffer());
-
             uint256 curActiveStake = activeStake();
             uint256 curActiveShares = activeShares();
             uint256 curActiveSharesOf = activeSharesOf(msg.sender);
+
+            withdrawnAssets = Math.min(amount, UniversalDelegator(delegator).getWithdrawalBuffer());
 
             burnedShares = ERC4626Math.previewWithdraw(withdrawnAssets, curActiveShares, curActiveStake);
             if (burnedShares > curActiveSharesOf) {
@@ -350,7 +356,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert InsufficientAmount();
             }
 
-            _safeTransferOut(recipient, withdrawnAssets);
+            uint256 fees =
+                withdrawnAssets.fullMulDivUp(IFeeRegistry(FEE_REGISTRY).getInstantWithdrawFee(address(this)), MAX_FEE);
+            if (fees > 0) {
+                collateral.safeApprove(REWARDS, fees);
+                IRewards(REWARDS).distributeDonationRewards(address(this), fees);
+            }
+
+            _safeTransferOut(recipient, withdrawnAssets - fees);
 
             emit InstantWithdraw(msg.sender, withdrawnAssets, burnedShares);
             emit Transfer(msg.sender, address(0), burnedShares);
@@ -573,8 +586,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                         revert NotPlugin();
                     }
                     plugins.push(plugin);
-                    _grantRole(ALLOCATE_PLUGIN_ROLE, plugin);
-                    _grantRole(DEALLOCATE_PLUGIN_ROLE, plugin);
+                    _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, plugin);
+                    _grantRoleIfNotZero(DEALLOCATE_PLUGIN_ROLE, plugin);
                 }
             } else {
                 for (uint256 i; i < numPlugins; ++i) {

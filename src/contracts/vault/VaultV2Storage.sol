@@ -23,6 +23,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     address internal immutable DELEGATOR_FACTORY;
     /// @dev Address of the slasher factory.
     address internal immutable SLASHER_FACTORY;
+    /// @dev Address of the fee registry.
+    address internal immutable FEE_REGISTRY;
     /// @dev Address of the rewards contract.
     address internal immutable REWARDS;
     /// @dev Address of the plugin registry.
@@ -104,9 +106,16 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     /* CONSTRUCTOR */
 
-    constructor(address delegatorFactory, address slasherFactory, address rewards, address pluginRegistry) {
+    constructor(
+        address delegatorFactory,
+        address slasherFactory,
+        address feeRegistry,
+        address rewards,
+        address pluginRegistry
+    ) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
+        FEE_REGISTRY = feeRegistry;
         REWARDS = rewards;
         PLUGIN_REGISTRY = pluginRegistry;
     }

@@ -39,6 +39,7 @@ contract UniversalDelegatorUiSetup is Script {
             delegatorFactory: address(registry),
             slasherFactory: address(registry),
             vaultFactory: address(registry),
+            feeRegistry: address(0),
             rewards: address(0),
             pluginRegistry: address(registry)
         });

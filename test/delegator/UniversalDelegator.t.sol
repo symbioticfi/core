@@ -183,7 +183,12 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards), address(0)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(vaultFactory),
+                address(0),
+                address(rewards),
+                address(0)
             )
         );
         vaultFactory.whitelist(vaultImpl);
@@ -3602,7 +3607,12 @@ contract UniversalDelegatorMigrationTest is Test {
 
         address vaultImpl = address(
             new VaultV2(
-                address(delegatorFactory), address(slasherFactory), address(vaultFactory), address(rewards), address(0)
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(vaultFactory),
+                address(0),
+                address(rewards),
+                address(0)
             )
         );
         vaultFactory.whitelist(vaultImpl);
