@@ -20,6 +20,7 @@ import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfa
 import {IVetoSlasher, VETO_SLASHER_TYPE} from "../../interfaces/slasher/IVetoSlasher.sol";
 import {VAULT_V2_VERSION, MAX_DURATION} from "../../interfaces/vault/IVaultV2.sol";
 
+import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
@@ -70,9 +71,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal __cumulativeSlash;
 
     /// @dev Timestamp when migration from the previous slasher occurred.
-    uint48 internal __migrateTimestamp;
+    uint48 public migrateTimestamp;
     /// @dev Address of the previous slasher during migration.
-    address internal __oldSlasher;
+    address public oldSlasher;
 
     /* CONSTRUCTOR */
 
@@ -110,14 +111,14 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                     request.createdAt,
                     request.vetoDeadline,
                     oldCompleted
-                ) = IVetoSlasher(__oldSlasher).slashRequests(slashIndex);
+                ) = IVetoSlasher(oldSlasher).slashRequests(slashIndex);
                 if (oldCompleted) {
                     request.completed = true;
                 }
-                request.resolver = IVetoSlasher(__oldSlasher).resolverAt(request.subnetwork, request.createdAt, "");
+                request.resolver = IVetoSlasher(oldSlasher).resolverAt(request.subnetwork, request.createdAt, "");
                 if (
                     request.resolver != address(0)
-                        && IVetoSlasher(__oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "")
+                        && IVetoSlasher(oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "")
                             == address(0)
                 ) {
                     request.resolver = address(0);
@@ -135,13 +136,13 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     }
 
     /// @inheritdoc IUniversalSlasher
-    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory)
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes calldata)
         public
         view
         returns (uint256)
     {
         unchecked {
-            if (captureTimestamp == 0 || captureTimestamp >= __migrateTimestamp) {
+            if (captureTimestamp == 0 || captureTimestamp >= migrateTimestamp) {
                 if (
                     captureTimestamp > 0
                         && (captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
@@ -170,7 +171,12 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IUniversalSlasher
-    function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata hints)
+    function slash(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256) {
+        return executeSlash(requestSlash(subnetwork, operator, amount, 0, Calldata.emptyBytes()), Calldata.emptyBytes());
+    }
+
+    /// @inheritdoc IUniversalSlasher
+    function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata)
         public
         nonReentrant
         returns (uint256 slashIndex)
@@ -178,7 +184,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         unchecked {
             _checkNetworkMiddleware(subnetwork);
 
-            amount = Math.min(amount, slashableStake(subnetwork, operator, 0, hints));
+            amount = Math.min(amount, slashableStake(subnetwork, operator, 0, Calldata.emptyBytes()));
             if (amount == 0) {
                 revert InsufficientSlash();
             }
@@ -218,15 +224,17 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                 revert VetoPeriodNotEnded();
             }
 
-            slashedAmount =
-                Math.min(request.amount, slashableStake(request.subnetwork, request.operator, request.createdAt, ""));
+            slashedAmount = Math.min(
+                request.amount,
+                slashableStake(request.subnetwork, request.operator, request.createdAt, Calldata.emptyBytes())
+            );
             if (slashedAmount == 0) {
                 revert InsufficientSlash();
             }
 
             _slashRequests[slashIndex].completed = true;
 
-            if (request.createdAt >= __migrateTimestamp) {
+            if (request.createdAt >= migrateTimestamp) {
                 slashedAmount = UniversalDelegator(VaultV2(vault).delegator())
                     .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
             } else {
@@ -243,7 +251,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
             (slashedAmount, owedAmount) = VaultV2(vault)
                 .onSlash(
                     slashedAmount,
-                    request.createdAt >= __migrateTimestamp
+                    request.createdAt >= migrateTimestamp
                         ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoPlugins(request.subnetwork)
                         : false
                 );
@@ -385,27 +393,27 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /* MIGRATION */
 
     /// @dev Migrate slasher state from the previously configured slasher.
-    function migrate(address oldSlasher) public {
+    function migrate(address oldSlasher_) public {
         if (vault != msg.sender) {
             revert NotVault();
         }
-        uint64 oldSlasherType = IEntity(oldSlasher).TYPE();
+        uint64 oldSlasherType = IEntity(oldSlasher_).TYPE();
         if (oldSlasherType == TYPE) {
             revert NotMigrating();
         }
-        __migrateTimestamp = uint48(block.timestamp);
-        __oldSlasher = oldSlasher;
+        migrateTimestamp = uint48(block.timestamp);
+        oldSlasher = oldSlasher_;
 
-        isBurnerHook = IVetoSlasher(oldSlasher).isBurnerHook();
+        isBurnerHook = IVetoSlasher(oldSlasher_).isBurnerHook();
         if (oldSlasherType == VETO_SLASHER_TYPE) {
-            uint256 oldSlashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();
+            uint256 oldSlashRequestsLength = IVetoSlasher(oldSlasher_).slashRequestsLength();
             assembly ("memory-safe") {
                 sstore(_slashRequests.slot, oldSlashRequestsLength)
             }
-            vetoDuration = IVetoSlasher(oldSlasher).vetoDuration();
+            vetoDuration = IVetoSlasher(oldSlasher_).vetoDuration();
             resolverSetDelay = uint48(
                 Math.min(
-                    IVetoSlasher(oldSlasher).resolverSetEpochsDelay() * VaultV2(vault).epochDuration(), MAX_DURATION
+                    IVetoSlasher(oldSlasher_).resolverSetEpochsDelay() * VaultV2(vault).epochDuration(), MAX_DURATION
                 )
             );
         }
@@ -415,10 +423,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @dev Legacy support.
     function _latestSlashedCaptureTimestamp(bytes32 subnetwork, address operator) internal view returns (uint48) {
-        if (__oldSlasher == address(0) || __latestSlashedCaptureTimestamp[subnetwork][operator] > 0) {
+        if (oldSlasher == address(0) || __latestSlashedCaptureTimestamp[subnetwork][operator] > 0) {
             return __latestSlashedCaptureTimestamp[subnetwork][operator];
         }
-        return IBaseSlasher(__oldSlasher).latestSlashedCaptureTimestamp(subnetwork, operator);
+        return IBaseSlasher(oldSlasher).latestSlashedCaptureTimestamp(subnetwork, operator);
     }
 
     /// @dev Legacy support.
@@ -427,17 +435,17 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         view
         returns (uint256)
     {
-        if (timestamp < __migrateTimestamp) {
-            return IBaseSlasher(__oldSlasher).cumulativeSlashAt(subnetwork, operator, timestamp, "");
+        if (timestamp < migrateTimestamp) {
+            return IBaseSlasher(oldSlasher).cumulativeSlashAt(subnetwork, operator, timestamp, "");
         }
         return __cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp);
     }
 
     /// @dev Legacy support.
     function _cumulativeSlash(bytes32 subnetwork, address operator) internal view returns (uint256) {
-        if (__oldSlasher == address(0) || __cumulativeSlash[subnetwork][operator].length() > 0) {
+        if (oldSlasher == address(0) || __cumulativeSlash[subnetwork][operator].length() > 0) {
             return __cumulativeSlash[subnetwork][operator].latest();
         }
-        return IBaseSlasher(__oldSlasher).cumulativeSlash(subnetwork, operator);
+        return IBaseSlasher(oldSlasher).cumulativeSlash(subnetwork, operator);
     }
 }

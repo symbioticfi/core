@@ -332,10 +332,9 @@ interface IUniversalDelegator {
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Address of the operator.
      * @param timestamp Capture timestamp.
-     * @param hints Encoded lookup hints.
      * @return amount Slashable amount.
      */
-    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes calldata)
         external
         view
         returns (uint256 amount);
@@ -535,6 +534,18 @@ interface IUniversalDelegator {
      * @return withdrawalBuffer Current withdrawal buffer size.
      */
     function getWithdrawalBuffer() external view returns (uint256 withdrawalBuffer);
+
+    /**
+     * @notice Get the timestamp when migration occurred.
+     * @return migrateTimestamp Timestamp when migration occurred.
+     */
+    function migrateTimestamp() external view returns (uint48 migrateTimestamp);
+
+    /**
+     * @notice Get the address of the previous delegator before migration.
+     * @return oldDelegator Address of the previous delegator before migration.
+     */
+    function oldDelegator() external view returns (address oldDelegator);
 
     /**
      * @notice Create a new slot under a parent.

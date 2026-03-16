@@ -5731,8 +5731,11 @@ contract VaultV2Test is Test {
     }
 
     function _assertMigrationState(IVaultV2 vaultV2, address oldSlasher) internal view {
+        assertEq(vaultV2.migrateTimestamp(), uint48(block.timestamp));
         assertEq(IEntity(vaultV2.delegator()).TYPE(), delegatorFactory.totalTypes() - 1);
         assertEq(IEntity(vaultV2.slasher()).TYPE(), slasherFactory.totalTypes() - 1);
+        assertEq(IUniversalSlasher(vaultV2.slasher()).migrateTimestamp(), uint48(block.timestamp));
+        assertEq(IUniversalSlasher(vaultV2.slasher()).oldSlasher(), oldSlasher);
         IUniversalDelegator.Slot memory root = IUniversalDelegator(vaultV2.delegator()).getSlot(0);
         assertEq(root.existChildren, 1);
         IUniversalDelegator.Slot memory noPluginsSubvault =

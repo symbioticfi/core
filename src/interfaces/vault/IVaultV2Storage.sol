@@ -27,6 +27,12 @@ interface IVaultV2Storage {
     function depositWhitelist() external view returns (bool);
 
     /**
+     * @notice Timestamp when migration to VaultV2 occurred.
+     * @return migrateTimestamp Migration timestamp.
+     */
+    function migrateTimestamp() external view returns (uint48 migrateTimestamp);
+
+    /**
      * @notice Get if the deposit limit is set.
      * @return If The deposit limit is set.
      */
@@ -116,7 +122,7 @@ interface IVaultV2Storage {
      * @param hint Hint for the checkpoint index.
      * @return Total Number of active shares at the timestamp.
      */
-    function activeSharesAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
+    function activeSharesAt(uint48 timestamp, bytes calldata hint) external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault.
@@ -130,7 +136,7 @@ interface IVaultV2Storage {
      * @param hint Hint for the checkpoint index.
      * @return Total Amount of active stake at the timestamp.
      */
-    function activeStakeAt(uint48 timestamp, bytes memory hint) external view returns (uint256);
+    function activeStakeAt(uint48 timestamp, bytes calldata hint) external view returns (uint256);
 
     /**
      * @notice Get a total amount of active stake in the vault.
@@ -145,7 +151,7 @@ interface IVaultV2Storage {
      * @param hint Hint for the checkpoint index.
      * @return Number Of active shares for the account at the timestamp.
      */
-    function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) external view returns (uint256);
+    function activeSharesOfAt(address account, uint48 timestamp, bytes calldata hint) external view returns (uint256);
 
     /**
      * @notice Get a number of active shares for a particular account.

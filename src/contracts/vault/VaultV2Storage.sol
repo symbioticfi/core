@@ -72,7 +72,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
     /// @dev Timestamp when migration to the current storage model occurred.
-    uint48 internal __migrateTimestamp;
+    uint48 public migrateTimestamp;
     /// @dev Epoch index at migration.
     uint48 internal __migrateEpoch;
     /// @dev Timestamp of the next epoch boundary at migration.
@@ -114,7 +114,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IVaultV2Storage
-    function activeSharesAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
+    function activeSharesAt(uint48 timestamp, bytes calldata hint) public view returns (uint256) {
         return _activeShares.upperLookupRecent(timestamp, hint);
     }
 
@@ -124,7 +124,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     }
 
     /// @inheritdoc IVaultV2Storage
-    function activeStakeAt(uint48 timestamp, bytes memory hint) public view returns (uint256) {
+    function activeStakeAt(uint48 timestamp, bytes calldata hint) public view returns (uint256) {
         return _activeStake.upperLookupRecent(timestamp, hint);
     }
 
@@ -134,7 +134,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     }
 
     /// @inheritdoc IVaultV2Storage
-    function activeSharesOfAt(address account, uint48 timestamp, bytes memory hint) public view returns (uint256) {
+    function activeSharesOfAt(address account, uint48 timestamp, bytes calldata hint) public view returns (uint256) {
         return _activeSharesOf[account].upperLookupRecent(timestamp, hint);
     }
 

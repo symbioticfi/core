@@ -34,6 +34,7 @@ import {UNIVERSAL_SLASHER_TYPE} from "../../interfaces/slasher/IUniversalSlasher
 import {VAULT_VERSION} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
@@ -133,9 +134,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @inheritdoc IVaultV2
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory) public view returns (uint256) {
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
         return ERC4626Math.previewRedeem(
-            activeSharesOfAt(account, timestamp, ""), activeStakeAt(timestamp, ""), activeSharesAt(timestamp, "")
+            activeSharesOfAt(account, timestamp, Calldata.emptyBytes()),
+            activeStakeAt(timestamp, Calldata.emptyBytes()),
+            activeSharesAt(timestamp, Calldata.emptyBytes())
         );
     }
 
@@ -147,7 +150,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function withdrawalsOfLength(address account) public view returns (uint256) {
         unchecked {
-            if (__migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0) {
+            if (migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0) {
                 return _withdrawalsOfLength[account];
             }
 
@@ -162,7 +165,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             shares = _withdrawalSharesOf[index][account];
 
             // Legacy support.
-            if (__migrateTimestamp > 0) {
+            if (migrateTimestamp > 0) {
                 uint48 migrateEpoch = __migrateEpoch;
                 if (index == migrateEpoch || index == migrateEpoch + 1) {
                     shares = ERC4626Math.previewRedeem(shares, __withdrawals[index], __withdrawalShares[index]);
@@ -174,14 +177,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function withdrawalUnlockAt(uint256 index, address account) public view returns (uint48 timestamp) {
         unchecked {
-            if (__migrateTimestamp > 0) {
+            if (migrateTimestamp > 0) {
                 // Legacy support.
                 uint48 migrateEpoch = __migrateEpoch;
                 if (index == migrateEpoch) {
                     return __migrateNextEpochTimestamp;
                 }
                 if (index == migrateEpoch + 1) {
-                    return __migrateTimestamp + epochDuration;
+                    return migrateTimestamp + epochDuration;
                 }
             }
 
@@ -824,7 +827,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert TooLongDuration();
             }
 
-            __migrateTimestamp = uint48(block.timestamp);
+            migrateTimestamp = uint48(block.timestamp);
             uint48 migrateEpoch = uint48((block.timestamp - __epochDurationInit) / epochDuration);
             __migrateEpoch = migrateEpoch;
             uint48 migrateNextEpochTimestamp = __epochDurationInit + (migrateEpoch + 1) * epochDuration;

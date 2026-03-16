@@ -27,6 +27,7 @@ import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
@@ -481,13 +482,8 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function _slashableStakeHints() internal pure returns (bytes memory) {
-        IUniversalSlasher.SlashableStakeHints memory hints = IUniversalSlasher.SlashableStakeHints({
-            stakeHints: _allocatedHints(),
-            cumulativeSlashFromHint: bytes(""),
-            slotOfHints: bytes(""),
-            subvaultAllocatedHints: bytes(""),
-            subvaultCumulativeSlashFromHint: bytes("")
-        });
+        IBaseSlasher.SlashableStakeHints memory hints =
+            IBaseSlasher.SlashableStakeHints({stakeHints: _allocatedHints(), cumulativeSlashFromHint: bytes("")});
 
         return abi.encode(hints);
     }

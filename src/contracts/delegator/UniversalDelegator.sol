@@ -112,10 +112,10 @@ contract UniversalDelegator is
     /// @dev Maximum network limit per subnetwork.
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _maxNetworkLimit;
 
-    /// @dev Timestamp when migration from the previous delegator occurred.
-    uint48 internal __migrateTimestamp;
-    /// @dev Address of the previous delegator during migration.
-    address internal __oldDelegator;
+    /// @inheritdoc IUniversalDelegator
+    uint48 public migrateTimestamp;
+    /// @inheritdoc IUniversalDelegator
+    address public oldDelegator;
 
     /* MODIFIERS */
 
@@ -205,14 +205,14 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
+    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes calldata)
         public
         view
         returns (uint256)
     {
-        if (timestamp < __migrateTimestamp) {
+        if (timestamp < migrateTimestamp) {
             // Legacy support.
-            return IBaseDelegator(__oldDelegator).stakeAt(subnetwork, operator, timestamp, hints);
+            return IBaseDelegator(oldDelegator).stakeAt(subnetwork, operator, timestamp, "");
         }
         return getAllocatedAt(subnetwork, operator, _getEpochDuration() - 1, timestamp);
     }
@@ -384,9 +384,9 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function maxNetworkLimit(bytes32 subnetwork) public view returns (uint256) {
-        if (_maxNetworkLimit[subnetwork].length() == 0 && __migrateTimestamp > 0) {
+        if (_maxNetworkLimit[subnetwork].length() == 0 && migrateTimestamp > 0) {
             // Legacy support.
-            return IBaseDelegator(__oldDelegator).maxNetworkLimit(subnetwork) > 0 ? type(uint208).max : 0;
+            return IBaseDelegator(oldDelegator).maxNetworkLimit(subnetwork) > 0 ? type(uint208).max : 0;
         }
         return _maxNetworkLimit[subnetwork].latest();
     }
@@ -463,7 +463,7 @@ contract UniversalDelegator is
                 _slotToNetwork[index] = subnetworkOrOperator;
 
                 // Legacy support.
-                if (_maxNetworkLimit[subnetworkOrOperator].length() == 0 && __migrateTimestamp > 0) {
+                if (_maxNetworkLimit[subnetworkOrOperator].length() == 0 && migrateTimestamp > 0) {
                     _maxNetworkLimit[subnetworkOrOperator].push(
                         uint48(block.timestamp),
                         maxNetworkLimit(subnetworkOrOperator) > 0 && parentIndex.getChildIndex() == 1
@@ -798,7 +798,7 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
     /// @dev Apply slash accounting updates across the affected slot chain and invoke the optional hook.
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data)
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes calldata data)
         public
         nonReentrant
         returns (uint256 actualAmount)
@@ -923,17 +923,17 @@ contract UniversalDelegator is
     /* MIGRATION */
 
     /// @dev Migrate delegator state from the previously configured delegator.
-    function migrate(address oldDelegator) public {
+    function migrate(address oldDelegator_) public {
         if (vault != msg.sender) {
             revert NotVault();
         }
-        __migrateTimestamp = uint48(block.timestamp);
-        __oldDelegator = oldDelegator;
+        migrateTimestamp = uint48(block.timestamp);
+        oldDelegator = oldDelegator_;
 
         _createSlot(
             bytes32(0),
             0,
-            IEntity(oldDelegator).TYPE() < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
+            IEntity(oldDelegator_).TYPE() < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
             true,
             uint128(Math.min(VaultV2(vault).allocatable(), type(uint128).max))
         );

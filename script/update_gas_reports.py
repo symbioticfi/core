@@ -275,7 +275,12 @@ def map_execute(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
     slashable_idx = _find_next_index(
         children,
         idx,
-        ("UniversalSlasher::slashableStake", "UniversalSlasher::_slashableStake"),
+        (
+            "UniversalSlasher::slashableStake",
+            "UniversalSlasher::_slashableStake",
+            "stakeFor",
+            "stakeAt",
+        ),
     )
     if slashable_idx is None:
         raise ValueError(f"Unexpected {context} trace shape.")

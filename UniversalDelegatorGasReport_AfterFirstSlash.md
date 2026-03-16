@@ -7,12 +7,12 @@ Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-
 
 | Call           | Hints |             Gas |
 | -------------- | ----- | --------------: |
-| `stakeForAt`   | no    | 255,847 ($0.06) |
-| `stakeForAt`   | yes   | 255,847 ($0.06) |
-| `requestSlash` | no    | 271,630 ($0.06) |
-| `requestSlash` | yes   | 271,630 ($0.06) |
-| `executeSlash` | no    | 365,660 ($0.08) |
-| `executeSlash` | yes   | 365,660 ($0.08) |
+| `stakeForAt`   | no    | 256,869 ($0.06) |
+| `stakeForAt`   | yes   | 256,869 ($0.06) |
+| `requestSlash` | no    | 271,818 ($0.06) |
+| `requestSlash` | yes   | 271,818 ($0.06) |
+| `executeSlash` | no    | 372,535 ($0.08) |
+| `executeSlash` | yes   | 372,535 ($0.08) |
 
 Notes:
 
@@ -31,13 +31,13 @@ Immediate child calls of `UniversalSlasher::executeSlash` from the trace (inclus
 | `ReentrancyGuardUpgradeable::_nonReentrantBefore`    |   5,081 ($0.00) | entry guard              |
 | `UniversalSlasher::slashRequests`                    |  11,131 ($0.00) | load slash request       |
 | `UniversalSlasher::_checkNetworkMiddleware`          |   5,569 ($0.00) | middleware check         |
-| `VaultV2::epochDuration` (via proxy)                 |       0 ($0.00) | reads epoch duration     |
-| `UniversalSlasher::slashableStake`                   | 160,277 ($0.03) | heavy path (read-only)   |
+| `VaultV2::epochDuration` (via proxy)                 |   7,378 ($0.00) | reads epoch duration     |
+| `UniversalSlasher::slashableStake`                   | 139,522 ($0.03) | heavy path (read-only)   |
 | `VaultV2::delegator` (via proxy)                     |     839 ($0.00) | delegator address lookup |
-| `UniversalDelegator::onSlash`                        | 107,570 ($0.02) | delegator hook           |
+| `UniversalDelegator::onSlash`                        | 109,614 ($0.02) | delegator hook           |
 | `VaultV2::delegator` (via proxy, for getIsNoPlugins) |     839 ($0.00) | delegator address lookup |
-| `UniversalDelegator::getIsNoPlugins`                 |   1,581 ($0.00) | plugin mode check        |
-| `VaultV2::onSlash` (via proxy)                       |  47,093 ($0.01) | vault accounting + burn  |
+| `UniversalDelegator::getIsNoPlugins`                 |   1,603 ($0.00) | plugin mode check        |
+| `VaultV2::onSlash` (via proxy)                       |  51,573 ($0.01) | vault accounting + burn  |
 | `UniversalSlasher::_burnerOnSlash`                   |     165 ($0.00) | burner hook              |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter`     |       0 ($0.00) | exit guard               |
 
@@ -50,13 +50,13 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 | `ReentrancyGuardUpgradeable::_nonReentrantBefore`    |   5,081 ($0.00) | entry guard                       |
 | `UniversalSlasher::slashRequests`                    |  11,131 ($0.00) | load slash request                |
 | `UniversalSlasher::_checkNetworkMiddleware`          |   5,569 ($0.00) | middleware check                  |
-| `VaultV2::epochDuration` (via proxy)                 |       0 ($0.00) | reads epoch duration              |
-| `UniversalSlasher::slashableStake`                   | 160,277 ($0.03) | higher due to hint decoding/usage |
+| `VaultV2::epochDuration` (via proxy)                 |   7,378 ($0.00) | reads epoch duration              |
+| `UniversalSlasher::slashableStake`                   | 139,522 ($0.03) | higher due to hint decoding/usage |
 | `VaultV2::delegator` (via proxy)                     |     839 ($0.00) | delegator address lookup          |
-| `UniversalDelegator::onSlash`                        | 107,570 ($0.02) | delegator hook                    |
+| `UniversalDelegator::onSlash`                        | 109,614 ($0.02) | delegator hook                    |
 | `VaultV2::delegator` (via proxy, for getIsNoPlugins) |     839 ($0.00) | delegator address lookup          |
-| `UniversalDelegator::getIsNoPlugins`                 |   1,581 ($0.00) | plugin mode check                 |
-| `VaultV2::onSlash` (via proxy)                       |  47,093 ($0.01) | vault accounting + burn           |
+| `UniversalDelegator::getIsNoPlugins`                 |   1,603 ($0.00) | plugin mode check                 |
+| `VaultV2::onSlash` (via proxy)                       |  51,573 ($0.01) | vault accounting + burn           |
 | `UniversalSlasher::_burnerOnSlash`                   |     165 ($0.00) | burner hook                       |
 | `ReentrancyGuardUpgradeable::_nonReentrantAfter`     |       0 ($0.00) | exit guard                        |
 
@@ -65,28 +65,28 @@ Immediate child calls of `UniversalSlasher::executeSlash` when hints are supplie
 Immediate child calls of `VaultV2::onSlash` (delegatecall) from the trace (inclusive per-call gas).
 The breakdown is identical for the no-hints and with-hints runs in this test.
 
-| Component                                         |            Gas | Notes               |
-| ------------------------------------------------- | -------------: | ------------------- |
-| `VaultV2::deallocatePlugins`                      |  2,148 ($0.00) | plugin deallocation |
-| `ReentrancyGuardUpgradeable::_nonReentrantBefore` |  5,052 ($0.00) | entry guard         |
-| `VaultV2Storage::activeStake`                     |    886 ($0.00) | read storage        |
-| `VaultV2Storage::withdrawalBucket`                |      0 ($0.00) | read storage        |
-| `Checkpoints::upperLookupRecent`                  |      0 ($0.00) | read checkpoint     |
-| `Checkpoints::latest`                             |      0 ($0.00) | read checkpoint     |
-| `VaultV2::activeWithdrawals`                      |  4,542 ($0.00) | aggregate read      |
-| `VaultV2::activeWithdrawals`                      |      0 ($0.00) | aggregate read      |
-| `VaultV2Storage::withdrawals`                     |      0 ($0.00) | read storage        |
-| `Checkpoints::push`                               |  4,955 ($0.00) | write checkpoint    |
-| `Checkpoints::push`                               |      0 ($0.00) | write checkpoint    |
-| `VaultV2Storage::withdrawalShares`                |      0 ($0.00) | read storage        |
-| `Checkpoints::push`                               |      0 ($0.00) | write checkpoint    |
-| `Checkpoints::push`                               |      0 ($0.00) | write checkpoint    |
-| `FixedPointMathLib::mulDiv`                       |     91 ($0.00) | math                |
-| `Checkpoints::push`                               |      0 ($0.00) | write checkpoint    |
-| `Checkpoints::push`                               |      0 ($0.00) | write checkpoint    |
-| `VaultV2::_availableToSlash`                      | 15,240 ($0.00) | available balance   |
-| `SafeTransferLib::safeTransfer`                   | 11,095 ($0.00) | transfer to burner  |
-| `ReentrancyGuardUpgradeable::_nonReentrantAfter`  |      0 ($0.00) | exit guard          |
+| Component                                         |           Gas | Notes               |
+| ------------------------------------------------- | ------------: | ------------------- |
+| `VaultV2::deallocatePlugins`                      | 2,148 ($0.00) | plugin deallocation |
+| `ReentrancyGuardUpgradeable::_nonReentrantBefore` | 5,052 ($0.00) | entry guard         |
+| `VaultV2Storage::activeStake`                     |   886 ($0.00) | read storage        |
+| `VaultV2Storage::withdrawalBucket`                |     0 ($0.00) | read storage        |
+| `Checkpoints::upperLookupRecent`                  |     0 ($0.00) | read checkpoint     |
+| `Checkpoints::latest`                             |     0 ($0.00) | read checkpoint     |
+| `VaultV2::activeWithdrawals`                      | 4,542 ($0.00) | aggregate read      |
+| `VaultV2::activeWithdrawals`                      |     0 ($0.00) | aggregate read      |
+| `VaultV2Storage::withdrawals`                     |     0 ($0.00) | read storage        |
+| `Checkpoints::push`                               | 4,955 ($0.00) | write checkpoint    |
+| `Checkpoints::push`                               |     0 ($0.00) | write checkpoint    |
+| `VaultV2Storage::withdrawalShares`                |     0 ($0.00) | read storage        |
+| `Checkpoints::push`                               |     0 ($0.00) | write checkpoint    |
+| `Checkpoints::push`                               |     0 ($0.00) | write checkpoint    |
+| `FixedPointMathLib::mulDiv`                       |    91 ($0.00) | math                |
+| `Checkpoints::push`                               |     0 ($0.00) | write checkpoint    |
+| `Checkpoints::push`                               |     0 ($0.00) | write checkpoint    |
+| `VaultV2::_availableToSlash`                      |     0 ($0.00) | available balance   |
+| `SafeTransferLib::safeTransfer`                   |     0 ($0.00) | transfer to burner  |
+| `ReentrancyGuardUpgradeable::_nonReentrantAfter`  |     0 ($0.00) | exit guard          |
 
 ## Delta (with hints vs no hints)
 

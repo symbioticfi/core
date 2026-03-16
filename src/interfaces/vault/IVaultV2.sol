@@ -441,10 +441,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Get an active balance for a particular account at a given timestamp.
      * @param account Account to get the active balance for.
      * @param timestamp Time point to get the active balance for the account at.
-     * @param hints Reserved hints payload for compatibility.
      * @return Active Balance for the account at the timestamp.
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes memory hints) external view returns (uint256);
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) external view returns (uint256);
 
     /**
      * @notice Get an active balance for a particular account.

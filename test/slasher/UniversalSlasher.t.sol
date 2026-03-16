@@ -212,6 +212,8 @@ contract UniversalSlasherMigrationTest is Test {
         address newSlasher = vault_.slasher();
         assertTrue(newSlasher != oldSlasher);
         assertEq(IEntity(newSlasher).TYPE(), slasherFactory.totalTypes() - 1);
+        assertEq(IUniversalSlasher(newSlasher).migrateTimestamp(), uint48(block.timestamp));
+        assertEq(IUniversalSlasher(newSlasher).oldSlasher(), oldSlasher);
         assertEq(IUniversalSlasher(newSlasher).slashRequestsLength(), 0);
     }
 
@@ -242,6 +244,8 @@ contract UniversalSlasherMigrationTest is Test {
         address newSlasher = vault_.slasher();
         assertTrue(newSlasher != oldSlasher);
         assertEq(IEntity(newSlasher).TYPE(), slasherFactory.totalTypes() - 1);
+        assertEq(IUniversalSlasher(newSlasher).migrateTimestamp(), uint48(block.timestamp));
+        assertEq(IUniversalSlasher(newSlasher).oldSlasher(), oldSlasher);
         assertEq(IUniversalSlasher(newSlasher).slashRequestsLength(), expectedSlashRequestsLength);
     }
 
@@ -658,12 +662,12 @@ contract UniversalSlasherCoverageHarness is UniversalSlasher {
         vault = vault_;
     }
 
-    function setOldSlasherRaw(address oldSlasher) external {
-        __oldSlasher = oldSlasher;
+    function setOldSlasherRaw(address oldSlasher_) external {
+        oldSlasher = oldSlasher_;
     }
 
-    function setMigrateTimestampRaw(uint48 migrateTimestamp) external {
-        __migrateTimestamp = migrateTimestamp;
+    function setMigrateTimestampRaw(uint48 migrateTimestamp_) external {
+        migrateTimestamp = migrateTimestamp_;
     }
 
     function setVetoDurationRaw(uint48 value) external {
@@ -914,6 +918,55 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(slashIndex);
         assertEq(request.resolver, resolver1);
         assertEq(request.vetoDeadline, uint48(block.timestamp + slasher.vetoDuration()));
+    }
+
+    function test_slash_capsToCurrentSlashableStakeAndExecutesImmediately() public {
+        vm.prank(middleware);
+        uint256 slashedAmount = slasher.slash(subnetwork, operator, 150);
+
+        assertEq(slashedAmount, 100);
+        assertEq(slasher.slashRequestsLength(), 1);
+
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(0);
+        assertEq(request.subnetwork, subnetwork);
+        assertEq(request.operator, operator);
+        assertEq(request.amount, 100);
+        assertEq(request.createdAt, uint48(block.timestamp));
+        assertEq(request.resolver, address(0));
+        assertEq(request.vetoDeadline, uint48(block.timestamp));
+        assertTrue(request.completed);
+
+        assertEq(delegator.onSlashCalls(), 1);
+        assertEq(delegator.lastSlashSubnetwork(), subnetwork);
+        assertEq(delegator.lastSlashOperator(), operator);
+        assertEq(delegator.lastSlashAmount(), 100);
+        assertEq(vault.onSlashCalls(), 1);
+        assertEq(vault.lastOnSlashAmount(), 100);
+    }
+
+    function test_slashReverts_InsufficientSlash() public {
+        delegator.setStakeForValue(0);
+
+        vm.prank(middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        slasher.slash(subnetwork, operator, 10);
+
+        assertEq(slasher.slashRequestsLength(), 0);
+        assertEq(delegator.onSlashCalls(), 0);
+        assertEq(vault.onSlashCalls(), 0);
+    }
+
+    function test_slashReverts_VetoPeriodNotEnded() public {
+        vm.prank(network);
+        slasher.setResolver(0, resolver1);
+
+        vm.prank(middleware);
+        vm.expectRevert(IUniversalSlasher.VetoPeriodNotEnded.selector);
+        slasher.slash(subnetwork, operator, 10);
+
+        assertEq(slasher.slashRequestsLength(), 0);
+        assertEq(delegator.onSlashCalls(), 0);
+        assertEq(vault.onSlashCalls(), 0);
     }
 
     function test_slashableStake_oldPathInvalidTimestampsReturnZero() public {

@@ -23,22 +23,22 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   293,672 ($0.06) |   458,584 ($0.10) |
-| 2nd  |   271,987 ($0.06) |   372,766 ($0.08) |
+| 1st  |   293,490 ($0.06) |   458,353 ($0.10) |
+| 2nd  |   271,805 ($0.06) |   372,535 ($0.08) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   272,081 ($0.06) |   503,918 ($0.11) |
-| 2nd  |   146,657 ($0.03) |   227,988 ($0.05) |
+| 1st  |   271,899 ($0.06) |   503,687 ($0.11) |
+| 2nd  |   146,475 ($0.03) |   227,757 ($0.05) |
 
 ### Stake For Timestamp
 
 | Call            |       Stake gas |
 | --------------- | --------------: |
-| Before slashing | 131,810 ($0.03) |
-| After slashing  | 153,090 ($0.03) |
+| Before slashing | 131,766 ($0.03) |
+| After slashing  | 153,046 ($0.03) |
 
 ## Shared-subvault target (captureTimestamp = 0)
 
@@ -48,19 +48,19 @@ Note: target operators live under a shared subvault; one of the three top-level 
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   299,412 ($0.07) |   554,667 ($0.12) |
-| 2nd  |   277,792 ($0.06) |   414,017 ($0.09) |
+| 1st  |   299,230 ($0.07) |   554,436 ($0.12) |
+| 2nd  |   277,610 ($0.06) |   413,786 ($0.09) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   277,903 ($0.06) |   599,470 ($0.13) |
-| 2nd  |   148,479 ($0.03) |   259,108 ($0.06) |
+| 1st  |   277,721 ($0.06) |   599,239 ($0.13) |
+| 2nd  |   148,297 ($0.03) |   258,877 ($0.06) |
 
 ### Stake For Timestamp
 
 | Call            |       Stake gas |
 | --------------- | --------------: |
-| Before slashing | 120,791 ($0.03) |
-| After slashing  | 146,635 ($0.03) |
+| Before slashing | 120,747 ($0.03) |
+| After slashing  | 146,591 ($0.03) |

@@ -3869,6 +3869,8 @@ contract UniversalDelegatorMigrationTest is Test {
         address newDelegator = vault_.delegator();
         assertTrue(newDelegator != oldDelegator);
         assertEq(IEntity(newDelegator).TYPE(), delegatorFactory.totalTypes() - 1);
+        assertEq(IUniversalDelegator(newDelegator).oldDelegator(), oldDelegator);
+        assertEq(IUniversalDelegator(newDelegator).migrateTimestamp(), uint48(block.timestamp));
 
         IUniversalDelegator.Slot memory root = IUniversalDelegator(newDelegator).getSlot(0);
         assertEq(root.existChildren, 1);

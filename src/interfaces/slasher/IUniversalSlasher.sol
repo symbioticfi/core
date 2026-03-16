@@ -145,22 +145,6 @@ interface IUniversalSlasher {
     }
 
     /**
-     * @notice Hints for a slashable stake.
-     * @param stakeHints Hints for the stake checkpoints.
-     * @param cumulativeSlashFromHint Hint for the cumulative slash amount at a capture timestamp.
-     * @param slotOfHints Hints for the slot lookup.
-     * @param subvaultAllocatedHints Hints for the subvault allocation lookup.
-     * @param subvaultCumulativeSlashFromHint Hint for the subvault cumulative slash amount at a capture timestamp.
-     */
-    struct SlashableStakeHints {
-        bytes stakeHints;
-        bytes cumulativeSlashFromHint;
-        bytes slotOfHints;
-        bytes subvaultAllocatedHints;
-        bytes subvaultCumulativeSlashFromHint;
-    }
-
-    /**
      * @notice General data for the delegator.
      * @param slasherType Type of the slasher.
      * @param data Slasher-dependent data for the delegator.
@@ -232,6 +216,18 @@ interface IUniversalSlasher {
     function vault() external view returns (address);
 
     /**
+     * @notice Timestamp when migration from the previous slasher occurred.
+     * @return migrateTimestamp Migration timestamp.
+     */
+    function migrateTimestamp() external view returns (uint48 migrateTimestamp);
+
+    /**
+     * @notice Address of the previous slasher used for legacy reads after migration.
+     * @return oldSlasher Previous slasher address.
+     */
+    function oldSlasher() external view returns (address oldSlasher);
+
+    /**
      * @notice Get if the burner is needed to be called on a slashing.
      * @return If the burner is a hook.
      */
@@ -295,14 +291,22 @@ interface IUniversalSlasher {
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @param operator Address of the operator.
      * @param captureTimestamp Time point to get the stake amount at.
-     * @param hints Reserved hints payload for compatibility.
      * @return Slashable amount of the stake.
      * @dev Can use 0 as a capture timestamp to get the current stake amount.
      */
-    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes calldata)
         external
         view
         returns (uint256);
+
+    /**
+     * @notice Perform a slash using a subnetwork for a particular operator by a given amount.
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param operator Address of the operator.
+     * @param amount Maximum amount of the collateral to be slashed.
+     * @return slashedAmount Virtual amount of the collateral slashed.
+     */
+    function slash(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256 slashedAmount);
 
     /**
      * @notice Request a slash using a subnetwork for a particular operator by a given amount.
@@ -310,26 +314,20 @@ interface IUniversalSlasher {
      * @param operator Address of the operator.
      * @param amount Maximum amount of the collateral to be slashed.
      * @param captureTimestamp Legacy parameter reserved for compatibility (can just use 0 instead).
-     * @param hints Reserved hints payload for compatibility.
      * @return slashIndex Index of the slash request.
      * @dev Only a network middleware can call this function.
      */
-    function requestSlash(
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount,
-        uint48 captureTimestamp,
-        bytes calldata hints
-    ) external returns (uint256 slashIndex);
+    function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata)
+        external
+        returns (uint256 slashIndex);
 
     /**
      * @notice Execute a slash with a given slash index.
      * @param slashIndex Index of the slash request.
-     * @param hints Reserved hints payload for compatibility.
      * @return slashedAmount Virtual amount of collateral slashed.
      * @dev Only a network middleware can call this function.
      */
-    function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);
+    function executeSlash(uint256 slashIndex, bytes calldata) external returns (uint256 slashedAmount);
 
     /**
      * @notice Veto a slash with a given slash index.
