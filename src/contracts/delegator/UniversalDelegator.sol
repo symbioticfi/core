@@ -77,11 +77,11 @@ contract UniversalDelegator is
         uint32 existChildren;
         uint48 _childrenPendingAt;
         Checkpoints.Trace208 size;
-        Checkpoints.Trace208 prevSizeSum;
-        Checkpoints.Trace208 syncPrevSizeSums;
         Checkpoints.Trace208 nextSlot;
         Checkpoints.Trace208 lastChild;
         Checkpoints.Trace208 firstChild;
+        Checkpoints.Trace208 prevSizeSum;
+        Checkpoints.Trace208 syncPrevSizeSums;
         Checkpoints.Trace208 pendingCumulative;
         Checkpoints.Trace208 clearedPendingCursor;
         Checkpoints.Trace208 sharedPendingConsumedCursor;
