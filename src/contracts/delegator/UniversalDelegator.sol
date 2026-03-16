@@ -818,9 +818,10 @@ contract UniversalDelegator is
                 SlotStorage storage parent = slots[curIndex.getParentIndex()];
                 uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
                 uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
+                actualAmount = Math.min(actualAmount, pendingSlashed + sizeSlashed);
                 if (curIndex.getDepth() == 1 && slot.isShared) {
                     // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
-                    actualAmount = Math.min(pendingSlashed + sizeSlashed, getAllocated(curIndex, 0));
+                    actualAmount = Math.min(actualAmount, getAllocated(curIndex, 0));
                 }
                 if (pendingSlashed > 0) {
                     // Clear slot's pending.
