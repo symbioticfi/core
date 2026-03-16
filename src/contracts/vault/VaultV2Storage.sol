@@ -166,5 +166,5 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /* STORAGE GAP */
 
     /// @dev Reserved storage gap for future upgrades.
-    uint256[38] internal __gap;
+    uint256[37] internal __gap;
 }
