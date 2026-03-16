@@ -499,6 +499,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
     }
 
+    /// @dev Reprice active withdrawals and roll claimable shares into a new bucket when a boundary is crossed.
     function _updateWithdrawalsSharePrice(uint256 newActiveWithdrawals) internal {
         unchecked {
             uint208 curWithdrawalBucket = withdrawalBucket();
@@ -691,10 +692,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* INTERNAL FUNCTIONS (PLUGINS) */
 
+    /// @dev Return the vault stake that may still be allocated after reserving no-plugins capacity.
     function _maxAllocatable() internal view returns (uint256) {
         return totalStake().saturatingSub(UniversalDelegator(delegator).getNoPluginsSize());
     }
 
+    /// @dev Return how much plugin allocation currently exceeds the vault allocatable amount.
     function _pluginsOwe() internal view returns (uint256) {
         return pluginsAllocated.saturatingSub(_maxAllocatable());
     }
