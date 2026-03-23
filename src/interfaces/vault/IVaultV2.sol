@@ -6,24 +6,24 @@ import {IVaultV2Storage} from "./IVaultV2Storage.sol";
 
 uint64 constant VAULT_V2_VERSION = 3;
 
-// Keccak256("DEPOSIT_WHITELIST_SET_ROLE").
+// keccak256("DEPOSIT_WHITELIST_SET_ROLE")
 bytes32 constant DEPOSIT_WHITELIST_SET_ROLE = 0xbae4ee3de6c709ff9a002e774c5b78cb381560b219213c88ae0f1e207c03c023;
-// Keccak256("DEPOSITOR_WHITELIST_ROLE").
+// keccak256("DEPOSITOR_WHITELIST_ROLE")
 bytes32 constant DEPOSITOR_WHITELIST_ROLE = 0x9c56d972d63cbb4195b3c1484691dfc220fa96a4c47e7b6613bd82a022029e06;
-// Keccak256("IS_DEPOSIT_LIMIT_SET_ROLE").
+// keccak256("IS_DEPOSIT_LIMIT_SET_ROLE")
 bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573a3ba37167d03f4352c9ba5693678fac;
-// Keccak256("DEPOSIT_LIMIT_SET_ROLE").
+// keccak256("DEPOSIT_LIMIT_SET_ROLE")
 bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
-// Keccak256("SET_PLUGIN_LIMIT_ROLE").
-bytes32 constant SET_PLUGIN_LIMIT_ROLE = 0xe0bdc9c1c8c2e75dc2012527eb0fa05a8dda38297bc81683ecb9055988877100;
-// Keccak256("SWAP_PLUGINS_ROLE").
-bytes32 constant SWAP_PLUGINS_ROLE = 0x1c31202be72d3888bec354d209184db36bf8c648652bec1ae036b3ade9fee62e;
-// Keccak256("ALLOCATE_PLUGIN_ROLE").
-bytes32 constant ALLOCATE_PLUGIN_ROLE = 0x519cc70d51fcfd11b60dc29f6c85e08207d46a64951561c68760c7dbedf611dc;
-// Keccak256("DEALLOCATE_PLUGIN_ROLE").
-bytes32 constant DEALLOCATE_PLUGIN_ROLE = 0x2228e59f6ee6ff4b08702cdeaa6118d05e883f4b7df19c7053169d4e74afd4be;
+// keccak256("SET_ADAPTER_LIMIT_ROLE")
+bytes32 constant SET_ADAPTER_LIMIT_ROLE = 0x679f75ae8e3dfc7c364607c3061f28e97353c03817cb18be708f41194705e218;
+// keccak256("SWAP_ADAPTERS_ROLE")
+bytes32 constant SWAP_ADAPTERS_ROLE = 0x1d53409af49f741b77991b0584075fbe3113d2af2e558244c183033fd9dd74ce;
+// keccak256("ALLOCATE_ADAPTER_ROLE")
+bytes32 constant ALLOCATE_ADAPTER_ROLE = 0x64839ba794b9a2e91d8b0341fecdbbb6c5342d2dee7935a03ba6ac2963ab3773;
+// keccak256("DEALLOCATE_ADAPTER_ROLE")
+bytes32 constant DEALLOCATE_ADAPTER_ROLE = 0x03179f61cd5b1446aabcda544cec87bcbfb6efc7c4707f3fdd23d2b251446438;
 
-uint256 constant MAX_PLUGINS = 10;
+uint256 constant MAX_ADAPTERS = 10;
 
 uint48 constant MAX_DURATION = 1000 * 365 days;
 
@@ -33,6 +33,11 @@ uint48 constant MAX_DURATION = 1000 * 365 days;
  */
 interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     /* ERRORS */
+
+    /**
+     * @notice Raised when adapter allocation exceeds or conflicts with limits.
+     */
+    error AdapterAllocated();
 
     /**
      * @notice Raised when a withdrawal is already claimed.
@@ -135,9 +140,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error MissingRoles();
 
     /**
-     * @notice Raised when the provided plugin is not whitelisted in plugin registry.
+     * @notice Raised when the provided adapter is not whitelisted in adapter registry.
      */
-    error NotPlugin();
+    error NotAdapter();
 
     /**
      * @notice Raised when the caller is not the configured rewards address.
@@ -155,11 +160,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error NotWhitelistedDepositor();
 
     /**
-     * @notice Raised when plugin allocation exceeds or conflicts with limits.
-     */
-    error PluginAllocated();
-
-    /**
      * @notice Raised when slasher initialization is attempted more than once.
      */
     error SlasherAlreadyInitialized();
@@ -170,9 +170,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooLongDuration();
 
     /**
-     * @notice Raised when plugin count exceeds the configured maximum.
+     * @notice Raised when adapter count exceeds the configured maximum.
      */
-    error TooManyPlugins();
+    error TooManyAdapters();
 
     /**
      * @notice Raised when redeeming more shares than available.
@@ -207,8 +207,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param depositorWhitelistRoleHolder Address of the initial DEPOSITOR_WHITELIST_ROLE holder.
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositLimitSetRoleHolder Address of the initial DEPOSIT_LIMIT_SET_ROLE holder.
-     * @param setPluginLimitRoleHolder Address of the initial SET_PLUGIN_LIMIT_ROLE holder.
-     * @param allocatePluginRoleHolder Address of the initial ALLOCATE_PLUGIN_ROLE holder..
+     * @param setAdapterLimitRoleHolder Address of the initial SET_ADAPTER_LIMIT_ROLE holder.
+     * @param allocateAdapterRoleHolder Address of the initial ALLOCATE_ADAPTER_ROLE holder..
      */
     struct InitParams {
         string name;
@@ -225,8 +225,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
-        address setPluginLimitRoleHolder;
-        address allocatePluginRoleHolder;
+        address setAdapterLimitRoleHolder;
+        address allocateAdapterRoleHolder;
     }
 
     /**
@@ -329,31 +329,31 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
 
     /**
      * @notice Emitted when a limit is set.
-     * @param plugin Address of the plugin.
-     * @param limit Limit of the plugin.
+     * @param adapter Address of the adapter.
+     * @param limit Limit of the adapter.
      */
-    event SetPluginLimit(address indexed plugin, uint208 limit);
+    event SetAdapterLimit(address indexed adapter, uint208 limit);
 
     /**
-     * @notice Emitted when a plugin is swapped.
-     * @param plugin1 Address of the first plugin.
-     * @param plugin2 Address of the second plugin.
+     * @notice Emitted when a adapter is swapped.
+     * @param adapter1 Address of the first adapter.
+     * @param adapter2 Address of the second adapter.
      */
-    event SwapPlugins(address indexed plugin1, address indexed plugin2);
+    event SwapAdapters(address indexed adapter1, address indexed adapter2);
 
     /**
-     * @notice Emitted when collateral is allocated to a plugin.
-     * @param plugin Address of the plugin.
+     * @notice Emitted when collateral is allocated to a adapter.
+     * @param adapter Address of the adapter.
      * @param amount Allocated amount.
      */
-    event Allocate(address indexed plugin, uint256 amount);
+    event Allocate(address indexed adapter, uint256 amount);
 
     /**
-     * @notice Emitted when collateral is deallocated from a plugin.
-     * @param plugin Address of the plugin.
+     * @notice Emitted when collateral is deallocated from a adapter.
+     * @param adapter Address of the adapter.
      * @param amount Deallocated amount.
      */
-    event Deallocate(address indexed plugin, uint256 amount);
+    event Deallocate(address indexed adapter, uint256 amount);
 
     /**
      * @notice Emitted when a slashing is synced.
@@ -524,7 +524,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function withdrawalsOf(uint256 index, address account) external view returns (uint256);
 
     /**
-     * @notice Get the amount that can still be allocated into plugins.
+     * @notice Get the amount that can still be allocated into adapters.
      * @return Allocatable Amount of collateral.
      */
     function allocatable() external view returns (uint256);
@@ -616,46 +616,46 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function setDepositLimit(uint256 limit) external;
 
     /**
-     * @notice Set a plugin limit.
-     * @param plugin Address of the plugin.
-     * @param limit Limit of the plugin.
-     * @dev Only a SET_PLUGIN_LIMIT_ROLE holder can call this function.
+     * @notice Set a adapter limit.
+     * @param adapter Address of the adapter.
+     * @param limit Limit of the adapter.
+     * @dev Only a SET_ADAPTER_LIMIT_ROLE holder can call this function.
      */
-    function setPluginLimit(address plugin, uint208 limit) external;
+    function setAdapterLimit(address adapter, uint208 limit) external;
 
     /**
-     * @notice Swap plugin order.
-     * @param plugin1 Address of the first plugin.
-     * @param plugin2 Address of the second plugin.
-     * @dev Only a SWAP_PLUGINS_ROLE holder can call this function.
+     * @notice Swap adapter order.
+     * @param adapter1 Address of the first adapter.
+     * @param adapter2 Address of the second adapter.
+     * @dev Only a SWAP_ADAPTERS_ROLE holder can call this function.
      */
-    function swapPlugins(address plugin1, address plugin2) external;
+    function swapAdapters(address adapter1, address adapter2) external;
 
     /**
-     * @notice Allocate collateral to the plugin.
-     * @param plugin Address of the plugin.
+     * @notice Allocate collateral to the adapter.
+     * @param adapter Address of the adapter.
      * @param amount Amount of collateral to allocate.
      * @return allocated Amount of collateral allocated.
-     * @dev Only an ALLOCATE_PLUGIN_ROLE holder can call this function.
+     * @dev Only an ALLOCATE_ADAPTER_ROLE holder can call this function.
      */
-    function allocatePlugin(address plugin, uint256 amount) external returns (uint256 allocated);
+    function allocateAdapter(address adapter, uint256 amount) external returns (uint256 allocated);
 
     /**
-     * @notice Deallocate collateral from the plugin.
-     * @param plugin Address of the plugin.
+     * @notice Deallocate collateral from the adapter.
+     * @param adapter Address of the adapter.
      * @param amount Amount of collateral to deallocate.
      * @return deallocated Amount of collateral deallocated.
-     * @dev Only a DEALLOCATE_PLUGIN_ROLE holder can call this function.
+     * @dev Only a DEALLOCATE_ADAPTER_ROLE holder can call this function.
      */
-    function deallocatePlugin(address plugin, uint256 amount) external returns (uint256 deallocated);
+    function deallocateAdapter(address adapter, uint256 amount) external returns (uint256 deallocated);
 
     /**
-     * @notice Skim rewards from plugins into the vault.
+     * @notice Skim rewards from adapters into the vault.
      */
-    function skimPlugins() external;
+    function skimAdapters() external;
 
     /**
-     * @notice Deallocate collateral from plugins when needed.
+     * @notice Deallocate collateral from adapters when needed.
      */
-    function deallocatePlugins() external;
+    function deallocateAdapters() external;
 }

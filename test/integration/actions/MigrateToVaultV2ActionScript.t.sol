@@ -246,7 +246,7 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
 
         IUniversalDelegator.Slot memory migratedSubvault = delegator.getSlot(MIGRATED_SUBVAULT_INDEX);
         assertTrue(migratedSubvault.exists, "migrated subvault missing");
-        assertTrue(migratedSubvault.noPlugins, "migrated subvault should be no-plugins");
+        assertTrue(migratedSubvault.noAdapters, "migrated subvault should be no-adapters");
         assertEq(migratedSubvault.existChildren, 2, "network slot count mismatch");
 
         bytes32 subnetwork1 = network1.addr.subnetwork(IDENTIFIER);

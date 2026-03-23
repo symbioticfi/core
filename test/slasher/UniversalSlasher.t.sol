@@ -370,8 +370,8 @@ contract MockNetworkMiddlewareService {
 contract MockUniversalDelegator {
     uint256 public stakeForValue;
     uint256 public stakeAtValue;
-    bool public isNoPlugins;
-    bool public revertOnGetIsNoPlugins;
+    bool public isNoAdapters;
+    bool public revertOnGetIsNoAdapters;
     uint256 public onSlashReturnValue;
     bool public useExplicitOnSlashReturnValue;
 
@@ -394,12 +394,12 @@ contract MockUniversalDelegator {
         useExplicitOnSlashReturnValue = true;
     }
 
-    function setIsNoPlugins(bool value) external {
-        isNoPlugins = value;
+    function setIsNoAdapters(bool value) external {
+        isNoAdapters = value;
     }
 
-    function setRevertOnGetIsNoPlugins(bool value) external {
-        revertOnGetIsNoPlugins = value;
+    function setRevertOnGetIsNoAdapters(bool value) external {
+        revertOnGetIsNoAdapters = value;
     }
 
     function stakeFor(bytes32, address, uint48) external view returns (uint256) {
@@ -426,11 +426,11 @@ contract MockUniversalDelegator {
         return useExplicitOnSlashReturnValue ? onSlashReturnValue : amount;
     }
 
-    function getIsNoPlugins(bytes32) external view returns (bool) {
-        if (revertOnGetIsNoPlugins) {
+    function getIsNoAdapters(bytes32) external view returns (bool) {
+        if (revertOnGetIsNoAdapters) {
             revert("NOT_ASSIGNED");
         }
-        return isNoPlugins;
+        return isNoAdapters;
     }
 }
 
@@ -448,7 +448,7 @@ contract MockVaultV2ForSlasher {
 
     uint256 public onSlashCalls;
     uint256 public lastOnSlashAmount;
-    bool public lastOnSlashWithPlugins;
+    bool public lastOnSlashWithAdapters;
     uint256 public lastSyncOwedAmount;
 
     function setDelegator(address value) external {
@@ -481,10 +481,10 @@ contract MockVaultV2ForSlasher {
         syncOwedReturn = value;
     }
 
-    function onSlash(uint256 amount, bool withPlugins) external returns (uint256, uint256) {
+    function onSlash(uint256 amount, bool withAdapters) external returns (uint256, uint256) {
         ++onSlashCalls;
         lastOnSlashAmount = amount;
-        lastOnSlashWithPlugins = withPlugins;
+        lastOnSlashWithAdapters = withAdapters;
 
         uint256 slashedAmount = useInputOnSlashAmount ? amount : fixedOnSlashAmount;
         return (slashedAmount, onSlashOwed);
@@ -1076,7 +1076,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.setOldSlasherRaw(address(legacySlasher));
         slasher.setMigrateTimestampRaw(100);
         delegator.setStakeAtValue(90);
-        delegator.setRevertOnGetIsNoPlugins(true);
+        delegator.setRevertOnGetIsNoAdapters(true);
         legacySlasher.setCumulativeSlash(0);
         legacySlasher.setCumulativeSlashAt(0);
         vm.warp(120);
@@ -1088,7 +1088,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(slasher.exposeLatestSlashedCaptureTimestamp(subnetwork, operator), 90);
         assertEq(slasher.exposeCumulativeSlash(subnetwork, operator), 30);
         assertEq(delegator.onSlashCalls(), 0);
-        assertFalse(vault.lastOnSlashWithPlugins());
+        assertFalse(vault.lastOnSlashWithAdapters());
     }
 
     function test_executeSlash_postMigrateCallsDelegatorHook() public {

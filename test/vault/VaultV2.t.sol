@@ -25,7 +25,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
-import {PluginRegistry} from "../../src/contracts/PluginRegistry.sol";
+import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
 
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
 import {IVaultTokenized} from "../../src/interfaces/vault/IVaultTokenized.sol";
@@ -36,11 +36,11 @@ import {
     VAULT_V2_VERSION,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    SET_PLUGIN_LIMIT_ROLE,
-    SWAP_PLUGINS_ROLE,
-    ALLOCATE_PLUGIN_ROLE,
-    DEALLOCATE_PLUGIN_ROLE,
-    MAX_PLUGINS,
+    SET_ADAPTER_LIMIT_ROLE,
+    SWAP_ADAPTERS_ROLE,
+    ALLOCATE_ADAPTER_ROLE,
+    DEALLOCATE_ADAPTER_ROLE,
+    MAX_ADAPTERS,
     MAX_DURATION
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {MAX_FEE} from "../../src/interfaces/vault/IFeeRegistry.sol";
@@ -71,9 +71,9 @@ import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 import {VaultV2TestHelper} from "../helpers/VaultV2TestHelper.sol";
-import {MockPlugin} from "../mocks/MockPlugin.sol";
-import {MockMorphoAllocatePlugin} from "../mocks/MockMorphoAllocatePlugin.sol";
-import {MockMorphoBorrowPlugin} from "../mocks/MockMorphoBorrowPlugin.sol";
+import {MockAdapter} from "../mocks/MockAdapter.sol";
+import {MockMorphoAllocateAdapter} from "../mocks/MockMorphoAllocateAdapter.sol";
+import {MockMorphoBorrowAdapter} from "../mocks/MockMorphoBorrowAdapter.sol";
 import {MockMorphoVault} from "../mocks/MockMorphoVault.sol";
 import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
@@ -132,7 +132,7 @@ contract VaultV2Test is Test {
     VaultV2TestHelper vaultTestHelper;
     MockFeeRegistry feeRegistry;
     MockRewards rewards;
-    PluginRegistry pluginRegistry;
+    AdapterRegistry adapterRegistry;
     MockCuratorRegistryHarnessVaultV2 curatorRegistry;
 
     IVaultV2 vault;
@@ -224,7 +224,7 @@ contract VaultV2Test is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         feeRegistry = new MockFeeRegistry();
         rewards = new MockRewards();
-        pluginRegistry = new PluginRegistry(owner);
+        adapterRegistry = new AdapterRegistry(owner);
         curatorRegistry = new MockCuratorRegistryHarnessVaultV2();
 
         vaultTestHelper = new VaultV2TestHelper();
@@ -486,8 +486,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -519,8 +519,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -552,8 +552,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -585,8 +585,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -618,12 +618,19 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 )
             )
         );
+    }
+
+    function test_AdapterRoleConstantsMatchAdapterRoleHashes() public pure {
+        assertEq(SET_ADAPTER_LIMIT_ROLE, keccak256("SET_ADAPTER_LIMIT_ROLE"));
+        assertEq(SWAP_ADAPTERS_ROLE, keccak256("SWAP_ADAPTERS_ROLE"));
+        assertEq(ALLOCATE_ADAPTER_ROLE, keccak256("ALLOCATE_ADAPTER_ROLE"));
+        assertEq(DEALLOCATE_ADAPTER_ROLE, keccak256("DEALLOCATE_ADAPTER_ROLE"));
     }
 
     function test_SetDelegator() public {
@@ -649,8 +656,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -702,8 +709,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -755,8 +762,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -789,8 +796,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -815,8 +822,8 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: alice,
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
-                    setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice
+                    setAdapterLimitRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice
                 })
             )
         );
@@ -870,8 +877,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -920,8 +927,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -970,8 +977,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1004,8 +1011,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1030,8 +1037,8 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: alice,
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
-                    setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice
+                    setAdapterLimitRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice
                 })
             )
         );
@@ -1077,8 +1084,8 @@ contract VaultV2Test is Test {
                         depositorWhitelistRoleHolder: alice,
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
-                        setPluginLimitRoleHolder: alice,
-                        allocatePluginRoleHolder: alice
+                        setAdapterLimitRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -2448,64 +2455,64 @@ contract VaultV2Test is Test {
         _claimBatch(alice, indexes);
     }
 
-    function test_Claim_deallocatesPluginsWhenNeeded() public {
+    function test_Claim_deallocatesAdaptersWhenNeeded() public {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoBorrowPlugin plugin =
-            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
-        pluginRegistry.whitelistPlugin(address(plugin));
+        MockMorphoBorrowAdapter adapter =
+            new MockMorphoBorrowAdapter(address(vault), address(collateral), address(morphoVault), address(rewards));
+        adapterRegistry.whitelistAdapter(address(adapter));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
         _deposit(alice, 100);
-        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
         assertEq(collateral.balanceOf(address(vault)), 0);
 
         vm.warp(block.timestamp + 1);
         _withdraw(alice, 60);
         assertEq(collateral.balanceOf(address(vault)), 0);
-        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
 
         vm.warp(block.timestamp + 8 days);
 
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
         assertEq(_claim(alice, 0), 60);
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, 60);
-        assertEq(vault.pluginAllocated(address(plugin)), 40);
+        assertEq(vault.adapterAllocated(address(adapter)), 40);
         assertEq(collateral.balanceOf(address(vault)), 0);
     }
 
-    function test_Claim_revertsWhenPluginsCannotDeallocateEnough() public {
+    function test_Claim_revertsWhenAdaptersCannotDeallocateEnough() public {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoBorrowPlugin plugin =
-            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
-        pluginRegistry.whitelistPlugin(address(plugin));
+        MockMorphoBorrowAdapter adapter =
+            new MockMorphoBorrowAdapter(address(vault), address(collateral), address(morphoVault), address(rewards));
+        adapterRegistry.whitelistAdapter(address(adapter));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
         _deposit(alice, 100);
-        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
         assertEq(collateral.balanceOf(address(vault)), 0);
 
         vm.warp(block.timestamp + 1);
         _withdraw(alice, 60);
 
-        // Drain plugin liquidity so claim-time deallocation is insufficient.
+        // Drain adapter liquidity so claim-time deallocation is insufficient.
         vm.prank(address(morphoVault));
         collateral.transfer(address(0xBEEF), 50);
 
@@ -3508,271 +3515,271 @@ contract VaultV2Test is Test {
         }
     }
 
-    function test_AddRemovePlugin() public {
+    function test_AddRemoveAdapter() public {
         vault = _getVault(7 days);
-        MockPlugin plugin = _createPlugin();
+        MockAdapter adapter = _createAdapter();
 
-        _addPlugin(plugin);
+        _addAdapter(adapter);
 
-        assertEq(vault.pluginsLength(), 1);
-        assertEq(vault.plugins(0), address(plugin));
-        assertEq(vault.pluginLimit(address(plugin)), type(uint208).max);
-        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertEq(vault.adaptersLength(), 1);
+        assertEq(vault.adapters(0), address(adapter));
+        assertEq(vault.adapterLimit(address(adapter)), type(uint208).max);
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
 
-        _grantRemovePluginRole(alice, alice);
+        _grantRemoveAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), 0);
 
-        assertEq(vault.pluginsLength(), 0);
-        assertEq(vault.pluginLimit(address(plugin)), 0);
-        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertEq(vault.adaptersLength(), 0);
+        assertEq(vault.adapterLimit(address(adapter)), 0);
+        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
     }
 
-    function test_RevokePluginRolesBlockedWhileLimitIsNonZero() public {
+    function test_RevokeAdapterRolesBlockedWhileLimitIsNonZero() public {
         vault = _getVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
         vm.prank(alice);
-        VaultV2(address(vault)).revokeRole(ALLOCATE_PLUGIN_ROLE, address(plugin));
+        VaultV2(address(vault)).revokeRole(ALLOCATE_ADAPTER_ROLE, address(adapter));
         vm.prank(alice);
-        VaultV2(address(vault)).revokeRole(DEALLOCATE_PLUGIN_ROLE, address(plugin));
+        VaultV2(address(vault)).revokeRole(DEALLOCATE_ADAPTER_ROLE, address(adapter));
 
-        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
     }
 
-    function test_RevokePluginRolesAfterLimitBecomesZero() public {
+    function test_RevokeAdapterRolesAfterLimitBecomesZero() public {
         vault = _getVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
-        _grantRemovePluginRole(alice, alice);
+        _grantRemoveAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), 0);
 
-        // setPluginLimit(0) removes plugin roles via super._revokeRole.
-        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        // setAdapterLimit(0) removes adapter roles via super._revokeRole.
+        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
 
-        // Re-grant roles to hit VaultV2._revokeRole allow-path when pluginLimit == 0.
+        // Re-grant roles to hit VaultV2._revokeRole allow-path when adapterLimit == 0.
         vm.prank(alice);
-        VaultV2(address(vault)).grantRole(ALLOCATE_PLUGIN_ROLE, address(plugin));
+        VaultV2(address(vault)).grantRole(ALLOCATE_ADAPTER_ROLE, address(adapter));
         vm.prank(alice);
-        VaultV2(address(vault)).grantRole(DEALLOCATE_PLUGIN_ROLE, address(plugin));
-        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        VaultV2(address(vault)).grantRole(DEALLOCATE_ADAPTER_ROLE, address(adapter));
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
 
         vm.prank(alice);
-        VaultV2(address(vault)).revokeRole(ALLOCATE_PLUGIN_ROLE, address(plugin));
+        VaultV2(address(vault)).revokeRole(ALLOCATE_ADAPTER_ROLE, address(adapter));
         vm.prank(alice);
-        VaultV2(address(vault)).revokeRole(DEALLOCATE_PLUGIN_ROLE, address(plugin));
+        VaultV2(address(vault)).revokeRole(DEALLOCATE_ADAPTER_ROLE, address(adapter));
 
-        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
     }
 
-    function test_RevokeNonPluginRoleNotBlockedWhenPluginLimitNonZero() public {
+    function test_RevokeNonAdapterRoleNotBlockedWhenAdapterLimitNonZero() public {
         vault = _getVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
         vm.prank(alice);
-        VaultV2(address(vault)).grantRole(DEPOSITOR_WHITELIST_ROLE, address(plugin));
-        assertTrue(IAccessControl(address(vault)).hasRole(DEPOSITOR_WHITELIST_ROLE, address(plugin)));
+        VaultV2(address(vault)).grantRole(DEPOSITOR_WHITELIST_ROLE, address(adapter));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEPOSITOR_WHITELIST_ROLE, address(adapter)));
 
         vm.prank(alice);
-        VaultV2(address(vault)).revokeRole(DEPOSITOR_WHITELIST_ROLE, address(plugin));
-        assertFalse(IAccessControl(address(vault)).hasRole(DEPOSITOR_WHITELIST_ROLE, address(plugin)));
+        VaultV2(address(vault)).revokeRole(DEPOSITOR_WHITELIST_ROLE, address(adapter));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEPOSITOR_WHITELIST_ROLE, address(adapter)));
     }
 
-    function test_DepositAutoAllocatesFirstPlugin() public {
+    function test_DepositAutoAllocatesFirstAdapter() public {
         vault = _getUniversalVault(7 days);
 
-        MockPlugin plugin1 = _createPlugin();
-        MockPlugin plugin2 = _createPlugin();
-        _addPlugin(plugin1);
-        _addPlugin(plugin2);
+        MockAdapter adapter1 = _createAdapter();
+        MockAdapter adapter2 = _createAdapter();
+        _addAdapter(adapter1);
+        _addAdapter(adapter2);
 
         (uint256 depositedAmount,) = _deposit(alice, 100);
 
-        assertEq(vault.pluginsAllocated(), depositedAmount);
-        assertEq(vault.pluginAllocated(address(plugin1)), depositedAmount);
-        assertEq(vault.pluginAllocated(address(plugin2)), 0);
+        assertEq(vault.adaptersAllocated(), depositedAmount);
+        assertEq(vault.adapterAllocated(address(adapter1)), depositedAmount);
+        assertEq(vault.adapterAllocated(address(adapter2)), 0);
     }
 
-    function test_SetPluginLimitRemoveNonLastSwapsAndPops() public {
+    function test_SetAdapterLimitRemoveNonLastSwapsAndPops() public {
         vault = _getVault(7 days);
-        MockPlugin plugin1 = _createPlugin();
-        MockPlugin plugin2 = _createPlugin();
-        MockPlugin plugin3 = _createPlugin();
+        MockAdapter adapter1 = _createAdapter();
+        MockAdapter adapter2 = _createAdapter();
+        MockAdapter adapter3 = _createAdapter();
 
-        _addPlugin(plugin1);
-        _addPlugin(plugin2);
-        _addPlugin(plugin3);
+        _addAdapter(adapter1);
+        _addAdapter(adapter2);
+        _addAdapter(adapter3);
 
-        _grantRemovePluginRole(alice, alice);
+        _grantRemoveAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin1), 0);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter1), 0);
 
-        assertEq(vault.pluginsLength(), 2);
-        assertEq(vault.plugins(0), address(plugin3));
-        assertEq(vault.plugins(1), address(plugin2));
-        assertEq(vault.pluginLimit(address(plugin1)), 0);
-        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin1)));
-        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin1)));
+        assertEq(vault.adaptersLength(), 2);
+        assertEq(vault.adapters(0), address(adapter3));
+        assertEq(vault.adapters(1), address(adapter2));
+        assertEq(vault.adapterLimit(address(adapter1)), 0);
+        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter1)));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter1)));
     }
 
-    function test_SetPluginLimitExistingPluginKeepsListUnchanged() public {
+    function test_SetAdapterLimitExistingAdapterKeepsListUnchanged() public {
         vault = _getUniversalVault(7 days);
 
-        MockPlugin plugin1 = _createPlugin();
-        MockPlugin plugin2 = _createPlugin();
-        _addPlugin(plugin1);
-        _addPlugin(plugin2);
+        MockAdapter adapter1 = _createAdapter();
+        MockAdapter adapter2 = _createAdapter();
+        _addAdapter(adapter1);
+        _addAdapter(adapter2);
 
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin1), 321);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter1), 321);
 
-        assertEq(vault.pluginsLength(), 2);
-        assertEq(vault.plugins(0), address(plugin1));
-        assertEq(vault.plugins(1), address(plugin2));
-        assertEq(vault.pluginLimit(address(plugin1)), 321);
+        assertEq(vault.adaptersLength(), 2);
+        assertEq(vault.adapters(0), address(adapter1));
+        assertEq(vault.adapters(1), address(adapter2));
+        assertEq(vault.adapterLimit(address(adapter1)), 321);
     }
 
-    function test_SetPluginLimitZeroForUnknownPluginNoop() public {
+    function test_SetAdapterLimitZeroForUnknownAdapterNoop() public {
         vault = _getUniversalVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _grantAddPluginRole(alice, alice);
+        MockAdapter adapter = _createAdapter();
+        _grantAddAdapterRole(alice, alice);
 
         vm.startPrank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), 0);
         vm.stopPrank();
 
-        assertEq(vault.pluginsLength(), 0);
-        assertEq(vault.pluginLimit(address(plugin)), 0);
-        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_PLUGIN_ROLE, address(plugin)));
-        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_PLUGIN_ROLE, address(plugin)));
+        assertEq(vault.adaptersLength(), 0);
+        assertEq(vault.adapterLimit(address(adapter)), 0);
+        assertFalse(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, address(adapter)));
+        assertFalse(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(adapter)));
     }
 
-    function test_SetPluginLimitRevertNotPlugin() public {
+    function test_SetAdapterLimitRevertNotAdapter() public {
         vault = _getUniversalVault(7 days);
 
-        MockPlugin plugin = new MockPlugin(address(vault), address(collateral));
-        _grantAddPluginRole(alice, alice);
+        MockAdapter adapter = new MockAdapter(address(vault), address(collateral));
+        _grantAddAdapterRole(alice, alice);
 
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.NotPlugin.selector);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), 10);
+        vm.expectRevert(IVaultV2.NotAdapter.selector);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), 10);
         vm.stopPrank();
     }
 
-    function test_SwapPlugins() public {
+    function test_SwapAdapters() public {
         vault = _getVault(7 days);
-        MockPlugin plugin1 = _createPlugin();
-        MockPlugin plugin2 = _createPlugin();
-        _addPlugin(plugin1);
-        _addPlugin(plugin2);
+        MockAdapter adapter1 = _createAdapter();
+        MockAdapter adapter2 = _createAdapter();
+        _addAdapter(adapter1);
+        _addAdapter(adapter2);
 
         vm.prank(alice);
-        VaultV2(address(vault)).grantRole(SWAP_PLUGINS_ROLE, alice);
+        VaultV2(address(vault)).grantRole(SWAP_ADAPTERS_ROLE, alice);
 
         vm.prank(alice);
-        VaultV2(address(vault)).swapPlugins(address(plugin1), address(plugin2));
+        VaultV2(address(vault)).swapAdapters(address(adapter1), address(adapter2));
 
-        assertEq(vault.plugins(0), address(plugin2));
-        assertEq(vault.plugins(1), address(plugin1));
+        assertEq(vault.adapters(0), address(adapter2));
+        assertEq(vault.adapters(1), address(adapter1));
     }
 
-    function test_SwapPluginsRevertPluginsNotFound() public {
+    function test_SwapAdaptersRevertAdaptersNotFound() public {
         vault = _getVault(7 days);
-        MockPlugin plugin1 = _createPlugin();
-        MockPlugin plugin2 = _createPlugin();
-        _addPlugin(plugin1);
+        MockAdapter adapter1 = _createAdapter();
+        MockAdapter adapter2 = _createAdapter();
+        _addAdapter(adapter1);
 
         vm.prank(alice);
-        VaultV2(address(vault)).grantRole(SWAP_PLUGINS_ROLE, alice);
+        VaultV2(address(vault)).grantRole(SWAP_ADAPTERS_ROLE, alice);
 
         vm.startPrank(alice);
         vm.expectRevert(stdError.indexOOBError);
-        VaultV2(address(vault)).swapPlugins(address(plugin1), address(plugin2));
+        VaultV2(address(vault)).swapAdapters(address(adapter1), address(adapter2));
         vm.stopPrank();
     }
 
-    function test_AllocatePluginRevertMissingRoles() public {
+    function test_AllocateAdapterRevertMissingRoles() public {
         vault = _getUniversalVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
         vm.prank(bob);
         vm.expectRevert();
-        vault.allocatePlugin(address(plugin), 1);
+        vault.allocateAdapter(address(adapter), 1);
     }
 
-    function test_DeallocatePluginRevertMissingRoles() public {
+    function test_DeallocateAdapterRevertMissingRoles() public {
         vault = _getUniversalVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
         vm.prank(bob);
         vm.expectRevert();
-        vault.deallocatePlugin(address(plugin), 1);
+        vault.deallocateAdapter(address(adapter), 1);
     }
 
-    function test_AllocatePluginReturnsZeroWhenNotActive() public {
+    function test_AllocateAdapterReturnsZeroWhenNotActive() public {
         vault = _getUniversalVault(7 days);
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
-        vm.prank(address(plugin));
-        uint256 allocated = vault.allocatePlugin(address(plugin), 1);
+        vm.prank(address(adapter));
+        uint256 allocated = vault.allocateAdapter(address(adapter), 1);
         assertEq(allocated, 0);
     }
 
-    function test_AllocatePlugin_respectsRemainingPluginLimit() public {
+    function test_AllocateAdapter_respectsRemainingAdapterLimit() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
 
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), 60);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), 60);
 
-        vm.prank(address(plugin));
-        uint256 allocated = vault.allocatePlugin(address(plugin), 50);
+        vm.prank(address(adapter));
+        uint256 allocated = vault.allocateAdapter(address(adapter), 50);
         assertEq(allocated, 50);
 
-        vm.prank(address(plugin));
-        allocated = vault.allocatePlugin(address(plugin), 50);
+        vm.prank(address(adapter));
+        allocated = vault.allocateAdapter(address(adapter), 50);
         assertEq(allocated, 10);
 
-        vm.prank(address(plugin));
-        allocated = vault.allocatePlugin(address(plugin), 1);
+        vm.prank(address(adapter));
+        allocated = vault.allocateAdapter(address(adapter), 1);
         assertEq(allocated, 0);
 
-        assertEq(vault.pluginAllocated(address(plugin)), 60);
-        assertEq(vault.pluginsAllocated(), 60);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
+        assertEq(vault.adaptersAllocated(), 60);
     }
 
-    function test_RemovePlugin_revertsWhenOwed() public {
+    function test_RemoveAdapter_revertsWhenOwed() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 40);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 40);
 
-        _grantRemovePluginRole(alice, alice);
+        _grantRemoveAdapterRole(alice, alice);
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.PluginAllocated.selector);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), 0);
+        vm.expectRevert(IVaultV2.AdapterAllocated.selector);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), 0);
         vm.stopPrank();
     }
 
@@ -3780,47 +3787,47 @@ contract VaultV2Test is Test {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        uint256 pulled = vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        uint256 pulled = vault.allocateAdapter(address(adapter), 80);
         assertEq(pulled, 80);
-        assertEq(vault.pluginsAllocated(), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.adaptersAllocated(), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
 
-        vm.prank(address(plugin));
-        pulled = vault.allocatePlugin(address(plugin), 50);
+        vm.prank(address(adapter));
+        pulled = vault.allocateAdapter(address(adapter), 50);
         assertEq(pulled, 20);
-        assertEq(vault.pluginsAllocated(), 100);
-        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(vault.adaptersAllocated(), 100);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
 
-        vm.prank(address(plugin));
-        vault.deallocatePlugin(address(plugin), 30);
+        vm.prank(address(adapter));
+        vault.deallocateAdapter(address(adapter), 30);
 
-        assertEq(vault.pluginsAllocated(), 70);
-        assertEq(vault.pluginAllocated(address(plugin)), 70);
+        assertEq(vault.adaptersAllocated(), 70);
+        assertEq(vault.adapterAllocated(address(adapter)), 70);
     }
 
-    function test_PullPlugins_duringWithdrawKeepsOwed() public {
+    function test_PullAdapters_duringWithdrawKeepsOwed() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 50);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 50);
 
         _withdraw(alice, 10);
 
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
-        assertEq(vault.pluginsAllocated(), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(vault.adaptersAllocated(), 50);
     }
 
-    function test_OnSlash_returnsOwedWhenPluginsShort() public {
+    function test_OnSlash_returnsOwedWhenAdaptersShort() public {
         uint256 blockTimestamp = vm.getBlockTimestamp();
         if (blockTimestamp == 0) {
             vm.warp(1_720_700_948);
@@ -3829,14 +3836,14 @@ contract VaultV2Test is Test {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
 
-        plugin.setShouldFail(true);
+        adapter.setShouldFail(true);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         uint48 captureTimestamp = uint48(block.timestamp - 1);
@@ -3847,22 +3854,22 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 40);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
     }
 
-    function test_OnSlash_withPluginsDeallocatesToAvoidOwedWhenVaultLiquidityIsInsufficient() public {
+    function test_OnSlash_withAdaptersDeallocatesToAvoidOwedWhenVaultLiquidityIsInsufficient() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
 
         assertEq(collateral.balanceOf(address(vault)), 20);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
 
@@ -3872,30 +3879,30 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 0);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 60);
-        assertEq(vault.pluginAllocated(address(plugin)), 40);
-        assertEq(vault.pluginsAllocated(), 40);
+        assertEq(vault.adapterAllocated(address(adapter)), 40);
+        assertEq(vault.adaptersAllocated(), 40);
         assertEq(collateral.balanceOf(address(vault)), 0);
     }
 
-    function test_PluginNoDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
+    function test_AdapterNoDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
 
-        plugin.setShouldFail(true);
+        adapter.setShouldFail(true);
 
         vm.prank(alice);
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         VaultV2(address(vault)).instantWithdraw(alice, 60);
 
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
-        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
+        assertEq(vault.adaptersAllocated(), 80);
         assertEq(collateral.balanceOf(address(vault)), 20);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
@@ -3905,8 +3912,8 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 40);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
-        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
+        assertEq(vault.adaptersAllocated(), 80);
         assertEq(collateral.balanceOf(address(vault)), 0);
 
         vm.prank(address(slasher));
@@ -3914,29 +3921,29 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).syncOwedSlash(1);
     }
 
-    function test_PluginPartialDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
+    function test_AdapterPartialDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
 
-        vm.prank(address(plugin));
+        vm.prank(address(adapter));
         collateral.transfer(bob, 50);
-        assertEq(collateral.balanceOf(address(plugin)), 30);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(collateral.balanceOf(address(adapter)), 30);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
 
         vm.prank(alice);
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         VaultV2(address(vault)).instantWithdraw(alice, 60);
 
-        assertEq(collateral.balanceOf(address(plugin)), 30);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
-        assertEq(vault.pluginsAllocated(), 80);
+        assertEq(collateral.balanceOf(address(adapter)), 30);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
+        assertEq(vault.adaptersAllocated(), 80);
         assertEq(collateral.balanceOf(address(vault)), 20);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
@@ -3946,8 +3953,8 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 10);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 50);
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
-        assertEq(vault.pluginsAllocated(), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(vault.adaptersAllocated(), 50);
         assertEq(collateral.balanceOf(address(vault)), 0);
 
         vm.prank(address(slasher));
@@ -3978,20 +3985,20 @@ contract VaultV2Test is Test {
         vm.stopPrank();
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoBorrowPlugin plugin =
-            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
-        pluginRegistry.whitelistPlugin(address(plugin));
+        MockMorphoBorrowAdapter adapter =
+            new MockMorphoBorrowAdapter(address(vault), address(collateral), address(morphoVault), address(rewards));
+        adapterRegistry.whitelistAdapter(address(adapter));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
         _deposit(alice, 100);
-        assertEq(vault.pluginAllocated(address(plugin)), 100);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
         assertEq(collateral.balanceOf(address(vault)), 0);
         assertEq(collateral.balanceOf(address(morphoVault)), 100);
 
@@ -4008,14 +4015,14 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 80);
         assertEq(universalSlasher.totalOwed(), 20);
         assertEq(universalSlasher.owed(network.subnetwork(0), alice), 20);
-        assertEq(vault.pluginAllocated(address(plugin)), 40);
-        assertEq(vault.pluginsAllocated(), 40);
+        assertEq(vault.adapterAllocated(address(adapter)), 40);
+        assertEq(vault.adaptersAllocated(), 40);
         assertEq(collateral.balanceOf(address(vault)), 0);
 
         _deposit(bob, 30);
 
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
-        assertEq(vault.pluginsAllocated(), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(vault.adaptersAllocated(), 50);
         assertEq(collateral.balanceOf(address(vault)), 20);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
@@ -4048,7 +4055,7 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).syncOwedSlash(1);
     }
 
-    function test_OnSlash_accountsForUnclaimedWithPlugin() public {
+    function test_OnSlash_accountsForUnclaimedWithAdapter() public {
         uint256 blockTimestamp = vm.getBlockTimestamp();
         if (blockTimestamp == 0) {
             vm.warp(1_720_700_948);
@@ -4061,14 +4068,14 @@ contract VaultV2Test is Test {
         _deposit(alice, 100);
         _withdraw(alice, 30);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 40);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 40);
 
-        plugin.setShouldFail(true);
+        adapter.setShouldFail(true);
 
         vm.warp(blockTimestamp + epochDuration + 1);
 
@@ -4081,7 +4088,7 @@ contract VaultV2Test is Test {
         assertEq(slashedAmount, 60);
         assertEq(owed, 30);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 30);
-        assertEq(vault.pluginAllocated(address(plugin)), 40);
+        assertEq(vault.adapterAllocated(address(adapter)), 40);
     }
 
     function test_OnSlash_syncsClaimableAndActiveWithdrawalsBuckets() public {
@@ -4287,10 +4294,10 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vault)).balanceOf(alice), vault.activeSharesOf(alice));
 
         uint256 expectedAllocatable = vault.totalStake()
-            .saturatingSub(IUniversalDelegator(vault.delegator()).getNoPluginsSize())
-            .saturatingSub(vault.pluginsAllocated());
+            .saturatingSub(IUniversalDelegator(vault.delegator()).getNoAdaptersSize())
+            .saturatingSub(vault.adaptersAllocated());
         assertEq(vault.allocatable(), expectedAllocatable);
-        assertEq(vault.pluginLimit(address(uint160(0xBEEF))), 0);
+        assertEq(vault.adapterLimit(address(uint160(0xBEEF))), 0);
     }
 
     function test_InstantWithdraw() public {
@@ -4394,13 +4401,13 @@ contract VaultV2Test is Test {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
 
         uint256 buffer = IUniversalDelegator(vault.delegator()).getWithdrawalBuffer();
         assertEq(buffer, 100);
@@ -4414,80 +4421,80 @@ contract VaultV2Test is Test {
         assertEq(withdrawnAssets, 60);
         assertGt(burnedShares, 0);
         assertEq(collateral.balanceOf(address(vault)), 0);
-        assertEq(vault.pluginAllocated(address(plugin)), 40);
+        assertEq(vault.adapterAllocated(address(adapter)), 40);
     }
 
-    function test_InstantWithdraw_revertsWhenItWouldConsumeNoPluginsReserve() public {
+    function test_InstantWithdraw_revertsWhenItWouldConsumeNoAdaptersReserve() public {
         (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
         IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
         vm.prank(alice);
         universalDelegator.createSlot(address(0xA11CE).subnetwork(0), 0, false, true, 40);
-        assertEq(universalDelegator.getNoPluginsSize(), 40);
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 60);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
         assertEq(collateral.balanceOf(address(vault)), 40);
 
-        plugin.setShouldFail(true);
+        adapter.setShouldFail(true);
 
         vm.prank(alice);
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         VaultV2(address(vault)).instantWithdraw(alice, 10);
     }
 
-    function test_InstantWithdraw_deallocatesPluginToPreserveNoPluginsReserve() public {
+    function test_InstantWithdraw_deallocatesAdapterToPreserveNoAdaptersReserve() public {
         (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
         IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
         vm.prank(alice);
         universalDelegator.createSlot(address(0xA11CE).subnetwork(0), 0, false, true, 40);
-        assertEq(universalDelegator.getNoPluginsSize(), 40);
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
 
-        assertEq(vault.pluginAllocated(address(plugin)), 60);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
         assertEq(collateral.balanceOf(address(vault)), 40);
-        assertEq(plugin.deallocatable(address(vault)), 60);
+        assertEq(adapter.deallocatable(address(vault)), 60);
 
         vm.prank(alice);
         (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
 
         assertEq(withdrawnAssets, 10);
         assertGt(burnedShares, 0);
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
         assertEq(collateral.balanceOf(address(vault)), 40);
-        assertEq(universalDelegator.getNoPluginsSize(), 40);
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
     }
 
-    function test_InstantWithdraw_allowsLiquidityAboveNoPluginsReserve() public {
+    function test_InstantWithdraw_allowsLiquidityAboveNoAdaptersReserve() public {
         (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
         IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
         vm.prank(alice);
         universalDelegator.createSlot(address(0xB0B).subnetwork(0), 0, false, true, 40);
-        assertEq(universalDelegator.getNoPluginsSize(), 40);
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 50);
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
         assertEq(collateral.balanceOf(address(vault)), 50);
 
         vm.prank(alice);
@@ -4495,9 +4502,9 @@ contract VaultV2Test is Test {
 
         assertEq(withdrawnAssets, 10);
         assertGt(burnedShares, 0);
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
         assertEq(collateral.balanceOf(address(vault)), 40);
-        assertEq(universalDelegator.getNoPluginsSize(), 40);
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
     }
 
     function test_InstantWithdrawRevertInsufficientAmount() public {
@@ -4527,25 +4534,25 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).instantWithdraw(bob, 1);
     }
 
-    function test_SetPluginLimitRevertTooManyPlugins() public {
+    function test_SetAdapterLimitRevertTooManyAdapters() public {
         vault = _getUniversalVault(7 days);
         vm.warp(block.timestamp + vault.epochDuration() + 1);
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
 
-        for (uint256 i; i < MAX_PLUGINS; ++i) {
-            MockPlugin plugin = _createPlugin();
+        for (uint256 i; i < MAX_ADAPTERS; ++i) {
+            MockAdapter adapter = _createAdapter();
             vm.prank(alice);
-            VaultV2(address(vault)).setPluginLimit(address(plugin), 1);
+            VaultV2(address(vault)).setAdapterLimit(address(adapter), 1);
         }
 
-        MockPlugin extraPlugin = _createPlugin();
+        MockAdapter extraAdapter = _createAdapter();
         vm.startPrank(alice);
-        vm.expectRevert(IVaultV2.TooManyPlugins.selector);
-        VaultV2(address(vault)).setPluginLimit(address(extraPlugin), 1);
+        vm.expectRevert(IVaultV2.TooManyAdapters.selector);
+        VaultV2(address(vault)).setAdapterLimit(address(extraAdapter), 1);
         vm.stopPrank();
     }
 
-    function test_AllocatePluginRevertFeeOnTransferNotSupported() public {
+    function test_AllocateAdapterRevertFeeOnTransferNotSupported() public {
         collateral = Token(address(feeOnTransferCollateral));
         vault = _getUniversalVault(7 days);
 
@@ -4556,13 +4563,13 @@ contract VaultV2Test is Test {
         vault.deposit(alice, depositAmount);
         vm.stopPrank();
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
+        vm.prank(address(adapter));
         vm.expectRevert(IVaultV2.FeeOnTransferNotSupported.selector);
-        vault.allocatePlugin(address(plugin), 10);
+        vault.allocateAdapter(address(adapter), 10);
     }
 
     function test_SyncOwedSlashRevertNotSlasher() public {
@@ -4572,184 +4579,186 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).syncOwedSlash(1);
     }
 
-    function test_SkimPlugins() public {
+    function test_SkimAdapters() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 30);
-        assertEq(collateral.balanceOf(address(plugin)), 30);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 30);
+        assertEq(collateral.balanceOf(address(adapter)), 30);
 
-        VaultV2(address(vault)).skimPlugins();
-        assertEq(collateral.balanceOf(address(plugin)), 0);
+        VaultV2(address(vault)).skimAdapters();
+        assertEq(collateral.balanceOf(address(adapter)), 0);
     }
 
-    function test_MorphoAllocatePlugin_deallocateSkimsAndDonatesRewards() public {
+    function test_MorphoAllocateAdapter_deallocateSkimsAndDonatesRewards() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin plugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        _setMorphoVaultAndPlugin(plugin, address(vault), address(morphoVault));
+        MockMorphoAllocateAdapter adapter = new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndAdapter(adapter, address(vault), address(morphoVault));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
 
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
 
         uint256 activeStakeBefore = vault.activeStake();
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 expectedSkimmed = plugin.skimmable(address(vault));
+        uint256 expectedSkimmed = adapter.skimmable(address(vault));
 
-        vm.prank(address(plugin));
-        uint256 deallocated = vault.deallocatePlugin(address(plugin), 10);
+        vm.prank(address(adapter));
+        uint256 deallocated = vault.deallocateAdapter(address(adapter), 10);
 
         assertEq(deallocated, 10);
-        assertEq(vault.pluginAllocated(address(plugin)), 70);
+        assertEq(vault.adapterAllocated(address(adapter)), 70);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
         assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + deallocated);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
-    function test_MorphoAllocatePlugin_skimPluginsDonatesRewards() public {
+    function test_MorphoAllocateAdapter_skimAdaptersDonatesRewards() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin plugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        _setMorphoVaultAndPlugin(plugin, address(vault), address(morphoVault));
+        MockMorphoAllocateAdapter adapter = new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndAdapter(adapter, address(vault), address(morphoVault));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
 
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
 
         uint256 activeStakeBefore = vault.activeStake();
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 expectedSkimmed = plugin.skimmable(address(vault));
+        uint256 expectedSkimmed = adapter.skimmable(address(vault));
 
-        VaultV2(address(vault)).skimPlugins();
+        VaultV2(address(vault)).skimAdapters();
 
-        assertEq(vault.pluginAllocated(address(plugin)), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
         assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
-    function test_MorphoAllocatePlugin_instantWithdrawDeallocatesAndDonatesRewards() public {
+    function test_MorphoAllocateAdapter_instantWithdrawDeallocatesAndDonatesRewards() public {
         (vault,,) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin plugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        _setMorphoVaultAndPlugin(plugin, address(vault), address(morphoVault));
+        MockMorphoAllocateAdapter adapter = new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndAdapter(adapter, address(vault), address(morphoVault));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
         IUniversalDelegator universalDelegator = IUniversalDelegator(vault.delegator());
         vm.prank(alice);
         universalDelegator.createSlot(address(0xD00D).subnetwork(0), 0, false, true, 40);
-        assertEq(universalDelegator.getNoPluginsSize(), 40);
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
-        assertEq(vault.pluginAllocated(address(plugin)), 60);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
 
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
 
         uint256 activeStakeBefore = vault.activeStake();
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 expectedSkimmed = plugin.skimmable(address(vault));
+        uint256 expectedSkimmed = adapter.skimmable(address(vault));
 
         vm.prank(alice);
         (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
 
         assertEq(withdrawnAssets, 10);
         assertGt(burnedShares, 0);
-        assertEq(vault.pluginAllocated(address(plugin)), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
         assertEq(vault.activeStake(), activeStakeBefore - withdrawnAssets + expectedSkimmed);
         assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + 10 - withdrawnAssets);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
-    function test_MorphoAllocatePlugin_donatesDuringDepositAndWithdrawOperations() public {
+    function test_MorphoAllocateAdapter_donatesDuringDepositAndWithdrawOperations() public {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin morphoPlugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        _setMorphoVaultAndPlugin(morphoPlugin, address(vault), address(morphoVault));
+        MockMorphoAllocateAdapter morphoAdapter =
+            new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndAdapter(morphoAdapter, address(vault), address(morphoVault));
 
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(morphoPlugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(morphoAdapter), type(uint208).max);
 
         _deposit(alice, 100);
-        assertEq(vault.pluginAllocated(address(morphoPlugin)), 100);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), 100);
         assertEq(vault.activeStake(), 100);
         uint256 activeStakeBeforeBob = vault.activeStake();
 
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
-        uint256 expectedSkimmedDeposit = morphoPlugin.skimmable(address(vault));
+        uint256 expectedSkimmedDeposit = morphoAdapter.skimmable(address(vault));
 
         _deposit(bob, 10);
         assertEq(vault.activeStake(), activeStakeBeforeBob + 10 + expectedSkimmedDeposit);
-        assertEq(vault.pluginAllocated(address(morphoPlugin)), 110);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), 110);
         assertEq(collateral.balanceOf(address(rewards)), 0);
 
         collateral.approve(address(morphoVault), 10);
         morphoVault.donateYield(10);
         uint256 activeStakeBeforeWithdraw = vault.activeStake();
-        uint256 expectedSkimmedWithdraw = morphoPlugin.skimmable(address(vault));
+        uint256 expectedSkimmedWithdraw = morphoAdapter.skimmable(address(vault));
 
         _withdraw(alice, 30);
         assertEq(vault.activeStake(), activeStakeBeforeWithdraw + expectedSkimmedWithdraw - 30);
         assertEq(vault.activeWithdrawals(), 30);
-        assertEq(vault.pluginAllocated(address(morphoPlugin)), 110);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), 110);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
-    function test_MorphoPluginSkimDuringDeposit_doesNotDiluteClaimableWithdrawals() public {
+    function test_MorphoAdapterSkimDuringDeposit_doesNotDiluteClaimableWithdrawals() public {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin morphoPlugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        _setMorphoVaultAndPlugin(morphoPlugin, address(vault), address(morphoVault));
+        MockMorphoAllocateAdapter morphoAdapter =
+            new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        _setMorphoVaultAndAdapter(morphoAdapter, address(vault), address(morphoVault));
 
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(morphoPlugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(morphoAdapter), type(uint208).max);
 
         _deposit(alice, 100);
         _deposit(bob, 100);
@@ -4795,77 +4804,78 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
-    function test_MorphoBorrowPlugin_deallocateSkimsAndDonatesRewards() public {
+    function test_MorphoBorrowAdapter_deallocateSkimsAndDonatesRewards() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin plugin1 = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        MockMorphoBorrowPlugin plugin2 =
-            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
-        _setMorphoVaultAndPlugin(plugin1, address(vault), address(morphoVault));
-        pluginRegistry.whitelistPlugin(address(plugin2));
+        MockMorphoAllocateAdapter adapter1 = new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        MockMorphoBorrowAdapter adapter2 =
+            new MockMorphoBorrowAdapter(address(vault), address(collateral), address(morphoVault), address(rewards));
+        _setMorphoVaultAndAdapter(adapter1, address(vault), address(morphoVault));
+        adapterRegistry.whitelistAdapter(address(adapter2));
 
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.startPrank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin1), type(uint208).max);
-        VaultV2(address(vault)).setPluginLimit(address(plugin2), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter1), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter2), type(uint208).max);
         vm.stopPrank();
 
-        vm.prank(address(plugin1));
-        vault.allocatePlugin(address(plugin1), 80);
-        assertEq(vault.pluginAllocated(address(plugin1)), 80);
+        vm.prank(address(adapter1));
+        vault.allocateAdapter(address(adapter1), 80);
+        assertEq(vault.adapterAllocated(address(adapter1)), 80);
 
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
 
         uint256 activeStakeBefore = vault.activeStake();
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 expectedSkimmed = plugin1.skimmable(address(vault));
+        uint256 expectedSkimmed = adapter1.skimmable(address(vault));
 
-        vm.prank(address(plugin2));
-        plugin2.borrow(30);
+        vm.prank(address(adapter2));
+        adapter2.borrow(30);
 
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
         assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
-        assertEq(vault.pluginAllocated(address(plugin1)), 50);
-        assertEq(vault.pluginAllocated(address(plugin2)), 30);
+        assertEq(vault.adapterAllocated(address(adapter1)), 50);
+        assertEq(vault.adapterAllocated(address(adapter2)), 30);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
-    function test_MorphoBorrowPlugin_borrowDeallocatesMorphoThenAllocatesBorrow() public {
+    function test_MorphoBorrowAdapter_borrowDeallocatesMorphoThenAllocatesBorrow() public {
         vault = _getUniversalVault(7 days);
 
         MockMorphoVault morphoVault = new MockMorphoVault(address(collateral));
-        MockMorphoAllocatePlugin morphoPlugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
-        MockMorphoBorrowPlugin borrowPlugin =
-            new MockMorphoBorrowPlugin(address(vault), address(collateral), address(morphoVault), address(rewards));
-        _setMorphoVaultAndPlugin(morphoPlugin, address(vault), address(morphoVault));
-        pluginRegistry.whitelistPlugin(address(borrowPlugin));
+        MockMorphoAllocateAdapter morphoAdapter =
+            new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+        MockMorphoBorrowAdapter borrowAdapter =
+            new MockMorphoBorrowAdapter(address(vault), address(collateral), address(morphoVault), address(rewards));
+        _setMorphoVaultAndAdapter(morphoAdapter, address(vault), address(morphoVault));
+        adapterRegistry.whitelistAdapter(address(borrowAdapter));
 
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.startPrank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(morphoPlugin), type(uint208).max);
-        VaultV2(address(vault)).setPluginLimit(address(borrowPlugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(morphoAdapter), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(borrowAdapter), type(uint208).max);
         vm.stopPrank();
 
         _deposit(alice, 100);
-        assertEq(vault.pluginAllocated(address(morphoPlugin)), 100);
-        assertEq(vault.pluginAllocated(address(borrowPlugin)), 0);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), 100);
+        assertEq(vault.adapterAllocated(address(borrowAdapter)), 0);
 
         vm.recordLogs();
-        vm.prank(address(borrowPlugin));
-        uint256 borrowed = borrowPlugin.borrow(30);
+        vm.prank(address(borrowAdapter));
+        uint256 borrowed = borrowAdapter.borrow(30);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         bytes32 deallocateSig = keccak256("Deallocate(address,uint256)");
         bytes32 allocateSig = keccak256("Allocate(address,uint256)");
         uint8[2] memory kinds;
-        address[2] memory plugins_;
+        address[2] memory adapters_;
         uint256[2] memory amounts;
         uint256 found;
         for (uint256 i; i < logs.length; ++i) {
@@ -4878,7 +4888,7 @@ contract VaultV2Test is Test {
             }
 
             kinds[found] = sig == deallocateSig ? 1 : 2;
-            plugins_[found] = address(uint160(uint256(logs[i].topics[1])));
+            adapters_[found] = address(uint160(uint256(logs[i].topics[1])));
             amounts[found] = abi.decode(logs[i].data, (uint256));
             ++found;
             if (found == 2) {
@@ -4889,38 +4899,38 @@ contract VaultV2Test is Test {
         assertEq(borrowed, 30);
         assertEq(found, 2);
         assertEq(kinds[0], 1);
-        assertEq(plugins_[0], address(morphoPlugin));
+        assertEq(adapters_[0], address(morphoAdapter));
         assertEq(amounts[0], 30);
         assertEq(kinds[1], 2);
-        assertEq(plugins_[1], address(borrowPlugin));
+        assertEq(adapters_[1], address(borrowAdapter));
         assertEq(amounts[1], 30);
-        assertEq(vault.pluginAllocated(address(morphoPlugin)), 70);
-        assertEq(vault.pluginAllocated(address(borrowPlugin)), 30);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), 70);
+        assertEq(vault.adapterAllocated(address(borrowAdapter)), 30);
     }
 
-    function test_DeallocatePlugins() public {
+    function test_DeallocateAdapters() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
 
-        MockPlugin plugin = _createPlugin();
-        _addPlugin(plugin);
-        _activatePluginLimit();
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
 
-        vm.prank(address(plugin));
-        vault.allocatePlugin(address(plugin), 80);
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 80);
 
-        plugin.setShouldFail(true);
+        adapter.setShouldFail(true);
         vm.prank(address(slasher));
         VaultV2(address(vault)).onSlash(60, true);
 
         uint256 totalStakeAfterSlash = vault.totalStake();
         assertEq(totalStakeAfterSlash, 40);
 
-        plugin.setShouldFail(false);
-        VaultV2(address(vault)).deallocatePlugins();
+        adapter.setShouldFail(false);
+        VaultV2(address(vault)).deallocateAdapters();
 
-        assertEq(vault.pluginsAllocated(), totalStakeAfterSlash);
-        assertEq(vault.pluginAllocated(address(plugin)), totalStakeAfterSlash);
+        assertEq(vault.adaptersAllocated(), totalStakeAfterSlash);
+        assertEq(vault.adapterAllocated(address(adapter)), totalStakeAfterSlash);
     }
 
     function test_TransferUpdatesActiveShares() public {
@@ -4935,7 +4945,7 @@ contract VaultV2Test is Test {
         assertEq(vault.activeSharesOf(alice), VaultV2(address(vault)).balanceOf(alice));
     }
 
-    function test_SetPluginLimitAfterMigration() public {
+    function test_SetAdapterLimitAfterMigration() public {
         uint48 epochDuration = 7 days;
         uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
         vm.warp(blockTimestamp);
@@ -4962,16 +4972,16 @@ contract VaultV2Test is Test {
 
         IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
         vm.prank(alice);
-        VaultV2(address(vaultV2)).grantRole(SET_PLUGIN_LIMIT_ROLE, alice);
+        VaultV2(address(vaultV2)).grantRole(SET_ADAPTER_LIMIT_ROLE, alice);
 
-        MockPlugin plugin = new MockPlugin(address(vaultV2), address(collateral));
-        pluginRegistry.whitelistPlugin(address(plugin));
+        MockAdapter adapter = new MockAdapter(address(vaultV2), address(collateral));
+        adapterRegistry.whitelistAdapter(address(adapter));
 
         vm.prank(alice);
-        VaultV2(address(vaultV2)).setPluginLimit(address(plugin), 1);
+        VaultV2(address(vaultV2)).setAdapterLimit(address(adapter), 1);
 
-        assertEq(vaultV2.pluginsLength(), 1);
-        assertEq(vaultV2.plugins(0), address(plugin));
+        assertEq(vaultV2.adaptersLength(), 1);
+        assertEq(vaultV2.adapters(0), address(adapter));
     }
 
     function test_CreateRevertDepositorToWhitelistInvalidAddress() public {
@@ -5393,37 +5403,37 @@ contract VaultV2Test is Test {
         vm.stopPrank();
     }
 
-    function _grantAddPluginRole(address user, address account) internal virtual {
+    function _grantAddAdapterRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(SET_PLUGIN_LIMIT_ROLE, account);
+        VaultV2(address(vault)).grantRole(SET_ADAPTER_LIMIT_ROLE, account);
         vm.stopPrank();
     }
 
-    function _grantRemovePluginRole(address user, address account) internal virtual {
+    function _grantRemoveAdapterRole(address user, address account) internal virtual {
         vm.startPrank(user);
-        VaultV2(address(vault)).grantRole(SET_PLUGIN_LIMIT_ROLE, account);
+        VaultV2(address(vault)).grantRole(SET_ADAPTER_LIMIT_ROLE, account);
         vm.stopPrank();
     }
 
-    function _createPlugin() internal returns (MockPlugin) {
-        MockPlugin plugin = new MockPlugin(address(vault), address(collateral));
-        pluginRegistry.whitelistPlugin(address(plugin));
-        return plugin;
+    function _createAdapter() internal returns (MockAdapter) {
+        MockAdapter adapter = new MockAdapter(address(vault), address(collateral));
+        adapterRegistry.whitelistAdapter(address(adapter));
+        return adapter;
     }
 
-    function _addPlugin(MockPlugin plugin) internal {
+    function _addAdapter(MockAdapter adapter) internal {
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
         }
 
-        _grantAddPluginRole(alice, alice);
+        _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setPluginLimit(address(plugin), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
     }
 
-    function _activatePluginLimit() internal {
-        // no-op: plugin activation delay was removed from the vault
+    function _activateAdapterLimit() internal {
+        // no-op: adapter activation delay was removed from the vault
     }
 
     function _deposit(address user, uint256 amount) internal returns (uint256 depositedAmount, uint256 mintedShares) {
@@ -5549,14 +5559,14 @@ contract VaultV2Test is Test {
         vm.stopPrank();
     }
 
-    function _setMorphoVaultAndPlugin(MockMorphoAllocatePlugin plugin, address vaultAddress, address morphoVault)
+    function _setMorphoVaultAndAdapter(MockMorphoAllocateAdapter adapter, address vaultAddress, address morphoVault)
         internal
     {
-        pluginRegistry.whitelistPlugin(address(plugin));
+        adapterRegistry.whitelistAdapter(address(adapter));
         curatorRegistry.setCurator(vaultAddress, alice);
         vm.prank(alice);
-        plugin.setMorhpoVault(vaultAddress, morphoVault);
-        plugin.setGlobalLimit(address(collateral), type(uint256).max);
+        adapter.setMorhpoVault(vaultAddress, morphoVault);
+        adapter.setGlobalLimit(address(collateral), type(uint256).max);
     }
 
     function _toUint128(uint256 amount) internal pure returns (uint128 amount128) {
@@ -5599,7 +5609,7 @@ contract VaultV2Test is Test {
                 vaultFactory,
                 address(feeRegistry),
                 address(rewards),
-                address(pluginRegistry)
+                address(adapterRegistry)
             )
         );
     }
@@ -5778,8 +5788,8 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: baseParams.depositorWhitelistRoleHolder,
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
-                    setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice
+                    setAdapterLimitRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice
                 })
             );
         }
@@ -5904,8 +5914,8 @@ contract VaultV2Test is Test {
                     depositorWhitelistRoleHolder: baseParams.depositorWhitelistRoleHolder,
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
-                    setPluginLimitRoleHolder: alice,
-                    allocatePluginRoleHolder: alice
+                    setAdapterLimitRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice
                 })
             );
         }
@@ -5974,8 +5984,8 @@ contract VaultV2Test is Test {
             depositorWhitelistRoleHolder: alice,
             isDepositLimitSetRoleHolder: alice,
             depositLimitSetRoleHolder: alice,
-            setPluginLimitRoleHolder: alice,
-            allocatePluginRoleHolder: alice
+            setAdapterLimitRoleHolder: alice,
+            allocateAdapterRoleHolder: alice
         });
     }
 
@@ -5987,10 +5997,10 @@ contract VaultV2Test is Test {
         assertEq(IUniversalSlasher(vaultV2.slasher()).oldSlasher(), oldSlasher);
         IUniversalDelegator.Slot memory root = IUniversalDelegator(vaultV2.delegator()).getSlot(0);
         assertEq(root.existChildren, 1);
-        IUniversalDelegator.Slot memory noPluginsSubvault =
+        IUniversalDelegator.Slot memory noAdaptersSubvault =
             IUniversalDelegator(vaultV2.delegator()).getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noPluginsSubvault.noPlugins);
-        assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(vaultV2.delegator()).getNoPluginsSize());
+        assertTrue(noAdaptersSubvault.noAdapters);
+        assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(vaultV2.delegator()).getNoAdaptersSize());
         uint256 expectedSlashRequestsLength = 0;
         if (oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == 1) {
             expectedSlashRequestsLength = IVetoSlasher(oldSlasher).slashRequestsLength();

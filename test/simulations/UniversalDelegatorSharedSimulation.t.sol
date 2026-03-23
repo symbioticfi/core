@@ -249,8 +249,8 @@ contract UniversalDelegatorSharedSimulationTest is Test {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),

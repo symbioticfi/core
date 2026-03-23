@@ -27,8 +27,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     address internal immutable FEE_REGISTRY;
     /// @dev Address of the rewards contract.
     address internal immutable REWARDS;
-    /// @dev Address of the plugin registry.
-    address internal immutable PLUGIN_REGISTRY;
+    /// @dev Address of the adapter registry.
+    address internal immutable ADAPTER_REGISTRY;
 
     /* STATE VARIABLES */
 
@@ -98,13 +98,13 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     int256 internal _unclaimedRaw;
 
     /// @inheritdoc IVaultV2Storage
-    address[] public plugins;
+    address[] public adapters;
     /// @inheritdoc IVaultV2Storage
-    mapping(address plugin => uint208 amount) public pluginLimit;
+    mapping(address adapter => uint208 amount) public adapterLimit;
     /// @inheritdoc IVaultV2Storage
-    uint256 public pluginsAllocated;
+    uint256 public adaptersAllocated;
     /// @inheritdoc IVaultV2Storage
-    mapping(address plugin => uint256 amount) public pluginAllocated;
+    mapping(address adapter => uint256 amount) public adapterAllocated;
 
     /* CONSTRUCTOR */
 
@@ -113,13 +113,13 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
         address slasherFactory,
         address feeRegistry,
         address rewards,
-        address pluginRegistry
+        address adapterRegistry
     ) {
         DELEGATOR_FACTORY = delegatorFactory;
         SLASHER_FACTORY = slasherFactory;
         FEE_REGISTRY = feeRegistry;
         REWARDS = rewards;
-        PLUGIN_REGISTRY = pluginRegistry;
+        ADAPTER_REGISTRY = adapterRegistry;
     }
 
     /* VIEW FUNCTIONS */
@@ -170,8 +170,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     }
 
     /// @inheritdoc IVaultV2Storage
-    function pluginsLength() public view returns (uint256) {
-        return plugins.length;
+    function adaptersLength() public view returns (uint256) {
+        return adapters.length;
     }
 
     /* STORAGE GAP */

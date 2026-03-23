@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {IPluginBase} from "../../src/interfaces/vault/IPluginBase.sol";
+import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
 
@@ -12,7 +12,7 @@ interface IRewardsDonateBorrow {
     function donate(address vault, uint256 amount) external;
 }
 
-contract MockMorphoBorrowPlugin is IPluginBase {
+contract MockMorphoBorrowAdapter is IAdapterBase {
     IERC20 public immutable collateral;
     IERC4626 public immutable morphoVault;
     address public immutable vault;
@@ -102,7 +102,7 @@ contract MockMorphoBorrowPlugin is IPluginBase {
         }
 
         uint256 position = collateral.balanceOf(address(this)) + morphoVault.maxWithdraw(address(this));
-        uint256 allocated = IVaultV2Storage(vault).pluginAllocated(address(this));
+        uint256 allocated = IVaultV2Storage(vault).adapterAllocated(address(this));
         if (position <= allocated) {
             return 0;
         }
@@ -124,20 +124,20 @@ contract MockMorphoBorrowPlugin is IPluginBase {
         }
 
         uint256 remaining = amount;
-        uint256 length = IVaultV2(vault).pluginsLength();
+        uint256 length = IVaultV2(vault).adaptersLength();
         for (uint256 i; i < length; ++i) {
-            address plugin = IVaultV2(vault).plugins(i);
-            if (plugin == address(this)) {
+            address adapter = IVaultV2(vault).adapters(i);
+            if (adapter == address(this)) {
                 continue;
             }
 
-            uint256 allocated = IVaultV2(vault).pluginAllocated(plugin);
+            uint256 allocated = IVaultV2(vault).adapterAllocated(adapter);
             uint256 toDeallocate = allocated <= remaining ? allocated : remaining;
             if (toDeallocate == 0) {
                 continue;
             }
 
-            uint256 deallocated = IVaultV2(vault).deallocatePlugin(plugin, toDeallocate);
+            uint256 deallocated = IVaultV2(vault).deallocateAdapter(adapter, toDeallocate);
             if (deallocated > 0) {
                 remaining = deallocated <= remaining ? remaining - deallocated : 0;
                 if (remaining == 0) {
@@ -149,9 +149,9 @@ contract MockMorphoBorrowPlugin is IPluginBase {
         borrowed = amount - remaining;
         if (borrowed > 0) {
             borrowUnlockAt = uint48(block.timestamp + 1 days);
-            uint256 allocatedToThisPlugin = IVaultV2(vault).allocatePlugin(address(this), borrowed);
-            borrowedAmount += allocatedToThisPlugin;
-            borrowed = allocatedToThisPlugin;
+            uint256 allocatedToThisAdapter = IVaultV2(vault).allocateAdapter(address(this), borrowed);
+            borrowedAmount += allocatedToThisAdapter;
+            borrowed = allocatedToThisAdapter;
         }
     }
 }

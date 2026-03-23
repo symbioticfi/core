@@ -45,7 +45,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     struct SlotStorage {
         bool exists;
         bool isShared;
-        bool noPlugins;
+        bool noAdapters;
         uint32 prevSlot;
         uint32 totalChildren;
         uint32 existChildren;
@@ -63,7 +63,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     struct Slot {
         bool exists;
         bool isShared;
-        bool noPlugins;
+        bool noAdapters;
         uint32 prevSlot;
         uint32 totalChildren;
         uint32 existChildren;
@@ -117,7 +117,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     /* EVENTS */
 
     event Initialize(InitParams params);
-    event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
+    event CreateSlot(uint96 indexed index, bool isShared, bool noAdapters, uint128 size);
     event SetSize(uint96 indexed index, uint128 size);
     event SwapSlots(uint96 indexed index1, uint96 indexed index2);
     event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
@@ -190,7 +190,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         return Slot({
             exists: slots[index].exists,
             isShared: slots[index].isShared,
-            noPlugins: slots[index].noPlugins,
+            noAdapters: slots[index].noAdapters,
             prevSlot: slots[index].prevSlot,
             totalChildren: slots[index].totalChildren,
             existChildren: slots[index].existChildren,
@@ -220,7 +220,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
         return index > 0 ? getAllocated(index, duration) : 0;
     }
 
-    function getIsNoPlugins(bytes32) public pure returns (bool) {
+    function getIsNoAdapters(bytes32) public pure returns (bool) {
         return true;
     }
 
@@ -309,12 +309,12 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
 
     /* PUBLIC FUNCTIONS */
 
-    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
         returns (uint96 index)
     {
-        return _createSlot(subnetworkOrOperator, parentIndex, isShared, noPlugins, size);
+        return _createSlot(subnetworkOrOperator, parentIndex, isShared, noAdapters, size);
     }
 
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data)
@@ -378,7 +378,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
     }
 
     /// @dev Create a new slot.
-    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
+    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
         internal
         slotExists(parentIndex)
         returns (uint96 index)
@@ -391,7 +391,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
             if (parentIndex.getDepth() > 2) {
                 revert WrongDepth();
             }
-            if (parentIndex.getDepth() > 0 && (isShared || noPlugins)) {
+            if (parentIndex.getDepth() > 0 && (isShared || noAdapters)) {
                 revert WrongDepth();
             }
 
@@ -406,7 +406,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
             SlotStorage storage slot = slots[index];
             slot.exists = true;
             slot.isShared = isShared;
-            slot.noPlugins = noPlugins;
+            slot.noAdapters = noAdapters;
 
             if (parentIndex.getDepth() == 1) {
                 if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
@@ -434,7 +434,7 @@ contract UniversalDelegatorCompactNew is Entity, AccessControlUpgradeable {
                 slot.size.push(uint48(block.timestamp), size);
             }
 
-            emit CreateSlot(index, isShared, noPlugins, size);
+            emit CreateSlot(index, isShared, noAdapters, size);
         }
     }
 

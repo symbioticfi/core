@@ -120,7 +120,7 @@ contract UniversalDelegatorCompact is Entity, AccessControlUpgradeable {
     /* EVENTS */
 
     event Initialize(InitParams params);
-    event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
+    event CreateSlot(uint96 indexed index, bool isShared, bool noAdapters, uint128 size);
     event SetSize(uint96 indexed index, uint128 size);
     event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
 
@@ -180,7 +180,7 @@ contract UniversalDelegatorCompact is Entity, AccessControlUpgradeable {
         return index > 0 ? getAllocated(index, duration) : 0;
     }
 
-    function getIsNoPlugins(bytes32) public pure returns (bool) {
+    function getIsNoAdapters(bytes32) public pure returns (bool) {
         return true;
     }
 
@@ -297,12 +297,12 @@ contract UniversalDelegatorCompact is Entity, AccessControlUpgradeable {
 
     /* PUBLIC FUNCTIONS */
 
-    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
         returns (uint96 index)
     {
-        return _createSlot(subnetworkOrOperator, parentIndex, isShared, noPlugins, size);
+        return _createSlot(subnetworkOrOperator, parentIndex, isShared, noAdapters, size);
     }
 
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data) public {
@@ -346,7 +346,7 @@ contract UniversalDelegatorCompact is Entity, AccessControlUpgradeable {
     }
 
     /// @dev Create a new slot.
-    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
+    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
         internal
         slotExists(parentIndex)
         syncPrevSums(parentIndex)
@@ -392,7 +392,7 @@ contract UniversalDelegatorCompact is Entity, AccessControlUpgradeable {
                 slot.size.push(uint48(block.timestamp), size);
             }
 
-            emit CreateSlot(index, isShared, noPlugins, size);
+            emit CreateSlot(index, isShared, noAdapters, size);
         }
     }
 

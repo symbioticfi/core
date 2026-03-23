@@ -70,9 +70,9 @@ interface IUniversalDelegator {
     error NotEnoughBalance();
 
     /**
-     * @notice Raised when requested no-plugins capacity exceeds available amount.
+     * @notice Raised when requested no-adapters capacity exceeds available amount.
      */
-    error NotEnoughNoPlugins();
+    error NotEnoughNoAdapters();
 
     /**
      * @notice Raised when migration functions are called outside migration mode.
@@ -156,7 +156,7 @@ interface IUniversalDelegator {
      * @param firstChild First child index.
      * @param lastChild Last child index.
      * @param isShared Whether slot allocation is shared among children.
-     * @param noPlugins Whether slot stake must stay outside plugins.
+     * @param noAdapters Whether slot stake must stay outside adapters.
      * @param size Slot size value.
      * @param prevSizeSum Prefix sum of previous sibling sizes.
      * @param subnetworkOrOperator Subnetwork or operator identifier or zero if not assigned.
@@ -170,7 +170,7 @@ interface IUniversalDelegator {
         uint32 firstChild;
         uint32 lastChild;
         bool isShared;
-        bool noPlugins;
+        bool noAdapters;
         uint128 size;
         uint208 prevSizeSum;
         bytes32 subnetworkOrOperator;
@@ -214,10 +214,10 @@ interface IUniversalDelegator {
      * @notice Emitted when a slot is created.
      * @param index Index of the created slot.
      * @param isShared Whether the slot is shared.
-     * @param noPlugins Whether the slot is marked as no-plugins.
+     * @param noAdapters Whether the slot is marked as no-adapters.
      * @param size Initial slot size.
      */
-    event CreateSlot(uint96 indexed index, bool isShared, bool noPlugins, uint128 size);
+    event CreateSlot(uint96 indexed index, bool isShared, bool noAdapters, uint128 size);
 
     /**
      * @notice Emitted when a slot size is updated.
@@ -517,17 +517,17 @@ interface IUniversalDelegator {
     function getIsShared(bytes32 subnetwork) external view returns (bool isShared);
 
     /**
-     * @notice Check whether a subnetwork is assigned to a no-plugins slot.
+     * @notice Check whether a subnetwork is assigned to a no-adapters slot.
      * @param subnetwork Full identifier of the subnetwork.
-     * @return isNoPlugins Whether the slot is marked as no-plugins.
+     * @return isNoAdapters Whether the slot is marked as no-adapters.
      */
-    function getIsNoPlugins(bytes32 subnetwork) external view returns (bool isNoPlugins);
+    function getIsNoAdapters(bytes32 subnetwork) external view returns (bool isNoAdapters);
 
     /**
-     * @notice Get total no-plugins size across root slots.
-     * @return noPluginsSize Total no-plugins size.
+     * @notice Get total no-adapters size across root slots.
+     * @return noAdaptersSize Total no-adapters size.
      */
-    function getNoPluginsSize() external view returns (uint256 noPluginsSize);
+    function getNoAdaptersSize() external view returns (uint256 noAdaptersSize);
 
     /**
      * @notice Get configured withdrawal buffer size.
@@ -552,12 +552,12 @@ interface IUniversalDelegator {
      * @param subnetworkOrOperator Encoded subnetwork or operator identifier.
      * @param parentIndex Parent slot index.
      * @param isShared Whether the new slot is shared.
-     * @param noPlugins Whether the new slot is no-plugins.
+     * @param noAdapters Whether the new slot is no-adapters.
      * @param size Initial slot size.
      * @return index Created slot index.
      * @dev Only a CREATE_SLOT_ROLE holder can call this function.
      */
-    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noPlugins, uint128 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
         external
         returns (uint96 index);
 

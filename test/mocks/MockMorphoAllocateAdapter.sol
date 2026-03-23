@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {IPluginBase} from "../../src/interfaces/vault/IPluginBase.sol";
+import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
 
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
@@ -130,7 +130,7 @@ interface ICuratorRegistry {
     function getCurator(address vault) external view returns (address);
 }
 
-contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
+contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
     using SafeERC20 for address;
     using Math for uint256;
 
@@ -186,7 +186,7 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
         address morphoVault = morphoVaults[vault];
         return Math.min(
             Math.min(_getVaultAssets(vault), IMorphoVault(morphoVault).asset().balanceOf(morphoVault)),
-            IVaultV2(vault).pluginAllocated(address(this))
+            IVaultV2(vault).adapterAllocated(address(this))
         );
     }
 
@@ -204,7 +204,7 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
             }
 
             uint256 newShares =
-                ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getPluginAssets(morphoVault));
+                ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
 
             IMorphoVault(morphoVault).asset().safeApprove(address(morphoVault), amount);
             IMorphoVault(morphoVault).deposit(amount, address(this));
@@ -249,14 +249,14 @@ contract MockMorphoAllocatePlugin is Ownable, IPluginBase {
 
     /* INTERNAL FUNCTIONS */
 
-    function _getPluginAssets(address morphoVault) internal view returns (uint256) {
+    function _getAdapterAssets(address morphoVault) internal view returns (uint256) {
         return IMorphoVault(morphoVault).previewRedeem(morphoVault.balanceOf(address(this)));
     }
 
     function _getVaultAssets(address vault) internal view returns (uint256) {
         address morphoVault = morphoVaults[vault];
         return ERC4626Math.previewRedeem(
-            vaultShares[morphoVault][vault], _getPluginAssets(morphoVault), totalVaultShares[morphoVault]
+            vaultShares[morphoVault][vault], _getAdapterAssets(morphoVault), totalVaultShares[morphoVault]
         );
     }
 

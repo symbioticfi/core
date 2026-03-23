@@ -252,7 +252,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
                 .onSlash(
                     slashedAmount,
                     request.createdAt >= migrateTimestamp
-                        ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoPlugins(request.subnetwork)
+                        ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoAdapters(request.subnetwork)
                         : false
                 );
             if (owedAmount > 0) {

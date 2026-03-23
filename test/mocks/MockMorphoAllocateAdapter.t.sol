@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {Token} from "./Token.sol";
 import {MockMorphoVault} from "./MockMorphoVault.sol";
-import {MockMorphoAllocatePlugin} from "./MockMorphoAllocatePlugin.sol";
+import {MockMorphoAllocateAdapter} from "./MockMorphoAllocateAdapter.sol";
 
 contract MockCuratorRegistryHarness {
     mapping(address vault => address curator) public curators;
@@ -23,15 +23,15 @@ contract MockCuratorRegistryHarness {
 
 contract MockVaultHarness {
     address public immutable collateral;
-    mapping(address plugin => uint256 allocated) public pluginAllocated;
+    mapping(address adapter => uint256 allocated) public adapterAllocated;
     uint256 public donated;
 
     constructor(address collateral_) {
         collateral = collateral_;
     }
 
-    function setPluginAllocated(address plugin, uint256 amount) external {
-        pluginAllocated[plugin] = amount;
+    function setAdapterAllocated(address adapter, uint256 amount) external {
+        adapterAllocated[adapter] = amount;
     }
 
     function donate(uint256 amount) external {
@@ -70,13 +70,13 @@ contract MockMorphoVaultWithPreview is MockMorphoVault {
     }
 }
 
-contract MockMorphoAllocatePluginTest is Test {
+contract MockMorphoAllocateAdapterTest is Test {
     Token internal collateral;
     MockMorphoVaultWithPreview internal morphoVault;
     MockRewardsPull internal rewards;
     MockCuratorRegistryHarness internal curatorRegistry;
     MockVaultHarness internal vault;
-    MockMorphoAllocatePlugin internal plugin;
+    MockMorphoAllocateAdapter internal adapter;
 
     address internal curator = makeAddr("curator");
     address internal attacker = makeAddr("attacker");
@@ -87,18 +87,18 @@ contract MockMorphoAllocatePluginTest is Test {
         rewards = new MockRewardsPull();
         curatorRegistry = new MockCuratorRegistryHarness();
         vault = new MockVaultHarness(address(collateral));
-        plugin = new MockMorphoAllocatePlugin(address(rewards), address(curatorRegistry));
+        adapter = new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
 
         curatorRegistry.setCurator(address(vault), curator);
         vm.prank(curator);
-        plugin.setMorhpoVault(address(vault), address(morphoVault));
-        plugin.setGlobalLimit(address(collateral), type(uint256).max);
+        adapter.setMorhpoVault(address(vault), address(morphoVault));
+        adapter.setGlobalLimit(address(collateral), type(uint256).max);
     }
 
     function test_SetMorphoVault_RevertWhenNotCurator() public {
         vm.prank(attacker);
-        vm.expectRevert(MockMorphoAllocatePlugin.NotCurator.selector);
-        plugin.setMorhpoVault(address(vault), address(morphoVault));
+        vm.expectRevert(MockMorphoAllocateAdapter.NotCurator.selector);
+        adapter.setMorhpoVault(address(vault), address(morphoVault));
     }
 
     function test_SetMorphoVault_RevertWhenAssetMismatch() public {
@@ -106,24 +106,24 @@ contract MockMorphoAllocatePluginTest is Test {
         MockMorphoVaultWithPreview otherMorphoVault = new MockMorphoVaultWithPreview(address(otherCollateral));
 
         vm.prank(curator);
-        vm.expectRevert(MockMorphoAllocatePlugin.InvalidMorphoVault.selector);
-        plugin.setMorhpoVault(address(vault), address(otherMorphoVault));
+        vm.expectRevert(MockMorphoAllocateAdapter.InvalidMorphoVault.selector);
+        adapter.setMorhpoVault(address(vault), address(otherMorphoVault));
     }
 
-    function test_Allocatable_UsesGlobalLimitAndPluginBalance() public {
-        plugin.setGlobalLimit(address(collateral), 100);
-        collateral.transfer(address(plugin), 30);
+    function test_Allocatable_UsesGlobalLimitAndAdapterBalance() public {
+        adapter.setGlobalLimit(address(collateral), 100);
+        collateral.transfer(address(adapter), 30);
 
-        assertEq(plugin.allocatable(address(vault)), 70);
+        assertEq(adapter.allocatable(address(vault)), 70);
     }
 
     function test_Allocate_DepositsIntoMorphoAndDoesNotCreateSkimmableWithoutYield() public {
         _allocateFromVault(80, 80);
 
-        assertEq(collateral.balanceOf(address(plugin)), 0);
+        assertEq(collateral.balanceOf(address(adapter)), 0);
         assertEq(collateral.balanceOf(address(morphoVault)), 80);
-        assertEq(plugin.skimmable(address(vault)), 0);
-        assertEq(plugin.deallocatable(address(vault)), 80);
+        assertEq(adapter.skimmable(address(vault)), 0);
+        assertEq(adapter.deallocatable(address(vault)), 80);
     }
 
     function test_Skim_DonatesAccruedYieldToVault() public {
@@ -132,26 +132,26 @@ contract MockMorphoAllocatePluginTest is Test {
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
 
-        uint256 expectedSkimmable = plugin.skimmable(address(vault));
+        uint256 expectedSkimmable = adapter.skimmable(address(vault));
         assertGt(expectedSkimmable, 0);
 
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 skimmed = plugin.skim(address(vault));
+        uint256 skimmed = adapter.skim(address(vault));
 
         assertEq(skimmed, expectedSkimmable);
         assertEq(collateral.balanceOf(address(vault)) - vaultBalanceBefore, skimmed);
         assertEq(vault.donated(), skimmed);
-        assertEq(plugin.skimmable(address(vault)), 0);
+        assertEq(adapter.skimmable(address(vault)), 0);
     }
 
-    function test_Deallocate_CapsToVaultReportedPluginAllocation() public {
+    function test_Deallocate_CapsToVaultReportedAdapterAllocation() public {
         _allocateFromVault(80, 50);
 
         vm.prank(address(vault));
-        uint256 deallocated = plugin.deallocate(70);
+        uint256 deallocated = adapter.deallocate(70);
 
         assertEq(deallocated, 50);
-        assertEq(collateral.balanceOf(address(plugin)), 50);
+        assertEq(collateral.balanceOf(address(adapter)), 50);
         assertEq(collateral.balanceOf(address(morphoVault)), 30);
     }
 
@@ -161,24 +161,24 @@ contract MockMorphoAllocatePluginTest is Test {
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
 
-        collateral.transfer(address(plugin), 10);
-        vault.setPluginAllocated(address(plugin), 90);
+        collateral.transfer(address(adapter), 10);
+        vault.setAdapterAllocated(address(adapter), 90);
 
         vm.prank(address(vault));
-        plugin.allocate(10);
+        adapter.allocate(10);
 
         assertGt(vault.donated(), 0);
         assertEq(collateral.balanceOf(address(vault)), vault.donated());
-        assertEq(collateral.balanceOf(address(plugin)), 0);
+        assertEq(collateral.balanceOf(address(adapter)), 0);
         assertGt(collateral.balanceOf(address(morphoVault)), 80);
-        assertEq(plugin.skimmable(address(vault)), 0);
+        assertEq(adapter.skimmable(address(vault)), 0);
     }
 
-    function _allocateFromVault(uint256 amount, uint256 allocatedToPlugin) internal {
-        collateral.transfer(address(plugin), amount);
-        vault.setPluginAllocated(address(plugin), allocatedToPlugin);
+    function _allocateFromVault(uint256 amount, uint256 allocatedToAdapter) internal {
+        collateral.transfer(address(adapter), amount);
+        vault.setAdapterAllocated(address(adapter), allocatedToAdapter);
 
         vm.prank(address(vault));
-        plugin.allocate(amount);
+        adapter.allocate(amount);
     }
 }

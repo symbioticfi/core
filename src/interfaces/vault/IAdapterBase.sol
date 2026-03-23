@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title IPluginBase
- * @notice Interface for the PluginBase contract.
+ * @title IAdapterBase
+ * @notice Interface for the AdapterBase contract.
  */
-interface IPluginBase {
+interface IAdapterBase {
     /**
      * @notice Get the current skimmable balance of the vault.
      * @param vault Address of the vault.
@@ -13,27 +13,27 @@ interface IPluginBase {
     function skimmable(address vault) external view returns (uint256);
 
     /**
-     * @notice Get the amount of collateral that can be allocated to the plugin.
+     * @notice Get the amount of collateral that can be allocated to the adapter.
      * @param vault Address of the vault.
-     * @return Amount Of collateral that can be allocated to the plugin.
+     * @return Amount Of collateral that can be allocated to the adapter.
      */
     function allocatable(address vault) external view returns (uint256);
 
     /**
-     * @notice Get the amount of collateral that can be deallocated from the plugin instantly.
-     * @return Amount Of collateral that can be deallocated from the plugin.
+     * @notice Get the amount of collateral that can be deallocated from the adapter instantly.
+     * @return Amount Of collateral that can be deallocated from the adapter.
      */
     function deallocatable(address vault) external view returns (uint256);
 
     /**
-     * @notice Allocate collateral to the plugin.
+     * @notice Allocate collateral to the adapter.
      * @param amount Amount of the collateral to allocate.
      * @dev Must not revert.
      */
     function allocate(uint256 amount) external;
 
     /**
-     * @notice Deallocate collateral from the plugin instantly.
+     * @notice Deallocate collateral from the adapter instantly.
      * @param amount Amount of the collateral to deallocate.
      * @return Amount Of the collateral deallocated.
      * @dev Must not revert.
@@ -41,7 +41,7 @@ interface IPluginBase {
     function deallocate(uint256 amount) external returns (uint256);
 
     /**
-     * @notice Skim the collateral from the plugin.
+     * @notice Skim the collateral from the adapter.
      * @param vault Address of the vault.
      * @return Amount Of the collateral skimmed.
      * @dev Must not revert.

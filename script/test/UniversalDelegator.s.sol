@@ -41,7 +41,7 @@ contract UniversalDelegatorUiSetup is Script {
             vaultFactory: address(registry),
             feeRegistry: address(0),
             rewards: address(0),
-            pluginRegistry: address(registry)
+            adapterRegistry: address(registry)
         });
 
         IVaultV2.InitParams memory vaultParams = IVaultV2.InitParams({
@@ -59,8 +59,8 @@ contract UniversalDelegatorUiSetup is Script {
             depositorWhitelistRoleHolder: broadcaster,
             isDepositLimitSetRoleHolder: broadcaster,
             depositLimitSetRoleHolder: broadcaster,
-            setPluginLimitRoleHolder: broadcaster,
-            allocatePluginRoleHolder: broadcaster
+            setAdapterLimitRoleHolder: broadcaster,
+            allocateAdapterRoleHolder: broadcaster
         });
 
         bytes memory vaultInitCalldata =

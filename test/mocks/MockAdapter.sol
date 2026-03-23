@@ -3,9 +3,9 @@ pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {IPluginBase} from "../../src/interfaces/vault/IPluginBase.sol";
+import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 
-contract MockPlugin is IPluginBase {
+contract MockAdapter is IAdapterBase {
     IERC20 public immutable collateral;
     address public immutable vault;
     bool public shouldFail;

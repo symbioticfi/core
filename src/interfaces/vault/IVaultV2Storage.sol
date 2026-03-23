@@ -90,31 +90,31 @@ interface IVaultV2Storage {
     function isWithdrawalsClaimed(uint256 index, address account) external view returns (bool);
 
     /**
-     * @notice Get a plugin address by index.
-     * @param index Index of the plugin in the plugins array.
-     * @return Plugin Address at the requested index.
+     * @notice Get a adapter address by index.
+     * @param index Index of the adapter in the adapters array.
+     * @return Adapter Address at the requested index.
      */
-    function plugins(uint256 index) external view returns (address);
+    function adapters(uint256 index) external view returns (address);
 
     /**
-     * @notice Get a plugin allocation limit.
-     * @param plugin Address of the plugin.
-     * @return Limit Maximum collateral amount allocatable to the plugin.
+     * @notice Get a adapter allocation limit.
+     * @param adapter Address of the adapter.
+     * @return Limit Maximum collateral amount allocatable to the adapter.
      */
-    function pluginLimit(address plugin) external view returns (uint208);
+    function adapterLimit(address adapter) external view returns (uint208);
 
     /**
-     * @notice Get the total amount allocated across all plugins.
-     * @return Allocated Total collateral amount allocated to plugins.
+     * @notice Get the total amount allocated across all adapters.
+     * @return Allocated Total collateral amount allocated to adapters.
      */
-    function pluginsAllocated() external view returns (uint256);
+    function adaptersAllocated() external view returns (uint256);
 
     /**
-     * @notice Get the currently allocated amount for a plugin.
-     * @param plugin Address of the plugin.
-     * @return Allocated Collateral amount allocated to the plugin.
+     * @notice Get the currently allocated amount for a adapter.
+     * @param adapter Address of the adapter.
+     * @return Allocated Collateral amount allocated to the adapter.
      */
-    function pluginAllocated(address plugin) external view returns (uint256);
+    function adapterAllocated(address adapter) external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault at a given timestamp using a hint.
@@ -183,8 +183,8 @@ interface IVaultV2Storage {
     function withdrawals(uint256 index) external view returns (uint256);
 
     /**
-     * @notice Get the number of configured plugins.
-     * @return Length Number of plugins.
+     * @notice Get the number of configured adapters.
+     * @return Length Number of adapters.
      */
-    function pluginsLength() external view returns (uint256);
+    function adaptersLength() external view returns (uint256);
 }

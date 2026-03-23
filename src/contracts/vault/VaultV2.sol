@@ -13,23 +13,23 @@ import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
+import {IAdapterBase} from "../../interfaces/vault/IAdapterBase.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IFeeRegistry, MAX_FEE} from "../../interfaces/vault/IFeeRegistry.sol";
-import {IPluginBase} from "../../interfaces/vault/IPluginBase.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IRewards} from "../../interfaces/vault/IRewards.sol";
 import {
     IVaultV2,
     MAX_DURATION,
-    MAX_PLUGINS,
+    MAX_ADAPTERS,
     DEPOSIT_WHITELIST_SET_ROLE,
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    SET_PLUGIN_LIMIT_ROLE,
-    SWAP_PLUGINS_ROLE,
-    ALLOCATE_PLUGIN_ROLE,
-    DEALLOCATE_PLUGIN_ROLE
+    SET_ADAPTER_LIMIT_ROLE,
+    SWAP_ADAPTERS_ROLE,
+    ALLOCATE_ADAPTER_ROLE,
+    DEALLOCATE_ADAPTER_ROLE
 } from "../../interfaces/vault/IVaultV2.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {UNIVERSAL_SLASHER_TYPE} from "../../interfaces/slasher/IUniversalSlasher.sol";
@@ -44,12 +44,12 @@ import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol
 import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 
 /// @title VaultV2
-/// @notice Contract for upgradeable vault collateral, withdrawals, plugins, and migrations.
+/// @notice Contract for upgradeable vault collateral, withdrawals, adapters, and migrations.
 /// @dev Priority over funds utilization:
-///      1. No-plugins subvaults can always slash full amount.
+///      1. No-adapters subvaults can always slash full amount.
 ///      2. Firstly, incoming funds are used for claimable withdrawals.
 ///      3. Secondly, incoming funds are used to sync owed slashes.
-///      4. Remaining funds are used for instant withdrawals and plugins allocation simultaneously.
+///      4. Remaining funds are used for instant withdrawals and adapters allocation simultaneously.
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
     using Math for uint256;
     using SafeERC20 for address;
@@ -80,9 +80,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         address vaultFactory,
         address feeRegistry,
         address rewards,
-        address pluginRegistry
+        address adapterRegistry
     )
-        VaultV2Storage(delegatorFactory, slasherFactory, feeRegistry, rewards, pluginRegistry)
+        VaultV2Storage(delegatorFactory, slasherFactory, feeRegistry, rewards, adapterRegistry)
         MigratableEntity(vaultFactory)
     {}
 
@@ -283,7 +283,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /// @inheritdoc IVaultV2
     function allocatable() public view returns (uint256) {
-        return _maxAllocatable().saturatingSub(pluginsAllocated);
+        return _maxAllocatable().saturatingSub(adaptersAllocated);
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
@@ -295,7 +295,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
         unchecked {
-            skimPlugins();
+            skimAdapters();
 
             _revertIfZero(onBehalfOf);
             if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
@@ -324,8 +324,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             emit Transfer(address(0), onBehalfOf, mintedShares);
 
             // Allocate only non-fee-on-transfer tokens.
-            if (depositedAmount == amount && plugins.length > 0) {
-                _allocatePlugin(plugins[0], depositedAmount);
+            if (depositedAmount == amount && adapters.length > 0) {
+                _allocateAdapter(adapters[0], depositedAmount);
             }
         }
     }
@@ -337,7 +337,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 burnedShares, uint256 mintedShares)
     {
         unchecked {
-            skimPlugins();
+            skimAdapters();
 
             _revertIfZero(claimer);
             _revertIfZero(amount);
@@ -358,7 +358,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 withdrawnAssets, uint256 mintedShares)
     {
         unchecked {
-            skimPlugins();
+            skimAdapters();
 
             _revertIfZero(claimer);
             _revertIfZero(shares);
@@ -396,9 +396,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _activeStake.push(uint48(block.timestamp), curActiveStake - withdrawnAssets);
             _activeShares.push(uint48(block.timestamp), curActiveShares - burnedShares);
 
-            deallocatePlugins();
+            deallocateAdapters();
 
-            if (_maxAllocatable() < pluginsAllocated) {
+            if (_maxAllocatable() < adaptersAllocated) {
                 revert InsufficientAmount();
             }
 
@@ -419,7 +419,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function claim(address recipient, uint256 index) public nonReentrant returns (uint256 amount) {
         unchecked {
-            deallocatePlugins();
+            deallocateAdapters();
 
             _revertIfZero(recipient);
 
@@ -473,7 +473,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount, bool withPlugins)
+    function onSlash(uint256 amount, bool withAdapters)
         public
         nonReentrant
         returns (uint256 slashedAmount, uint256 owedAmount)
@@ -495,9 +495,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     _updateWithdrawalsSharePrice(curActiveWithdrawals - (slashedAmount - activeSlashed));
                 }
 
-                if (withPlugins) {
-                    deallocatePlugins();
-                    owedAmount = Math.min(slashedAmount, _pluginsOwe());
+                if (withAdapters) {
+                    deallocateAdapters();
+                    owedAmount = Math.min(slashedAmount, _adaptersOwe());
                 }
 
                 _safeTransferOut(burner, slashedAmount - owedAmount);
@@ -601,159 +601,159 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @inheritdoc IVaultV2
-    function setPluginLimit(address plugin, uint208 newLimit) public nonReentrant onlyRole(SET_PLUGIN_LIMIT_ROLE) {
+    function setAdapterLimit(address adapter, uint208 newLimit) public nonReentrant onlyRole(SET_ADAPTER_LIMIT_ROLE) {
         unchecked {
-            _revertIfZero(plugin);
+            _revertIfZero(adapter);
 
-            if (pluginAllocated[plugin] > newLimit) {
-                revert PluginAllocated();
+            if (adapterAllocated[adapter] > newLimit) {
+                revert AdapterAllocated();
             }
 
-            uint256 numPlugins = plugins.length;
+            uint256 numAdapters = adapters.length;
             if (newLimit > 0) {
-                if (pluginLimit[plugin] == 0) {
-                    if (numPlugins + 1 > MAX_PLUGINS) {
-                        revert TooManyPlugins();
+                if (adapterLimit[adapter] == 0) {
+                    if (numAdapters + 1 > MAX_ADAPTERS) {
+                        revert TooManyAdapters();
                     }
-                    if (!IRegistry(PLUGIN_REGISTRY).isEntity(plugin)) {
-                        revert NotPlugin();
+                    if (!IRegistry(ADAPTER_REGISTRY).isEntity(adapter)) {
+                        revert NotAdapter();
                     }
-                    plugins.push(plugin);
-                    _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, plugin);
-                    _grantRoleIfNotZero(DEALLOCATE_PLUGIN_ROLE, plugin);
+                    adapters.push(adapter);
+                    _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, adapter);
+                    _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, adapter);
                 }
             } else {
-                for (uint256 i; i < numPlugins; ++i) {
-                    if (plugin == plugins[i]) {
-                        plugins[i] = plugins[numPlugins - 1];
-                        plugins.pop();
-                        super._revokeRole(ALLOCATE_PLUGIN_ROLE, plugin);
-                        super._revokeRole(DEALLOCATE_PLUGIN_ROLE, plugin);
+                for (uint256 i; i < numAdapters; ++i) {
+                    if (adapter == adapters[i]) {
+                        adapters[i] = adapters[numAdapters - 1];
+                        adapters.pop();
+                        super._revokeRole(ALLOCATE_ADAPTER_ROLE, adapter);
+                        super._revokeRole(DEALLOCATE_ADAPTER_ROLE, adapter);
                         break;
                     }
                 }
             }
-            pluginLimit[plugin] = newLimit;
+            adapterLimit[adapter] = newLimit;
 
-            emit SetPluginLimit(plugin, newLimit);
+            emit SetAdapterLimit(adapter, newLimit);
         }
     }
 
     /// @inheritdoc IVaultV2
-    function swapPlugins(address plugin1, address plugin2) public nonReentrant onlyRole(SWAP_PLUGINS_ROLE) {
+    function swapAdapters(address adapter1, address adapter2) public nonReentrant onlyRole(SWAP_ADAPTERS_ROLE) {
         unchecked {
             uint256 index1 = type(uint256).max;
             uint256 index2 = type(uint256).max;
-            uint256 numPlugins = plugins.length;
-            for (uint256 i; i < numPlugins; ++i) {
-                if (plugin1 == plugins[i]) {
+            uint256 numAdapters = adapters.length;
+            for (uint256 i; i < numAdapters; ++i) {
+                if (adapter1 == adapters[i]) {
                     index1 = i;
-                } else if (plugin2 == plugins[i]) {
+                } else if (adapter2 == adapters[i]) {
                     index2 = i;
                 }
             }
-            (plugins[index1], plugins[index2]) = (plugins[index2], plugins[index1]);
+            (adapters[index1], adapters[index2]) = (adapters[index2], adapters[index1]);
 
-            emit SwapPlugins(plugin1, plugin2);
+            emit SwapAdapters(adapter1, adapter2);
         }
     }
 
     /// @inheritdoc IVaultV2
-    function allocatePlugin(address plugin, uint256 amount)
+    function allocateAdapter(address adapter, uint256 amount)
         public
-        onlyRole(ALLOCATE_PLUGIN_ROLE)
+        onlyRole(ALLOCATE_ADAPTER_ROLE)
         returns (uint256 allocated)
     {
-        return _allocatePlugin(plugin, amount);
+        return _allocateAdapter(adapter, amount);
     }
 
-    /// @dev Allocate collateral to a plugin within configured limits.
-    function _allocatePlugin(address plugin, uint256 amount) internal returns (uint256 allocated) {
+    /// @dev Allocate collateral to a adapter within configured limits.
+    function _allocateAdapter(address adapter, uint256 amount) internal returns (uint256 allocated) {
         unchecked {
             allocated = Math.min(
-                Math.min(Math.min(amount, pluginLimit[plugin] - pluginAllocated[plugin]), allocatable()),
-                IPluginBase(plugin).allocatable(address(this))
+                Math.min(Math.min(amount, adapterLimit[adapter] - adapterAllocated[adapter]), allocatable()),
+                IAdapterBase(adapter).allocatable(address(this))
             );
 
             if (allocated > 0) {
-                pluginsAllocated += allocated;
-                pluginAllocated[plugin] += allocated;
+                adaptersAllocated += allocated;
+                adapterAllocated[adapter] += allocated;
 
-                uint256 balanceBefore = collateral.balanceOf(plugin);
-                _safeTransferOut(plugin, allocated);
-                if (collateral.balanceOf(plugin) - balanceBefore < allocated) {
+                uint256 balanceBefore = collateral.balanceOf(adapter);
+                _safeTransferOut(adapter, allocated);
+                if (collateral.balanceOf(adapter) - balanceBefore < allocated) {
                     revert FeeOnTransferNotSupported();
                 }
-                IPluginBase(plugin).allocate(allocated);
+                IAdapterBase(adapter).allocate(allocated);
             }
 
-            emit Allocate(plugin, allocated);
+            emit Allocate(adapter, allocated);
         }
     }
 
     /// @inheritdoc IVaultV2
-    function deallocatePlugin(address plugin, uint256 amount)
+    function deallocateAdapter(address adapter, uint256 amount)
         public
-        onlyRole(DEALLOCATE_PLUGIN_ROLE)
+        onlyRole(DEALLOCATE_ADAPTER_ROLE)
         returns (uint256)
     {
-        return _deallocatePlugin(plugin, amount);
+        return _deallocateAdapter(adapter, amount);
     }
 
-    /// @dev Deallocate collateral from a plugin and update accounting.
-    function _deallocatePlugin(address plugin, uint256 amount) internal returns (uint256 deallocated) {
-        deallocated = IPluginBase(plugin).deallocate(amount);
+    /// @dev Deallocate collateral from a adapter and update accounting.
+    function _deallocateAdapter(address adapter, uint256 amount) internal returns (uint256 deallocated) {
+        deallocated = IAdapterBase(adapter).deallocate(amount);
         if (deallocated > 0) {
-            _safeTransferIn(plugin, deallocated);
+            _safeTransferIn(adapter, deallocated);
 
-            pluginAllocated[plugin] -= deallocated;
+            adapterAllocated[adapter] -= deallocated;
             unchecked {
-                pluginsAllocated -= deallocated;
+                adaptersAllocated -= deallocated;
             }
         }
 
-        emit Deallocate(plugin, deallocated);
+        emit Deallocate(adapter, deallocated);
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IVaultV2
-    function skimPlugins() public {
-        for (uint256 i; i < plugins.length; ++i) {
-            IPluginBase(plugins[i]).skim(address(this));
+    function skimAdapters() public {
+        for (uint256 i; i < adapters.length; ++i) {
+            IAdapterBase(adapters[i]).skim(address(this));
         }
     }
 
     /// @inheritdoc IVaultV2
-    function deallocatePlugins() public {
-        for (uint256 i; i < plugins.length; ++i) {
-            uint256 toDeallocate = _pluginsOwe();
+    function deallocateAdapters() public {
+        for (uint256 i; i < adapters.length; ++i) {
+            uint256 toDeallocate = _adaptersOwe();
             if (toDeallocate == uint256(0)) {
                 break;
             }
-            address plugin = plugins[i];
-            uint256 curPluginAllocated = pluginAllocated[plugin];
-            if (curPluginAllocated > 0) {
-                _deallocatePlugin(plugin, Math.min(curPluginAllocated, toDeallocate));
+            address adapter = adapters[i];
+            uint256 curAdapterAllocated = adapterAllocated[adapter];
+            if (curAdapterAllocated > 0) {
+                _deallocateAdapter(adapter, Math.min(curAdapterAllocated, toDeallocate));
             }
         }
     }
 
-    /* INTERNAL FUNCTIONS (PLUGINS) */
+    /* INTERNAL FUNCTIONS (ADAPTERS) */
 
-    /// @dev Return the vault stake that may still be allocated after reserving no-plugins capacity.
+    /// @dev Return the vault stake that may still be allocated after reserving no-adapters capacity.
     function _maxAllocatable() internal view returns (uint256) {
-        return totalStake().saturatingSub(UniversalDelegator(delegator).getNoPluginsSize());
+        return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
     }
 
-    /// @dev Return how much plugin allocation currently exceeds the vault allocatable amount.
-    function _pluginsOwe() internal view returns (uint256) {
-        return pluginsAllocated.saturatingSub(_maxAllocatable());
+    /// @dev Return how much adapter allocation currently exceeds the vault allocatable amount.
+    function _adaptersOwe() internal view returns (uint256) {
+        return adaptersAllocated.saturatingSub(_maxAllocatable());
     }
 
     /// @inheritdoc AccessControlUpgradeable
     function _revokeRole(bytes32 role, address account) internal override returns (bool) {
-        if (pluginLimit[account] > 0 && (role == ALLOCATE_PLUGIN_ROLE || role == DEALLOCATE_PLUGIN_ROLE)) {
+        if (adapterLimit[account] > 0 && (role == ALLOCATE_ADAPTER_ROLE || role == DEALLOCATE_ADAPTER_ROLE)) {
             return false;
         }
         return super._revokeRole(role, account);
@@ -767,7 +767,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert NotSlasher();
         }
 
-        slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(_pluginsOwe()));
+        slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(_adaptersOwe()));
         _safeTransferOut(burner, slashedAmount);
 
         emit SyncOwedSlash(slashedAmount);
@@ -857,8 +857,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
             _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
             _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-            _grantRoleIfNotZero(SET_PLUGIN_LIMIT_ROLE, params.setPluginLimitRoleHolder);
-            _grantRoleIfNotZero(ALLOCATE_PLUGIN_ROLE, params.allocatePluginRoleHolder);
+            _grantRoleIfNotZero(SET_ADAPTER_LIMIT_ROLE, params.setAdapterLimitRoleHolder);
+            _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, params.allocateAdapterRoleHolder);
 
             emit Initialize(params);
         }

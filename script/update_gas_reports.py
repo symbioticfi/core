@@ -317,27 +317,27 @@ def map_execute(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
     if not fallbacks_before_burner:
         raise ValueError(f"Unexpected {context} trace shape.")
     vault_on_slash_fallback_idx = fallbacks_before_burner[-1]
-    delegator_for_plugins_idx = fallbacks_before_burner[-2] if len(fallbacks_before_burner) > 1 else None
+    delegator_for_adapters_idx = fallbacks_before_burner[-2] if len(fallbacks_before_burner) > 1 else None
 
-    if delegator_for_plugins_idx is None:
-        mapped.append(("VaultV2::delegator (via proxy, for getIsNoPlugins)", 0))
+    if delegator_for_adapters_idx is None:
+        mapped.append(("VaultV2::delegator (via proxy, for getIsNoAdapters)", 0))
     else:
         mapped.append(
             (
-                "VaultV2::delegator (via proxy, for getIsNoPlugins)",
-                children[delegator_for_plugins_idx][1],
+                "VaultV2::delegator (via proxy, for getIsNoAdapters)",
+                children[delegator_for_adapters_idx][1],
             )
         )
 
-    get_is_no_plugins_idx = _find_next_index(
+    get_is_no_adapters_idx = _find_next_index(
         children,
         idx,
-        ("getIsNoPlugins", "UniversalDelegator::getIsNoPlugins"),
+        ("getIsNoAdapters", "UniversalDelegator::getIsNoAdapters"),
     )
-    if get_is_no_plugins_idx is None or get_is_no_plugins_idx >= burner_idx:
-        mapped.append(("UniversalDelegator::getIsNoPlugins", 0))
+    if get_is_no_adapters_idx is None or get_is_no_adapters_idx >= burner_idx:
+        mapped.append(("UniversalDelegator::getIsNoAdapters", 0))
     else:
-        mapped.append(("UniversalDelegator::getIsNoPlugins", children[get_is_no_plugins_idx][1]))
+        mapped.append(("UniversalDelegator::getIsNoAdapters", children[get_is_no_adapters_idx][1]))
 
     mapped.append(("VaultV2::onSlash (via proxy)", children[vault_on_slash_fallback_idx][1]))
     mapped.append(("UniversalSlasher::_burnerOnSlash", children[burner_idx][1]))
@@ -384,7 +384,7 @@ def map_vault(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
     withdrawals_storage = _gas_by_occurrence("VaultV2Storage::withdrawals", required=False)
 
     return [
-        ("VaultV2::deallocatePlugins", _gas_by_occurrence("VaultV2::deallocatePlugins", required=False)),
+        ("VaultV2::deallocateAdapters", _gas_by_occurrence("VaultV2::deallocateAdapters", required=False)),
         ("ReentrancyGuard::_nonReentrantBefore", _gas_by_occurrence("ReentrancyGuard::_nonReentrantBefore", required=False)),
         ("VaultV2Storage::activeStake", _gas_by_occurrence("VaultV2Storage::activeStake", required=False)),
         ("VaultV2Storage::withdrawalBucket", _gas_by_occurrence("VaultV2Storage::withdrawalBucket", required=False)),
@@ -424,7 +424,13 @@ def component_gas(components: list[tuple[str, int]], label: str, context: str) -
 
 def _norm_label(value: str) -> str:
     normalized = value.replace("`", "").strip()
-    return normalized.replace("ReentrancyGuardUpgradeable", "ReentrancyGuard")
+    normalized = normalized.replace("ReentrancyGuardUpgradeable", "ReentrancyGuard")
+    normalized = normalized.replace("Plugins", "Adapters")
+    normalized = normalized.replace("Plugin", "Adapter")
+    normalized = normalized.replace("plugins", "adapters")
+    normalized = normalized.replace("plugin", "adapter")
+    normalized = normalized.replace("getIsNoPlugins", "getIsNoAdapters")
+    return normalized.replace("plugin mode check", "adapter mode check")
 
 
 def update_table(

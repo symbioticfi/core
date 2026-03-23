@@ -310,8 +310,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
                         depositorWhitelistRoleHolder: address(0),
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
-                        setPluginLimitRoleHolder: address(0),
-                        allocatePluginRoleHolder: address(0)
+                        setAdapterLimitRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),
@@ -629,34 +629,34 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getPending(operatorSlot, 0), 30);
     }
 
-    function test_noPluginsPendingWindow_afterSlash_keepsRecentPendingWhenOldPendingExpires() public {
-        bytes32 subnetwork = makeAddr("issue5-no-plugins-network").subnetwork(0);
+    function test_noAdaptersPendingWindow_afterSlash_keepsRecentPendingWhenOldPendingExpires() public {
+        bytes32 subnetwork = makeAddr("issue5-no-adapters-network").subnetwork(0);
 
         _deposit(alice, 200);
 
-        uint96 noPluginsSubvault = delegator.createSlot(bytes32(0), 0, false, true, 100);
-        uint96 networkSlot = delegator.createSlot(subnetwork, noPluginsSubvault, false, false, 100);
+        uint96 noAdaptersSubvault = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, noAdaptersSubvault, false, false, 100);
         delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 100);
 
         vm.warp(1);
-        delegator.setSize(noPluginsSubvault, 0);
+        delegator.setSize(noAdaptersSubvault, 0);
         vm.warp(2);
-        delegator.setSize(noPluginsSubvault, 100);
+        delegator.setSize(noAdaptersSubvault, 100);
         vm.warp(3);
-        delegator.setSize(noPluginsSubvault, 70);
+        delegator.setSize(noAdaptersSubvault, 70);
 
-        assertEq(delegator.getPending(noPluginsSubvault, 0), 130);
-        assertEq(delegator.getNoPluginsSize(), 200);
+        assertEq(delegator.getPending(noAdaptersSubvault, 0), 130);
+        assertEq(delegator.getNoAdaptersSize(), 200);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 100, bytes(""));
 
-        assertEq(delegator.getPending(noPluginsSubvault, 0), 30);
-        assertEq(delegator.getNoPluginsSize(), 100);
+        assertEq(delegator.getPending(noAdaptersSubvault, 0), 30);
+        assertEq(delegator.getNoAdaptersSize(), 100);
 
         vm.warp(4);
-        assertEq(delegator.getPending(noPluginsSubvault, 0), 30);
-        assertEq(delegator.getNoPluginsSize(), 100);
+        assertEq(delegator.getPending(noAdaptersSubvault, 0), 30);
+        assertEq(delegator.getNoAdaptersSize(), 100);
     }
 
     function test_sharedSubvault_allowsNetworkRestaking_betweenDepth2Siblings() public {
@@ -2918,32 +2918,32 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.getIsShared(subnetwork);
 
         vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
-        delegator.getIsNoPlugins(subnetwork);
+        delegator.getIsNoAdapters(subnetwork);
     }
 
-    function test_createSlot_noPluginsAndSetSizeNoPlugins() public {
-        vm.expectRevert(IUniversalDelegator.NotEnoughNoPlugins.selector);
+    function test_createSlot_noAdaptersAndSetSizeNoAdapters() public {
+        vm.expectRevert(IUniversalDelegator.NotEnoughNoAdapters.selector);
         delegator.createSlot(bytes32(0), 0, false, true, 1);
 
         _deposit(alice, 100);
 
         uint96 subvault = delegator.createSlot(bytes32(0), 0, false, true, 40);
-        bytes32 subnetwork = makeAddr("no-plugins-network").subnetwork(0);
+        bytes32 subnetwork = makeAddr("no-adapters-network").subnetwork(0);
         delegator.createSlot(subnetwork, subvault, false, false, 40);
 
-        assertTrue(delegator.getIsNoPlugins(subnetwork));
-        assertEq(delegator.getNoPluginsSize(), 40);
+        assertTrue(delegator.getIsNoAdapters(subnetwork));
+        assertEq(delegator.getNoAdaptersSize(), 40);
 
-        vm.expectRevert(IUniversalDelegator.NotEnoughNoPlugins.selector);
+        vm.expectRevert(IUniversalDelegator.NotEnoughNoAdapters.selector);
         delegator.setSize(subvault, 200);
 
         vm.warp(1);
         delegator.setSize(subvault, 10);
         assertEq(delegator.getPending(subvault, 0), 30);
-        assertEq(delegator.getNoPluginsSize(), 40);
+        assertEq(delegator.getNoAdaptersSize(), 40);
 
         vm.warp(EPOCH_DURATION + 1);
-        assertEq(delegator.getNoPluginsSize(), 10);
+        assertEq(delegator.getNoAdaptersSize(), 10);
     }
 
     function test_createSlot_revertsTooManySubvaults() public {
@@ -3052,57 +3052,57 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getSlotOfOperator(networkSlot1, alice), 0);
     }
 
-    function test_removeSlot_noPluginsSubvault_decrementsNoPluginsSize() public {
+    function test_removeSlot_noAdaptersSubvault_decrementsNoAdaptersSize() public {
         delegator.grantRole(REMOVE_SLOT_ROLE, owner);
 
         _deposit(alice, 100);
-        uint96 noPluginsSubvault = delegator.createSlot(bytes32(0), 0, false, true, 100);
-        assertEq(delegator.getNoPluginsSize(), 100);
-        assertEq(delegator.getAllocated(noPluginsSubvault, 0), 100);
+        uint96 noAdaptersSubvault = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        assertEq(delegator.getNoAdaptersSize(), 100);
+        assertEq(delegator.getAllocated(noAdaptersSubvault, 0), 100);
 
         _withdraw(alice, 100);
         vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        assertEq(delegator.getAllocated(noPluginsSubvault, 0), 0);
+        assertEq(delegator.getAllocated(noAdaptersSubvault, 0), 0);
 
-        delegator.removeSlot(noPluginsSubvault);
-        assertFalse(delegator.getSlot(noPluginsSubvault).exists);
-        assertEq(delegator.getNoPluginsSize(), 0);
+        delegator.removeSlot(noAdaptersSubvault);
+        assertFalse(delegator.getSlot(noAdaptersSubvault).exists);
+        assertEq(delegator.getNoAdaptersSize(), 0);
     }
 
-    function test_removeSlot_clearsOnlyRemovedNoPluginsPending() public {
+    function test_removeSlot_clearsOnlyRemovedNoAdaptersPending() public {
         delegator.grantRole(REMOVE_SLOT_ROLE, owner);
 
         _deposit(alice, 200);
-        uint96 noPluginsSubvault1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
-        uint96 noPluginsSubvault2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 noAdaptersSubvault1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 noAdaptersSubvault2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
 
         vm.warp(1);
         _withdraw(alice, 200);
 
         vm.warp(2);
-        delegator.setSize(noPluginsSubvault1, 50);
+        delegator.setSize(noAdaptersSubvault1, 50);
         vm.warp(3);
-        delegator.setSize(noPluginsSubvault2, 60);
+        delegator.setSize(noAdaptersSubvault2, 60);
 
         vm.warp(5);
-        assertEq(delegator.getAllocated(noPluginsSubvault1, 0), 0);
-        assertEq(delegator.getAllocated(noPluginsSubvault2, 0), 0);
-        assertEq(delegator.getPending(noPluginsSubvault1, 0), 0);
-        assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
-        assertEq(delegator.getNoPluginsSize(), 150);
+        assertEq(delegator.getAllocated(noAdaptersSubvault1, 0), 0);
+        assertEq(delegator.getAllocated(noAdaptersSubvault2, 0), 0);
+        assertEq(delegator.getPending(noAdaptersSubvault1, 0), 0);
+        assertEq(delegator.getPending(noAdaptersSubvault2, 0), 40);
+        assertEq(delegator.getNoAdaptersSize(), 150);
         assertEq(
-            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size
-                - delegator.getSlot(noPluginsSubvault2).size,
+            delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault1).size
+                - delegator.getSlot(noAdaptersSubvault2).size,
             40
         );
 
-        delegator.removeSlot(noPluginsSubvault2);
+        delegator.removeSlot(noAdaptersSubvault2);
 
-        assertFalse(delegator.getSlot(noPluginsSubvault2).exists);
-        assertTrue(delegator.getSlot(noPluginsSubvault1).exists);
-        assertEq(delegator.getPending(noPluginsSubvault1, 0), 0);
-        assertEq(delegator.getNoPluginsSize(), 50);
-        assertEq(delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size, 0);
+        assertFalse(delegator.getSlot(noAdaptersSubvault2).exists);
+        assertTrue(delegator.getSlot(noAdaptersSubvault1).exists);
+        assertEq(delegator.getPending(noAdaptersSubvault1, 0), 0);
+        assertEq(delegator.getNoAdaptersSize(), 50);
+        assertEq(delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault1).size, 0);
     }
 
     function test_resetAllocation_lastRootSubvault_keepsWithdrawalBufferConsistent() public {
@@ -3148,7 +3148,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.resetAllocation(subnetwork);
     }
 
-    function test_resetAllocation_noPluginsPathAndSyncPrevSums() public {
+    function test_resetAllocation_noAdaptersPathAndSyncPrevSums() public {
         address network = makeAddr("reset-network-with-slot");
         address middleware = makeAddr("reset-middleware-with-slot");
         _registerNetwork(network, middleware);
@@ -3156,21 +3156,21 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         _deposit(alice, 100);
 
-        uint96 noPluginsSubvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
+        uint96 noAdaptersSubvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
         uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, 1);
         uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, 1);
-        delegator.createSlot(subnetwork, noPluginsSubvault, false, false, 80);
+        delegator.createSlot(subnetwork, noAdaptersSubvault, false, false, 80);
 
         vm.warp(1);
-        delegator.setSize(noPluginsSubvault, 40);
-        assertEq(delegator.getNoPluginsSize(), 80);
+        delegator.setSize(noAdaptersSubvault, 40);
+        assertEq(delegator.getNoAdaptersSize(), 80);
 
         vm.prank(network);
         delegator.resetAllocation(subnetwork);
 
-        assertFalse(delegator.getSlot(noPluginsSubvault).exists);
+        assertFalse(delegator.getSlot(noAdaptersSubvault).exists);
         assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
-        assertEq(delegator.getNoPluginsSize(), 0);
+        assertEq(delegator.getNoAdaptersSize(), 0);
         assertEq(delegator.getAllocated(slot3, 0), 1);
         assertEq(delegator.getAllocatedAt(slot3, 0, uint48(block.timestamp)), 1);
 
@@ -3178,14 +3178,14 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getSlot(slot2).size, 2);
     }
 
-    function test_resetAllocation_clearsOnlyRemovedNoPluginsPending() public {
-        address network1 = makeAddr("reset-network-no-plugins-1");
-        address middleware1 = makeAddr("reset-middleware-no-plugins-1");
+    function test_resetAllocation_clearsOnlyRemovedNoAdaptersPending() public {
+        address network1 = makeAddr("reset-network-no-adapters-1");
+        address middleware1 = makeAddr("reset-middleware-no-adapters-1");
         _registerNetwork(network1, middleware1);
         bytes32 subnetwork1 = network1.subnetwork(0);
 
-        address network2 = makeAddr("reset-network-no-plugins-2");
-        address middleware2 = makeAddr("reset-middleware-no-plugins-2");
+        address network2 = makeAddr("reset-network-no-adapters-2");
+        address middleware2 = makeAddr("reset-middleware-no-adapters-2");
         _registerNetwork(network2, middleware2);
         bytes32 subnetwork2 = network2.subnetwork(0);
         vm.prank(network1);
@@ -3195,23 +3195,23 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         _deposit(alice, 200);
 
-        uint96 noPluginsSubvault1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
-        uint96 noPluginsSubvault2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 noAdaptersSubvault1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        uint96 noAdaptersSubvault2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
 
-        delegator.createSlot(subnetwork1, noPluginsSubvault1, false, false, 100);
-        delegator.createSlot(subnetwork2, noPluginsSubvault2, false, false, 100);
+        delegator.createSlot(subnetwork1, noAdaptersSubvault1, false, false, 100);
+        delegator.createSlot(subnetwork2, noAdaptersSubvault2, false, false, 100);
 
         vm.warp(1);
-        delegator.setSize(noPluginsSubvault1, 50);
+        delegator.setSize(noAdaptersSubvault1, 50);
         vm.warp(2);
-        delegator.setSize(noPluginsSubvault2, 60);
+        delegator.setSize(noAdaptersSubvault2, 60);
 
-        assertEq(delegator.getPending(noPluginsSubvault1, 0), 50);
-        assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
-        assertEq(delegator.getNoPluginsSize(), 200);
+        assertEq(delegator.getPending(noAdaptersSubvault1, 0), 50);
+        assertEq(delegator.getPending(noAdaptersSubvault2, 0), 40);
+        assertEq(delegator.getNoAdaptersSize(), 200);
         assertEq(
-            delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault1).size
-                - delegator.getSlot(noPluginsSubvault2).size,
+            delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault1).size
+                - delegator.getSlot(noAdaptersSubvault2).size,
             90
         );
 
@@ -3219,14 +3219,14 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.prank(network1);
         delegator.resetAllocation(subnetwork1);
 
-        assertFalse(delegator.getSlot(noPluginsSubvault1).exists);
+        assertFalse(delegator.getSlot(noAdaptersSubvault1).exists);
         assertEq(delegator.getSlotOfNetwork(subnetwork1), 0);
         assertEq(delegator.maxNetworkLimit(subnetwork1), 0);
         assertEq(delegator.maxNetworkLimit(subnetwork2), type(uint208).max);
-        assertEq(delegator.getNoPluginsSize(), 100);
-        assertTrue(delegator.getSlot(noPluginsSubvault2).exists);
-        assertEq(delegator.getPending(noPluginsSubvault2, 0), 40);
-        assertEq(delegator.getNoPluginsSize() - delegator.getSlot(noPluginsSubvault2).size, 40);
+        assertEq(delegator.getNoAdaptersSize(), 100);
+        assertTrue(delegator.getSlot(noAdaptersSubvault2).exists);
+        assertEq(delegator.getPending(noAdaptersSubvault2, 0), 40);
+        assertEq(delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault2).size, 40);
     }
 
     function test_resetAllocation_singleNetworkClearsAssignmentAndAllowsReassign() public {
@@ -3253,22 +3253,22 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getSlotOfNetwork(subnetwork), newSlot);
     }
 
-    function test_onSlash_noPluginsRootDecreasesNoPluginsSize() public {
+    function test_onSlash_noAdaptersRootDecreasesNoAdaptersSize() public {
         _deposit(alice, 100);
 
-        bytes32 subnetwork = makeAddr("no-plugins-on-slash").subnetwork(0);
+        bytes32 subnetwork = makeAddr("no-adapters-on-slash").subnetwork(0);
         uint96 subvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
         delegator.createSlot(subnetwork, subvault, false, false, 80);
         uint96 networkSlot = subvault.createIndex(uint32(1));
         delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 80);
 
-        assertEq(delegator.getNoPluginsSize(), 80);
+        assertEq(delegator.getNoAdaptersSize(), 80);
         assertEq(delegator.getSlot(subvault).size, 80);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 20, bytes(""));
 
-        assertEq(delegator.getNoPluginsSize(), 60);
+        assertEq(delegator.getNoAdaptersSize(), 60);
         assertEq(delegator.getSlot(subvault).size, 60);
     }
 
@@ -3391,7 +3391,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.migrate(address(0xBEEF));
     }
 
-    function test_migrate_fromVault_createsNoPluginsSubvault() public {
+    function test_migrate_fromVault_createsNoAdaptersSubvault() public {
         MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
         vm.prank(address(vault));
         delegator.migrate(address(oldDelegator));
@@ -3400,13 +3400,13 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(root.existChildren, 1);
         assertEq(root.firstChild, 1);
 
-        IUniversalDelegator.Slot memory noPluginsSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noPluginsSubvault.noPlugins);
-        assertTrue(noPluginsSubvault.isShared);
-        assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(address(delegator)).getNoPluginsSize());
+        IUniversalDelegator.Slot memory noAdaptersSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
+        assertTrue(noAdaptersSubvault.noAdapters);
+        assertTrue(noAdaptersSubvault.isShared);
+        assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(address(delegator)).getNoAdaptersSize());
     }
 
-    function test_migrate_fromVault_operatorNetworkSpecificLegacy_createsNonSharedNoPluginsSubvault() public {
+    function test_migrate_fromVault_operatorNetworkSpecificLegacy_createsNonSharedNoAdaptersSubvault() public {
         MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
         vm.prank(address(vault));
         delegator.migrate(address(oldDelegator));
@@ -3415,10 +3415,10 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(root.existChildren, 1);
         assertEq(root.firstChild, 1);
 
-        IUniversalDelegator.Slot memory noPluginsSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noPluginsSubvault.noPlugins);
-        assertFalse(noPluginsSubvault.isShared);
-        assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(address(delegator)).getNoPluginsSize());
+        IUniversalDelegator.Slot memory noAdaptersSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
+        assertTrue(noAdaptersSubvault.noAdapters);
+        assertFalse(noAdaptersSubvault.isShared);
+        assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(address(delegator)).getNoAdaptersSize());
     }
 
     function _requestAndExecuteSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp)
@@ -3762,8 +3762,8 @@ contract UniversalDelegatorMigrationTest is Test {
         assertEq(newDelegator.maxNetworkLimit(subnetwork), type(uint208).max);
 
         IUniversalDelegator.Slot memory root = newDelegator.getSlot(0);
-        uint96 noPluginsSubvault = uint96(0).createIndex(root.firstChild);
-        newDelegator.createSlot(subnetwork, noPluginsSubvault, false, false, 0);
+        uint96 noAdaptersSubvault = uint96(0).createIndex(root.firstChild);
+        newDelegator.createSlot(subnetwork, noAdaptersSubvault, false, false, 0);
         assertEq(newDelegator.maxNetworkLimit(subnetwork), type(uint208).max);
 
         vm.prank(network);
@@ -3884,10 +3884,10 @@ contract UniversalDelegatorMigrationTest is Test {
 
         IUniversalDelegator.Slot memory root = IUniversalDelegator(newDelegator).getSlot(0);
         assertEq(root.existChildren, 1);
-        IUniversalDelegator.Slot memory noPluginsSubvault =
+        IUniversalDelegator.Slot memory noAdaptersSubvault =
             IUniversalDelegator(newDelegator).getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noPluginsSubvault.noPlugins);
-        assertEq(noPluginsSubvault.isShared, legacyType < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
-        assertEq(uint256(noPluginsSubvault.size), IUniversalDelegator(newDelegator).getNoPluginsSize());
+        assertTrue(noAdaptersSubvault.noAdapters);
+        assertEq(noAdaptersSubvault.isShared, legacyType < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+        assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(newDelegator).getNoAdaptersSize());
     }
 }
