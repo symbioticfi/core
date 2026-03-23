@@ -65,6 +65,15 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         (exists,,, hint) = _withdrawalSharesCumulative.upperLookupRecentCheckpoint(timestamp);
     }
 
+    function _withdrawalSharesCumulativeOfUpperLookupRecentCheckpointInternal(address account, uint48 timestamp)
+        external
+        view
+        internalFunction
+        returns (bool exists, uint32 hint)
+    {
+        (exists,,, hint) = _withdrawalSharesCumulativeOf[account].upperLookupRecentCheckpoint(timestamp);
+    }
+
     function _withdrawalSharesUpperLookupRecentInternal(uint208 bucket, uint48 timestamp)
         external
         view
@@ -275,32 +284,24 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         );
     }
 
-    function activeWithdrawalsHints(address vault, uint48 duration, uint48 timestamp)
-        external
+    function withdrawalSharesCumulativeOfHint(address vault, address account, uint48 timestamp)
+        public
         view
-        returns (bytes memory hints)
+        returns (bytes memory hint)
     {
-        uint208 lastBucket = unlockToBucketUpperLookupRecent(vault, timestamp);
-        bytes memory unlockToBucketHint_ = unlockToBucketHint(vault, timestamp);
-        bytes memory withdrawalSharesHint_ = withdrawalSharesHint(vault, lastBucket, timestamp);
-        bytes memory withdrawalsHint_ = withdrawalsHint(vault, lastBucket, timestamp);
-        uint48 epochDuration = IVaultV2(vault).epochDuration();
-        bytes memory withdrawalSharesCumulativeHint1_ =
-            withdrawalSharesCumulativeHint(vault, uint48(timestamp + epochDuration));
-        bytes memory withdrawalSharesCumulativeHint2_ =
-            withdrawalSharesCumulativeHint(vault, uint48(timestamp + duration));
+        (bool exists, uint32 hint_) = abi.decode(
+            _selfStaticDelegateCall(
+                vault,
+                abi.encodeCall(
+                    VaultV2TestHelper._withdrawalSharesCumulativeOfUpperLookupRecentCheckpointInternal,
+                    (account, timestamp)
+                )
+            ),
+            (bool, uint32)
+        );
 
-        if (
-            unlockToBucketHint_.length > 0 || withdrawalSharesHint_.length > 0 || withdrawalsHint_.length > 0
-                || withdrawalSharesCumulativeHint1_.length > 0 || withdrawalSharesCumulativeHint2_.length > 0
-        ) {
-            hints = abi.encode(
-                unlockToBucketHint_,
-                withdrawalSharesHint_,
-                withdrawalSharesCumulativeHint1_,
-                withdrawalSharesCumulativeHint2_,
-                withdrawalsHint_
-            );
+        if (exists) {
+            hint = abi.encode(hint_);
         }
     }
 }

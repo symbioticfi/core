@@ -406,48 +406,6 @@ interface IUniversalDelegator {
     function getAllocated(uint96 index, uint48 duration) external view returns (uint256 allocated);
 
     /**
-     * @notice Get allocated amount for a subnetwork/operator at a timestamp.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Address of the operator.
-     * @param duration Duration window.
-     * @param timestamp Lookup timestamp.
-     * @return allocated Allocated amount.
-     */
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
-        external
-        view
-        returns (uint256 allocated);
-
-    /**
-     * @notice Get current allocated amount for a subnetwork/operator.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Address of the operator.
-     * @param duration Duration window.
-     * @return allocated Allocated amount.
-     */
-    function getAllocated(bytes32 subnetwork, address operator, uint48 duration)
-        external
-        view
-        returns (uint256 allocated);
-
-    /**
-     * @notice Get filled amount at a timestamp.
-     * @param index Slot index.
-     * @param duration Duration window.
-     * @param timestamp Lookup timestamp.
-     * @return filled Filled amount.
-     */
-    function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256 filled);
-
-    /**
-     * @notice Get current filled amount.
-     * @param index Slot index.
-     * @param duration Duration window.
-     * @return filled Filled amount.
-     */
-    function getFilled(uint96 index, uint48 duration) external view returns (uint256 filled);
-
-    /**
      * @notice Get assigned slot of a network at a timestamp.
      * @param subnetwork Full identifier of the subnetwork.
      * @param timestamp Lookup timestamp.
@@ -498,6 +456,48 @@ interface IUniversalDelegator {
      * @return index Slot index.
      */
     function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint96 index);
+
+    /**
+     * @notice Get allocated amount for a subnetwork/operator at a timestamp.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @param duration Duration window.
+     * @param timestamp Lookup timestamp.
+     * @return allocated Allocated amount.
+     */
+    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
+        external
+        view
+        returns (uint256 allocated);
+
+    /**
+     * @notice Get current allocated amount for a subnetwork/operator.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @param duration Duration window.
+     * @return allocated Allocated amount.
+     */
+    function getAllocated(bytes32 subnetwork, address operator, uint48 duration)
+        external
+        view
+        returns (uint256 allocated);
+
+    /**
+     * @notice Get filled amount at a timestamp.
+     * @param index Slot index.
+     * @param duration Duration window.
+     * @param timestamp Lookup timestamp.
+     * @return filled Filled amount.
+     */
+    function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint256 filled);
+
+    /**
+     * @notice Get current filled amount.
+     * @param index Slot index.
+     * @param duration Duration window.
+     * @return filled Filled amount.
+     */
+    function getFilled(uint96 index, uint48 duration) external view returns (uint256 filled);
 
     /**
      * @notice Get the legacy maximum limit value for a subnetwork.
@@ -599,13 +599,6 @@ interface IUniversalDelegator {
     function setHook(address hook) external;
 
     /**
-     * @notice Reset allocation for a subnetwork.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @dev Only a network or its middleware can call this function.
-     */
-    function resetAllocation(bytes32 subnetwork) external;
-
-    /**
      * @notice Set the maximum limit for a subnetwork.
      * @param identifier Subnetwork identifier.
      * @param amount New maximum limit.
@@ -614,4 +607,11 @@ interface IUniversalDelegator {
      *      - the max network limit can be reset only via `resetAllocation()`.
      */
     function setMaxNetworkLimit(uint96 identifier, uint256 amount) external;
+
+    /**
+     * @notice Reset allocation for a subnetwork.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @dev Only a network or its middleware can call this function.
+     */
+    function resetAllocation(bytes32 subnetwork) external;
 }

@@ -92,6 +92,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     CheckpointsV2.Trace208 internal _unlockToBucket;
     /// @dev Cumulative withdrawal share checkpoints.
     CheckpointsV2.Trace256 internal _withdrawalSharesCumulative;
+    /// @dev Cumulative withdrawal share checkpoints per account.
+    mapping(address account => CheckpointsV2.Trace256 shares) internal _withdrawalSharesCumulativeOf;
     /// @dev Signed accumulator for claimable-vs-unclaimable withdrawal accounting.
     int256 internal _unclaimedRaw;
 
@@ -175,5 +177,5 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /* STORAGE GAP */
 
     /// @dev Reserved storage gap for future upgrades.
-    uint256[37] internal __gap;
+    uint256[36] internal __gap;
 }

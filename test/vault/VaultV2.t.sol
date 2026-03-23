@@ -430,6 +430,15 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vault)).activeWithdrawalsForAt(7 days + 1, uint48(block.timestamp)), 0);
     }
 
+    function test_activeWithdrawalSharesFor_returnsZeroAboveEpochDuration() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+        _withdraw(alice, 40);
+
+        assertEq(VaultV2(address(vault)).activeWithdrawalSharesFor(7 days + 1), 0);
+        assertEq(VaultV2(address(vault)).activeWithdrawalSharesForAt(7 days + 1, uint48(block.timestamp)), 0);
+    }
+
     function test_CreateRevertInvalidCollateral(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 
@@ -1608,9 +1617,17 @@ contract VaultV2Test is Test {
         uint256 activeStakeBefore = vault.activeStakeAt(previousTimestamp, "");
         uint256 activeStakeAtBoundary = vault.activeStakeAt(aliceUnlockAfter, "");
 
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, previousTimestamp), 40);
+        assertEq(vault.activeWithdrawalSharesOfAt(bob, previousTimestamp), 30);
         assertEq(vault.withdrawalsOf(0, alice), 40);
+        assertEq(vault.activeWithdrawalSharesForAt(0, previousTimestamp), 70);
+        assertEq(vault.activeWithdrawalSharesForAt(1, previousTimestamp), 30);
         assertEq(vault.activeWithdrawalsForAt(0, previousTimestamp), 70);
         assertEq(vault.activeWithdrawalsForAt(1, previousTimestamp), 30);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, aliceUnlockAfter), 0);
+        assertEq(vault.activeWithdrawalSharesOfAt(bob, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalSharesForAt(0, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalSharesForAt(1, aliceUnlockAfter), 0);
         assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), 30);
         assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
 
@@ -1624,7 +1641,6 @@ contract VaultV2Test is Test {
         UniversalDelegator universalDelegator;
         uint48 aliceUnlockAfter;
         (universalDelegator,, aliceUnlockAfter,) = _prepareAdjacentUnlockWithdrawalsWithUniversalNetwork();
-
         uint256 donation = 20;
         uint256 claimableBefore = vault.withdrawalsOf(0, alice);
         uint256 expectedNewActiveWithdrawals;
@@ -1645,6 +1661,10 @@ contract VaultV2Test is Test {
         vm.stopPrank();
 
         assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, aliceUnlockAfter), 0);
+        assertEq(vault.activeWithdrawalSharesOfAt(bob, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalSharesForAt(0, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalSharesForAt(1, aliceUnlockAfter), 0);
         assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), expectedNewActiveWithdrawals);
         assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
         assertEq(
@@ -1652,6 +1672,67 @@ contract VaultV2Test is Test {
             expectedActiveStakeAfter + expectedNewActiveWithdrawals
         );
         assertEq(universalDelegator.getBalanceAt(0, 1, aliceUnlockAfter), expectedActiveStakeAfter);
+    }
+
+    function test_ActiveWithdrawalShares_matchesSumOfCurrentUnclaimableRequestShares_throughLifecycle() public {
+        vault = _getUniversalVault(7 days);
+
+        address[] memory accounts = new address[](2);
+        accounts[0] = alice;
+        accounts[1] = bob;
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 30);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        uint256 donation = 20;
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+        vm.warp(aliceUnlockAfter);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        _claim(alice, 0);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
+        vm.warp(bobUnlockAfter);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        _claim(bob, 0);
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
     }
 
     function test_Donate_withoutClaimableWithdrawals_keepsCurrentBucketAndUpdatesActive() public {
@@ -3060,6 +3141,62 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyCurrentEpochWithdrawals);
     }
 
+    function test_MigrateWithdrawals_activeWithdrawalSharesMatchesSumOfCurrentUnclaimableRequestShares() public {
+        uint48 epochDuration = 10;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVaultV2(address(vaultV1));
+
+        _deposit(bob, 500);
+        _withdraw(bob, 100);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+        _withdraw(bob, 60);
+
+        uint256 migrateTimestamp = blockTimestamp + 2 * epochDuration + epochDuration / 2;
+        vm.warp(migrateTimestamp);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = bob;
+
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        uint256 legacyEpochIndex = (migrateTimestamp - blockTimestamp) / epochDuration;
+        _claim(bob, legacyEpochIndex - 1);
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+
+        uint48 expectedUnlockAfter = uint48(blockTimestamp + (legacyEpochIndex + 1) * epochDuration);
+        vm.warp(expectedUnlockAfter);
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+    }
+
     function test_MigrateWithdrawals_SecondPostMigrationWithdrawalHasNonZeroUnlockAfter() public {
         uint48 epochDuration = 10;
         uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
@@ -3099,6 +3236,8 @@ contract VaultV2Test is Test {
         vm.warp(block.timestamp + 1);
         uint256 secondWithdrawAmount = 40;
         _withdraw(bob, secondWithdrawAmount);
+
+        assertEq(vaultV2.activeWithdrawalSharesOfAt(bob, uint48(block.timestamp)), 100 + secondWithdrawAmount);
 
         uint256 secondIndex = vaultV2.withdrawalsOfLength(bob) - 1;
         uint48 secondUnlockAfter = vaultV2.withdrawalUnlockAt(secondIndex, bob);
@@ -4130,6 +4269,18 @@ contract VaultV2Test is Test {
             VaultV2(address(vault)).activeWithdrawalsAt(timestamp),
             VaultV2(address(vault)).activeWithdrawalsForAt(0, timestamp)
         );
+        assertEq(
+            VaultV2(address(vault)).activeWithdrawalSharesAt(timestamp),
+            VaultV2(address(vault)).activeWithdrawalSharesForAt(0, timestamp)
+        );
+        assertEq(VaultV2(address(vault)).activeWithdrawalShares(), VaultV2(address(vault)).activeWithdrawalSharesFor(0));
+        assertEq(
+            VaultV2(address(vault)).activeWithdrawalSharesFor(0),
+            VaultV2(address(vault)).activeWithdrawalSharesForAt(0, timestamp)
+        );
+        assertEq(
+            VaultV2(address(vault)).activeWithdrawalSharesOfAt(alice, timestamp), vault.withdrawalSharesOf(0, alice)
+        );
         assertGt(VaultV2(address(vault)).withdrawalsOf(0, alice), 0);
         assertEq(VaultV2(address(vault)).decimals(), collateral.decimals());
         assertEq(VaultV2(address(vault)).totalSupply(), vault.activeShares());
@@ -5035,6 +5186,46 @@ contract VaultV2Test is Test {
     function _unmaturedWithdrawalShares(uint48 timestamp) internal view returns (uint256) {
         return vaultTestHelper.withdrawalSharesCumulativeLatest(address(vault))
             - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), timestamp);
+    }
+
+    function _sumCurrentUnclaimableWithdrawalRequestShares(address account) internal view returns (uint256 total) {
+        uint48 timestamp = uint48(block.timestamp);
+        uint256 length = vault.withdrawalsOfLength(account);
+        for (uint256 i; i < length; ++i) {
+            if (vault.withdrawalUnlockAt(i, account) > timestamp) {
+                total += vault.withdrawalSharesOf(i, account);
+            }
+        }
+    }
+
+    function _sumCurrentUnclaimableWithdrawalRequestShares(address[] memory accounts)
+        internal
+        view
+        returns (uint256 total)
+    {
+        for (uint256 i; i < accounts.length; ++i) {
+            total += _sumCurrentUnclaimableWithdrawalRequestShares(accounts[i]);
+        }
+    }
+
+    function _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(address[] memory accounts)
+        internal
+        view
+    {
+        uint256 expectedShares = _sumCurrentUnclaimableWithdrawalRequestShares(accounts);
+        assertEq(vault.activeWithdrawalShares(), expectedShares);
+        assertEq(vault.activeWithdrawalSharesAt(uint48(block.timestamp)), expectedShares);
+    }
+
+    function _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(address[] memory accounts)
+        internal
+        view
+    {
+        uint48 timestamp = uint48(block.timestamp);
+        for (uint256 i; i < accounts.length; ++i) {
+            uint256 expectedShares = _sumCurrentUnclaimableWithdrawalRequestShares(accounts[i]);
+            assertEq(vault.activeWithdrawalSharesOfAt(accounts[i], timestamp), expectedShares);
+        }
     }
 
     function _prepareAdjacentUnlockWithdrawals() internal returns (uint48 aliceUnlockAfter, uint48 bobUnlockAfter) {

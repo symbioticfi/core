@@ -101,6 +101,20 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @inheritdoc IVaultV2
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
+        return ERC4626Math.previewRedeem(
+            activeSharesOfAt(account, timestamp, Calldata.emptyBytes()),
+            activeStakeAt(timestamp, Calldata.emptyBytes()),
+            activeSharesAt(timestamp, Calldata.emptyBytes())
+        );
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeBalanceOf(address account) public view returns (uint256) {
+        return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
+    }
+
+    /// @inheritdoc IVaultV2
     function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
         unchecked {
             if (duration > epochDuration) {
@@ -109,7 +123,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint208 curWithdrawalBucket = _unlockToBucket.upperLookupRecent(timestamp);
             uint256 curWithdrawalShares = _withdrawalShares[curWithdrawalBucket].upperLookupRecent(timestamp);
             return curWithdrawalShares > 0
-                ? _activeWithdrawalSharesForAt(duration, timestamp)
+                ? activeWithdrawalSharesForAt(duration, timestamp)
                     .fullMulDiv(_withdrawals[curWithdrawalBucket].upperLookupRecent(timestamp), curWithdrawalShares)
                 : 0;
         }
@@ -124,7 +138,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             uint208 curWithdrawalBucket = withdrawalBucket();
             uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
             return curWithdrawalShares > 0
-                ? _activeWithdrawalSharesFor(duration).fullMulDiv(withdrawals(curWithdrawalBucket), curWithdrawalShares)
+                ? activeWithdrawalSharesFor(duration).fullMulDiv(withdrawals(curWithdrawalBucket), curWithdrawalShares)
                 : 0;
         }
     }
@@ -140,17 +154,49 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     }
 
     /// @inheritdoc IVaultV2
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(
-            activeSharesOfAt(account, timestamp, Calldata.emptyBytes()),
-            activeStakeAt(timestamp, Calldata.emptyBytes()),
-            activeSharesAt(timestamp, Calldata.emptyBytes())
-        );
+    function activeWithdrawalSharesForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
+        unchecked {
+            return _withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
+                - _withdrawalSharesCumulative.upperLookupRecent(timestamp + duration);
+        }
     }
 
     /// @inheritdoc IVaultV2
-    function activeBalanceOf(address account) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
+    function activeWithdrawalSharesFor(uint48 duration) public view returns (uint256) {
+        unchecked {
+            return _withdrawalSharesCumulative.latest()
+                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp + duration));
+        }
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeWithdrawalSharesAt(uint48 timestamp) public view returns (uint256) {
+        return activeWithdrawalSharesForAt(0, timestamp);
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeWithdrawalShares() public view returns (uint256) {
+        return activeWithdrawalSharesFor(0);
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeWithdrawalSharesOfAt(address account, uint48 timestamp) public view returns (uint256 shares) {
+        unchecked {
+            shares = _withdrawalSharesCumulativeOf[account].upperLookupRecent(timestamp + epochDuration)
+                - _withdrawalSharesCumulativeOf[account].upperLookupRecent(timestamp);
+
+            // Legacy support.
+            if (migrateTimestamp > 0) {
+                uint48 migrateEpoch = __migrateEpoch;
+                uint48 migrateNextEpochTimestamp = __migrateNextEpochTimestamp;
+                if (timestamp < migrateNextEpochTimestamp) {
+                    shares += withdrawalSharesOf(migrateEpoch, account);
+                }
+                if (timestamp < migrateNextEpochTimestamp + epochDuration) {
+                    shares += withdrawalSharesOf(migrateEpoch + 1, account);
+                }
+            }
+        }
     }
 
     /// @inheritdoc IVaultV2
@@ -463,22 +509,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* INTERNAL FUNCTIONS (ACCOUNTING) */
 
-    /// @dev Return active withdrawal shares for a duration at a timestamp.
-    function _activeWithdrawalSharesForAt(uint48 duration, uint48 timestamp) internal view returns (uint256) {
-        unchecked {
-            return _withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
-                - _withdrawalSharesCumulative.upperLookupRecent(timestamp + duration);
-        }
-    }
-
-    /// @dev Return active withdrawal shares for a duration at the current timestamp.
-    function _activeWithdrawalSharesFor(uint48 duration) internal view returns (uint256) {
-        unchecked {
-            return _withdrawalSharesCumulative.latest()
-                - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp) + duration);
-        }
-    }
-
     /// @dev Convert active shares into a withdrawal request.
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
@@ -509,6 +539,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _withdrawalSharesOf[curWithdrawalsOfLength][claimer] = mintedShares;
             _withdrawalUnlockAt[curWithdrawalsOfLength][claimer] = unlockAt;
             _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
+            _withdrawalSharesCumulativeOf[claimer].push(
+                unlockAt, _withdrawalSharesCumulativeOf[claimer].latest() + mintedShares
+            );
 
             emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares, curWithdrawalsOfLength);
             emit Transfer(msg.sender, address(0), burnedShares);
@@ -519,7 +552,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function _updateWithdrawalsSharePrice(uint256 newActiveWithdrawals) internal {
         unchecked {
             uint208 curWithdrawalBucket = withdrawalBucket();
-            uint256 curActiveWithdrawalShares = _activeWithdrawalSharesFor(0);
+            uint256 curActiveWithdrawalShares = activeWithdrawalShares();
             uint256 curClaimableWithdrawals = withdrawals(curWithdrawalBucket) - activeWithdrawals();
             uint256 curClaimableWithdrawalShares = withdrawalShares(curWithdrawalBucket) - curActiveWithdrawalShares;
 

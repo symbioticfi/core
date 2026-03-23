@@ -410,6 +410,21 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function totalStake() external view returns (uint256);
 
     /**
+     * @notice Get an active balance for a particular account at a given timestamp.
+     * @param account Account to get the active balance for.
+     * @param timestamp Time point to get the active balance for the account at.
+     * @return Active Balance for the account at the timestamp.
+     */
+    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) external view returns (uint256);
+
+    /**
+     * @notice Get an active balance for a particular account.
+     * @param account Account to get the active balance for.
+     * @return Active Balance for the account.
+     */
+    function activeBalanceOf(address account) external view returns (uint256);
+
+    /**
      * @notice Get a total amount of the active withdrawals for a given duration at a given timestamp.
      * @param duration Duration to get the active withdrawals for.
      * @param timestamp Time point to get the active withdrawals at.
@@ -438,19 +453,40 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function activeWithdrawals() external view returns (uint256);
 
     /**
-     * @notice Get an active balance for a particular account at a given timestamp.
-     * @param account Account to get the active balance for.
-     * @param timestamp Time point to get the active balance for the account at.
-     * @return Active Balance for the account at the timestamp.
+     * @notice Get the total amount of active withdrawal shares for a duration at a given timestamp.
+     * @param duration Duration to get the active withdrawal shares for.
+     * @param timestamp Time point to get the active withdrawal shares at.
+     * @return Total amount of active withdrawal shares.
      */
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) external view returns (uint256);
+    function activeWithdrawalSharesForAt(uint48 duration, uint48 timestamp) external view returns (uint256);
 
     /**
-     * @notice Get an active balance for a particular account.
-     * @param account Account to get the active balance for.
-     * @return Active Balance for the account.
+     * @notice Get the total amount of active withdrawal shares for a given duration.
+     * @param duration Duration to get the active withdrawal shares for.
+     * @return Total amount of active withdrawal shares.
      */
-    function activeBalanceOf(address account) external view returns (uint256);
+    function activeWithdrawalSharesFor(uint48 duration) external view returns (uint256);
+
+    /**
+     * @notice Get the total amount of active withdrawal shares at a given timestamp.
+     * @param timestamp Time point to get the active withdrawal shares at.
+     * @return Total amount of active withdrawal shares.
+     */
+    function activeWithdrawalSharesAt(uint48 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Get the current amount of active withdrawal shares.
+     * @return Total amount of active withdrawal shares.
+     */
+    function activeWithdrawalShares() external view returns (uint256);
+
+    /**
+     * @notice Get the active withdrawal shares for a particular account at a given timestamp.
+     * @param account Account to get the active withdrawal shares for.
+     * @param timestamp Time point to get the active withdrawal shares for the account at.
+     * @return Active withdrawal shares for the account at the timestamp.
+     */
+    function activeWithdrawalSharesOfAt(address account, uint48 timestamp) external view returns (uint256);
 
     /**
      * @notice Get how many withdrawals a particular account requested.

@@ -1,6 +1,6 @@
 # UniversalDelegator Gas Report (Scenarios)
 
-Date: 2026-03-16
+Date: 2026-03-24
 Command: `forge test --match-contract UniversalDelegatorGasTest -vvvvv --decode-internal --isolate`
 
 3 subvaults, 3 networks in each, 10 operators in each
@@ -23,22 +23,22 @@ Note: costs are lower because `latest()` state is used.
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   293,490 ($0.06) |   458,353 ($0.10) |
-| 2nd  |   271,805 ($0.06) |   372,535 ($0.08) |
+| 1st  |   293,541 ($0.06) |   458,785 ($0.10) |
+| 2nd  |   271,856 ($0.06) |   372,967 ($0.08) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   271,899 ($0.06) |   503,687 ($0.11) |
-| 2nd  |   146,475 ($0.03) |   227,757 ($0.05) |
+| 1st  |   271,950 ($0.06) |   504,165 ($0.11) |
+| 2nd  |   146,526 ($0.03) |   228,235 ($0.05) |
 
 ### Stake For Timestamp
 
 | Call            |       Stake gas |
 | --------------- | --------------: |
-| Before slashing | 131,766 ($0.03) |
-| After slashing  | 153,046 ($0.03) |
+| Before slashing | 131,817 ($0.03) |
+| After slashing  | 153,097 ($0.03) |
 
 ## Shared-subvault target (captureTimestamp = 0)
 
@@ -48,19 +48,19 @@ Note: target operators live under a shared subvault; one of the three top-level 
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   299,230 ($0.07) |   554,436 ($0.12) |
-| 2nd  |   277,610 ($0.06) |   413,786 ($0.09) |
+| 1st  |   299,303 ($0.07) |   554,855 ($0.12) |
+| 2nd  |   277,683 ($0.06) |   414,205 ($0.09) |
 
 ### Single transaction (not isolated, same block)
 
 | Call | Request slash gas | Execute slash gas |
 | ---- | ----------------: | ----------------: |
-| 1st  |   277,721 ($0.06) |   599,239 ($0.13) |
-| 2nd  |   148,297 ($0.03) |   258,877 ($0.06) |
+| 1st  |   277,794 ($0.06) |   599,704 ($0.13) |
+| 2nd  |   148,370 ($0.03) |   259,342 ($0.06) |
 
 ### Stake For Timestamp
 
 | Call            |       Stake gas |
 | --------------- | --------------: |
-| Before slashing | 120,747 ($0.03) |
-| After slashing  | 146,591 ($0.03) |
+| Before slashing | 120,798 ($0.03) |
+| After slashing  | 146,642 ($0.03) |
