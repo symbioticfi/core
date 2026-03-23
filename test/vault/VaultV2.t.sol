@@ -3204,6 +3204,101 @@ contract VaultV2Test is Test {
         _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
     }
 
+    function test_MigrateWithdrawals_activeWithdrawalSharesOfAt_returnsZeroBeforeMigration() public {
+        uint48 epochDuration = 10;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVaultV2(address(vaultV1));
+
+        _deposit(bob, 500);
+        _withdraw(bob, 100);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+        _withdraw(bob, 60);
+
+        uint256 migrateTimestamp = blockTimestamp + 2 * epochDuration + epochDuration / 2;
+        vm.warp(migrateTimestamp);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+
+        uint48 historicalTimestamp = uint48(migrateTimestamp - 1);
+        assertEq(vaultV2.activeWithdrawalSharesOfAt(bob, historicalTimestamp), 0);
+    }
+
+    function test_MigrateWithdrawals_activeWithdrawalSharesOfAt_respectsSyntheticUnlockBoundary() public {
+        uint48 epochDuration = 10;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVaultV2(address(vaultV1));
+
+        _deposit(bob, 500);
+
+        vm.warp(blockTimestamp + 2 * epochDuration + 1);
+        _withdraw(bob, 80);
+
+        uint256 migrateTimestamp = blockTimestamp + 2 * epochDuration + epochDuration / 2;
+        vm.warp(migrateTimestamp);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+
+        uint256 legacyEpochIndex = (migrateTimestamp - blockTimestamp) / epochDuration;
+        uint48 syntheticUnlockAfter = uint48(migrateTimestamp + epochDuration);
+        assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex + 1, bob), syntheticUnlockAfter);
+
+        uint48 beforeUnlockTimestamp = syntheticUnlockAfter - 1;
+        uint256 expectedBeforeUnlock = _sumUnclaimableWithdrawalRequestSharesAt(bob, beforeUnlockTimestamp);
+        assertGt(expectedBeforeUnlock, 0);
+        assertEq(vaultV2.activeWithdrawalSharesOfAt(bob, beforeUnlockTimestamp), expectedBeforeUnlock);
+
+        uint256 expectedAtUnlock = _sumUnclaimableWithdrawalRequestSharesAt(bob, syntheticUnlockAfter);
+        assertEq(expectedAtUnlock, 0);
+        assertEq(vaultV2.activeWithdrawalSharesOfAt(bob, syntheticUnlockAfter), expectedAtUnlock);
+    }
+
     function test_MigrateWithdrawals_SecondPostMigrationWithdrawalHasNonZeroUnlockAfter() public {
         uint48 epochDuration = 10;
         uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
@@ -5198,14 +5293,21 @@ contract VaultV2Test is Test {
             - vaultTestHelper.withdrawalSharesCumulativeUpperLookupRecent(address(vault), timestamp);
     }
 
-    function _sumCurrentUnclaimableWithdrawalRequestShares(address account) internal view returns (uint256 total) {
-        uint48 timestamp = uint48(block.timestamp);
+    function _sumUnclaimableWithdrawalRequestSharesAt(address account, uint48 timestamp)
+        internal
+        view
+        returns (uint256 total)
+    {
         uint256 length = vault.withdrawalsOfLength(account);
         for (uint256 i; i < length; ++i) {
             if (vault.withdrawalUnlockAt(i, account) > timestamp) {
                 total += vault.withdrawalSharesOf(i, account);
             }
         }
+    }
+
+    function _sumCurrentUnclaimableWithdrawalRequestShares(address account) internal view returns (uint256 total) {
+        return _sumUnclaimableWithdrawalRequestSharesAt(account, uint48(block.timestamp));
     }
 
     function _sumCurrentUnclaimableWithdrawalRequestShares(address[] memory accounts)

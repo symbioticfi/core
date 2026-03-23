@@ -186,13 +186,14 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 - _withdrawalSharesCumulativeOf[account].upperLookupRecent(timestamp);
 
             // Legacy support.
-            if (migrateTimestamp > 0) {
+            uint48 curMigrateTimestamp = migrateTimestamp;
+            if (curMigrateTimestamp > 0 && timestamp >= curMigrateTimestamp) {
                 uint48 migrateEpoch = __migrateEpoch;
                 uint48 migrateNextEpochTimestamp = __migrateNextEpochTimestamp;
                 if (timestamp < migrateNextEpochTimestamp) {
                     shares += withdrawalSharesOf(migrateEpoch, account);
                 }
-                if (timestamp < migrateNextEpochTimestamp + epochDuration) {
+                if (timestamp < curMigrateTimestamp + epochDuration) {
                     shares += withdrawalSharesOf(migrateEpoch + 1, account);
                 }
             }
