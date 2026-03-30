@@ -3979,6 +3979,33 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(vault)), 0);
     }
 
+    function test_OnSlash_withAdaptersFullyOwed_skipsZeroBurnerTransfer() public {
+        (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        _deposit(alice, 100);
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
+
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 100);
+
+        adapter.setShouldFail(true);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(60, true);
+
+        assertEq(slashedAmount, 60);
+        assertEq(owed, 60);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 0);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
+        assertEq(vault.adaptersAllocated(), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+    }
+
     function test_AdapterNoDeallocate_acrossInstantWithdrawAndSyncOwedSlash() public {
         (vault,, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
         _deposit(alice, 100);
@@ -4127,6 +4154,58 @@ contract VaultV2Test is Test {
         assertEq(universalSlasher.totalOwed(), 0);
         assertEq(universalSlasher.owed(network.subnetwork(0), alice), 0);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+    }
+
+    function test_UniversalSlasher_executeSlash_withFullyOwedAdapterShortfall_skipsZeroBurnerTransfer() public {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        universalSlasher = UniversalSlasher(address(slasher));
+
+        address network = makeAddr("full-owed-network");
+        address middleware = makeAddr("full-owed-middleware");
+        _registerNetwork(network, middleware);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, network);
+
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        vm.startPrank(alice);
+        uint96 subvaultSlot = universalDelegator.createSlot(bytes32("subvault"), 0, false, false, 100);
+        uint96 networkSlot = universalDelegator.createSlot(network.subnetwork(0), subvaultSlot, false, false, 100);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+
+        _deposit(alice, 100);
+
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 100);
+
+        adapter.setShouldFail(true);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+
+        vm.prank(middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(network.subnetwork(0), alice, 60, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(middleware);
+        uint256 slashedAmount = universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 60);
+        assertEq(universalSlasher.totalOwed(), 60);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 60);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 0);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
+        assertEq(vault.adaptersAllocated(), 100);
         assertEq(collateral.balanceOf(address(vault)), 0);
     }
 

@@ -1105,6 +1105,37 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(delegator.lastSlashAmount(), 40);
     }
 
+    function test_executeSlash_postMigrateAdapterBackedPathPassesWithAdapters() public {
+        slasher.setMigrateTimestampRaw(10);
+        delegator.setIsNoAdapters(false);
+        vm.warp(20);
+        _pushRequest(40, 15, 0, resolver1, false);
+
+        vm.prank(middleware);
+        slasher.executeSlash(0, "");
+
+        assertTrue(vault.lastOnSlashWithAdapters());
+    }
+
+    function test_executeSlash_postMigrateNoAdaptersFullyOwed_callsBurnerHookWithZeroAmount() public {
+        slasher.setMigrateTimestampRaw(10);
+        slasher.setIsBurnerHookRaw(true);
+        delegator.setIsNoAdapters(true);
+        vault.setOnSlashResult(true, 0, 40);
+        vm.warp(20);
+        _pushRequest(40, 15, 0, resolver1, false);
+
+        vm.prank(middleware);
+        uint256 slashedAmount = slasher.executeSlash(0, "");
+
+        assertEq(slashedAmount, 40);
+        assertFalse(vault.lastOnSlashWithAdapters());
+        assertEq(slasher.totalOwed(), 40);
+        assertEq(slasher.owed(subnetwork, operator), 40);
+        assertEq(burner.calls(), 1);
+        assertEq(burner.lastAmount(), 0);
+    }
+
     function test_executeSlash_tracksOwedAndSyncOwedSlash() public {
         vault.setOnSlashResult(true, 0, 7);
         _pushRequest(40, uint48(block.timestamp), 0, resolver1, false);

@@ -500,8 +500,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     deallocateAdapters();
                     owedAmount = Math.min(slashedAmount, _adaptersOwe());
                 }
-
-                _safeTransferOut(burner, slashedAmount - owedAmount);
+                if (slashedAmount > owedAmount) {
+                    _safeTransferOut(burner, slashedAmount - owedAmount);
+                }
             }
         }
 

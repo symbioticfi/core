@@ -3272,6 +3272,51 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getSlot(subvault).size, 60);
     }
 
+    function test_onSlash_noAdaptersPartialPendingSlash_preservesRemainingNoAdaptersBudget() public {
+        _deposit(alice, 100);
+
+        bytes32 subnetwork = makeAddr("no-adapters-pending-slash").subnetwork(0);
+        uint96 subvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
+        uint96 networkSlot = delegator.createSlot(subnetwork, subvault, false, false, 80);
+        uint96 operatorSlot = delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 80);
+
+        vm.warp(1);
+        delegator.setSize(subvault, 30);
+
+        assertEq(delegator.getPending(subvault, 0), 50);
+        assertEq(delegator.getNoAdaptersSize(), 80);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlash(subnetwork, alice, 40, bytes("")), 40);
+
+        assertEq(delegator.getSlot(subvault).size, 30);
+        assertEq(delegator.getPending(subvault, 0), 10);
+        assertEq(delegator.getSlot(networkSlot).size, 40);
+        assertEq(delegator.getSlot(operatorSlot).size, 40);
+        assertEq(delegator.getNoAdaptersSize(), 40);
+    }
+
+    function test_onSlash_sharedSubvault_capsActualAmountToRemainingSharedBalance() public {
+        _deposit(alice, 100);
+
+        bytes32 subnetwork1 = makeAddr("shared-cap-network-1").subnetwork(0);
+        bytes32 subnetwork2 = makeAddr("shared-cap-network-2").subnetwork(0);
+
+        uint96 subvault = delegator.createSlot(bytes32(0), 0, true, false, 100);
+        uint96 networkSlot1 = delegator.createSlot(subnetwork1, subvault, false, false, 100);
+        uint96 networkSlot2 = delegator.createSlot(subnetwork2, subvault, false, false, 100);
+        delegator.createSlot(_operatorKey(alice), networkSlot1, false, false, 100);
+        delegator.createSlot(_operatorKey(bob), networkSlot2, false, false, 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlash(subnetwork1, alice, 70, bytes("")), 70);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlash(subnetwork2, bob, 70, bytes("")), 30);
+
+        assertEq(delegator.getSlot(subvault).size, 0);
+    }
+
     function test_setHookAndOnSlashPaths() public {
         vm.expectRevert(IUniversalDelegator.NotSlasher.selector);
         delegator.onSlash(bytes32(0), address(0), 0, "");
