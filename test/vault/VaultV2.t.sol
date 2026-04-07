@@ -5000,9 +5000,13 @@ contract VaultV2Test is Test {
         vm.prank(address(adapter));
         vault.allocateAdapter(address(adapter), 30);
         assertEq(collateral.balanceOf(address(adapter)), 30);
+        collateral.transfer(address(adapter), 20);
+        assertEq(adapter.skimmable(address(vault)), 20);
 
         VaultV2(address(vault)).skimAdapters();
-        assertEq(collateral.balanceOf(address(adapter)), 0);
+        assertEq(collateral.balanceOf(address(adapter)), 30);
+        assertEq(adapter.skimmable(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(vault)), 90);
     }
 
     function test_MorphoAllocateAdapter_deallocateSkimsAndDonatesRewards() public {
@@ -5106,18 +5110,78 @@ contract VaultV2Test is Test {
         morphoVault.donateYield(20);
 
         uint256 activeStakeBefore = vault.activeStake();
+        uint256 activeSharesBefore = vault.activeShares();
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
         uint256 expectedSkimmed = adapter.skimmable(address(vault));
+        uint256 expectedBurnedShares =
+            ERC4626Math.previewWithdraw(10, activeSharesBefore, activeStakeBefore + expectedSkimmed);
 
         vm.prank(alice);
         (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
 
         assertEq(withdrawnAssets, 10);
-        assertGt(burnedShares, 0);
-        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(burnedShares, expectedBurnedShares);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
         assertEq(vault.activeStake(), activeStakeBefore - withdrawnAssets + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + 10 - withdrawnAssets);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed - withdrawnAssets);
         assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
+    function test_UniversalSlasher_syncOwedSlash_deallocatesAdaptersBeforeBurning() public {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        universalSlasher = UniversalSlasher(address(slasher));
+
+        address network = makeAddr("sync-owed-liquidity-network");
+        address middleware = makeAddr("sync-owed-liquidity-middleware");
+        _registerNetwork(network, middleware);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, network);
+
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        vm.startPrank(alice);
+        uint96 subvaultSlot = universalDelegator.createSlot(bytes32("subvault"), 0, false, false, 100);
+        uint96 networkSlot = universalDelegator.createSlot(network.subnetwork(0), subvaultSlot, false, false, 100);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
+        _deposit(alice, 100);
+        adapter.setShouldFail(true);
+
+        vm.prank(middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(network.subnetwork(0), alice, 80, 0, "");
+        vm.warp(block.timestamp + 1);
+        vm.prank(middleware);
+        uint256 slashedAmount = universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 80);
+        assertEq(universalSlasher.totalOwed(), 80);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
+        assertEq(vault.adaptersAllocated(), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(adapter)), 100);
+
+        adapter.setShouldFail(false);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = universalSlasher.syncOwedSlash(network.subnetwork(0), alice);
+
+        assertEq(synced, 80);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 0);
+        assertEq(vault.adapterAllocated(address(adapter)), 20);
+        assertEq(vault.adaptersAllocated(), 20);
+        assertEq(collateral.balanceOf(address(adapter)), 20);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 80);
     }
 
     function test_MorphoAllocateAdapter_donatesDuringDepositAndWithdrawOperations() public {

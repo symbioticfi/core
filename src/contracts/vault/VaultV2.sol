@@ -380,6 +380,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         returns (uint256 withdrawnAssets, uint256 burnedShares)
     {
         unchecked {
+            skimAdapters();
+
             _revertIfZero(recipient);
 
             uint256 curActiveStake = activeStake();
@@ -504,9 +506,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                     _safeTransferOut(burner, slashedAmount - owedAmount);
                 }
             }
-        }
 
-        emit OnSlash(amount, slashedAmount);
+            emit OnSlash(amount, slashedAmount);
+        }
     }
 
     /* INTERNAL FUNCTIONS (ACCOUNTING) */
@@ -768,6 +770,8 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (slasher != msg.sender) {
             revert NotSlasher();
         }
+
+        deallocateAdapters();
 
         slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(_adaptersOwe()));
         _safeTransferOut(burner, slashedAmount);
