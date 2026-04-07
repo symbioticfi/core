@@ -14,11 +14,6 @@ interface IUniversalSlasher {
     /* ERRORS */
 
     /**
-     * @notice Raised when trying to set a value that is already set.
-     */
-    error AlreadySet();
-
-    /**
      * @notice Raised when there is not enough gas left for the burner hook call.
      */
     error InsufficientBurnerGas();
@@ -27,11 +22,6 @@ interface IUniversalSlasher {
      * @notice Raised when the requested slash amount is zero after validation.
      */
     error InsufficientSlash();
-
-    /**
-     * @notice Raised when the provided capture timestamp is invalid.
-     */
-    error InvalidCaptureTimestamp();
 
     /**
      * @notice Raised when the resolver set delay is outside allowed bounds.
@@ -47,11 +37,6 @@ interface IUniversalSlasher {
      * @notice Raised when burner-hook mode is enabled but the vault has no burner.
      */
     error NoBurner();
-
-    /**
-     * @notice Raised when an operation requires a resolver but none is configured.
-     */
-    error NoResolver();
 
     /**
      * @notice Raised when migration functions are called outside migration mode.
@@ -87,11 +72,6 @@ interface IUniversalSlasher {
      * @notice Raised when the slash request has already been completed.
      */
     error SlashRequestCompleted();
-
-    /**
-     * @notice Raised when the slash request does not exist.
-     */
-    error SlashRequestNotExist();
 
     /**
      * @notice Raised when the veto period has already ended.

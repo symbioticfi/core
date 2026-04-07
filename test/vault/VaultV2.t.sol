@@ -1522,6 +1522,7 @@ contract VaultV2Test is Test {
         assertEq(vault.withdrawalsOf(0, bob), expectedBobWithdrawalsAfter);
         assertEq(vault.withdrawals(bucketBefore), claimableBefore);
         assertEq(vault.withdrawals(bucketAfter), expectedNewActiveWithdrawals);
+        assertEq(vaultTestHelper.unclaimedRaw(address(vault)), int256(claimableBefore));
         assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
     }
 
@@ -3123,6 +3124,9 @@ contract VaultV2Test is Test {
 
         assertEq(vaultV2.withdrawals(0), expectedLegacyCurrentEpochWithdrawals);
         assertEq(vaultV2.withdrawalShares(0), expectedLegacyCurrentEpochWithdrawals);
+        assertEq(
+            vaultTestHelper.unclaimedRaw(address(vaultV2)), int256(expectedLegacyPrevEpochWithdrawals)
+        );
 
         assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 2);
         assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), expectedUnlockAfter);
@@ -3133,6 +3137,7 @@ contract VaultV2Test is Test {
         vm.startPrank(bob);
         vaultV2.claim(bob, legacyEpochIndex - 1);
         vm.stopPrank();
+        assertEq(vaultTestHelper.unclaimedRaw(address(vaultV2)), 0);
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyPrevEpochWithdrawals);
 
         vm.startPrank(bob);

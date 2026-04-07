@@ -45,11 +45,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error AlreadyClaimed();
 
     /**
-     * @notice Raised when trying to set a value that is already set.
-     */
-    error AlreadySet();
-
-    /**
      * @notice Raised when delegator initialization is attempted more than once.
      */
     error DelegatorAlreadyInitialized();
@@ -70,34 +65,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InsufficientAmount();
 
     /**
-     * @notice Raised when there is nothing claimable for the request.
-     */
-    error InsufficientClaim();
-
-    /**
-     * @notice Raised when redemption output is insufficient.
-     */
-    error InsufficientRedemption();
-
-    /**
-     * @notice Raised when withdrawal output is insufficient.
-     */
-    error InsufficientWithdrawal();
-
-    /**
      * @notice Raised when an address argument is invalid.
      */
     error InvalidAddress();
-
-    /**
-     * @notice Raised when capture epoch input is invalid.
-     */
-    error InvalidCaptureEpoch();
-
-    /**
-     * @notice Raised when claimer address is invalid.
-     */
-    error InvalidClaimer();
 
     /**
      * @notice Raised when collateral address is invalid.
@@ -115,29 +85,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidDepositorToWhitelist();
 
     /**
-     * @notice Raised when epochs-length input is invalid.
-     */
-    error InvalidLengthEpochs();
-
-    /**
-     * @notice Raised when on-behalf-of address is invalid.
-     */
-    error InvalidOnBehalfOf();
-
-    /**
-     * @notice Raised when recipient address is invalid.
-     */
-    error InvalidRecipient();
-
-    /**
      * @notice Raised when slasher address is invalid.
      */
     error InvalidSlasher();
-
-    /**
-     * @notice Raised when required role holders are missing at initialization.
-     */
-    error MissingRoles();
 
     /**
      * @notice Raised when the provided adapter is not whitelisted in adapter registry.
