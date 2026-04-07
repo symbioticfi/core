@@ -4564,11 +4564,32 @@ contract VaultV2Test is Test {
 
         assertEq(withdrawnAssets, buffer);
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, buffer - expectedFee);
-        assertEq(rewards.donationRewardCalls(), 1);
-        assertEq(rewards.lastDonationVault(), address(vault));
-        assertEq(rewards.lastDonationAmount(), expectedFee);
+        assertEq(rewards.donationRewardCalls(), 0);
         assertEq(vault.activeSharesOf(alice), 0);
         assertGt(burnedShares, 0);
+    }
+
+    function test_InstantWithdraw_withFee_skipsDonationWhenWithdrawalEmptiesVault() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        feeRegistry.setInstantWithdrawFee(address(vault), 1000);
+
+        uint256 amount = IUniversalDelegator(vault.delegator()).getWithdrawalBuffer();
+        uint256 expectedFee = amount.mulDiv(1000, MAX_FEE, Math.Rounding.Ceil);
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, amount);
+
+        assertEq(withdrawnAssets, amount);
+        assertGt(burnedShares, 0);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, amount - expectedFee);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore - amount + expectedFee);
+        assertEq(rewards.donationRewardCalls(), 0);
+        assertEq(vault.activeStake(), 0);
+        assertEq(vault.activeWithdrawals(), 0);
     }
 
     function test_InstantWithdraw_capsByAvailableToSlash() public {

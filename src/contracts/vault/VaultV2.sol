@@ -405,7 +405,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             uint256 fees =
                 withdrawnAssets.fullMulDivUp(IFeeRegistry(FEE_REGISTRY).getInstantWithdrawFee(address(this)), MAX_FEE);
-            if (fees > 0) {
+            if (fees > 0 && (activeStake() > 0 || activeWithdrawals() > 0)) {
                 collateral.safeApprove(REWARDS, fees);
                 IRewards(REWARDS).distributeDonationRewards(address(this), fees);
             }
