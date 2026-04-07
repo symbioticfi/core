@@ -230,7 +230,9 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),
@@ -242,6 +244,8 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                         createSlotRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         swapSlotsRoleHolder: owner,
+                        removeSlotRoleHolder: owner,
+                        setWithdrawalBufferSizeRoleHolder: owner,
                         withdrawalBufferSize: type(uint128).max
                     })
                 ),

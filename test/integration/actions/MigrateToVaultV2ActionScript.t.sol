@@ -288,6 +288,8 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
                 createSlotRoleHolder: curator.addr,
                 setSizeRoleHolder: curator.addr,
                 swapSlotsRoleHolder: curator.addr,
+                removeSlotRoleHolder: curator.addr,
+                setWithdrawalBufferSizeRoleHolder: curator.addr,
                 withdrawalBufferSize: type(uint128).max
             }),
             slasherParams: IUniversalSlasher.InitParams({

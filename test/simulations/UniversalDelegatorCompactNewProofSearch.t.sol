@@ -913,7 +913,9 @@ contract UniversalDelegatorCompactNewProofSearchTest is UniversalDelegatorCompac
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),

@@ -860,7 +860,9 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
             _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
             _grantRoleIfNotZero(SET_ADAPTER_LIMIT_ROLE, params.setAdapterLimitRoleHolder);
+            _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
             _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, params.allocateAdapterRoleHolder);
+            _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, params.deallocateAdapterRoleHolder);
 
             emit Initialize(params);
         }

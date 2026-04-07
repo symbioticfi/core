@@ -60,7 +60,9 @@ contract UniversalDelegatorUiSetup is Script {
             isDepositLimitSetRoleHolder: broadcaster,
             depositLimitSetRoleHolder: broadcaster,
             setAdapterLimitRoleHolder: broadcaster,
-            allocateAdapterRoleHolder: broadcaster
+            swapAdaptersRoleHolder: broadcaster,
+            allocateAdapterRoleHolder: broadcaster,
+            deallocateAdapterRoleHolder: broadcaster
         });
 
         bytes memory vaultInitCalldata =
@@ -85,6 +87,8 @@ contract UniversalDelegatorUiSetup is Script {
             createSlotRoleHolder: broadcaster,
             setSizeRoleHolder: broadcaster,
             swapSlotsRoleHolder: broadcaster,
+            removeSlotRoleHolder: broadcaster,
+            setWithdrawalBufferSizeRoleHolder: broadcaster,
             withdrawalBufferSize: type(uint128).max
         });
 

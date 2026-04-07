@@ -533,7 +533,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -566,7 +568,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -599,7 +603,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -632,7 +638,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -665,7 +673,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -677,6 +687,20 @@ contract VaultV2Test is Test {
         assertEq(SWAP_ADAPTERS_ROLE, keccak256("SWAP_ADAPTERS_ROLE"));
         assertEq(ALLOCATE_ADAPTER_ROLE, keccak256("ALLOCATE_ADAPTER_ROLE"));
         assertEq(DEALLOCATE_ADAPTER_ROLE, keccak256("DEALLOCATE_ADAPTER_ROLE"));
+    }
+
+    function test_Create_grantsAdapterManagementRolesFromInitParams() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.defaultAdminRoleHolder = address(0);
+        params.setAdapterLimitRoleHolder = address(0);
+        params.allocateAdapterRoleHolder = address(0);
+        params.swapAdaptersRoleHolder = alice;
+        params.deallocateAdapterRoleHolder = bob;
+
+        vault = IVaultV2(vaultFactory.create(vaultFactory.lastVersion(), alice, _getEncodedVaultParams(params)));
+
+        assertTrue(IAccessControl(address(vault)).hasRole(SWAP_ADAPTERS_ROLE, alice));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, bob));
     }
 
     function test_SetDelegator() public {
@@ -703,7 +727,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -720,6 +746,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
         UniversalDelegator delegator_ = UniversalDelegator(
@@ -756,7 +784,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -773,6 +803,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
         UniversalDelegator delegator_ = UniversalDelegator(
@@ -809,7 +841,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -843,7 +877,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -869,7 +905,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             )
         );
@@ -924,7 +962,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -974,7 +1014,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1024,7 +1066,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1058,7 +1102,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1084,7 +1130,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             )
         );
@@ -1131,7 +1179,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -3286,9 +3336,7 @@ contract VaultV2Test is Test {
 
         assertEq(vaultV2.withdrawals(0), expectedLegacyCurrentEpochWithdrawals);
         assertEq(vaultV2.withdrawalShares(0), expectedLegacyCurrentEpochWithdrawals);
-        assertEq(
-            vaultTestHelper.unclaimedRaw(address(vaultV2)), int256(expectedLegacyPrevEpochWithdrawals)
-        );
+        assertEq(vaultTestHelper.unclaimedRaw(address(vaultV2)), int256(expectedLegacyPrevEpochWithdrawals));
 
         assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 2);
         assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), expectedUnlockAfter);
@@ -6158,7 +6206,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             );
         }
@@ -6284,7 +6334,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             );
         }
@@ -6296,6 +6348,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
 
@@ -6324,6 +6378,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
@@ -6354,7 +6410,9 @@ contract VaultV2Test is Test {
             isDepositLimitSetRoleHolder: alice,
             depositLimitSetRoleHolder: alice,
             setAdapterLimitRoleHolder: alice,
-            allocateAdapterRoleHolder: alice
+            swapAdaptersRoleHolder: alice,
+            allocateAdapterRoleHolder: alice,
+            deallocateAdapterRoleHolder: alice
         });
     }
 

@@ -158,7 +158,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositLimitSetRoleHolder Address of the initial DEPOSIT_LIMIT_SET_ROLE holder.
      * @param setAdapterLimitRoleHolder Address of the initial SET_ADAPTER_LIMIT_ROLE holder.
-     * @param allocateAdapterRoleHolder Address of the initial ALLOCATE_ADAPTER_ROLE holder..
+     * @param swapAdaptersRoleHolder Address of the initial SWAP_ADAPTERS_ROLE holder.
+     * @param allocateAdapterRoleHolder Address of the initial ALLOCATE_ADAPTER_ROLE holder.
+     * @param deallocateAdapterRoleHolder Address of the initial DEALLOCATE_ADAPTER_ROLE holder.
      */
     struct InitParams {
         string name;
@@ -176,7 +178,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
         address setAdapterLimitRoleHolder;
+        address swapAdaptersRoleHolder;
         address allocateAdapterRoleHolder;
+        address deallocateAdapterRoleHolder;
     }
 
     /**

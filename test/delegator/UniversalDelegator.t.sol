@@ -353,7 +353,9 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 ),
                 delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),
@@ -365,6 +367,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
                         createSlotRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         swapSlotsRoleHolder: owner,
+                        removeSlotRoleHolder: owner,
+                        setWithdrawalBufferSizeRoleHolder: owner,
                         withdrawalBufferSize: type(uint128).max
                     })
                 ),
@@ -2315,9 +2319,10 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeCall(UniversalDelegator.setWithdrawalBufferSize, (40));
 
+        vm.prank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, owner, SET_WITHDRAWAL_BUFFER_SIZE_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SET_WITHDRAWAL_BUFFER_SIZE_ROLE
             )
         );
         delegator.multicall(calls);
@@ -2587,14 +2592,14 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     function test_setWithdrawalBufferSize_requiresRole_andUpdatesValue() public {
         _deposit(alice, 100);
 
+        vm.prank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, owner, SET_WITHDRAWAL_BUFFER_SIZE_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector, bob, SET_WITHDRAWAL_BUFFER_SIZE_ROLE
             )
         );
         delegator.setWithdrawalBufferSize(40);
 
-        delegator.grantRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE, owner);
         delegator.setWithdrawalBufferSize(40);
         assertEq(delegator.getWithdrawalBuffer(), 40);
 
@@ -3514,6 +3519,22 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         UniversalDelegator(noRoleDelegator).createSlot(bytes32(0), 0, false, false, 1);
     }
 
+    function test_initialize_grantsRemoveAndWithdrawalBufferRolesFromInitParams() public {
+        IUniversalDelegator.InitParams memory params = _defaultDelegatorInitParams();
+        params.defaultAdminRoleHolder = address(0);
+        params.createSlotRoleHolder = address(0);
+        params.setSizeRoleHolder = address(0);
+        params.swapSlotsRoleHolder = address(0);
+        params.removeSlotRoleHolder = alice;
+        params.setWithdrawalBufferSizeRoleHolder = bob;
+
+        address deployed =
+            delegatorFactory.create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(vault), abi.encode(params)));
+
+        assertTrue(IAccessControl(deployed).hasRole(REMOVE_SLOT_ROLE, alice));
+        assertTrue(IAccessControl(deployed).hasRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE, bob));
+    }
+
     function test_initialize_harness_revertsNotVault() public {
         UniversalDelegatorInitCoverageHarness harness = new UniversalDelegatorInitCoverageHarness(
             address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
@@ -3574,6 +3595,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
             createSlotRoleHolder: owner,
             setSizeRoleHolder: owner,
             swapSlotsRoleHolder: owner,
+            removeSlotRoleHolder: owner,
+            setWithdrawalBufferSizeRoleHolder: owner,
             withdrawalBufferSize: type(uint128).max
         });
     }
@@ -3996,6 +4019,8 @@ contract UniversalDelegatorMigrationTest is Test {
             createSlotRoleHolder: owner,
             setSizeRoleHolder: owner,
             swapSlotsRoleHolder: owner,
+            removeSlotRoleHolder: owner,
+            setWithdrawalBufferSizeRoleHolder: owner,
             withdrawalBufferSize: type(uint128).max
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({

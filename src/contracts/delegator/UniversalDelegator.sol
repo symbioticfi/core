@@ -919,6 +919,8 @@ contract UniversalDelegator is
         _grantRoleIfNotZero(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
         _grantRoleIfNotZero(SET_SIZE_ROLE, params.setSizeRoleHolder);
         _grantRoleIfNotZero(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
+        _grantRoleIfNotZero(REMOVE_SLOT_ROLE, params.removeSlotRoleHolder);
+        _grantRoleIfNotZero(SET_WITHDRAWAL_BUFFER_SIZE_ROLE, params.setWithdrawalBufferSizeRoleHolder);
 
         emit Initialize(params);
     }

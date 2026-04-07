@@ -96,6 +96,8 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
                 createSlotRoleHolder: ADMIN_ROLE_HOLDER,
                 setSizeRoleHolder: ADMIN_ROLE_HOLDER,
                 swapSlotsRoleHolder: ADMIN_ROLE_HOLDER,
+                removeSlotRoleHolder: ADMIN_ROLE_HOLDER,
+                setWithdrawalBufferSizeRoleHolder: ADMIN_ROLE_HOLDER,
                 withdrawalBufferSize: WITHDRAWAL_BUFFER_SIZE
             }),
             slasherParams: IUniversalSlasher.InitParams({

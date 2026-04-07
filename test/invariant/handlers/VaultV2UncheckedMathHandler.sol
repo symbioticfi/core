@@ -183,7 +183,8 @@ contract VaultV2UncheckedMathHandler is Test {
         vaultFactory = new VaultFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
         slasherFactory = new SlasherFactory(address(this));
-        vaultConfigurator = new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+        vaultConfigurator =
+            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
         networkRegistry = new NetworkRegistry();
         operatorRegistry = new OperatorRegistry();
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
@@ -197,7 +198,9 @@ contract VaultV2UncheckedMathHandler is Test {
         adapterRegistry = new AdapterRegistry(address(this));
         collateral = new Token("InvariantToken");
 
-        vaultFactory.whitelist(address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory))));
+        vaultFactory.whitelist(
+            address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)))
+        );
         vaultFactory.whitelist(
             address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)))
         );
@@ -325,7 +328,9 @@ contract VaultV2UncheckedMathHandler is Test {
             isDepositLimitSetRoleHolder: address(this),
             depositLimitSetRoleHolder: address(this),
             setAdapterLimitRoleHolder: address(this),
-            allocateAdapterRoleHolder: address(this)
+            swapAdaptersRoleHolder: address(this),
+            allocateAdapterRoleHolder: address(this),
+            deallocateAdapterRoleHolder: address(this)
         });
 
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
@@ -335,6 +340,8 @@ contract VaultV2UncheckedMathHandler is Test {
             createSlotRoleHolder: address(this),
             setSizeRoleHolder: address(this),
             swapSlotsRoleHolder: address(this),
+            removeSlotRoleHolder: address(this),
+            setWithdrawalBufferSizeRoleHolder: address(this),
             withdrawalBufferSize: type(uint128).max
         });
 

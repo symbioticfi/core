@@ -376,6 +376,8 @@ contract UniversalSlasherMigrationTest is Test {
             createSlotRoleHolder: owner,
             setSizeRoleHolder: owner,
             swapSlotsRoleHolder: owner,
+            removeSlotRoleHolder: owner,
+            setWithdrawalBufferSizeRoleHolder: owner,
             withdrawalBufferSize: type(uint128).max
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
