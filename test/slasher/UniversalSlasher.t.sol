@@ -752,6 +752,10 @@ contract UniversalSlasherCoverageHarness is UniversalSlasher {
         owed[subnetwork][operator] = value;
     }
 
+    function setTotalOwedRaw(uint256 value) external {
+        totalOwed = value;
+    }
+
     function setLatestSlashedCaptureTimestampRaw(bytes32 subnetwork, address operator, uint48 value) external {
         __latestSlashedCaptureTimestamp[subnetwork][operator] = value;
     }
@@ -789,6 +793,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     using Subnetwork for address;
 
     uint48 internal constant EPOCH_DURATION = 100;
+    uint256 internal constant SUPPLY_CAP = (uint256(1) << 255) - 1;
 
     MockRegistry internal vaultFactoryRegistry;
     MockRegistry internal networkRegistry;
@@ -1253,6 +1258,56 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(delegator.lastSlashAmount(), 10);
         assertEq(vault.lastOnSlashAmount(), 0);
         assertEq(slasher.owed(subnetwork, operator), 0);
+    }
+
+    function testFuzz_executeSlash_uncheckedBurnerSubtractionIsSafe(
+        uint256 slashableStake,
+        uint256 requestedAmount,
+        uint256 delegatedSlashAmount,
+        uint256 owedAmount
+    ) public {
+        slashableStake = bound(slashableStake, 1, SUPPLY_CAP);
+        requestedAmount = bound(requestedAmount, 1, slashableStake);
+        delegatedSlashAmount = bound(delegatedSlashAmount, 0, requestedAmount);
+        owedAmount = bound(owedAmount, 0, delegatedSlashAmount);
+
+        slasher.setIsBurnerHookRaw(true);
+        delegator.setStakeForValue(slashableStake);
+        delegator.setOnSlashReturnValue(delegatedSlashAmount);
+        vault.setOnSlashResult(true, 0, owedAmount);
+        _pushRequest(requestedAmount, uint48(block.timestamp), 0, resolver1, false);
+
+        vm.prank(middleware);
+        uint256 slashedAmount = slasher.executeSlash(0, "");
+
+        assertEq(slashedAmount, delegatedSlashAmount);
+        assertEq(vault.lastOnSlashAmount(), delegatedSlashAmount);
+        assertEq(burner.lastAmount(), delegatedSlashAmount - owedAmount);
+        assertEq(slasher.totalOwed(), owedAmount);
+        assertEq(slasher.owed(subnetwork, operator), owedAmount);
+    }
+
+    function testFuzz_syncOwedSlash_uncheckedSubtractionsAreSafe(
+        uint256 curOwed,
+        uint256 syncedAmount,
+        uint256 totalOwedAmount
+    ) public {
+        curOwed = bound(curOwed, 0, SUPPLY_CAP);
+        syncedAmount = bound(syncedAmount, 0, curOwed);
+        totalOwedAmount = bound(totalOwedAmount, curOwed, SUPPLY_CAP);
+
+        slasher.setIsBurnerHookRaw(true);
+        slasher.setOwedRaw(subnetwork, operator, curOwed);
+        slasher.setTotalOwedRaw(totalOwedAmount);
+        vault.setSyncOwedReturn(syncedAmount);
+
+        uint256 slashedAmount = slasher.syncOwedSlash(subnetwork, operator);
+
+        assertEq(slashedAmount, syncedAmount);
+        assertEq(vault.lastSyncOwedAmount(), curOwed);
+        assertEq(slasher.owed(subnetwork, operator), curOwed - syncedAmount);
+        assertEq(slasher.totalOwed(), totalOwedAmount - syncedAmount);
+        assertEq(burner.lastAmount(), syncedAmount);
     }
 
     function test_vetoSlashReverts_NotExist() public {

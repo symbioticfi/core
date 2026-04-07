@@ -13,6 +13,7 @@ import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints as CheckpointsV2Lib} from "../../src/contracts/libraries/CheckpointsV2.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
@@ -91,10 +92,53 @@ contract MockCuratorRegistryHarnessVaultV2 {
 }
 
 contract VaultV2CoverageHarness is VaultV2 {
+    using Checkpoints for Checkpoints.Trace256;
+    using CheckpointsV2Lib for CheckpointsV2Lib.Trace256;
+
     constructor() VaultV2(address(0), address(0), address(0), address(0), address(0), address(0)) {}
+
+    function setCollateralRaw(address collateral_) external {
+        collateral = collateral_;
+    }
+
+    function setBurnerRaw(address burner_) external {
+        burner = burner_;
+    }
+
+    function setSlasherRaw(address slasher_) external {
+        slasher = slasher_;
+    }
 
     function setEpochDurationRaw(uint48 epochDuration_) external {
         epochDuration = epochDuration_;
+    }
+
+    function setEpochDurationInitRaw(uint48 epochDurationInit_) external {
+        __epochDurationInit = epochDurationInit_;
+    }
+
+    function pushActiveStakeRaw(uint48 timestamp, uint256 value) external {
+        _activeStake.push(timestamp, value);
+    }
+
+    function pushWithdrawalsRaw(uint256 bucket, uint48 timestamp, uint256 value) external {
+        _withdrawals[bucket].push(timestamp, value);
+    }
+
+    function pushWithdrawalSharesRaw(uint256 bucket, uint48 timestamp, uint256 value) external {
+        _withdrawalShares[bucket].push(timestamp, value);
+    }
+
+    function pushWithdrawalSharesCumulativeRaw(uint48 timestamp, uint256 value) external {
+        _withdrawalSharesCumulative.push(timestamp, value);
+    }
+
+    function setLegacyWithdrawalRaw(uint256 epoch, uint256 value) external {
+        __withdrawals[epoch] = value;
+    }
+
+    function exposeUpdateWithdrawalsSharePrice(uint256 newActiveWithdrawals) external {
+        _updateWithdrawalsSharePrice(newActiveWithdrawals);
     }
 
     function exposeMigrate(bytes calldata data) external {
@@ -108,6 +152,8 @@ contract VaultV2Test is Test {
     using Subnetwork for address;
     using Checkpoints for Checkpoints.Trace208;
     using UniversalDelegatorIndex for uint96;
+
+    uint256 internal constant SUPPLY_CAP = (uint256(1) << 255) - 1;
 
     address owner;
     address alice;
@@ -2839,6 +2885,122 @@ contract VaultV2Test is Test {
         harness.setEpochDurationRaw(MAX_DURATION + 1);
         vm.expectRevert(IVaultV2.TooLongDuration.selector);
         harness.exposeMigrate("");
+    }
+
+    function testFuzz_OnSlash_arithmeticIsSafeUpToSupplyCap(
+        uint256 activeStakeAmount,
+        uint256 activeWithdrawalAmount,
+        uint256 claimableWithdrawalAmount,
+        uint256 slashAmount
+    ) public {
+        VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
+        Token mathCollateral = new Token("OverflowMath");
+        uint256 availableSupply = SUPPLY_CAP - mathCollateral.totalSupply();
+
+        activeStakeAmount = bound(activeStakeAmount, 0, availableSupply);
+        activeWithdrawalAmount = bound(activeWithdrawalAmount, 0, availableSupply - activeStakeAmount);
+        claimableWithdrawalAmount =
+            bound(claimableWithdrawalAmount, 0, availableSupply - activeStakeAmount - activeWithdrawalAmount);
+        slashAmount = bound(slashAmount, 0, availableSupply);
+        vm.assume(activeStakeAmount + activeWithdrawalAmount > 0);
+
+        uint48 timestamp = uint48(block.timestamp);
+        uint48 epochDuration_ = 7 days;
+
+        harness.setCollateralRaw(address(mathCollateral));
+        harness.setBurnerRaw(address(0xBEEF));
+        harness.setSlasherRaw(address(this));
+        harness.setEpochDurationRaw(epochDuration_);
+        harness.pushActiveStakeRaw(timestamp, activeStakeAmount);
+
+        uint256 bucketWithdrawals = activeWithdrawalAmount + claimableWithdrawalAmount;
+        if (bucketWithdrawals > 0) {
+            harness.pushWithdrawalsRaw(0, timestamp, bucketWithdrawals);
+            harness.pushWithdrawalSharesRaw(0, timestamp, bucketWithdrawals);
+            harness.pushWithdrawalSharesCumulativeRaw(timestamp + epochDuration_, activeWithdrawalAmount);
+        }
+
+        deal(address(mathCollateral), address(harness), activeStakeAmount + bucketWithdrawals);
+
+        uint256 slashableStake = activeStakeAmount + activeWithdrawalAmount;
+        uint256 expectedSlashedAmount = Math.min(slashAmount, slashableStake);
+        uint256 expectedActiveSlashed =
+            expectedSlashedAmount > 0 ? expectedSlashedAmount.mulDiv(activeStakeAmount, slashableStake) : 0;
+        uint256 expectedActiveStakeAfter = activeStakeAmount - expectedActiveSlashed;
+        uint256 expectedActiveWithdrawalsAfter =
+            activeWithdrawalAmount - (expectedSlashedAmount - expectedActiveSlashed);
+
+        (uint256 slashedAmount, uint256 owedAmount) = harness.onSlash(slashAmount, false);
+
+        assertEq(slashedAmount, expectedSlashedAmount);
+        assertEq(owedAmount, 0);
+        assertEq(harness.activeStake(), expectedActiveStakeAfter);
+        assertEq(harness.activeWithdrawals(), expectedActiveWithdrawalsAfter);
+
+        uint256 bucket = harness.withdrawalBucket();
+        assertGe(harness.withdrawals(bucket), harness.activeWithdrawals());
+        assertGe(harness.withdrawalShares(bucket), harness.activeWithdrawalShares());
+        assertLe(harness.activeStake() + harness.activeWithdrawals(), availableSupply);
+    }
+
+    function testFuzz_Migrate_accountingSubtractionIsSafeUpToSupplyCap(
+        uint256 depositAmount,
+        uint256 firstWithdrawal,
+        uint256 secondWithdrawal
+    ) public {
+        uint48 epochDuration_ = 10;
+        uint256 maxDeposit = SUPPLY_CAP - collateral.totalSupply();
+
+        depositAmount = bound(depositAmount, 2, maxDeposit);
+        firstWithdrawal = bound(firstWithdrawal, 0, depositAmount);
+        secondWithdrawal = bound(secondWithdrawal, 0, depositAmount - firstWithdrawal);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (IVaultV2 legacyVault,,) = _createInitializedVaultWithOwner(
+            epochDuration_,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+
+        deal(address(collateral), alice, depositAmount);
+        vm.startPrank(alice);
+        collateral.approve(address(legacyVault), depositAmount);
+        legacyVault.deposit(alice, depositAmount);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1);
+        if (firstWithdrawal > 0) {
+            vm.prank(alice);
+            legacyVault.withdraw(alice, firstWithdrawal);
+        }
+
+        vm.warp(block.timestamp + epochDuration_ + 1);
+        if (secondWithdrawal > 0) {
+            vm.prank(alice);
+            legacyVault.withdraw(alice, secondWithdrawal);
+        }
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration_));
+        vaultFactory.migrate(address(legacyVault), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 migratedVault = IVaultV2(address(legacyVault));
+        int256 unclaimedRaw = vaultTestHelper.unclaimedRaw(address(migratedVault));
+
+        assertGe(unclaimedRaw, 0);
+        assertEq(
+            collateral.balanceOf(address(migratedVault)),
+            migratedVault.activeStake() + migratedVault.activeWithdrawals() + uint256(unclaimedRaw)
+        );
+        assertLe(migratedVault.activeStake() + migratedVault.activeWithdrawals() + uint256(unclaimedRaw), SUPPLY_CAP);
     }
 
     function test_MigrateWithdrawals_FactoryUpgradePath() public {

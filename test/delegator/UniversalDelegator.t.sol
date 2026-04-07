@@ -90,12 +90,54 @@ contract MockLegacyDelegatorType {
     }
 }
 
+contract MockVaultForDelegatorCoverage {
+    uint48 public epochDuration = 3;
+}
+
 contract UniversalDelegatorCoverageHarness is UniversalDelegator {
+    using Checkpoints for Checkpoints.Trace208;
+
     constructor() UniversalDelegator(address(0), address(0), address(0), 0, address(0)) {}
 
     function exposeSlotExists(uint96 index, bool exists_) external {
         slots[index].exists = exists_;
         _revertIfNotExists(index);
+    }
+
+    function setVaultRaw(address vault_) external {
+        vault = vault_;
+    }
+
+    function pushSlotSizeRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].size.push(timestamp, value);
+    }
+
+    function pushPendingCumulativeRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].pendingCumulative.push(timestamp, value);
+    }
+
+    function pushNextSlotRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].nextSlot.push(timestamp, value);
+    }
+
+    function pushFirstChildRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].firstChild.push(timestamp, value);
+    }
+
+    function pushSyncPrevSizeSumsRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].syncPrevSizeSums.push(timestamp, value);
+    }
+
+    function setChildrenPendingAtRaw(uint96 index, uint48 timestamp) external {
+        slots[index]._childrenPendingAt = timestamp;
+    }
+
+    function exposeGetPendingSize(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPendingSize(index, duration);
+    }
+
+    function exposeGetPrevSum(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPrevSum(index, duration);
     }
 }
 
@@ -2572,6 +2614,56 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         harness.exposeSlotExists(_rootIndex(uint32(1)), false);
 
         harness.exposeSlotExists(_rootIndex(uint32(1)), true);
+    }
+
+    function testFuzz_getPendingSize_sumOfUint128SizeAndPendingFitsUint208(uint128 size, uint128 pending) public {
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
+        uint96 index = _rootIndex(uint32(1));
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.setVaultRaw(address(vaultMock));
+        harness.pushSlotSizeRaw(index, timestamp, size);
+        if (pending > 0) {
+            harness.pushPendingCumulativeRaw(index, timestamp, pending);
+        }
+
+        uint256 expected = uint256(size) + uint256(pending);
+        assertEq(harness.exposeGetPendingSize(index, 0), expected);
+        assertLe(expected, type(uint208).max);
+    }
+
+    function testFuzz_getPrevSum_siblingPrefixFitsUint208(uint8 siblingCount, uint128 size, uint128 pending) public {
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
+        uint96 parent = _rootIndex(uint32(1));
+        uint48 timestamp = 1;
+
+        siblingCount = uint8(bound(siblingCount, 2, 20));
+
+        vm.warp(timestamp);
+        harness.setVaultRaw(address(vaultMock));
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
+        harness.setChildrenPendingAtRaw(parent, timestamp);
+
+        for (uint32 i = 1; i <= siblingCount; ++i) {
+            uint96 slot = parent.createIndex(i);
+            harness.pushSlotSizeRaw(slot, timestamp, size);
+            if (pending > 0) {
+                harness.pushPendingCumulativeRaw(slot, timestamp, pending);
+            }
+            if (i < siblingCount) {
+                harness.pushNextSlotRaw(slot, timestamp, i + 1);
+            }
+        }
+
+        uint96 target = parent.createIndex(uint32(siblingCount));
+        uint256 expected = (uint256(siblingCount) - 1) * (uint256(size) + uint256(pending));
+
+        assertEq(harness.exposeGetPrevSum(target, 0), expected);
+        assertLe(expected, type(uint208).max);
     }
 
     function test_createSlot_revertsForMissingParentSlot() public {
