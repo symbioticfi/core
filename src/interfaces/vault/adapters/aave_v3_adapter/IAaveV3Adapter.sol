@@ -10,25 +10,7 @@ uint16 constant REFERRAL_CODE = 0;
  * @notice Interface for the Aave V3 vault adapter.
  */
 interface IAaveV3Adapter is IAdapter {
-    /* EVENTS */
-
-    /**
-     * @notice Emitted when the adapter is initialized.
-     */
-    event Initialize();
-
     /* FUNCTIONS */
-
-    /**
-     * @notice Initializes the adapter.
-     */
-    function initialize() external;
-
-    /**
-     * @notice Returns the immutable Aave V3 pool used by the adapter.
-     * @return Configured Aave V3 pool.
-     */
-    function AAVE_POOL() external view returns (address);
 
     /**
      * @notice Returns the Aave reserve aToken for a vault collateral.

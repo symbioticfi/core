@@ -28,11 +28,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
     /* EVENTS */
 
     /**
-     * @notice Emitted when the adapter is initialized.
-     */
-    event Initialize();
-
-    /**
      * @notice Emitted when a Morpho vault is configured for a vault.
      * @param vault Vault address.
      * @param morphoVault Morpho vault address.
@@ -40,11 +35,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
     event SetMorphoVault(address indexed vault, address indexed morphoVault);
 
     /* FUNCTIONS */
-
-    /**
-     * @notice Initializes the adapter.
-     */
-    function initialize() external;
 
     /**
      * @notice Returns the configured Morpho vault for a vault.

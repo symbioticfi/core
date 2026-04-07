@@ -148,7 +148,7 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
 
     mapping(address vault => address morphoVault) public morphoVaults;
 
-    mapping(address token => uint256 globalLimit) public globalLimits;
+    mapping(address token => uint256 globalLimit_) public globalLimit;
 
     mapping(address morphoVault => uint256 shares) totalVaultShares;
     mapping(address morphoVault => mapping(address vault => uint256 shares)) vaultShares;
@@ -179,7 +179,7 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
 
     function allocatable(address vault) public view returns (uint256) {
         address token = IVaultV2(vault).collateral();
-        return globalLimits[token].saturatingSub(token.balanceOf(address(this)));
+        return globalLimit[token].saturatingSub(token.balanceOf(address(this)));
     }
 
     function deallocatable(address vault) public view returns (uint256) {
@@ -272,6 +272,6 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
     /* OWNER FUNCTIONS */
 
     function setGlobalLimit(address token, uint256 limit) public onlyOwner {
-        globalLimits[token] = limit;
+        globalLimit[token] = limit;
     }
 }

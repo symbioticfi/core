@@ -26,9 +26,9 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
 
     /* IMMUTABLES */
 
-    /// @inheritdoc IAaveV3Adapter
-    address public immutable AAVE_POOL;
-    /// @notice Rewards contract that receives donated adapter yield.
+    /// @dev Core Aave V3 pool.
+    address internal immutable AAVE_POOL;
+    /// @notice Rewards contract that redistributes adapter yield to the vault.
     address internal immutable REWARDS;
 
     /* STATE VARIABLES */
@@ -62,11 +62,11 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
     }
 
     /// @inheritdoc IAdapter
-    function allocatable(address vault) public view returns (uint256) {
+    function allocatable(address vault) public view override(Adapter, IAdapter) returns (uint256) {
         if (aToken(vault) == address(0)) {
             return 0;
         }
-        return type(uint256).max;
+        return super.allocatable(vault);
     }
 
     /// @inheritdoc IAdapter
@@ -113,11 +113,12 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
     function allocate(uint256 amount) public onlyVault(msg.sender) {
         skim(msg.sender);
 
-        address collateral = IVaultV2(msg.sender).collateral();
-        if (aToken(msg.sender) == address(0) || amount == 0) {
+        if (amount == 0) {
             return;
         }
 
+        address collateral = IVaultV2(msg.sender).collateral();
+        _increaseGlobalAllocated(collateral, amount);
         if (IERC20(collateral).allowance(address(this), AAVE_POOL) < amount) {
             collateral.safeApproveWithRetry(AAVE_POOL, type(uint256).max);
         }
@@ -136,13 +137,13 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
     function deallocate(uint256 amount) public onlyVault(msg.sender) returns (uint256 deallocated) {
         skim(msg.sender);
 
-        address collateral = IVaultV2(msg.sender).collateral();
-        if (aToken(msg.sender) == address(0) || amount == 0) {
+        if (amount == 0) {
             return 0;
         }
 
         deallocated = Math.min(deallocatable(msg.sender), amount);
         if (deallocated > 0) {
+            address collateral = IVaultV2(msg.sender).collateral();
             uint256 curBalance = IERC20(collateral).balanceOf(address(this));
             uint256 amountToWithdraw = deallocated.saturatingSub(curBalance);
             if (amountToWithdraw > 0) {
@@ -157,6 +158,7 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
                 }
             }
 
+            _decreaseGlobalAllocated(collateral, deallocated);
             if (IERC20(collateral).allowance(address(this), msg.sender) < deallocated) {
                 collateral.safeApproveWithRetry(msg.sender, type(uint256).max);
             }
@@ -189,9 +191,4 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
             vaultShares[collateral][vault], _getAdapterAssets(vault), totalCollateralShares[collateral]
         );
     }
-
-    /* INITIALIZATION */
-
-    /// @inheritdoc IAaveV3Adapter
-    function initialize() public initializer {}
 }

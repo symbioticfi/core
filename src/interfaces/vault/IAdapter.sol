@@ -12,10 +12,31 @@ interface IAdapter {
     error NotVault();
 
     /**
+     * @notice Emitted when the global allocation limit is updated for an asset.
+     * @param asset Asset address.
+     * @param limit Adapter-wide allocation limit for the asset.
+     */
+    event SetGlobalLimit(address indexed asset, uint256 limit);
+
+    /**
      * @notice Execute a batch of delegatecalls on the adapter.
      * @param data Calldata items to execute.
      */
     function multicall(bytes[] calldata data) external;
+
+    /**
+     * @notice Returns the adapter-wide allocation limit for an asset.
+     * @param asset Asset address.
+     * @return limit Allocation limit for the asset.
+     */
+    function globalLimit(address asset) external view returns (uint256 limit);
+
+    /**
+     * @notice Sets the adapter-wide allocation limit for an asset.
+     * @param asset Asset address.
+     * @param limit Allocation limit for the asset.
+     */
+    function setGlobalLimit(address asset, uint256 limit) external;
 
     /**
      * @notice Get the current skimmable balance of the vault.

@@ -48,7 +48,6 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
 
     /// @inheritdoc IMorphoVaultV2Adapter
     mapping(address vault => address morphoVault) public morphoVaults;
-
     /// @inheritdoc IMorphoVaultV2Adapter
     mapping(address morphoVault => uint256 shares) public totalVaultShares;
     /// @inheritdoc IMorphoVaultV2Adapter
@@ -92,11 +91,11 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     }
 
     /// @inheritdoc IAdapter
-    function allocatable(address vault) public view returns (uint256) {
+    function allocatable(address vault) public view override(Adapter, IAdapter) returns (uint256) {
         if (morphoVaults[vault] == address(0)) {
             return 0;
         }
-        return type(uint256).max;
+        return super.allocatable(vault);
     }
 
     /// @inheritdoc IAdapter
@@ -147,12 +146,13 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     function allocate(uint256 amount) public onlyVault(msg.sender) {
         skim(msg.sender);
 
-        address morphoVault = morphoVaults[msg.sender];
-        if (morphoVault == address(0) || amount == 0) {
+        if (amount == 0) {
             return;
         }
 
+        address morphoVault = morphoVaults[msg.sender];
         address collateral = IMorphoVaultV2(morphoVault).asset();
+        _increaseGlobalAllocated(collateral, amount);
         if (IERC20(collateral).allowance(address(this), morphoVault) < amount) {
             collateral.safeApproveWithRetry(morphoVault, type(uint256).max);
         }
@@ -171,13 +171,13 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     function deallocate(uint256 amount) public onlyVault(msg.sender) returns (uint256 deallocated) {
         skim(msg.sender);
 
-        address morphoVault = morphoVaults[msg.sender];
-        if (morphoVault == address(0) || amount == 0) {
+        if (amount == 0) {
             return 0;
         }
 
         deallocated = Math.min(deallocatable(msg.sender), amount);
         if (deallocated > 0) {
+            address morphoVault = morphoVaults[msg.sender];
             address collateral = IMorphoVaultV2(morphoVault).asset();
             uint256 curBalance = collateral.balanceOf(address(this));
             uint256 amountToWithdraw = deallocated.saturatingSub(curBalance);
@@ -194,6 +194,8 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
                     deallocated = curBalance;
                 }
             }
+
+            _decreaseGlobalAllocated(collateral, deallocated);
             if (IERC20(collateral).allowance(address(this), msg.sender) < deallocated) {
                 collateral.safeApproveWithRetry(msg.sender, type(uint256).max);
             }
@@ -243,9 +245,4 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
 
         emit SetMorphoVault(vault, newMorphoVault);
     }
-
-    /* INITIALIZATION */
-
-    /// @inheritdoc IMorphoVaultV2Adapter
-    function initialize() public initializer {}
 }
