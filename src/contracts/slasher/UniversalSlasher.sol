@@ -54,6 +54,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /// @inheritdoc IUniversalSlasher
     uint48 public resolverSetDelay;
     /// @inheritdoc IUniversalSlasher
+    mapping(bytes32 subnetwork => bool) public isResolverSet;
+    /// @dev Resolver mapping before pending resolver activation.
+    /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
 
     /// @inheritdoc IUniversalSlasher
@@ -63,16 +66,15 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @dev Slash request storage.
     SlashRequest[] internal _slashRequests;
-    /// @dev Resolver mapping before pending resolver activation.
     mapping(bytes32 subnetwork => address value) internal _resolver;
     /// @dev Legacy latest slashed capture timestamps.
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) internal __latestSlashedCaptureTimestamp;
     /// @dev Legacy cumulative slash checkpoints.
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal __cumulativeSlash;
 
-    /// @dev Timestamp when migration from the previous slasher occurred.
+    /// @inheritdoc IUniversalSlasher
     uint48 public migrateTimestamp;
-    /// @dev Address of the previous slasher during migration.
+    /// @inheritdoc IUniversalSlasher
     address public oldSlasher;
 
     /* CONSTRUCTOR */
@@ -129,6 +131,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @inheritdoc IUniversalSlasher
     function resolver(bytes32 subnetwork) public view returns (address) {
+        // Legacy support.
+        if (!isResolverSet[subnetwork] && oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == VETO_SLASHER_TYPE) {
+            return IVetoSlasher(oldSlasher).resolver(subnetwork, "");
+        }
         return uint48(uint256(pendingResolverData[subnetwork])) == 0
             || block.timestamp < uint48(uint256(pendingResolverData[subnetwork]))
             ? _resolver[subnetwork]
@@ -296,6 +302,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
             bytes32 subnetwork = (msg.sender).subnetwork(identifier);
             address curResolver = resolver(subnetwork);
+
+            // Legacy support.
+            isResolverSet[subnetwork] = true;
             if (curResolver == address(0)) {
                 _resolver[subnetwork] = newResolver;
                 pendingResolverData[subnetwork] = 0;

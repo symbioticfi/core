@@ -73,7 +73,7 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /// @dev Checkpointed active shares per account.
     mapping(address account => Checkpoints.Trace256 shares) internal _activeSharesOf;
 
-    /// @dev Timestamp when migration to the current storage model occurred.
+    /// @inheritdoc IVaultV2Storage
     uint48 public migrateTimestamp;
     /// @dev Epoch index at migration.
     uint48 internal __migrateEpoch;

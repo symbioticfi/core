@@ -246,6 +246,14 @@ interface IUniversalSlasher {
     function resolverSetDelay() external view returns (uint48);
 
     /**
+     * @notice Get whether a resolver was ever set for a subnetwork on this slasher.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @return Whether resolver state exists locally for the subnetwork.
+     * @dev Used to distinguish fresh local state from legacy fallback reads after migration.
+     */
+    function isResolverSet(bytes32 subnetwork) external view returns (bool);
+
+    /**
      * @notice Get pending resolver activation data for a subnetwork.
      * @param subnetwork Full identifier of the subnetwork.
      * @return data Encoded pending resolver address and activation timestamp.

@@ -32,7 +32,7 @@ import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDele
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IUniversalSlasher, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
-import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
+import {IVetoSlasher, VETO_SLASHER_TYPE} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 import {IVault} from "../../src/interfaces/vault/IVault.sol";
@@ -43,6 +43,8 @@ import {Token} from "../mocks/Token.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
 
 contract UniversalSlasherMigrationTest is Test {
+    using Subnetwork for address;
+
     uint48 internal constant EPOCH_DURATION = 7 days;
     string internal constant VAULT_NAME = "Test";
     string internal constant VAULT_SYMBOL = "TEST";
@@ -269,6 +271,51 @@ contract UniversalSlasherMigrationTest is Test {
         vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
 
         assertEq(IUniversalSlasher(vault_.slasher()).resolverSetDelay(), resolverSetEpochsDelay * EPOCH_DURATION);
+    }
+
+    function test_MigrateFromVetoSlasher_ToUniversalSlasher_usesLegacyResolverUntilNewResolverIsSet() public {
+        uint48 resolverSetEpochsDelay = 4;
+        bytes memory slasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                vetoDuration: 1,
+                resolverSetEpochsDelay: resolverSetEpochsDelay
+            })
+        );
+        (IVaultV2 vault_, address oldSlasher) = _createLegacyVault(true, 1, slasherParams);
+
+        address network = makeAddr("migration-network");
+        address resolver_1 = makeAddr("migration-resolver-1");
+        address resolver_2 = makeAddr("migration-resolver-2");
+        bytes32 subnetwork_ = network.subnetwork(0);
+
+        vm.startPrank(network);
+        networkRegistry.registerNetwork();
+        IVetoSlasher(oldSlasher).setResolver(0, resolver_1, "");
+        vm.stopPrank();
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams());
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
+
+        IUniversalSlasher newSlasher = IUniversalSlasher(vault_.slasher());
+        assertFalse(newSlasher.isResolverSet(subnetwork_));
+        assertEq(newSlasher.resolver(subnetwork_), resolver_1);
+
+        vm.prank(network);
+        newSlasher.setResolver(0, resolver_2);
+
+        assertTrue(newSlasher.isResolverSet(subnetwork_));
+        assertEq(newSlasher.resolver(subnetwork_), resolver_1);
+        assertEq(
+            newSlasher.pendingResolverData(subnetwork_),
+            bytes32((uint256(uint160(resolver_2)) << 48) | (uint256(block.timestamp + newSlasher.resolverSetDelay())))
+        );
+
+        vm.warp(block.timestamp + newSlasher.resolverSetDelay() - 1);
+        assertEq(newSlasher.resolver(subnetwork_), resolver_1);
+
+        vm.warp(block.timestamp + 1);
+        assertEq(newSlasher.resolver(subnetwork_), resolver_2);
     }
 
     function _createLegacyVault(bool withSlasher, uint64 slasherIndex, bytes memory slasherParams)
@@ -611,6 +658,12 @@ contract MockLegacySlasher {
             resolverSwitchTimestamp_ > 0 && timestamp >= resolverSwitchTimestamp_ ? resolverAtAfter_ : resolverAtBefore_;
     }
 
+    function resolver(bytes32, bytes memory) external view returns (address) {
+        return resolverSwitchTimestamp_ > 0 && block.timestamp >= resolverSwitchTimestamp_
+            ? resolverAtAfter_
+            : resolverAtBefore_;
+    }
+
     function vetoDuration() external view returns (uint48) {
         return vetoDuration_;
     }
@@ -875,6 +928,15 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(slasher.resolver(subnetwork), resolver2);
     }
 
+    function test_resolver_ignoresLegacyResolverWhenOldSlasherIsNotVeto() public {
+        legacySlasher.setType(0);
+        legacySlasher.setResolverAt(resolver1);
+        slasher.setOldSlasherRaw(address(legacySlasher));
+        slasher.setResolverRaw(subnetwork, resolver2);
+
+        assertEq(slasher.resolver(subnetwork), resolver2);
+    }
+
     function test_setResolverReverts_NotNetwork() public {
         networkRegistry.setEntity(network, false);
 
@@ -886,16 +948,44 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     function test_setResolver_setsDirectAndQueuesPending() public {
         vm.prank(network);
         slasher.setResolver(0, resolver1);
+        assertTrue(slasher.isResolverSet(subnetwork));
         assertEq(slasher.resolver(subnetwork), resolver1);
+        assertEq(slasher.pendingResolverData(subnetwork), bytes32(0));
 
         vm.prank(network);
         slasher.setResolver(0, resolver2);
+        assertEq(
+            slasher.pendingResolverData(subnetwork),
+            bytes32((uint256(uint160(resolver2)) << 48) | (uint256(block.timestamp + slasher.resolverSetDelay())))
+        );
         assertEq(slasher.resolver(subnetwork), resolver1);
 
         vm.warp(block.timestamp + slasher.resolverSetDelay());
         vm.prank(network);
         slasher.setResolver(0, makeAddr("resolver-3"));
 
+        assertEq(slasher.resolver(subnetwork), resolver2);
+    }
+
+    function test_setResolver_onMigratedVetoResolverQueuesFirstUpdateAndMarksLocalState() public {
+        legacySlasher.setType(VETO_SLASHER_TYPE);
+        legacySlasher.setResolverAt(resolver1);
+        slasher.setOldSlasherRaw(address(legacySlasher));
+
+        assertFalse(slasher.isResolverSet(subnetwork));
+        assertEq(slasher.resolver(subnetwork), resolver1);
+
+        vm.prank(network);
+        slasher.setResolver(0, resolver2);
+
+        assertTrue(slasher.isResolverSet(subnetwork));
+        assertEq(slasher.resolver(subnetwork), resolver1);
+        assertEq(
+            slasher.pendingResolverData(subnetwork),
+            bytes32((uint256(uint160(resolver2)) << 48) | (uint256(block.timestamp + slasher.resolverSetDelay())))
+        );
+
+        vm.warp(block.timestamp + slasher.resolverSetDelay());
         assertEq(slasher.resolver(subnetwork), resolver2);
     }
 
