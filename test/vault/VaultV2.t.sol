@@ -2619,6 +2619,90 @@ contract VaultV2Test is Test {
         _claim(alice, 0);
     }
 
+    function test_ClaimRevertsWhenItWouldDrainNoAdaptersBackingAndAdapterCannotDeallocate() public {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        universalSlasher = UniversalSlasher(address(slasher));
+
+        address noAdaptersNetwork = makeAddr("claim-drain-no-adapters-network");
+        address noAdaptersMiddleware = makeAddr("claim-drain-no-adapters-middleware");
+        address adapterNetwork = makeAddr("claim-drain-adapter-network");
+        address adapterMiddleware = makeAddr("claim-drain-adapter-middleware");
+
+        _registerNetwork(noAdaptersNetwork, noAdaptersMiddleware);
+        _registerNetwork(adapterNetwork, adapterMiddleware);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, noAdaptersNetwork);
+        _optInOperatorNetwork(alice, adapterNetwork);
+
+        vm.prank(noAdaptersNetwork);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(adapterNetwork);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _deposit(alice, 100);
+
+        vm.startPrank(alice);
+        uint96 noAdaptersSubvault = universalDelegator.createSlot(bytes32("no-adapters-subvault"), 0, false, true, 50);
+        uint96 noAdaptersNetworkSlot =
+            universalDelegator.createSlot(noAdaptersNetwork.subnetwork(0), noAdaptersSubvault, false, false, 50);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), noAdaptersNetworkSlot, false, false, 50);
+
+        uint96 adapterSubvault = universalDelegator.createSlot(bytes32("adapter-subvault"), 0, false, false, 50);
+        uint96 adapterNetworkSlot =
+            universalDelegator.createSlot(adapterNetwork.subnetwork(0), adapterSubvault, false, false, 50);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), adapterNetworkSlot, false, false, 50);
+        vm.stopPrank();
+
+        assertEq(universalSlasher.slashableStake(noAdaptersNetwork.subnetwork(0), alice, 0, ""), 50);
+        assertEq(universalSlasher.slashableStake(adapterNetwork.subnetwork(0), alice, 0, ""), 50);
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
+
+        vm.prank(address(adapter));
+        vault.allocateAdapter(address(adapter), 50);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(collateral.balanceOf(address(vault)), 50);
+        assertEq(collateral.balanceOf(address(adapter)), 50);
+
+        _withdraw(alice, 50);
+        adapter.setShouldFail(true);
+
+        uint48 unlockAt = vault.withdrawalUnlockAt(0, alice);
+        vm.warp(unlockAt);
+
+        assertEq(universalSlasher.slashableStake(noAdaptersNetwork.subnetwork(0), alice, 0, ""), 50);
+        assertEq(universalSlasher.slashableStake(adapterNetwork.subnetwork(0), alice, 0, ""), 0);
+        assertEq(collateral.balanceOf(address(vault)), 50);
+        assertEq(collateral.balanceOf(address(adapter)), 50);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        assertEq(collateral.balanceOf(address(vault)), 50);
+        assertEq(collateral.balanceOf(address(adapter)), 50);
+        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(universalSlasher.slashableStake(noAdaptersNetwork.subnetwork(0), alice, 0, ""), 50);
+        assertEq(universalSlasher.slashableStake(adapterNetwork.subnetwork(0), alice, 0, ""), 0);
+
+        vm.prank(noAdaptersMiddleware);
+        uint256 slashIndex = universalSlasher.requestSlash(noAdaptersNetwork.subnetwork(0), alice, 50, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(noAdaptersMiddleware);
+        uint256 slashedAmount = universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 50);
+        assertEq(collateral.balanceOf(address(0xdEaD)), 50);
+    }
+
     function test_TotalStakeUnlockBoundary(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, amount1);

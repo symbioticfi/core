@@ -438,6 +438,15 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             isWithdrawalsClaimed[index][msg.sender] = true;
             _unclaimedRaw -= int256(amount);
 
+            // Keep no-adapters backing from being consumed by claimable withdrawals
+            // while adapters still owe liquidity to the vault.
+            if (
+                uint256(int256(withdrawals(withdrawalBucket()) - activeWithdrawalsFor(0)) + _unclaimedRaw)
+                    < _adaptersOwe()
+            ) {
+                revert InsufficientAmount();
+            }
+
             _safeTransferOut(recipient, amount);
 
             emit Claim(msg.sender, recipient, index, amount);
