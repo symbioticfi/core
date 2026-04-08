@@ -708,12 +708,12 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /* INTERNAL FUNCTIONS (ADAPTERS) */
 
-    /// @dev Return the vault stake that may still be allocated after reserving no-adapters capacity.
+    /// @dev Get the vault stake that may still be allocated after reserving no-adapters capacity.
     function _maxAllocatable() internal view returns (uint256) {
         return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
     }
 
-    /// @dev Return how much adapter allocation currently exceeds the vault allocatable amount.
+    /// @dev Get how much adapter allocation currently exceeds the vault allocatable amount.
     function _adaptersOwe() internal view returns (uint256) {
         return adaptersAllocated.saturatingSub(_maxAllocatable());
     }

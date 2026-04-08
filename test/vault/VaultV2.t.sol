@@ -344,6 +344,14 @@ contract VaultV2Test is Test {
         bytes slasherParams;
     }
 
+    struct NoAdaptersReserveScenario {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        MockAdapter adapter;
+        bytes32 noAdaptersSubnetwork;
+        bytes32 adapterSubnetwork;
+    }
+
     function setUp() public virtual {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
@@ -2805,6 +2813,307 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(0xdEaD)), 50);
     }
 
+    function test_Scenario_NoAdaptersClaimTimeline_partialClaimThenBlockedClaimThenRecoveredClaim() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        assertEq(collateral.balanceOf(address(vault)), 110);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        scenario.adapter.setShouldFail(true);
+
+        uint48 firstUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 secondUnlockAt = vault.withdrawalUnlockAt(1, alice);
+        assertEq(secondUnlockAt, firstUnlockAt + 1);
+
+        vm.warp(firstUnlockAt);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), 30);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, 30);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        vm.warp(secondUnlockAt);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 1);
+
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 120);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.adapterSubnetwork, alice, 0, ""), 80);
+
+        scenario.adapter.setShouldFail(false);
+
+        aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 1), 40);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 80);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 80);
+    }
+
+    function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_claimWaitsForFullSyncBeforeClaim() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashedAmount = scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 70);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        vm.warp(vault.withdrawalUnlockAt(0, alice));
+
+        uint256 claimableAmount = vault.withdrawalsOf(0, alice);
+        assertEq(claimableAmount, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 20);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(scenario.universalSlasher.totalOwed(), 20);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 20);
+        assertEq(collateral.balanceOf(address(vault)), 100);
+
+        _deposit(bob, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 20);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(collateral.balanceOf(address(vault)), 100);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), claimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, claimableAmount);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+    }
+
+    function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_syncKeepsNoAdaptersSlashFullyAvailable() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashedAmount = scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 70);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        uint48 firstUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 secondUnlockAt = vault.withdrawalUnlockAt(1, alice);
+        assertEq(secondUnlockAt, firstUnlockAt + 1);
+
+        vm.warp(secondUnlockAt);
+
+        uint256 firstClaimableAmount = vault.withdrawalsOf(0, alice);
+        uint256 secondClaimableAmount = vault.withdrawalsOf(1, alice);
+
+        assertEq(firstClaimableAmount, 20);
+        assertEq(secondClaimableAmount, 27);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 60);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 12);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 12);
+        assertEq(scenario.universalSlasher.totalOwed(), 28);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 28);
+        assertEq(collateral.balanceOf(address(vault)), 128);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        vm.prank(noAdaptersMiddleware);
+        uint256 noAdaptersSlashIndex =
+            scenario.universalSlasher.requestSlash(scenario.noAdaptersSubnetwork, alice, 80, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(noAdaptersMiddleware);
+        uint256 slashedAmountAfterSync = scenario.universalSlasher.executeSlash(noAdaptersSlashIndex, "");
+
+        assertEq(slashedAmountAfterSync, 80);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 0);
+        assertEq(collateral.balanceOf(address(vault)), 48);
+        assertEq(vault.withdrawalsOf(0, alice), firstClaimableAmount);
+        assertEq(vault.withdrawalsOf(1, alice), secondClaimableAmount);
+    }
+
+    function test_ClaimableBackingCanBeBelowAdaptersOweWhenOwedSlashExists() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(adapterMiddleware);
+        scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        vm.warp(vault.withdrawalUnlockAt(0, alice));
+
+        uint256 claimableBacking = uint256(
+            int256(vault.withdrawals(vault.withdrawalBucket()) - vault.activeWithdrawals())
+                + vaultTestHelper.unclaimedRaw(address(vault))
+        );
+        uint256 maxAllocatable = vault.totalStake().saturatingSub(scenario.universalDelegator.getNoAdaptersSize());
+        uint256 adaptersOwe = vault.adaptersAllocated().saturatingSub(maxAllocatable);
+
+        assertEq(claimableBacking, 20);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(adaptersOwe, 60);
+        assertLt(claimableBacking, adaptersOwe);
+    }
+
+    function testFuzz_ClaimRevertsWhenAdapterFailureWouldConsumeNoAdaptersBacking(
+        uint128 noAdaptersSize,
+        uint128 adapterSize,
+        uint128 withdrawalAmount
+    ) public {
+        noAdaptersSize = uint128(bound(noAdaptersSize, 1, 1_000_000));
+        adapterSize = uint128(bound(adapterSize, 1, 1_000_000));
+        withdrawalAmount = uint128(bound(withdrawalAmount, 1, adapterSize));
+
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(noAdaptersSize, adapterSize, 0);
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), adapterSize);
+
+        _withdraw(alice, withdrawalAmount);
+        scenario.adapter.setShouldFail(true);
+
+        vm.warp(vault.withdrawalUnlockAt(0, alice));
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), adapterSize);
+        assertEq(collateral.balanceOf(address(vault)), noAdaptersSize);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), adapterSize);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), noAdaptersSize);
+        assertEq(
+            scenario.universalSlasher.slashableStake(scenario.adapterSubnetwork, alice, 0, ""),
+            adapterSize - withdrawalAmount
+        );
+    }
+
+    function testFuzz_InstantWithdrawKeepsNoAdaptersSlashableLiquid(
+        uint128 noAdaptersSize,
+        uint128 adapterSize,
+        uint128 instantWithdrawAmount
+    ) public {
+        noAdaptersSize = uint128(bound(noAdaptersSize, 1, 1_000_000));
+        adapterSize = uint128(bound(adapterSize, 1, 1_000_000));
+        instantWithdrawAmount = uint128(bound(instantWithdrawAmount, 1, adapterSize));
+
+        NoAdaptersReserveScenario memory scenario =
+            _setupNoAdaptersReserveScenario(noAdaptersSize, adapterSize, instantWithdrawAmount);
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), adapterSize);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets,) = VaultV2(address(vault)).instantWithdraw(alice, instantWithdrawAmount);
+
+        assertEq(withdrawnAssets, instantWithdrawAmount);
+        assertLe(vault.adapterAllocated(address(scenario.adapter)), adapterSize);
+        assertGe(collateral.balanceOf(address(vault)), Math.min(uint256(noAdaptersSize), vault.totalStake()));
+        assertEq(
+            scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""),
+            Math.min(uint256(noAdaptersSize), vault.totalStake())
+        );
+        assertLe(
+            scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""),
+            collateral.balanceOf(address(vault))
+        );
+    }
+
     function test_TotalStakeUnlockBoundary(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, amount1);
@@ -4556,6 +4865,64 @@ contract VaultV2Test is Test {
         assertEq(universalSlasher.owed(network.subnetwork(0), alice), 0);
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
         assertEq(collateral.balanceOf(address(vault)), 0);
+    }
+
+    function test_Scenario_NoAdaptersSyncOwedSlashTimeline_blockedThenPartialThenRecovered() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        vm.prank(adapterMiddleware);
+        uint256 slashedAmount = scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 70);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 30);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 120);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 25);
+
+        burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 25);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 25);
+        assertEq(scenario.universalSlasher.totalOwed(), 15);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 15);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+
+        scenario.adapter.setShouldFail(false);
+
+        burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 15);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 15);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 105);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 105);
     }
 
     function test_UniversalSlasher_executeSlash_withFullyOwedAdapterShortfall_skipsZeroBurnerTransfer() public {
@@ -6313,6 +6680,82 @@ contract VaultV2Test is Test {
         vm.prank(alice);
         adapter.setMorhpoVault(vaultAddress, morphoVault);
         adapter.setGlobalLimit(address(collateral), type(uint256).max);
+    }
+
+    function _setupNoAdaptersReserveScenario(uint128 noAdaptersSize, uint128 adapterSize, uint256 extraBuffer)
+        internal
+        returns (NoAdaptersReserveScenario memory scenario)
+    {
+        UniversalDelegator universalDelegator;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        scenario.universalDelegator = universalDelegator;
+        scenario.universalSlasher = UniversalSlasher(address(slasher));
+
+        address noAdaptersNetwork = makeAddr("fuzz-noad-network");
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterNetwork = makeAddr("fuzz-adapter-network");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+        scenario.noAdaptersSubnetwork = noAdaptersNetwork.subnetwork(0);
+        scenario.adapterSubnetwork = adapterNetwork.subnetwork(0);
+
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _configureNoAdaptersReserveNetworks(
+            universalDelegator, noAdaptersNetwork, noAdaptersMiddleware, adapterNetwork, adapterMiddleware
+        );
+
+        _deposit(alice, uint256(noAdaptersSize) + uint256(adapterSize) + extraBuffer);
+
+        _createNoAdaptersReserveSlots(
+            universalDelegator, scenario.noAdaptersSubnetwork, scenario.adapterSubnetwork, noAdaptersSize, adapterSize
+        );
+
+        scenario.adapter = _createAdapter();
+        _addAdapter(scenario.adapter);
+
+        return scenario;
+    }
+
+    function _configureNoAdaptersReserveNetworks(
+        UniversalDelegator universalDelegator,
+        address noAdaptersNetwork,
+        address noAdaptersMiddleware,
+        address adapterNetwork,
+        address adapterMiddleware
+    ) internal {
+        _registerNetwork(noAdaptersNetwork, noAdaptersMiddleware);
+        _registerNetwork(adapterNetwork, adapterMiddleware);
+        _optInOperatorNetwork(alice, noAdaptersNetwork);
+        _optInOperatorNetwork(alice, adapterNetwork);
+
+        vm.prank(noAdaptersNetwork);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(adapterNetwork);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+    }
+
+    function _createNoAdaptersReserveSlots(
+        UniversalDelegator universalDelegator,
+        bytes32 noAdaptersSubnetwork,
+        bytes32 adapterSubnetwork,
+        uint128 noAdaptersSize,
+        uint128 adapterSize
+    ) internal {
+        vm.startPrank(alice);
+
+        uint96 noAdaptersSubvault =
+            universalDelegator.createSlot(bytes32("fuzz-noad-subvault"), 0, false, true, noAdaptersSize);
+        uint96 noAdaptersNetworkSlot =
+            universalDelegator.createSlot(noAdaptersSubnetwork, noAdaptersSubvault, false, false, noAdaptersSize);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), noAdaptersNetworkSlot, false, false, noAdaptersSize);
+
+        uint96 adapterSubvault =
+            universalDelegator.createSlot(bytes32("fuzz-adapter-subvt"), 0, false, false, adapterSize);
+        uint96 adapterNetworkSlot =
+            universalDelegator.createSlot(adapterSubnetwork, adapterSubvault, false, false, adapterSize);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), adapterNetworkSlot, false, false, adapterSize);
+
+        vm.stopPrank();
     }
 
     function _toUint128(uint256 amount) internal pure returns (uint128 amount128) {

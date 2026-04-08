@@ -953,14 +953,14 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return current slot size plus pending stake within the requested duration window.
+    /// @dev Get the current slot size plus pending stake within the requested duration window.
     function _getPendingSize(uint96 index, uint48 duration) internal view returns (uint208) {
         unchecked {
             return slots[index].size.latest() + getPending(index, duration);
         }
     }
 
-    /// @dev Return the prefix sum of previous sibling sizes at a timestamp.
+    /// @dev Get the prefix sum of previous sibling sizes at a timestamp.
     function _getPrevSizeSumAt(uint96 index, uint48 timestamp) internal view returns (uint208 prevSizeSum) {
         unchecked {
             if (index == 0) {
@@ -985,7 +985,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return the current prefix sum of previous sibling sizes.
+    /// @dev Get the current prefix sum of previous sibling sizes.
     function _getPrevSizeSum(uint96 index) internal view returns (uint208 prevSizeSum) {
         unchecked {
             if (index == 0) {
@@ -1010,7 +1010,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return the prefix sum of previous sibling pending amounts within the duration window at a timestamp.
+    /// @dev Get the prefix sum of previous sibling pending amounts within the duration window at a timestamp.
     function _getPrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp)
         internal
         view
@@ -1036,7 +1036,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return the current prefix sum of previous sibling pending amounts within the duration window.
+    /// @dev Get the current prefix sum of previous sibling pending amounts within the duration window.
     function _getPrevPendingSum(uint96 index, uint48 duration) internal view returns (uint208 prevPendingSum) {
         unchecked {
             if (index == 0) {
@@ -1064,31 +1064,31 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return the total size-plus-pending prefix sum of previous siblings at a timestamp.
+    /// @dev Get the total size-plus-pending prefix sum of previous siblings at a timestamp.
     function _getPrevSumAt(uint96 index, uint48 duration, uint48 timestamp) internal view returns (uint208) {
         unchecked {
             return _getPrevSizeSumAt(index, timestamp) + _getPrevPendingSumAt(index, duration, timestamp);
         }
     }
 
-    /// @dev Return the current total size-plus-pending prefix sum of previous siblings.
+    /// @dev Get the current total size-plus-pending prefix sum of previous siblings.
     function _getPrevSum(uint96 index, uint48 duration) internal view returns (uint208) {
         unchecked {
             return _getPrevSizeSum(index) + _getPrevPendingSum(index, duration);
         }
     }
 
-    /// @dev Return the effective cleared-pending cursor for a slot in the current window.
+    /// @dev Get the effective cleared-pending cursor for a slot in the current window.
     function _getPendingCursor(uint96 index) internal view returns (uint208) {
         return _getCursor(slots[index].pendingCumulative, slots[index].clearedPendingCursor);
     }
 
-    /// @dev Return the effective cleared-pending cursor for the global no-adapters lane.
+    /// @dev Get the effective cleared-pending cursor for the global no-adapters lane.
     function _getNoAdaptersPendingCursor() internal view returns (uint208) {
         return _getCursor(_noAdaptersPendingCumulative, _clearedNoAdaptersPendingCursor);
     }
 
-    /// @dev Return the effective shared-size consumption cursor for a network under a shared subvault.
+    /// @dev Get the effective shared-size consumption cursor for a network under a shared subvault.
     function _getSharedSizeCursor(uint96 networkIndex) internal view returns (uint208) {
         return _getCursor(
             slots[networkIndex.getParentIndex()].sharedSizeConsumedCumulative,
@@ -1096,7 +1096,7 @@ contract UniversalDelegator is
         );
     }
 
-    /// @dev Return the remaining shared size guarantee available to a network.
+    /// @dev Get the remaining shared size guarantee available to a network.
     function _getSharedSizeGuarantee(uint96 networkIndex) internal view returns (uint208) {
         return uint208(
             uint256(slots[networkIndex.getParentIndex()].sharedSizeConsumedCumulative.latest())
@@ -1104,14 +1104,14 @@ contract UniversalDelegator is
         );
     }
 
-    /// @dev Return the effective shared pending cursor for a network under a shared subvault.
+    /// @dev Get the effective shared pending cursor for a network under a shared subvault.
     function _getSharedPendingCursor(uint96 networkIndex) internal view returns (uint208) {
         return _getCursor(
             slots[networkIndex.getParentIndex()].clearedPendingCursor, slots[networkIndex].sharedPendingConsumedCursor
         );
     }
 
-    /// @dev Return the remaining shared pending guarantee available to a network for the duration window.
+    /// @dev Get the remaining shared pending guarantee available to a network for the duration window.
     function _getSharedPendingGuarantee(uint96 networkIndex, uint48 duration) internal view returns (uint208) {
         return _getPending(
             slots[networkIndex.getParentIndex()].clearedPendingCursor,
@@ -1120,7 +1120,7 @@ contract UniversalDelegator is
         );
     }
 
-    /// @dev Return the effective cursor after applying the rolling epoch floor to a cumulative series.
+    /// @dev Get the effective cursor after applying the rolling epoch floor to a cumulative series.
     function _getCursor(Checkpoints.Trace208 storage base, Checkpoints.Trace208 storage cursor)
         internal
         view
@@ -1133,7 +1133,7 @@ contract UniversalDelegator is
         );
     }
 
-    /// @dev Return pending amount in a duration window at a specific timestamp.
+    /// @dev Get a pending amount in a duration window at a specific timestamp.
     function _getPendingAt(
         Checkpoints.Trace208 storage base,
         Checkpoints.Trace208 storage cursor,
@@ -1155,7 +1155,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Return current pending amount in a duration window.
+    /// @dev Get the current pending amount in a duration window.
     function _getPending(Checkpoints.Trace208 storage base, Checkpoints.Trace208 storage cursor, uint48 duration)
         internal
         view
@@ -1180,7 +1180,7 @@ contract UniversalDelegator is
         return VaultV2(vault).epochDuration();
     }
 
-    /// @dev Return storage pointer to the withdrawal buffer slot.
+    /// @dev Get the storage pointer to the withdrawal buffer slot.
     function _withdrawalBufferSlot() internal view returns (SlotStorage storage) {
         return slots[WITHDRAWAL_BUFFER_INDEX];
     }
