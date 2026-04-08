@@ -23,6 +23,7 @@ import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
@@ -100,6 +101,11 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
             address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImplTokenized);
 
+        address vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory), address(slasherFactory), address(0), address(rewards), address(0)
+            )
+        );
         address vaultImpl = address(
             new VaultV2(
                 address(delegatorFactory),
@@ -107,7 +113,8 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                 address(vaultFactory),
                 address(0),
                 address(rewards),
-                address(0)
+                address(0),
+                vaultV2Migrate
             )
         );
         vaultFactory.whitelist(vaultImpl);

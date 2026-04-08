@@ -187,12 +187,22 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Initial parameters needed for a vault migration.
      * @param name Name of the vault.
      * @param symbol Symbol of the vault.
+     * @param defaultAdminRoleHolder Address of the DEFAULT_ADMIN_ROLE holder to grant on migration.
+     * @param setAdapterLimitRoleHolder Address of the SET_ADAPTER_LIMIT_ROLE holder to grant on migration.
+     * @param swapAdaptersRoleHolder Address of the SWAP_ADAPTERS_ROLE holder to grant on migration.
+     * @param allocateAdapterRoleHolder Address of the ALLOCATE_ADAPTER_ROLE holder to grant on migration.
+     * @param deallocateAdapterRoleHolder Address of the DEALLOCATE_ADAPTER_ROLE holder to grant on migration.
      * @param delegatorParams Parameters for the delegator migration.
      * @param slasherParams Parameters for the slasher migration.
      */
     struct MigrateParams {
         string name;
         string symbol;
+        address defaultAdminRoleHolder;
+        address setAdapterLimitRoleHolder;
+        address swapAdaptersRoleHolder;
+        address allocateAdapterRoleHolder;
+        address deallocateAdapterRoleHolder;
         bytes delegatorParams;
         bytes slasherParams;
     }

@@ -16,6 +16,7 @@ import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddl
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
@@ -223,6 +224,11 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
             address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImplTokenized);
 
+        address vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory), address(slasherFactory), address(0), address(rewards), address(0)
+            )
+        );
         address vaultImpl = address(
             new VaultV2(
                 address(delegatorFactory),
@@ -230,7 +236,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
                 address(vaultFactory),
                 address(0),
                 address(rewards),
-                address(0)
+                address(0),
+                vaultV2Migrate
             )
         );
         vaultFactory.whitelist(vaultImpl);
@@ -3765,6 +3772,11 @@ contract UniversalDelegatorMigrationTest is Test {
             address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
         vaultFactory.whitelist(vaultImplTokenized);
 
+        address vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory), address(slasherFactory), address(0), address(rewards), address(0)
+            )
+        );
         address vaultImpl = address(
             new VaultV2(
                 address(delegatorFactory),
@@ -3772,7 +3784,8 @@ contract UniversalDelegatorMigrationTest is Test {
                 address(vaultFactory),
                 address(0),
                 address(rewards),
-                address(0)
+                address(0),
+                vaultV2Migrate
             )
         );
         vaultFactory.whitelist(vaultImpl);
@@ -4029,6 +4042,11 @@ contract UniversalDelegatorMigrationTest is Test {
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,
             symbol: VAULT_SYMBOL,
+            defaultAdminRoleHolder: owner,
+            setAdapterLimitRoleHolder: owner,
+            swapAdaptersRoleHolder: owner,
+            allocateAdapterRoleHolder: owner,
+            deallocateAdapterRoleHolder: owner,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
         });

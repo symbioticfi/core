@@ -30,6 +30,11 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         address vault;
         string name;
         string symbol;
+        address defaultAdminRoleHolder;
+        address setAdapterLimitRoleHolder;
+        address swapAdaptersRoleHolder;
+        address allocateAdapterRoleHolder;
+        address deallocateAdapterRoleHolder;
         IUniversalDelegator.InitParams delegatorParams;
         IUniversalSlasher.InitParams slasherParams;
     }
@@ -80,6 +85,11 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
             IVaultV2.MigrateParams({
                 name: config.name,
                 symbol: config.symbol,
+                defaultAdminRoleHolder: config.defaultAdminRoleHolder,
+                setAdapterLimitRoleHolder: config.setAdapterLimitRoleHolder,
+                swapAdaptersRoleHolder: config.swapAdaptersRoleHolder,
+                allocateAdapterRoleHolder: config.allocateAdapterRoleHolder,
+                deallocateAdapterRoleHolder: config.deallocateAdapterRoleHolder,
                 delegatorParams: abi.encode(config.delegatorParams),
                 slasherParams: abi.encode(config.slasherParams)
             })

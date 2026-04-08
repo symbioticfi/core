@@ -15,6 +15,7 @@ import {OptInService} from "../../../src/contracts/service/OptInService.sol";
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../../src/contracts/vault/VaultV2Migrate.sol";
 import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
@@ -204,6 +205,15 @@ contract VaultV2UncheckedMathHandler is Test {
         vaultFactory.whitelist(
             address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)))
         );
+        address vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(feeRegistry),
+                address(rewards),
+                address(adapterRegistry)
+            )
+        );
         vaultFactory.whitelist(
             address(
                 new VaultV2(
@@ -212,7 +222,8 @@ contract VaultV2UncheckedMathHandler is Test {
                     address(vaultFactory),
                     address(feeRegistry),
                     address(rewards),
-                    address(adapterRegistry)
+                    address(adapterRegistry),
+                    vaultV2Migrate
                 )
             )
         );

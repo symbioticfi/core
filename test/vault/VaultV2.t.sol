@@ -16,6 +16,7 @@ import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
 import {Checkpoints as CheckpointsV2Lib} from "../../src/contracts/libraries/CheckpointsV2.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
@@ -64,6 +65,7 @@ import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.
 import {UNIVERSAL_SLASHER_TYPE} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
+import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
@@ -95,7 +97,17 @@ contract VaultV2CoverageHarness is VaultV2 {
     using Checkpoints for Checkpoints.Trace256;
     using CheckpointsV2Lib for CheckpointsV2Lib.Trace256;
 
-    constructor() VaultV2(address(0), address(0), address(0), address(0), address(0), address(0)) {}
+    constructor()
+        VaultV2(
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(new VaultV2Migrate(address(0), address(0), address(0), address(0), address(0)))
+        )
+    {}
 
     function setCollateralRaw(address collateral_) external {
         collateral = collateral_;
@@ -146,6 +158,86 @@ contract VaultV2CoverageHarness is VaultV2 {
     }
 }
 
+contract MockAdapterSkimRemovesAdapters is IAdapterBase {
+    address public immutable vault;
+    address[] internal adaptersToRemove;
+    uint256 public skimCalls;
+
+    constructor(address vault_, address[] memory adaptersToRemove_) {
+        vault = vault_;
+        adaptersToRemove = adaptersToRemove_;
+    }
+
+    function skimmable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocatable(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function deallocatable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocate(uint256) external {}
+
+    function deallocate(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function skim(address vault_) external returns (uint256) {
+        if (vault_ != vault) {
+            return 0;
+        }
+
+        ++skimCalls;
+        for (uint256 i; i < adaptersToRemove.length; ++i) {
+            IVaultV2(vault).setAdapterLimit(adaptersToRemove[i], 0);
+        }
+
+        return 0;
+    }
+}
+
+contract MockAdapterRevertOnSkim is IAdapterBase {
+    error SkimShouldNotBeCalled();
+
+    address public immutable vault;
+    uint256 public skimCalls;
+
+    constructor(address vault_) {
+        vault = vault_;
+    }
+
+    function skimmable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocatable(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function deallocatable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocate(uint256) external {}
+
+    function deallocate(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function skim(address vault_) external returns (uint256) {
+        if (vault_ != vault) {
+            return 0;
+        }
+
+        ++skimCalls;
+        revert SkimShouldNotBeCalled();
+    }
+}
+
 contract VaultV2Test is Test {
     using Math for uint256;
     using Subnetwork for bytes32;
@@ -180,6 +272,7 @@ contract VaultV2Test is Test {
     MockRewards rewards;
     AdapterRegistry adapterRegistry;
     MockCuratorRegistryHarnessVaultV2 curatorRegistry;
+    address vaultV2Migrate;
 
     IVaultV2 vault;
     FullRestakeDelegator delegator;
@@ -272,6 +365,15 @@ contract VaultV2Test is Test {
         rewards = new MockRewards();
         adapterRegistry = new AdapterRegistry(owner);
         curatorRegistry = new MockCuratorRegistryHarnessVaultV2();
+        vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(feeRegistry),
+                address(rewards),
+                address(adapterRegistry)
+            )
+        );
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -5093,6 +5195,44 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(vault)), 90);
     }
 
+    function test_SkimAdaptersExitsWhenLengthShrinksDuringSkim() public {
+        vault = _getUniversalVault(7 days);
+
+        MockAdapter removableAdapter = _createAdapter();
+        MockAdapterRevertOnSkim revertOnSkimAdapter = new MockAdapterRevertOnSkim(address(vault));
+        address[] memory adaptersToRemove = new address[](2);
+        adaptersToRemove[0] = address(removableAdapter);
+        adaptersToRemove[1] = address(revertOnSkimAdapter);
+
+        MockAdapterSkimRemovesAdapters shrinkingAdapter =
+            new MockAdapterSkimRemovesAdapters(address(vault), adaptersToRemove);
+
+        adapterRegistry.whitelistAdapter(address(shrinkingAdapter));
+        adapterRegistry.whitelistAdapter(address(revertOnSkimAdapter));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+
+        _grantAddAdapterRole(alice, alice);
+        vm.startPrank(alice);
+        VaultV2(address(vault)).setAdapterLimit(address(shrinkingAdapter), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(removableAdapter), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(revertOnSkimAdapter), type(uint208).max);
+        VaultV2(address(vault)).grantRole(SET_ADAPTER_LIMIT_ROLE, address(shrinkingAdapter));
+        vm.stopPrank();
+
+        VaultV2(address(vault)).skimAdapters();
+
+        assertEq(shrinkingAdapter.skimCalls(), 1);
+        assertEq(revertOnSkimAdapter.skimCalls(), 0);
+        assertEq(vault.adaptersLength(), 1);
+        assertEq(vault.adapters(0), address(shrinkingAdapter));
+        assertEq(vault.adapterLimit(address(removableAdapter)), 0);
+        assertEq(vault.adapterLimit(address(revertOnSkimAdapter)), 0);
+    }
+
     function test_MorphoAllocateAdapter_deallocateSkimsAndDonatesRewards() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
@@ -5747,6 +5887,47 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
     }
 
+    function test_Migrate_FactoryUpgradePath_grantsAdapterManagementRolesFromMigrateParams() public {
+        uint48 epochDuration = 10;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        vault = IVaultV2(address(vault_));
+
+        IVaultV2.MigrateParams memory migrateParams = _buildMigrateParams(epochDuration);
+        migrateParams.defaultAdminRoleHolder = bob;
+        migrateParams.setAdapterLimitRoleHolder = bob;
+        migrateParams.swapAdaptersRoleHolder = bob;
+        migrateParams.allocateAdapterRoleHolder = bob;
+        migrateParams.deallocateAdapterRoleHolder = bob;
+
+        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), abi.encode(migrateParams));
+
+        assertTrue(IAccessControl(address(vault)).hasRole(VaultV2(address(vault)).DEFAULT_ADMIN_ROLE(), bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(SET_ADAPTER_LIMIT_ROLE, bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(SWAP_ADAPTERS_ROLE, bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, bob));
+    }
+
     function _latestWithdrawalBucket() internal view returns (uint256) {
         return vaultTestHelper.unlockToBucketLatest(address(vault));
     }
@@ -6174,7 +6355,8 @@ contract VaultV2Test is Test {
                 vaultFactory,
                 address(feeRegistry),
                 address(rewards),
-                address(adapterRegistry)
+                address(adapterRegistry),
+                vaultV2Migrate
             )
         );
     }
@@ -6536,6 +6718,11 @@ contract VaultV2Test is Test {
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,
             symbol: VAULT_SYMBOL,
+            defaultAdminRoleHolder: alice,
+            setAdapterLimitRoleHolder: alice,
+            swapAdaptersRoleHolder: alice,
+            allocateAdapterRoleHolder: alice,
+            deallocateAdapterRoleHolder: alice,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
         });

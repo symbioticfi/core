@@ -10,6 +10,7 @@ import {UniversalDelegatorIndex} from "../../../src/contracts/libraries/Universa
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../../src/contracts/vault/VaultV2Migrate.sol";
 import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
@@ -71,13 +72,25 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         address slasherFactory = address(symbioticCore.slasherFactory);
         address vaultFactory = address(symbioticCore.vaultFactory);
         address rewards = address(new MockRewards());
+        address vaultV2Migrate =
+            address(new VaultV2Migrate(delegatorFactory, slasherFactory, address(0), rewards, address(0)));
 
         symbioticCore.vaultFactory.whitelist(address(new VaultV1(delegatorFactory, slasherFactory, vaultFactory)));
         symbioticCore.vaultFactory
             .whitelist(address(new VaultTokenized(delegatorFactory, slasherFactory, vaultFactory)));
         symbioticCore.vaultFactory
             .whitelist(
-                address(new VaultV2(delegatorFactory, slasherFactory, vaultFactory, address(0), rewards, address(0)))
+                address(
+                    new VaultV2(
+                        delegatorFactory,
+                        slasherFactory,
+                        vaultFactory,
+                        address(0),
+                        rewards,
+                        address(0),
+                        vaultV2Migrate
+                    )
+                )
             );
     }
 
@@ -281,6 +294,11 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
             vault: vault,
             name: "Migrated Vault V2",
             symbol: "mV2",
+            defaultAdminRoleHolder: curator.addr,
+            setAdapterLimitRoleHolder: curator.addr,
+            swapAdaptersRoleHolder: curator.addr,
+            allocateAdapterRoleHolder: curator.addr,
+            deallocateAdapterRoleHolder: curator.addr,
             delegatorParams: IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: curator.addr,
                 hook: address(0),
