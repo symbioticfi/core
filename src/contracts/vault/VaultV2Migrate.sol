@@ -7,6 +7,7 @@ import {SlasherFactory} from "../SlasherFactory.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
+
 import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 

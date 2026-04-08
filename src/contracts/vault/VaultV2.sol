@@ -7,8 +7,8 @@ import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {SlasherFactory} from "../SlasherFactory.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
-import {VaultV2Storage} from "./VaultV2Storage.sol";
 import {VaultV2Migrate} from "./VaultV2Migrate.sol";
+import {VaultV2Storage} from "./VaultV2Storage.sol";
 
 import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
@@ -247,9 +247,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         // Legacy support.
-        return ERC4626Math.previewRedeem(
-            _withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]
-        );
+        return
+            ERC4626Math.previewRedeem(
+                _withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]
+            );
     }
 
     /// @inheritdoc ERC20Upgradeable

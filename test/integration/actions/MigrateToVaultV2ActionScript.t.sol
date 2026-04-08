@@ -82,13 +82,7 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
             .whitelist(
                 address(
                     new VaultV2(
-                        delegatorFactory,
-                        slasherFactory,
-                        vaultFactory,
-                        address(0),
-                        rewards,
-                        address(0),
-                        vaultV2Migrate
+                        delegatorFactory, slasherFactory, vaultFactory, address(0), rewards, address(0), vaultV2Migrate
                     )
                 )
             );
