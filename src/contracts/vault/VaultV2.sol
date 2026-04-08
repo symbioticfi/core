@@ -300,8 +300,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         mintedShares = ERC4626Math.previewDeposit(depositedAmount, curActiveShares, curActiveStake);
         _revertIfZero(mintedShares);
 
-        uint256 newActiveShares = curActiveShares + mintedShares;
-        _activeShares.push(uint48(block.timestamp), newActiveShares);
+        _activeShares.push(uint48(block.timestamp), curActiveShares + mintedShares);
         _activeStake.push(uint48(block.timestamp), curActiveStake + depositedAmount);
         _activeSharesOf[onBehalfOf].push(uint48(block.timestamp), activeSharesOf(onBehalfOf) + mintedShares);
 
@@ -505,8 +504,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, curWithdrawalShares, curWithdrawals);
         _revertIfZero(mintedShares);
 
-        uint256 newWithdrawalShares = curWithdrawalShares + mintedShares;
-        _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), newWithdrawalShares);
+        _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawalShares + mintedShares);
         _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawals + withdrawnAssets);
 
         uint48 unlockAt = uint48(block.timestamp) + epochDuration;
