@@ -46,56 +46,56 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
     ) VaultV2Storage(delegatorFactory, slasherFactory, feeRegistry, rewards, adapterRegistry) {}
 
     function migrate(uint64 oldVersion, bytes calldata data) external {
-        unchecked {
-            if (epochDuration > MAX_DURATION) {
-                revert IVaultV2.TooLongDuration();
-            }
+        if (epochDuration > MAX_DURATION) {
+            revert IVaultV2.TooLongDuration();
+        }
 
-            migrateTimestamp = uint48(block.timestamp);
-            uint48 migrateEpoch = uint48((block.timestamp - __epochDurationInit) / epochDuration);
-            __migrateEpoch = migrateEpoch;
-            uint48 migrateNextEpochTimestamp = __epochDurationInit + (migrateEpoch + 1) * epochDuration;
-            __migrateNextEpochTimestamp = migrateNextEpochTimestamp;
+        migrateTimestamp = uint48(block.timestamp);
+        uint48 migrateEpoch = uint48((block.timestamp - __epochDurationInit) / epochDuration);
+        __migrateEpoch = migrateEpoch;
+        uint48 migrateNextEpochTimestamp = __epochDurationInit + (migrateEpoch + 1) * epochDuration;
+        __migrateNextEpochTimestamp = migrateNextEpochTimestamp;
 
-            IVaultV2.MigrateParams memory params = abi.decode(data, (IVaultV2.MigrateParams));
-            if (oldVersion == VAULT_VERSION) {
-                __ERC20_init(params.name, params.symbol);
-            }
+        IVaultV2.MigrateParams memory params = abi.decode(data, (IVaultV2.MigrateParams));
+        if (oldVersion == VAULT_VERSION) {
+            __ERC20_init(params.name, params.symbol);
+        }
 
-            _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-            _grantRoleIfNotZero(SET_ADAPTER_LIMIT_ROLE, params.setAdapterLimitRoleHolder);
-            _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
-            _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, params.allocateAdapterRoleHolder);
-            _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, params.deallocateAdapterRoleHolder);
+        _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        _grantRoleIfNotZero(SET_ADAPTER_LIMIT_ROLE, params.setAdapterLimitRoleHolder);
+        _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
+        _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, params.allocateAdapterRoleHolder);
+        _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, params.deallocateAdapterRoleHolder);
 
-            uint256 curActiveWithdrawals;
-            if (migrateEpoch > 0) {
-                curActiveWithdrawals = __withdrawals[migrateEpoch];
-                if (curActiveWithdrawals > 0) {
-                    _withdrawalSharesCumulative.push(migrateNextEpochTimestamp, curActiveWithdrawals);
-                }
-            }
-            curActiveWithdrawals += __withdrawals[migrateEpoch + 1];
+        uint256 curActiveWithdrawals;
+        if (migrateEpoch > 0) {
+            curActiveWithdrawals = __withdrawals[migrateEpoch];
             if (curActiveWithdrawals > 0) {
-                _withdrawalSharesCumulative.push(uint48(block.timestamp) + epochDuration, curActiveWithdrawals);
-                _withdrawals[0].push(uint48(block.timestamp), curActiveWithdrawals);
-                _withdrawalShares[0].push(uint48(block.timestamp), curActiveWithdrawals);
-            }
-
-            _unclaimedRaw = int256(collateral.balanceOf(address(this)) - activeStake() - curActiveWithdrawals);
-
-            address oldDelegator = delegator;
-            delegator = DelegatorFactory(DELEGATOR_FACTORY)
-                .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
-            UniversalDelegator(delegator).migrate(oldDelegator);
-
-            if (slasher != address(0)) {
-                address oldSlasher = slasher;
-                slasher = SlasherFactory(SLASHER_FACTORY)
-                    .create(UNIVERSAL_SLASHER_TYPE, abi.encode(address(this), params.slasherParams));
-                UniversalSlasher(slasher).migrate(oldSlasher);
+                _withdrawalSharesCumulative.push(migrateNextEpochTimestamp, curActiveWithdrawals);
             }
         }
+        curActiveWithdrawals += __withdrawals[migrateEpoch + 1];
+        if (curActiveWithdrawals > 0) {
+            _withdrawalSharesCumulative.push(uint48(block.timestamp) + epochDuration, curActiveWithdrawals);
+            _withdrawals[0].push(uint48(block.timestamp), curActiveWithdrawals);
+            _withdrawalShares[0].push(uint48(block.timestamp), curActiveWithdrawals);
+        }
+
+        _unclaimedRaw = int256(collateral.balanceOf(address(this)) - activeStake() - curActiveWithdrawals);
+
+        address oldDelegator = delegator;
+        delegator = DelegatorFactory(DELEGATOR_FACTORY)
+            .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
+        UniversalDelegator(delegator).migrate(oldDelegator);
+
+        if (slasher != address(0)) {
+            address oldSlasher = slasher;
+            slasher = SlasherFactory(SLASHER_FACTORY)
+                .create(UNIVERSAL_SLASHER_TYPE, abi.encode(address(this), params.slasherParams));
+            UniversalSlasher(slasher).migrate(oldSlasher);
+        }
+
+        emit IVaultV2.Migrate(params, delegator, slasher);
     }
 
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {

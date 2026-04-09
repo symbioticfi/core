@@ -842,8 +842,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
                 revert(add(32, returnData), mload(returnData))
             }
         }
-
-        emit Migrate(abi.decode(data, (MigrateParams)), delegator, slasher);
     }
 
     /* UTILITY FUNCTIONS */

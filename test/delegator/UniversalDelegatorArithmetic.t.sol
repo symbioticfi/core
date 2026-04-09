@@ -1,0 +1,743 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import {Test} from "forge-std/Test.sol";
+
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "../../src/contracts/SlasherFactory.sol";
+import {NetworkRegistry} from "../../src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "../../src/contracts/OperatorRegistry.sol";
+import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
+import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
+import {OptInService} from "../../src/contracts/service/OptInService.sol";
+
+import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
+import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
+import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
+import {FullRestakeDelegator} from "../../src/contracts/delegator/FullRestakeDelegator.sol";
+import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
+import {OperatorSpecificDelegator} from "../../src/contracts/delegator/OperatorSpecificDelegator.sol";
+import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
+import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
+import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
+
+import {Checkpoints} from "../../src/contracts/libraries/CheckpointsV2.sol";
+import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
+import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDelegatorIndex.sol";
+
+import {
+    IUniversalDelegator,
+    MAX_NETWORKS,
+    MAX_OPERATORS,
+    MAX_SUBVAULTS,
+    WITHDRAWAL_BUFFER_CHILD_INDEX
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
+import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
+
+import {Token} from "../mocks/Token.sol";
+import {MockRewards} from "../mocks/MockRewards.sol";
+import {CoreV2StakeForInvariantHelper} from "../helpers/CoreV2StakeForInvariantHelper.sol";
+
+contract MockVaultForDelegatorCoverage {
+    uint48 public epochDuration = 3;
+}
+
+contract UniversalDelegatorCoverageHarness is Test, UniversalDelegator {
+    using Checkpoints for Checkpoints.Trace208;
+
+    constructor() UniversalDelegator(address(0), address(0), address(0), 0, address(0)) {}
+
+    function setVaultRaw(address vault_) external {
+        vault = vault_;
+    }
+
+    function pushSlotSizeRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].size.push(timestamp, value);
+    }
+
+    function pushPendingCumulativeRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].pendingCumulative.push(timestamp, value);
+    }
+
+    function pushNextSlotRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].nextSlot.push(timestamp, value);
+    }
+
+    function pushFirstChildRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].firstChild.push(timestamp, value);
+    }
+
+    function pushSyncPrevSizeSumsRaw(uint96 index, uint48 timestamp, uint208 value) external {
+        slots[index].syncPrevSizeSums.push(timestamp, value);
+    }
+
+    function setSlotSharedRaw(uint96 index, bool isShared_) external {
+        slots[index].isShared = isShared_;
+    }
+
+    function setChildrenPendingAtRaw(uint96 index, uint48 timestamp) external {
+        slots[index]._childrenPendingAt = timestamp;
+    }
+
+    function latestPrevSizeSum(uint96 index) external view returns (uint208) {
+        return slots[index].prevSizeSum.latest();
+    }
+
+    function latestSyncPrevSizeSums(uint96 index) external view returns (uint208) {
+        return slots[index].syncPrevSizeSums.latest();
+    }
+
+    function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
+
+    function exposeGetPendingSize(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPendingSize(index, duration);
+    }
+
+    function exposeGetPrevSum(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPrevSum(index, duration);
+    }
+
+    function exposeGetPrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
+        return _getPrevSizeSumAt(index, timestamp);
+    }
+
+    function exposeGetPrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp)
+        external
+        view
+        returns (uint208)
+    {
+        return _getPrevPendingSumAt(index, duration, timestamp);
+    }
+
+    function exposeGetPrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPrevPendingSum(index, duration);
+    }
+}
+
+contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper {
+    using Subnetwork for address;
+    using UniversalDelegatorIndex for uint96;
+
+    uint48 internal constant EPOCH_DURATION = 3;
+    uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
+    string internal constant VAULT_NAME = "Test";
+    string internal constant VAULT_SYMBOL = "TEST";
+
+    address internal owner;
+    address internal middleware;
+    address internal alice;
+
+    VaultFactory internal vaultFactory;
+    DelegatorFactory internal delegatorFactory;
+    SlasherFactory internal slasherFactory;
+    NetworkRegistry internal networkRegistry;
+    OperatorRegistry internal operatorRegistry;
+    NetworkMiddlewareService internal networkMiddlewareService;
+    OptInService internal operatorVaultOptInService;
+    OptInService internal operatorNetworkOptInService;
+    VaultConfigurator internal vaultConfigurator;
+    MockRewards internal rewards;
+    Token internal collateral;
+
+    IVaultV2 internal vault;
+    UniversalDelegator internal delegator;
+    IUniversalSlasher internal slasher;
+
+    struct DenseTopologyState {
+        uint256 expectedNoAdaptersSize;
+        uint96 selectedRoot;
+        uint96 selectedNetworkSlot;
+        bytes32 selectedSubnetwork;
+        address selectedNetwork;
+        address selectedOperator0;
+        uint96 selectedOperatorSlot0;
+        uint96 selectedOperatorSlot1;
+        uint96 selectedOperatorSlot2;
+        uint256 noAdaptersBeforeReset;
+    }
+
+    DenseTopologyState internal denseTopo;
+
+    struct RealChainState {
+        address network;
+        address operator1;
+        address operator2;
+        address operator3;
+        bytes32 subnetwork;
+        uint96 root;
+        uint96 networkSlot;
+        uint96 op1;
+        uint96 op2;
+        uint96 op3;
+    }
+
+    RealChainState internal realChain;
+
+    function setUp() public {
+        vm.warp(0);
+
+        owner = address(this);
+        middleware = makeAddr("arith-middleware");
+        alice = makeAddr("arith-alice");
+
+        vaultFactory = new VaultFactory(owner);
+        delegatorFactory = new DelegatorFactory(owner);
+        slasherFactory = new SlasherFactory(owner);
+        networkRegistry = new NetworkRegistry();
+        operatorRegistry = new OperatorRegistry();
+        networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
+        operatorVaultOptInService =
+            new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
+        operatorNetworkOptInService =
+            new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+        rewards = new MockRewards();
+
+        address vaultImplV1 =
+            address(new VaultV1(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImplV1);
+
+        address vaultImplTokenized =
+            address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
+        vaultFactory.whitelist(vaultImplTokenized);
+
+        address vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory), address(slasherFactory), address(0), address(rewards), address(0)
+            )
+        );
+        address vaultImpl = address(
+            new VaultV2(
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(vaultFactory),
+                address(0),
+                address(rewards),
+                address(0),
+                vaultV2Migrate
+            )
+        );
+        vaultFactory.whitelist(vaultImpl);
+
+        address networkRestakeDelegatorImpl = address(
+            new NetworkRestakeDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(networkRestakeDelegatorImpl);
+
+        address fullRestakeDelegatorImpl = address(
+            new FullRestakeDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+
+        address operatorSpecificDelegatorImpl = address(
+            new OperatorSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+
+        address operatorNetworkSpecificDelegatorImpl = address(
+            new OperatorNetworkSpecificDelegator(
+                address(operatorRegistry),
+                address(networkRegistry),
+                address(vaultFactory),
+                address(operatorVaultOptInService),
+                address(operatorNetworkOptInService),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes()
+            )
+        );
+        delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
+
+        address slasherImpl = address(
+            new Slasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(slasherImpl);
+
+        address vetoSlasherImpl = address(
+            new VetoSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkRegistry),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(vetoSlasherImpl);
+
+        address delegatorImpl = address(
+            new UniversalDelegator(
+                address(networkRegistry),
+                address(vaultFactory),
+                address(delegatorFactory),
+                delegatorFactory.totalTypes(),
+                address(networkMiddlewareService)
+            )
+        );
+        delegatorFactory.whitelist(delegatorImpl);
+
+        address universalSlasherImpl = address(
+            new UniversalSlasher(
+                address(vaultFactory),
+                address(networkMiddlewareService),
+                address(networkRegistry),
+                address(slasherFactory),
+                slasherFactory.totalTypes()
+            )
+        );
+        slasherFactory.whitelist(universalSlasherImpl);
+
+        collateral = new Token("Token");
+        vaultConfigurator =
+            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+
+        (address vault_, address delegator_, address slasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: vaultFactory.lastVersion(),
+                owner: owner,
+                vaultParams: abi.encode(
+                    IVaultV2.InitParams({
+                        name: VAULT_NAME,
+                        symbol: VAULT_SYMBOL,
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: EPOCH_DURATION,
+                        depositWhitelist: false,
+                        depositorToWhitelist: address(0xBEEF),
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: owner,
+                        depositWhitelistSetRoleHolder: address(0),
+                        depositorWhitelistRoleHolder: address(0),
+                        isDepositLimitSetRoleHolder: address(0),
+                        depositLimitSetRoleHolder: address(0),
+                        setAdapterLimitRoleHolder: address(0),
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
+                    })
+                ),
+                delegatorIndex: uint64(delegatorFactory.totalTypes() - 1),
+                delegatorParams: abi.encode(
+                    IUniversalDelegator.InitParams({
+                        defaultAdminRoleHolder: owner,
+                        hook: address(0),
+                        hookSetRoleHolder: address(0),
+                        createSlotRoleHolder: owner,
+                        setSizeRoleHolder: owner,
+                        swapSlotsRoleHolder: owner,
+                        removeSlotRoleHolder: owner,
+                        setWithdrawalBufferSizeRoleHolder: owner,
+                        withdrawalBufferSize: type(uint128).max
+                    })
+                ),
+                withSlasher: true,
+                slasherIndex: uint64(slasherFactory.totalTypes() - 1),
+                slasherParams: abi.encode(
+                    IUniversalSlasher.InitParams({
+                        isBurnerHook: false, vetoDuration: 1, resolverSetDelay: EPOCH_DURATION * 3
+                    })
+                )
+            })
+        );
+
+        vault = IVaultV2(vault_);
+        delegator = UniversalDelegator(delegator_);
+        slasher = IUniversalSlasher(slasher_);
+    }
+
+    function testFuzz_rawPrefixMath_matchesManualOracle(uint8 siblingCount, uint208 sizeSeed, uint208 pendingSeed)
+        public
+    {
+        siblingCount = uint8(bound(siblingCount, 2, 20));
+        sizeSeed = uint208(bound(sizeSeed, 1, type(uint208).max / 80));
+        pendingSeed = uint208(bound(pendingSeed, 0, type(uint208).max / 80));
+
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
+        uint96 parent = _rootIndex(1);
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.setVaultRaw(address(vaultMock));
+        harness.setSlotSharedRaw(parent, false);
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
+        harness.setChildrenPendingAtRaw(parent, timestamp);
+
+        uint208 expectedPrevSize;
+        uint208 expectedPrevPending;
+
+        for (uint32 i = 1; i <= siblingCount; ++i) {
+            uint96 slot = parent.createIndex(i);
+            uint208 childSize = sizeSeed + uint208(i * 3);
+            uint208 childPending = pendingSeed + uint208(i * 5);
+            uint256 expectedPendingSize = uint256(childSize) + uint256(childPending);
+            assertLe(expectedPendingSize, type(uint208).max);
+
+            harness.pushSlotSizeRaw(slot, timestamp, childSize);
+            harness.pushPendingCumulativeRaw(slot, timestamp, childPending);
+            if (i < siblingCount) {
+                harness.pushNextSlotRaw(slot, timestamp, i + 1);
+            }
+
+            assertEq(harness.exposeGetPendingSize(slot, 0), expectedPendingSize);
+            assertEq(harness.exposeGetPrevSizeSumAt(slot, timestamp), expectedPrevSize);
+            assertEq(harness.exposeGetPrevPendingSumAt(slot, 0, timestamp), expectedPrevPending);
+            assertEq(harness.exposeGetPrevPendingSum(slot, 0), expectedPrevPending);
+            assertEq(harness.exposeGetPrevSum(slot, 0), uint256(expectedPrevSize) + uint256(expectedPrevPending));
+
+            expectedPrevSize += childSize;
+            expectedPrevPending += childPending;
+        }
+
+        harness.exposeSyncPrevSizeSums(parent);
+        expectedPrevSize = 0;
+        for (uint32 i = 1; i <= siblingCount; ++i) {
+            uint96 slot = parent.createIndex(i);
+            assertEq(harness.latestPrevSizeSum(slot), expectedPrevSize);
+            expectedPrevSize += sizeSeed + uint208(i * 3);
+        }
+        assertEq(harness.latestSyncPrevSizeSums(parent), 0);
+    }
+
+    function test_sharedParent_prefixViewsStayZero() public {
+        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
+        uint96 parent = _rootIndex(1);
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.setVaultRaw(address(vaultMock));
+        harness.setSlotSharedRaw(parent, true);
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
+        harness.setChildrenPendingAtRaw(parent, timestamp);
+
+        for (uint32 i = 1; i <= 3; ++i) {
+            uint96 slot = parent.createIndex(i);
+            harness.pushSlotSizeRaw(slot, timestamp, 10 * i);
+            harness.pushPendingCumulativeRaw(slot, timestamp, 5 * i);
+            if (i < 3) {
+                harness.pushNextSlotRaw(slot, timestamp, i + 1);
+            }
+
+            assertEq(harness.exposeGetPendingSize(slot, 0), uint256(15 * i));
+            assertEq(harness.exposeGetPrevSizeSumAt(slot, timestamp), 0);
+            assertEq(harness.exposeGetPrevPendingSumAt(slot, 0, timestamp), 0);
+            assertEq(harness.exposeGetPrevPendingSum(slot, 0), 0);
+            assertEq(harness.exposeGetPrevSum(slot, 0), 0);
+        }
+    }
+
+    function testFuzz_realSiblingChain_setSizeSlashAndHistoryKeepsCapacity(
+        uint128 size1,
+        uint128 size2,
+        uint128 size3,
+        uint128 shrink,
+        uint128 slashAmount
+    ) public {
+        size1 = uint128(bound(size1, 1 ether, 400 ether));
+        size2 = uint128(bound(size2, 1 ether, 400 ether));
+        size3 = uint128(bound(size3, 1 ether, 400 ether));
+        shrink = uint128(bound(shrink, 0, size1 - 1));
+        slashAmount = uint128(bound(slashAmount, 1, size1 - shrink));
+
+        _buildRealSiblingChain(size1, size2, size3);
+
+        uint96[] memory slots = new uint96[](3);
+        slots[0] = realChain.op1;
+        slots[1] = realChain.op2;
+        slots[2] = realChain.op3;
+
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), slots, EPOCH_DURATION);
+        _assertSiblingPrefixSums(realChain.networkSlot);
+
+        uint48 beforeChurn = uint48(block.timestamp);
+
+        vm.warp(1);
+        delegator.setSize(realChain.op1, size1 - shrink);
+        assertEq(delegator.getPending(realChain.op1, 0), shrink);
+        assertEq(delegator.getPendingAt(realChain.op1, 0, beforeChurn), 0);
+        assertEq(delegator.getAllocatedAt(realChain.op1, 0, beforeChurn), size1);
+        assertEq(delegator.getFilledAt(realChain.networkSlot, 0, beforeChurn), uint256(size1) + size2 + size3);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlash(realChain.subnetwork, realChain.operator1, slashAmount, bytes("arith")), slashAmount);
+
+        _assertStakeForInvariantForDurations(address(vault), address(delegator), slots, EPOCH_DURATION);
+    }
+
+    function test_maxDensityTopology_protocolLimits_andChurn() public {
+        _deposit(alice, MAX_AMOUNT);
+
+        for (uint256 rootIndex = 0; rootIndex < MAX_SUBVAULTS; ++rootIndex) {
+            uint96 root = _buildDenseRoot(rootIndex);
+
+            uint256 expectedRootFilled;
+            for (uint256 networkIndex = 0; networkIndex < MAX_NETWORKS; ++networkIndex) {
+                uint96 networkSlot = _buildDenseNetwork(rootIndex, root, networkIndex);
+                expectedRootFilled += delegator.getAllocated(networkSlot, 0);
+            }
+
+            assertEq(delegator.getSlot(root).existChildren, MAX_NETWORKS);
+            assertEq(delegator.getSlot(root).totalChildren, MAX_NETWORKS);
+            assertEq(delegator.getFilled(root, 0), expectedRootFilled);
+            _assertFilledMatchesChildren(root);
+
+            if (rootIndex == 1) {
+                _assertSiblingPrefixSums(root);
+            }
+        }
+
+        assertEq(delegator.getNoAdaptersSize(), denseTopo.expectedNoAdaptersSize);
+        _assertSiblingPrefixSums(denseTopo.selectedNetworkSlot);
+        _assertFilledMatchesChildren(denseTopo.selectedNetworkSlot);
+
+        uint48 beforeMutation = uint48(block.timestamp);
+        uint256 selectedOperator0Size = delegator.getSlot(denseTopo.selectedOperatorSlot0).size;
+        uint256 selectedOperator1Size = delegator.getSlot(denseTopo.selectedOperatorSlot1).size;
+
+        vm.warp(1);
+        delegator.setSize(denseTopo.selectedOperatorSlot0, 40 ether);
+        delegator.setSize(denseTopo.selectedOperatorSlot1, 40 ether);
+        assertEq(delegator.getPending(denseTopo.selectedOperatorSlot0, 0), selectedOperator0Size - 40 ether);
+        assertEq(delegator.getPending(denseTopo.selectedOperatorSlot1, 0), selectedOperator1Size - 40 ether);
+        assertEq(delegator.getAllocatedAt(denseTopo.selectedOperatorSlot0, 0, beforeMutation), selectedOperator0Size);
+        assertEq(
+            delegator.getFilledAt(denseTopo.selectedNetworkSlot, 0, beforeMutation),
+            delegator.getFilled(denseTopo.selectedNetworkSlot, 0)
+        );
+
+        delegator.swapSlots(denseTopo.selectedOperatorSlot0, denseTopo.selectedOperatorSlot1);
+        _assertSiblingPrefixSums(denseTopo.selectedNetworkSlot);
+
+        vm.prank(address(slasher));
+        assertEq(
+            delegator.onSlash(denseTopo.selectedSubnetwork, denseTopo.selectedOperator0, 10 ether, bytes("dense")),
+            10 ether
+        );
+
+        vm.warp(EPOCH_DURATION + 2);
+        delegator.setSize(denseTopo.selectedOperatorSlot2, 0);
+        vm.warp(EPOCH_DURATION + 6);
+        delegator.removeSlot(denseTopo.selectedOperatorSlot2);
+        assertEq(delegator.getSlot(denseTopo.selectedNetworkSlot).existChildren, MAX_OPERATORS - 1);
+
+        denseTopo.noAdaptersBeforeReset = delegator.getNoAdaptersSize();
+        vm.prank(denseTopo.selectedNetwork);
+        delegator.resetAllocation(denseTopo.selectedSubnetwork);
+
+        assertTrue(delegator.getSlot(denseTopo.selectedRoot).exists);
+        assertFalse(delegator.getSlot(denseTopo.selectedNetworkSlot).exists);
+        assertEq(delegator.getSlotOfNetwork(denseTopo.selectedSubnetwork), 0);
+        assertEq(delegator.getSlot(denseTopo.selectedRoot).existChildren, MAX_NETWORKS - 1);
+        assertEq(delegator.getNoAdaptersSize(), denseTopo.noAdaptersBeforeReset);
+    }
+
+    function _registerOperator(address operator) internal {
+        vm.startPrank(operator);
+        operatorRegistry.registerOperator();
+        vm.stopPrank();
+    }
+
+    function _registerNetwork(address network, address middleware_) internal {
+        vm.startPrank(network);
+        networkRegistry.registerNetwork();
+        networkMiddlewareService.setMiddleware(middleware_);
+        vm.stopPrank();
+    }
+
+    function _optIn(address operator, address network) internal {
+        vm.startPrank(operator);
+        operatorVaultOptInService.optIn(address(vault));
+        operatorNetworkOptInService.optIn(network);
+        vm.stopPrank();
+    }
+
+    function _deposit(address user, uint256 amount) internal {
+        collateral.transfer(user, amount);
+
+        vm.startPrank(user);
+        collateral.approve(address(vault), amount);
+        vault.deposit(user, amount);
+        vm.stopPrank();
+    }
+
+    function _operatorKey(address operator) internal pure returns (bytes32) {
+        return bytes32(bytes20(operator));
+    }
+
+    function _rootIndex(uint32 localIndex) internal pure returns (uint96) {
+        return uint96(0).createIndex(localIndex);
+    }
+
+    function _assertSiblingPrefixSums(uint96 parentIndex) internal view {
+        IUniversalDelegator.Slot memory parent = delegator.getSlot(parentIndex);
+        uint208 expectedPrevSize;
+        uint32 childIndex = parent.firstChild;
+
+        while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
+            uint96 slotIndex = parentIndex.createIndex(childIndex);
+            IUniversalDelegator.Slot memory slot = delegator.getSlot(slotIndex);
+            assertEq(slot.prevSizeSum, parent.isShared ? 0 : expectedPrevSize);
+            expectedPrevSize += slot.size;
+            childIndex = slot.nextSlot;
+        }
+    }
+
+    function _assertFilledMatchesChildren(uint96 parentIndex) internal view {
+        uint256 expected;
+        uint32 childIndex = delegator.getSlot(parentIndex).firstChild;
+
+        while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
+            uint96 slotIndex = parentIndex.createIndex(childIndex);
+            expected += delegator.getAllocated(slotIndex, 0);
+            childIndex = delegator.getSlot(slotIndex).nextSlot;
+        }
+
+        assertEq(delegator.getFilled(parentIndex, 0), expected);
+    }
+
+    function _buildDenseRoot(uint256 rootIndex) internal returns (uint96 root) {
+        bool noAdapters = rootIndex == 0 || rootIndex == 5;
+        bool isShared = !noAdapters && rootIndex == 1;
+        uint128 rootSize = uint128(75_000 ether + rootIndex * 500 ether);
+
+        root = delegator.createSlot(bytes32(0), 0, isShared, noAdapters, rootSize);
+        if (noAdapters) {
+            denseTopo.expectedNoAdaptersSize += rootSize;
+        }
+        if (rootIndex == 0) {
+            denseTopo.selectedRoot = root;
+        }
+    }
+
+    function _buildDenseNetwork(uint256 rootIndex, uint96 root, uint256 networkIndex)
+        internal
+        returns (uint96 networkSlot)
+    {
+        address network = _denseNetworkAddress(rootIndex, networkIndex);
+        bytes32 subnetwork = network.subnetwork(0);
+        uint128 networkSize = uint128(3000 ether + rootIndex * 50 ether + networkIndex * 20 ether);
+
+        networkSlot = delegator.createSlot(subnetwork, root, false, false, networkSize);
+        if (rootIndex == 0 && networkIndex == 0) {
+            denseTopo.selectedNetwork = network;
+            denseTopo.selectedSubnetwork = subnetwork;
+            denseTopo.selectedNetworkSlot = networkSlot;
+
+            _registerNetwork(network, middleware);
+            vm.prank(network);
+            delegator.setMaxNetworkLimit(0, type(uint256).max);
+        }
+
+        uint256 expectedNetworkFilled;
+        for (uint256 operatorIndex = 0; operatorIndex < MAX_OPERATORS; ++operatorIndex) {
+            uint96 operatorSlot = _buildDenseOperator(rootIndex, networkIndex, networkSlot, operatorIndex);
+            expectedNetworkFilled += delegator.getAllocated(operatorSlot, 0);
+        }
+
+        assertEq(delegator.getSlot(networkSlot).existChildren, MAX_OPERATORS);
+        assertEq(delegator.getSlot(networkSlot).totalChildren, MAX_OPERATORS);
+        assertEq(delegator.getFilled(networkSlot, 0), expectedNetworkFilled);
+        _assertSiblingPrefixSums(networkSlot);
+    }
+
+    function _buildDenseOperator(uint256 rootIndex, uint256 networkIndex, uint96 networkSlot, uint256 operatorIndex)
+        internal
+        returns (uint96 operatorSlot)
+    {
+        address operator = _denseOperatorAddress(rootIndex, networkIndex, operatorIndex);
+        uint128 operatorSize = uint128(100 ether + operatorIndex);
+
+        operatorSlot = delegator.createSlot(_operatorKey(operator), networkSlot, false, false, operatorSize);
+        if (rootIndex == 0 && networkIndex == 0) {
+            if (operatorIndex == 0) {
+                denseTopo.selectedOperator0 = operator;
+                denseTopo.selectedOperatorSlot0 = operatorSlot;
+                _registerOperator(operator);
+                _optIn(operator, denseTopo.selectedNetwork);
+            } else if (operatorIndex == 1) {
+                denseTopo.selectedOperatorSlot1 = operatorSlot;
+            } else if (operatorIndex == 2) {
+                denseTopo.selectedOperatorSlot2 = operatorSlot;
+            }
+        }
+    }
+
+    function _buildRealSiblingChain(uint128 size1, uint128 size2, uint128 size3) internal {
+        realChain.network = makeAddr("arith-network");
+        realChain.operator1 = makeAddr("arith-operator-1");
+        realChain.operator2 = makeAddr("arith-operator-2");
+        realChain.operator3 = makeAddr("arith-operator-3");
+        realChain.subnetwork = realChain.network.subnetwork(0);
+
+        _registerNetwork(realChain.network, middleware);
+        _registerOperator(realChain.operator1);
+        _registerOperator(realChain.operator2);
+        _registerOperator(realChain.operator3);
+        _optIn(realChain.operator1, realChain.network);
+        _optIn(realChain.operator2, realChain.network);
+        _optIn(realChain.operator3, realChain.network);
+
+        vm.prank(realChain.network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        uint256 rootSize = uint256(size1) + size2 + size3 + 1000 ether;
+        uint256 networkSize = uint256(size1) + size2 + size3 + 500 ether;
+        _deposit(alice, rootSize);
+
+        realChain.root = delegator.createSlot(bytes32(0), 0, false, false, uint128(rootSize));
+        realChain.networkSlot =
+            delegator.createSlot(realChain.subnetwork, realChain.root, false, false, uint128(networkSize));
+        realChain.op1 =
+            delegator.createSlot(_operatorKey(realChain.operator1), realChain.networkSlot, false, false, size1);
+        realChain.op2 =
+            delegator.createSlot(_operatorKey(realChain.operator2), realChain.networkSlot, false, false, size2);
+        realChain.op3 =
+            delegator.createSlot(_operatorKey(realChain.operator3), realChain.networkSlot, false, false, size3);
+    }
+
+    function _denseNetworkAddress(uint256 rootIndex, uint256 networkIndex) internal pure returns (address) {
+        return address(uint160(0x100000 + rootIndex * 1000 + networkIndex + 1));
+    }
+
+    function _denseOperatorAddress(uint256 rootIndex, uint256 networkIndex, uint256 operatorIndex)
+        internal
+        pure
+        returns (address)
+    {
+        return address(uint160(0x200000 + rootIndex * 100_000 + networkIndex * 1000 + operatorIndex + 1));
+    }
+}

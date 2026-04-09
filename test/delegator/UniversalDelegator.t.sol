@@ -46,6 +46,7 @@ import {
     HOOK_GAS_LIMIT,
     HOOK_RESERVE,
     HOOK_SET_ROLE,
+    WITHDRAWAL_BUFFER_CHILD_INDEX,
     MAX_SUBVAULTS,
     MAX_NETWORKS,
     MAX_OPERATORS,
@@ -66,6 +67,7 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
 import {CoreV2StakeForInvariantHelper} from "../helpers/CoreV2StakeForInvariantHelper.sol";
+import {MockReentrantDelegatorHook} from "../mocks/ReentrantAttackMocks.sol";
 
 contract UniversalDelegatorHookMock is IDelegatorHook {
     bytes32 public lastSubnetwork;
@@ -95,10 +97,14 @@ contract MockVaultForDelegatorCoverage {
     uint48 public epochDuration = 3;
 }
 
-contract UniversalDelegatorCoverageHarness is UniversalDelegator {
+contract UniversalDelegatorCoverageHarnessTest is Test, UniversalDelegator {
     using Checkpoints for Checkpoints.Trace208;
 
     constructor() UniversalDelegator(address(0), address(0), address(0), 0, address(0)) {}
+
+    function setSlotExistsRaw(uint96 index, bool exists_) external {
+        slots[index].exists = exists_;
+    }
 
     function exposeSlotExists(uint96 index, bool exists_) external {
         slots[index].exists = exists_;
@@ -129,9 +135,23 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
         slots[index].syncPrevSizeSums.push(timestamp, value);
     }
 
+    function setSlotSharedRaw(uint96 index, bool isShared_) external {
+        slots[index].isShared = isShared_;
+    }
+
     function setChildrenPendingAtRaw(uint96 index, uint48 timestamp) external {
         slots[index]._childrenPendingAt = timestamp;
     }
+
+    function latestSyncPrevSizeSums(uint96 index) external view returns (uint208) {
+        return slots[index].syncPrevSizeSums.latest();
+    }
+
+    function latestPrevSizeSum(uint96 index) external view returns (uint208) {
+        return slots[index].prevSizeSum.latest();
+    }
+
+    function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
 
     function exposeGetPendingSize(uint96 index, uint48 duration) external view returns (uint208) {
         return _getPendingSize(index, duration);
@@ -140,9 +160,25 @@ contract UniversalDelegatorCoverageHarness is UniversalDelegator {
     function exposeGetPrevSum(uint96 index, uint48 duration) external view returns (uint208) {
         return _getPrevSum(index, duration);
     }
+
+    function exposeGetPrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
+        return _getPrevSizeSumAt(index, timestamp);
+    }
+
+    function exposeGetPrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp)
+        external
+        view
+        returns (uint208)
+    {
+        return _getPrevPendingSumAt(index, duration, timestamp);
+    }
+
+    function exposeGetPrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
+        return _getPrevPendingSum(index, duration);
+    }
 }
 
-contract UniversalDelegatorInitCoverageHarness is UniversalDelegator {
+contract UniversalDelegatorInitCoverageHarnessTest is Test, UniversalDelegator {
     constructor(address networkRegistry, address vaultFactory, address networkMiddlewareService)
         UniversalDelegator(networkRegistry, vaultFactory, address(0), 0, networkMiddlewareService)
     {}
@@ -195,6 +231,12 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint256 stakeFor1;
         uint256 stakeForMaxDuration;
         uint256 stakeForEpoch;
+    }
+
+    struct ChaosState {
+        address[6] operators;
+        uint96[6] operatorSlots;
+        bool[6] exists;
     }
 
     function setUp() public {
@@ -537,7 +579,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(_unallocated2(0, slot1, slot2), 0);
     }
 
-    function test_decreaseLimit_schedulesPending_untilDelayExpires() public {
+    function test_decreaseLimit_leafSubvaultSchedulesPendingUntilDelayExpires() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 60);
@@ -588,6 +630,56 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         assertEq(delegator.getPending(operatorSlot, 0), 222);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
+    }
+
+    function test_leafSubvaultDecreaseWithoutChildren_schedulesPending() public {
+        _deposit(alice, 100);
+
+        _createSlot(0, false, 60);
+        _createSlot(0, false, 40);
+        uint96 slot1 = _rootIndex(uint32(1));
+        uint96 slot2 = _rootIndex(uint32(2));
+
+        vm.warp(1);
+        delegator.setSize(slot1, 30);
+
+        assertEq(delegator.getPending(slot1, 0), 30);
+        assertEq(delegator.getAllocated(slot1, 0), 60);
+        assertEq(delegator.getAllocated(slot2, 0), 40);
+        assertEq(_unallocated2(0, slot1, slot2), 0);
+    }
+
+    function test_leafNetworkDecreaseWithoutChildren_schedulesPending() public {
+        _deposit(alice, 100);
+
+        _createSlot(0, false, 100);
+        uint96 subvault = _rootIndex(uint32(1));
+        bytes32 subnetwork = makeAddr("leaf-network-subnetwork").subnetwork(0);
+        _createNetworkSlot(subvault, subnetwork, 80);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+
+        vm.warp(1);
+        delegator.setSize(networkSlot, 30);
+
+        assertEq(delegator.getPending(networkSlot, 0), 50);
+        assertEq(delegator.getAllocated(networkSlot, 0), 80);
+        assertEq(delegator.getFilled(subvault, 0), 80);
+        assertEq(delegator.getAllocated(subvault, 0), 100);
+    }
+
+    function test_leafNoAdaptersSubvaultDecreaseWithoutChildren_schedulesPendingAndKeepsReserveUntilExpiry() public {
+        _deposit(alice, 100);
+
+        uint96 noAdaptersSubvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
+
+        assertEq(delegator.getNoAdaptersSize(), 80);
+
+        vm.warp(1);
+        delegator.setSize(noAdaptersSubvault, 25);
+
+        assertEq(delegator.getPending(noAdaptersSubvault, 0), 55);
+        assertEq(delegator.getAllocated(noAdaptersSubvault, 0), 80);
+        assertEq(delegator.getNoAdaptersSize(), 80);
     }
 
     function test_childrenPending_accumulatesOnRepeatedOperatorDecrease() public {
@@ -1767,7 +1859,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getAllocated(op2, 0), 30);
     }
 
-    function test_isolatedSlots_childrenPending_delaysReallocation() public {
+    function test_isolatedSlots_leafDecrease_delaysReallocation() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 70);
@@ -1781,6 +1873,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(slot1, 30);
 
+        assertEq(delegator.getPending(slot1, 0), 40);
         assertEq(delegator.getAllocated(slot1, 0), 70);
         assertEq(delegator.getAllocated(slot2, 0), 30);
 
@@ -2620,7 +2713,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function test_modifier_slotExists_harness() public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
 
         vm.expectRevert(IUniversalDelegator.SlotNotExists.selector);
         harness.exposeSlotExists(_rootIndex(uint32(1)), false);
@@ -2629,7 +2722,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function testFuzz_getPendingSize_sumOfUint128SizeAndPendingFitsUint208(uint128 size, uint128 pending) public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
         MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
         uint96 index = _rootIndex(uint32(1));
         uint48 timestamp = 1;
@@ -2647,7 +2740,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function testFuzz_getPrevSum_siblingPrefixFitsUint208(uint8 siblingCount, uint128 size, uint128 pending) public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
         MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
         uint96 parent = _rootIndex(uint32(1));
         uint48 timestamp = 1;
@@ -2676,6 +2769,77 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         assertEq(harness.exposeGetPrevSum(target, 0), expected);
         assertLe(expected, type(uint208).max);
+    }
+
+    function test_syncPrevSizeSums_modifier_harnessSyncsDirtyPrefixAndClearsFlag() public {
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
+        uint96 parent = _rootIndex(uint32(1));
+        uint96 slot1 = parent.createIndex(uint32(1));
+        uint96 slot2 = parent.createIndex(uint32(2));
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushSlotSizeRaw(slot1, timestamp, 7);
+        harness.pushNextSlotRaw(slot1, timestamp, 2);
+        harness.pushSlotSizeRaw(slot2, timestamp, 11);
+        harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
+
+        harness.exposeSyncPrevSizeSums(parent);
+
+        assertEq(harness.latestPrevSizeSum(slot1), 0);
+        assertEq(harness.latestPrevSizeSum(slot2), 7);
+        assertEq(harness.latestSyncPrevSizeSums(parent), 0);
+    }
+
+    function test_getPrevSizeSumAt_returnsZeroForRootAndSharedParent() public {
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
+        uint96 parent = _rootIndex(uint32(1));
+        uint96 slot = parent.createIndex(uint32(1));
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.setSlotSharedRaw(parent, true);
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushSlotSizeRaw(slot, timestamp, 5);
+
+        assertEq(harness.exposeGetPrevSizeSumAt(0, timestamp), 0);
+        assertEq(harness.exposeGetPrevSizeSumAt(slot, timestamp), 0);
+    }
+
+    function test_getPrevPendingSumAt_returnsZeroForRootAndSharedParent() public {
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
+        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
+        uint96 parent = _rootIndex(uint32(1));
+        uint96 slot = parent.createIndex(uint32(1));
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.setVaultRaw(address(vaultMock));
+        harness.setSlotSharedRaw(parent, true);
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushPendingCumulativeRaw(slot, timestamp, 5);
+
+        assertEq(harness.exposeGetPrevPendingSumAt(0, 0, timestamp), 0);
+        assertEq(harness.exposeGetPrevPendingSumAt(slot, 0, timestamp), 0);
+    }
+
+    function test_getPrevPendingSum_returnsZeroForRootAndSharedParent() public {
+        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
+        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
+        uint96 parent = _rootIndex(uint32(1));
+        uint96 slot = parent.createIndex(uint32(1));
+        uint48 timestamp = 1;
+
+        vm.warp(timestamp);
+        harness.setVaultRaw(address(vaultMock));
+        harness.setSlotSharedRaw(parent, true);
+        harness.pushFirstChildRaw(parent, timestamp, 1);
+        harness.pushPendingCumulativeRaw(slot, timestamp, 5);
+        harness.setChildrenPendingAtRaw(parent, timestamp);
+
+        assertEq(harness.exposeGetPrevPendingSum(0, 0), 0);
+        assertEq(harness.exposeGetPrevPendingSum(slot, 0), 0);
     }
 
     function test_createSlot_revertsForMissingParentSlot() public {
@@ -2741,6 +2905,52 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint128 currentSize = delegator.getSlot(operatorSlot).size;
         delegator.setSize(operatorSlot, currentSize);
         assertEq(delegator.getPending(operatorSlot, 0), 0);
+    }
+
+    function test_syncPrevSums_multipleSlashes_thenCreateOperator_preservesExistingSiblingAllocations() public {
+        address carol = makeAddr("sync-create-carol");
+        address dave = makeAddr("sync-create-dave");
+        address eve = makeAddr("sync-create-eve");
+
+        _deposit(alice, 240);
+
+        bytes32 subnetwork = makeAddr("multi-slash-create-subnetwork").subnetwork(0);
+        _createSlot(0, false, 240);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, 240);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+
+        _createOperatorSlot(networkSlot, alice, 90);
+        uint96 operatorSlot1 = networkSlot.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot, bob, 60);
+        uint96 operatorSlot2 = networkSlot.createIndex(uint32(2));
+        _createOperatorSlot(networkSlot, carol, 40);
+        uint96 operatorSlot3 = networkSlot.createIndex(uint32(3));
+        _createOperatorSlot(networkSlot, dave, 30);
+        uint96 operatorSlot4 = networkSlot.createIndex(uint32(4));
+
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, alice, 10, bytes(""));
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, bob, 5, bytes(""));
+
+        uint48 beforeCreate = uint48(block.timestamp);
+        uint256 allocated2Before = delegator.getAllocated(operatorSlot2, 0);
+        uint256 allocated3Before = delegator.getAllocated(operatorSlot3, 0);
+        uint256 allocated4Before = delegator.getAllocated(operatorSlot4, 0);
+        vm.warp(block.timestamp + 1);
+
+        uint96 operatorSlot5 = delegator.createSlot(_operatorKey(eve), networkSlot, false, false, 15);
+
+        assertEq(delegator.getAllocated(operatorSlot2, 0), allocated2Before);
+        assertEq(delegator.getAllocated(operatorSlot3, 0), allocated3Before);
+        assertEq(delegator.getAllocated(operatorSlot4, 0), allocated4Before);
+        assertEq(delegator.getAllocatedAt(operatorSlot2, 0, beforeCreate), allocated2Before);
+        assertEq(delegator.getAllocatedAt(operatorSlot3, 0, beforeCreate), allocated3Before);
+        assertEq(delegator.getAllocatedAt(operatorSlot4, 0, beforeCreate), allocated4Before);
+        assertEq(delegator.getAllocated(operatorSlot5, 0), 15);
+        assertEq(delegator.getSlot(operatorSlot5).prevSizeSum, 205);
+        _assertManualPrevSizeSumsMatch(networkSlot);
     }
 
     function test_viewWrappersAndHints() public {
@@ -3179,6 +3389,12 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         _deposit(alice, 200);
         uint96 noAdaptersSubvault1 = delegator.createSlot(bytes32(0), 0, false, true, 100);
         uint96 noAdaptersSubvault2 = delegator.createSlot(bytes32(0), 0, false, true, 100);
+        delegator.createSlot(
+            makeAddr("remove-no-adapters-network-1").subnetwork(0), noAdaptersSubvault1, false, false, 0
+        );
+        delegator.createSlot(
+            makeAddr("remove-no-adapters-network-2").subnetwork(0), noAdaptersSubvault2, false, false, 0
+        );
 
         vm.warp(1);
         _withdraw(alice, 200);
@@ -3280,6 +3496,108 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         delegator.setSize(slot2, 2);
         assertEq(delegator.getSlot(slot2).size, 2);
+    }
+
+    function test_resetAllocation_dirtyRoot_thenCreateSibling_preservesExistingSiblingAllocations() public {
+        address network = makeAddr("reset-create-network");
+        address middleware = makeAddr("reset-create-middleware");
+        _registerNetwork(network, middleware);
+        bytes32 subnetwork = network.subnetwork(0);
+
+        _deposit(alice, 160);
+
+        uint96 noAdaptersSubvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
+        uint96 slot2 = delegator.createSlot(bytes32(0), 0, false, false, 30);
+        uint96 slot3 = delegator.createSlot(bytes32(0), 0, false, false, 20);
+        delegator.createSlot(subnetwork, noAdaptersSubvault, false, false, 80);
+
+        vm.prank(network);
+        delegator.resetAllocation(subnetwork);
+
+        uint48 beforeCreate = uint48(block.timestamp);
+        uint256 slot2Allocated = delegator.getAllocated(slot2, 0);
+        uint256 slot3Allocated = delegator.getAllocated(slot3, 0);
+        vm.warp(block.timestamp + 1);
+
+        uint96 slot4 = delegator.createSlot(bytes32(0), 0, false, false, 25);
+
+        assertFalse(delegator.getSlot(noAdaptersSubvault).exists);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), 0);
+        assertEq(delegator.getAllocated(slot2, 0), slot2Allocated);
+        assertEq(delegator.getAllocated(slot3, 0), slot3Allocated);
+        assertEq(delegator.getAllocatedAt(slot2, 0, beforeCreate), slot2Allocated);
+        assertEq(delegator.getAllocatedAt(slot3, 0, beforeCreate), slot3Allocated);
+        assertEq(delegator.getAllocated(slot4, 0), 25);
+        _assertManualPrevSizeSumsMatch(0);
+    }
+
+    function test_dirtyParent_removeExpiredZeroAllocatedSibling_preservesHistoricalReads() public {
+        address carol = makeAddr("dirty-remove-carol");
+        address dave = makeAddr("dirty-remove-dave");
+
+        _deposit(alice, 200);
+
+        bytes32 subnetwork = makeAddr("dirty-remove-subnetwork").subnetwork(0);
+        _createSlot(0, false, 200);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, 200);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+
+        _createOperatorSlot(networkSlot, alice, 70);
+        uint96 operatorSlot1 = networkSlot.createIndex(uint32(1));
+        _createOperatorSlot(networkSlot, bob, 60);
+        uint96 operatorSlot2 = networkSlot.createIndex(uint32(2));
+        _createOperatorSlot(networkSlot, carol, 40);
+        uint96 operatorSlot3 = networkSlot.createIndex(uint32(3));
+        _createOperatorSlot(networkSlot, dave, 30);
+        uint96 operatorSlot4 = networkSlot.createIndex(uint32(4));
+
+        vm.warp(1);
+        delegator.setSize(operatorSlot3, 0);
+        vm.warp(EPOCH_DURATION + 2);
+        assertEq(delegator.getAllocated(operatorSlot3, 0), 0);
+        assertEq(delegator.getPending(operatorSlot3, 0), 0);
+
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, alice, 10, bytes(""));
+
+        uint48 beforeRemove = uint48(block.timestamp);
+        uint256 allocated2Before = delegator.getAllocated(operatorSlot2, 0);
+        uint256 allocated4Before = delegator.getAllocated(operatorSlot4, 0);
+        vm.warp(block.timestamp + 1);
+
+        delegator.removeSlot(operatorSlot3);
+
+        assertFalse(delegator.getSlot(operatorSlot3).exists);
+        assertEq(delegator.getAllocated(operatorSlot2, 0), allocated2Before);
+        assertEq(delegator.getAllocated(operatorSlot4, 0), allocated4Before);
+        assertEq(delegator.getAllocatedAt(operatorSlot2, 0, beforeRemove), allocated2Before);
+        assertEq(delegator.getAllocatedAt(operatorSlot4, 0, beforeRemove), allocated4Before);
+        assertEq(delegator.getSlot(operatorSlot4).prevSizeSum, 120);
+        _assertManualPrevSizeSumsMatch(networkSlot);
+        _assertManualPrevSizeSumsMatch(subvault);
+        _assertManualPrevSizeSumsMatch(0);
+        assertEq(delegator.getSlot(operatorSlot1).size, 60);
+    }
+
+    function testFuzz_chaoticDirtyParentOperations_preserveManualPrevSizeSums(uint256 seed) public {
+        _deposit(alice, 400);
+
+        bytes32 subnetwork = makeAddr("chaos-subnetwork").subnetwork(0);
+        _createSlot(0, false, 400);
+        uint96 subvault = _rootIndex(uint32(1));
+        _createNetworkSlot(subvault, subnetwork, 400);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+        ChaosState memory state = _initChaosState(networkSlot);
+
+        for (uint256 step; step < 32; ++step) {
+            seed = uint256(keccak256(abi.encode(seed, step, block.timestamp)));
+            state = _runChaosStep(state, networkSlot, subnetwork, seed);
+
+            _assertManualPrevSizeSumsMatch(networkSlot);
+            _assertManualPrevSizeSumsMatch(subvault);
+            _assertManualPrevSizeSumsMatch(0);
+        }
     }
 
     function test_resetAllocation_clearsOnlyRemovedNoAdaptersPending() public {
@@ -3465,6 +3783,67 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.onSlash{gas: gasToSend}(subnetwork, alice, 1, bytes(""));
     }
 
+    function test_hookReentrancy_setHookAttemptIsBlockedAndSwallowed() public {
+        delegator.grantRole(HOOK_SET_ROLE, owner);
+
+        MockReentrantDelegatorHook hookMock = new MockReentrantDelegatorHook();
+        delegator.grantRole(HOOK_SET_ROLE, address(hookMock));
+        delegator.setHook(address(hookMock));
+        hookMock.armReentry(address(delegator), abi.encodeCall(UniversalDelegator.setHook, (address(0))));
+
+        _deposit(alice, 100);
+
+        bytes32 subnetwork = makeAddr("hook-reentrant-subnetwork").subnetwork(0);
+        uint96 subvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
+        delegator.createSlot(subnetwork, subvault, false, false, 80);
+        uint96 networkSlot = subvault.createIndex(uint32(1));
+        delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 80);
+
+        vm.prank(address(slasher));
+        delegator.onSlash(subnetwork, alice, 20, bytes("hook-reentry"));
+
+        assertEq(hookMock.calls(), 1);
+        assertEq(hookMock.reentryCalls(), 1);
+        assertFalse(hookMock.lastCallSuccess());
+        assertEq(delegator.hook(), address(hookMock));
+        assertEq(delegator.getAllocated(subnetwork, alice, 0), 60);
+    }
+
+    function test_hookReentrancy_resetAllocationDuringExecuteSlash_revertsAtomically() public {
+        _deposit(alice, 100);
+
+        MockReentrantDelegatorHook hookMock = new MockReentrantDelegatorHook();
+        address network = makeAddr("hook-reset-network");
+        bytes32 subnetwork = network.subnetwork(0);
+
+        _registerNetwork(network, address(hookMock));
+        _registerOperator(alice);
+        _optIn(alice, network);
+
+        vm.prank(network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        uint96 subvault = delegator.createSlot(bytes32("subvault"), 0, false, false, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, subvault, false, false, 100);
+        uint96 operatorSlot = delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 100);
+
+        delegator.grantRole(HOOK_SET_ROLE, owner);
+        delegator.setHook(address(hookMock));
+        hookMock.armReentry(address(delegator), abi.encodeCall(UniversalDelegator.resetAllocation, (subnetwork)));
+
+        vm.startPrank(address(hookMock));
+        uint256 slashIndex = slasher.requestSlash(subnetwork, alice, 20, 0, "");
+        vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
+        slasher.executeSlash(slashIndex, "");
+        vm.stopPrank();
+
+        assertFalse(slasher.slashRequests(slashIndex).completed);
+        assertEq(delegator.getSlotOfNetwork(subnetwork), networkSlot);
+        assertEq(delegator.getSlotOf(subnetwork, alice), operatorSlot);
+        assertEq(delegator.getAllocated(subnetwork, alice, 0), 100);
+        assertEq(delegator.hook(), address(hookMock));
+    }
+
     function test_onSlash_revertsNotAssigned() public {
         vm.prank(address(slasher));
         try delegator.onSlash(bytes32(0), address(0), 0, "") returns (uint256) {
@@ -3543,7 +3922,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function test_initialize_harness_revertsNotVault() public {
-        UniversalDelegatorInitCoverageHarness harness = new UniversalDelegatorInitCoverageHarness(
+        UniversalDelegatorInitCoverageHarnessTest harness = new UniversalDelegatorInitCoverageHarnessTest(
             address(networkRegistry), address(vaultFactory), address(networkMiddlewareService)
         );
 
@@ -3653,6 +4032,163 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint256 allocated =
             delegator.getAllocated(slot1, 0) + delegator.getAllocated(slot2, 0) + delegator.getAllocated(slot3, 0);
         return available > allocated ? available - allocated : 0;
+    }
+
+    function _assertManualPrevSizeSumsMatch(uint96 parentIndex) internal view {
+        bool sharedParent = parentIndex.getDepth() == 1 && delegator.getSlot(parentIndex).isShared;
+        uint208 expectedPrevSizeSum;
+        uint32 childIndex = delegator.getSlot(parentIndex).firstChild;
+
+        while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
+            uint96 slotIndex = parentIndex.createIndex(childIndex);
+            IUniversalDelegator.Slot memory slot = delegator.getSlot(slotIndex);
+            assertEq(slot.prevSizeSum, sharedParent ? 0 : expectedPrevSizeSum);
+            expectedPrevSizeSum += slot.size;
+            childIndex = slot.nextSlot;
+        }
+    }
+
+    function _initChaosState(uint96 networkSlot) internal returns (ChaosState memory state) {
+        state.operators[0] = alice;
+        state.operators[1] = bob;
+        state.operators[2] = makeAddr("chaos-carol");
+        state.operators[3] = makeAddr("chaos-dave");
+        state.operators[4] = makeAddr("chaos-eve");
+        state.operators[5] = makeAddr("chaos-frank");
+
+        _createOperatorSlot(networkSlot, state.operators[0], 120);
+        state.operatorSlots[0] = networkSlot.createIndex(uint32(1));
+        state.exists[0] = true;
+        _createOperatorSlot(networkSlot, state.operators[1], 100);
+        state.operatorSlots[1] = networkSlot.createIndex(uint32(2));
+        state.exists[1] = true;
+        _createOperatorSlot(networkSlot, state.operators[2], 80);
+        state.operatorSlots[2] = networkSlot.createIndex(uint32(3));
+        state.exists[2] = true;
+        _createOperatorSlot(networkSlot, state.operators[3], 60);
+        state.operatorSlots[3] = networkSlot.createIndex(uint32(4));
+        state.exists[3] = true;
+    }
+
+    function _runChaosStep(ChaosState memory state, uint96 networkSlot, bytes32 subnetwork, uint256 seed)
+        internal
+        returns (ChaosState memory)
+    {
+        vm.warp(block.timestamp + uint48(seed % 3));
+
+        uint256 action = seed % 6;
+        if (action == 0) {
+            _deposit(alice, (seed % 25) + 1);
+            return state;
+        }
+        if (action == 1) {
+            uint256 withdrawable = vault.activeBalanceOf(alice);
+            if (withdrawable > 0) {
+                _withdraw(alice, bound(seed >> 8, 1, withdrawable));
+            }
+            return state;
+        }
+        if (action == 2) {
+            uint256 index = _pickExistingIndex(seed >> 16, state.exists);
+            address(delegator)
+                .call(
+                    abi.encodeCall(delegator.setSize, (state.operatorSlots[index], uint128(bound(seed >> 32, 0, 180))))
+                );
+            return state;
+        }
+        if (action == 3) {
+            uint256 index = _pickExistingIndex(seed >> 48, state.exists);
+            uint256 currentSize = delegator.getSlot(state.operatorSlots[index]).size;
+            if (currentSize > 0) {
+                vm.prank(address(slasher));
+                delegator.onSlash(subnetwork, state.operators[index], bound(seed >> 64, 1, currentSize), bytes(""));
+            }
+            return state;
+        }
+        if (action == 4) {
+            uint256 index1 = _pickExistingIndex(seed >> 80, state.exists);
+            uint256 index2 = _pickExistingIndex(seed >> 96, state.exists);
+            if (index1 != index2) {
+                uint96 left = state.operatorSlots[index1];
+                uint96 right = state.operatorSlots[index2];
+                if (left.getChildIndex() > right.getChildIndex()) {
+                    (left, right) = (right, left);
+                }
+                address(delegator).call(abi.encodeCall(delegator.swapSlots, (left, right)));
+            }
+            return state;
+        }
+
+        uint256 created = _countTrue(state.exists);
+        if (created < state.operators.length) {
+            uint256 nextIndex = _firstMissingIndex(state.exists);
+            (bool success, bytes memory returnData) = address(delegator)
+                .call(
+                    abi.encodeCall(
+                        delegator.createSlot,
+                        (
+                            _operatorKey(state.operators[nextIndex]),
+                            networkSlot,
+                            false,
+                            false,
+                            uint128(bound(seed >> 112, 0, 50))
+                        )
+                    )
+                );
+            if (success) {
+                state.operatorSlots[nextIndex] = abi.decode(returnData, (uint96));
+                state.exists[nextIndex] = true;
+            }
+            return state;
+        }
+
+        uint256 removable = _findRemovableIndex(state.operatorSlots, state.exists);
+        if (removable < state.operators.length) {
+            address(delegator).call(abi.encodeCall(delegator.removeSlot, (state.operatorSlots[removable])));
+            state.exists[removable] = delegator.getSlot(state.operatorSlots[removable]).exists;
+        }
+        return state;
+    }
+
+    function _pickExistingIndex(uint256 seed, bool[6] memory exists) internal pure returns (uint256) {
+        uint256 start = seed % exists.length;
+        for (uint256 i; i < exists.length; ++i) {
+            uint256 index = (start + i) % exists.length;
+            if (exists[index]) {
+                return index;
+            }
+        }
+        return 0;
+    }
+
+    function _countTrue(bool[6] memory flags) internal pure returns (uint256 count) {
+        for (uint256 i; i < flags.length; ++i) {
+            if (flags[i]) {
+                ++count;
+            }
+        }
+    }
+
+    function _firstMissingIndex(bool[6] memory flags) internal pure returns (uint256) {
+        for (uint256 i; i < flags.length; ++i) {
+            if (!flags[i]) {
+                return i;
+            }
+        }
+        return flags.length;
+    }
+
+    function _findRemovableIndex(uint96[6] memory operatorSlots, bool[6] memory exists)
+        internal
+        view
+        returns (uint256)
+    {
+        for (uint256 i; i < exists.length; ++i) {
+            if (exists[i] && delegator.getAllocated(operatorSlots[i], 0) == 0) {
+                return i;
+            }
+        }
+        return exists.length;
     }
 
     function _registerOperator(address operator) internal {

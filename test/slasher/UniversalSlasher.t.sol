@@ -42,6 +42,7 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
+import {MockReentrantBurner} from "../mocks/ReentrantAttackMocks.sol";
 
 contract UniversalSlasherMigrationTest is Test {
     using Subnetwork for address;
@@ -323,6 +324,39 @@ contract UniversalSlasherMigrationTest is Test {
 
         vm.warp(block.timestamp + 1);
         assertEq(newSlasher.resolver(subnetwork_), resolver_2);
+    }
+
+    function test_MigrateFromVetoSlasher_ToUniversalSlasher_withoutLegacyResolver_setsFirstResolverInstantly() public {
+        uint48 resolverSetEpochsDelay = 4;
+        bytes memory slasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                vetoDuration: 1,
+                resolverSetEpochsDelay: resolverSetEpochsDelay
+            })
+        );
+        (IVaultV2 vault_,) = _createLegacyVault(true, 1, slasherParams);
+
+        address network = makeAddr("migration-network-no-legacy-resolver");
+        address resolver_1 = makeAddr("migration-resolver-first");
+        bytes32 subnetwork_ = network.subnetwork(0);
+
+        vm.prank(network);
+        networkRegistry.registerNetwork();
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams());
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
+
+        IUniversalSlasher newSlasher = IUniversalSlasher(vault_.slasher());
+        assertFalse(newSlasher.isResolverSet(subnetwork_));
+        assertEq(newSlasher.resolver(subnetwork_), address(0));
+
+        vm.prank(network);
+        newSlasher.setResolver(0, resolver_1);
+
+        assertTrue(newSlasher.isResolverSet(subnetwork_));
+        assertEq(newSlasher.resolver(subnetwork_), resolver_1);
+        assertEq(newSlasher.pendingResolverData(subnetwork_), bytes32(0));
     }
 
     function _createLegacyVault(bool withSlasher, uint64 slasherIndex, bytes memory slasherParams)
@@ -1164,6 +1198,46 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.executeSlash(0, "");
     }
 
+    function test_executeSlashReverts_InsufficientSlashForStaleMigratedRequest() public {
+        vm.warp(1000);
+        slasher.setOldSlasherRaw(address(legacySlasher));
+        slasher.setMigrateTimestampRaw(900);
+        legacySlasher.setSlashRequestsLength(1);
+        legacySlasher.setResolverAt(resolver1);
+        legacySlasher.setSlashRequest(subnetwork, operator, 10, 800, 0, false);
+        _pushRequest(0, 0, 0, address(0), false);
+
+        vm.prank(middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        slasher.executeSlash(0, "");
+    }
+
+    function test_executeSlash_usesFreshRequestAfterMigrationAndReReadsAllocation() public {
+        vm.warp(1000);
+        slasher.setOldSlasherRaw(address(legacySlasher));
+        slasher.setMigrateTimestampRaw(900);
+        legacySlasher.setSlashRequest(subnetwork, operator, 999, 1, 2, true);
+
+        delegator.setStakeForValue(100);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork, operator, 80, 0, "");
+
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(slashIndex);
+        assertEq(request.amount, 80);
+        assertEq(request.createdAt, 1000);
+        assertEq(request.subnetwork, subnetwork);
+        assertEq(request.operator, operator);
+
+        delegator.setStakeForValue(30);
+
+        vm.prank(middleware);
+        uint256 slashedAmount = slasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 30);
+        assertEq(vault.lastOnSlashAmount(), 30);
+    }
+
     function test_executeSlashReverts_Completed() public {
         _pushRequest(10, uint48(block.timestamp - 1), 0, resolver1, true);
 
@@ -1260,6 +1334,41 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(vault.lastSyncOwedAmount(), 7);
     }
 
+    function test_executeSlash_tracksOwedAcrossMultipleEntries() public {
+        address operator2 = makeAddr("operator-2");
+
+        vm.prank(middleware);
+        uint256 slashIndex1 = slasher.requestSlash(subnetwork, operator, 40, 0, "");
+
+        vm.prank(middleware);
+        uint256 slashIndex2 = slasher.requestSlash(subnetwork, operator2, 30, 0, "");
+
+        vault.setOnSlashResult(true, 0, 7);
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex1, ""), 40);
+
+        vault.setOnSlashResult(true, 0, 11);
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex2, ""), 30);
+
+        assertEq(slasher.totalOwed(), 18);
+        assertEq(slasher.owed(subnetwork, operator), 7);
+        assertEq(slasher.owed(subnetwork, operator2), 11);
+
+        vault.setSyncOwedReturn(7);
+        assertEq(slasher.syncOwedSlash(subnetwork, operator), 7);
+        assertEq(slasher.totalOwed(), 11);
+        assertEq(slasher.owed(subnetwork, operator), 0);
+        assertEq(slasher.owed(subnetwork, operator2), 11);
+        assertEq(vault.lastSyncOwedAmount(), 7);
+
+        vault.setSyncOwedReturn(11);
+        assertEq(slasher.syncOwedSlash(subnetwork, operator2), 11);
+        assertEq(slasher.totalOwed(), 0);
+        assertEq(slasher.owed(subnetwork, operator2), 0);
+        assertEq(vault.lastSyncOwedAmount(), 11);
+    }
+
     function test_executeSlash_doesNotBookSharedGuaranteeGapAsOwed() public {
         delegator.setStakeForValue(10);
         delegator.setOnSlashReturnValue(0);
@@ -1272,6 +1381,50 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(delegator.lastSlashAmount(), 10);
         assertEq(vault.lastOnSlashAmount(), 0);
         assertEq(slasher.owed(subnetwork, operator), 0);
+    }
+
+    function test_executeSlash_burnerReentrancy_executeSlashAttemptIsBlockedAndSwallowed() public {
+        MockReentrantBurner reentrantBurner = new MockReentrantBurner();
+        vault.setBurner(address(reentrantBurner));
+        middlewareService.setMiddleware(network, address(reentrantBurner));
+        slasher.setIsBurnerHookRaw(true);
+
+        reentrantBurner.armReentry(address(slasher), abi.encodeCall(UniversalSlasher.executeSlash, (0, bytes(""))));
+        _pushRequest(40, uint48(block.timestamp), 0, resolver1, false);
+
+        vm.prank(address(reentrantBurner));
+        uint256 slashedAmount = slasher.executeSlash(0, "");
+
+        assertEq(slashedAmount, 40);
+        assertEq(reentrantBurner.calls(), 1);
+        assertEq(reentrantBurner.reentryCalls(), 1);
+        assertFalse(reentrantBurner.lastCallSuccess());
+        assertTrue(slasher.slashRequests(0).completed);
+    }
+
+    function test_executeSlash_burnerReentrancy_syncOwedSlashAttemptRollsBackUnderBurnerGasCap() public {
+        MockReentrantBurner reentrantBurner = new MockReentrantBurner();
+        vault.setBurner(address(reentrantBurner));
+        slasher.setIsBurnerHookRaw(true);
+        vault.setOnSlashResult(true, 0, 7);
+        vault.setSyncOwedReturn(5);
+
+        reentrantBurner.armReentry(
+            address(slasher), abi.encodeCall(UniversalSlasher.syncOwedSlash, (subnetwork, operator))
+        );
+        _pushRequest(40, uint48(block.timestamp), 0, resolver1, false);
+
+        vm.prank(middleware);
+        uint256 slashedAmount = slasher.executeSlash(0, "");
+
+        assertEq(slashedAmount, 40);
+        assertEq(reentrantBurner.calls(), 1);
+        assertEq(reentrantBurner.reentryCalls(), 1);
+        assertFalse(reentrantBurner.lastCallSuccess());
+        assertEq(vault.lastSyncOwedAmount(), 0);
+        assertEq(slasher.owed(subnetwork, operator), 7);
+        assertEq(slasher.totalOwed(), 7);
+        assertTrue(slasher.slashRequests(0).completed);
     }
 
     function testFuzz_executeSlash_uncheckedBurnerSubtractionIsSafe(
@@ -1299,6 +1452,51 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(burner.lastAmount(), delegatedSlashAmount - owedAmount);
         assertEq(slasher.totalOwed(), owedAmount);
         assertEq(slasher.owed(subnetwork, operator), owedAmount);
+    }
+
+    function testFuzz_executeSlash_burnerReentrantSyncOwedSlashAttempt_rollsBackUnderBurnerGasCap(
+        uint256 slashableStake,
+        uint256 requestedAmount,
+        uint256 delegatedSlashAmount,
+        uint256 owedAmount,
+        uint256 syncedAmount
+    ) public {
+        slashableStake = bound(slashableStake, 1, SUPPLY_CAP);
+        requestedAmount = bound(requestedAmount, 1, slashableStake);
+        delegatedSlashAmount = bound(delegatedSlashAmount, 1, requestedAmount);
+        owedAmount = bound(owedAmount, 0, delegatedSlashAmount);
+        syncedAmount = bound(syncedAmount, 0, owedAmount);
+
+        MockReentrantBurner reentrantBurner = new MockReentrantBurner();
+        vault.setBurner(address(reentrantBurner));
+        slasher.setIsBurnerHookRaw(true);
+        delegator.setStakeForValue(slashableStake);
+        delegator.setOnSlashReturnValue(delegatedSlashAmount);
+        vault.setOnSlashResult(true, 0, owedAmount);
+        vault.setSyncOwedReturn(syncedAmount);
+
+        reentrantBurner.armReentry(
+            address(slasher), abi.encodeCall(UniversalSlasher.syncOwedSlash, (subnetwork, operator))
+        );
+        _pushRequest(requestedAmount, uint48(block.timestamp), 0, resolver1, false);
+
+        vm.prank(middleware);
+        uint256 slashedAmount = slasher.executeSlash(0, "");
+
+        assertEq(slashedAmount, delegatedSlashAmount);
+        assertEq(reentrantBurner.reentryCalls(), 1);
+
+        if (reentrantBurner.lastCallSuccess()) {
+            assertEq(reentrantBurner.calls(), 2);
+            assertEq(vault.lastSyncOwedAmount(), owedAmount);
+            assertEq(slasher.owed(subnetwork, operator), owedAmount - syncedAmount);
+            assertEq(slasher.totalOwed(), owedAmount - syncedAmount);
+        } else {
+            assertEq(reentrantBurner.calls(), 1);
+            assertEq(vault.lastSyncOwedAmount(), 0);
+            assertEq(slasher.owed(subnetwork, operator), owedAmount);
+            assertEq(slasher.totalOwed(), owedAmount);
+        }
     }
 
     function testFuzz_syncOwedSlash_uncheckedSubtractionsAreSafe(
