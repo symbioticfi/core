@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 import {Test, stdError} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 
@@ -247,6 +248,7 @@ contract VaultV2Test is Test {
     using UniversalDelegatorIndex for uint96;
 
     uint256 internal constant SUPPLY_CAP = (uint256(1) << 255) - 1;
+    uint48 internal constant DURATION_WINDOW_DELAY = 4;
 
     address owner;
     address alice;
@@ -351,6 +353,26 @@ contract VaultV2Test is Test {
         MockAdapter adapter;
         bytes32 noAdaptersSubnetwork;
         bytes32 adapterSubnetwork;
+    }
+
+    struct DurationWindowSnapshot {
+        uint48 observedAt;
+        uint48 queryTimestamp;
+        uint256 activeStake;
+        uint256 withdrawalSharesOfAlice;
+        uint256 activeWithdrawalSharesOfAlice;
+        uint256[4] activeWithdrawalSharesForDuration;
+        uint256[4] activeWithdrawalsForDuration;
+        uint256[4] stakeForDuration;
+    }
+
+    struct SingleWithdrawalDurationWindowScenario {
+        UniversalDelegator universalDelegator;
+        bytes32 subnetwork;
+        uint96 operatorSlot;
+        uint48 unlockAt;
+        uint256 activeStakeAfterWithdraw;
+        uint256 withdrawAmount;
     }
 
     function setUp() public virtual {
@@ -1860,7 +1882,7 @@ contract VaultV2Test is Test {
         assertEq(vault.withdrawalsOf(0, bob), expectedBobWithdrawalsAfter);
         assertEq(vault.withdrawals(bucketBefore), claimableBefore);
         assertEq(vault.withdrawals(bucketAfter), expectedNewActiveWithdrawals);
-        assertEq(vaultTestHelper.unclaimedRaw(address(vault)), int256(claimableBefore));
+        assertEq(vault.unclaimed(), claimableBefore);
         assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
     }
 
@@ -2086,6 +2108,174 @@ contract VaultV2Test is Test {
             expectedActiveStakeAfter + expectedNewActiveWithdrawals
         );
         assertEq(universalDelegator.getBalanceAt(0, 1, aliceUnlockAfter), expectedActiveStakeAfter);
+    }
+
+    function test_UniversalDelegator_durationWindows_depositWithdraw_reportsBlocks1And2AndHistoricalLookups() public {
+        _runSingleWithdrawalDurationWindowScenario(100, 40, true);
+    }
+
+    function testFuzz_UniversalDelegator_durationWindows_depositWithdraw_preservesStakeGuaranteeAndShareAccounting(
+        uint256 depositAmount,
+        uint256 withdrawAmount
+    ) public {
+        depositAmount = bound(depositAmount, 1, 1_000_000 ether);
+        withdrawAmount = bound(withdrawAmount, 1, depositAmount);
+
+        _runSingleWithdrawalDurationWindowScenario(depositAmount, withdrawAmount, false);
+    }
+
+    function test_UniversalDelegator_durationWindows_donateAfterWithdraw_repricesHistoricalAndCurrentAccounting()
+        public
+    {
+        SingleWithdrawalDurationWindowScenario memory scenario =
+            _bootstrapSingleWithdrawalDurationWindowScenario(100, 40);
+        address[] memory accounts = _singleAccountArray(alice);
+
+        vm.warp(2);
+
+        uint256 donation = 20;
+        uint256 activeBefore = vault.activeWithdrawals();
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 sharesBefore = vault.withdrawalSharesOf(0, alice);
+        uint256 expectedWithdrawalsDonated = donation.mulDiv(activeBefore, activeStakeBefore + activeBefore);
+        uint256 expectedActiveAfter = activeBefore + expectedWithdrawalsDonated;
+        uint256 expectedStakeAfter = activeStakeBefore + donation - expectedWithdrawalsDonated;
+        uint256 expectedAliceWithdrawalsAfter = ERC4626Math.previewRedeem(
+            sharesBefore, expectedActiveAfter, vault.withdrawalShares(vault.withdrawalBucket())
+        );
+
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(vault.withdrawalSharesOf(0, alice), sharesBefore);
+        assertEq(vault.activeWithdrawals(), expectedActiveAfter);
+        assertEq(vault.withdrawalsOf(0, alice), expectedAliceWithdrawalsAfter);
+        assertEq(vault.activeStake(), expectedStakeAfter);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 1), sharesBefore);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 2), sharesBefore);
+
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 1, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 2, true
+        );
+
+        vm.warp(3);
+
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 1, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 2, false
+        );
+    }
+
+    function testFuzz_UniversalDelegator_durationWindows_slashAfterWithdraw_repricesHistoricalAndCurrentAccounting(
+        uint256 depositAmount,
+        uint256 withdrawAmount,
+        uint256 slashAmount
+    ) public {
+        depositAmount = bound(depositAmount, 1, 1_000_000 ether);
+        withdrawAmount = bound(withdrawAmount, 1, depositAmount);
+
+        SingleWithdrawalDurationWindowScenario memory scenario =
+            _bootstrapSingleWithdrawalDurationWindowScenario(depositAmount, withdrawAmount);
+        address[] memory accounts = _singleAccountArray(alice);
+
+        vm.warp(2);
+
+        uint256 activeBefore = vault.activeWithdrawals();
+        uint256 activeStakeBefore = vault.activeStake();
+        uint256 slashableStake = activeBefore + activeStakeBefore;
+        slashAmount = bound(slashAmount, 1, slashableStake);
+
+        uint256 sharesBefore = vault.withdrawalSharesOf(0, alice);
+        uint256 expectedActiveSlashed = slashAmount.mulDiv(activeStakeBefore, slashableStake);
+        uint256 expectedActiveAfter = activeBefore - (slashAmount - expectedActiveSlashed);
+        uint256 expectedActiveStakeAfter = activeStakeBefore - expectedActiveSlashed;
+
+        vm.prank(address(slasher));
+        (uint256 slashedAmount, uint256 owed) = VaultV2(address(vault)).onSlash(slashAmount, false);
+
+        assertEq(slashedAmount, slashAmount);
+        assertEq(owed, 0);
+        assertEq(vault.withdrawalSharesOf(0, alice), sharesBefore);
+        assertEq(vault.withdrawalsOf(0, alice), expectedActiveAfter);
+        assertEq(vault.activeStake(), expectedActiveStakeAfter);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 1), sharesBefore);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 2), sharesBefore);
+
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 1, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 2, true
+        );
+
+        vm.warp(3);
+
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 1, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, accounts, 2, false
+        );
+    }
+
+    function testFuzz_UniversalDelegator_durationWindows_twoWithdrawals_matchPerRequestShareAndWindowAccounting(
+        uint256 depositAmount,
+        uint256 firstWithdrawAmount,
+        uint256 secondWithdrawAmount
+    ) public {
+        depositAmount = bound(depositAmount, 2, 1_000_000 ether);
+        firstWithdrawAmount = bound(firstWithdrawAmount, 1, depositAmount - 1);
+        secondWithdrawAmount = bound(secondWithdrawAmount, 1, depositAmount - firstWithdrawAmount);
+
+        UniversalDelegator universalDelegator;
+        bytes32 subnetwork;
+        uint96 operatorSlot;
+        (universalDelegator, subnetwork, operatorSlot) =
+            _prepareSingleOperatorUniversalDurationWindowScenario(DURATION_WINDOW_DELAY, depositAmount);
+        address[] memory accounts = _singleAccountArray(alice);
+
+        _deposit(alice, depositAmount);
+
+        vm.warp(1);
+        _withdraw(alice, firstWithdrawAmount);
+
+        vm.warp(2);
+        _withdraw(alice, secondWithdrawAmount);
+
+        assertEq(vault.withdrawalsOfLength(alice), 2);
+        assertEq(vault.withdrawalUnlockAt(0, alice), 1 + DURATION_WINDOW_DELAY);
+        assertEq(vault.withdrawalUnlockAt(1, alice), 2 + DURATION_WINDOW_DELAY);
+        assertEq(vault.withdrawalSharesOf(0, alice), firstWithdrawAmount);
+        assertEq(vault.withdrawalSharesOf(1, alice), secondWithdrawAmount);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 2), firstWithdrawAmount + secondWithdrawAmount);
+
+        _assertDurationWindowAccountingForSingleOperator(
+            universalDelegator, subnetwork, operatorSlot, accounts, 1, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            universalDelegator, subnetwork, operatorSlot, accounts, 2, true
+        );
+
+        vm.warp(3);
+
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 3), firstWithdrawAmount + secondWithdrawAmount);
+        _assertDurationWindowAccountingForSingleOperator(
+            universalDelegator, subnetwork, operatorSlot, accounts, 1, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            universalDelegator, subnetwork, operatorSlot, accounts, 2, false
+        );
+        _assertDurationWindowAccountingForSingleOperator(
+            universalDelegator, subnetwork, operatorSlot, accounts, 3, true
+        );
     }
 
     function test_ActiveWithdrawalShares_matchesSumOfCurrentUnclaimableRequestShares_throughLifecycle() public {
@@ -3067,12 +3257,8 @@ contract VaultV2Test is Test {
 
         _deposit(bob, 20);
 
-        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
-        assertEq(_claim(alice, 0), claimableAmount);
-        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, claimableAmount);
-        assertEq(collateral.balanceOf(address(vault)), 100);
-        assertEq(scenario.universalSlasher.totalOwed(), 20);
-        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
 
         burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
@@ -3081,7 +3267,13 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
         assertEq(scenario.universalSlasher.totalOwed(), 0);
         assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(collateral.balanceOf(address(vault)), 100);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), claimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, claimableAmount);
         assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
     }
 
     function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_claimAndSyncBothPreserveNoAdaptersSlashability() public {
@@ -3129,9 +3321,8 @@ contract VaultV2Test is Test {
 
         _deposit(bob, 60);
 
-        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
-        assertEq(_claim(alice, 0), firstClaimableAmount);
-        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, firstClaimableAmount);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
 
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _claim(alice, 1);
@@ -3143,8 +3334,15 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 12);
         assertEq(scenario.universalSlasher.totalOwed(), 28);
         assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 28);
-        assertEq(collateral.balanceOf(address(vault)), 108);
+        assertEq(collateral.balanceOf(address(vault)), 128);
         assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), firstClaimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, firstClaimableAmount);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 1);
 
         assertEq(
             _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
@@ -3189,12 +3387,15 @@ contract VaultV2Test is Test {
         _deposit(bob, 61);
 
         uint256 claimableBackingBeforeSync = _claimableBacking();
-        uint256 adaptersOweBeforeSync = _adaptersOwe(scenario.universalDelegator);
+        uint256 adaptersOweBeforeSync = vault.adaptersOwe();
         uint256 syncableBeforeSync = scenario.universalSlasher.totalOwed() - adaptersOweBeforeSync;
 
         assertEq(adaptersOweBeforeSync, secondClaimableAmount);
         assertEq(syncableBeforeSync, 13);
         assertGe(claimableBackingBeforeSync.saturatingSub(adaptersOweBeforeSync), firstClaimableAmount);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
 
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
@@ -3206,7 +3407,7 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(vault)), 128);
         assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
         assertEq(_claimableBacking(), claimableBackingBeforeSync);
-        assertEq(_adaptersOwe(scenario.universalDelegator), adaptersOweBeforeSync);
+        assertEq(vault.adaptersOwe(), adaptersOweBeforeSync);
 
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
         assertEq(_claim(alice, 0), firstClaimableAmount);
@@ -3219,7 +3420,7 @@ contract VaultV2Test is Test {
         assertEq(scenario.universalSlasher.totalOwed(), 27);
         assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
         assertGe(_claimableBacking(), secondClaimableAmount);
-        assertEq(_adaptersOwe(scenario.universalDelegator), secondClaimableAmount);
+        assertEq(vault.adaptersOwe(), secondClaimableAmount);
 
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
@@ -3230,6 +3431,188 @@ contract VaultV2Test is Test {
         );
         assertEq(collateral.balanceOf(address(vault)), 28);
         assertEq(scenario.universalSlasher.totalOwed(), 27);
+    }
+
+    function test_Scenario_NoAdaptersBeforeAndAfterSlash_snapshotClaimAndSyncCapacity() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        // Withdrawal before slash.
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, adapterMiddleware, scenario.adapterSubnetwork, 70), 70
+        );
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        // Deposit and withdrawal after slash.
+        _deposit(bob, 61);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 10);
+
+        uint48 aliceUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAt = vault.withdrawalUnlockAt(0, bob);
+        assertGt(bobUnlockAt, aliceUnlockAt);
+
+        vm.warp(aliceUnlockAt);
+        {
+            uint256 adaptersOweAtAliceUnlock = vault.adaptersOwe();
+            uint256 totalOwedAtAliceUnlock = scenario.universalSlasher.totalOwed();
+
+            assertEq(vault.withdrawalsOf(0, alice), 20);
+            assertEq(_claimableBacking(), 21);
+            assertEq(adaptersOweAtAliceUnlock, 0);
+            assertEq(totalOwedAtAliceUnlock, 40);
+            assertEq(totalOwedAtAliceUnlock.saturatingSub(adaptersOweAtAliceUnlock), 40);
+        }
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        vm.warp(bobUnlockAt);
+        {
+            uint256 adaptersOweAtBobUnlock = vault.adaptersOwe();
+            uint256 totalOwedAtBobUnlock = scenario.universalSlasher.totalOwed();
+
+            assertEq(vault.withdrawalsOf(0, alice), 20);
+            assertEq(vault.withdrawalsOf(0, bob), 9);
+            assertEq(_claimableBacking(), 30);
+            assertEq(adaptersOweAtBobUnlock, 9);
+            assertEq(totalOwedAtBobUnlock, 40);
+            assertEq(totalOwedAtBobUnlock.saturatingSub(adaptersOweAtBobUnlock), 31);
+        }
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+        assertEq(synced, 31);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 9);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(collateral.balanceOf(address(vault)), 110);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        assertEq(_claim(alice, 0), 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(bob, 0);
+
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(_claimableBacking(), 10);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
+            80
+        );
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 0);
+    }
+
+    function test_Scenario_NoAdaptersBeforeAndAfterSlash_interleavedClaimSyncAndBobCompletion() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        // Action: Alice requests a withdrawal before the adapter-backed slash.
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        // Action: The adapter cannot deallocate, so the slash leaves owed amount behind.
+        scenario.adapter.setShouldFail(true);
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, adapterMiddleware, scenario.adapterSubnetwork, 70), 70
+        );
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+
+        // Action: New stake arrives after the slash, then Bob also requests a withdrawal.
+        _deposit(bob, 61);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 10);
+
+        uint48 aliceUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAt = vault.withdrawalUnlockAt(0, bob);
+        assertGt(bobUnlockAt, aliceUnlockAt);
+
+        // Action: Alice's withdrawal matures first.
+        vm.warp(aliceUnlockAt);
+        assertEq(vault.withdrawalsOf(0, alice), 20);
+        assertEq(_claimableBacking(), 21);
+        assertEq(vault.adaptersOwe(), 0);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(scenario.universalSlasher.totalOwed().saturatingSub(vault.adaptersOwe()), 40);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        // Action: Bob's later withdrawal also matures while slash debt still exists.
+        vm.warp(bobUnlockAt);
+        assertEq(vault.withdrawalsOf(0, alice), 20);
+        assertEq(vault.withdrawalsOf(0, bob), 9);
+        assertEq(_claimableBacking(), 30);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(scenario.universalSlasher.totalOwed().saturatingSub(vault.adaptersOwe()), 31);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(bob, 0);
+
+        // Action: The network syncs the currently free portion of owed slash.
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+        assertEq(synced, 31);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 9);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: Alice can now claim, even while some owed slash still remains.
+        assertEq(_claim(alice, 0), 20);
+        assertEq(_claimableBacking(), 10);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: Bob is still blocked until the remaining owed slash is synced.
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(bob, 0);
+
+        // Action: Adapter liquidity recovers, so the remaining owed slash can be synced too.
+        scenario.adapter.setShouldFail(false);
+        synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+        assertEq(synced, 9);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(vault.adaptersOwe(), 0);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: Bob can now complete the remaining matured withdrawal.
+        assertEq(_claim(bob, 0), 9);
+        assertEq(_claimableBacking(), 1);
+        assertEq(vault.adaptersOwe(), 0);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: The no-adapters network remains fully slashable throughout.
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
+            80
+        );
     }
 
     function test_ClaimableBackingCanBeBelowAdaptersOweWhenOwedSlashExists() public {
@@ -3254,10 +3637,7 @@ contract VaultV2Test is Test {
 
         vm.warp(vault.withdrawalUnlockAt(0, alice));
 
-        uint256 claimableBacking = uint256(
-            int256(vault.withdrawals(vault.withdrawalBucket()) - vault.activeWithdrawals())
-                + vaultTestHelper.unclaimedRaw(address(vault))
-        );
+        uint256 claimableBacking = vault.unclaimed();
         uint256 maxAllocatable = vault.totalStake().saturatingSub(scenario.universalDelegator.getNoAdaptersSize());
         uint256 adaptersOwe = vault.adaptersAllocated().saturatingSub(maxAllocatable);
 
@@ -3754,14 +4134,13 @@ contract VaultV2Test is Test {
         vaultFactory.migrate(address(legacyVault), vaultFactory.lastVersion(), migrateData);
 
         IVaultV2 migratedVault = IVaultV2(address(legacyVault));
-        int256 unclaimedRaw = vaultTestHelper.unclaimedRaw(address(migratedVault));
+        uint256 unclaimedRaw = migratedVault.unclaimed();
 
-        assertGe(unclaimedRaw, 0);
         assertEq(
             collateral.balanceOf(address(migratedVault)),
-            migratedVault.activeStake() + migratedVault.activeWithdrawals() + uint256(unclaimedRaw)
+            migratedVault.activeStake() + migratedVault.activeWithdrawals() + unclaimedRaw
         );
-        assertLe(migratedVault.activeStake() + migratedVault.activeWithdrawals() + uint256(unclaimedRaw), SUPPLY_CAP);
+        assertLe(migratedVault.activeStake() + migratedVault.activeWithdrawals() + unclaimedRaw, SUPPLY_CAP);
     }
 
     function test_MigrateWithdrawals_FactoryUpgradePath() public {
@@ -4047,7 +4426,7 @@ contract VaultV2Test is Test {
 
         assertEq(vaultV2.withdrawals(0), expectedLegacyCurrentEpochWithdrawals);
         assertEq(vaultV2.withdrawalShares(0), expectedLegacyCurrentEpochWithdrawals);
-        assertEq(vaultTestHelper.unclaimedRaw(address(vaultV2)), int256(expectedLegacyPrevEpochWithdrawals));
+        assertEq(vaultV2.unclaimed(), expectedLegacyPrevEpochWithdrawals);
 
         assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 2);
         assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), expectedUnlockAfter);
@@ -4058,7 +4437,7 @@ contract VaultV2Test is Test {
         vm.startPrank(bob);
         vaultV2.claim(bob, legacyEpochIndex - 1);
         vm.stopPrank();
-        assertEq(vaultTestHelper.unclaimedRaw(address(vaultV2)), 0);
+        assertEq(vaultV2.unclaimed(), 0);
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyPrevEpochWithdrawals);
 
         vm.startPrank(bob);
@@ -6840,6 +7219,415 @@ contract VaultV2Test is Test {
         vm.warp(aliceUnlockAfter);
     }
 
+    function _runSingleWithdrawalDurationWindowScenario(uint256 depositAmount, uint256 withdrawAmount, bool report)
+        internal
+    {
+        SingleWithdrawalDurationWindowScenario memory scenario =
+            _bootstrapSingleWithdrawalDurationWindowScenario(depositAmount, withdrawAmount);
+        DurationWindowSnapshot memory block1Current = _assertSingleWithdrawalDurationWindowBlock1(scenario, report);
+        DurationWindowSnapshot memory block2Current =
+            _assertSingleWithdrawalDurationWindowBlock2(scenario, block1Current, report);
+        _assertSingleWithdrawalDurationWindowBlock3(scenario, block1Current, block2Current, report);
+    }
+
+    function _bootstrapSingleWithdrawalDurationWindowScenario(uint256 depositAmount, uint256 withdrawAmount)
+        internal
+        returns (SingleWithdrawalDurationWindowScenario memory scenario)
+    {
+        (scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot) =
+            _prepareSingleOperatorUniversalDurationWindowScenario(DURATION_WINDOW_DELAY, depositAmount);
+
+        _deposit(alice, depositAmount);
+
+        vm.warp(1);
+        _withdraw(alice, withdrawAmount);
+
+        scenario.unlockAt = vault.withdrawalUnlockAt(0, alice);
+        scenario.activeStakeAfterWithdraw = depositAmount - withdrawAmount;
+        scenario.withdrawAmount = withdrawAmount;
+    }
+
+    function _assertSingleWithdrawalDurationWindowBlock1(
+        SingleWithdrawalDurationWindowScenario memory scenario,
+        bool report
+    ) internal returns (DurationWindowSnapshot memory block1Current) {
+        address[] memory accounts = _singleAccountArray(alice);
+
+        block1Current = _snapshotCurrentDurationWindows(scenario.universalDelegator, scenario.subnetwork);
+        if (report) {
+            _reportDurationWindows("current/block1", block1Current);
+        }
+
+        _assertSingleWithdrawalDurationSnapshot(
+            block1Current, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+        );
+        _assertCurrentSingleOperatorStakeGuarantee(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block1Current
+        );
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+        assertEq(vault.withdrawalsOfLength(alice), 1);
+        assertEq(vault.withdrawalUnlockAt(0, alice), scenario.unlockAt);
+        assertEq(vault.withdrawalsOf(0, alice), scenario.withdrawAmount);
+    }
+
+    function _assertSingleWithdrawalDurationWindowBlock2(
+        SingleWithdrawalDurationWindowScenario memory scenario,
+        DurationWindowSnapshot memory block1Current,
+        bool report
+    ) internal returns (DurationWindowSnapshot memory block2Current) {
+        address[] memory accounts = _singleAccountArray(alice);
+
+        vm.warp(2);
+
+        block2Current = _snapshotCurrentDurationWindows(scenario.universalDelegator, scenario.subnetwork);
+        DurationWindowSnapshot memory block2AtBlock1 =
+            _snapshotHistoricalDurationWindows(scenario.universalDelegator, scenario.subnetwork, 1);
+        DurationWindowSnapshot memory block2AtBlock2 =
+            _snapshotHistoricalDurationWindows(scenario.universalDelegator, scenario.subnetwork, 2);
+
+        if (report) {
+            _reportDurationWindows("current/block2", block2Current);
+            _reportDurationWindows("block2/at(block1)", block2AtBlock1);
+            _reportDurationWindows("block2/at(block2)", block2AtBlock2);
+        }
+
+        _assertSingleWithdrawalDurationSnapshot(
+            block2Current, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+        );
+        _assertSingleWithdrawalDurationSnapshot(
+            block2AtBlock1, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+        );
+        _assertSingleWithdrawalDurationSnapshot(
+            block2AtBlock2, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+        );
+        _assertCurrentSingleOperatorStakeGuarantee(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block2Current
+        );
+        _assertHistoricalSingleOperatorStakeGuarantee(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block2AtBlock1
+        );
+        _assertHistoricalSingleOperatorStakeGuarantee(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block2AtBlock2
+        );
+        _assertDurationSnapshotsEqual(block1Current, block2AtBlock1);
+        _assertDurationSnapshotsEqual(block2Current, block2AtBlock2);
+        _assertActiveWithdrawalSharesMatchesCurrentUnclaimableRequestShares(accounts);
+        _assertActiveWithdrawalSharesOfMatchesCurrentUnclaimableRequestShares(accounts);
+        assertEq(vault.withdrawalsOf(0, alice), scenario.withdrawAmount);
+    }
+
+    function _assertSingleWithdrawalDurationWindowBlock3(
+        SingleWithdrawalDurationWindowScenario memory scenario,
+        DurationWindowSnapshot memory block1Current,
+        DurationWindowSnapshot memory block2Current,
+        bool report
+    ) internal {
+        vm.warp(3);
+
+        DurationWindowSnapshot memory block3AtBlock1 =
+            _snapshotHistoricalDurationWindows(scenario.universalDelegator, scenario.subnetwork, 1);
+        DurationWindowSnapshot memory block3AtBlock2 =
+            _snapshotHistoricalDurationWindows(scenario.universalDelegator, scenario.subnetwork, 2);
+
+        if (report) {
+            _reportDurationWindows("block3/at(block1)", block3AtBlock1);
+            _reportDurationWindows("block3/at(block2)", block3AtBlock2);
+        }
+
+        _assertSingleWithdrawalDurationSnapshot(
+            block3AtBlock1, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+        );
+        _assertSingleWithdrawalDurationSnapshot(
+            block3AtBlock2, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+        );
+        _assertHistoricalSingleOperatorStakeGuarantee(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block3AtBlock1
+        );
+        _assertHistoricalSingleOperatorStakeGuarantee(
+            scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block3AtBlock2
+        );
+        _assertDurationSnapshotsEqual(block1Current, block3AtBlock1);
+        _assertDurationSnapshotsEqual(block2Current, block3AtBlock2);
+        assertEq(vault.withdrawalsOf(0, alice), scenario.withdrawAmount);
+    }
+
+    function _singleAccountArray(address account) internal pure returns (address[] memory accounts) {
+        accounts = new address[](1);
+        accounts[0] = account;
+    }
+
+    function _prepareSingleOperatorUniversalDurationWindowScenario(uint48 delay, uint256 slotSize)
+        internal
+        returns (UniversalDelegator universalDelegator, bytes32 subnetwork, uint96 operatorSlot)
+    {
+        vm.warp(0);
+
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(delay);
+        delegator = FullRestakeDelegator(address(universalDelegator));
+
+        address network = makeAddr("duration-window-network");
+        address middleware = makeAddr("duration-window-middleware");
+        _registerNetwork(network, middleware);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, network);
+
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        uint128 boundedSlotSize = _toUint128(slotSize);
+        vm.startPrank(alice);
+        uint96 subvaultSlot =
+            universalDelegator.createSlot(bytes32("duration-window-subvault"), 0, false, false, boundedSlotSize);
+        uint96 networkSlot =
+            universalDelegator.createSlot(network.subnetwork(0), subvaultSlot, false, false, boundedSlotSize);
+        operatorSlot =
+            universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, boundedSlotSize);
+        vm.stopPrank();
+
+        return (universalDelegator, network.subnetwork(0), operatorSlot);
+    }
+
+    function _snapshotCurrentDurationWindows(UniversalDelegator universalDelegator, bytes32 subnetwork)
+        internal
+        view
+        returns (DurationWindowSnapshot memory snapshot)
+    {
+        snapshot.observedAt = uint48(block.timestamp);
+        snapshot.queryTimestamp = uint48(block.timestamp);
+        snapshot.activeStake = vault.activeStake();
+        snapshot.withdrawalSharesOfAlice = vault.withdrawalSharesOf(0, alice);
+        snapshot.activeWithdrawalSharesOfAlice = vault.activeWithdrawalSharesOfAt(alice, uint48(block.timestamp));
+
+        for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            snapshot.activeWithdrawalSharesForDuration[duration] = vault.activeWithdrawalSharesFor(duration);
+            snapshot.activeWithdrawalsForDuration[duration] = vault.activeWithdrawalsFor(duration);
+            snapshot.stakeForDuration[duration] = universalDelegator.stakeFor(subnetwork, alice, duration);
+        }
+    }
+
+    function _snapshotHistoricalDurationWindows(
+        UniversalDelegator universalDelegator,
+        bytes32 subnetwork,
+        uint48 queryTimestamp
+    ) internal view returns (DurationWindowSnapshot memory snapshot) {
+        snapshot.observedAt = uint48(block.timestamp);
+        snapshot.queryTimestamp = queryTimestamp;
+        snapshot.activeStake = vault.activeStakeAt(queryTimestamp, "");
+        snapshot.withdrawalSharesOfAlice = vault.withdrawalSharesOf(0, alice);
+        snapshot.activeWithdrawalSharesOfAlice = vault.activeWithdrawalSharesOfAt(alice, queryTimestamp);
+
+        for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            snapshot.activeWithdrawalSharesForDuration[duration] =
+                vault.activeWithdrawalSharesForAt(duration, queryTimestamp);
+            snapshot.activeWithdrawalsForDuration[duration] = vault.activeWithdrawalsForAt(duration, queryTimestamp);
+            snapshot.stakeForDuration[duration] =
+                universalDelegator.stakeForAt(subnetwork, alice, duration, queryTimestamp);
+        }
+    }
+
+    function _reportDurationWindows(string memory label, DurationWindowSnapshot memory snapshot) internal view {
+        console2.log("duration-window snapshot");
+        console2.log(label);
+        console2.log("observedAt", uint256(snapshot.observedAt));
+        console2.log("queryTimestamp", uint256(snapshot.queryTimestamp));
+        console2.log("activeStake", snapshot.activeStake);
+        console2.log("withdrawalSharesOf(0,alice)", snapshot.withdrawalSharesOfAlice);
+        console2.log("activeWithdrawalSharesOfAt(alice,query)", snapshot.activeWithdrawalSharesOfAlice);
+
+        for (uint256 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            console2.log("duration", duration);
+            console2.log("activeWithdrawalSharesFor", snapshot.activeWithdrawalSharesForDuration[duration]);
+            console2.log("activeWithdrawalsFor", snapshot.activeWithdrawalsForDuration[duration]);
+            console2.log("stakeFor", snapshot.stakeForDuration[duration]);
+        }
+    }
+
+    function _assertSingleWithdrawalDurationSnapshot(
+        DurationWindowSnapshot memory snapshot,
+        uint48 unlockAt,
+        uint256 activeStakeAfterWithdraw,
+        uint256 withdrawAmount
+    ) internal view {
+        assertEq(snapshot.activeStake, activeStakeAfterWithdraw);
+        assertEq(snapshot.withdrawalSharesOfAlice, withdrawAmount);
+        assertEq(
+            snapshot.activeWithdrawalSharesOfAlice,
+            _sumUnclaimableWithdrawalRequestSharesAt(alice, snapshot.queryTimestamp)
+        );
+
+        for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            uint256 expectedActive =
+                _expectedSingleWithdrawalWindow(snapshot.queryTimestamp, duration, unlockAt, withdrawAmount);
+            assertEq(snapshot.activeWithdrawalSharesForDuration[duration], expectedActive);
+            assertEq(snapshot.activeWithdrawalsForDuration[duration], expectedActive);
+            assertEq(snapshot.stakeForDuration[duration], activeStakeAfterWithdraw + expectedActive);
+        }
+    }
+
+    function _assertCurrentSingleOperatorStakeGuarantee(
+        UniversalDelegator universalDelegator,
+        bytes32 subnetwork,
+        uint96 operatorSlot,
+        DurationWindowSnapshot memory snapshot
+    ) internal view {
+        for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            uint256 expectedCapacity = snapshot.activeStake + snapshot.activeWithdrawalsForDuration[duration];
+            assertEq(universalDelegator.stakeFor(subnetwork, alice, duration), snapshot.stakeForDuration[duration]);
+            assertEq(universalDelegator.getAllocated(subnetwork, alice, duration), snapshot.stakeForDuration[duration]);
+            assertEq(universalDelegator.getAllocated(operatorSlot, duration), snapshot.stakeForDuration[duration]);
+            assertEq(universalDelegator.getBalance(0, duration), expectedCapacity);
+            assertEq(snapshot.stakeForDuration[duration], expectedCapacity);
+        }
+        assertEq(universalDelegator.stake(subnetwork, alice), snapshot.stakeForDuration[DURATION_WINDOW_DELAY - 1]);
+    }
+
+    function _assertHistoricalSingleOperatorStakeGuarantee(
+        UniversalDelegator universalDelegator,
+        bytes32 subnetwork,
+        uint96 operatorSlot,
+        DurationWindowSnapshot memory snapshot
+    ) internal view {
+        for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            uint256 expectedCapacity = snapshot.activeStake + snapshot.activeWithdrawalsForDuration[duration];
+            assertEq(
+                universalDelegator.stakeForAt(subnetwork, alice, duration, snapshot.queryTimestamp),
+                snapshot.stakeForDuration[duration]
+            );
+            assertEq(
+                universalDelegator.getAllocatedAt(subnetwork, alice, duration, snapshot.queryTimestamp),
+                snapshot.stakeForDuration[duration]
+            );
+            assertEq(
+                universalDelegator.getAllocatedAt(operatorSlot, duration, snapshot.queryTimestamp),
+                snapshot.stakeForDuration[duration]
+            );
+            assertEq(universalDelegator.getBalanceAt(0, duration, snapshot.queryTimestamp), expectedCapacity);
+            assertEq(snapshot.stakeForDuration[duration], expectedCapacity);
+        }
+        assertEq(
+            universalDelegator.stakeAt(subnetwork, alice, snapshot.queryTimestamp, ""),
+            snapshot.stakeForDuration[DURATION_WINDOW_DELAY - 1]
+        );
+    }
+
+    function _assertDurationSnapshotsEqual(DurationWindowSnapshot memory expected, DurationWindowSnapshot memory actual)
+        internal
+        view
+    {
+        assertEq(actual.queryTimestamp, expected.queryTimestamp);
+        assertEq(actual.activeStake, expected.activeStake);
+        assertEq(actual.withdrawalSharesOfAlice, expected.withdrawalSharesOfAlice);
+        assertEq(actual.activeWithdrawalSharesOfAlice, expected.activeWithdrawalSharesOfAlice);
+
+        for (uint256 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            assertEq(
+                actual.activeWithdrawalSharesForDuration[duration], expected.activeWithdrawalSharesForDuration[duration]
+            );
+            assertEq(actual.activeWithdrawalsForDuration[duration], expected.activeWithdrawalsForDuration[duration]);
+            assertEq(actual.stakeForDuration[duration], expected.stakeForDuration[duration]);
+        }
+    }
+
+    function _assertDurationWindowAccountingForSingleOperator(
+        UniversalDelegator universalDelegator,
+        bytes32 subnetwork,
+        uint96 operatorSlot,
+        address[] memory accounts,
+        uint48 queryTimestamp,
+        bool checkCurrentWrappers
+    ) internal view {
+        uint256 activeStakeAt = vault.activeStakeAt(queryTimestamp, "");
+        uint256 slotCapacity = universalDelegator.getSlot(operatorSlot).size;
+
+        for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
+            uint256 expectedShares =
+                _sumUnclaimableWithdrawalRequestSharesForDurationAt(accounts, queryTimestamp, duration);
+            uint256 expectedActiveWithdrawals =
+                _expectedActiveWithdrawalsForDurationAt(queryTimestamp, duration, expectedShares);
+            uint256 expectedCapacity = activeStakeAt + expectedActiveWithdrawals;
+            uint256 expectedAllocated = Math.min(expectedCapacity, slotCapacity);
+
+            assertEq(vault.activeWithdrawalSharesForAt(duration, queryTimestamp), expectedShares);
+            assertEq(vault.activeWithdrawalsForAt(duration, queryTimestamp), expectedActiveWithdrawals);
+            assertEq(universalDelegator.getBalanceAt(0, duration, queryTimestamp), expectedCapacity);
+            assertEq(universalDelegator.stakeForAt(subnetwork, alice, duration, queryTimestamp), expectedAllocated);
+            assertEq(universalDelegator.getAllocatedAt(subnetwork, alice, duration, queryTimestamp), expectedAllocated);
+            assertEq(universalDelegator.getAllocatedAt(operatorSlot, duration, queryTimestamp), expectedAllocated);
+
+            if (checkCurrentWrappers && queryTimestamp == uint48(block.timestamp)) {
+                assertEq(vault.activeWithdrawalSharesFor(duration), expectedShares);
+                assertEq(vault.activeWithdrawalsFor(duration), expectedActiveWithdrawals);
+                assertEq(universalDelegator.getBalance(0, duration), expectedCapacity);
+                assertEq(universalDelegator.stakeFor(subnetwork, alice, duration), expectedAllocated);
+                assertEq(universalDelegator.getAllocated(subnetwork, alice, duration), expectedAllocated);
+                assertEq(universalDelegator.getAllocated(operatorSlot, duration), expectedAllocated);
+            }
+        }
+
+        uint256 expectedAccountShares = _sumUnclaimableWithdrawalRequestSharesForDurationAt(alice, queryTimestamp, 0);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, queryTimestamp), expectedAccountShares);
+
+        if (checkCurrentWrappers && queryTimestamp == uint48(block.timestamp)) {
+            assertEq(vault.activeWithdrawalShares(), expectedAccountShares);
+            assertEq(
+                universalDelegator.stake(subnetwork, alice),
+                universalDelegator.stakeFor(subnetwork, alice, DURATION_WINDOW_DELAY - 1)
+            );
+        }
+    }
+
+    function _expectedActiveWithdrawalsForDurationAt(uint48 queryTimestamp, uint48 duration, uint256 expectedShares)
+        internal
+        view
+        returns (uint256)
+    {
+        uint208 bucket = vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), queryTimestamp);
+        uint256 bucketWithdrawals = vaultTestHelper.withdrawalsUpperLookupRecent(address(vault), bucket, queryTimestamp);
+        uint256 bucketShares = vaultTestHelper.withdrawalSharesUpperLookupRecent(address(vault), bucket, queryTimestamp);
+
+        return bucketShares > 0 ? expectedShares.mulDiv(bucketWithdrawals, bucketShares) : 0;
+    }
+
+    function _sumUnclaimableWithdrawalRequestSharesForDurationAt(
+        address[] memory accounts,
+        uint48 queryTimestamp,
+        uint48 duration
+    ) internal view returns (uint256 total) {
+        for (uint256 i; i < accounts.length; ++i) {
+            total += _sumUnclaimableWithdrawalRequestSharesForDurationAt(accounts[i], queryTimestamp, duration);
+        }
+    }
+
+    function _sumUnclaimableWithdrawalRequestSharesForDurationAt(
+        address account,
+        uint48 queryTimestamp,
+        uint48 duration
+    ) internal view returns (uint256 total) {
+        uint48 delay = vault.epochDuration();
+        uint256 length = vault.withdrawalsOfLength(account);
+
+        for (uint256 i; i < length; ++i) {
+            uint48 unlockAt = vault.withdrawalUnlockAt(i, account);
+            uint48 createdAt = unlockAt > delay ? unlockAt - delay : 0;
+            if (queryTimestamp < createdAt) {
+                continue;
+            }
+            if (uint256(unlockAt) > uint256(queryTimestamp) + duration) {
+                total += vault.withdrawalSharesOf(i, account);
+            }
+        }
+    }
+
+    function _expectedSingleWithdrawalWindow(uint48 queryTimestamp, uint48 duration, uint48 unlockAt, uint256 amount)
+        internal
+        pure
+        returns (uint256)
+    {
+        return uint256(queryTimestamp) + duration < unlockAt ? amount : 0;
+    }
+
     function _expectedTotalStake(uint48 timestamp) internal view returns (uint256) {
         uint256 lastBucket = _latestWithdrawalBucket();
         uint256 lastWithdrawalShares = vault.withdrawalShares(lastBucket);
@@ -7250,14 +8038,7 @@ contract VaultV2Test is Test {
     }
 
     function _claimableBacking() internal view returns (uint256) {
-        int256 backing = int256(vault.withdrawals(vault.withdrawalBucket()) - vault.activeWithdrawals())
-            + vaultTestHelper.unclaimedRaw(address(vault));
-        return backing > 0 ? uint256(backing) : 0;
-    }
-
-    function _adaptersOwe(UniversalDelegator universalDelegator) internal view returns (uint256) {
-        uint256 maxAllocatable = vault.totalStake().saturatingSub(universalDelegator.getNoAdaptersSize());
-        return vault.adaptersAllocated().saturatingSub(maxAllocatable);
+        return vault.unclaimed();
     }
 
     function _toUint128(uint256 amount) internal pure returns (uint128 amount128) {
