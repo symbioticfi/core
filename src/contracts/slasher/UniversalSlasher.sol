@@ -54,6 +54,9 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /// @inheritdoc IUniversalSlasher
     uint48 public resolverSetDelay;
     /// @inheritdoc IUniversalSlasher
+    mapping(bytes32 subnetwork => bool) public isResolverSet;
+    /// @dev Resolver mapping before pending resolver activation.
+    /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
 
     /// @inheritdoc IUniversalSlasher
@@ -63,16 +66,15 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @dev Slash request storage.
     SlashRequest[] internal _slashRequests;
-    /// @dev Resolver mapping before pending resolver activation.
     mapping(bytes32 subnetwork => address value) internal _resolver;
     /// @dev Legacy latest slashed capture timestamps.
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) internal __latestSlashedCaptureTimestamp;
     /// @dev Legacy cumulative slash checkpoints.
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal __cumulativeSlash;
 
-    /// @dev Timestamp when migration from the previous slasher occurred.
+    /// @inheritdoc IUniversalSlasher
     uint48 public migrateTimestamp;
-    /// @dev Address of the previous slasher during migration.
+    /// @inheritdoc IUniversalSlasher
     address public oldSlasher;
 
     /* CONSTRUCTOR */
@@ -98,37 +100,39 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @inheritdoc IUniversalSlasher
     function slashRequests(uint256 slashIndex) public view returns (SlashRequest memory request) {
-        unchecked {
-            request = _slashRequests[slashIndex];
+        request = _slashRequests[slashIndex];
 
-            // Legacy support.
-            if (request.amount == 0) {
-                bool oldCompleted;
-                (
-                    request.subnetwork,
-                    request.operator,
-                    request.amount,
-                    request.createdAt,
-                    request.vetoDeadline,
-                    oldCompleted
-                ) = IVetoSlasher(oldSlasher).slashRequests(slashIndex);
-                if (oldCompleted) {
-                    request.completed = true;
-                }
-                request.resolver = IVetoSlasher(oldSlasher).resolverAt(request.subnetwork, request.createdAt, "");
-                if (
-                    request.resolver != address(0)
-                        && IVetoSlasher(oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "")
-                            == address(0)
-                ) {
-                    request.resolver = address(0);
-                }
+        // Legacy support.
+        if (request.amount == 0) {
+            bool oldCompleted;
+            (
+                request.subnetwork,
+                request.operator,
+                request.amount,
+                request.createdAt,
+                request.vetoDeadline,
+                oldCompleted
+            ) = IVetoSlasher(oldSlasher).slashRequests(slashIndex);
+            if (oldCompleted) {
+                request.completed = true;
+            }
+            request.resolver = IVetoSlasher(oldSlasher).resolverAt(request.subnetwork, request.createdAt, "");
+            if (
+                request.resolver != address(0)
+                    && IVetoSlasher(oldSlasher).resolverAt(request.subnetwork, uint48(block.timestamp) - 1, "")
+                        == address(0)
+            ) {
+                request.resolver = address(0);
             }
         }
     }
 
     /// @inheritdoc IUniversalSlasher
     function resolver(bytes32 subnetwork) public view returns (address) {
+        // Legacy support.
+        if (!isResolverSet[subnetwork] && oldSlasher != address(0) && IEntity(oldSlasher).TYPE() == VETO_SLASHER_TYPE) {
+            return IVetoSlasher(oldSlasher).resolver(subnetwork, "");
+        }
         return uint48(uint256(pendingResolverData[subnetwork])) == 0
             || block.timestamp < uint48(uint256(pendingResolverData[subnetwork]))
             ? _resolver[subnetwork]
@@ -141,31 +145,29 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         view
         returns (uint256)
     {
-        unchecked {
-            if (captureTimestamp == 0 || captureTimestamp >= migrateTimestamp) {
-                if (
-                    captureTimestamp > 0
-                        && (captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
-                            || captureTimestamp > block.timestamp)
-                ) {
-                    return 0;
-                }
-                return UniversalDelegator(VaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
-            }
-
-            // Legacy support.
+        if (captureTimestamp == 0 || captureTimestamp >= migrateTimestamp) {
             if (
-                captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
-                    || captureTimestamp >= block.timestamp
-                    || captureTimestamp < _latestSlashedCaptureTimestamp(subnetwork, operator)
+                captureTimestamp > 0
+                    && (captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
+                        || captureTimestamp > block.timestamp)
             ) {
                 return 0;
             }
-            return UniversalDelegator(VaultV2(vault).delegator()).stakeAt(subnetwork, operator, captureTimestamp, "")
-                .saturatingSub(
-                    _cumulativeSlash(subnetwork, operator) - _cumulativeSlashAt(subnetwork, operator, captureTimestamp)
-                );
+            return UniversalDelegator(VaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
         }
+
+        // Legacy support.
+        if (
+            captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
+                || captureTimestamp >= block.timestamp
+                || captureTimestamp < _latestSlashedCaptureTimestamp(subnetwork, operator)
+        ) {
+            return 0;
+        }
+        return UniversalDelegator(VaultV2(vault).delegator()).stakeAt(subnetwork, operator, captureTimestamp, "")
+            .saturatingSub(
+                _cumulativeSlash(subnetwork, operator) - _cumulativeSlashAt(subnetwork, operator, captureTimestamp)
+            );
     }
 
     /* PUBLIC FUNCTIONS */
@@ -181,89 +183,83 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         nonReentrant
         returns (uint256 slashIndex)
     {
-        unchecked {
-            _checkNetworkMiddleware(subnetwork);
+        _checkNetworkMiddleware(subnetwork);
 
-            amount = Math.min(amount, slashableStake(subnetwork, operator, 0, Calldata.emptyBytes()));
-            if (amount == 0) {
-                revert InsufficientSlash();
-            }
-
-            address curResolver = resolver(subnetwork);
-            uint48 vetoDeadline = uint48(block.timestamp) + (curResolver != address(0) ? vetoDuration : 0);
-
-            slashIndex = _slashRequests.length;
-            _slashRequests.push(
-                SlashRequest({
-                    subnetwork: subnetwork,
-                    operator: operator,
-                    amount: amount,
-                    createdAt: uint48(block.timestamp),
-                    resolver: curResolver,
-                    vetoDeadline: vetoDeadline,
-                    completed: false
-                })
-            );
-
-            emit RequestSlash(slashIndex, subnetwork, operator, amount, vetoDeadline);
+        amount = Math.min(amount, slashableStake(subnetwork, operator, 0, Calldata.emptyBytes()));
+        if (amount == 0) {
+            revert InsufficientSlash();
         }
+
+        address curResolver = resolver(subnetwork);
+        uint48 vetoDeadline = uint48(block.timestamp) + (curResolver != address(0) ? vetoDuration : 0);
+
+        slashIndex = _slashRequests.length;
+        _slashRequests.push(
+            SlashRequest({
+                subnetwork: subnetwork,
+                operator: operator,
+                amount: amount,
+                createdAt: uint48(block.timestamp),
+                resolver: curResolver,
+                vetoDeadline: vetoDeadline,
+                completed: false
+            })
+        );
+
+        emit RequestSlash(slashIndex, subnetwork, operator, amount, vetoDeadline);
     }
 
     /// @inheritdoc IUniversalSlasher
     function executeSlash(uint256 slashIndex, bytes calldata) public nonReentrant returns (uint256 slashedAmount) {
-        unchecked {
-            SlashRequest memory request = slashRequests(slashIndex);
+        SlashRequest memory request = slashRequests(slashIndex);
 
-            _checkNetworkMiddleware(request.subnetwork);
+        _checkNetworkMiddleware(request.subnetwork);
 
-            if (request.completed) {
-                revert SlashRequestCompleted();
-            }
-
-            if (request.vetoDeadline > block.timestamp) {
-                revert VetoPeriodNotEnded();
-            }
-
-            slashedAmount = Math.min(
-                request.amount,
-                slashableStake(request.subnetwork, request.operator, request.createdAt, Calldata.emptyBytes())
-            );
-            if (slashedAmount == 0) {
-                revert InsufficientSlash();
-            }
-
-            _slashRequests[slashIndex].completed = true;
-
-            if (request.createdAt >= migrateTimestamp) {
-                slashedAmount = UniversalDelegator(VaultV2(vault).delegator())
-                    .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
-            } else {
-                // Legacy support.
-                __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;
-                uint256 newCumulativeSlash = _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount;
-                require(newCumulativeSlash >= slashedAmount);
-                __cumulativeSlash[request.subnetwork][request.operator].push(
-                    uint48(block.timestamp), newCumulativeSlash
-                );
-            }
-
-            uint256 owedAmount;
-            (slashedAmount, owedAmount) = VaultV2(vault)
-                .onSlash(
-                    slashedAmount,
-                    request.createdAt >= migrateTimestamp
-                        ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoAdapters(request.subnetwork)
-                        : false
-                );
-            if (owedAmount > 0) {
-                totalOwed += owedAmount;
-                owed[request.subnetwork][request.operator] += owedAmount;
-            }
-
-            _burnerOnSlash(request.subnetwork, request.operator, slashedAmount - owedAmount);
-
-            emit ExecuteSlash(slashIndex, slashedAmount);
+        if (request.completed) {
+            revert SlashRequestCompleted();
         }
+
+        if (request.vetoDeadline > block.timestamp) {
+            revert VetoPeriodNotEnded();
+        }
+
+        slashedAmount = Math.min(
+            request.amount,
+            slashableStake(request.subnetwork, request.operator, request.createdAt, Calldata.emptyBytes())
+        );
+        if (slashedAmount == 0) {
+            revert InsufficientSlash();
+        }
+
+        _slashRequests[slashIndex].completed = true;
+
+        if (request.createdAt >= migrateTimestamp) {
+            slashedAmount = UniversalDelegator(VaultV2(vault).delegator())
+                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
+        } else {
+            // Legacy support.
+            __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;
+            __cumulativeSlash[request.subnetwork][request.operator].push(
+                uint48(block.timestamp), _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
+            );
+        }
+
+        uint256 owedAmount;
+        (slashedAmount, owedAmount) = VaultV2(vault)
+            .onSlash(
+                slashedAmount,
+                request.createdAt >= migrateTimestamp
+                    ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoAdapters(request.subnetwork)
+                    : false
+            );
+        if (owedAmount > 0) {
+            totalOwed += owedAmount;
+            owed[request.subnetwork][request.operator] += owedAmount;
+        }
+
+        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount - owedAmount);
+
+        emit ExecuteSlash(slashIndex, slashedAmount);
     }
 
     /// @inheritdoc IUniversalSlasher
@@ -289,39 +285,38 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @inheritdoc IUniversalSlasher
     function setResolver(uint96 identifier, address newResolver) public nonReentrant {
-        unchecked {
-            if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
-                revert NotNetwork();
-            }
-
-            bytes32 subnetwork = (msg.sender).subnetwork(identifier);
-            address curResolver = resolver(subnetwork);
-            if (curResolver == address(0)) {
-                _resolver[subnetwork] = newResolver;
-                pendingResolverData[subnetwork] = 0;
-            } else {
-                _resolver[subnetwork] = curResolver;
-                pendingResolverData[subnetwork] =
-                    bytes32(uint256(uint160(newResolver)) << 48 | (block.timestamp + resolverSetDelay));
-            }
-
-            emit SetResolver(subnetwork, newResolver);
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
         }
+
+        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
+        address curResolver = resolver(subnetwork);
+
+        // Legacy support.
+        isResolverSet[subnetwork] = true;
+        if (curResolver == address(0)) {
+            _resolver[subnetwork] = newResolver;
+            pendingResolverData[subnetwork] = 0;
+        } else {
+            _resolver[subnetwork] = curResolver;
+            pendingResolverData[subnetwork] =
+                bytes32(uint256(uint160(newResolver)) << 48 | (block.timestamp + resolverSetDelay));
+        }
+
+        emit SetResolver(subnetwork, newResolver);
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IUniversalSlasher
     function syncOwedSlash(bytes32 subnetwork, address operator) public returns (uint256 slashedAmount) {
-        unchecked {
-            uint256 curOwed = owed[subnetwork][operator];
-            slashedAmount = VaultV2(vault).syncOwedSlash(curOwed);
-            owed[subnetwork][operator] = curOwed - slashedAmount;
-            totalOwed -= slashedAmount;
-            _burnerOnSlash(subnetwork, operator, slashedAmount);
+        uint256 curOwed = owed[subnetwork][operator];
+        slashedAmount = VaultV2(vault).syncOwedSlash(curOwed);
+        owed[subnetwork][operator] = curOwed - slashedAmount;
+        totalOwed -= slashedAmount;
+        _burnerOnSlash(subnetwork, operator, slashedAmount);
 
-            emit SyncOwedSlash(subnetwork, operator, slashedAmount);
-        }
+        emit SyncOwedSlash(subnetwork, operator, slashedAmount);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -335,18 +330,16 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @dev Call the burner hook after a slash when burner hook mode is enabled.
     function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
-        unchecked {
-            if (isBurnerHook) {
-                address burner = VaultV2(vault).burner();
-                bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
+        if (isBurnerHook) {
+            address burner = VaultV2(vault).burner();
+            bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
 
-                if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
-                    revert InsufficientBurnerGas();
-                }
+            if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+                revert InsufficientBurnerGas();
+            }
 
-                assembly ("memory-safe") {
-                    pop(call(BURNER_GAS_LIMIT, burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
-                }
+            assembly ("memory-safe") {
+                pop(call(BURNER_GAS_LIMIT, burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
             }
         }
     }

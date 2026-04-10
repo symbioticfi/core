@@ -10,6 +10,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
@@ -34,14 +35,22 @@ contract UniversalDelegatorUiSetup is Script {
         MutableRegistry registry = new MutableRegistry();
 
         Token collateral = new Token("Symbiotic Collateral");
-
         VaultV2 vaultImpl = new VaultV2({
             delegatorFactory: address(registry),
             slasherFactory: address(registry),
             vaultFactory: address(registry),
             feeRegistry: address(0),
             rewards: address(0),
-            adapterRegistry: address(registry)
+            adapterRegistry: address(registry),
+            vaultV2Migrate: address(
+                new VaultV2Migrate({
+                    delegatorFactory: address(registry),
+                    slasherFactory: address(registry),
+                    feeRegistry: address(0),
+                    rewards: address(0),
+                    adapterRegistry: address(registry)
+                })
+            )
         });
 
         IVaultV2.InitParams memory vaultParams = IVaultV2.InitParams({
@@ -60,7 +69,9 @@ contract UniversalDelegatorUiSetup is Script {
             isDepositLimitSetRoleHolder: broadcaster,
             depositLimitSetRoleHolder: broadcaster,
             setAdapterLimitRoleHolder: broadcaster,
-            allocateAdapterRoleHolder: broadcaster
+            swapAdaptersRoleHolder: broadcaster,
+            allocateAdapterRoleHolder: broadcaster,
+            deallocateAdapterRoleHolder: broadcaster
         });
 
         bytes memory vaultInitCalldata =
@@ -85,6 +96,8 @@ contract UniversalDelegatorUiSetup is Script {
             createSlotRoleHolder: broadcaster,
             setSizeRoleHolder: broadcaster,
             swapSlotsRoleHolder: broadcaster,
+            removeSlotRoleHolder: broadcaster,
+            setWithdrawalBufferSizeRoleHolder: broadcaster,
             withdrawalBufferSize: type(uint128).max
         });
 

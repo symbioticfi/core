@@ -45,11 +45,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error AlreadyClaimed();
 
     /**
-     * @notice Raised when trying to set a value that is already set.
-     */
-    error AlreadySet();
-
-    /**
      * @notice Raised when delegator initialization is attempted more than once.
      */
     error DelegatorAlreadyInitialized();
@@ -70,34 +65,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InsufficientAmount();
 
     /**
-     * @notice Raised when there is nothing claimable for the request.
-     */
-    error InsufficientClaim();
-
-    /**
-     * @notice Raised when redemption output is insufficient.
-     */
-    error InsufficientRedemption();
-
-    /**
-     * @notice Raised when withdrawal output is insufficient.
-     */
-    error InsufficientWithdrawal();
-
-    /**
      * @notice Raised when an address argument is invalid.
      */
     error InvalidAddress();
-
-    /**
-     * @notice Raised when capture epoch input is invalid.
-     */
-    error InvalidCaptureEpoch();
-
-    /**
-     * @notice Raised when claimer address is invalid.
-     */
-    error InvalidClaimer();
 
     /**
      * @notice Raised when collateral address is invalid.
@@ -115,29 +85,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidDepositorToWhitelist();
 
     /**
-     * @notice Raised when epochs-length input is invalid.
-     */
-    error InvalidLengthEpochs();
-
-    /**
-     * @notice Raised when on-behalf-of address is invalid.
-     */
-    error InvalidOnBehalfOf();
-
-    /**
-     * @notice Raised when recipient address is invalid.
-     */
-    error InvalidRecipient();
-
-    /**
      * @notice Raised when slasher address is invalid.
      */
     error InvalidSlasher();
-
-    /**
-     * @notice Raised when required role holders are missing at initialization.
-     */
-    error MissingRoles();
 
     /**
      * @notice Raised when the provided adapter is not whitelisted in adapter registry.
@@ -208,7 +158,9 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositLimitSetRoleHolder Address of the initial DEPOSIT_LIMIT_SET_ROLE holder.
      * @param setAdapterLimitRoleHolder Address of the initial SET_ADAPTER_LIMIT_ROLE holder.
-     * @param allocateAdapterRoleHolder Address of the initial ALLOCATE_ADAPTER_ROLE holder..
+     * @param swapAdaptersRoleHolder Address of the initial SWAP_ADAPTERS_ROLE holder.
+     * @param allocateAdapterRoleHolder Address of the initial ALLOCATE_ADAPTER_ROLE holder.
+     * @param deallocateAdapterRoleHolder Address of the initial DEALLOCATE_ADAPTER_ROLE holder.
      */
     struct InitParams {
         string name;
@@ -226,19 +178,31 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
         address setAdapterLimitRoleHolder;
+        address swapAdaptersRoleHolder;
         address allocateAdapterRoleHolder;
+        address deallocateAdapterRoleHolder;
     }
 
     /**
      * @notice Initial parameters needed for a vault migration.
      * @param name Name of the vault.
      * @param symbol Symbol of the vault.
+     * @param defaultAdminRoleHolder Address of the DEFAULT_ADMIN_ROLE holder to grant on migration.
+     * @param setAdapterLimitRoleHolder Address of the SET_ADAPTER_LIMIT_ROLE holder to grant on migration.
+     * @param swapAdaptersRoleHolder Address of the SWAP_ADAPTERS_ROLE holder to grant on migration.
+     * @param allocateAdapterRoleHolder Address of the ALLOCATE_ADAPTER_ROLE holder to grant on migration.
+     * @param deallocateAdapterRoleHolder Address of the DEALLOCATE_ADAPTER_ROLE holder to grant on migration.
      * @param delegatorParams Parameters for the delegator migration.
      * @param slasherParams Parameters for the slasher migration.
      */
     struct MigrateParams {
         string name;
         string symbol;
+        address defaultAdminRoleHolder;
+        address setAdapterLimitRoleHolder;
+        address swapAdaptersRoleHolder;
+        address allocateAdapterRoleHolder;
+        address deallocateAdapterRoleHolder;
         bytes delegatorParams;
         bytes slasherParams;
     }

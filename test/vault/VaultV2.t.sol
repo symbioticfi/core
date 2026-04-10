@@ -13,8 +13,10 @@ import {MetadataService} from "../../src/contracts/service/MetadataService.sol";
 import {NetworkMiddlewareService} from "../../src/contracts/service/NetworkMiddlewareService.sol";
 import {OptInService} from "../../src/contracts/service/OptInService.sol";
 import {Checkpoints} from "../../src/contracts/libraries/Checkpoints.sol";
+import {Checkpoints as CheckpointsV2Lib} from "../../src/contracts/libraries/CheckpointsV2.sol";
 
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {NetworkRestakeDelegator} from "../../src/contracts/delegator/NetworkRestakeDelegator.sol";
@@ -63,6 +65,7 @@ import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.
 import {UNIVERSAL_SLASHER_TYPE} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 
 import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
+import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
@@ -75,6 +78,7 @@ import {MockAdapter} from "../mocks/MockAdapter.sol";
 import {MockMorphoAllocateAdapter} from "../mocks/MockMorphoAllocateAdapter.sol";
 import {MockMorphoBorrowAdapter} from "../mocks/MockMorphoBorrowAdapter.sol";
 import {MockMorphoVault} from "../mocks/MockMorphoVault.sol";
+import {MockReentrantAdapter} from "../mocks/ReentrantAttackMocks.sol";
 import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
 
@@ -91,14 +95,147 @@ contract MockCuratorRegistryHarnessVaultV2 {
 }
 
 contract VaultV2CoverageHarness is VaultV2 {
-    constructor() VaultV2(address(0), address(0), address(0), address(0), address(0), address(0)) {}
+    using Checkpoints for Checkpoints.Trace256;
+    using CheckpointsV2Lib for CheckpointsV2Lib.Trace256;
+
+    constructor()
+        VaultV2(
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            address(new VaultV2Migrate(address(0), address(0), address(0), address(0), address(0)))
+        )
+    {}
+
+    function setCollateralRaw(address collateral_) external {
+        collateral = collateral_;
+    }
+
+    function setBurnerRaw(address burner_) external {
+        burner = burner_;
+    }
+
+    function setSlasherRaw(address slasher_) external {
+        slasher = slasher_;
+    }
 
     function setEpochDurationRaw(uint48 epochDuration_) external {
         epochDuration = epochDuration_;
     }
 
+    function setEpochDurationInitRaw(uint48 epochDurationInit_) external {
+        __epochDurationInit = epochDurationInit_;
+    }
+
+    function pushActiveStakeRaw(uint48 timestamp, uint256 value) external {
+        _activeStake.push(timestamp, value);
+    }
+
+    function pushWithdrawalsRaw(uint256 bucket, uint48 timestamp, uint256 value) external {
+        _withdrawals[bucket].push(timestamp, value);
+    }
+
+    function pushWithdrawalSharesRaw(uint256 bucket, uint48 timestamp, uint256 value) external {
+        _withdrawalShares[bucket].push(timestamp, value);
+    }
+
+    function pushWithdrawalSharesCumulativeRaw(uint48 timestamp, uint256 value) external {
+        _withdrawalSharesCumulative.push(timestamp, value);
+    }
+
+    function setLegacyWithdrawalRaw(uint256 epoch, uint256 value) external {
+        __withdrawals[epoch] = value;
+    }
+
+    function exposeUpdateWithdrawalsSharePrice(uint256 newActiveWithdrawals) external {
+        _updateWithdrawalsSharePrice(newActiveWithdrawals);
+    }
+
     function exposeMigrate(bytes calldata data) external {
         _migrate(1, VAULT_V2_VERSION, data);
+    }
+}
+
+contract MockAdapterSkimRemovesAdapters is IAdapterBase {
+    address public immutable vault;
+    address[] internal adaptersToRemove;
+    uint256 public skimCalls;
+
+    constructor(address vault_, address[] memory adaptersToRemove_) {
+        vault = vault_;
+        adaptersToRemove = adaptersToRemove_;
+    }
+
+    function skimmable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocatable(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function deallocatable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocate(uint256) external {}
+
+    function deallocate(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function skim(address vault_) external returns (uint256) {
+        if (vault_ != vault) {
+            return 0;
+        }
+
+        ++skimCalls;
+        for (uint256 i; i < adaptersToRemove.length; ++i) {
+            IVaultV2(vault).setAdapterLimit(adaptersToRemove[i], 0);
+        }
+
+        return 0;
+    }
+}
+
+contract MockAdapterRevertOnSkim is IAdapterBase {
+    error SkimShouldNotBeCalled();
+
+    address public immutable vault;
+    uint256 public skimCalls;
+
+    constructor(address vault_) {
+        vault = vault_;
+    }
+
+    function skimmable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocatable(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function deallocatable(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocate(uint256) external {}
+
+    function deallocate(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function skim(address vault_) external returns (uint256) {
+        if (vault_ != vault) {
+            return 0;
+        }
+
+        ++skimCalls;
+        revert SkimShouldNotBeCalled();
     }
 }
 
@@ -108,6 +245,8 @@ contract VaultV2Test is Test {
     using Subnetwork for address;
     using Checkpoints for Checkpoints.Trace208;
     using UniversalDelegatorIndex for uint96;
+
+    uint256 internal constant SUPPLY_CAP = (uint256(1) << 255) - 1;
 
     address owner;
     address alice;
@@ -134,6 +273,7 @@ contract VaultV2Test is Test {
     MockRewards rewards;
     AdapterRegistry adapterRegistry;
     MockCuratorRegistryHarnessVaultV2 curatorRegistry;
+    address vaultV2Migrate;
 
     IVaultV2 vault;
     FullRestakeDelegator delegator;
@@ -205,6 +345,14 @@ contract VaultV2Test is Test {
         bytes slasherParams;
     }
 
+    struct NoAdaptersReserveScenario {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        MockAdapter adapter;
+        bytes32 noAdaptersSubnetwork;
+        bytes32 adapterSubnetwork;
+    }
+
     function setUp() public virtual {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
@@ -226,6 +374,15 @@ contract VaultV2Test is Test {
         rewards = new MockRewards();
         adapterRegistry = new AdapterRegistry(owner);
         curatorRegistry = new MockCuratorRegistryHarnessVaultV2();
+        vaultV2Migrate = address(
+            new VaultV2Migrate(
+                address(delegatorFactory),
+                address(slasherFactory),
+                address(feeRegistry),
+                address(rewards),
+                address(adapterRegistry)
+            )
+        );
 
         vaultTestHelper = new VaultV2TestHelper();
 
@@ -487,7 +644,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -520,7 +679,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -553,7 +714,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -586,7 +749,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: address(0),
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -619,7 +784,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: address(0),
                         setAdapterLimitRoleHolder: address(0),
-                        allocateAdapterRoleHolder: address(0)
+                        swapAdaptersRoleHolder: address(0),
+                        allocateAdapterRoleHolder: address(0),
+                        deallocateAdapterRoleHolder: address(0)
                     })
                 )
             )
@@ -631,6 +798,20 @@ contract VaultV2Test is Test {
         assertEq(SWAP_ADAPTERS_ROLE, keccak256("SWAP_ADAPTERS_ROLE"));
         assertEq(ALLOCATE_ADAPTER_ROLE, keccak256("ALLOCATE_ADAPTER_ROLE"));
         assertEq(DEALLOCATE_ADAPTER_ROLE, keccak256("DEALLOCATE_ADAPTER_ROLE"));
+    }
+
+    function test_Create_grantsAdapterManagementRolesFromInitParams() public {
+        IVaultV2.InitParams memory params = _defaultVaultInitParams(7 days);
+        params.defaultAdminRoleHolder = address(0);
+        params.setAdapterLimitRoleHolder = address(0);
+        params.allocateAdapterRoleHolder = address(0);
+        params.swapAdaptersRoleHolder = alice;
+        params.deallocateAdapterRoleHolder = bob;
+
+        vault = IVaultV2(vaultFactory.create(vaultFactory.lastVersion(), alice, _getEncodedVaultParams(params)));
+
+        assertTrue(IAccessControl(address(vault)).hasRole(SWAP_ADAPTERS_ROLE, alice));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, bob));
     }
 
     function test_SetDelegator() public {
@@ -657,7 +838,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -674,6 +857,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
         UniversalDelegator delegator_ = UniversalDelegator(
@@ -710,7 +895,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -727,6 +914,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
         UniversalDelegator delegator_ = UniversalDelegator(
@@ -763,7 +952,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -797,7 +988,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -823,7 +1016,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             )
         );
@@ -878,7 +1073,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -928,7 +1125,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -978,7 +1177,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1012,7 +1213,9 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
@@ -1038,7 +1241,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: alice,
                     depositLimitSetRoleHolder: alice,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             )
         );
@@ -1085,13 +1290,146 @@ contract VaultV2Test is Test {
                         isDepositLimitSetRoleHolder: alice,
                         depositLimitSetRoleHolder: alice,
                         setAdapterLimitRoleHolder: alice,
-                        allocateAdapterRoleHolder: alice
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
                     })
                 )
             )
         );
 
         VaultV2(address(vault)).setSlasher(address(0));
+    }
+
+    function test_FreshVaultSlasherCanBeDisabledByThirdPartyBeforeAtomicConfiguration() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = IVaultV2(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                _getEncodedVaultParams(
+                    IVaultV2.InitParams({
+                        name: VAULT_NAME,
+                        symbol: VAULT_SYMBOL,
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        depositorToWhitelist: address(0xBEEF),
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice,
+                        setAdapterLimitRoleHolder: alice,
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        vm.prank(bob);
+        VaultV2(address(vault)).setSlasher(address(0));
+
+        UniversalSlasher slasher_ = UniversalSlasher(
+            slasherFactory.create(
+                UNIVERSAL_SLASHER_TYPE,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IUniversalSlasher.InitParams({
+                            isBurnerHook: false, vetoDuration: 1, resolverSetDelay: 7 days * 3
+                        })
+                    )
+                )
+            )
+        );
+
+        vm.expectRevert(IVaultV2.SlasherAlreadyInitialized.selector);
+        VaultV2(address(vault)).setSlasher(address(slasher_));
+        assertEq(vault.slasher(), address(0));
+    }
+
+    function test_FreshVaultDelegatorCanBeHijackedByThirdPartyBeforeAtomicConfiguration() public {
+        uint64 lastVersion = vaultFactory.lastVersion();
+
+        vault = IVaultV2(
+            vaultFactory.create(
+                lastVersion,
+                alice,
+                _getEncodedVaultParams(
+                    IVaultV2.InitParams({
+                        name: VAULT_NAME,
+                        symbol: VAULT_SYMBOL,
+                        collateral: address(collateral),
+                        burner: address(0xdEaD),
+                        epochDuration: 7 days,
+                        depositWhitelist: false,
+                        depositorToWhitelist: address(0xBEEF),
+                        isDepositLimit: false,
+                        depositLimit: 0,
+                        defaultAdminRoleHolder: alice,
+                        depositWhitelistSetRoleHolder: alice,
+                        depositorWhitelistRoleHolder: alice,
+                        isDepositLimitSetRoleHolder: alice,
+                        depositLimitSetRoleHolder: alice,
+                        setAdapterLimitRoleHolder: alice,
+                        swapAdaptersRoleHolder: alice,
+                        allocateAdapterRoleHolder: alice,
+                        deallocateAdapterRoleHolder: alice
+                    })
+                )
+            )
+        );
+
+        IUniversalDelegator.InitParams memory attackerDelegatorParams = IUniversalDelegator.InitParams({
+            defaultAdminRoleHolder: bob,
+            hook: address(0),
+            hookSetRoleHolder: bob,
+            createSlotRoleHolder: bob,
+            setSizeRoleHolder: bob,
+            swapSlotsRoleHolder: bob,
+            removeSlotRoleHolder: bob,
+            setWithdrawalBufferSizeRoleHolder: bob,
+            withdrawalBufferSize: type(uint128).max
+        });
+
+        vm.prank(bob);
+        UniversalDelegator attackerDelegator = UniversalDelegator(
+            delegatorFactory.create(
+                UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(vault), abi.encode(attackerDelegatorParams))
+            )
+        );
+
+        vm.prank(bob);
+        VaultV2(address(vault)).setDelegator(address(attackerDelegator));
+
+        IUniversalDelegator.InitParams memory ownerDelegatorParams = IUniversalDelegator.InitParams({
+            defaultAdminRoleHolder: alice,
+            hook: address(0),
+            hookSetRoleHolder: alice,
+            createSlotRoleHolder: alice,
+            setSizeRoleHolder: alice,
+            swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
+            withdrawalBufferSize: type(uint128).max
+        });
+
+        UniversalDelegator ownerDelegator = UniversalDelegator(
+            delegatorFactory.create(
+                UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(vault), abi.encode(ownerDelegatorParams))
+            )
+        );
+
+        vm.expectRevert(IVaultV2.DelegatorAlreadyInitialized.selector);
+        VaultV2(address(vault)).setDelegator(address(ownerDelegator));
+        assertEq(vault.delegator(), address(attackerDelegator));
     }
 
     function test_DepositTwice(uint256 amount1, uint256 amount2) public virtual {
@@ -1522,6 +1860,7 @@ contract VaultV2Test is Test {
         assertEq(vault.withdrawalsOf(0, bob), expectedBobWithdrawalsAfter);
         assertEq(vault.withdrawals(bucketBefore), claimableBefore);
         assertEq(vault.withdrawals(bucketAfter), expectedNewActiveWithdrawals);
+        assertEq(vaultTestHelper.unclaimedRaw(address(vault)), int256(claimableBefore));
         assertEq(vault.activeStake(), activeStakeBefore + donation - expectedWithdrawalsDonated);
     }
 
@@ -1613,6 +1952,74 @@ contract VaultV2Test is Test {
         assertEq(vault.activeStakeAt(previousTimestamp, ""), historicalPrevStakeBefore);
         assertEq(vault.activeWithdrawalsAt(aliceUnlockAfter), expectedNewActiveWithdrawals);
         assertEq(vault.activeStakeAt(aliceUnlockAfter, ""), expectedActiveStakeAfter);
+    }
+
+    function test_Donate_multipleBoundaryRollovers_keepHistoricalBucketAssignments() public {
+        vault = _getUniversalVault(7 days);
+        address charlie_ = makeAddr("charlie-bucket-account");
+        _deposit(alice, 100);
+        _deposit(bob, 100);
+        _deposit(charlie_, 100);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+        uint48 aliceUnlockAfter = vault.withdrawalUnlockAt(0, alice);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 40);
+        uint48 bobUnlockAfter = vault.withdrawalUnlockAt(0, bob);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(charlie_, 50);
+        uint48 charlieUnlockAfter = vault.withdrawalUnlockAt(0, charlie_);
+
+        uint256 bucket0 = _latestWithdrawalBucket();
+
+        vm.warp(aliceUnlockAfter);
+
+        uint256 donation1 = 17;
+        collateral.transfer(address(rewards), donation1);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation1);
+        VaultV2(address(vault)).donate(donation1);
+        vm.stopPrank();
+
+        uint256 bucket1 = _latestWithdrawalBucket();
+        assertEq(bucket1, bucket0 + 1);
+
+        vm.warp(bobUnlockAfter);
+
+        uint256 aliceBeforeSecondRollover = vault.withdrawalsOf(0, alice);
+        uint256 bobBeforeSecondRollover = vault.withdrawalsOf(0, bob);
+        uint256 charlieBeforeSecondRollover = vault.withdrawalsOf(0, charlie_);
+
+        uint256 donation2 = 19;
+        collateral.transfer(address(rewards), donation2);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation2);
+        VaultV2(address(vault)).donate(donation2);
+        vm.stopPrank();
+
+        uint256 bucket2 = _latestWithdrawalBucket();
+        assertEq(bucket2, bucket1 + 1);
+
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), aliceUnlockAfter - 1), bucket0);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), aliceUnlockAfter), bucket1);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), bobUnlockAfter - 1), bucket1);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), bobUnlockAfter), bucket2);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vault), charlieUnlockAfter - 1), bucket2);
+
+        assertEq(vault.withdrawalsOf(0, alice), aliceBeforeSecondRollover);
+        assertEq(vault.withdrawalsOf(0, bob), bobBeforeSecondRollover);
+        assertGt(vault.withdrawalsOf(0, charlie_), charlieBeforeSecondRollover);
+
+        assertEq(_claim(alice, 0), aliceBeforeSecondRollover);
+        assertEq(_claim(bob, 0), bobBeforeSecondRollover);
+
+        vm.warp(charlieUnlockAfter);
+        uint256 charlieClaimable = vault.withdrawalsOf(0, charlie_);
+        assertGt(charlieClaimable, charlieBeforeSecondRollover);
+        assertEq(_claim(charlie_, 0), charlieClaimable);
     }
 
     function test_WithdrawalsBoundary_durationWindows_alignWithDelegatorBalanceAt() public {
@@ -2279,6 +2686,41 @@ contract VaultV2Test is Test {
         assertEq(vault.isWithdrawalsClaimed(0, alice), true);
     }
 
+    function test_ClaimBatch_revertsAtomicallyWhenLaterClaimFails(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1, 100 * 10 ** 18);
+        amount2 = bound(amount2, 1, 100 * 10 ** 18);
+        vm.assume(amount1 >= amount2);
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        vault = _getVault(1);
+
+        _deposit(alice, amount1);
+
+        vm.warp(blockTimestamp + 1);
+        _withdraw(alice, amount2);
+
+        vm.warp(blockTimestamp + 3);
+
+        uint256[] memory indexes = new uint256[](2);
+        indexes[0] = 0;
+        indexes[1] = 10;
+
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+
+        vm.startPrank(alice);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        vault.claimBatch(alice, indexes);
+        vm.stopPrank();
+
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
+        assertEq(collateral.balanceOf(alice), aliceBalanceBefore);
+        assertFalse(vault.isWithdrawalsClaimed(0, alice));
+    }
+
     function test_ClaimBatchRevertInvalidRecipient(uint256 amount1, uint256 amount2, uint256 amount3) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
@@ -2512,7 +2954,6 @@ contract VaultV2Test is Test {
         vm.warp(block.timestamp + 1);
         _withdraw(alice, 60);
 
-        // Drain adapter liquidity so claim-time deallocation is insufficient.
         vm.prank(address(morphoVault));
         collateral.transfer(address(0xBEEF), 50);
 
@@ -2520,6 +2961,373 @@ contract VaultV2Test is Test {
 
         vm.expectRevert();
         _claim(alice, 0);
+    }
+
+    function test_Scenario_NoAdaptersClaimTimeline_partialClaimThenBlockedClaimThenRecoveredClaim() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        assertEq(collateral.balanceOf(address(vault)), 110);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        scenario.adapter.setShouldFail(true);
+
+        uint48 firstUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 secondUnlockAt = vault.withdrawalUnlockAt(1, alice);
+        assertEq(secondUnlockAt, firstUnlockAt + 1);
+
+        vm.warp(firstUnlockAt);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), 30);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, 30);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        vm.warp(secondUnlockAt);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 1);
+
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 120);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.adapterSubnetwork, alice, 0, ""), 80);
+
+        scenario.adapter.setShouldFail(false);
+
+        aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 1), 40);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 80);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 80);
+    }
+
+    function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_claimWaitsUntilSyncCreatesClaimableExcess() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, adapterMiddleware, scenario.adapterSubnetwork, 70), 70
+        );
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        vm.warp(vault.withdrawalUnlockAt(0, alice));
+
+        uint256 claimableAmount = vault.withdrawalsOf(0, alice);
+        assertEq(claimableAmount, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 20);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(scenario.universalSlasher.totalOwed(), 20);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 20);
+        assertEq(collateral.balanceOf(address(vault)), 100);
+
+        _deposit(bob, 20);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), claimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, claimableAmount);
+        assertEq(collateral.balanceOf(address(vault)), 100);
+        assertEq(scenario.universalSlasher.totalOwed(), 20);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 20);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+    }
+
+    function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_claimAndSyncBothPreserveNoAdaptersSlashability() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashedAmount = scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 70);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        uint48 firstUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 secondUnlockAt = vault.withdrawalUnlockAt(1, alice);
+        assertEq(secondUnlockAt, firstUnlockAt + 1);
+
+        vm.warp(secondUnlockAt);
+
+        uint256 firstClaimableAmount = vault.withdrawalsOf(0, alice);
+        uint256 secondClaimableAmount = vault.withdrawalsOf(1, alice);
+
+        assertEq(firstClaimableAmount, 20);
+        assertEq(secondClaimableAmount, 27);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 60);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), firstClaimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, firstClaimableAmount);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 1);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 12);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 12);
+        assertEq(scenario.universalSlasher.totalOwed(), 28);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 28);
+        assertEq(collateral.balanceOf(address(vault)), 108);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
+            80
+        );
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 0);
+        assertEq(collateral.balanceOf(address(vault)), 28);
+        assertTrue(vault.isWithdrawalsClaimed(0, alice));
+        assertEq(vault.withdrawalsOf(1, alice), secondClaimableAmount);
+    }
+
+    function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_syncCannotConsumeClaimableExcess() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 40);
+
+        scenario.adapter.setShouldFail(true);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, adapterMiddleware, scenario.adapterSubnetwork, 70), 70
+        );
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        uint48 secondUnlockAt = vault.withdrawalUnlockAt(1, alice);
+        vm.warp(secondUnlockAt);
+
+        uint256 firstClaimableAmount = vault.withdrawalsOf(0, alice);
+        uint256 secondClaimableAmount = vault.withdrawalsOf(1, alice);
+        assertEq(firstClaimableAmount, 20);
+        assertEq(secondClaimableAmount, 27);
+
+        _deposit(bob, 61);
+
+        uint256 claimableBackingBeforeSync = _claimableBacking();
+        uint256 adaptersOweBeforeSync = _adaptersOwe(scenario.universalDelegator);
+        uint256 syncableBeforeSync = scenario.universalSlasher.totalOwed() - adaptersOweBeforeSync;
+
+        assertEq(adaptersOweBeforeSync, secondClaimableAmount);
+        assertEq(syncableBeforeSync, 13);
+        assertGe(claimableBackingBeforeSync.saturatingSub(adaptersOweBeforeSync), firstClaimableAmount);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 13);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 13);
+        assertEq(scenario.universalSlasher.totalOwed(), 27);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 27);
+        assertEq(collateral.balanceOf(address(vault)), 128);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+        assertEq(_claimableBacking(), claimableBackingBeforeSync);
+        assertEq(_adaptersOwe(scenario.universalDelegator), adaptersOweBeforeSync);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), firstClaimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, firstClaimableAmount);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 1);
+
+        assertEq(collateral.balanceOf(address(vault)), 108);
+        assertEq(scenario.universalSlasher.totalOwed(), 27);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+        assertGe(_claimableBacking(), secondClaimableAmount);
+        assertEq(_adaptersOwe(scenario.universalDelegator), secondClaimableAmount);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
+            80
+        );
+        assertEq(collateral.balanceOf(address(vault)), 28);
+        assertEq(scenario.universalSlasher.totalOwed(), 27);
+    }
+
+    function test_ClaimableBackingCanBeBelowAdaptersOweWhenOwedSlashExists() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(adapterMiddleware);
+        scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        vm.warp(vault.withdrawalUnlockAt(0, alice));
+
+        uint256 claimableBacking = uint256(
+            int256(vault.withdrawals(vault.withdrawalBucket()) - vault.activeWithdrawals())
+                + vaultTestHelper.unclaimedRaw(address(vault))
+        );
+        uint256 maxAllocatable = vault.totalStake().saturatingSub(scenario.universalDelegator.getNoAdaptersSize());
+        uint256 adaptersOwe = vault.adaptersAllocated().saturatingSub(maxAllocatable);
+
+        assertEq(claimableBacking, 20);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(adaptersOwe, 60);
+        assertLt(claimableBacking, adaptersOwe);
+    }
+
+    function testFuzz_ClaimRevertsWhenAdapterFailureWouldConsumeNoAdaptersBacking(
+        uint128 noAdaptersSize,
+        uint128 adapterSize,
+        uint128 withdrawalAmount
+    ) public {
+        noAdaptersSize = uint128(bound(noAdaptersSize, 1, 1_000_000));
+        adapterSize = uint128(bound(adapterSize, 1, 1_000_000));
+        withdrawalAmount = uint128(bound(withdrawalAmount, 1, adapterSize));
+
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(noAdaptersSize, adapterSize, 0);
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), adapterSize);
+
+        _withdraw(alice, withdrawalAmount);
+        scenario.adapter.setShouldFail(true);
+
+        vm.warp(vault.withdrawalUnlockAt(0, alice));
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), adapterSize);
+        assertEq(collateral.balanceOf(address(vault)), noAdaptersSize);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), adapterSize);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), noAdaptersSize);
+        assertEq(
+            scenario.universalSlasher.slashableStake(scenario.adapterSubnetwork, alice, 0, ""),
+            adapterSize - withdrawalAmount
+        );
+    }
+
+    function testFuzz_InstantWithdrawKeepsNoAdaptersSlashableLiquid(
+        uint128 noAdaptersSize,
+        uint128 adapterSize,
+        uint128 instantWithdrawAmount
+    ) public {
+        noAdaptersSize = uint128(bound(noAdaptersSize, 1, 1_000_000));
+        adapterSize = uint128(bound(adapterSize, 1, 1_000_000));
+        instantWithdrawAmount = uint128(bound(instantWithdrawAmount, 1, adapterSize));
+
+        NoAdaptersReserveScenario memory scenario =
+            _setupNoAdaptersReserveScenario(noAdaptersSize, adapterSize, instantWithdrawAmount);
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), adapterSize);
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets,) = VaultV2(address(vault)).instantWithdraw(alice, instantWithdrawAmount);
+
+        assertEq(withdrawnAssets, instantWithdrawAmount);
+        assertLe(vault.adapterAllocated(address(scenario.adapter)), adapterSize);
+        assertGe(collateral.balanceOf(address(vault)), Math.min(uint256(noAdaptersSize), vault.totalStake()));
+        assertEq(
+            scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""),
+            Math.min(uint256(noAdaptersSize), vault.totalStake())
+        );
+        assertLe(
+            scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""),
+            collateral.balanceOf(address(vault))
+        );
     }
 
     function test_TotalStakeUnlockBoundary(uint256 amount1, uint256 amount2) public {
@@ -2840,6 +3648,122 @@ contract VaultV2Test is Test {
         harness.exposeMigrate("");
     }
 
+    function testFuzz_OnSlash_arithmeticIsSafeUpToSupplyCap(
+        uint256 activeStakeAmount,
+        uint256 activeWithdrawalAmount,
+        uint256 claimableWithdrawalAmount,
+        uint256 slashAmount
+    ) public {
+        VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
+        Token mathCollateral = new Token("OverflowMath");
+        uint256 availableSupply = SUPPLY_CAP - mathCollateral.totalSupply();
+
+        activeStakeAmount = bound(activeStakeAmount, 0, availableSupply);
+        activeWithdrawalAmount = bound(activeWithdrawalAmount, 0, availableSupply - activeStakeAmount);
+        claimableWithdrawalAmount =
+            bound(claimableWithdrawalAmount, 0, availableSupply - activeStakeAmount - activeWithdrawalAmount);
+        slashAmount = bound(slashAmount, 0, availableSupply);
+        vm.assume(activeStakeAmount + activeWithdrawalAmount > 0);
+
+        uint48 timestamp = uint48(block.timestamp);
+        uint48 epochDuration_ = 7 days;
+
+        harness.setCollateralRaw(address(mathCollateral));
+        harness.setBurnerRaw(address(0xBEEF));
+        harness.setSlasherRaw(address(this));
+        harness.setEpochDurationRaw(epochDuration_);
+        harness.pushActiveStakeRaw(timestamp, activeStakeAmount);
+
+        uint256 bucketWithdrawals = activeWithdrawalAmount + claimableWithdrawalAmount;
+        if (bucketWithdrawals > 0) {
+            harness.pushWithdrawalsRaw(0, timestamp, bucketWithdrawals);
+            harness.pushWithdrawalSharesRaw(0, timestamp, bucketWithdrawals);
+            harness.pushWithdrawalSharesCumulativeRaw(timestamp + epochDuration_, activeWithdrawalAmount);
+        }
+
+        deal(address(mathCollateral), address(harness), activeStakeAmount + bucketWithdrawals);
+
+        uint256 slashableStake = activeStakeAmount + activeWithdrawalAmount;
+        uint256 expectedSlashedAmount = Math.min(slashAmount, slashableStake);
+        uint256 expectedActiveSlashed =
+            expectedSlashedAmount > 0 ? expectedSlashedAmount.mulDiv(activeStakeAmount, slashableStake) : 0;
+        uint256 expectedActiveStakeAfter = activeStakeAmount - expectedActiveSlashed;
+        uint256 expectedActiveWithdrawalsAfter =
+            activeWithdrawalAmount - (expectedSlashedAmount - expectedActiveSlashed);
+
+        (uint256 slashedAmount, uint256 owedAmount) = harness.onSlash(slashAmount, false);
+
+        assertEq(slashedAmount, expectedSlashedAmount);
+        assertEq(owedAmount, 0);
+        assertEq(harness.activeStake(), expectedActiveStakeAfter);
+        assertEq(harness.activeWithdrawals(), expectedActiveWithdrawalsAfter);
+
+        uint256 bucket = harness.withdrawalBucket();
+        assertGe(harness.withdrawals(bucket), harness.activeWithdrawals());
+        assertGe(harness.withdrawalShares(bucket), harness.activeWithdrawalShares());
+        assertLe(harness.activeStake() + harness.activeWithdrawals(), availableSupply);
+    }
+
+    function testFuzz_Migrate_accountingSubtractionIsSafeUpToSupplyCap(
+        uint256 depositAmount,
+        uint256 firstWithdrawal,
+        uint256 secondWithdrawal
+    ) public {
+        uint48 epochDuration_ = 10;
+        uint256 maxDeposit = SUPPLY_CAP - collateral.totalSupply();
+
+        depositAmount = bound(depositAmount, 2, maxDeposit);
+        firstWithdrawal = bound(firstWithdrawal, 0, depositAmount);
+        secondWithdrawal = bound(secondWithdrawal, 0, depositAmount - firstWithdrawal);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+        (IVaultV2 legacyVault,,) = _createInitializedVaultWithOwner(
+            epochDuration_,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+
+        deal(address(collateral), alice, depositAmount);
+        vm.startPrank(alice);
+        collateral.approve(address(legacyVault), depositAmount);
+        legacyVault.deposit(alice, depositAmount);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1);
+        if (firstWithdrawal > 0) {
+            vm.prank(alice);
+            legacyVault.withdraw(alice, firstWithdrawal);
+        }
+
+        vm.warp(block.timestamp + epochDuration_ + 1);
+        if (secondWithdrawal > 0) {
+            vm.prank(alice);
+            legacyVault.withdraw(alice, secondWithdrawal);
+        }
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration_));
+        vaultFactory.migrate(address(legacyVault), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 migratedVault = IVaultV2(address(legacyVault));
+        int256 unclaimedRaw = vaultTestHelper.unclaimedRaw(address(migratedVault));
+
+        assertGe(unclaimedRaw, 0);
+        assertEq(
+            collateral.balanceOf(address(migratedVault)),
+            migratedVault.activeStake() + migratedVault.activeWithdrawals() + uint256(unclaimedRaw)
+        );
+        assertLe(migratedVault.activeStake() + migratedVault.activeWithdrawals() + uint256(unclaimedRaw), SUPPLY_CAP);
+    }
+
     function test_MigrateWithdrawals_FactoryUpgradePath() public {
         uint48 epochDuration = 10;
 
@@ -3123,6 +4047,7 @@ contract VaultV2Test is Test {
 
         assertEq(vaultV2.withdrawals(0), expectedLegacyCurrentEpochWithdrawals);
         assertEq(vaultV2.withdrawalShares(0), expectedLegacyCurrentEpochWithdrawals);
+        assertEq(vaultTestHelper.unclaimedRaw(address(vaultV2)), int256(expectedLegacyPrevEpochWithdrawals));
 
         assertEq(vaultV2.withdrawalsOfLength(bob), legacyEpochIndex + 2);
         assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), expectedUnlockAfter);
@@ -3133,6 +4058,7 @@ contract VaultV2Test is Test {
         vm.startPrank(bob);
         vaultV2.claim(bob, legacyEpochIndex - 1);
         vm.stopPrank();
+        assertEq(vaultTestHelper.unclaimedRaw(address(vaultV2)), 0);
         assertEq(collateral.balanceOf(bob) - bobBalanceBefore, expectedLegacyPrevEpochWithdrawals);
 
         vm.startPrank(bob);
@@ -3297,6 +4223,94 @@ contract VaultV2Test is Test {
         uint256 expectedAtUnlock = _sumUnclaimableWithdrawalRequestSharesAt(bob, syntheticUnlockAfter);
         assertEq(expectedAtUnlock, 0);
         assertEq(vaultV2.activeWithdrawalSharesOfAt(bob, syntheticUnlockAfter), expectedAtUnlock);
+    }
+
+    function test_MigrateWithdrawals_postMigrationSplitKeepsHistoricalSyntheticBucketAssignments() public {
+        uint48 epochDuration = 10;
+        uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        VaultV1 vaultV1 = VaultV1(address(vault_));
+        vault = IVaultV2(address(vaultV1));
+
+        _deposit(bob, 500);
+
+        vm.warp(blockTimestamp + epochDuration + 1);
+        _withdraw(bob, 100);
+
+        vm.warp(blockTimestamp + 2 * epochDuration + 1);
+        _withdraw(bob, 60);
+
+        uint256 migrateTimestamp = blockTimestamp + 2 * epochDuration + epochDuration / 2;
+        vm.warp(migrateTimestamp);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams(epochDuration));
+        vaultFactory.migrate(address(vaultV1), vaultFactory.lastVersion(), migrateData);
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+
+        uint256 legacyEpochIndex = (migrateTimestamp - blockTimestamp) / epochDuration;
+        uint48 firstSyntheticUnlockAfter = uint48(blockTimestamp + (legacyEpochIndex + 1) * epochDuration);
+        uint48 secondSyntheticUnlockAfter = uint48(migrateTimestamp + epochDuration);
+
+        assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex, bob), firstSyntheticUnlockAfter);
+        assertEq(vaultV2.withdrawalUnlockAt(legacyEpochIndex + 1, bob), secondSyntheticUnlockAfter);
+
+        uint256 firstSyntheticBeforeSplit = vaultV2.withdrawalsOf(legacyEpochIndex, bob);
+        uint256 secondSyntheticBeforeSplit = vaultV2.withdrawalsOf(legacyEpochIndex + 1, bob);
+        assertGt(firstSyntheticBeforeSplit, 0);
+        assertGt(secondSyntheticBeforeSplit, 0);
+        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 0);
+
+        uint48 splitTimestamp = firstSyntheticUnlockAfter + 1;
+        vm.warp(splitTimestamp);
+
+        uint256 donation = 40;
+        collateral.transfer(address(rewards), donation);
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vaultV2), donation);
+        VaultV2(address(vaultV2)).donate(donation);
+        vm.stopPrank();
+
+        assertEq(vaultTestHelper.unlockToBucketLength(address(vaultV2)), 1);
+        (uint48 checkpointTimestamp, uint208 checkpointBucket) = vaultTestHelper.unlockToBucketAt(address(vaultV2), 0);
+        assertEq(checkpointTimestamp, splitTimestamp);
+        assertEq(checkpointBucket, 1);
+
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vaultV2), firstSyntheticUnlockAfter - 1), 0);
+        assertEq(vaultTestHelper.unlockToBucketUpperLookupRecent(address(vaultV2), secondSyntheticUnlockAfter - 1), 1);
+
+        assertEq(vaultV2.withdrawalsOf(legacyEpochIndex, bob), firstSyntheticBeforeSplit);
+        assertGt(vaultV2.withdrawalsOf(legacyEpochIndex + 1, bob), secondSyntheticBeforeSplit);
+
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.prank(bob);
+        vaultV2.claim(bob, legacyEpochIndex);
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, firstSyntheticBeforeSplit);
+
+        vm.warp(secondSyntheticUnlockAfter);
+        uint256 secondSyntheticClaimable = vaultV2.withdrawalsOf(legacyEpochIndex + 1, bob);
+        bobBalanceBefore = collateral.balanceOf(bob);
+        vm.prank(bob);
+        vaultV2.claim(bob, legacyEpochIndex + 1);
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, secondSyntheticClaimable);
     }
 
     function test_MigrateWithdrawals_SecondPostMigrationWithdrawalHasNonZeroUnlockAfter() public {
@@ -4157,6 +5171,64 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(vault)), 0);
     }
 
+    function test_Scenario_NoAdaptersSyncOwedSlashTimeline_blockedThenPartialThenRecovered() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        vm.prank(adapterMiddleware);
+        uint256 slashIndex = scenario.universalSlasher.requestSlash(scenario.adapterSubnetwork, alice, 70, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        vm.prank(adapterMiddleware);
+        uint256 slashedAmount = scenario.universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 70);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 30);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 120);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        _deposit(bob, 25);
+
+        burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 25);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 25);
+        assertEq(scenario.universalSlasher.totalOwed(), 15);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 15);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 120);
+
+        scenario.adapter.setShouldFail(false);
+
+        burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+
+        assertEq(synced, 15);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 15);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(collateral.balanceOf(address(scenario.adapter)), 105);
+        assertEq(vault.adapterAllocated(address(scenario.adapter)), 105);
+    }
+
     function test_UniversalSlasher_executeSlash_withFullyOwedAdapterShortfall_skipsZeroBurnerTransfer() public {
         UniversalDelegator universalDelegator;
         UniversalSlasher universalSlasher;
@@ -4564,11 +5636,32 @@ contract VaultV2Test is Test {
 
         assertEq(withdrawnAssets, buffer);
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, buffer - expectedFee);
-        assertEq(rewards.donationRewardCalls(), 1);
-        assertEq(rewards.lastDonationVault(), address(vault));
-        assertEq(rewards.lastDonationAmount(), expectedFee);
+        assertEq(rewards.donationRewardCalls(), 0);
         assertEq(vault.activeSharesOf(alice), 0);
         assertGt(burnedShares, 0);
+    }
+
+    function test_InstantWithdraw_withFee_skipsDonationWhenWithdrawalEmptiesVault() public {
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 100);
+
+        feeRegistry.setInstantWithdrawFee(address(vault), 1000);
+
+        uint256 amount = IUniversalDelegator(vault.delegator()).getWithdrawalBuffer();
+        uint256 expectedFee = amount.mulDiv(1000, MAX_FEE, Math.Rounding.Ceil);
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+
+        vm.prank(alice);
+        (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, amount);
+
+        assertEq(withdrawnAssets, amount);
+        assertGt(burnedShares, 0);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, amount - expectedFee);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore - amount + expectedFee);
+        assertEq(rewards.donationRewardCalls(), 0);
+        assertEq(vault.activeStake(), 0);
+        assertEq(vault.activeWithdrawals(), 0);
     }
 
     function test_InstantWithdraw_capsByAvailableToSlash() public {
@@ -4764,9 +5857,142 @@ contract VaultV2Test is Test {
         vm.prank(address(adapter));
         vault.allocateAdapter(address(adapter), 30);
         assertEq(collateral.balanceOf(address(adapter)), 30);
+        collateral.transfer(address(adapter), 20);
+        assertEq(adapter.skimmable(address(vault)), 20);
 
         VaultV2(address(vault)).skimAdapters();
-        assertEq(collateral.balanceOf(address(adapter)), 0);
+        assertEq(collateral.balanceOf(address(adapter)), 30);
+        assertEq(adapter.skimmable(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(vault)), 90);
+    }
+
+    function test_SkimAdaptersExitsWhenLengthShrinksDuringSkim() public {
+        vault = _getUniversalVault(7 days);
+
+        MockAdapter removableAdapter = _createAdapter();
+        MockAdapterRevertOnSkim revertOnSkimAdapter = new MockAdapterRevertOnSkim(address(vault));
+        address[] memory adaptersToRemove = new address[](2);
+        adaptersToRemove[0] = address(removableAdapter);
+        adaptersToRemove[1] = address(revertOnSkimAdapter);
+
+        MockAdapterSkimRemovesAdapters shrinkingAdapter =
+            new MockAdapterSkimRemovesAdapters(address(vault), adaptersToRemove);
+
+        adapterRegistry.whitelistAdapter(address(shrinkingAdapter));
+        adapterRegistry.whitelistAdapter(address(revertOnSkimAdapter));
+
+        uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
+        if (block.timestamp < minTimestamp) {
+            vm.warp(minTimestamp);
+        }
+
+        _grantAddAdapterRole(alice, alice);
+        vm.startPrank(alice);
+        VaultV2(address(vault)).setAdapterLimit(address(shrinkingAdapter), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(removableAdapter), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(address(revertOnSkimAdapter), type(uint208).max);
+        VaultV2(address(vault)).grantRole(SET_ADAPTER_LIMIT_ROLE, address(shrinkingAdapter));
+        vm.stopPrank();
+
+        VaultV2(address(vault)).skimAdapters();
+
+        assertEq(shrinkingAdapter.skimCalls(), 1);
+        assertEq(revertOnSkimAdapter.skimCalls(), 0);
+        assertEq(vault.adaptersLength(), 1);
+        assertEq(vault.adapters(0), address(shrinkingAdapter));
+        assertEq(vault.adapterLimit(address(removableAdapter)), 0);
+        assertEq(vault.adapterLimit(address(revertOnSkimAdapter)), 0);
+    }
+
+    function test_AdapterAllocateCallback_reentrantDepositIsBlockedAndAccountingStaysSane() public {
+        vault = _getUniversalVault(7 days);
+
+        MockReentrantAdapter adapter = _createReentrantAdapter();
+        _addAdapter(address(adapter));
+
+        adapter.armReentry(address(vault), abi.encodeCall(IVaultV2.deposit, (address(adapter), 1)));
+
+        _deposit(alice, 100);
+
+        assertEq(adapter.reentryCalls(), 1);
+        assertFalse(adapter.lastCallSuccess());
+        assertEq(vault.totalStake(), 100);
+        assertEq(vault.adaptersAllocated(), 100);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
+        assertEq(collateral.balanceOf(address(adapter)), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+    }
+
+    function test_AdapterDeallocateCallback_reentrantSelfDeallocateOverSkimmableBalanceUnderflowsAccounting() public {
+        vault = _getUniversalVault(7 days);
+
+        MockReentrantAdapter adapter = _createReentrantAdapter();
+        _addAdapter(address(adapter));
+
+        _deposit(alice, 100);
+        collateral.transfer(address(adapter), 10);
+
+        adapter.armReentry(address(vault), abi.encodeCall(IVaultV2.deallocateAdapter, (address(adapter), 100)));
+
+        vm.prank(address(adapter));
+        vm.expectRevert(stdError.arithmeticError);
+        vault.deallocateAdapter(address(adapter), 10);
+    }
+
+    function testFuzz_AdapterReentrancyChaosLoop_preservesAdapterAccounting(uint256 seed) public {
+        vault = _getUniversalVault(7 days);
+
+        MockReentrantAdapter adapter = _createReentrantAdapter();
+        _addAdapter(address(adapter));
+
+        uint256 depositedTotal = 300;
+        uint256 systemBalance = 300;
+        _deposit(alice, depositedTotal);
+
+        for (uint256 step; step < 8; ++step) {
+            uint256 stepSeed = uint256(
+                keccak256(
+                    abi.encode(
+                        seed,
+                        step,
+                        vault.adaptersAllocated(),
+                        vault.adapterAllocated(address(adapter)),
+                        collateral.balanceOf(address(vault)),
+                        collateral.balanceOf(address(adapter))
+                    )
+                )
+            );
+
+            if ((stepSeed & 1) == 1) {
+                uint256 topup = 1 + ((stepSeed >> 8) % 25);
+                collateral.transfer(address(adapter), topup);
+                systemBalance += topup;
+            }
+
+            _armAdapterChaosCallback(adapter, uint8(stepSeed % 5), 1 + ((stepSeed >> 16) % 150));
+
+            uint8 outerMode = uint8((stepSeed >> 24) % 4);
+            uint256 outerAmount = 1 + ((stepSeed >> 32) % 120);
+
+            if (outerMode == 0) {
+                _deposit(bob, outerAmount);
+                depositedTotal += outerAmount;
+                systemBalance += outerAmount;
+            } else if (outerMode == 1) {
+                vm.prank(address(adapter));
+                address(vault).call(abi.encodeCall(IVaultV2.deallocateAdapter, (address(adapter), outerAmount)));
+            } else if (outerMode == 2) {
+                VaultV2(address(vault)).skimAdapters();
+            } else {
+                vm.prank(address(adapter));
+                vault.allocateAdapter(address(adapter), outerAmount);
+            }
+
+            assertEq(vault.totalStake(), depositedTotal);
+            assertEq(vault.adaptersAllocated(), vault.adapterAllocated(address(adapter)));
+            assertGe(collateral.balanceOf(address(adapter)), vault.adapterAllocated(address(adapter)));
+            assertEq(_adapterSystemBalance(address(adapter)), systemBalance);
+        }
     }
 
     function test_MorphoAllocateAdapter_deallocateSkimsAndDonatesRewards() public {
@@ -4870,18 +6096,78 @@ contract VaultV2Test is Test {
         morphoVault.donateYield(20);
 
         uint256 activeStakeBefore = vault.activeStake();
+        uint256 activeSharesBefore = vault.activeShares();
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
         uint256 expectedSkimmed = adapter.skimmable(address(vault));
+        uint256 expectedBurnedShares =
+            ERC4626Math.previewWithdraw(10, activeSharesBefore, activeStakeBefore + expectedSkimmed);
 
         vm.prank(alice);
         (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
 
         assertEq(withdrawnAssets, 10);
-        assertGt(burnedShares, 0);
-        assertEq(vault.adapterAllocated(address(adapter)), 50);
+        assertEq(burnedShares, expectedBurnedShares);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
         assertEq(vault.activeStake(), activeStakeBefore - withdrawnAssets + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + 10 - withdrawnAssets);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed - withdrawnAssets);
         assertEq(collateral.balanceOf(address(rewards)), 0);
+    }
+
+    function test_UniversalSlasher_syncOwedSlash_deallocatesAdaptersBeforeBurning() public {
+        UniversalDelegator universalDelegator;
+        UniversalSlasher universalSlasher;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        universalSlasher = UniversalSlasher(address(slasher));
+
+        address network = makeAddr("sync-owed-liquidity-network");
+        address middleware = makeAddr("sync-owed-liquidity-middleware");
+        _registerNetwork(network, middleware);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, network);
+
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        vm.startPrank(alice);
+        uint96 subvaultSlot = universalDelegator.createSlot(bytes32("subvault"), 0, false, false, 100);
+        uint96 networkSlot = universalDelegator.createSlot(network.subnetwork(0), subvaultSlot, false, false, 100);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        _activateAdapterLimit();
+        _deposit(alice, 100);
+        adapter.setShouldFail(true);
+
+        vm.prank(middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(network.subnetwork(0), alice, 80, 0, "");
+        vm.warp(block.timestamp + 1);
+        vm.prank(middleware);
+        uint256 slashedAmount = universalSlasher.executeSlash(slashIndex, "");
+
+        assertEq(slashedAmount, 80);
+        assertEq(universalSlasher.totalOwed(), 80);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 100);
+        assertEq(vault.adaptersAllocated(), 100);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(adapter)), 100);
+
+        adapter.setShouldFail(false);
+
+        uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
+        uint256 synced = universalSlasher.syncOwedSlash(network.subnetwork(0), alice);
+
+        assertEq(synced, 80);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(universalSlasher.owed(network.subnetwork(0), alice), 0);
+        assertEq(vault.adapterAllocated(address(adapter)), 20);
+        assertEq(vault.adaptersAllocated(), 20);
+        assertEq(collateral.balanceOf(address(adapter)), 20);
+        assertEq(collateral.balanceOf(address(vault)), 0);
+        assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 80);
     }
 
     function test_MorphoAllocateAdapter_donatesDuringDepositAndWithdrawOperations() public {
@@ -5363,6 +6649,100 @@ contract VaultV2Test is Test {
         assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
     }
 
+    function test_Migrate_FactoryUpgradePath_fromVaultTokenized_preservesMetadataAndShareBalances() public {
+        uint48 epochDuration = 10;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            2,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this),
+            0,
+            ""
+        );
+        vault = IVaultV2(address(vault_));
+
+        _deposit(alice, 100 ether);
+
+        vm.startPrank(alice);
+        VaultTokenized(address(vault)).transfer(bob, 25 ether);
+        vm.stopPrank();
+
+        uint256 aliceSharesBefore = VaultTokenized(address(vault)).balanceOf(alice);
+        uint256 bobSharesBefore = VaultTokenized(address(vault)).balanceOf(bob);
+        uint256 totalSharesBefore = VaultTokenized(address(vault)).totalSupply();
+        address oldSlasher = vault.slasher();
+
+        assertEq(VaultTokenized(address(vault)).name(), VAULT_NAME);
+        assertEq(VaultTokenized(address(vault)).symbol(), VAULT_SYMBOL);
+
+        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration)));
+
+        IVaultV2 vaultV2 = IVaultV2(address(vault));
+        _assertMigrationState(vaultV2, oldSlasher);
+        assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
+        assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
+        assertEq(vaultV2.activeSharesOf(alice), aliceSharesBefore);
+        assertEq(vaultV2.activeSharesOf(bob), bobSharesBefore);
+        assertEq(vaultV2.activeShares(), totalSharesBefore);
+        assertEq(VaultV2(address(vaultV2)).totalSupply(), totalSharesBefore);
+    }
+
+    function test_Migrate_FactoryUpgradePath_grantsAdapterManagementRolesFromMigrateParams() public {
+        uint48 epochDuration = 10;
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwner(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            1,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this)
+        );
+        vault = IVaultV2(address(vault_));
+
+        IVaultV2.MigrateParams memory migrateParams = _buildMigrateParams(epochDuration);
+        migrateParams.defaultAdminRoleHolder = bob;
+        migrateParams.setAdapterLimitRoleHolder = bob;
+        migrateParams.swapAdaptersRoleHolder = bob;
+        migrateParams.allocateAdapterRoleHolder = bob;
+        migrateParams.deallocateAdapterRoleHolder = bob;
+
+        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), abi.encode(migrateParams));
+
+        assertTrue(IAccessControl(address(vault)).hasRole(VaultV2(address(vault)).DEFAULT_ADMIN_ROLE(), bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(SET_ADAPTER_LIMIT_ROLE, bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(SWAP_ADAPTERS_ROLE, bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(ALLOCATE_ADAPTER_ROLE, bob));
+        assertTrue(IAccessControl(address(vault)).hasRole(DEALLOCATE_ADAPTER_ROLE, bob));
+    }
+
     function _latestWithdrawalBucket() internal view returns (uint256) {
         return vaultTestHelper.unlockToBucketLatest(address(vault));
     }
@@ -5596,13 +6976,19 @@ contract VaultV2Test is Test {
         vm.stopPrank();
     }
 
+    function _createReentrantAdapter() internal returns (MockReentrantAdapter) {
+        MockReentrantAdapter adapter = new MockReentrantAdapter(address(vault), address(collateral));
+        adapterRegistry.whitelistAdapter(address(adapter));
+        return adapter;
+    }
+
     function _createAdapter() internal returns (MockAdapter) {
         MockAdapter adapter = new MockAdapter(address(vault), address(collateral));
         adapterRegistry.whitelistAdapter(address(adapter));
         return adapter;
     }
 
-    function _addAdapter(MockAdapter adapter) internal {
+    function _addAdapter(address adapter) internal {
         uint256 minTimestamp = uint256(vault.epochDuration()) + 1;
         if (block.timestamp < minTimestamp) {
             vm.warp(minTimestamp);
@@ -5610,7 +6996,11 @@ contract VaultV2Test is Test {
 
         _grantAddAdapterRole(alice, alice);
         vm.prank(alice);
-        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
+        VaultV2(address(vault)).setAdapterLimit(adapter, type(uint208).max);
+    }
+
+    function _addAdapter(MockAdapter adapter) internal {
+        _addAdapter(address(adapter));
     }
 
     function _activateAdapterLimit() internal {
@@ -5641,6 +7031,24 @@ contract VaultV2Test is Test {
         vm.startPrank(user);
         amount = vault.claim(user, epoch);
         vm.stopPrank();
+    }
+
+    function _armAdapterChaosCallback(MockReentrantAdapter adapter, uint8 mode, uint256 amount) internal {
+        if (mode == 0) {
+            adapter.clearReentry();
+        } else if (mode == 1) {
+            adapter.armReentry(address(vault), abi.encodeCall(IVaultV2.deposit, (address(adapter), 1)));
+        } else if (mode == 2) {
+            adapter.armReentry(address(vault), abi.encodeCall(IVaultV2.deallocateAdapter, (address(adapter), amount)));
+        } else if (mode == 3) {
+            adapter.armReentry(address(vault), abi.encodeCall(IVaultV2.deallocateAdapters, ()));
+        } else {
+            adapter.armReentry(address(vault), abi.encodeCall(IVaultV2.skimAdapters, ()));
+        }
+    }
+
+    function _adapterSystemBalance(address adapter) internal view returns (uint256) {
+        return collateral.balanceOf(address(vault)) + collateral.balanceOf(adapter);
     }
 
     function _claimBatch(address user, uint256[] memory indexes) internal returns (uint256 amount) {
@@ -5750,6 +7158,108 @@ contract VaultV2Test is Test {
         adapter.setGlobalLimit(address(collateral), type(uint256).max);
     }
 
+    function _setupNoAdaptersReserveScenario(uint128 noAdaptersSize, uint128 adapterSize, uint256 extraBuffer)
+        internal
+        returns (NoAdaptersReserveScenario memory scenario)
+    {
+        UniversalDelegator universalDelegator;
+        (vault, universalDelegator, slasher) = _getUniversalVaultAndDelegatorAndSlasher(7 days);
+        scenario.universalDelegator = universalDelegator;
+        scenario.universalSlasher = UniversalSlasher(address(slasher));
+
+        address noAdaptersNetwork = makeAddr("fuzz-noad-network");
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterNetwork = makeAddr("fuzz-adapter-network");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+        scenario.noAdaptersSubnetwork = noAdaptersNetwork.subnetwork(0);
+        scenario.adapterSubnetwork = adapterNetwork.subnetwork(0);
+
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _configureNoAdaptersReserveNetworks(
+            universalDelegator, noAdaptersNetwork, noAdaptersMiddleware, adapterNetwork, adapterMiddleware
+        );
+
+        _deposit(alice, uint256(noAdaptersSize) + uint256(adapterSize) + extraBuffer);
+
+        _createNoAdaptersReserveSlots(
+            universalDelegator, scenario.noAdaptersSubnetwork, scenario.adapterSubnetwork, noAdaptersSize, adapterSize
+        );
+
+        scenario.adapter = _createAdapter();
+        _addAdapter(scenario.adapter);
+
+        return scenario;
+    }
+
+    function _configureNoAdaptersReserveNetworks(
+        UniversalDelegator universalDelegator,
+        address noAdaptersNetwork,
+        address noAdaptersMiddleware,
+        address adapterNetwork,
+        address adapterMiddleware
+    ) internal {
+        _registerNetwork(noAdaptersNetwork, noAdaptersMiddleware);
+        _registerNetwork(adapterNetwork, adapterMiddleware);
+        _optInOperatorNetwork(alice, noAdaptersNetwork);
+        _optInOperatorNetwork(alice, adapterNetwork);
+
+        vm.prank(noAdaptersNetwork);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(adapterNetwork);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+    }
+
+    function _createNoAdaptersReserveSlots(
+        UniversalDelegator universalDelegator,
+        bytes32 noAdaptersSubnetwork,
+        bytes32 adapterSubnetwork,
+        uint128 noAdaptersSize,
+        uint128 adapterSize
+    ) internal {
+        vm.startPrank(alice);
+
+        uint96 noAdaptersSubvault =
+            universalDelegator.createSlot(bytes32("fuzz-noad-subvault"), 0, false, true, noAdaptersSize);
+        uint96 noAdaptersNetworkSlot =
+            universalDelegator.createSlot(noAdaptersSubnetwork, noAdaptersSubvault, false, false, noAdaptersSize);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), noAdaptersNetworkSlot, false, false, noAdaptersSize);
+
+        uint96 adapterSubvault =
+            universalDelegator.createSlot(bytes32("fuzz-adapter-subvt"), 0, false, false, adapterSize);
+        uint96 adapterNetworkSlot =
+            universalDelegator.createSlot(adapterSubnetwork, adapterSubvault, false, false, adapterSize);
+        universalDelegator.createSlot(bytes32(bytes20(alice)), adapterNetworkSlot, false, false, adapterSize);
+
+        vm.stopPrank();
+    }
+
+    function _executeUniversalSlash(
+        UniversalSlasher universalSlasher,
+        address middleware,
+        bytes32 subnetwork,
+        uint256 amount
+    ) internal returns (uint256 slashedAmount) {
+        vm.prank(middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(subnetwork, alice, amount, 0, "");
+
+        vm.warp(block.timestamp + 1);
+
+        vm.prank(middleware);
+        slashedAmount = universalSlasher.executeSlash(slashIndex, "");
+    }
+
+    function _claimableBacking() internal view returns (uint256) {
+        int256 backing = int256(vault.withdrawals(vault.withdrawalBucket()) - vault.activeWithdrawals())
+            + vaultTestHelper.unclaimedRaw(address(vault));
+        return backing > 0 ? uint256(backing) : 0;
+    }
+
+    function _adaptersOwe(UniversalDelegator universalDelegator) internal view returns (uint256) {
+        uint256 maxAllocatable = vault.totalStake().saturatingSub(universalDelegator.getNoAdaptersSize());
+        return vault.adaptersAllocated().saturatingSub(maxAllocatable);
+    }
+
     function _toUint128(uint256 amount) internal pure returns (uint128 amount128) {
         return amount > type(uint128).max ? type(uint128).max : uint128(amount);
     }
@@ -5790,7 +7300,8 @@ contract VaultV2Test is Test {
                 vaultFactory,
                 address(feeRegistry),
                 address(rewards),
-                address(adapterRegistry)
+                address(adapterRegistry),
+                vaultV2Migrate
             )
         );
     }
@@ -5970,7 +7481,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             );
         }
@@ -6096,7 +7609,9 @@ contract VaultV2Test is Test {
                     isDepositLimitSetRoleHolder: baseParams.isDepositLimitSetRoleHolder,
                     depositLimitSetRoleHolder: baseParams.depositLimitSetRoleHolder,
                     setAdapterLimitRoleHolder: alice,
-                    allocateAdapterRoleHolder: alice
+                    swapAdaptersRoleHolder: alice,
+                    allocateAdapterRoleHolder: alice,
+                    deallocateAdapterRoleHolder: alice
                 })
             );
         }
@@ -6108,6 +7623,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
 
@@ -6136,6 +7653,8 @@ contract VaultV2Test is Test {
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
+            removeSlotRoleHolder: alice,
+            setWithdrawalBufferSizeRoleHolder: alice,
             withdrawalBufferSize: type(uint128).max
         });
         IUniversalSlasher.InitParams memory slasherParams = IUniversalSlasher.InitParams({
@@ -6144,6 +7663,11 @@ contract VaultV2Test is Test {
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,
             symbol: VAULT_SYMBOL,
+            defaultAdminRoleHolder: alice,
+            setAdapterLimitRoleHolder: alice,
+            swapAdaptersRoleHolder: alice,
+            allocateAdapterRoleHolder: alice,
+            deallocateAdapterRoleHolder: alice,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
         });
@@ -6166,7 +7690,9 @@ contract VaultV2Test is Test {
             isDepositLimitSetRoleHolder: alice,
             depositLimitSetRoleHolder: alice,
             setAdapterLimitRoleHolder: alice,
-            allocateAdapterRoleHolder: alice
+            swapAdaptersRoleHolder: alice,
+            allocateAdapterRoleHolder: alice,
+            deallocateAdapterRoleHolder: alice
         });
     }
 

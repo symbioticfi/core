@@ -44,24 +44,36 @@ ignore = ["test/**/*.sol","script/**/*.sol","src/interfaces/**/*.sol"]
 [[profile.default.additional_compiler_profiles]]
 name = "test"
 via_ir = false
-optimizer = false
+optimizer = true
 
 [[profile.default.compilation_restrictions]]
 paths = "test/**"
 via_ir = false
-optimizer = false
+optimizer = true
 
 [profile.default.fuzz]
 runs = 100
 max_test_rejects = 4294967295
 
+[profile.default.invariant]
+runs = 1
+depth = 5
+
 [profile.pr.fuzz]
 runs = 100
 max_test_rejects = 4294967295
 
+[profile.pr.invariant]
+runs = 2
+depth = 10
+
 [profile.ci.fuzz]
 runs = 100
 max_test_rejects = 4294967295
+
+[profile.ci.invariant]
+runs = 4
+depth = 20
 
 [profile.debug]
 via_ir = false

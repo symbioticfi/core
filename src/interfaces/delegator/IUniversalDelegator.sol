@@ -184,6 +184,8 @@ interface IUniversalDelegator {
      * @param createSlotRoleHolder Address of the initial CREATE_SLOT_ROLE holder.
      * @param setSizeRoleHolder Address of the initial SET_SIZE_ROLE holder.
      * @param swapSlotsRoleHolder Address of the initial SWAP_SLOTS_ROLE holder.
+     * @param removeSlotRoleHolder Address of the initial REMOVE_SLOT_ROLE holder.
+     * @param setWithdrawalBufferSizeRoleHolder Address of the initial SET_WITHDRAWAL_BUFFER_SIZE_ROLE holder.
      * @param withdrawalBufferSize Initial withdrawal buffer size.
      */
     struct InitParams {
@@ -193,6 +195,8 @@ interface IUniversalDelegator {
         address createSlotRoleHolder;
         address setSizeRoleHolder;
         address swapSlotsRoleHolder;
+        address removeSlotRoleHolder;
+        address setWithdrawalBufferSizeRoleHolder;
         uint128 withdrawalBufferSize;
     }
 

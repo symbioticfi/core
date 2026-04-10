@@ -1,24 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+
 import "../SymbioticCoreInit.sol";
 import "../SymbioticCoreImports.sol";
 import "../base/SymbioticCoreInitBase.sol";
+
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../../../src/contracts/libraries/UniversalDelegatorIndex.sol";
-import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
-import {VaultTokenized} from "../../../src/contracts/vault/VaultTokenized.sol";
-import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
-import {VaultV2Migrate} from "../../../src/contracts/vault/VaultV2Migrate.sol";
-import {NetworkRestakeDelegator} from "../../../src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "../../../src/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "../../../src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {OperatorNetworkSpecificDelegator} from "../../../src/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
-import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
-import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
-import {UniversalSlasher} from "../../../src/contracts/slasher/UniversalSlasher.sol";
 
 import {IEntity} from "../../../src/interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
@@ -32,12 +23,39 @@ import {
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher, UNIVERSAL_SLASHER_TYPE} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IVault} from "../../../src/interfaces/vault/IVault.sol";
-import {VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
 
 import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
+import {V2DeployBaseScript} from "../../../script/deploy/base/V2DeployBase.s.sol";
 import {MigrateToVaultV2BaseScript} from "../../../script/actions/base/MigrateToVaultV2Base.s.sol";
+import {V2UpgradeBaseScript} from "../../../script/upgrade/base/V2UpgradeBase.s.sol";
 import {ScriptBaseHarness} from "./ScriptBaseHarness.s.sol";
+
 import {MockRewards} from "../../mocks/MockRewards.sol";
+
+contract V2DeployScriptHarness is V2DeployBaseScript {
+    address internal immutable broadcaster;
+
+    constructor(address broadcaster_) {
+        broadcaster = broadcaster_;
+    }
+
+    function _startBroadcast() internal override {
+        vm.startBroadcast(broadcaster);
+    }
+
+    function _stopBroadcast() internal override {
+        vm.stopBroadcast();
+    }
+}
+
+contract V2UpgradeScriptHarness is V2UpgradeBaseScript, ScriptBaseHarness {
+    constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
+
+    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
+        ScriptBaseHarness.sendTransaction(target, data);
+    }
+}
 
 contract MigrateToVaultV2ScriptHarness is MigrateToVaultV2BaseScript, ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
@@ -51,7 +69,7 @@ contract MigrateToVaultV2ScriptHarness is MigrateToVaultV2BaseScript, ScriptBase
     }
 }
 
-contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
+contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
     using Subnetwork for address;
     using UniversalDelegatorIndex for uint96;
 
@@ -65,135 +83,12 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
     Vm.Wallet internal operator2;
 
     address internal collateral;
-    address internal vault;
-
-    function _whitelistVaultImplementations() internal virtual override {
-        address delegatorFactory = address(symbioticCore.delegatorFactory);
-        address slasherFactory = address(symbioticCore.slasherFactory);
-        address vaultFactory = address(symbioticCore.vaultFactory);
-        address rewards = address(new MockRewards());
-        address vaultV2Migrate =
-            address(new VaultV2Migrate(delegatorFactory, slasherFactory, address(0), rewards, address(0)));
-
-        symbioticCore.vaultFactory.whitelist(address(new VaultV1(delegatorFactory, slasherFactory, vaultFactory)));
-        symbioticCore.vaultFactory
-            .whitelist(address(new VaultTokenized(delegatorFactory, slasherFactory, vaultFactory)));
-        symbioticCore.vaultFactory
-            .whitelist(
-                address(
-                    new VaultV2(
-                        delegatorFactory, slasherFactory, vaultFactory, address(0), rewards, address(0), vaultV2Migrate
-                    )
-                )
-            );
-    }
-
-    function _whitelistDelegatorImplementations() internal virtual override {
-        ISymbioticDelegatorFactory factory = symbioticCore.delegatorFactory;
-        address factoryAddress = address(factory);
-        address networkRegistry = address(symbioticCore.networkRegistry);
-        address operatorRegistry = address(symbioticCore.operatorRegistry);
-        address vaultFactory = address(symbioticCore.vaultFactory);
-        address operatorVaultOptInService = address(symbioticCore.operatorVaultOptInService);
-        address operatorNetworkOptInService = address(symbioticCore.operatorNetworkOptInService);
-        address implementation;
-        uint64 typeIndex;
-
-        typeIndex = uint64(factory.totalTypes());
-        implementation = address(
-            new NetworkRestakeDelegator(
-                networkRegistry,
-                vaultFactory,
-                operatorVaultOptInService,
-                operatorNetworkOptInService,
-                factoryAddress,
-                typeIndex
-            )
-        );
-        factory.whitelist(implementation);
-
-        typeIndex = uint64(factory.totalTypes());
-        implementation = address(
-            new FullRestakeDelegator(
-                networkRegistry,
-                vaultFactory,
-                operatorVaultOptInService,
-                operatorNetworkOptInService,
-                factoryAddress,
-                typeIndex
-            )
-        );
-        factory.whitelist(implementation);
-
-        typeIndex = uint64(factory.totalTypes());
-        implementation = address(
-            new OperatorSpecificDelegator(
-                operatorRegistry,
-                networkRegistry,
-                vaultFactory,
-                operatorVaultOptInService,
-                operatorNetworkOptInService,
-                factoryAddress,
-                typeIndex
-            )
-        );
-        factory.whitelist(implementation);
-
-        typeIndex = uint64(factory.totalTypes());
-        implementation = address(
-            new OperatorNetworkSpecificDelegator(
-                operatorRegistry,
-                networkRegistry,
-                vaultFactory,
-                operatorVaultOptInService,
-                operatorNetworkOptInService,
-                factoryAddress,
-                typeIndex
-            )
-        );
-        factory.whitelist(implementation);
-
-        typeIndex = uint64(factory.totalTypes());
-        implementation = address(
-            new UniversalDelegator(
-                networkRegistry,
-                vaultFactory,
-                factoryAddress,
-                typeIndex,
-                address(symbioticCore.networkMiddlewareService)
-            )
-        );
-        factory.whitelist(implementation);
-    }
-
-    function _whitelistSlasherImplementations() internal virtual override {
-        ISymbioticSlasherFactory factory = symbioticCore.slasherFactory;
-        address factoryAddress = address(factory);
-        address vaultFactory = address(symbioticCore.vaultFactory);
-        address networkMiddlewareService = address(symbioticCore.networkMiddlewareService);
-        address networkRegistry = address(symbioticCore.networkRegistry);
-
-        factory.whitelist(
-            address(new Slasher(vaultFactory, networkMiddlewareService, factoryAddress, factory.totalTypes()))
-        );
-        factory.whitelist(
-            address(
-                new VetoSlasher(
-                    vaultFactory, networkMiddlewareService, networkRegistry, factoryAddress, factory.totalTypes()
-                )
-            )
-        );
-        factory.whitelist(
-            address(
-                new UniversalSlasher(
-                    vaultFactory, networkMiddlewareService, networkRegistry, factoryAddress, factory.totalTypes()
-                )
-            )
-        );
-    }
+    address internal coreOwner;
+    MockRewards internal rewards;
 
     function setUp() public virtual override {
-        SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = false;
+        vm.selectFork(vm.createFork(vm.rpcUrl("mainnet")));
+        SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
         super.setUp();
 
@@ -204,41 +99,80 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         operator2 = _getOperator_SymbioticCore();
 
         collateral = _getToken_SymbioticCore();
+        rewards = new MockRewards();
 
-        SymbioticCoreInitBase.VaultParams memory vaultParams = SymbioticCoreInitBase.VaultParams({
-            owner: curator.addr,
-            collateral: collateral,
-            burner: address(0x000000000000000000000000000000000000dEaD),
-            epochDuration: uint48(7 days),
-            whitelistedDepositors: new address[](0),
-            depositLimit: 0,
-            delegatorIndex: 0,
-            hook: address(0),
-            network: address(0),
-            withSlasher: true,
-            slasherIndex: 1,
-            vetoDuration: uint48(1 days)
-        });
+        coreOwner = Ownable(address(symbioticCore.vaultFactory)).owner();
+        assertEq(Ownable(address(symbioticCore.delegatorFactory)).owner(), coreOwner, "delegator owner mismatch");
+        assertEq(Ownable(address(symbioticCore.slasherFactory)).owner(), coreOwner, "slasher owner mismatch");
+    }
 
-        vault = _getVault_SymbioticCore(vaultParams);
+    function test_MainnetCore_V2DeployThenV2Upgrade() public {
+        assertEq(symbioticCore.vaultFactory.lastVersion(), VAULT_V2_VERSION - 1, "unexpected mainnet vault version");
+        assertEq(
+            symbioticCore.delegatorFactory.totalTypes(),
+            UNIVERSAL_DELEGATOR_TYPE,
+            "unexpected mainnet delegator type count"
+        );
+        assertEq(
+            symbioticCore.slasherFactory.totalTypes(), UNIVERSAL_SLASHER_TYPE, "unexpected mainnet slasher type count"
+        );
+
+        V2DeployScriptHarness deployScript = new V2DeployScriptHarness(curator.addr);
+        V2DeployBaseScript.DeploymentData memory deployment =
+            deployScript.runBase(curator.addr, address(0), address(rewards));
+
+        assertEq(Ownable(address(deployment.adapterRegistry)).owner(), curator.addr, "adapter registry owner mismatch");
+        assertEq(symbioticCore.vaultFactory.lastVersion(), VAULT_V2_VERSION - 1, "deploy should not whitelist vault");
+        assertEq(
+            symbioticCore.delegatorFactory.totalTypes(),
+            UNIVERSAL_DELEGATOR_TYPE,
+            "deploy should not whitelist delegator"
+        );
+        assertEq(
+            symbioticCore.slasherFactory.totalTypes(), UNIVERSAL_SLASHER_TYPE, "deploy should not whitelist slasher"
+        );
+
+        V2UpgradeScriptHarness coreUpgradeScript = new V2UpgradeScriptHarness(coreOwner);
+        (bytes memory whitelistVaultData, address whitelistVaultTarget) =
+            coreUpgradeScript.whitelistVaultV2(address(deployment.vaultV2));
+        (bytes memory whitelistDelegatorData, address whitelistDelegatorTarget) =
+            coreUpgradeScript.whitelistUniversalDelegator(address(deployment.universalDelegator));
+        (bytes memory whitelistSlasherData, address whitelistSlasherTarget) =
+            coreUpgradeScript.whitelistUniversalSlasher(address(deployment.universalSlasher));
+
+        assertGt(whitelistVaultData.length, 0, "missing whitelist vault calldata");
+        assertGt(whitelistDelegatorData.length, 0, "missing whitelist delegator calldata");
+        assertGt(whitelistSlasherData.length, 0, "missing whitelist slasher calldata");
+        assertEq(whitelistVaultTarget, address(symbioticCore.vaultFactory), "vaultFactory target mismatch");
+        assertEq(whitelistDelegatorTarget, address(symbioticCore.delegatorFactory), "delegatorFactory target mismatch");
+        assertEq(whitelistSlasherTarget, address(symbioticCore.slasherFactory), "slasherFactory target mismatch");
+        assertEq(symbioticCore.vaultFactory.implementation(VAULT_V2_VERSION), address(deployment.vaultV2));
+        assertEq(
+            symbioticCore.delegatorFactory.implementation(UNIVERSAL_DELEGATOR_TYPE),
+            address(deployment.universalDelegator)
+        );
+        assertEq(
+            symbioticCore.slasherFactory.implementation(UNIVERSAL_SLASHER_TYPE), address(deployment.universalSlasher)
+        );
+
+        address vault = _createV1Vault();
 
         _networkSetMaxNetworkLimit_SymbioticCore(network1.addr, vault, IDENTIFIER, 1 ether);
         _networkSetMaxNetworkLimit_SymbioticCore(network2.addr, vault, IDENTIFIER, 1 ether);
-    }
 
-    function test_MigrateToVaultV2() public {
-        MigrateToVaultV2ScriptHarness script = new MigrateToVaultV2ScriptHarness(curator.addr);
-        MigrateToVaultV2BaseScript.Config memory config = _config();
+        MigrateToVaultV2ScriptHarness upgradeScript = new MigrateToVaultV2ScriptHarness(curator.addr);
+        MigrateToVaultV2BaseScript.Config memory config = _config(vault);
         MigrateToVaultV2BaseScript.NetworkAllocation[] memory networks = _networkAllocations();
 
         (bytes memory migrateData, address migrateTarget, bytes memory createSlotsData, address createSlotsTarget,,) =
-            script.runBase(config, networks, _allocators());
+            upgradeScript.runBase(config, networks, _allocators());
 
         assertGt(migrateData.length, 0, "missing migrate calldata");
         assertGt(createSlotsData.length, 0, "missing create slots calldata");
-        assertEq(migrateTarget, IMigratableEntity(vault).FACTORY(), "factory target mismatch");
+        assertEq(migrateTarget, address(symbioticCore.vaultFactory), "factory target mismatch");
         assertEq(createSlotsTarget, IVault(vault).delegator(), "delegator target mismatch");
         assertEq(IMigratableEntity(vault).version(), VAULT_V2_VERSION, "vault version mismatch");
+        assertTrue(IVaultV2(vault).isInitialized(), "vault not initialized");
 
         address newDelegator = IVault(vault).delegator();
         address newSlasher = IVault(vault).slasher();
@@ -283,7 +217,30 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         _assertAllocatorRoles(newDelegator, operator1.addr);
     }
 
-    function _config() internal view returns (MigrateToVaultV2BaseScript.Config memory) {
+    function _createV1Vault() internal returns (address vault) {
+        vm.startPrank(curator.addr);
+
+        SymbioticCoreInitBase.VaultParams memory vaultParams = SymbioticCoreInitBase.VaultParams({
+            owner: curator.addr,
+            collateral: collateral,
+            burner: address(0x000000000000000000000000000000000000dEaD),
+            epochDuration: uint48(7 days),
+            whitelistedDepositors: new address[](0),
+            depositLimit: 0,
+            delegatorIndex: 0,
+            hook: address(0),
+            network: address(0),
+            withSlasher: true,
+            slasherIndex: 1,
+            vetoDuration: uint48(1 days)
+        });
+
+        vault = _getVault_SymbioticCore(vaultParams);
+
+        vm.stopPrank();
+    }
+
+    function _config(address vault) internal view returns (MigrateToVaultV2BaseScript.Config memory) {
         return MigrateToVaultV2BaseScript.Config({
             vault: vault,
             name: "Migrated Vault V2",

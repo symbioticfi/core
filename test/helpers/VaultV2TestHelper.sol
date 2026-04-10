@@ -124,6 +124,10 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
         return _withdrawalSharesCumulative.length();
     }
 
+    function _unclaimedRawInternal() external view internalFunction returns (int256) {
+        return _unclaimedRaw;
+    }
+
     function unlockToBucketLatest(address vault) external view returns (uint208) {
         return abi.decode(
             _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._unlockToBucketLatestInternal, ())),
@@ -173,6 +177,12 @@ contract VaultV2TestHelper is VaultV2Storage, Hints {
                 vault, abi.encodeCall(VaultV2TestHelper._withdrawalSharesCumulativeLatestInternal, ())
             ),
             (uint256)
+        );
+    }
+
+    function unclaimedRaw(address vault) external view returns (int256) {
+        return abi.decode(
+            _selfStaticDelegateCall(vault, abi.encodeCall(VaultV2TestHelper._unclaimedRawInternal, ())), (int256)
         );
     }
 

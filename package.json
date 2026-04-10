@@ -1,6 +1,6 @@
 {
     "name": "@symbioticfi/core",
-    "version": "1.0.3",
+    "version": "2.0.0",
     "description": "Symbiotic is a shared security protocol enabling decentralized networks to control and customize their own multi-asset restaking implementation.",
     "homepage": "https://symbiotic.fi/",
     "bugs": "https://github.com/symbioticfi/core/issues",
@@ -24,7 +24,8 @@
         "security"
     ],
     "dependencies": {
-        "@openzeppelin/contracts": "5.0.2",
-        "@openzeppelin/contracts-upgradeable": "5.0.2"
+        "@openzeppelin/contracts": "5.0.4",
+        "@openzeppelin/contracts-upgradeable": "5.0.4",
+        "solady": "0.1.26"
     }
 }

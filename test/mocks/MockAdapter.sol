@@ -8,6 +8,7 @@ import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 contract MockAdapter is IAdapterBase {
     IERC20 public immutable collateral;
     address public immutable vault;
+    uint256 public allocated;
     bool public shouldFail;
 
     constructor(address vault_, address collateral_) {
@@ -23,7 +24,8 @@ contract MockAdapter is IAdapterBase {
         if (vault_ != vault || shouldFail) {
             return 0;
         }
-        return collateral.balanceOf(address(this));
+        uint256 balance = collateral.balanceOf(address(this));
+        return balance > allocated ? balance - allocated : 0;
     }
 
     function allocatable(address) external view returns (uint256) {
@@ -40,7 +42,9 @@ contract MockAdapter is IAdapterBase {
         return collateral.balanceOf(address(this));
     }
 
-    function allocate(uint256) external {}
+    function allocate(uint256 amount) external {
+        allocated += amount;
+    }
 
     function deallocate(uint256 amount) external returns (uint256) {
         if (shouldFail) {
@@ -50,17 +54,19 @@ contract MockAdapter is IAdapterBase {
         uint256 balance = collateral.balanceOf(address(this));
         uint256 deallocated = amount <= balance ? amount : balance;
         if (deallocated > 0) {
+            allocated = allocated > deallocated ? allocated - deallocated : 0;
             collateral.approve(vault, deallocated);
         }
         return deallocated;
     }
 
-    function skim(address vault_) external returns (uint256) {
+    function skim(address vault_) external returns (uint256 amount) {
         if (vault_ != vault || shouldFail) {
             return 0;
         }
 
-        uint256 amount = collateral.balanceOf(address(this));
+        uint256 balance = collateral.balanceOf(address(this));
+        amount = balance > allocated ? balance - allocated : 0;
         if (amount > 0) {
             collateral.transfer(vault, amount);
         }

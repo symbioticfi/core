@@ -89,6 +89,11 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
             vault: VAULT,
             name: NAME,
             symbol: SYMBOL,
+            defaultAdminRoleHolder: ADMIN_ROLE_HOLDER,
+            setAdapterLimitRoleHolder: ADMIN_ROLE_HOLDER,
+            swapAdaptersRoleHolder: ADMIN_ROLE_HOLDER,
+            allocateAdapterRoleHolder: ADMIN_ROLE_HOLDER,
+            deallocateAdapterRoleHolder: ADMIN_ROLE_HOLDER,
             delegatorParams: IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: ADMIN_ROLE_HOLDER,
                 hook: HOOK,
@@ -96,6 +101,8 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
                 createSlotRoleHolder: ADMIN_ROLE_HOLDER,
                 setSizeRoleHolder: ADMIN_ROLE_HOLDER,
                 swapSlotsRoleHolder: ADMIN_ROLE_HOLDER,
+                removeSlotRoleHolder: ADMIN_ROLE_HOLDER,
+                setWithdrawalBufferSizeRoleHolder: ADMIN_ROLE_HOLDER,
                 withdrawalBufferSize: WITHDRAWAL_BUFFER_SIZE
             }),
             slasherParams: IUniversalSlasher.InitParams({
