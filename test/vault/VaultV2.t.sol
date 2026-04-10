@@ -3257,12 +3257,8 @@ contract VaultV2Test is Test {
 
         _deposit(bob, 20);
 
-        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
-        assertEq(_claim(alice, 0), claimableAmount);
-        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, claimableAmount);
-        assertEq(collateral.balanceOf(address(vault)), 100);
-        assertEq(scenario.universalSlasher.totalOwed(), 20);
-        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
 
         burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
@@ -3271,7 +3267,13 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 20);
         assertEq(scenario.universalSlasher.totalOwed(), 0);
         assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(collateral.balanceOf(address(vault)), 100);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), claimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, claimableAmount);
         assertEq(collateral.balanceOf(address(vault)), 80);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
     }
 
     function test_Scenario_NoAdaptersParallelClaimAndOwedSlash_claimAndSyncBothPreserveNoAdaptersSlashability() public {
@@ -3319,9 +3321,8 @@ contract VaultV2Test is Test {
 
         _deposit(bob, 60);
 
-        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
-        assertEq(_claim(alice, 0), firstClaimableAmount);
-        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, firstClaimableAmount);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
 
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
         _claim(alice, 1);
@@ -3333,8 +3334,15 @@ contract VaultV2Test is Test {
         assertEq(collateral.balanceOf(address(0xdEaD)) - burnerBalanceBefore, 12);
         assertEq(scenario.universalSlasher.totalOwed(), 28);
         assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 28);
-        assertEq(collateral.balanceOf(address(vault)), 108);
+        assertEq(collateral.balanceOf(address(vault)), 128);
         assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        assertEq(_claim(alice, 0), firstClaimableAmount);
+        assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, firstClaimableAmount);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 1);
 
         assertEq(
             _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
@@ -3386,6 +3394,9 @@ contract VaultV2Test is Test {
         assertEq(syncableBeforeSync, 13);
         assertGe(claimableBackingBeforeSync.saturatingSub(adaptersOweBeforeSync), firstClaimableAmount);
 
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
         uint256 burnerBalanceBefore = collateral.balanceOf(address(0xdEaD));
         uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
 
@@ -3420,6 +3431,188 @@ contract VaultV2Test is Test {
         );
         assertEq(collateral.balanceOf(address(vault)), 28);
         assertEq(scenario.universalSlasher.totalOwed(), 27);
+    }
+
+    function test_Scenario_NoAdaptersBeforeAndAfterSlash_snapshotClaimAndSyncCapacity() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        // Withdrawal before slash.
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        scenario.adapter.setShouldFail(true);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, adapterMiddleware, scenario.adapterSubnetwork, 70), 70
+        );
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(collateral.balanceOf(address(vault)), 80);
+
+        // Deposit and withdrawal after slash.
+        _deposit(bob, 61);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 10);
+
+        uint48 aliceUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAt = vault.withdrawalUnlockAt(0, bob);
+        assertGt(bobUnlockAt, aliceUnlockAt);
+
+        vm.warp(aliceUnlockAt);
+        {
+            uint256 adaptersOweAtAliceUnlock = vault.adaptersOwe();
+            uint256 totalOwedAtAliceUnlock = scenario.universalSlasher.totalOwed();
+
+            assertEq(vault.withdrawalsOf(0, alice), 20);
+            assertEq(_claimableBacking(), 21);
+            assertEq(adaptersOweAtAliceUnlock, 0);
+            assertEq(totalOwedAtAliceUnlock, 40);
+            assertEq(totalOwedAtAliceUnlock.saturatingSub(adaptersOweAtAliceUnlock), 40);
+        }
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        vm.warp(bobUnlockAt);
+        {
+            uint256 adaptersOweAtBobUnlock = vault.adaptersOwe();
+            uint256 totalOwedAtBobUnlock = scenario.universalSlasher.totalOwed();
+
+            assertEq(vault.withdrawalsOf(0, alice), 20);
+            assertEq(vault.withdrawalsOf(0, bob), 9);
+            assertEq(_claimableBacking(), 30);
+            assertEq(adaptersOweAtBobUnlock, 9);
+            assertEq(totalOwedAtBobUnlock, 40);
+            assertEq(totalOwedAtBobUnlock.saturatingSub(adaptersOweAtBobUnlock), 31);
+        }
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+        assertEq(synced, 31);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 9);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(collateral.balanceOf(address(vault)), 110);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        assertEq(_claim(alice, 0), 20);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(bob, 0);
+
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(_claimableBacking(), 10);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
+            80
+        );
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 0);
+    }
+
+    function test_Scenario_NoAdaptersBeforeAndAfterSlash_interleavedClaimSyncAndBobCompletion() public {
+        NoAdaptersReserveScenario memory scenario = _setupNoAdaptersReserveScenario(80, 120, 30);
+        address noAdaptersMiddleware = makeAddr("fuzz-noad-middleware");
+        address adapterMiddleware = makeAddr("fuzz-adapter-middleware");
+
+        vm.prank(address(scenario.adapter));
+        vault.allocateAdapter(address(scenario.adapter), 120);
+
+        // Action: Alice requests a withdrawal before the adapter-backed slash.
+        vm.warp(block.timestamp + 1);
+        _withdraw(alice, 30);
+
+        // Action: The adapter cannot deallocate, so the slash leaves owed amount behind.
+        scenario.adapter.setShouldFail(true);
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, adapterMiddleware, scenario.adapterSubnetwork, 70), 70
+        );
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+
+        // Action: New stake arrives after the slash, then Bob also requests a withdrawal.
+        _deposit(bob, 61);
+
+        vm.warp(block.timestamp + 1);
+        _withdraw(bob, 10);
+
+        uint48 aliceUnlockAt = vault.withdrawalUnlockAt(0, alice);
+        uint48 bobUnlockAt = vault.withdrawalUnlockAt(0, bob);
+        assertGt(bobUnlockAt, aliceUnlockAt);
+
+        // Action: Alice's withdrawal matures first.
+        vm.warp(aliceUnlockAt);
+        assertEq(vault.withdrawalsOf(0, alice), 20);
+        assertEq(_claimableBacking(), 21);
+        assertEq(vault.adaptersOwe(), 0);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(scenario.universalSlasher.totalOwed().saturatingSub(vault.adaptersOwe()), 40);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+
+        // Action: Bob's later withdrawal also matures while slash debt still exists.
+        vm.warp(bobUnlockAt);
+        assertEq(vault.withdrawalsOf(0, alice), 20);
+        assertEq(vault.withdrawalsOf(0, bob), 9);
+        assertEq(_claimableBacking(), 30);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.totalOwed(), 40);
+        assertEq(scenario.universalSlasher.totalOwed().saturatingSub(vault.adaptersOwe()), 31);
+
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(alice, 0);
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(bob, 0);
+
+        // Action: The network syncs the currently free portion of owed slash.
+        uint256 synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+        assertEq(synced, 31);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 9);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: Alice can now claim, even while some owed slash still remains.
+        assertEq(_claim(alice, 0), 20);
+        assertEq(_claimableBacking(), 10);
+        assertEq(scenario.universalSlasher.totalOwed(), 9);
+        assertEq(vault.adaptersOwe(), 9);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: Bob is still blocked until the remaining owed slash is synced.
+        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
+        _claim(bob, 0);
+
+        // Action: Adapter liquidity recovers, so the remaining owed slash can be synced too.
+        scenario.adapter.setShouldFail(false);
+        synced = scenario.universalSlasher.syncOwedSlash(scenario.adapterSubnetwork, alice);
+        assertEq(synced, 9);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.owed(scenario.adapterSubnetwork, alice), 0);
+        assertEq(vault.adaptersOwe(), 0);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: Bob can now complete the remaining matured withdrawal.
+        assertEq(_claim(bob, 0), 9);
+        assertEq(_claimableBacking(), 1);
+        assertEq(vault.adaptersOwe(), 0);
+        assertEq(scenario.universalSlasher.totalOwed(), 0);
+        assertEq(scenario.universalSlasher.slashableStake(scenario.noAdaptersSubnetwork, alice, 0, ""), 80);
+
+        // Action: The no-adapters network remains fully slashable throughout.
+        assertEq(
+            _executeUniversalSlash(scenario.universalSlasher, noAdaptersMiddleware, scenario.noAdaptersSubnetwork, 80),
+            80
+        );
     }
 
     function test_ClaimableBackingCanBeBelowAdaptersOweWhenOwedSlashExists() public {

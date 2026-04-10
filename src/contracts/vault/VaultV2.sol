@@ -423,9 +423,13 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         isWithdrawalsClaimed[index][msg.sender] = true;
         _unclaimedRaw -= int256(amount);
 
-        // Keep no-adapters backing from being consumed by claimable withdrawals
-        // while adapters still owe liquidity to the vault.
-        if (unclaimed() < adaptersOwe()) {
+        // Keep claimable withdrawals from consuming liquidity reserved for
+        // no-adapters backing and outstanding owed slashes.
+        uint256 reserve = adaptersOwe();
+        if (slasher != address(0)) {
+            reserve = Math.max(reserve, UniversalSlasher(slasher).totalOwed());
+        }
+        if (unclaimed() < reserve) {
             revert InsufficientAmount();
         }
 
