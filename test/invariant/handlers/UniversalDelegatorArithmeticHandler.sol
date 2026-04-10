@@ -25,7 +25,6 @@ import {Slasher} from "../../../src/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 import {UniversalSlasher} from "../../../src/contracts/slasher/UniversalSlasher.sol";
 
-import {Checkpoints} from "../../../src/contracts/libraries/CheckpointsV2.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 
@@ -44,9 +43,6 @@ import {Token} from "../../mocks/Token.sol";
 import {MockRewards} from "../../mocks/MockRewards.sol";
 
 contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
-    using Checkpoints for Checkpoints.Trace208;
-    using UniversalDelegatorIndex for uint96;
-
     constructor(
         address networkRegistry,
         address vaultFactory,
@@ -54,78 +50,6 @@ contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
         uint64 entityType,
         address networkMiddlewareService
     ) UniversalDelegator(networkRegistry, vaultFactory, delegatorFactory, entityType, networkMiddlewareService) {}
-
-    function slotPendingCumulativeLatest(uint96 index) external view returns (uint208) {
-        return slots[index].pendingCumulative.latest();
-    }
-
-    function slotPendingCumulativeAt(uint96 index, uint48 timestamp) external view returns (uint208) {
-        return slots[index].pendingCumulative.upperLookupRecent(timestamp);
-    }
-
-    function slotClearedPendingCursorLatest(uint96 index) external view returns (uint208) {
-        return slots[index].clearedPendingCursor.latest();
-    }
-
-    function slotSizeAt(uint96 index, uint48 timestamp) external view returns (uint208) {
-        return slots[index].size.upperLookupRecent(timestamp);
-    }
-
-    function slotFirstChildAt(uint96 index, uint48 timestamp) external view returns (uint32) {
-        return uint32(slots[index].firstChild.upperLookupRecent(timestamp));
-    }
-
-    function slotNextSlotAt(uint96 index, uint48 timestamp) external view returns (uint32) {
-        return uint32(slots[index].nextSlot.upperLookupRecent(timestamp));
-    }
-
-    function slotSharedPendingConsumedCursorLatest(uint96 index) external view returns (uint208) {
-        return slots[index].sharedPendingConsumedCursor.latest();
-    }
-
-    function slotSharedSizeConsumedCumulativeLatest(uint96 index) external view returns (uint208) {
-        return slots[index].sharedSizeConsumedCumulative.latest();
-    }
-
-    function noAdaptersPendingCumulativeLatest() external view returns (uint208) {
-        return _noAdaptersPendingCumulative.latest();
-    }
-
-    function noAdaptersClearedPendingCursorLatest() external view returns (uint208) {
-        return _clearedNoAdaptersPendingCursor.latest();
-    }
-
-    function exposePendingCursor(uint96 index) external view returns (uint208) {
-        return _getPendingCursor(index);
-    }
-
-    function exposeNoAdaptersPendingCursor() external view returns (uint208) {
-        return _getNoAdaptersPendingCursor();
-    }
-
-    function exposeSharedPendingCursor(uint96 index) external view returns (uint208) {
-        return _getSharedPendingCursor(index);
-    }
-
-    function exposeSharedSizeCursor(uint96 index) external view returns (uint208) {
-        return _getSharedSizeCursor(index);
-    }
-
-    function exposeGetPrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPrevPendingSum(index, duration);
-    }
-
-    function exposeGetPrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp)
-        external
-        view
-        returns (uint208)
-    {
-        return _getPrevPendingSumAt(index, duration, timestamp);
-    }
-
-    function exposeGetPrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
-        return _getPrevSizeSumAt(index, timestamp);
-    }
 }
 
 contract UniversalDelegatorArithmeticHandler is Test {
