@@ -494,6 +494,18 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function allocatable() external view returns (uint256);
 
     /**
+     * @notice Get how much adapter allocation currently exceeds the vault allocatable amount.
+     * @return Amount Of collateral still owed back from adapters.
+     */
+    function adaptersOwe() external view returns (uint256);
+
+    /**
+     * @notice Get the amount currently backing claimable withdrawals.
+     * @return Amount Amount of collateral currently treated as claimable and not yet claimed.
+     */
+    function unclaimed() external view returns (uint256);
+
+    /**
      * @notice Deposit collateral into the vault.
      * @param onBehalfOf Account the deposit is made on behalf of.
      * @param amount Amount of the collateral to deposit.

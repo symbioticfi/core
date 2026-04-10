@@ -273,6 +273,16 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return _maxAllocatable().saturatingSub(adaptersAllocated);
     }
 
+    /// @inheritdoc IVaultV2
+    function adaptersOwe() public view returns (uint256) {
+        return adaptersAllocated.saturatingSub(_maxAllocatable());
+    }
+
+    /// @inheritdoc IVaultV2
+    function unclaimed() public view returns (uint256) {
+        return uint256(int256(withdrawals(withdrawalBucket()) - activeWithdrawals()) + _unclaimedRaw);
+    }
+
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
@@ -415,7 +425,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         // Keep no-adapters backing from being consumed by claimable withdrawals
         // while adapters still owe liquidity to the vault.
-        if (uint256(int256(withdrawals(withdrawalBucket()) - activeWithdrawals()) + _unclaimedRaw) < _adaptersOwe()) {
+        if (unclaimed() < adaptersOwe()) {
             revert InsufficientAmount();
         }
 
@@ -475,7 +485,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
             if (withAdapters) {
                 deallocateAdapters();
-                owedAmount = Math.min(slashedAmount, _adaptersOwe());
+                owedAmount = Math.min(slashedAmount, adaptersOwe());
             }
             if (slashedAmount > owedAmount) {
                 _safeTransferOut(burner, slashedAmount - owedAmount);
@@ -694,7 +704,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @inheritdoc IVaultV2
     function deallocateAdapters() public {
         for (uint256 i; i < adapters.length; ++i) {
-            uint256 toDeallocate = _adaptersOwe();
+            uint256 toDeallocate = adaptersOwe();
             if (toDeallocate == uint256(0)) {
                 break;
             }
@@ -711,11 +721,6 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     /// @dev Get the vault stake that may still be allocated after reserving no-adapters capacity.
     function _maxAllocatable() internal view returns (uint256) {
         return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
-    }
-
-    /// @dev Get how much adapter allocation currently exceeds the vault allocatable amount.
-    function _adaptersOwe() internal view returns (uint256) {
-        return adaptersAllocated.saturatingSub(_maxAllocatable());
     }
 
     /// @inheritdoc AccessControlUpgradeable
@@ -736,7 +741,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         deallocateAdapters();
 
-        slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(_adaptersOwe()));
+        slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(adaptersOwe()));
         _safeTransferOut(burner, slashedAmount);
 
         emit SyncOwedSlash(slashedAmount);

@@ -37,7 +37,6 @@ import {Token} from "../../mocks/Token.sol";
 import {MockAdapter} from "../../mocks/MockAdapter.sol";
 import {MockFeeRegistry} from "../../mocks/MockFeeRegistry.sol";
 import {MockRewards} from "../../mocks/MockRewards.sol";
-import {VaultV2TestHelper} from "../../helpers/VaultV2TestHelper.sol";
 
 contract VaultV2SolvencyHandler is Test {
     using Subnetwork for address;
@@ -59,8 +58,6 @@ contract VaultV2SolvencyHandler is Test {
     MockFeeRegistry internal feeRegistry;
     MockRewards public rewards;
     AdapterRegistry internal adapterRegistry;
-    VaultV2TestHelper internal vaultTestHelper;
-
     IVaultV2 public vault;
     UniversalDelegator public delegator;
     UniversalSlasher public slasher;
@@ -136,15 +133,11 @@ contract VaultV2SolvencyHandler is Test {
     }
 
     function adaptersOwe() public view returns (uint256) {
-        uint256 maxAllocatable_ = maxAllocatable();
-        uint256 adaptersAllocated_ = vault.adaptersAllocated();
-        return adaptersAllocated_ > maxAllocatable_ ? adaptersAllocated_ - maxAllocatable_ : 0;
+        return vault.adaptersOwe();
     }
 
     function claimableBacking() public view returns (uint256) {
-        int256 backing = int256(vault.withdrawals(vault.withdrawalBucket()) - vault.activeWithdrawals())
-            + vaultTestHelper.unclaimedRaw(address(vault));
-        return backing > 0 ? uint256(backing) : 0;
+        return vault.unclaimed();
     }
 
     function unclaimableReserve() public view returns (uint256) {
@@ -386,7 +379,6 @@ contract VaultV2SolvencyHandler is Test {
         feeRegistry = new MockFeeRegistry();
         rewards = new MockRewards();
         adapterRegistry = new AdapterRegistry(address(this));
-        vaultTestHelper = new VaultV2TestHelper();
         collateral = new Token("InvariantToken");
 
         vaultFactory.whitelist(
