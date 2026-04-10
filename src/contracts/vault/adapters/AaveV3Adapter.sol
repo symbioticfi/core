@@ -58,6 +58,9 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
 
     /// @inheritdoc IAdapter
     function skimmable(address vault) public view returns (uint256) {
+        if (IVaultV2(vault).totalStake() == 0) {
+            return 0;
+        }
         return _getVaultAssets(vault).saturatingSub(IVaultV2(vault).adapterAllocated(address(this)));
     }
 
