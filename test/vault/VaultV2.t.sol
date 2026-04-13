@@ -6115,7 +6115,7 @@ contract VaultV2Test is Test {
         assertEq(rewards.lastDonationAmount(), expectedFee);
     }
 
-    function test_InstantWithdraw_withFee_usesCappedWithdrawnAmountNotRequestedAmount() public {
+    function test_InstantWithdraw_withFee_usesCappedWithdrawnAmountForRewards() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
@@ -6131,12 +6131,14 @@ contract VaultV2Test is Test {
 
         assertEq(withdrawnAssets, buffer);
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, buffer - expectedFee);
-        assertEq(rewards.donationRewardCalls(), 0);
+        assertEq(rewards.donationRewardCalls(), 1);
+        assertEq(rewards.lastDonationVault(), address(vault));
+        assertEq(rewards.lastDonationAmount(), expectedFee);
         assertEq(vault.activeSharesOf(alice), 0);
         assertGt(burnedShares, 0);
     }
 
-    function test_InstantWithdraw_withFee_skipsDonationWhenWithdrawalEmptiesVault() public {
+    function test_InstantWithdraw_withFee_distributesRewardsWhenWithdrawalEmptiesVault() public {
         vault = _getUniversalVault(7 days);
         _deposit(alice, 100);
 
@@ -6154,7 +6156,9 @@ contract VaultV2Test is Test {
         assertGt(burnedShares, 0);
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, amount - expectedFee);
         assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore - amount + expectedFee);
-        assertEq(rewards.donationRewardCalls(), 0);
+        assertEq(rewards.donationRewardCalls(), 1);
+        assertEq(rewards.lastDonationVault(), address(vault));
+        assertEq(rewards.lastDonationAmount(), expectedFee);
         assertEq(vault.activeStake(), 0);
         assertEq(vault.activeWithdrawals(), 0);
     }

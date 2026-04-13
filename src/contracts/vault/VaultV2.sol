@@ -399,7 +399,7 @@ contract VaultV2 is
 
         uint256 fees =
             withdrawnAssets.fullMulDivUp(IFeeRegistry(FEE_REGISTRY).getInstantWithdrawFee(address(this)), MAX_FEE);
-        if (fees > 0 && totalStake() > 0) {
+        if (fees > 0) {
             collateral.safeApprove(REWARDS, fees);
             IRewards(REWARDS).distributeDonationRewards(address(this), fees);
         }
