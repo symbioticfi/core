@@ -424,14 +424,7 @@ contract VaultV2 is
         }
 
         amount = withdrawalsOf(index, msg.sender);
-        if (
-            amount
-                > _liquidBalance()
-                    .saturatingSub(
-                        Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake())
-                            + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0)
-                    )
-        ) {
+        if (amount > (totalStake() + unclaimed()).saturatingSub(_nonLiquidBalance())) {
             revert InsufficientAmount();
         }
 
@@ -732,9 +725,8 @@ contract VaultV2 is
         return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
     }
 
-    function _liquidBalance() internal view returns (uint256) {
-        return (totalStake() + unclaimed() + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0))
-        .saturatingSub(adaptersAllocated);
+    function _nonLiquidBalance() internal view returns (uint256) {
+        return adaptersAllocated + Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake());
     }
 
     /// @inheritdoc AccessControlUpgradeable
@@ -757,7 +749,8 @@ contract VaultV2 is
 
         slashedAmount = Math.min(
             amount,
-            _liquidBalance().saturatingSub(Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake()))
+            (totalStake() + unclaimed() + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0))
+            .saturatingSub(_nonLiquidBalance())
         );
         _safeTransferOut(burner, slashedAmount);
 
