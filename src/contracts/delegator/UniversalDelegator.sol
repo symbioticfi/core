@@ -124,26 +124,24 @@ contract UniversalDelegator is
 
     /// @dev Synchronize cumulative child size prefix sums for a parent slot.
     function _syncPrevSizeSums(uint96 parentIndex) internal {
-        unchecked {
-            if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
-                return;
+        if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
+            return;
+        }
+        uint32 childIndex = uint32(slots[parentIndex].firstChild.latest());
+        if (childIndex == 0) {
+            if (parentIndex == 0 && _withdrawalBufferSlot().prevSizeSum.latest() != 0) {
+                _withdrawalBufferSlot().prevSizeSum.push(uint48(block.timestamp), 0);
             }
-            uint32 childIndex = uint32(slots[parentIndex].firstChild.latest());
-            if (childIndex == 0) {
-                if (parentIndex == 0 && _withdrawalBufferSlot().prevSizeSum.latest() != 0) {
-                    _withdrawalBufferSlot().prevSizeSum.push(uint48(block.timestamp), 0);
-                }
-                return;
+            return;
+        }
+        uint208 prevSum;
+        for (; childIndex > 0;) {
+            SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
+            if (child.prevSizeSum.latest() != prevSum) {
+                child.prevSizeSum.push(uint48(block.timestamp), prevSum);
             }
-            uint208 prevSum;
-            for (; childIndex > 0;) {
-                SlotStorage storage child = slots[parentIndex.createIndex(childIndex)];
-                if (child.prevSizeSum.latest() != prevSum) {
-                    child.prevSizeSum.push(uint48(block.timestamp), prevSum);
-                }
-                prevSum += child.size.latest();
-                childIndex = uint32(child.nextSlot.latest());
-            }
+            prevSum += child.size.latest();
+            childIndex = uint32(child.nextSlot.latest());
         }
     }
 
@@ -248,56 +246,47 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getBalanceAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
-        unchecked {
-            return index > 0
-                ? getAllocatedAt(index, duration, timestamp)
-                : VaultV2(vault).activeStakeAt(timestamp, "")
-                    + VaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
-        }
+        return index > 0
+            ? getAllocatedAt(index, duration, timestamp)
+            : VaultV2(vault).activeStakeAt(timestamp, "") + VaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
     function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
-        unchecked {
-            return index > 0
-                ? getAllocated(index, duration)
-                : VaultV2(vault).activeStake() + VaultV2(vault).activeWithdrawalsFor(duration);
-        }
+        return index > 0
+            ? getAllocated(index, duration)
+            : VaultV2(vault).activeStake() + VaultV2(vault).activeWithdrawalsFor(duration);
     }
 
     /// @inheritdoc IUniversalDelegator
     function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
-        unchecked {
-            if (duration >= _getEpochDuration()) {
-                return 0;
-            }
-            uint96 parentIndex = index.getParentIndex();
-            uint256 slotBalance = getBalanceAt(parentIndex, duration, timestamp);
-            if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
-                slotBalance = slotBalance.saturatingSub(_getPrevSumAt(index, 0, timestamp));
-            }
-            return Math.min(slotBalance, _getPendingSizeAt(index, duration, timestamp));
+        if (duration >= _getEpochDuration()) {
+            return 0;
         }
+        uint96 parentIndex = index.getParentIndex();
+        uint256 slotBalance = getBalanceAt(parentIndex, duration, timestamp);
+        if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
+            slotBalance = slotBalance.saturatingSub(_getPrevSumAt(index, 0, timestamp));
+        }
+        return Math.min(slotBalance, _getPendingSizeAt(index, duration, timestamp));
     }
 
     /// @inheritdoc IUniversalDelegator
     function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
-        unchecked {
-            if (duration >= _getEpochDuration()) {
-                return 0;
-            }
-            uint96 parentIndex = index.getParentIndex();
-            uint256 slotBalance = getBalance(parentIndex, duration);
-            if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
-                if (VaultV2(vault).slasher() == msg.sender) {
-                    // Support slashing without captureTimestamp for shared subvaults.
-                    slotBalance += _getSharedPendingGuarantee(index, duration) + _getSharedSizeGuarantee(index);
-                }
-            } else {
-                slotBalance = slotBalance.saturatingSub(_getPrevSum(index, 0));
-            }
-            return Math.min(slotBalance, _getPendingSize(index, duration));
+        if (duration >= _getEpochDuration()) {
+            return 0;
         }
+        uint96 parentIndex = index.getParentIndex();
+        uint256 slotBalance = getBalance(parentIndex, duration);
+        if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
+            if (VaultV2(vault).slasher() == msg.sender) {
+                // Support slashing without captureTimestamp for shared subvaults.
+                slotBalance += _getSharedPendingGuarantee(index, duration) + _getSharedSizeGuarantee(index);
+            }
+        } else {
+            slotBalance = slotBalance.saturatingSub(_getPrevSum(index, 0));
+        }
+        return Math.min(slotBalance, _getPendingSize(index, duration));
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -348,31 +337,27 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256 filled) {
-        unchecked {
-            for (
-                uint32 childIndex = uint32(slots[index].firstChild.upperLookupRecent(timestamp));
-                childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
+        for (
+            uint32 childIndex = uint32(slots[index].firstChild.upperLookupRecent(timestamp));
+            childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
 
-            ) {
-                uint96 childSlotIndex = index.createIndex(childIndex);
-                filled += getAllocatedAt(childSlotIndex, duration, timestamp);
-                childIndex = uint32(slots[childSlotIndex].nextSlot.upperLookupRecent(timestamp));
-            }
+        ) {
+            uint96 childSlotIndex = index.createIndex(childIndex);
+            filled += getAllocatedAt(childSlotIndex, duration, timestamp);
+            childIndex = uint32(slots[childSlotIndex].nextSlot.upperLookupRecent(timestamp));
         }
     }
 
     /// @inheritdoc IUniversalDelegator
     function getFilled(uint96 index, uint48 duration) public view returns (uint256 filled) {
-        unchecked {
-            for (
-                uint32 childIndex = uint32(slots[index].firstChild.latest());
-                childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
+        for (
+            uint32 childIndex = uint32(slots[index].firstChild.latest());
+            childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
 
-            ) {
-                uint96 childSlotIndex = index.createIndex(childIndex);
-                filled += getAllocated(childSlotIndex, duration);
-                childIndex = uint32(slots[childSlotIndex].nextSlot.latest());
-            }
+        ) {
+            uint96 childSlotIndex = index.createIndex(childIndex);
+            filled += getAllocated(childSlotIndex, duration);
+            childIndex = uint32(slots[childSlotIndex].nextSlot.latest());
         }
     }
 
@@ -431,83 +416,79 @@ contract UniversalDelegator is
         returns (uint96 index)
     {
         _revertIfNotExists(parentIndex);
-        unchecked {
-            if (parentIndex.getDepth() > 0 && (isShared || noAdapters)) {
-                revert WrongDepth();
-            }
-
-            SlotStorage storage parent = slots[parentIndex];
-            if (
-                ++parent.existChildren
-                    > (parentIndex.getDepth() == 0
-                            ? MAX_SUBVAULTS
-                            : parentIndex.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS)
-            ) {
-                revert TooManyChildren();
-            }
-            ++parent.totalChildren;
-
-            index = parentIndex.createIndex(parent.totalChildren);
-
-            if (parentIndex.getDepth() == 1) {
-                if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
-                    revert AlreadyAssigned();
-                }
-                _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
-                _slotToNetwork[index] = subnetworkOrOperator;
-
-                // Legacy support.
-                if (_maxNetworkLimit[subnetworkOrOperator].length() == 0 && migrateTimestamp > 0) {
-                    _maxNetworkLimit[subnetworkOrOperator].push(
-                        uint48(block.timestamp),
-                        maxNetworkLimit(subnetworkOrOperator) > 0 && parentIndex.getChildIndex() == 1
-                            ? type(uint208).max
-                            : 0
-                    );
-                }
-            } else if (parentIndex.getDepth() == 2) {
-                if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() > 0) {
-                    revert AlreadyAssigned();
-                }
-                _operatorToSlot[parentIndex][address(
-                        bytes20(subnetworkOrOperator)
-                    )].push(uint48(block.timestamp), index);
-                _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
-            }
-
-            SlotStorage storage slot = slots[index];
-
-            slot.exists = true;
-            if (parent.firstChild.latest() == 0) {
-                parent.firstChild.push(uint48(block.timestamp), index.getChildIndex());
-            } else {
-                uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
-                slots[lastIndex].nextSlot.push(uint48(block.timestamp), index.getChildIndex());
-                slot.prevSlot = uint32(parent.lastChild.latest());
-            }
-            parent.lastChild.push(uint48(block.timestamp), index.getChildIndex());
-            if (size > 0) {
-                slot.size.push(uint48(block.timestamp), size);
-            }
-
-            if (parentIndex.getDepth() == 0) {
-                slots[index].nextSlot.push(uint48(block.timestamp), WITHDRAWAL_BUFFER_CHILD_INDEX);
-                slot.isShared = isShared;
-                if (noAdapters) {
-                    if (size > VaultV2(vault).allocatable()) {
-                        revert NotEnoughNoAdapters();
-                    }
-                    slot.noAdapters = true;
-                    _noAdaptersSize += size;
-                }
-            } else if (parentIndex.getDepth() == 1 && parent.isShared) {
-                slot.sharedPendingConsumedCursor.push(uint48(block.timestamp), parent.clearedPendingCursor.latest());
-                slot.sharedSizeConsumedCumulative
-                    .push(uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest());
-            }
-
-            emit CreateSlot(index, isShared, noAdapters, size);
+        if (parentIndex.getDepth() > 0 && (isShared || noAdapters)) {
+            revert WrongDepth();
         }
+
+        SlotStorage storage parent = slots[parentIndex];
+        if (
+            ++parent.existChildren
+                > (parentIndex.getDepth() == 0
+                        ? MAX_SUBVAULTS
+                        : parentIndex.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS)
+        ) {
+            revert TooManyChildren();
+        }
+        ++parent.totalChildren;
+
+        index = parentIndex.createIndex(parent.totalChildren);
+
+        if (parentIndex.getDepth() == 1) {
+            if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
+                revert AlreadyAssigned();
+            }
+            _networkToSlot[subnetworkOrOperator].push(uint48(block.timestamp), index);
+            _slotToNetwork[index] = subnetworkOrOperator;
+
+            // Legacy support.
+            if (_maxNetworkLimit[subnetworkOrOperator].length() == 0 && migrateTimestamp > 0) {
+                _maxNetworkLimit[subnetworkOrOperator].push(
+                    uint48(block.timestamp),
+                    maxNetworkLimit(subnetworkOrOperator) > 0 && parentIndex.getChildIndex() == 1
+                        ? type(uint208).max
+                        : 0
+                );
+            }
+        } else if (parentIndex.getDepth() == 2) {
+            if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() > 0) {
+                revert AlreadyAssigned();
+            }
+            _operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].push(uint48(block.timestamp), index);
+            _slotToOperator[index] = address(bytes20(subnetworkOrOperator));
+        }
+
+        SlotStorage storage slot = slots[index];
+
+        slot.exists = true;
+        if (parent.firstChild.latest() == 0) {
+            parent.firstChild.push(uint48(block.timestamp), index.getChildIndex());
+        } else {
+            uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
+            slots[lastIndex].nextSlot.push(uint48(block.timestamp), index.getChildIndex());
+            slot.prevSlot = uint32(parent.lastChild.latest());
+        }
+        parent.lastChild.push(uint48(block.timestamp), index.getChildIndex());
+        if (size > 0) {
+            slot.size.push(uint48(block.timestamp), size);
+        }
+
+        if (parentIndex.getDepth() == 0) {
+            slots[index].nextSlot.push(uint48(block.timestamp), WITHDRAWAL_BUFFER_CHILD_INDEX);
+            slot.isShared = isShared;
+            if (noAdapters) {
+                if (size > VaultV2(vault).allocatable()) {
+                    revert NotEnoughNoAdapters();
+                }
+                slot.noAdapters = true;
+                _noAdaptersSize += size;
+            }
+        } else if (parentIndex.getDepth() == 1 && parent.isShared) {
+            slot.sharedPendingConsumedCursor.push(uint48(block.timestamp), parent.clearedPendingCursor.latest());
+            slot.sharedSizeConsumedCumulative
+                .push(uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest());
+        }
+
+        emit CreateSlot(index, isShared, noAdapters, size);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -517,55 +498,53 @@ contract UniversalDelegator is
         syncPrevSizeSums(index.getParentIndex())
     {
         _revertIfNotExists(index);
-        unchecked {
-            SlotStorage storage slot = slots[index];
-            uint128 curSize = uint128(slot.size.latest());
-            if (curSize == newSize) {
-                return;
-            }
-            uint96 parentIndex = index.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
-
-            if (newSize > curSize) {
-                uint48 maxDuration = _getEpochDuration() - 1;
-                uint256 curBalance = getBalance(parentIndex, 0);
-                uint256 minBalance = getBalance(parentIndex, maxDuration);
-                if (
-                    !parent.isShared && _getPrevSum(index, maxDuration) + curSize < curBalance
-                        && slot.nextSlot.latest() > 0 && slot.nextSlot.latest() < WITHDRAWAL_BUFFER_CHILD_INDEX
-                ) {
-                    uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
-                    if (
-                        newSize - curSize
-                            > minBalance.saturatingSub(
-                                _getPrevSum(lastIndex, 0) + slots[lastIndex].size.latest() + getPending(lastIndex, 0)
-                            )
-                    ) {
-                        revert NotEnoughBalance();
-                    }
-                }
-                if (slot.noAdapters && newSize - curSize > VaultV2(vault).allocatable()) {
-                    revert NotEnoughNoAdapters();
-                }
-            } else {
-                uint208 addPending = uint208(getAllocated(index, 0).saturatingSub(getPending(index, 0) + newSize));
-                if (addPending > 0) {
-                    parent._childrenPendingAt = uint48(block.timestamp);
-                    slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + addPending);
-                    if (slot.noAdapters) {
-                        _noAdaptersPendingCumulative.push(
-                            uint48(block.timestamp), _noAdaptersPendingCumulative.latest() + addPending
-                        );
-                    }
-                }
-            }
-            slot.size.push(uint48(block.timestamp), newSize);
-            if (slot.noAdapters) {
-                _noAdaptersSize = _noAdaptersSize - curSize + newSize;
-            }
-
-            emit SetSize(index, newSize);
+        SlotStorage storage slot = slots[index];
+        uint128 curSize = uint128(slot.size.latest());
+        if (curSize == newSize) {
+            return;
         }
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
+
+        if (newSize > curSize) {
+            uint48 maxDuration = _getEpochDuration() - 1;
+            uint256 curBalance = getBalance(parentIndex, 0);
+            uint256 minBalance = getBalance(parentIndex, maxDuration);
+            if (
+                !parent.isShared && _getPrevSum(index, maxDuration) + curSize < curBalance && slot.nextSlot.latest() > 0
+                    && slot.nextSlot.latest() < WITHDRAWAL_BUFFER_CHILD_INDEX
+            ) {
+                uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
+                if (
+                    newSize - curSize
+                        > minBalance.saturatingSub(
+                            _getPrevSum(lastIndex, 0) + slots[lastIndex].size.latest() + getPending(lastIndex, 0)
+                        )
+                ) {
+                    revert NotEnoughBalance();
+                }
+            }
+            if (slot.noAdapters && newSize - curSize > VaultV2(vault).allocatable()) {
+                revert NotEnoughNoAdapters();
+            }
+        } else {
+            uint208 addPending = uint208(getAllocated(index, 0).saturatingSub(getPending(index, 0) + newSize));
+            if (addPending > 0) {
+                parent._childrenPendingAt = uint48(block.timestamp);
+                slot.pendingCumulative.push(uint48(block.timestamp), slot.pendingCumulative.latest() + addPending);
+                if (slot.noAdapters) {
+                    _noAdaptersPendingCumulative.push(
+                        uint48(block.timestamp), _noAdaptersPendingCumulative.latest() + addPending
+                    );
+                }
+            }
+        }
+        slot.size.push(uint48(block.timestamp), newSize);
+        if (slot.noAdapters) {
+            _noAdaptersSize = _noAdaptersSize - curSize + newSize;
+        }
+
+        emit SetSize(index, newSize);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -576,72 +555,69 @@ contract UniversalDelegator is
     {
         _revertIfNotExists(index1);
         _revertIfNotExists(index2);
-        unchecked {
-            uint96 parentIndex = index1.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
+        uint96 parentIndex = index1.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
 
-            if (parentIndex != index2.getParentIndex()) {
-                revert NotSameParent();
-            }
-            if (parent.isShared) {
-                revert IsShared();
-            }
-            for (
-                uint32 childIndex = index2.getChildIndex();
-                childIndex > 0;
-                childIndex = uint32(slots[parentIndex.createIndex(childIndex)].nextSlot.latest())
-            ) {
-                if (childIndex == index1.getChildIndex()) {
-                    revert WrongOrder();
-                }
-            }
-            {
-                uint48 maxDuration = _getEpochDuration() - 1;
-                uint256 minBalance = getBalance(parentIndex, maxDuration);
-                uint256 curPrevSum = _getPrevSum(index2, 0);
-
-                // - slot2 fully allocated at maxDuration (epochDuration - 1) => slot1 is fully allocated too,
-                // - slot1 unallocated at duration=0 => slot2 is unallocated too,
-                // - otherwise, revert.
-                if (curPrevSum < minBalance) {
-                    if (curPrevSum + slots[index2].size.latest() + getPending(index2, 0) > minBalance) {
-                        revert PartiallyAllocated();
-                    }
-                } else if (_getPrevSum(index1, maxDuration) < getBalance(parentIndex, 0)) {
-                    revert NotSameAllocated();
-                }
-            }
-
-            if (index1.getChildIndex() == parent.firstChild.latest()) {
-                parent.firstChild.push(uint48(block.timestamp), index2.getChildIndex());
-            }
-            if (index2.getChildIndex() == parent.lastChild.latest()) {
-                parent.lastChild.push(uint48(block.timestamp), index1.getChildIndex());
-            }
-
-            SlotStorage storage slot1 = slots[index1];
-            SlotStorage storage slot2 = slots[index2];
-
-            uint32 nextSlot1 = uint32(slot1.nextSlot.latest());
-            slot1.nextSlot.push(uint48(block.timestamp), uint32(slot2.nextSlot.latest()));
-            slot2.nextSlot.push(uint48(block.timestamp), nextSlot1);
-
-            if (slot1.nextSlot.latest() > 0) {
-                slots[parentIndex.createIndex(uint32(slot1.nextSlot.latest()))].prevSlot = index1.getChildIndex();
-            }
-            slots[parentIndex.createIndex(uint32(slot2.nextSlot.latest()))].prevSlot = index2.getChildIndex();
-
-            (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
-
-            slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot
-                .push(uint48(block.timestamp), index1.getChildIndex());
-            if (slot2.prevSlot > 0) {
-                slots[parentIndex.createIndex(uint32(slot2.prevSlot))].nextSlot
-                    .push(uint48(block.timestamp), index2.getChildIndex());
-            }
-
-            emit SwapSlots(index1, index2);
+        if (parentIndex != index2.getParentIndex()) {
+            revert NotSameParent();
         }
+        if (parent.isShared) {
+            revert IsShared();
+        }
+        for (
+            uint32 childIndex = index2.getChildIndex();
+            childIndex > 0;
+            childIndex = uint32(slots[parentIndex.createIndex(childIndex)].nextSlot.latest())
+        ) {
+            if (childIndex == index1.getChildIndex()) {
+                revert WrongOrder();
+            }
+        }
+        {
+            uint48 maxDuration = _getEpochDuration() - 1;
+            uint256 minBalance = getBalance(parentIndex, maxDuration);
+            uint256 curPrevSum = _getPrevSum(index2, 0);
+
+            // - slot2 fully allocated at maxDuration (epochDuration - 1) => slot1 is fully allocated too,
+            // - slot1 unallocated at duration=0 => slot2 is unallocated too,
+            // - otherwise, revert.
+            if (curPrevSum < minBalance) {
+                if (curPrevSum + slots[index2].size.latest() + getPending(index2, 0) > minBalance) {
+                    revert PartiallyAllocated();
+                }
+            } else if (_getPrevSum(index1, maxDuration) < getBalance(parentIndex, 0)) {
+                revert NotSameAllocated();
+            }
+        }
+
+        if (index1.getChildIndex() == parent.firstChild.latest()) {
+            parent.firstChild.push(uint48(block.timestamp), index2.getChildIndex());
+        }
+        if (index2.getChildIndex() == parent.lastChild.latest()) {
+            parent.lastChild.push(uint48(block.timestamp), index1.getChildIndex());
+        }
+
+        SlotStorage storage slot1 = slots[index1];
+        SlotStorage storage slot2 = slots[index2];
+
+        uint32 nextSlot1 = uint32(slot1.nextSlot.latest());
+        slot1.nextSlot.push(uint48(block.timestamp), uint32(slot2.nextSlot.latest()));
+        slot2.nextSlot.push(uint48(block.timestamp), nextSlot1);
+
+        if (slot1.nextSlot.latest() > 0) {
+            slots[parentIndex.createIndex(uint32(slot1.nextSlot.latest()))].prevSlot = index1.getChildIndex();
+        }
+        slots[parentIndex.createIndex(uint32(slot2.nextSlot.latest()))].prevSlot = index2.getChildIndex();
+
+        (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
+
+        slots[parentIndex.createIndex(slot1.prevSlot)].nextSlot.push(uint48(block.timestamp), index1.getChildIndex());
+        if (slot2.prevSlot > 0) {
+            slots[parentIndex.createIndex(uint32(slot2.prevSlot))].nextSlot
+                .push(uint48(block.timestamp), index2.getChildIndex());
+        }
+
+        emit SwapSlots(index1, index2);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -657,69 +633,65 @@ contract UniversalDelegator is
 
     /// @dev Remove a slot from the linked-list structure and mark it as non-existent.
     function _removeSlot(uint96 index) internal {
-        unchecked {
-            SlotStorage storage slot = slots[index];
-            uint96 parentIndex = index.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
+        SlotStorage storage slot = slots[index];
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
 
-            if (index.getDepth() == 1) {
-                for (
-                    uint32 childIndex = uint32(slot.firstChild.latest());
-                    childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
+        if (index.getDepth() == 1) {
+            for (
+                uint32 childIndex = uint32(slot.firstChild.latest());
+                childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
 
-                ) {
-                    uint96 curIndex = index.createIndex(childIndex);
-                    bytes32 subnetwork = _slotToNetwork[curIndex];
-                    _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-                    _slotToNetwork[curIndex] = bytes32(0);
-                    if (_maxNetworkLimit[subnetwork].latest() > 0) {
-                        _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
-                    }
-                    childIndex = uint32(slots[curIndex].nextSlot.latest());
-                }
-            } else if (index.getDepth() == 2) {
-                bytes32 subnetwork = _slotToNetwork[index];
+            ) {
+                uint96 curIndex = index.createIndex(childIndex);
+                bytes32 subnetwork = _slotToNetwork[curIndex];
                 _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-                _slotToNetwork[index] = bytes32(0);
+                _slotToNetwork[curIndex] = bytes32(0);
                 if (_maxNetworkLimit[subnetwork].latest() > 0) {
                     _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
                 }
-            } else if (index.getDepth() == 3) {
-                _operatorToSlot[parentIndex][_slotToOperator[index]].push(uint48(block.timestamp), 0);
-                _slotToOperator[index] = address(0);
+                childIndex = uint32(slots[curIndex].nextSlot.latest());
             }
-
-            if (index.getChildIndex() == parent.firstChild.latest()) {
-                uint32 nextChildIndex = uint32(slot.nextSlot.latest());
-                parent.firstChild
-                    .push(
-                        uint48(block.timestamp),
-                        index.getDepth() > 1 || nextChildIndex < WITHDRAWAL_BUFFER_CHILD_INDEX ? nextChildIndex : 0
-                    );
-            } else {
-                slots[parentIndex.createIndex(slot.prevSlot)].nextSlot
-                    .push(uint48(block.timestamp), uint32(slot.nextSlot.latest()));
+        } else if (index.getDepth() == 2) {
+            bytes32 subnetwork = _slotToNetwork[index];
+            _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
+            _slotToNetwork[index] = bytes32(0);
+            if (_maxNetworkLimit[subnetwork].latest() > 0) {
+                _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
             }
-            if (index.getChildIndex() == parent.lastChild.latest()) {
-                parent.lastChild.push(uint48(block.timestamp), slot.prevSlot);
-            } else {
-                slots[parentIndex.createIndex(uint32(slot.nextSlot.latest()))].prevSlot = slot.prevSlot;
-            }
-
-            if (index.getDepth() == 1 && slot.noAdapters) {
-                uint208 pending = getPending(index, 0);
-                if (pending > 0) {
-                    _clearedNoAdaptersPendingCursor.push(
-                        uint48(block.timestamp), _getNoAdaptersPendingCursor() + pending
-                    );
-                }
-
-                _noAdaptersSize -= slot.size.latest();
-            }
-
-            --parent.existChildren;
-            slot.exists = false;
+        } else if (index.getDepth() == 3) {
+            _operatorToSlot[parentIndex][_slotToOperator[index]].push(uint48(block.timestamp), 0);
+            _slotToOperator[index] = address(0);
         }
+
+        if (index.getChildIndex() == parent.firstChild.latest()) {
+            uint32 nextChildIndex = uint32(slot.nextSlot.latest());
+            parent.firstChild
+                .push(
+                    uint48(block.timestamp),
+                    index.getDepth() > 1 || nextChildIndex < WITHDRAWAL_BUFFER_CHILD_INDEX ? nextChildIndex : 0
+                );
+        } else {
+            slots[parentIndex.createIndex(slot.prevSlot)].nextSlot
+                .push(uint48(block.timestamp), uint32(slot.nextSlot.latest()));
+        }
+        if (index.getChildIndex() == parent.lastChild.latest()) {
+            parent.lastChild.push(uint48(block.timestamp), slot.prevSlot);
+        } else {
+            slots[parentIndex.createIndex(uint32(slot.nextSlot.latest()))].prevSlot = slot.prevSlot;
+        }
+
+        if (index.getDepth() == 1 && slot.noAdapters) {
+            uint208 pending = getPending(index, 0);
+            if (pending > 0) {
+                _clearedNoAdaptersPendingCursor.push(uint48(block.timestamp), _getNoAdaptersPendingCursor() + pending);
+            }
+
+            _noAdaptersSize -= slot.size.latest();
+        }
+
+        --parent.existChildren;
+        slot.exists = false;
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -750,38 +722,36 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function resetAllocation(bytes32 subnetwork) public {
-        unchecked {
-            if (
-                !IRegistry(NETWORK_REGISTRY).isEntity(subnetwork.network())
-                    || (subnetwork.network() != msg.sender
-                        && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network())
-                            != msg.sender)
-            ) {
-                revert NotNetworkOrMiddleware();
-            }
-
-            uint96 index = getSlotOfNetwork(subnetwork);
-            if (index == 0) {
-                revert NotAssigned();
-            }
-            if (slots[index.getParentIndex()].existChildren == 1) {
-                index = index.getParentIndex();
-            }
-            SlotStorage storage slot = slots[index];
-            SlotStorage storage parent = slots[index.getParentIndex()];
-
-            if (
-                slot.size.latest() > 0 && parent.syncPrevSizeSums.latest() == 0
-                    && (index.getDepth() == 1 || (!parent.isShared && slot.nextSlot.latest() > 0))
-            ) {
-                parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
-            }
-
-            // Remove slot to restrict from slashing.
-            _removeSlot(index);
-
-            emit ResetAllocation(index, subnetwork);
+        if (
+            !IRegistry(NETWORK_REGISTRY).isEntity(subnetwork.network())
+                || (subnetwork.network() != msg.sender
+                    && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network())
+                        != msg.sender)
+        ) {
+            revert NotNetworkOrMiddleware();
         }
+
+        uint96 index = getSlotOfNetwork(subnetwork);
+        if (index == 0) {
+            revert NotAssigned();
+        }
+        if (slots[index.getParentIndex()].existChildren == 1) {
+            index = index.getParentIndex();
+        }
+        SlotStorage storage slot = slots[index];
+        SlotStorage storage parent = slots[index.getParentIndex()];
+
+        if (
+            slot.size.latest() > 0 && parent.syncPrevSizeSums.latest() == 0
+                && (index.getDepth() == 1 || (!parent.isShared && slot.nextSlot.latest() > 0))
+        ) {
+            parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
+        }
+
+        // Remove slot to restrict from slashing.
+        _removeSlot(index);
+
+        emit ResetAllocation(index, subnetwork);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
@@ -792,76 +762,73 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 actualAmount)
     {
-        unchecked {
-            if (VaultV2(vault).slasher() != msg.sender) {
-                revert NotSlasher();
-            }
-
-            actualAmount = amount;
-            uint96 index = getSlotOf(subnetwork, operator);
-            uint96 networkIndex = index.getParentIndex();
-
-            // Adjust slot's and its parents' allocations.
-            for (uint96 curIndex = index; curIndex > 0;) {
-                SlotStorage storage slot = slots[curIndex];
-                SlotStorage storage parent = slots[curIndex.getParentIndex()];
-                uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
-                uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
-                actualAmount = Math.min(actualAmount, pendingSlashed + sizeSlashed);
-                if (curIndex.getDepth() == 1 && slot.isShared) {
-                    // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
-                    actualAmount = Math.min(actualAmount, getAllocated(curIndex, 0));
-                }
-                if (pendingSlashed > 0) {
-                    // Clear slot's pending.
-                    slot.clearedPendingCursor
-                        .push(uint48(block.timestamp), _getPendingCursor(curIndex) + pendingSlashed);
-
-                    // Clear no-adapters pending.
-                    if (curIndex.getDepth() == 1 && slot.noAdapters) {
-                        _clearedNoAdaptersPendingCursor.push(
-                            uint48(block.timestamp), _getNoAdaptersPendingCursor() + pendingSlashed
-                        );
-                    }
-                }
-                if (sizeSlashed > 0) {
-                    // Clear slot's size.
-                    slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
-                    if (
-                        parent.syncPrevSizeSums.latest() == 0
-                            && (curIndex.getDepth() == 1
-                                || ((curIndex.getDepth() == 3 || !parent.isShared) && slot.nextSlot.latest() > 0))
-                    ) {
-                        parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
-                    }
-                    if (curIndex.getDepth() == 1 && slot.noAdapters) {
-                        // Clear no-adapters size.
-                        _noAdaptersSize -= sizeSlashed;
-                    }
-                }
-                if (curIndex.getDepth() == 1 && slot.isShared) {
-                    // Consume guarantees for shared subvault.
-                    if (sizeSlashed > 0) {
-                        slot.sharedSizeConsumedCumulative
-                            .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
-                    }
-                    uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), amount));
-                    if (pendingConsumed > 0) {
-                        slots[networkIndex].sharedPendingConsumedCursor
-                            .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingConsumed);
-                    }
-                    uint208 sizeConsumed =
-                        uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount - pendingConsumed));
-                    if (sizeConsumed > 0) {
-                        slots[networkIndex].sharedSizeConsumedCumulative
-                            .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
-                    }
-                }
-                curIndex = curIndex.getParentIndex();
-            }
-
-            emit OnSlash(subnetwork, operator, amount);
+        if (VaultV2(vault).slasher() != msg.sender) {
+            revert NotSlasher();
         }
+
+        actualAmount = amount;
+        uint96 index = getSlotOf(subnetwork, operator);
+        uint96 networkIndex = index.getParentIndex();
+
+        // Adjust slot's and its parents' allocations.
+        for (uint96 curIndex = index; curIndex > 0;) {
+            SlotStorage storage slot = slots[curIndex];
+            SlotStorage storage parent = slots[curIndex.getParentIndex()];
+            uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
+            uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
+            actualAmount = Math.min(actualAmount, pendingSlashed + sizeSlashed);
+            if (curIndex.getDepth() == 1 && slot.isShared) {
+                // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
+                actualAmount = Math.min(actualAmount, getAllocated(curIndex, 0));
+            }
+            if (pendingSlashed > 0) {
+                // Clear slot's pending.
+                slot.clearedPendingCursor.push(uint48(block.timestamp), _getPendingCursor(curIndex) + pendingSlashed);
+
+                // Clear no-adapters pending.
+                if (curIndex.getDepth() == 1 && slot.noAdapters) {
+                    _clearedNoAdaptersPendingCursor.push(
+                        uint48(block.timestamp), _getNoAdaptersPendingCursor() + pendingSlashed
+                    );
+                }
+            }
+            if (sizeSlashed > 0) {
+                // Clear slot's size.
+                slot.size.push(uint48(block.timestamp), slot.size.latest() - sizeSlashed);
+                if (
+                    parent.syncPrevSizeSums.latest() == 0
+                        && (curIndex.getDepth() == 1
+                            || ((curIndex.getDepth() == 3 || !parent.isShared) && slot.nextSlot.latest() > 0))
+                ) {
+                    parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
+                }
+                if (curIndex.getDepth() == 1 && slot.noAdapters) {
+                    // Clear no-adapters size.
+                    _noAdaptersSize -= sizeSlashed;
+                }
+            }
+            if (curIndex.getDepth() == 1 && slot.isShared) {
+                // Consume guarantees for shared subvault.
+                if (sizeSlashed > 0) {
+                    slot.sharedSizeConsumedCumulative
+                        .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
+                }
+                uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), amount));
+                if (pendingConsumed > 0) {
+                    slots[networkIndex].sharedPendingConsumedCursor
+                        .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingConsumed);
+                }
+                uint208 sizeConsumed =
+                    uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount - pendingConsumed));
+                if (sizeConsumed > 0) {
+                    slots[networkIndex].sharedSizeConsumedCumulative
+                        .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
+                }
+            }
+            curIndex = curIndex.getParentIndex();
+        }
+
+        emit OnSlash(subnetwork, operator, amount);
     }
 
     /* INITIALIZATION */
@@ -918,65 +885,57 @@ contract UniversalDelegator is
 
     /// @dev Get the pending size at a specific timestamp.
     function _getPendingSizeAt(uint96 index, uint48 duration, uint48 timestamp) internal view returns (uint208) {
-        unchecked {
-            return slots[index].size.upperLookupRecent(timestamp) + getPendingAt(index, duration, timestamp);
-        }
+        return slots[index].size.upperLookupRecent(timestamp) + getPendingAt(index, duration, timestamp);
     }
 
     /// @dev Get the current slot size plus pending stake within the requested duration window.
     function _getPendingSize(uint96 index, uint48 duration) internal view returns (uint208) {
-        unchecked {
-            return slots[index].size.latest() + getPending(index, duration);
-        }
+        return slots[index].size.latest() + getPending(index, duration);
     }
 
     /// @dev Get the prefix sum of previous sibling sizes at a timestamp.
     function _getPrevSizeSumAt(uint96 index, uint48 timestamp) internal view returns (uint208 prevSizeSum) {
-        unchecked {
-            if (index == 0) {
-                return 0;
+        if (index == 0) {
+            return 0;
+        }
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
+        if (parent.syncPrevSizeSums.upperLookupRecent(timestamp) == 0) {
+            return slots[index].prevSizeSum.upperLookupRecent(timestamp);
+        }
+        for (uint32 childIndex = uint32(parent.firstChild.upperLookupRecent(timestamp)); childIndex > 0;) {
+            uint96 curIndex = parentIndex.createIndex(childIndex);
+            if (index == curIndex) {
+                break;
             }
-            uint96 parentIndex = index.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
-            if (parentIndex.getDepth() == 1 && parent.isShared) {
-                return 0;
-            }
-            if (parent.syncPrevSizeSums.upperLookupRecent(timestamp) == 0) {
-                return slots[index].prevSizeSum.upperLookupRecent(timestamp);
-            }
-            for (uint32 childIndex = uint32(parent.firstChild.upperLookupRecent(timestamp)); childIndex > 0;) {
-                uint96 curIndex = parentIndex.createIndex(childIndex);
-                if (index == curIndex) {
-                    break;
-                }
-                prevSizeSum += slots[curIndex].size.upperLookupRecent(timestamp);
-                childIndex = uint32(slots[curIndex].nextSlot.upperLookupRecent(timestamp));
-            }
+            prevSizeSum += slots[curIndex].size.upperLookupRecent(timestamp);
+            childIndex = uint32(slots[curIndex].nextSlot.upperLookupRecent(timestamp));
         }
     }
 
     /// @dev Get the current prefix sum of previous sibling sizes.
     function _getPrevSizeSum(uint96 index) internal view returns (uint208 prevSizeSum) {
-        unchecked {
-            if (index == 0) {
-                return 0;
+        if (index == 0) {
+            return 0;
+        }
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
+        if (parent.syncPrevSizeSums.latest() == 0) {
+            return slots[index].prevSizeSum.latest();
+        }
+        for (uint32 childIndex = uint32(parent.firstChild.latest()); childIndex > 0;) {
+            uint96 curIndex = parentIndex.createIndex(childIndex);
+            if (index == curIndex) {
+                break;
             }
-            uint96 parentIndex = index.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
-            if (parentIndex.getDepth() == 1 && parent.isShared) {
-                return 0;
-            }
-            if (parent.syncPrevSizeSums.latest() == 0) {
-                return slots[index].prevSizeSum.latest();
-            }
-            for (uint32 childIndex = uint32(parent.firstChild.latest()); childIndex > 0;) {
-                uint96 curIndex = parentIndex.createIndex(childIndex);
-                if (index == curIndex) {
-                    break;
-                }
-                prevSizeSum += slots[curIndex].size.latest();
-                childIndex = uint32(slots[curIndex].nextSlot.latest());
-            }
+            prevSizeSum += slots[curIndex].size.latest();
+            childIndex = uint32(slots[curIndex].nextSlot.latest());
         }
     }
 
@@ -986,66 +945,58 @@ contract UniversalDelegator is
         view
         returns (uint208 prevPendingSum)
     {
-        unchecked {
-            if (index == 0) {
-                return 0;
+        if (index == 0) {
+            return 0;
+        }
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
+        for (uint32 childIndex = uint32(parent.firstChild.upperLookupRecent(timestamp)); childIndex > 0;) {
+            uint96 curIndex = parentIndex.createIndex(childIndex);
+            if (index == curIndex) {
+                break;
             }
-            uint96 parentIndex = index.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
-            if (parentIndex.getDepth() == 1 && parent.isShared) {
-                return 0;
-            }
-            for (uint32 childIndex = uint32(parent.firstChild.upperLookupRecent(timestamp)); childIndex > 0;) {
-                uint96 curIndex = parentIndex.createIndex(childIndex);
-                if (index == curIndex) {
-                    break;
-                }
-                prevPendingSum += getPendingAt(curIndex, duration, timestamp);
-                childIndex = uint32(slots[curIndex].nextSlot.upperLookupRecent(timestamp));
-            }
+            prevPendingSum += getPendingAt(curIndex, duration, timestamp);
+            childIndex = uint32(slots[curIndex].nextSlot.upperLookupRecent(timestamp));
         }
     }
 
     /// @dev Get the current prefix sum of previous sibling pending amounts within the duration window.
     function _getPrevPendingSum(uint96 index, uint48 duration) internal view returns (uint208 prevPendingSum) {
-        unchecked {
-            if (index == 0) {
-                return 0;
+        if (index == 0) {
+            return 0;
+        }
+        uint96 parentIndex = index.getParentIndex();
+        SlotStorage storage parent = slots[parentIndex];
+        if (parentIndex.getDepth() == 1 && parent.isShared) {
+            return 0;
+        }
+        if (
+            parent._childrenPendingAt
+                <= block.timestamp.saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration))
+        ) {
+            return 0;
+        }
+        for (uint32 childIndex = uint32(parent.firstChild.latest()); childIndex > 0;) {
+            uint96 curIndex = parentIndex.createIndex(childIndex);
+            if (index == curIndex) {
+                break;
             }
-            uint96 parentIndex = index.getParentIndex();
-            SlotStorage storage parent = slots[parentIndex];
-            if (parentIndex.getDepth() == 1 && parent.isShared) {
-                return 0;
-            }
-            if (
-                parent._childrenPendingAt
-                    <= block.timestamp.saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration))
-            ) {
-                return 0;
-            }
-            for (uint32 childIndex = uint32(parent.firstChild.latest()); childIndex > 0;) {
-                uint96 curIndex = parentIndex.createIndex(childIndex);
-                if (index == curIndex) {
-                    break;
-                }
-                prevPendingSum += getPending(curIndex, duration);
-                childIndex = uint32(slots[curIndex].nextSlot.latest());
-            }
+            prevPendingSum += getPending(curIndex, duration);
+            childIndex = uint32(slots[curIndex].nextSlot.latest());
         }
     }
 
     /// @dev Get the total size-plus-pending prefix sum of previous siblings at a timestamp.
     function _getPrevSumAt(uint96 index, uint48 duration, uint48 timestamp) internal view returns (uint208) {
-        unchecked {
-            return _getPrevSizeSumAt(index, timestamp) + _getPrevPendingSumAt(index, duration, timestamp);
-        }
+        return _getPrevSizeSumAt(index, timestamp) + _getPrevPendingSumAt(index, duration, timestamp);
     }
 
     /// @dev Get the current total size-plus-pending prefix sum of previous siblings.
     function _getPrevSum(uint96 index, uint48 duration) internal view returns (uint208) {
-        unchecked {
-            return _getPrevSizeSum(index) + _getPrevPendingSum(index, duration);
-        }
+        return _getPrevSizeSum(index) + _getPrevPendingSum(index, duration);
     }
 
     /// @dev Get the effective cleared-pending cursor for a slot in the current window.
@@ -1110,19 +1061,17 @@ contract UniversalDelegator is
         uint48 duration,
         uint48 timestamp
     ) internal view returns (uint208) {
-        unchecked {
-            if (base.length() == 0) {
-                return 0;
-            }
-            uint48 fromTimestamp =
-                uint48(uint256(timestamp).saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration)));
-            (, uint48 lastPendingKey, uint208 pendingCumulativeLatest,) = base.upperLookupRecentCheckpoint(timestamp);
-            if (lastPendingKey <= fromTimestamp) {
-                return 0;
-            }
-            return pendingCumulativeLatest
-                - uint208(Math.max(base.upperLookupRecent(fromTimestamp), cursor.upperLookupRecent(timestamp)));
+        if (base.length() == 0) {
+            return 0;
         }
+        uint48 fromTimestamp =
+            uint48(uint256(timestamp).saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration)));
+        (, uint48 lastPendingKey, uint208 pendingCumulativeLatest,) = base.upperLookupRecentCheckpoint(timestamp);
+        if (lastPendingKey <= fromTimestamp) {
+            return 0;
+        }
+        return pendingCumulativeLatest
+            - uint208(Math.max(base.upperLookupRecent(fromTimestamp), cursor.upperLookupRecent(timestamp)));
     }
 
     /// @dev Get the current pending amount in a duration window.
@@ -1131,18 +1080,16 @@ contract UniversalDelegator is
         view
         returns (uint208)
     {
-        unchecked {
-            if (base.length() == 0) {
-                return 0;
-            }
-            uint48 fromTimestamp =
-                uint48(block.timestamp.saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration)));
-            (, uint48 lastPendingKey, uint208 pendingCumulativeLatest) = base.latestCheckpoint();
-            if (lastPendingKey <= fromTimestamp) {
-                return 0;
-            }
-            return pendingCumulativeLatest - uint208(Math.max(base.upperLookupRecent(fromTimestamp), cursor.latest()));
+        if (base.length() == 0) {
+            return 0;
         }
+        uint48 fromTimestamp =
+            uint48(block.timestamp.saturatingSub(uint256(_getEpochDuration()).saturatingSub(duration)));
+        (, uint48 lastPendingKey, uint208 pendingCumulativeLatest) = base.latestCheckpoint();
+        if (lastPendingKey <= fromTimestamp) {
+            return 0;
+        }
+        return pendingCumulativeLatest - uint208(Math.max(base.upperLookupRecent(fromTimestamp), cursor.latest()));
     }
 
     /// @dev Read the connected vault epoch duration.

@@ -342,6 +342,12 @@ contract VaultV2Test is Test {
         uint256 withdrawAmount;
     }
 
+    struct AdapterRewardGasSample {
+        uint256 adapterCount;
+        uint256 donateGas;
+        uint256 skimAdaptersGas;
+    }
+
     function _setPackedField(address target, uint256 slot, uint256 offsetBytes, uint256 widthBytes, uint256 value)
         internal
     {
@@ -6403,6 +6409,22 @@ contract VaultV2Test is Test {
         assertEq(vault.adapterLimit(address(revertOnSkimAdapter)), 0);
     }
 
+    function test_Gas_SkimAdaptersAndDonate_with0Adapters() public {
+        _logAdapterRewardGasSample(0);
+    }
+
+    function test_Gas_SkimAdaptersAndDonate_with1Adapter() public {
+        _logAdapterRewardGasSample(1);
+    }
+
+    function test_Gas_SkimAdaptersAndDonate_with3Adapters() public {
+        _logAdapterRewardGasSample(3);
+    }
+
+    function test_Gas_SkimAdaptersAndDonate_with10Adapters() public {
+        _logAdapterRewardGasSample(10);
+    }
+
     function test_AdapterAllocateCallback_reentrantDepositIsBlockedAndAccountingStaysSane() public {
         vault = _getUniversalVault(7 days);
 
@@ -6525,9 +6547,9 @@ contract VaultV2Test is Test {
         uint256 deallocated = vault.deallocateAdapter(address(adapter), 10);
 
         assertEq(deallocated, 10);
-        assertEq(vault.adapterAllocated(address(adapter)), 70);
+        assertEq(vault.adapterAllocated(address(adapter)), 80 + expectedSkimmed - deallocated);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + deallocated);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + deallocated);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6560,9 +6582,9 @@ contract VaultV2Test is Test {
 
         VaultV2(address(vault)).skimAdapters();
 
-        assertEq(vault.adapterAllocated(address(adapter)), 80);
+        assertEq(vault.adapterAllocated(address(adapter)), 80 + expectedSkimmed);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6606,9 +6628,9 @@ contract VaultV2Test is Test {
 
         assertEq(withdrawnAssets, 10);
         assertEq(burnedShares, expectedBurnedShares);
-        assertEq(vault.adapterAllocated(address(adapter)), 60);
+        assertEq(vault.adapterAllocated(address(adapter)), 60 + expectedSkimmed - withdrawnAssets);
         assertEq(vault.activeStake(), activeStakeBefore - withdrawnAssets + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed - withdrawnAssets);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6689,10 +6711,11 @@ contract VaultV2Test is Test {
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
         uint256 expectedSkimmedDeposit = morphoAdapter.skimmable(address(vault));
+        uint256 allocatedAfterDeposit = 100 + expectedSkimmedDeposit + 10;
 
         _deposit(bob, 10);
         assertEq(vault.activeStake(), activeStakeBeforeBob + 10 + expectedSkimmedDeposit);
-        assertEq(vault.adapterAllocated(address(morphoAdapter)), 110);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), allocatedAfterDeposit);
         assertEq(collateral.balanceOf(address(rewards)), 0);
 
         collateral.approve(address(morphoVault), 10);
@@ -6703,7 +6726,7 @@ contract VaultV2Test is Test {
         _withdraw(alice, 30);
         assertEq(vault.activeStake(), activeStakeBeforeWithdraw + expectedSkimmedWithdraw - 30);
         assertEq(vault.activeWithdrawals(), 30);
-        assertEq(vault.adapterAllocated(address(morphoAdapter)), 110);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), allocatedAfterDeposit + expectedSkimmedWithdraw);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6799,8 +6822,8 @@ contract VaultV2Test is Test {
         adapter2.borrow(30);
 
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
-        assertEq(vault.adapterAllocated(address(adapter1)), 50);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
+        assertEq(vault.adapterAllocated(address(adapter1)), 80 + expectedSkimmed - 30);
         assertEq(vault.adapterAllocated(address(adapter2)), 30);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
@@ -8016,6 +8039,98 @@ contract VaultV2Test is Test {
 
     function _adapterSystemBalance(address adapter) internal view returns (uint256) {
         return collateral.balanceOf(address(vault)) + collateral.balanceOf(adapter);
+    }
+
+    function _measureDonateGasWithMockAdapters(uint256 adapterCount) internal returns (uint256 donateGas) {
+        uint256 donation = 1 ether;
+
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 1000 ether);
+
+        for (uint256 i; i < adapterCount; ++i) {
+            MockAdapter adapter = _createAdapter();
+            _addAdapter(adapter);
+        }
+
+        collateral.transfer(address(rewards), donation);
+
+        vm.startPrank(address(rewards));
+        collateral.approve(address(vault), donation);
+        VaultV2(address(vault)).donate(donation);
+        donateGas = vm.lastCallGas().gasTotalUsed;
+        vm.stopPrank();
+
+        assertEq(vault.activeStake(), 1000 ether + donation);
+        assertEq(vault.adaptersAllocated(), 0);
+        assertEq(collateral.balanceOf(address(vault)), 1000 ether + donation);
+    }
+
+    function _measureSkimAdaptersGasWithMorphoAdapters(uint256 adapterCount)
+        internal
+        returns (uint256 skimAdaptersGas)
+    {
+        uint256 allocationPerAdapter = 10 ether;
+        uint256 yieldPerAdapter = 5 ether;
+        uint256 totalExpectedSkimmed;
+
+        vault = _getUniversalVault(7 days);
+        _deposit(alice, 1000 ether);
+
+        MockMorphoAllocateAdapter[] memory morphoAdapters = new MockMorphoAllocateAdapter[](adapterCount);
+        MockMorphoVault[] memory morphoVaults = new MockMorphoVault[](adapterCount);
+
+        for (uint256 i; i < adapterCount; ++i) {
+            morphoVaults[i] = new MockMorphoVault(address(collateral));
+            morphoAdapters[i] = new MockMorphoAllocateAdapter(address(rewards), address(curatorRegistry));
+
+            _setMorphoVaultAndAdapter(morphoAdapters[i], address(vault), address(morphoVaults[i]));
+            _addAdapter(address(morphoAdapters[i]));
+        }
+
+        for (uint256 i; i < adapterCount; ++i) {
+            vm.prank(address(morphoAdapters[i]));
+            vault.allocateAdapter(address(morphoAdapters[i]), allocationPerAdapter);
+
+            collateral.approve(address(morphoVaults[i]), yieldPerAdapter);
+            morphoVaults[i].donateYield(yieldPerAdapter);
+            totalExpectedSkimmed += morphoAdapters[i].skimmable(address(vault));
+        }
+
+        VaultV2(address(vault)).skimAdapters();
+        skimAdaptersGas = vm.lastCallGas().gasTotalUsed;
+
+        assertEq(vault.activeStake(), 1000 ether + totalExpectedSkimmed);
+        if (adapterCount == 0) {
+            assertEq(vault.adaptersAllocated(), 0);
+            assertEq(collateral.balanceOf(address(vault)), 1000 ether);
+            return skimAdaptersGas;
+        }
+
+        assertGt(totalExpectedSkimmed, 0);
+        assertEq(vault.adaptersAllocated(), adapterCount * allocationPerAdapter);
+        for (uint256 i; i < adapterCount; ++i) {
+            assertEq(vault.adapterAllocated(address(morphoAdapters[i])), allocationPerAdapter);
+        }
+        assertEq(
+            collateral.balanceOf(address(vault)),
+            1000 ether - adapterCount * allocationPerAdapter + totalExpectedSkimmed
+        );
+    }
+
+    function _logAdapterRewardGasSample(uint256 adapterCount) internal {
+        AdapterRewardGasSample memory sample = AdapterRewardGasSample({
+            adapterCount: adapterCount,
+            donateGas: _measureDonateGasWithMockAdapters(adapterCount),
+            skimAdaptersGas: _measureSkimAdaptersGasWithMorphoAdapters(adapterCount)
+        });
+
+        console2.log("adapter count", sample.adapterCount);
+        console2.log("donate gas", sample.donateGas);
+        console2.log("skimAdapters gas", sample.skimAdaptersGas);
+
+        assertEq(sample.adapterCount, adapterCount);
+        assertGt(sample.donateGas, 0);
+        assertGt(sample.skimAdaptersGas, 0);
     }
 
     function _claimBatch(address user, uint256[] memory indexes) internal returns (uint256 amount) {
