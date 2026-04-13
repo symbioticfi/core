@@ -750,8 +750,7 @@ contract VaultV2 is
 
         slashedAmount = Math.min(
             amount,
-            (totalStake() + unclaimed() + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0))
-            .saturatingSub(_nonLiquidBalance())
+            (totalStake() + unclaimed() + UniversalSlasher(slasher).totalOwed()).saturatingSub(_nonLiquidBalance())
         );
         _safeTransferOut(burner, slashedAmount);
 
