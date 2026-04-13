@@ -72,7 +72,7 @@ contract SwapSlotsVerificationTest is UniversalDelegatorTest {
         uint96 slot3 = networkSlot.createIndex(uint32(3));
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 10, bytes(""));
+        delegator.onSlash(subnetwork, alice, 10);
 
         uint48 beforeSwap = uint48(block.timestamp);
         uint256 slot2Allocated = delegator.getAllocated(slot2, 0);
@@ -113,7 +113,7 @@ contract SwapSlotsVerificationTest is UniversalDelegatorTest {
 
         vm.warp(2);
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 10, bytes(""));
+        delegator.onSlash(subnetwork, alice, 10);
 
         uint48 beforeSwap = uint48(block.timestamp);
         uint256 slot3Duration0 = delegator.getAllocated(slot3, 0);

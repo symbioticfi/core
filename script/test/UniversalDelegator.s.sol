@@ -91,8 +91,6 @@ contract UniversalDelegatorUiSetup is Script {
 
         IUniversalDelegator.InitParams memory initParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: broadcaster,
-            hook: address(0),
-            hookSetRoleHolder: broadcaster,
             createSlotRoleHolder: broadcaster,
             setSizeRoleHolder: broadcaster,
             swapSlotsRoleHolder: broadcaster,

@@ -1397,8 +1397,6 @@ contract VaultV2AdaptersTest is Test {
         bytes memory delegatorParams = abi.encode(
             IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: alice,
-                hook: address(0),
-                hookSetRoleHolder: alice,
                 createSlotRoleHolder: alice,
                 setSizeRoleHolder: alice,
                 swapSlotsRoleHolder: alice,

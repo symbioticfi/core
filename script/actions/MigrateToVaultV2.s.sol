@@ -30,11 +30,6 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     address[] ALLOCATORS = [0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000001];
     // Initial withdrawal buffer size.
     uint128 constant WITHDRAWAL_BUFFER_SIZE = 0;
-    // Hook contract for the new UniversalDelegator (completely optional, e.g. a hook can be used to fully deallocate an operator even if it was slashed by a tiny amount)
-    address constant HOOK = address(0);
-    // Address allowed to update the hook.
-    address constant HOOK_SET_ROLE_HOLDER = address(0);
-
     // Optional - used only if the previous slasher was not `VetoSlasher`
 
     // Whether slash execution should make a call to the burner on slashing.
@@ -96,8 +91,6 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
             deallocateAdapterRoleHolder: ADMIN_ROLE_HOLDER,
             delegatorParams: IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: ADMIN_ROLE_HOLDER,
-                hook: HOOK,
-                hookSetRoleHolder: HOOK_SET_ROLE_HOLDER,
                 createSlotRoleHolder: ADMIN_ROLE_HOLDER,
                 setSizeRoleHolder: ADMIN_ROLE_HOLDER,
                 swapSlotsRoleHolder: ADMIN_ROLE_HOLDER,

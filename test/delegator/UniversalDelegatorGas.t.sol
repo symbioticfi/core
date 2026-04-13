@@ -246,8 +246,6 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                 delegatorParams: abi.encode(
                     IUniversalDelegator.InitParams({
                         defaultAdminRoleHolder: owner,
-                        hook: address(0),
-                        hookSetRoleHolder: address(0),
                         createSlotRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         swapSlotsRoleHolder: owner,

@@ -235,7 +235,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         if (request.createdAt >= migrateTimestamp) {
             slashedAmount = UniversalDelegator(VaultV2(vault).delegator())
-                .onSlash(request.subnetwork, request.operator, slashedAmount, abi.encode(slashIndex));
+                .onSlash(request.subnetwork, request.operator, slashedAmount);
         } else {
             // Legacy support.
             __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;

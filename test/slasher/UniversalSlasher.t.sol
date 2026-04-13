@@ -412,8 +412,6 @@ contract UniversalSlasherMigrationTest is Test {
         uint48 vetoDuration = EPOCH_DURATION > 1 ? 1 : 0;
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: owner,
-            hook: address(0),
-            hookSetRoleHolder: owner,
             createSlotRoleHolder: owner,
             setSizeRoleHolder: owner,
             swapSlotsRoleHolder: owner,
@@ -473,7 +471,6 @@ contract MockUniversalDelegator {
     bytes32 public lastSlashSubnetwork;
     address public lastSlashOperator;
     uint256 public lastSlashAmount;
-    bytes public lastSlashData;
     uint256 public onSlashCalls;
 
     function setStakeForValue(uint256 value) external {
@@ -509,14 +506,10 @@ contract MockUniversalDelegator {
         return stakeAtValue;
     }
 
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes memory data)
-        external
-        returns (uint256)
-    {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256) {
         lastSlashSubnetwork = subnetwork;
         lastSlashOperator = operator;
         lastSlashAmount = amount;
-        lastSlashData = data;
         ++onSlashCalls;
         return useExplicitOnSlashReturnValue ? onSlashReturnValue : amount;
     }

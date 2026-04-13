@@ -4,7 +4,6 @@ pragma solidity ^0.8.25;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
-import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookV2.sol";
 import {IBurner} from "../../src/interfaces/slasher/IBurner.sol";
 
 contract MockReentrantAdapter is IAdapterBase {
@@ -82,54 +81,6 @@ contract MockReentrantAdapter is IAdapterBase {
         if (amount > 0) {
             collateral.transfer(vault, amount);
         }
-    }
-
-    function _attemptReentry() internal {
-        address target = reentryTarget;
-        if (target == address(0)) {
-            return;
-        }
-
-        bytes memory data = _reentryData;
-        reentryTarget = address(0);
-        delete _reentryData;
-
-        ++reentryCalls;
-        bytes memory returnData;
-        (lastCallSuccess, returnData) = target.call(data);
-    }
-}
-
-contract MockReentrantDelegatorHook is IDelegatorHook {
-    bytes32 public lastSubnetwork;
-    address public lastOperator;
-    uint256 public lastAmount;
-    bytes public lastData;
-    uint256 public calls;
-    uint256 public reentryCalls;
-    bool public lastCallSuccess;
-
-    address public reentryTarget;
-    bytes internal _reentryData;
-
-    function armReentry(address target, bytes calldata data) external {
-        reentryTarget = target;
-        _reentryData = data;
-    }
-
-    function clearReentry() external {
-        reentryTarget = address(0);
-        delete _reentryData;
-    }
-
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes calldata data) external {
-        lastSubnetwork = subnetwork;
-        lastOperator = operator;
-        lastAmount = amount;
-        lastData = data;
-        ++calls;
-
-        _attemptReentry();
     }
 
     function _attemptReentry() internal {

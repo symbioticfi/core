@@ -43,9 +43,6 @@ import {IOperatorSpecificDelegator} from "../../src/interfaces/delegator/IOperat
 import {
     IUniversalDelegator,
     CREATE_SLOT_ROLE,
-    HOOK_GAS_LIMIT,
-    HOOK_RESERVE,
-    HOOK_SET_ROLE,
     WITHDRAWAL_BUFFER_CHILD_INDEX,
     MAX_SUBVAULTS,
     MAX_NETWORKS,
@@ -56,7 +53,6 @@ import {
     REMOVE_SLOT_ROLE,
     UNIVERSAL_DELEGATOR_TYPE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IDelegatorHook} from "../../src/interfaces/delegator/IDelegatorHookV2.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IEntity} from "../../src/interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
@@ -67,23 +63,6 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockRewards} from "../mocks/MockRewards.sol";
 import {CoreV2StakeForInvariantHelper} from "../helpers/CoreV2StakeForInvariantHelper.sol";
-import {MockReentrantDelegatorHook} from "../mocks/ReentrantAttackMocks.sol";
-
-contract UniversalDelegatorHookMock is IDelegatorHook {
-    bytes32 public lastSubnetwork;
-    address public lastOperator;
-    uint256 public lastAmount;
-    bytes public lastData;
-    uint256 public calls;
-
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes calldata data) external {
-        lastSubnetwork = subnetwork;
-        lastOperator = operator;
-        lastAmount = amount;
-        lastData = data;
-        ++calls;
-    }
-}
 
 contract MockLegacyDelegatorType {
     uint64 public immutable TYPE;
@@ -411,8 +390,6 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
                 delegatorParams: abi.encode(
                     IUniversalDelegator.InitParams({
                         defaultAdminRoleHolder: owner,
-                        hook: address(0),
-                        hookSetRoleHolder: address(0),
                         createSlotRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         swapSlotsRoleHolder: owner,
@@ -734,7 +711,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertGt(pendingBefore, 0);
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 20, bytes(""));
+        delegator.onSlash(subnetwork, alice, 20);
         uint48 timestampAfterSlash = uint48(block.timestamp);
         uint208 pendingAfter = delegator.getPendingAt(operatorSlot, 0, timestampAfterSlash);
         uint256 balanceAfter = delegator.getBalanceAt(networkSlot, 0, timestampAfterSlash);
@@ -766,7 +743,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getPending(operatorSlot, 0), 130);
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 100, bytes(""));
+        delegator.onSlash(subnetwork, alice, 100);
 
         assertEq(delegator.getPending(operatorSlot, 0), 30);
 
@@ -794,7 +771,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getNoAdaptersSize(), 200);
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 100, bytes(""));
+        delegator.onSlash(subnetwork, alice, 100);
 
         assertEq(delegator.getPending(noAdaptersSubvault, 0), 30);
         assertEq(delegator.getNoAdaptersSize(), 100);
@@ -2900,7 +2877,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint96 operatorSlot = networkSlot.createIndex(uint32(1));
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 1, bytes(""));
+        delegator.onSlash(subnetwork, alice, 1);
 
         uint128 currentSize = delegator.getSlot(operatorSlot).size;
         delegator.setSize(operatorSlot, currentSize);
@@ -2930,9 +2907,9 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         uint96 operatorSlot4 = networkSlot.createIndex(uint32(4));
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 10, bytes(""));
+        delegator.onSlash(subnetwork, alice, 10);
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, bob, 5, bytes(""));
+        delegator.onSlash(subnetwork, bob, 5);
 
         uint48 beforeCreate = uint48(block.timestamp);
         uint256 allocated2Before = delegator.getAllocated(operatorSlot2, 0);
@@ -3559,7 +3536,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getPending(operatorSlot3, 0), 0);
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 10, bytes(""));
+        delegator.onSlash(subnetwork, alice, 10);
 
         uint48 beforeRemove = uint48(block.timestamp);
         uint256 allocated2Before = delegator.getAllocated(operatorSlot2, 0);
@@ -3688,7 +3665,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getSlot(subvault).size, 80);
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 20, bytes(""));
+        delegator.onSlash(subnetwork, alice, 20);
 
         assertEq(delegator.getNoAdaptersSize(), 60);
         assertEq(delegator.getSlot(subvault).size, 60);
@@ -3709,7 +3686,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getNoAdaptersSize(), 80);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlash(subnetwork, alice, 40, bytes("")), 40);
+        assertEq(delegator.onSlash(subnetwork, alice, 40), 40);
 
         assertEq(delegator.getSlot(subvault).size, 30);
         assertEq(delegator.getPending(subvault, 0), 10);
@@ -3731,122 +3708,17 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.createSlot(_operatorKey(bob), networkSlot2, false, false, 100);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlash(subnetwork1, alice, 70, bytes("")), 70);
+        assertEq(delegator.onSlash(subnetwork1, alice, 70), 70);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlash(subnetwork2, bob, 70, bytes("")), 30);
+        assertEq(delegator.onSlash(subnetwork2, bob, 70), 30);
 
         assertEq(delegator.getSlot(subvault).size, 0);
     }
 
-    function test_setHookAndOnSlashPaths() public {
-        vm.expectRevert(IUniversalDelegator.NotSlasher.selector);
-        delegator.onSlash(bytes32(0), address(0), 0, "");
-
-        delegator.grantRole(HOOK_SET_ROLE, owner);
-        UniversalDelegatorHookMock hookMock = new UniversalDelegatorHookMock();
-        delegator.setHook(address(hookMock));
-        delegator.setHook(address(hookMock));
-        assertEq(delegator.hook(), address(hookMock));
-
-        _deposit(alice, 100);
-
-        bytes32 subnetwork = makeAddr("slash-subnetwork").subnetwork(0);
-        uint96 subvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
-        delegator.createSlot(subnetwork, subvault, false, false, 80);
-        uint96 networkSlot = subvault.createIndex(uint32(1));
-        delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 20);
-        delegator.createSlot(_operatorKey(bob), networkSlot, false, false, 20);
-        uint96 operatorSlot1 = networkSlot.createIndex(uint32(1));
-        uint96 operatorSlot2 = networkSlot.createIndex(uint32(2));
-
-        vm.warp(1);
-        delegator.setSize(subvault, 40);
-        delegator.setSize(operatorSlot1, 10);
-
-        vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 50, bytes("payload"));
-
-        assertEq(delegator.getPending(operatorSlot1, 0), 0);
-        assertEq(delegator.getPending(subvault, 0), 0);
-        assertEq(hookMock.calls(), 1);
-        assertEq(hookMock.lastSubnetwork(), subnetwork);
-        assertEq(hookMock.lastOperator(), alice);
-        assertEq(hookMock.lastAmount(), 50);
-        assertEq(hookMock.lastData(), bytes("payload"));
-        assertGt(delegator.getAllocated(operatorSlot2, 0), 0);
-        assertGt(delegator.getAllocatedAt(operatorSlot2, 0, uint48(block.timestamp)), 0);
-
-        uint256 gasToSend = HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63 - 1;
-        vm.expectRevert(IUniversalDelegator.InsufficientHookGas.selector);
-        vm.prank(address(slasher));
-        delegator.onSlash{gas: gasToSend}(subnetwork, alice, 1, bytes(""));
-    }
-
-    function test_hookReentrancy_setHookAttemptIsBlockedAndSwallowed() public {
-        delegator.grantRole(HOOK_SET_ROLE, owner);
-
-        MockReentrantDelegatorHook hookMock = new MockReentrantDelegatorHook();
-        delegator.grantRole(HOOK_SET_ROLE, address(hookMock));
-        delegator.setHook(address(hookMock));
-        hookMock.armReentry(address(delegator), abi.encodeCall(UniversalDelegator.setHook, (address(0))));
-
-        _deposit(alice, 100);
-
-        bytes32 subnetwork = makeAddr("hook-reentrant-subnetwork").subnetwork(0);
-        uint96 subvault = delegator.createSlot(bytes32(0), 0, false, true, 80);
-        delegator.createSlot(subnetwork, subvault, false, false, 80);
-        uint96 networkSlot = subvault.createIndex(uint32(1));
-        delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 80);
-
-        vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 20, bytes("hook-reentry"));
-
-        assertEq(hookMock.calls(), 1);
-        assertEq(hookMock.reentryCalls(), 1);
-        assertFalse(hookMock.lastCallSuccess());
-        assertEq(delegator.hook(), address(hookMock));
-        assertEq(delegator.getAllocated(subnetwork, alice, 0), 60);
-    }
-
-    function test_hookReentrancy_resetAllocationDuringExecuteSlash_revertsAtomically() public {
-        _deposit(alice, 100);
-
-        MockReentrantDelegatorHook hookMock = new MockReentrantDelegatorHook();
-        address network = makeAddr("hook-reset-network");
-        bytes32 subnetwork = network.subnetwork(0);
-
-        _registerNetwork(network, address(hookMock));
-        _registerOperator(alice);
-        _optIn(alice, network);
-
-        vm.prank(network);
-        delegator.setMaxNetworkLimit(0, type(uint256).max);
-
-        uint96 subvault = delegator.createSlot(bytes32("subvault"), 0, false, false, 100);
-        uint96 networkSlot = delegator.createSlot(subnetwork, subvault, false, false, 100);
-        uint96 operatorSlot = delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 100);
-
-        delegator.grantRole(HOOK_SET_ROLE, owner);
-        delegator.setHook(address(hookMock));
-        hookMock.armReentry(address(delegator), abi.encodeCall(UniversalDelegator.resetAllocation, (subnetwork)));
-
-        vm.startPrank(address(hookMock));
-        uint256 slashIndex = slasher.requestSlash(subnetwork, alice, 20, 0, "");
-        vm.expectRevert(IUniversalDelegator.NotAssigned.selector);
-        slasher.executeSlash(slashIndex, "");
-        vm.stopPrank();
-
-        assertFalse(slasher.slashRequests(slashIndex).completed);
-        assertEq(delegator.getSlotOfNetwork(subnetwork), networkSlot);
-        assertEq(delegator.getSlotOf(subnetwork, alice), operatorSlot);
-        assertEq(delegator.getAllocated(subnetwork, alice, 0), 100);
-        assertEq(delegator.hook(), address(hookMock));
-    }
-
     function test_onSlash_revertsNotAssigned() public {
         vm.prank(address(slasher));
-        try delegator.onSlash(bytes32(0), address(0), 0, "") returns (uint256) {
+        try delegator.onSlash(bytes32(0), address(0), 0) returns (uint256) {
             console2.log("onSlash not assigned / no revert");
         } catch (bytes memory err) {
             console2.log("onSlash not assigned / revert data length", err.length);
@@ -3864,7 +3736,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         _createOperatorSlot(networkSlot, alice, 100);
 
         vm.prank(address(slasher));
-        delegator.onSlash(subnetwork, alice, 1, bytes(""));
+        delegator.onSlash(subnetwork, alice, 1);
 
         uint128 currentSize = delegator.getSlot(subvault).size;
         delegator.setSize(subvault, currentSize);
@@ -3976,8 +3848,6 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     function _defaultDelegatorInitParams() internal view returns (IUniversalDelegator.InitParams memory) {
         return IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: owner,
-            hook: address(0),
-            hookSetRoleHolder: owner,
             createSlotRoleHolder: owner,
             setSizeRoleHolder: owner,
             swapSlotsRoleHolder: owner,
@@ -4101,7 +3971,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
             uint256 currentSize = delegator.getSlot(state.operatorSlots[index]).size;
             if (currentSize > 0) {
                 vm.prank(address(slasher));
-                delegator.onSlash(subnetwork, state.operators[index], bound(seed >> 64, 1, currentSize), bytes(""));
+                delegator.onSlash(subnetwork, state.operators[index], bound(seed >> 64, 1, currentSize));
             }
             return state;
         }
@@ -4563,8 +4433,6 @@ contract UniversalDelegatorMigrationTest is Test {
         uint48 vetoDuration = EPOCH_DURATION > 1 ? 1 : 0;
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: owner,
-            hook: address(0),
-            hookSetRoleHolder: owner,
             createSlotRoleHolder: owner,
             setSizeRoleHolder: owner,
             swapSlotsRoleHolder: owner,

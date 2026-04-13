@@ -880,8 +880,6 @@ contract VaultV2Test is Test {
         operatorNetworkLimitSetRoleHolders[0] = alice;
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: alice,
-            hook: address(0),
-            hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
@@ -937,8 +935,6 @@ contract VaultV2Test is Test {
         operatorNetworkLimitSetRoleHolders[0] = alice;
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: alice,
-            hook: address(0),
-            hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
@@ -1417,8 +1413,6 @@ contract VaultV2Test is Test {
 
         IUniversalDelegator.InitParams memory attackerDelegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: bob,
-            hook: address(0),
-            hookSetRoleHolder: bob,
             createSlotRoleHolder: bob,
             setSizeRoleHolder: bob,
             swapSlotsRoleHolder: bob,
@@ -1439,8 +1433,6 @@ contract VaultV2Test is Test {
 
         IUniversalDelegator.InitParams memory ownerDelegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: alice,
-            hook: address(0),
-            hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
@@ -8582,8 +8574,6 @@ contract VaultV2Test is Test {
 
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: alice,
-            hook: address(0),
-            hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,
@@ -8612,8 +8602,6 @@ contract VaultV2Test is Test {
         uint48 vetoDuration = epochDuration > 1 ? 1 : 0;
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: alice,
-            hook: address(0),
-            hookSetRoleHolder: alice,
             createSlotRoleHolder: alice,
             setSizeRoleHolder: alice,
             swapSlotsRoleHolder: alice,

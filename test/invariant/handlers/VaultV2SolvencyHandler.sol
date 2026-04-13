@@ -538,8 +538,6 @@ contract VaultV2SolvencyHandler is Test {
 
         IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
             defaultAdminRoleHolder: address(this),
-            hook: address(0),
-            hookSetRoleHolder: address(this),
             createSlotRoleHolder: address(this),
             setSizeRoleHolder: address(this),
             swapSlotsRoleHolder: address(this),

@@ -725,6 +725,7 @@ contract VaultV2 is
         return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
     }
 
+    /// @dev Get the vault balance that is not liquid because it is allocated to adapters or reserved for no-adapters stake.
     function _nonLiquidBalance() internal view returns (uint256) {
         return adaptersAllocated + Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake());
     }

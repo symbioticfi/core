@@ -11,7 +11,6 @@ import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 import {UniversalDelegatorIndex} from "../libraries/UniversalDelegatorIndex.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
-import {IDelegatorHook} from "../../interfaces/delegator/IDelegatorHookV2.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
@@ -22,9 +21,6 @@ import {
     MAX_NETWORKS,
     MAX_OPERATORS,
     CREATE_SLOT_ROLE,
-    HOOK_GAS_LIMIT,
-    HOOK_RESERVE,
-    HOOK_SET_ROLE,
     REMOVE_SLOT_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
@@ -90,8 +86,6 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
-    /// @inheritdoc IUniversalDelegator
-    address public hook;
 
     /// @dev Total slot size marked as no-adapters across root subvaults.
     uint256 internal _noAdaptersSize;
@@ -735,13 +729,6 @@ contract UniversalDelegator is
         emit SetWithdrawalBufferSize(newWithdrawalBufferSize);
     }
 
-    /// @inheritdoc IUniversalDelegator
-    function setHook(address newHook) public nonReentrant onlyRole(HOOK_SET_ROLE) {
-        hook = newHook;
-
-        emit SetHook(newHook);
-    }
-
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IUniversalDelegator
@@ -799,8 +786,8 @@ contract UniversalDelegator is
 
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
-    /// @dev Apply slash accounting updates across the affected slot chain and invoke the optional hook.
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount, bytes calldata data)
+    /// @dev Apply slash accounting updates across the affected slot chain.
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount)
         public
         nonReentrant
         returns (uint256 actualAmount)
@@ -873,20 +860,6 @@ contract UniversalDelegator is
                 curIndex = curIndex.getParentIndex();
             }
 
-            // Make a call to the custom hook.
-            address hook_ = hook;
-            if (hook_ != address(0)) {
-                bytes memory hookCalldata = abi.encodeCall(IDelegatorHook.onSlash, (subnetwork, operator, amount, data));
-
-                if (gasleft() < HOOK_RESERVE + HOOK_GAS_LIMIT * 64 / 63) {
-                    revert InsufficientHookGas();
-                }
-
-                assembly ("memory-safe") {
-                    pop(call(HOOK_GAS_LIMIT, hook_, 0, add(hookCalldata, 0x20), mload(hookCalldata), 0, 0))
-                }
-            }
-
             emit OnSlash(subnetwork, operator, amount);
         }
     }
@@ -910,12 +883,9 @@ contract UniversalDelegator is
 
         vault = initVault;
 
-        hook = params.hook;
-
         _withdrawalBufferSlot().size.push(uint48(block.timestamp), params.withdrawalBufferSize);
 
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        _grantRoleIfNotZero(HOOK_SET_ROLE, params.hookSetRoleHolder);
         _grantRoleIfNotZero(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
         _grantRoleIfNotZero(SET_SIZE_ROLE, params.setSizeRoleHolder);
         _grantRoleIfNotZero(SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);

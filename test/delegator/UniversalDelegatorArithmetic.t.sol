@@ -351,8 +351,6 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
                 delegatorParams: abi.encode(
                     IUniversalDelegator.InitParams({
                         defaultAdminRoleHolder: owner,
-                        hook: address(0),
-                        hookSetRoleHolder: address(0),
                         createSlotRoleHolder: owner,
                         setSizeRoleHolder: owner,
                         swapSlotsRoleHolder: owner,
@@ -493,7 +491,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         assertEq(delegator.getFilledAt(realChain.networkSlot, 0, beforeChurn), uint256(size1) + size2 + size3);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlash(realChain.subnetwork, realChain.operator1, slashAmount, bytes("arith")), slashAmount);
+        assertEq(delegator.onSlash(realChain.subnetwork, realChain.operator1, slashAmount), slashAmount);
 
         _assertStakeForInvariantForDurations(address(vault), address(delegator), slots, EPOCH_DURATION);
     }
@@ -543,10 +541,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         _assertSiblingPrefixSums(denseTopo.selectedNetworkSlot);
 
         vm.prank(address(slasher));
-        assertEq(
-            delegator.onSlash(denseTopo.selectedSubnetwork, denseTopo.selectedOperator0, 10 ether, bytes("dense")),
-            10 ether
-        );
+        assertEq(delegator.onSlash(denseTopo.selectedSubnetwork, denseTopo.selectedOperator0, 10 ether), 10 ether);
 
         vm.warp(EPOCH_DURATION + 2);
         delegator.setSize(denseTopo.selectedOperatorSlot2, 0);

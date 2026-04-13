@@ -6,12 +6,6 @@ uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
 uint96 constant WITHDRAWAL_BUFFER_INDEX = 0xFFFFFFFF0000000000000000;
 
-// Keccak256("HOOK_SET_ROLE").
-bytes32 constant HOOK_SET_ROLE = 0xd1c1f6fa6bf27d54c5e54c7c1dc6e5004d3c027ea1994fe68b29c1b51b69c36c;
-
-uint256 constant HOOK_GAS_LIMIT = 250_000;
-uint256 constant HOOK_RESERVE = 20_000;
-
 // Keccak256("CREATE_SLOT_ROLE").
 bytes32 constant CREATE_SLOT_ROLE = 0x8aef711962d032b5812b71f6f4353b179696ada38e16233a26a539c32c729007;
 // Keccak256("SET_SIZE_ROLE").
@@ -43,11 +37,6 @@ interface IUniversalDelegator {
      * @notice Raised when a maximum network limit is already set.
      */
     error AlreadySet();
-
-    /**
-     * @notice Raised when there is not enough gas for the hook call.
-     */
-    error InsufficientHookGas();
 
     /**
      * @notice Raised when an operation is incompatible with shared mode.
@@ -179,8 +168,6 @@ interface IUniversalDelegator {
     /**
      * @notice Initialization parameters for the universal delegator.
      * @param defaultAdminRoleHolder Address of the initial DEFAULT_ADMIN_ROLE holder.
-     * @param hook Address of the hook contract.
-     * @param hookSetRoleHolder Address of the initial HOOK_SET_ROLE holder.
      * @param createSlotRoleHolder Address of the initial CREATE_SLOT_ROLE holder.
      * @param setSizeRoleHolder Address of the initial SET_SIZE_ROLE holder.
      * @param swapSlotsRoleHolder Address of the initial SWAP_SLOTS_ROLE holder.
@@ -190,8 +177,6 @@ interface IUniversalDelegator {
      */
     struct InitParams {
         address defaultAdminRoleHolder;
-        address hook;
-        address hookSetRoleHolder;
         address createSlotRoleHolder;
         address setSizeRoleHolder;
         address swapSlotsRoleHolder;
@@ -203,13 +188,9 @@ interface IUniversalDelegator {
     /**
      * @notice Base parameters needed for delegators' deployment.
      * @param defaultAdminRoleHolder Address of the initial DEFAULT_ADMIN_ROLE holder.
-     * @param hook Address of the hook contract.
-     * @param hookSetRoleHolder Address of the initial HOOK_SET_ROLE holder.
      */
     struct BaseParams {
         address defaultAdminRoleHolder;
-        address hook;
-        address hookSetRoleHolder;
     }
 
     /* EVENTS */
@@ -264,12 +245,6 @@ interface IUniversalDelegator {
     event SetMaxNetworkLimit(bytes32 indexed subnetwork, uint256 amount);
 
     /**
-     * @notice Emitted when a hook is set.
-     * @param hook Address of the hook.
-     */
-    event SetHook(address indexed hook);
-
-    /**
      * @notice Emitted when a slash is applied.
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Address of the operator.
@@ -302,12 +277,6 @@ interface IUniversalDelegator {
      * @return vaultAddress Address of the vault.
      */
     function vault() external view returns (address vaultAddress);
-
-    /**
-     * @notice Get the hook contract address.
-     * @return hookAddress Address of the hook contract.
-     */
-    function hook() external view returns (address hookAddress);
 
     /**
      * @notice Get slashable stake for a subnetwork/operator at a timestamp and duration.
@@ -594,13 +563,6 @@ interface IUniversalDelegator {
      * @dev Only a SET_WITHDRAWAL_BUFFER_SIZE_ROLE holder can call this function.
      */
     function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) external;
-
-    /**
-     * @notice Set a new hook.
-     * @param hook Address of the hook.
-     * @dev Only a HOOK_SET_ROLE holder can call this function.
-     */
-    function setHook(address hook) external;
 
     /**
      * @notice Set the maximum limit for a subnetwork.
