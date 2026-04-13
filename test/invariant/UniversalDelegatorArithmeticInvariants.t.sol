@@ -22,7 +22,7 @@ import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDe
 contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV2StakeForInvariantHelper {
     using UniversalDelegatorIndex for uint96;
 
-    uint256 internal constant SLOT_MAPPING_SLOT = 3;
+    uint256 internal constant SLOT_MAPPING_SLOT = 2;
     uint256 internal constant SLOT_TRACE_SIZE_OFFSET = 1;
     uint256 internal constant SLOT_TRACE_NEXT_SLOT_OFFSET = 2;
     uint256 internal constant SLOT_TRACE_LAST_CHILD_OFFSET = 3;
@@ -31,8 +31,8 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
     uint256 internal constant SLOT_TRACE_CLEARED_PENDING_CURSOR_OFFSET = 8;
     uint256 internal constant SLOT_TRACE_SHARED_PENDING_CONSUMED_OFFSET = 9;
     uint256 internal constant SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET = 10;
-    uint256 internal constant NO_ADAPTERS_PENDING_CUMULATIVE_SLOT = 8;
-    uint256 internal constant CLEARED_NO_ADAPTERS_PENDING_CURSOR_SLOT = 9;
+    uint256 internal constant NO_ADAPTERS_PENDING_CUMULATIVE_SLOT = 7;
+    uint256 internal constant CLEARED_NO_ADAPTERS_PENDING_CURSOR_SLOT = 8;
     uint256 internal constant CHILDREN_PENDING_AT_OFFSET_BYTES = 15;
 
     struct CurrentParentState {

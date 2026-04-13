@@ -861,7 +861,7 @@ contract VaultV2AdaptersTest is Test {
         assertGe(morphoAdapter.skimmable(address(vault2)), vault2SkimmableBefore);
     }
 
-    function test_MorphoSmallSecondAllocationCanMintZeroSharesAndDonateToOtherVault() public {
+    function test_MorphoSmallSecondAllocationCreatesDustWithoutDonatingToOtherVault() public {
         _configureMorpho(address(vault1));
         _configureMorpho(address(vault2));
 
@@ -874,16 +874,16 @@ contract VaultV2AdaptersTest is Test {
 
         _allocateMorpho(vault2, 1, 1);
 
-        assertEq(morphoAdapter.vaultShares(address(morphoVault), address(vault2)), 0);
+        assertGt(morphoAdapter.vaultShares(address(morphoVault), address(vault2)), 0);
         assertEq(vault2.adapterAllocated(address(morphoAdapter)), 1);
         assertEq(morphoAdapter.deallocatable(address(vault2)), 0);
-        assertEq(morphoAdapter.skimmable(address(vault1)), vault1SkimmableBefore + 1);
+        assertEq(morphoAdapter.skimmable(address(vault1)), vault1SkimmableBefore);
 
         uint256 victimRecovered = _deallocateFromVault(vault2, address(morphoAdapter), 1);
         assertEq(victimRecovered, 0);
     }
 
-    function test_MorphoAttackerCanDonateYieldThenDrainLargeVictimAllocation() public {
+    function test_MorphoAttackerDonationCannotDrainLargeVictimAllocation() public {
         _configureMorpho(address(vault1));
         _configureMorpho(address(vault2));
 
@@ -896,18 +896,19 @@ contract VaultV2AdaptersTest is Test {
 
         _allocateMorpho(vault2, 100, 100);
 
-        assertEq(morphoAdapter.vaultShares(address(morphoVault), address(vault2)), 0);
+        assertGt(morphoAdapter.vaultShares(address(morphoVault), address(vault2)), 0);
         assertEq(vault2.adapterAllocated(address(morphoAdapter)), 100);
-        assertEq(morphoAdapter.deallocatable(address(vault2)), 0);
-        assertEq(morphoAdapter.skimmable(address(vault1)), attackerSkimmableBeforeVictim + 100);
+        assertEq(morphoAdapter.deallocatable(address(vault2)), 99);
+        assertEq(morphoAdapter.skimmable(address(vault1)), attackerSkimmableBeforeVictim);
 
         uint256 attackerBalanceBefore = collateral.balanceOf(address(vault1));
         uint256 skimmed = morphoAdapter.skim(address(vault1));
-        assertEq(skimmed, attackerSkimmableBeforeVictim + 100);
+        assertEq(skimmed, attackerSkimmableBeforeVictim);
         assertEq(collateral.balanceOf(address(vault1)) - attackerBalanceBefore, skimmed);
 
         uint256 victimRecovered = _deallocateFromVault(vault2, address(morphoAdapter), 100);
-        assertEq(victimRecovered, 0);
+        assertEq(victimRecovered, 99);
+        assertEq(vault2.adapterAllocated(address(morphoAdapter)), 1);
     }
 
     function test_MorphoDeallocateDoesNotDiluteOtherVault() public {
@@ -1199,7 +1200,7 @@ contract VaultV2AdaptersTest is Test {
         assertGe(aaveAdapter.skimmable(address(vault2)), vault2SkimmableBefore);
     }
 
-    function test_AaveSmallSecondAllocationCanMintZeroSharesAndDonateToOtherVault() public {
+    function test_AaveSmallSecondAllocationCreatesDustWithoutDonatingToOtherVault() public {
         _allocateAave(vault1, 100, 100);
 
         collateral.approve(address(aavePool), 1000);
@@ -1209,16 +1210,16 @@ contract VaultV2AdaptersTest is Test {
 
         _allocateAave(vault2, 1, 1);
 
-        assertEq(aaveAdapter.vaultShares(address(collateral), address(vault2)), 0);
+        assertGt(aaveAdapter.vaultShares(address(collateral), address(vault2)), 0);
         assertEq(vault2.adapterAllocated(address(aaveAdapter)), 1);
         assertEq(aaveAdapter.deallocatable(address(vault2)), 0);
-        assertEq(aaveAdapter.skimmable(address(vault1)), vault1SkimmableBefore + 1);
+        assertEq(aaveAdapter.skimmable(address(vault1)), vault1SkimmableBefore);
 
         uint256 victimRecovered = _deallocateFromVault(vault2, address(aaveAdapter), 1);
         assertEq(victimRecovered, 0);
     }
 
-    function test_AaveAttackerCanTransferATokensThenDrainLargeVictimAllocation() public {
+    function test_AaveAttackerATokenTransferCannotDrainLargeVictimAllocation() public {
         _allocateAave(vault1, 100, 100);
 
         collateral.approve(address(aavePool), 10_000);
@@ -1229,18 +1230,19 @@ contract VaultV2AdaptersTest is Test {
 
         _allocateAave(vault2, 100, 100);
 
-        assertEq(aaveAdapter.vaultShares(address(collateral), address(vault2)), 0);
+        assertGt(aaveAdapter.vaultShares(address(collateral), address(vault2)), 0);
         assertEq(vault2.adapterAllocated(address(aaveAdapter)), 100);
-        assertEq(aaveAdapter.deallocatable(address(vault2)), 0);
-        assertEq(aaveAdapter.skimmable(address(vault1)), attackerSkimmableBeforeVictim + 100);
+        assertEq(aaveAdapter.deallocatable(address(vault2)), 99);
+        assertEq(aaveAdapter.skimmable(address(vault1)), attackerSkimmableBeforeVictim);
 
         uint256 attackerBalanceBefore = collateral.balanceOf(address(vault1));
         uint256 skimmed = aaveAdapter.skim(address(vault1));
-        assertEq(skimmed, attackerSkimmableBeforeVictim + 100);
+        assertEq(skimmed, attackerSkimmableBeforeVictim);
         assertEq(collateral.balanceOf(address(vault1)) - attackerBalanceBefore, skimmed);
 
         uint256 victimRecovered = _deallocateFromVault(vault2, address(aaveAdapter), 100);
-        assertEq(victimRecovered, 0);
+        assertEq(victimRecovered, 99);
+        assertEq(vault2.adapterAllocated(address(aaveAdapter)), 1);
     }
 
     function test_AaveDeallocateCapsToVaultAllocation() public {

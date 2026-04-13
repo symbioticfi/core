@@ -73,6 +73,6 @@ abstract contract ERC4626Math {
      * @notice Get the decimals offset to apply for virtual shares.
      */
     function _decimalsOffset() internal view virtual returns (uint8) {
-        return 0;
+        return 6;
     }
 }

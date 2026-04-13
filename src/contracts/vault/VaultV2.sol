@@ -911,6 +911,6 @@ contract VaultV2 is
 
     /// @inheritdoc ERC4626Math
     function _decimalsOffset() internal view virtual override returns (uint8) {
-        return uint8(migrateTimestamp == 0 ? uint256(18).saturatingSub(IERC20Metadata(collateral).decimals()) : 0);
+        return migrateTimestamp == 0 ? super._decimalsOffset() : 0;
     }
 }

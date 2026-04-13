@@ -70,7 +70,6 @@ import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
@@ -340,6 +339,7 @@ contract VaultV2Test is Test {
         uint48 unlockAt;
         uint256 activeStakeAfterWithdraw;
         uint256 withdrawAmount;
+        uint256 withdrawalShares;
     }
 
     struct AdapterRewardGasSample {
@@ -1477,7 +1477,7 @@ contract VaultV2Test is Test {
             (uint256 depositedAmount, uint256 mintedShares) = _deposit(alice, amount1);
             shares1 = mintedShares;
             assertEq(depositedAmount, amount1);
-            assertEq(mintedShares, ERC4626Math.previewDeposit(depositedAmount, prevShares, prevStake));
+            assertEq(mintedShares, _previewDepositWithVaultOffset(depositedAmount, prevShares, prevStake));
         }
         assertEq(collateral.balanceOf(address(vault)) - tokensBefore, amount1);
 
@@ -1504,7 +1504,7 @@ contract VaultV2Test is Test {
             (uint256 depositedAmount, uint256 mintedShares) = _deposit(alice, amount2);
             shares2 = mintedShares;
             assertEq(depositedAmount, amount2);
-            assertEq(mintedShares, ERC4626Math.previewDeposit(depositedAmount, prevShares, prevStake));
+            assertEq(mintedShares, _previewDepositWithVaultOffset(depositedAmount, prevShares, prevStake));
         }
 
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
@@ -1537,8 +1537,8 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(vault.activeStakeAt(uint48(blockTimestamp), abi.encode(1)), amount1 + amount2);
         assertGt(gasSpent, gasLeft - gasleft());
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), shares1);
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), shares1 + shares2);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeSharesOf(alice), shares1 + shares2);
         gasLeft = gasleft();
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), abi.encode(1)), shares1);
@@ -1619,7 +1619,7 @@ contract VaultV2Test is Test {
             (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(alice, amount1);
             shares1 = mintedShares;
             assertEq(depositedAmount, amount1 - 1);
-            assertEq(mintedShares, ERC4626Math.previewDeposit(depositedAmount, prevShares, prevStake));
+            assertEq(mintedShares, _previewDepositWithVaultOffset(depositedAmount, prevShares, prevStake));
         }
         vm.stopPrank();
         assertEq(feeOnTransferCollateral.balanceOf(address(vault)) - tokensBefore, amount1 - 1);
@@ -1650,7 +1650,7 @@ contract VaultV2Test is Test {
             (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(alice, amount2);
             shares2 = mintedShares;
             assertEq(depositedAmount, amount2 - 1);
-            assertEq(mintedShares, ERC4626Math.previewDeposit(depositedAmount, prevShares, prevStake));
+            assertEq(mintedShares, _previewDepositWithVaultOffset(depositedAmount, prevShares, prevStake));
         }
         vm.stopPrank();
 
@@ -1684,8 +1684,8 @@ contract VaultV2Test is Test {
         gasLeft = gasleft();
         assertEq(vault.activeStakeAt(uint48(blockTimestamp), abi.encode(1)), amount1 - 1 + amount2 - 1);
         assertGt(gasSpent, gasLeft - gasleft());
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), shares1);
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), shares1 + shares2);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares1);
+        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares1 + shares2);
         assertEq(vault.activeSharesOf(alice), shares1 + shares2);
         gasLeft = gasleft();
         assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), abi.encode(1)), shares1);
@@ -1746,7 +1746,7 @@ contract VaultV2Test is Test {
             (uint256 depositedAmount, uint256 mintedShares) = _deposit(alice, amount1);
             shares1 = mintedShares;
             assertEq(depositedAmount, amount1);
-            assertEq(mintedShares, ERC4626Math.previewDeposit(depositedAmount, prevShares, prevStake));
+            assertEq(mintedShares, _previewDepositWithVaultOffset(depositedAmount, prevShares, prevStake));
         }
 
         blockTimestamp = blockTimestamp + 1;
@@ -1759,7 +1759,7 @@ contract VaultV2Test is Test {
             (uint256 depositedAmount, uint256 mintedShares) = _deposit(bob, amount2);
             shares2 = mintedShares;
             assertEq(depositedAmount, amount2);
-            assertEq(mintedShares, ERC4626Math.previewDeposit(depositedAmount, prevShares, prevStake));
+            assertEq(mintedShares, _previewDepositWithVaultOffset(depositedAmount, prevShares, prevStake));
         }
 
         assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares1);
@@ -1789,7 +1789,7 @@ contract VaultV2Test is Test {
         vault = _getVault(epochDuration);
 
         (, uint256 mintedShares) = _deposit(alice, 1);
-        assertEq(mintedShares, 1);
+        assertEq(mintedShares, _previewDepositWithVaultOffset(1, 0, 0));
 
         collateral.transfer(address(rewards), amount1);
         vm.startPrank(address(rewards));
@@ -1798,8 +1798,8 @@ contract VaultV2Test is Test {
         vm.stopPrank();
 
         assertEq(vault.activeStake(), amount1 + 1);
-        assertEq(vault.activeShares(), 1);
-        assertEq(vault.activeSharesOf(alice), 1);
+        assertEq(vault.activeShares(), mintedShares);
+        assertEq(vault.activeSharesOf(alice), mintedShares);
     }
 
     function test_DepositRevertWhenMintedSharesRoundDownToZero() public {
@@ -1807,7 +1807,7 @@ contract VaultV2Test is Test {
         vault = _getVault(epochDuration);
 
         (, uint256 mintedShares) = _deposit(alice, 1);
-        assertEq(mintedShares, 1);
+        assertEq(mintedShares, _previewDepositWithVaultOffset(1, 0, 0));
 
         uint256 donation = collateral.balanceOf(address(this)) - 1;
         collateral.transfer(address(rewards), donation);
@@ -1867,7 +1867,7 @@ contract VaultV2Test is Test {
             expectedWithdrawalsDonated = donation.mulDiv(curActiveWithdrawals, activeStakeBefore + curActiveWithdrawals);
             expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
             expectedBobWithdrawalsAfter =
-                ERC4626Math.previewRedeem(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
+                _previewRedeemWithVaultOffset(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
         }
 
         collateral.transfer(address(rewards), donation);
@@ -1928,7 +1928,7 @@ contract VaultV2Test is Test {
             expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
             expectedActiveStakeAfter = activeStakeBefore + donation - expectedWithdrawalsDonated;
             expectedBobWithdrawalsAfter =
-                ERC4626Math.previewRedeem(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
+                _previewRedeemWithVaultOffset(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
         }
 
         collateral.transfer(address(rewards), donation);
@@ -2056,17 +2056,19 @@ contract VaultV2Test is Test {
         uint48 previousTimestamp = aliceUnlockAfter - 1;
         uint256 activeStakeBefore = vault.activeStakeAt(previousTimestamp, "");
         uint256 activeStakeAtBoundary = vault.activeStakeAt(aliceUnlockAfter, "");
+        uint256 aliceWithdrawalShares = vault.withdrawalSharesOf(0, alice);
+        uint256 bobWithdrawalShares = vault.withdrawalSharesOf(0, bob);
 
-        assertEq(vault.activeWithdrawalSharesOfAt(alice, previousTimestamp), 40);
-        assertEq(vault.activeWithdrawalSharesOfAt(bob, previousTimestamp), 30);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, previousTimestamp), aliceWithdrawalShares);
+        assertEq(vault.activeWithdrawalSharesOfAt(bob, previousTimestamp), bobWithdrawalShares);
         assertEq(vault.withdrawalsOf(0, alice), 40);
-        assertEq(vault.activeWithdrawalSharesForAt(0, previousTimestamp), 70);
-        assertEq(vault.activeWithdrawalSharesForAt(1, previousTimestamp), 30);
+        assertEq(vault.activeWithdrawalSharesForAt(0, previousTimestamp), aliceWithdrawalShares + bobWithdrawalShares);
+        assertEq(vault.activeWithdrawalSharesForAt(1, previousTimestamp), bobWithdrawalShares);
         assertEq(vault.activeWithdrawalsForAt(0, previousTimestamp), 70);
         assertEq(vault.activeWithdrawalsForAt(1, previousTimestamp), 30);
         assertEq(vault.activeWithdrawalSharesOfAt(alice, aliceUnlockAfter), 0);
-        assertEq(vault.activeWithdrawalSharesOfAt(bob, aliceUnlockAfter), 30);
-        assertEq(vault.activeWithdrawalSharesForAt(0, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalSharesOfAt(bob, aliceUnlockAfter), bobWithdrawalShares);
+        assertEq(vault.activeWithdrawalSharesForAt(0, aliceUnlockAfter), bobWithdrawalShares);
         assertEq(vault.activeWithdrawalSharesForAt(1, aliceUnlockAfter), 0);
         assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), 30);
         assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
@@ -2100,10 +2102,12 @@ contract VaultV2Test is Test {
         VaultV2(address(vault)).donate(donation);
         vm.stopPrank();
 
+        uint256 bobWithdrawalShares = vault.withdrawalSharesOf(0, bob);
+
         assertEq(vault.withdrawalsOf(0, alice), claimableBefore);
         assertEq(vault.activeWithdrawalSharesOfAt(alice, aliceUnlockAfter), 0);
-        assertEq(vault.activeWithdrawalSharesOfAt(bob, aliceUnlockAfter), 30);
-        assertEq(vault.activeWithdrawalSharesForAt(0, aliceUnlockAfter), 30);
+        assertEq(vault.activeWithdrawalSharesOfAt(bob, aliceUnlockAfter), bobWithdrawalShares);
+        assertEq(vault.activeWithdrawalSharesForAt(0, aliceUnlockAfter), bobWithdrawalShares);
         assertEq(vault.activeWithdrawalSharesForAt(1, aliceUnlockAfter), 0);
         assertEq(vault.activeWithdrawalsForAt(0, aliceUnlockAfter), expectedNewActiveWithdrawals);
         assertEq(vault.activeWithdrawalsForAt(1, aliceUnlockAfter), 0);
@@ -2144,7 +2148,7 @@ contract VaultV2Test is Test {
         uint256 expectedWithdrawalsDonated = donation.mulDiv(activeBefore, activeStakeBefore + activeBefore);
         uint256 expectedActiveAfter = activeBefore + expectedWithdrawalsDonated;
         uint256 expectedStakeAfter = activeStakeBefore + donation - expectedWithdrawalsDonated;
-        uint256 expectedAliceWithdrawalsAfter = ERC4626Math.previewRedeem(
+        uint256 expectedAliceWithdrawalsAfter = _previewRedeemWithVaultOffset(
             sharesBefore, expectedActiveAfter, vault.withdrawalShares(vault.withdrawalBucket())
         );
 
@@ -2249,17 +2253,17 @@ contract VaultV2Test is Test {
         _deposit(alice, depositAmount);
 
         vm.warp(1);
-        _withdraw(alice, firstWithdrawAmount);
+        (, uint256 firstWithdrawalShares) = _withdraw(alice, firstWithdrawAmount);
 
         vm.warp(2);
-        _withdraw(alice, secondWithdrawAmount);
+        (, uint256 secondWithdrawalShares) = _withdraw(alice, secondWithdrawAmount);
 
         assertEq(vault.withdrawalsOfLength(alice), 2);
         assertEq(vault.withdrawalUnlockAt(0, alice), 1 + DURATION_WINDOW_DELAY);
         assertEq(vault.withdrawalUnlockAt(1, alice), 2 + DURATION_WINDOW_DELAY);
-        assertEq(vault.withdrawalSharesOf(0, alice), firstWithdrawAmount);
-        assertEq(vault.withdrawalSharesOf(1, alice), secondWithdrawAmount);
-        assertEq(vault.activeWithdrawalSharesOfAt(alice, 2), firstWithdrawAmount + secondWithdrawAmount);
+        assertEq(vault.withdrawalSharesOf(0, alice), firstWithdrawalShares);
+        assertEq(vault.withdrawalSharesOf(1, alice), secondWithdrawalShares);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 2), firstWithdrawalShares + secondWithdrawalShares);
 
         _assertDurationWindowAccountingForSingleOperator(
             universalDelegator, subnetwork, operatorSlot, accounts, 1, false
@@ -2270,7 +2274,7 @@ contract VaultV2Test is Test {
 
         vm.warp(3);
 
-        assertEq(vault.activeWithdrawalSharesOfAt(alice, 3), firstWithdrawAmount + secondWithdrawAmount);
+        assertEq(vault.activeWithdrawalSharesOfAt(alice, 3), firstWithdrawalShares + secondWithdrawalShares);
         _assertDurationWindowAccountingForSingleOperator(
             universalDelegator, subnetwork, operatorSlot, accounts, 1, false
         );
@@ -2361,7 +2365,7 @@ contract VaultV2Test is Test {
         uint256 expectedWithdrawalsDonated = donation.mulDiv(activeBefore, activeStakeBefore + activeBefore);
         uint256 expectedActiveAfter = activeBefore + expectedWithdrawalsDonated;
         uint256 expectedAliceWithdrawalsAfter =
-            ERC4626Math.previewRedeem(aliceSharesBefore, expectedActiveAfter, totalWithdrawalSharesBefore);
+            _previewRedeemWithVaultOffset(aliceSharesBefore, expectedActiveAfter, totalWithdrawalSharesBefore);
 
         collateral.transfer(address(rewards), donation);
         vm.startPrank(address(rewards));
@@ -2406,8 +2410,8 @@ contract VaultV2Test is Test {
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 burnedShares = amount2 * (shares + 10 ** 0) / (amount1 + 1);
-        uint256 mintedShares = amount2 * 10 ** 0;
+        uint256 burnedShares = _previewWithdrawWithVaultOffset(amount2, shares, amount1);
+        uint256 mintedShares = _previewDepositWithVaultOffset(amount2, 0, 0);
         (uint256 burnedShares_, uint256 mintedShares_) = _withdraw(alice, amount2);
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
@@ -2428,15 +2432,16 @@ contract VaultV2Test is Test {
         uint256 lastBucket = _latestWithdrawalBucket();
         assertEq(vault.withdrawals(lastBucket), amount2);
         assertEq(vault.withdrawalShares(lastBucket), mintedShares);
-        assertEq(vault.withdrawalSharesOf(0, alice), amount2);
+        assertEq(vault.withdrawalSharesOf(0, alice), mintedShares);
 
         shares -= burnedShares;
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        burnedShares = amount3 * (shares + 10 ** 0) / (amount1 - amount2 + 1);
-        mintedShares = amount3 * 10 ** 0;
+        burnedShares = _previewWithdrawWithVaultOffset(amount3, shares, amount1 - amount2);
+        uint256 firstWithdrawalShares = vault.withdrawalShares(lastBucket);
+        mintedShares = _previewDepositWithVaultOffset(amount3, firstWithdrawalShares, amount2);
         (burnedShares_, mintedShares_) = _withdraw(alice, amount3);
         assertEq(burnedShares_, burnedShares);
         assertEq(mintedShares_, mintedShares);
@@ -2455,8 +2460,8 @@ contract VaultV2Test is Test {
         assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - amount2 - amount3);
         assertEq(vault.activeBalanceOf(alice), amount1 - amount2 - amount3);
         assertEq(vault.withdrawals(lastBucket), amount2 + amount3);
-        assertEq(vault.withdrawalShares(lastBucket), amount2 + amount3);
-        assertEq(vault.withdrawalSharesOf(1, alice), amount3);
+        assertEq(vault.withdrawalShares(lastBucket), firstWithdrawalShares + mintedShares);
+        assertEq(vault.withdrawalSharesOf(1, alice), mintedShares);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -2573,9 +2578,6 @@ contract VaultV2Test is Test {
 
     function test_RedeemTwice(uint256 amount1, uint256 amount2, uint256 amount3) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
-        amount2 = bound(amount2, 1, 100 * 10 ** 18);
-        amount3 = bound(amount3, 1, 100 * 10 ** 18);
-        vm.assume(amount1 >= amount2 + amount3);
 
         uint256 blockTimestamp = vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
@@ -2586,62 +2588,27 @@ contract VaultV2Test is Test {
 
         (, uint256 shares) = _deposit(alice, amount1);
 
-        blockTimestamp = blockTimestamp + 1;
-        vm.warp(blockTimestamp);
+        amount2 = bound(amount2, 1, shares - 1);
+        uint256 withdrawnAssets2Preview = _previewRedeemWithVaultOffset(amount2, amount1, shares);
+        vm.assume(withdrawnAssets2Preview > 0);
 
-        uint256 withdrawnAssets2 = amount2 * (amount1 + 1) / (shares + 10 ** 0);
-        uint256 mintedShares = amount2 * 10 ** 0;
-        (uint256 withdrawnAssets_, uint256 mintedShares_) = _redeem(alice, amount2);
-        assertEq(withdrawnAssets_, withdrawnAssets2);
-        assertEq(mintedShares_, mintedShares);
-
-        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - amount2);
-        assertEq(vault.activeShares(), shares - amount2);
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1);
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - withdrawnAssets2);
-        assertEq(vault.activeStake(), amount1 - withdrawnAssets2);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares - amount2);
-        assertEq(vault.activeSharesOf(alice), shares - amount2);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - withdrawnAssets2);
-        assertEq(vault.activeBalanceOf(alice), amount1 - withdrawnAssets2);
-        uint256 lastBucket = _latestWithdrawalBucket();
-        assertEq(vault.withdrawals(lastBucket), withdrawnAssets2);
-        assertEq(vault.withdrawalShares(lastBucket), mintedShares);
-        assertEq(vault.withdrawalSharesOf(0, alice), mintedShares);
-
-        shares -= amount2;
+        uint256 remainingShares = shares - amount2;
+        amount3 = bound(amount3, 1, remainingShares);
+        vm.assume(_previewRedeemWithVaultOffset(amount3, amount1 - withdrawnAssets2Preview, remainingShares) > 0);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
 
-        uint256 withdrawnAssets3 = amount3 * (amount1 - withdrawnAssets2 + 1) / (shares + 10 ** 0);
-        mintedShares = amount3 * 10 ** 0;
-        (withdrawnAssets_, mintedShares_) = _redeem(alice, amount3);
-        assertEq(withdrawnAssets_, withdrawnAssets3);
-        assertEq(mintedShares_, mintedShares);
+        uint256 withdrawnAssets2;
+        uint256 lastBucket;
+        (shares, withdrawnAssets2, lastBucket) = _executeFirstRedeemTwiceStep(blockTimestamp, amount1, shares, amount2);
 
-        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), shares);
-        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), shares - amount3);
-        assertEq(vault.activeShares(), shares - amount3);
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), amount1 - withdrawnAssets2);
-        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), amount1 - withdrawnAssets2 - withdrawnAssets3);
-        assertEq(vault.activeStake(), amount1 - withdrawnAssets2 - withdrawnAssets3);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp - 1), ""), shares);
-        assertEq(vault.activeSharesOfAt(alice, uint48(blockTimestamp), ""), shares - amount3);
-        assertEq(vault.activeSharesOf(alice), shares - amount3);
-        assertEq(vault.activeBalanceOfAt(alice, uint48(blockTimestamp - 1), ""), amount1 - withdrawnAssets2);
-        assertEq(
-            vault.activeBalanceOfAt(alice, uint48(blockTimestamp), ""), amount1 - withdrawnAssets2 - withdrawnAssets3
+        blockTimestamp = blockTimestamp + 1;
+        vm.warp(blockTimestamp);
+
+        _executeSecondRedeemTwiceStep(
+            blockTimestamp, amount1 - withdrawnAssets2, shares, amount3, lastBucket, withdrawnAssets2
         );
-        assertEq(vault.activeBalanceOf(alice), amount1 - withdrawnAssets2 - withdrawnAssets3);
-        assertEq(vault.withdrawals(lastBucket), withdrawnAssets2 + withdrawnAssets3);
-        assertEq(vault.withdrawalShares(lastBucket), withdrawnAssets2 + withdrawnAssets3);
-        assertEq(vault.withdrawalSharesOf(1, alice), withdrawnAssets3);
 
         blockTimestamp = blockTimestamp + 1;
         vm.warp(blockTimestamp);
@@ -2696,8 +2663,11 @@ contract VaultV2Test is Test {
 
         _deposit(alice, amount1);
 
+        uint256 tooManyShares = vault.activeSharesOf(alice) + 1;
+        vm.startPrank(alice);
         vm.expectRevert(IVaultV2.TooMuchRedeem.selector);
-        _redeem(alice, amount1 + 1);
+        vault.redeem(alice, tooManyShares);
+        vm.stopPrank();
     }
 
     function test_Claim(uint256 amount1, uint256 amount2) public {
@@ -6036,7 +6006,7 @@ contract VaultV2Test is Test {
             VaultV2(address(vault)).activeWithdrawalSharesOfAt(alice, timestamp), vault.withdrawalSharesOf(0, alice)
         );
         assertGt(VaultV2(address(vault)).withdrawalsOf(0, alice), 0);
-        assertEq(VaultV2(address(vault)).decimals(), collateral.decimals());
+        assertEq(VaultV2(address(vault)).decimals(), collateral.decimals() + 6);
         assertEq(VaultV2(address(vault)).totalSupply(), vault.activeShares());
         assertEq(VaultV2(address(vault)).balanceOf(alice), vault.activeSharesOf(alice));
 
@@ -6547,9 +6517,9 @@ contract VaultV2Test is Test {
         uint256 deallocated = vault.deallocateAdapter(address(adapter), 10);
 
         assertEq(deallocated, 10);
-        assertEq(vault.adapterAllocated(address(adapter)), 80 + expectedSkimmed - deallocated);
+        assertEq(vault.adapterAllocated(address(adapter)), 80 - deallocated);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + deallocated);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed + deallocated);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6582,9 +6552,9 @@ contract VaultV2Test is Test {
 
         VaultV2(address(vault)).skimAdapters();
 
-        assertEq(vault.adapterAllocated(address(adapter)), 80 + expectedSkimmed);
+        assertEq(vault.adapterAllocated(address(adapter)), 80);
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6621,16 +6591,16 @@ contract VaultV2Test is Test {
         uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
         uint256 expectedSkimmed = adapter.skimmable(address(vault));
         uint256 expectedBurnedShares =
-            ERC4626Math.previewWithdraw(10, activeSharesBefore, activeStakeBefore + expectedSkimmed);
+            _previewWithdrawWithVaultOffset(10, activeSharesBefore, activeStakeBefore + expectedSkimmed);
 
         vm.prank(alice);
         (uint256 withdrawnAssets, uint256 burnedShares) = VaultV2(address(vault)).instantWithdraw(alice, 10);
 
         assertEq(withdrawnAssets, 10);
         assertEq(burnedShares, expectedBurnedShares);
-        assertEq(vault.adapterAllocated(address(adapter)), 60 + expectedSkimmed - withdrawnAssets);
+        assertEq(vault.adapterAllocated(address(adapter)), 60);
         assertEq(vault.activeStake(), activeStakeBefore - withdrawnAssets + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore - withdrawnAssets + expectedSkimmed);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6711,7 +6681,7 @@ contract VaultV2Test is Test {
         collateral.approve(address(morphoVault), 20);
         morphoVault.donateYield(20);
         uint256 expectedSkimmedDeposit = morphoAdapter.skimmable(address(vault));
-        uint256 allocatedAfterDeposit = 100 + expectedSkimmedDeposit + 10;
+        uint256 allocatedAfterDeposit = 110;
 
         _deposit(bob, 10);
         assertEq(vault.activeStake(), activeStakeBeforeBob + 10 + expectedSkimmedDeposit);
@@ -6726,7 +6696,7 @@ contract VaultV2Test is Test {
         _withdraw(alice, 30);
         assertEq(vault.activeStake(), activeStakeBeforeWithdraw + expectedSkimmedWithdraw - 30);
         assertEq(vault.activeWithdrawals(), 30);
-        assertEq(vault.adapterAllocated(address(morphoAdapter)), allocatedAfterDeposit + expectedSkimmedWithdraw);
+        assertEq(vault.adapterAllocated(address(morphoAdapter)), allocatedAfterDeposit);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
 
@@ -6766,7 +6736,7 @@ contract VaultV2Test is Test {
                 donation.mulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
             uint256 expectedNewActiveWithdrawals = curActiveWithdrawals + expectedWithdrawalsDonated;
             expectedBobAfter =
-                ERC4626Math.previewRedeem(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
+                _previewRedeemWithVaultOffset(bobSharesBefore, expectedNewActiveWithdrawals, curActiveWithdrawalShares);
         }
 
         collateral.approve(address(morphoVault), donation);
@@ -6822,8 +6792,8 @@ contract VaultV2Test is Test {
         adapter2.borrow(30);
 
         assertEq(vault.activeStake(), activeStakeBefore + expectedSkimmed);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore);
-        assertEq(vault.adapterAllocated(address(adapter1)), 80 + expectedSkimmed - 30);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + expectedSkimmed);
+        assertEq(vault.adapterAllocated(address(adapter1)), 50);
         assertEq(vault.adapterAllocated(address(adapter2)), 30);
         assertEq(collateral.balanceOf(address(rewards)), 0);
     }
@@ -7010,7 +6980,7 @@ contract VaultV2Test is Test {
         assertEq(tokenizedVault.balanceOf(alice), 0);
         assertEq(tokenizedVault.totalSupply(), 0);
         assertEq(tokenizedVault.allowance(alice, alice), 0);
-        assertEq(tokenizedVault.decimals(), collateral.decimals());
+        assertEq(tokenizedVault.decimals(), collateral.decimals() + 6);
         assertEq(tokenizedVault.symbol(), VAULT_SYMBOL);
         assertEq(tokenizedVault.name(), VAULT_NAME);
     }
@@ -7021,12 +6991,12 @@ contract VaultV2Test is Test {
 
         VaultV2 tokenizedVault = VaultV2(address(vault));
         assertEq(collateral.decimals(), 6);
-        assertEq(tokenizedVault.decimals(), 18);
+        assertEq(tokenizedVault.decimals(), 12);
 
         (, uint256 mintedShares) = _deposit(alice, 1e6);
-        assertEq(mintedShares, 1e18);
-        assertEq(tokenizedVault.balanceOf(alice), 1e18);
-        assertEq(tokenizedVault.totalSupply(), 1e18);
+        assertEq(mintedShares, 1e12);
+        assertEq(tokenizedVault.balanceOf(alice), 1e12);
+        assertEq(tokenizedVault.totalSupply(), 1e12);
     }
 
     function test_TokenizedBalances_matchSharesAfterDepositTwice(uint256 amount1, uint256 amount2) public {
@@ -7232,6 +7202,7 @@ contract VaultV2Test is Test {
         _assertMigrationState(vaultV2, oldSlasher);
         assertEq(VaultV2(address(vaultV2)).name(), VAULT_NAME);
         assertEq(VaultV2(address(vaultV2)).symbol(), VAULT_SYMBOL);
+        assertEq(VaultV2(address(vaultV2)).decimals(), collateral.decimals());
         assertEq(vaultV2.activeSharesOf(alice), aliceSharesBefore);
         assertEq(vaultV2.activeSharesOf(bob), bobSharesBefore);
         assertEq(vaultV2.activeShares(), totalSharesBefore);
@@ -7442,7 +7413,7 @@ contract VaultV2Test is Test {
         _deposit(alice, depositAmount);
 
         vm.warp(1);
-        _withdraw(alice, withdrawAmount);
+        (, scenario.withdrawalShares) = _withdraw(alice, withdrawAmount);
 
         scenario.unlockAt = vault.withdrawalUnlockAt(0, alice);
         scenario.activeStakeAfterWithdraw = depositAmount - withdrawAmount;
@@ -7461,7 +7432,11 @@ contract VaultV2Test is Test {
         }
 
         _assertSingleWithdrawalDurationSnapshot(
-            block1Current, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+            block1Current,
+            scenario.unlockAt,
+            scenario.activeStakeAfterWithdraw,
+            scenario.withdrawAmount,
+            scenario.withdrawalShares
         );
         _assertCurrentSingleOperatorStakeGuarantee(
             scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block1Current
@@ -7495,13 +7470,25 @@ contract VaultV2Test is Test {
         }
 
         _assertSingleWithdrawalDurationSnapshot(
-            block2Current, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+            block2Current,
+            scenario.unlockAt,
+            scenario.activeStakeAfterWithdraw,
+            scenario.withdrawAmount,
+            scenario.withdrawalShares
         );
         _assertSingleWithdrawalDurationSnapshot(
-            block2AtBlock1, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+            block2AtBlock1,
+            scenario.unlockAt,
+            scenario.activeStakeAfterWithdraw,
+            scenario.withdrawAmount,
+            scenario.withdrawalShares
         );
         _assertSingleWithdrawalDurationSnapshot(
-            block2AtBlock2, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+            block2AtBlock2,
+            scenario.unlockAt,
+            scenario.activeStakeAfterWithdraw,
+            scenario.withdrawAmount,
+            scenario.withdrawalShares
         );
         _assertCurrentSingleOperatorStakeGuarantee(
             scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block2Current
@@ -7538,10 +7525,18 @@ contract VaultV2Test is Test {
         }
 
         _assertSingleWithdrawalDurationSnapshot(
-            block3AtBlock1, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+            block3AtBlock1,
+            scenario.unlockAt,
+            scenario.activeStakeAfterWithdraw,
+            scenario.withdrawAmount,
+            scenario.withdrawalShares
         );
         _assertSingleWithdrawalDurationSnapshot(
-            block3AtBlock2, scenario.unlockAt, scenario.activeStakeAfterWithdraw, scenario.withdrawAmount
+            block3AtBlock2,
+            scenario.unlockAt,
+            scenario.activeStakeAfterWithdraw,
+            scenario.withdrawAmount,
+            scenario.withdrawalShares
         );
         _assertHistoricalSingleOperatorStakeGuarantee(
             scenario.universalDelegator, scenario.subnetwork, scenario.operatorSlot, block3AtBlock1
@@ -7650,21 +7645,24 @@ contract VaultV2Test is Test {
         DurationWindowSnapshot memory snapshot,
         uint48 unlockAt,
         uint256 activeStakeAfterWithdraw,
-        uint256 withdrawAmount
+        uint256 withdrawAmount,
+        uint256 withdrawalShares
     ) internal view {
         assertEq(snapshot.activeStake, activeStakeAfterWithdraw);
-        assertEq(snapshot.withdrawalSharesOfAlice, withdrawAmount);
+        assertEq(snapshot.withdrawalSharesOfAlice, withdrawalShares);
         assertEq(
             snapshot.activeWithdrawalSharesOfAlice,
             _sumUnclaimableWithdrawalRequestSharesAt(alice, snapshot.queryTimestamp)
         );
 
         for (uint48 duration; duration < DURATION_WINDOW_DELAY; ++duration) {
-            uint256 expectedActive =
+            uint256 expectedActiveShares =
+                _expectedSingleWithdrawalWindow(snapshot.queryTimestamp, duration, unlockAt, withdrawalShares);
+            uint256 expectedActiveWithdrawals =
                 _expectedSingleWithdrawalWindow(snapshot.queryTimestamp, duration, unlockAt, withdrawAmount);
-            assertEq(snapshot.activeWithdrawalSharesForDuration[duration], expectedActive);
-            assertEq(snapshot.activeWithdrawalsForDuration[duration], expectedActive);
-            assertEq(snapshot.stakeForDuration[duration], activeStakeAfterWithdraw + expectedActive);
+            assertEq(snapshot.activeWithdrawalSharesForDuration[duration], expectedActiveShares);
+            assertEq(snapshot.activeWithdrawalsForDuration[duration], expectedActiveWithdrawals);
+            assertEq(snapshot.stakeForDuration[duration], activeStakeAfterWithdraw + expectedActiveWithdrawals);
         }
     }
 
@@ -7876,6 +7874,112 @@ contract VaultV2Test is Test {
             0
         );
         return vault_;
+    }
+
+    function _previewDepositWithVaultOffset(uint256 assets, uint256 totalShares, uint256 totalAssets)
+        internal
+        view
+        returns (uint256)
+    {
+        return assets.mulDiv(totalShares + _vaultVirtualShares(), totalAssets + 1);
+    }
+
+    function _previewWithdrawWithVaultOffset(uint256 assets, uint256 totalShares, uint256 totalAssets)
+        internal
+        view
+        returns (uint256)
+    {
+        return assets.mulDiv(totalShares + _vaultVirtualShares(), totalAssets + 1, Math.Rounding.Ceil);
+    }
+
+    function _previewRedeemWithVaultOffset(uint256 shares, uint256 totalAssets, uint256 totalShares)
+        internal
+        view
+        returns (uint256)
+    {
+        return shares.mulDiv(totalAssets + 1, totalShares + _vaultVirtualShares());
+    }
+
+    function _assertSingleAccountActiveTransition(
+        address account,
+        uint256 blockTimestamp,
+        uint256 previousShares,
+        uint256 currentShares,
+        uint256 previousStake,
+        uint256 currentStake
+    ) internal view {
+        uint256 previousBalance = _previewRedeemWithVaultOffset(previousShares, previousStake, previousShares);
+        uint256 currentBalance = _previewRedeemWithVaultOffset(currentShares, currentStake, currentShares);
+
+        assertEq(vault.totalStake(), _expectedTotalStake(uint48(blockTimestamp)));
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp - 1), ""), previousShares);
+        assertEq(vault.activeSharesAt(uint48(blockTimestamp), ""), currentShares);
+        assertEq(vault.activeShares(), currentShares);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp - 1), ""), previousStake);
+        assertEq(vault.activeStakeAt(uint48(blockTimestamp), ""), currentStake);
+        assertEq(vault.activeStake(), currentStake);
+        assertEq(vault.activeSharesOfAt(account, uint48(blockTimestamp - 1), ""), previousShares);
+        assertEq(vault.activeSharesOfAt(account, uint48(blockTimestamp), ""), currentShares);
+        assertEq(vault.activeSharesOf(account), currentShares);
+        assertEq(vault.activeBalanceOfAt(account, uint48(blockTimestamp - 1), ""), previousBalance);
+        assertEq(vault.activeBalanceOfAt(account, uint48(blockTimestamp), ""), currentBalance);
+        assertEq(vault.activeBalanceOf(account), currentBalance);
+    }
+
+    function _executeFirstRedeemTwiceStep(
+        uint256 blockTimestamp,
+        uint256 activeStakeBefore,
+        uint256 sharesBefore,
+        uint256 redeemedShares
+    ) internal returns (uint256 remainingShares, uint256 withdrawnAssets, uint256 lastBucket) {
+        uint256 mintedWithdrawalShares = _previewDepositWithVaultOffset(
+            _previewRedeemWithVaultOffset(redeemedShares, activeStakeBefore, sharesBefore), 0, 0
+        );
+        (withdrawnAssets, mintedWithdrawalShares) = _redeem(alice, redeemedShares);
+        assertEq(mintedWithdrawalShares, _previewDepositWithVaultOffset(withdrawnAssets, 0, 0));
+
+        remainingShares = sharesBefore - redeemedShares;
+
+        _assertSingleAccountActiveTransition(
+            alice, blockTimestamp, sharesBefore, remainingShares, activeStakeBefore, activeStakeBefore - withdrawnAssets
+        );
+
+        lastBucket = _latestWithdrawalBucket();
+        assertEq(vault.withdrawals(lastBucket), withdrawnAssets);
+        assertEq(vault.withdrawalShares(lastBucket), mintedWithdrawalShares);
+        assertEq(vault.withdrawalSharesOf(0, alice), mintedWithdrawalShares);
+    }
+
+    function _executeSecondRedeemTwiceStep(
+        uint256 blockTimestamp,
+        uint256 activeStakeBefore,
+        uint256 sharesBefore,
+        uint256 redeemedShares,
+        uint256 lastBucket,
+        uint256 firstWithdrawalAssets
+    ) internal {
+        uint256 withdrawnAssets = _previewRedeemWithVaultOffset(redeemedShares, activeStakeBefore, sharesBefore);
+        uint256 firstWithdrawalShares = vault.withdrawalShares(lastBucket);
+        uint256 mintedWithdrawalShares =
+            _previewDepositWithVaultOffset(withdrawnAssets, firstWithdrawalShares, firstWithdrawalAssets);
+        (withdrawnAssets, mintedWithdrawalShares) = _redeem(alice, redeemedShares);
+        assertEq(
+            mintedWithdrawalShares,
+            _previewDepositWithVaultOffset(withdrawnAssets, firstWithdrawalShares, firstWithdrawalAssets)
+        );
+
+        uint256 remainingShares = sharesBefore - redeemedShares;
+
+        _assertSingleAccountActiveTransition(
+            alice, blockTimestamp, sharesBefore, remainingShares, activeStakeBefore, activeStakeBefore - withdrawnAssets
+        );
+        assertEq(vault.withdrawals(lastBucket), firstWithdrawalAssets + withdrawnAssets);
+        assertEq(vault.withdrawalShares(lastBucket), firstWithdrawalShares + mintedWithdrawalShares);
+        assertEq(vault.withdrawalSharesOf(1, alice), mintedWithdrawalShares);
+    }
+
+    function _vaultVirtualShares() internal view returns (uint256) {
+        return 10 ** (VaultV2(address(vault)).decimals() - collateral.decimals());
     }
 
     function _getUniversalVault(uint48 epochDuration) internal returns (IVaultV2) {
