@@ -3,8 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
-
-import {ERC4626Math} from "../../libraries/ERC4626Math.sol";
+import {ERC4626Math} from "../common/ERC4626Math.sol";
 
 import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
 import {ICuratorRegistry} from "../../../interfaces/vault/adapters/ICuratorRegistry.sol";
@@ -29,7 +28,7 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 
 /// @title MorphoVaultV2Adapter
 /// @notice VaultV2 adapter for Morpho ERC4626 vaults.
-contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
+contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVaultV2Adapter {
     using Math for uint256;
     using SafeERC20 for address;
 
@@ -128,7 +127,7 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
         if (amount > 0) {
             address morphoVault = morphoVaults[vault];
             uint256 burnedShares =
-                ERC4626Math.previewWithdraw(amount, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
+                _previewWithdraw(amount, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
             try IMorphoVaultV2(morphoVault).withdraw(amount, address(this), address(this)) returns (uint256) {
                 vaultShares[morphoVault][vault] -= burnedShares;
                 totalVaultShares[morphoVault] -= burnedShares;
@@ -160,8 +159,7 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
             collateral.safeApproveWithRetry(morphoVault, type(uint256).max);
         }
 
-        uint256 mintedShares =
-            ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
+        uint256 mintedShares = _previewDeposit(amount, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
         try IMorphoVaultV2(morphoVault).deposit(amount, address(this)) returns (uint256) {
             vaultShares[morphoVault][msg.sender] += mintedShares;
             totalVaultShares[morphoVault] += mintedShares;
@@ -185,9 +183,8 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
             uint256 curBalance = collateral.balanceOf(address(this));
             uint256 amountToWithdraw = deallocated.saturatingSub(curBalance);
             if (amountToWithdraw > 0) {
-                uint256 burnedShares = ERC4626Math.previewWithdraw(
-                    amountToWithdraw, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault)
-                );
+                uint256 burnedShares =
+                    _previewWithdraw(amountToWithdraw, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
                 try IMorphoVaultV2(morphoVault).withdraw(amountToWithdraw, address(this), address(this)) returns (
                     uint256
                 ) {
@@ -222,9 +219,10 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
         if (morphoVault == address(0)) {
             return 0;
         }
-        return ERC4626Math.previewRedeem(
-            vaultShares[morphoVault][vault], _getAdapterAssets(morphoVault), totalVaultShares[morphoVault]
-        );
+        return
+            _previewRedeem(
+                vaultShares[morphoVault][vault], _getAdapterAssets(morphoVault), totalVaultShares[morphoVault]
+            );
     }
 
     /* CURATOR FUNCTIONS */

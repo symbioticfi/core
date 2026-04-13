@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {DelegatorFactory} from "../DelegatorFactory.sol";
+import {ERC4626Math} from "./common/ERC4626Math.sol";
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {SlasherFactory} from "../SlasherFactory.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
@@ -12,7 +13,6 @@ import {VaultV2Storage} from "./VaultV2Storage.sol";
 
 import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
-import {ERC4626Math} from "../libraries/ERC4626Math.sol";
 
 import {IAdapterBase} from "../../interfaces/vault/IAdapterBase.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
@@ -51,7 +51,14 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 ///      2. Sync owed slashes draw only from liquid above the no-adapters reserve.
 ///      3. Claims are allowed only when leaving room for reserve and all outstanding owed slashes.
 ///      4. Remaining funds are used for instant withdrawals and adapters allocation simultaneously.
-contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
+contract VaultV2 is
+    VaultV2Storage,
+    MigratableEntity,
+    AccessControlUpgradeable,
+    ERC20Upgradeable,
+    ERC4626Math,
+    IVaultV2
+{
     using Math for uint256;
     using SafeERC20 for address;
     using Checkpoints for Checkpoints.Trace208;
@@ -108,7 +115,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /// @inheritdoc IVaultV2
     function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(
+        return _previewRedeem(
             activeSharesOfAt(account, timestamp, Calldata.emptyBytes()),
             activeStakeAt(timestamp, Calldata.emptyBytes()),
             activeSharesAt(timestamp, Calldata.emptyBytes())
@@ -117,7 +124,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     /// @inheritdoc IVaultV2
     function activeBalanceOf(address account) public view returns (uint256) {
-        return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
+        return _previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
     /// @inheritdoc IVaultV2
@@ -213,7 +220,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (migrateTimestamp > 0) {
             uint48 migrateEpoch = __migrateEpoch;
             if (index == migrateEpoch || index == migrateEpoch + 1) {
-                shares = ERC4626Math.previewRedeem(shares, __withdrawals[index], __withdrawalShares[index]);
+                shares = _previewRedeem(shares, __withdrawals[index], __withdrawalShares[index]);
             }
         }
     }
@@ -241,21 +248,19 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         if (index >= migrateEpoch) {
             uint48 unlockAt = withdrawalUnlockAt(index, account);
             uint256 bucketIndex = _unlockToBucket.upperLookupRecent(unlockAt > 0 ? unlockAt - 1 : 0);
-            return ERC4626Math.previewRedeem(
-                withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares(bucketIndex)
-            );
+            return
+                _previewRedeem(
+                    withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares(bucketIndex)
+                );
         }
 
         // Legacy support.
-        return
-            ERC4626Math.previewRedeem(
-                _withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]
-            );
+        return _previewRedeem(_withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]);
     }
 
     /// @inheritdoc ERC20Upgradeable
     function decimals() public view override returns (uint8) {
-        return IERC20Metadata(collateral).decimals();
+        return IERC20Metadata(collateral).decimals() + _decimalsOffset();
     }
 
     /// @inheritdoc ERC20Upgradeable
@@ -307,7 +312,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint256 curActiveStake = activeStake();
         uint256 curActiveShares = activeShares();
 
-        mintedShares = ERC4626Math.previewDeposit(depositedAmount, curActiveShares, curActiveStake);
+        mintedShares = _previewDeposit(depositedAmount, curActiveShares, curActiveStake);
         _revertIfZero(mintedShares);
 
         _activeShares.push(uint48(block.timestamp), curActiveShares + mintedShares);
@@ -334,7 +339,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         _revertIfZero(claimer);
         _revertIfZero(amount);
 
-        burnedShares = ERC4626Math.previewWithdraw(amount, activeShares(), activeStake());
+        burnedShares = _previewWithdraw(amount, activeShares(), activeStake());
         _revertIfZero(burnedShares);
         if (burnedShares > activeSharesOf(msg.sender)) {
             revert TooMuchWithdraw();
@@ -356,7 +361,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
             revert TooMuchRedeem();
         }
 
-        withdrawnAssets = ERC4626Math.previewRedeem(shares, activeStake(), activeShares());
+        withdrawnAssets = _previewRedeem(shares, activeStake(), activeShares());
         _revertIfZero(withdrawnAssets);
         mintedShares = _withdraw(claimer, withdrawnAssets, shares);
     }
@@ -377,7 +382,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         withdrawnAssets = Math.min(amount, UniversalDelegator(delegator).getWithdrawalBuffer());
 
-        burnedShares = ERC4626Math.previewWithdraw(withdrawnAssets, curActiveShares, curActiveStake);
+        burnedShares = _previewWithdraw(withdrawnAssets, curActiveShares, curActiveStake);
         if (burnedShares > curActiveSharesOf) {
             revert TooMuchWithdraw();
         }
@@ -515,7 +520,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         uint256 curWithdrawals = withdrawals(curWithdrawalBucket);
         uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
 
-        mintedShares = ERC4626Math.previewDeposit(withdrawnAssets, curWithdrawalShares, curWithdrawals);
+        mintedShares = _previewDeposit(withdrawnAssets, curWithdrawalShares, curWithdrawals);
         _revertIfZero(mintedShares);
 
         _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawalShares + mintedShares);
@@ -729,7 +734,7 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
     function _liquidBalance() internal view returns (uint256) {
         return (totalStake() + unclaimed() + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0))
-            .saturatingSub(adaptersAllocated);
+        .saturatingSub(adaptersAllocated);
     }
 
     /// @inheritdoc AccessControlUpgradeable
@@ -909,5 +914,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
     function _safeTransferOut(address to, uint256 amount) internal {
         _revertIfZero(amount);
         collateral.safeTransfer(to, amount);
+    }
+
+    /// @inheritdoc ERC4626Math
+    function _decimalsOffset() internal view virtual override returns (uint8) {
+        return uint8(migrateTimestamp == 0 ? uint256(18).saturatingSub(IERC20Metadata(collateral).decimals()) : 0);
     }
 }

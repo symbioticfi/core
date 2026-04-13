@@ -5,10 +5,9 @@ import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol
 
 /**
  * @title ERC4626Math
- * @notice Library implementing an ERC4626 share-and-asset conversion helper set.\
- * @dev DEPRECATED: use vault/common/ERC4626Math.sol instead
+ * @notice Contract-library implementing an ERC4626 share-and-asset conversion helper set.
  */
-library ERC4626Math {
+abstract contract ERC4626Math {
     using Math for uint256;
 
     /**
@@ -18,8 +17,8 @@ library ERC4626Math {
      * @param totalAssets The current total amount of managed assets.
      * @return shares The number of shares that would be minted.
      */
-    function previewDeposit(uint256 assets, uint256 totalShares, uint256 totalAssets) internal pure returns (uint256) {
-        return assets.fullMulDiv(totalShares + 1, totalAssets + 1);
+    function _previewDeposit(uint256 assets, uint256 totalShares, uint256 totalAssets) internal view returns (uint256) {
+        return assets.fullMulDiv(totalShares + _virtualShares(), totalAssets + _virtualAssets());
     }
 
     /**
@@ -29,8 +28,8 @@ library ERC4626Math {
      * @param totalShares The current total supply of shares.
      * @return assets The amount of assets that would be required.
      */
-    function previewMint(uint256 shares, uint256 totalAssets, uint256 totalShares) internal pure returns (uint256) {
-        return shares.fullMulDivUp(totalAssets + 1, totalShares + 1);
+    function _previewMint(uint256 shares, uint256 totalAssets, uint256 totalShares) internal view returns (uint256) {
+        return shares.fullMulDivUp(totalAssets + _virtualAssets(), totalShares + _virtualShares());
     }
 
     /**
@@ -40,8 +39,12 @@ library ERC4626Math {
      * @param totalAssets The current total amount of managed assets.
      * @return shares The number of shares that would be burned.
      */
-    function previewWithdraw(uint256 assets, uint256 totalShares, uint256 totalAssets) internal pure returns (uint256) {
-        return assets.fullMulDivUp(totalShares + 1, totalAssets + 1);
+    function _previewWithdraw(uint256 assets, uint256 totalShares, uint256 totalAssets)
+        internal
+        view
+        returns (uint256)
+    {
+        return assets.fullMulDivUp(totalShares + _virtualShares(), totalAssets + _virtualAssets());
     }
 
     /**
@@ -51,7 +54,25 @@ library ERC4626Math {
      * @param totalShares The current total supply of shares.
      * @return assets The amount of assets that would be returned.
      */
-    function previewRedeem(uint256 shares, uint256 totalAssets, uint256 totalShares) internal pure returns (uint256) {
-        return shares.fullMulDiv(totalAssets + 1, totalShares + 1);
+    function _previewRedeem(uint256 shares, uint256 totalAssets, uint256 totalShares) internal view returns (uint256) {
+        return shares.fullMulDiv(totalAssets + _virtualAssets(), totalShares + _virtualShares());
+    }
+
+    function _virtualAssets() internal view returns (uint256) {
+        return 1;
+    }
+
+    /**
+     * @notice Get the virtual shares to use in ERC4626 conversions.
+     */
+    function _virtualShares() internal view returns (uint256) {
+        return 10 ** _decimalsOffset();
+    }
+
+    /**
+     * @notice Get the decimals offset to apply for virtual shares.
+     */
+    function _decimalsOffset() internal view virtual returns (uint8) {
+        return 0;
     }
 }

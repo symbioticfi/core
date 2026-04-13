@@ -69,6 +69,7 @@ import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
@@ -95,10 +96,20 @@ contract MockCuratorRegistryHarnessVaultV2 {
     }
 }
 
-contract VaultV2CoverageHarness is VaultV2 {
-    using Checkpoints for Checkpoints.Trace256;
-    using CheckpointsV2Lib for CheckpointsV2Lib.Trace256;
+contract DecimalsToken is ERC20 {
+    uint8 private immutable DECIMALS;
 
+    constructor(string memory name_, uint8 decimals_) ERC20(name_, "") {
+        DECIMALS = decimals_;
+        _mint(msg.sender, 1_000_000 * 10 ** decimals_);
+    }
+
+    function decimals() public view override returns (uint8) {
+        return DECIMALS;
+    }
+}
+
+contract VaultV2CoverageHarness is VaultV2 {
     constructor()
         VaultV2(
             address(0),
@@ -110,50 +121,6 @@ contract VaultV2CoverageHarness is VaultV2 {
             address(new VaultV2Migrate(address(0), address(0), address(0), address(0), address(0)))
         )
     {}
-
-    function setCollateralRaw(address collateral_) external {
-        collateral = collateral_;
-    }
-
-    function setBurnerRaw(address burner_) external {
-        burner = burner_;
-    }
-
-    function setSlasherRaw(address slasher_) external {
-        slasher = slasher_;
-    }
-
-    function setEpochDurationRaw(uint48 epochDuration_) external {
-        epochDuration = epochDuration_;
-    }
-
-    function setEpochDurationInitRaw(uint48 epochDurationInit_) external {
-        __epochDurationInit = epochDurationInit_;
-    }
-
-    function pushActiveStakeRaw(uint48 timestamp, uint256 value) external {
-        _activeStake.push(timestamp, value);
-    }
-
-    function pushWithdrawalsRaw(uint256 bucket, uint48 timestamp, uint256 value) external {
-        _withdrawals[bucket].push(timestamp, value);
-    }
-
-    function pushWithdrawalSharesRaw(uint256 bucket, uint48 timestamp, uint256 value) external {
-        _withdrawalShares[bucket].push(timestamp, value);
-    }
-
-    function pushWithdrawalSharesCumulativeRaw(uint48 timestamp, uint256 value) external {
-        _withdrawalSharesCumulative.push(timestamp, value);
-    }
-
-    function setLegacyWithdrawalRaw(uint256 epoch, uint256 value) external {
-        __withdrawals[epoch] = value;
-    }
-
-    function exposeUpdateWithdrawalsSharePrice(uint256 newActiveWithdrawals) external {
-        _updateWithdrawalsSharePrice(newActiveWithdrawals);
-    }
 
     function exposeMigrate(bytes calldata data) external {
         _migrate(1, VAULT_V2_VERSION, data);
@@ -373,6 +340,45 @@ contract VaultV2Test is Test {
         uint48 unlockAt;
         uint256 activeStakeAfterWithdraw;
         uint256 withdrawAmount;
+    }
+
+    function _setPackedField(address target, uint256 slot, uint256 offsetBytes, uint256 widthBytes, uint256 value)
+        internal
+    {
+        uint256 shift = offsetBytes * 8;
+        uint256 mask = ((uint256(1) << (widthBytes * 8)) - 1) << shift;
+        uint256 current = uint256(vm.load(target, bytes32(slot)));
+        vm.store(target, bytes32(slot), bytes32((current & ~mask) | (value << shift)));
+    }
+
+    function _packCheckpoint208(uint48 key, uint208 value) internal pure returns (bytes32) {
+        return bytes32(uint256(key) | (uint256(value) << 48));
+    }
+
+    function _setTrace256Latest(address target, uint256 baseSlot, uint48 key, uint256 value) internal {
+        vm.store(target, bytes32(baseSlot), bytes32(uint256(1)));
+        vm.store(target, bytes32(uint256(keccak256(abi.encode(baseSlot)))), _packCheckpoint208(key, 1));
+        vm.store(target, bytes32(baseSlot + 1), bytes32(uint256(2)));
+
+        bytes32 valuesBase = bytes32(uint256(keccak256(abi.encode(baseSlot + 1))));
+        vm.store(target, valuesBase, bytes32(0));
+        vm.store(target, bytes32(uint256(valuesBase) + 1), bytes32(value));
+    }
+
+    function _setTrace256V2Latest(address target, uint256 baseSlot, uint48 key, uint256 value) internal {
+        vm.store(target, bytes32(baseSlot), bytes32(uint256(1)));
+        vm.store(target, bytes32(uint256(keccak256(abi.encode(baseSlot)))), _packCheckpoint208(key, 1));
+        vm.store(target, keccak256(abi.encode(uint256(1), baseSlot + 1)), bytes32(value));
+    }
+
+    function _setMappedTrace256V2Latest(
+        address target,
+        uint256 mappingSlot,
+        uint256 mappingKey,
+        uint48 key,
+        uint256 value
+    ) internal {
+        _setTrace256V2Latest(target, uint256(keccak256(abi.encode(mappingKey, mappingSlot))), key, value);
     }
 
     function setUp() public virtual {
@@ -4137,9 +4143,14 @@ contract VaultV2Test is Test {
 
     function test_MigrateReverts_TooLongDurationOnLegacyVault() public {
         VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
-        harness.setEpochDurationRaw(MAX_DURATION + 1);
+        _setPackedField(address(harness), 1, 26, 6, MAX_DURATION + 1);
         vm.expectRevert(IVaultV2.TooLongDuration.selector);
         harness.exposeMigrate("");
+    }
+
+    function test_VaultV2CoverageHarness_codeSizeWithinLimit() public {
+        VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
+        assertLe(address(harness).code.length, 24_576);
     }
 
     function testFuzz_OnSlash_arithmeticIsSafeUpToSupplyCap(
@@ -4162,17 +4173,17 @@ contract VaultV2Test is Test {
         uint48 timestamp = uint48(block.timestamp);
         uint48 epochDuration_ = 7 days;
 
-        harness.setCollateralRaw(address(mathCollateral));
-        harness.setBurnerRaw(address(0xBEEF));
-        harness.setSlasherRaw(address(this));
-        harness.setEpochDurationRaw(epochDuration_);
-        harness.pushActiveStakeRaw(timestamp, activeStakeAmount);
+        _setPackedField(address(harness), 0, 2, 20, uint160(address(mathCollateral)));
+        _setPackedField(address(harness), 1, 0, 20, uint160(address(0xBEEF)));
+        _setPackedField(address(harness), 1, 26, 6, epochDuration_);
+        _setPackedField(address(harness), 3, 0, 20, uint160(address(this)));
+        _setTrace256Latest(address(harness), 12, timestamp, activeStakeAmount);
 
         uint256 bucketWithdrawals = activeWithdrawalAmount + claimableWithdrawalAmount;
         if (bucketWithdrawals > 0) {
-            harness.pushWithdrawalsRaw(0, timestamp, bucketWithdrawals);
-            harness.pushWithdrawalSharesRaw(0, timestamp, bucketWithdrawals);
-            harness.pushWithdrawalSharesCumulativeRaw(timestamp + epochDuration_, activeWithdrawalAmount);
+            _setMappedTrace256V2Latest(address(harness), 19, 0, timestamp, bucketWithdrawals);
+            _setMappedTrace256V2Latest(address(harness), 18, 0, timestamp, bucketWithdrawals);
+            _setTrace256V2Latest(address(harness), 21, timestamp + epochDuration_, activeWithdrawalAmount);
         }
 
         deal(address(mathCollateral), address(harness), activeStakeAmount + bucketWithdrawals);
@@ -6985,6 +6996,20 @@ contract VaultV2Test is Test {
         assertEq(tokenizedVault.name(), VAULT_NAME);
     }
 
+    function test_TokenizedMetadata_normalizesLowDecimalCollateralBeforeMigration() public {
+        collateral = Token(address(new DecimalsToken("SixDecimalsToken", 6)));
+        vault = _getVault(7 days);
+
+        VaultV2 tokenizedVault = VaultV2(address(vault));
+        assertEq(collateral.decimals(), 6);
+        assertEq(tokenizedVault.decimals(), 18);
+
+        (, uint256 mintedShares) = _deposit(alice, 1e6);
+        assertEq(mintedShares, 1e18);
+        assertEq(tokenizedVault.balanceOf(alice), 1e18);
+        assertEq(tokenizedVault.totalSupply(), 1e18);
+    }
+
     function test_TokenizedBalances_matchSharesAfterDepositTwice(uint256 amount1, uint256 amount2) public {
         amount1 = bound(amount1, 1, 100 * 10 ** 18);
         amount2 = bound(amount2, 1, 100 * 10 ** 18);
@@ -7192,6 +7217,51 @@ contract VaultV2Test is Test {
         assertEq(vaultV2.activeSharesOf(bob), bobSharesBefore);
         assertEq(vaultV2.activeShares(), totalSharesBefore);
         assertEq(VaultV2(address(vaultV2)).totalSupply(), totalSharesBefore);
+    }
+
+    function test_Migrate_FactoryUpgradePath_fromVaultTokenized_preservesLowDecimalMetadataAndShareBalances() public {
+        uint48 epochDuration = 10;
+        collateral = Token(address(new DecimalsToken("SixDecimalsToken", 6)));
+
+        uint256 blockTimestamp = vm.getBlockTimestamp();
+        blockTimestamp = blockTimestamp + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        (IVaultV2 vault_,,) = _createInitializedVaultWithOwnerAndSlasher(
+            epochDuration,
+            networkLimitSetRoleHolders,
+            operatorNetworkSharesSetRoleHolders,
+            2,
+            address(0xdEaD),
+            false,
+            false,
+            0,
+            address(this),
+            0,
+            ""
+        );
+        vault = IVaultV2(address(vault_));
+
+        (, uint256 mintedShares) = _deposit(alice, 1e6);
+        address oldSlasher = vault.slasher();
+
+        assertEq(VaultTokenized(address(vault)).decimals(), 6);
+        assertEq(VaultTokenized(address(vault)).balanceOf(alice), mintedShares);
+        assertEq(mintedShares, 1e6);
+
+        vaultFactory.migrate(address(vault), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration)));
+
+        IVaultV2 vaultV2 = IVaultV2(address(vault));
+        _assertMigrationState(vaultV2, oldSlasher);
+        assertEq(VaultV2(address(vaultV2)).decimals(), 6);
+        assertEq(vaultV2.activeSharesOf(alice), mintedShares);
+        assertEq(vaultV2.activeShares(), mintedShares);
+        assertEq(VaultV2(address(vaultV2)).totalSupply(), mintedShares);
     }
 
     function test_Migrate_FactoryUpgradePath_grantsAdapterManagementRolesFromMigrateParams() public {

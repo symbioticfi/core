@@ -3,8 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
-
-import {ERC4626Math} from "../../libraries/ERC4626Math.sol";
+import {ERC4626Math} from "../common/ERC4626Math.sol";
 
 import {IAaveV3Adapter, REFERRAL_CODE} from "../../../interfaces/vault/adapters/aave_v3_adapter/IAaveV3Adapter.sol";
 import {IAaveV3Pool} from "../../../interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
@@ -20,7 +19,7 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 
 /// @title AaveV3Adapter
 /// @notice VaultV2 adapter for Aave V3 supply positions.
-contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
+contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
     using Math for uint256;
     using SafeERC20 for address;
 
@@ -94,8 +93,7 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
         amount = skimmable(vault);
         if (amount > 0) {
             address collateral = IVaultV2(vault).collateral();
-            uint256 burnedShares =
-                ERC4626Math.previewWithdraw(amount, totalCollateralShares[collateral], _getAdapterAssets(vault));
+            uint256 burnedShares = _previewWithdraw(amount, totalCollateralShares[collateral], _getAdapterAssets(vault));
             try IAaveV3Pool(AAVE_POOL).withdraw(collateral, amount, address(this)) returns (uint256) {
                 vaultShares[collateral][vault] -= burnedShares;
                 totalCollateralShares[collateral] -= burnedShares;
@@ -126,8 +124,7 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
             collateral.safeApproveWithRetry(AAVE_POOL, type(uint256).max);
         }
 
-        uint256 mintedShares =
-            ERC4626Math.previewDeposit(amount, totalCollateralShares[collateral], _getAdapterAssets(msg.sender));
+        uint256 mintedShares = _previewDeposit(amount, totalCollateralShares[collateral], _getAdapterAssets(msg.sender));
         try IAaveV3Pool(AAVE_POOL).supply(collateral, amount, address(this), REFERRAL_CODE) {
             vaultShares[collateral][msg.sender] += mintedShares;
             totalCollateralShares[collateral] += mintedShares;
@@ -150,7 +147,7 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
             uint256 curBalance = IERC20(collateral).balanceOf(address(this));
             uint256 amountToWithdraw = deallocated.saturatingSub(curBalance);
             if (amountToWithdraw > 0) {
-                uint256 burnedShares = ERC4626Math.previewWithdraw(
+                uint256 burnedShares = _previewWithdraw(
                     amountToWithdraw, totalCollateralShares[collateral], _getAdapterAssets(msg.sender)
                 );
                 try IAaveV3Pool(AAVE_POOL).withdraw(collateral, amountToWithdraw, address(this)) returns (uint256) {
@@ -190,8 +187,7 @@ contract AaveV3Adapter is Initializable, Adapter, IAaveV3Adapter {
             return 0;
         }
 
-        return ERC4626Math.previewRedeem(
-            vaultShares[collateral][vault], _getAdapterAssets(vault), totalCollateralShares[collateral]
-        );
+        return
+            _previewRedeem(vaultShares[collateral][vault], _getAdapterAssets(vault), totalCollateralShares[collateral]);
     }
 }
