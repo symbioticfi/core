@@ -27,6 +27,7 @@ import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 import {AaveV3Adapter} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
 import {MorphoVaultV2Adapter} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
@@ -176,6 +177,74 @@ contract MockMorphoVaultConfigurable {
 
     function donateYield(uint256 amount) external {
         asset.transferFrom(msg.sender, address(this), amount);
+    }
+
+    function abdicated(bytes4) external pure returns (bool) {
+        return true;
+    }
+}
+
+contract MockMorphoVaultIlliquidHarness {
+    IERC20 public immutable asset;
+    address public immutable adapterRegistry;
+    address public liquidityAdapter;
+
+    uint256 public totalShares;
+    uint256 public reportedTotalAssets;
+    mapping(address account => uint256 shares) public sharesOf;
+
+    constructor(address asset_, address adapterRegistry_) {
+        asset = IERC20(asset_);
+        adapterRegistry = adapterRegistry_;
+    }
+
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+        uint256 totalAssetsBefore = reportedTotalAssets;
+        asset.transferFrom(msg.sender, address(this), assets);
+
+        if (totalShares == 0 || totalAssetsBefore == 0) {
+            shares = assets;
+        } else {
+            shares = assets * totalShares / totalAssetsBefore;
+        }
+
+        sharesOf[receiver] += shares;
+        totalShares += shares;
+        reportedTotalAssets += assets;
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+        uint256 totalAssets = reportedTotalAssets;
+        if (totalAssets == 0 || totalShares == 0) {
+            return 0;
+        }
+
+        shares = assets * totalShares / totalAssets;
+        if (shares > sharesOf[owner]) {
+            shares = sharesOf[owner];
+            assets = shares * totalAssets / totalShares;
+        }
+
+        sharesOf[owner] -= shares;
+        totalShares -= shares;
+        reportedTotalAssets -= assets;
+        asset.transfer(receiver, assets);
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return sharesOf[account];
+    }
+
+    function previewRedeem(uint256 shares) external view returns (uint256) {
+        if (totalShares == 0) {
+            return 0;
+        }
+
+        return shares * reportedTotalAssets / totalShares;
+    }
+
+    function drainLiquidity(address to, uint256 amount) external {
+        asset.transfer(to, amount);
     }
 
     function abdicated(bytes4) external pure returns (bool) {
@@ -376,7 +445,16 @@ contract VaultV2AdaptersTest is Test {
                     address(vaultFactory),
                     address(feeRegistry),
                     address(pullRewards),
-                    address(adapterRegistry)
+                    address(adapterRegistry),
+                    address(
+                        new VaultV2Migrate(
+                            address(delegatorFactory),
+                            address(slasherFactory),
+                            address(feeRegistry),
+                            address(pullRewards),
+                            address(adapterRegistry)
+                        )
+                    )
                 )
             )
         );
@@ -783,6 +861,55 @@ contract VaultV2AdaptersTest is Test {
         assertGe(morphoAdapter.skimmable(address(vault2)), vault2SkimmableBefore);
     }
 
+    function test_MorphoSmallSecondAllocationCanMintZeroSharesAndDonateToOtherVault() public {
+        _configureMorpho(address(vault1));
+        _configureMorpho(address(vault2));
+
+        _allocateMorpho(vault1, 100, 100);
+
+        collateral.approve(address(morphoVault), 1000);
+        morphoVault.donateYield(1000);
+
+        uint256 vault1SkimmableBefore = morphoAdapter.skimmable(address(vault1));
+
+        _allocateMorpho(vault2, 1, 1);
+
+        assertEq(morphoAdapter.vaultShares(address(morphoVault), address(vault2)), 0);
+        assertEq(vault2.adapterAllocated(address(morphoAdapter)), 1);
+        assertEq(morphoAdapter.deallocatable(address(vault2)), 0);
+        assertEq(morphoAdapter.skimmable(address(vault1)), vault1SkimmableBefore + 1);
+
+        uint256 victimRecovered = _deallocateFromVault(vault2, address(morphoAdapter), 1);
+        assertEq(victimRecovered, 0);
+    }
+
+    function test_MorphoAttackerCanDonateYieldThenDrainLargeVictimAllocation() public {
+        _configureMorpho(address(vault1));
+        _configureMorpho(address(vault2));
+
+        _allocateMorpho(vault1, 100, 100);
+
+        collateral.approve(address(morphoVault), 10_000);
+        morphoVault.donateYield(10_000);
+
+        uint256 attackerSkimmableBeforeVictim = morphoAdapter.skimmable(address(vault1));
+
+        _allocateMorpho(vault2, 100, 100);
+
+        assertEq(morphoAdapter.vaultShares(address(morphoVault), address(vault2)), 0);
+        assertEq(vault2.adapterAllocated(address(morphoAdapter)), 100);
+        assertEq(morphoAdapter.deallocatable(address(vault2)), 0);
+        assertEq(morphoAdapter.skimmable(address(vault1)), attackerSkimmableBeforeVictim + 100);
+
+        uint256 attackerBalanceBefore = collateral.balanceOf(address(vault1));
+        uint256 skimmed = morphoAdapter.skim(address(vault1));
+        assertEq(skimmed, attackerSkimmableBeforeVictim + 100);
+        assertEq(collateral.balanceOf(address(vault1)) - attackerBalanceBefore, skimmed);
+
+        uint256 victimRecovered = _deallocateFromVault(vault2, address(morphoAdapter), 100);
+        assertEq(victimRecovered, 0);
+    }
+
     function test_MorphoDeallocateDoesNotDiluteOtherVault() public {
         _configureMorpho(address(vault1));
         _configureMorpho(address(vault2));
@@ -818,6 +945,60 @@ contract VaultV2AdaptersTest is Test {
         assertEq(morphoAdapter.globalAllocated(address(collateral)), 70);
         assertEq(vault1.adapterAllocated(address(morphoAdapter)), 70);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 70);
+    }
+
+    function test_MorphoOneVaultCanDrainAllSharedLiquidityAndFreezeAnotherVault() public {
+        MockMorphoVaultIlliquidHarness illiquidMorphoVault =
+            new MockMorphoVaultIlliquidHarness(address(collateral), morphoAdapterRegistry);
+        morphoVaultFactory.setVault(address(illiquidMorphoVault), true);
+
+        _configureMorpho(morphoAdapter, address(vault1), address(illiquidMorphoVault));
+        _configureMorpho(morphoAdapter, address(vault2), address(illiquidMorphoVault));
+
+        _allocateMorpho(morphoAdapter, vault1, 100, 100);
+        _allocateMorpho(morphoAdapter, vault2, 100, 100);
+
+        illiquidMorphoVault.drainLiquidity(address(this), 100);
+
+        assertEq(morphoAdapter.deallocatable(address(vault1)), 100);
+        assertEq(morphoAdapter.deallocatable(address(vault2)), 100);
+
+        uint256 deallocated = _deallocateFromVault(vault1, address(morphoAdapter), 100);
+
+        assertEq(deallocated, 100);
+        assertEq(collateral.balanceOf(address(vault1)), 100);
+        assertEq(morphoAdapter.deallocatable(address(vault2)), 0);
+        assertEq(vault2.adapterAllocated(address(morphoAdapter)), 100);
+    }
+
+    function testFuzz_MorphoCrossVaultDeallocatableCanExceedSharedLiquidity(
+        uint256 vault1Allocation,
+        uint256 vault2Allocation,
+        uint256 drained
+    ) public {
+        vault1Allocation = bound(vault1Allocation, 1, 400_000 ether);
+        vault2Allocation = bound(vault2Allocation, 1, 400_000 ether);
+
+        uint256 totalAllocated = vault1Allocation + vault2Allocation;
+        drained = bound(drained, 1, totalAllocated - 1);
+
+        MockMorphoVaultIlliquidHarness illiquidMorphoVault =
+            new MockMorphoVaultIlliquidHarness(address(collateral), morphoAdapterRegistry);
+        morphoVaultFactory.setVault(address(illiquidMorphoVault), true);
+
+        _configureMorpho(morphoAdapter, address(vault1), address(illiquidMorphoVault));
+        _configureMorpho(morphoAdapter, address(vault2), address(illiquidMorphoVault));
+
+        _allocateMorpho(morphoAdapter, vault1, vault1Allocation, vault1Allocation);
+        _allocateMorpho(morphoAdapter, vault2, vault2Allocation, vault2Allocation);
+
+        illiquidMorphoVault.drainLiquidity(address(this), drained);
+
+        uint256 remainingLiquidity = totalAllocated - drained;
+        uint256 totalDeallocatable =
+            morphoAdapter.deallocatable(address(vault1)) + morphoAdapter.deallocatable(address(vault2));
+
+        assertGt(totalDeallocatable, remainingLiquidity);
     }
 
     function test_AaveUsesPoolReserveForVaultCollateral() public view {
@@ -1018,6 +1199,50 @@ contract VaultV2AdaptersTest is Test {
         assertGe(aaveAdapter.skimmable(address(vault2)), vault2SkimmableBefore);
     }
 
+    function test_AaveSmallSecondAllocationCanMintZeroSharesAndDonateToOtherVault() public {
+        _allocateAave(vault1, 100, 100);
+
+        collateral.approve(address(aavePool), 1000);
+        aavePool.accrueYield(address(aaveAdapter), 1000);
+
+        uint256 vault1SkimmableBefore = aaveAdapter.skimmable(address(vault1));
+
+        _allocateAave(vault2, 1, 1);
+
+        assertEq(aaveAdapter.vaultShares(address(collateral), address(vault2)), 0);
+        assertEq(vault2.adapterAllocated(address(aaveAdapter)), 1);
+        assertEq(aaveAdapter.deallocatable(address(vault2)), 0);
+        assertEq(aaveAdapter.skimmable(address(vault1)), vault1SkimmableBefore + 1);
+
+        uint256 victimRecovered = _deallocateFromVault(vault2, address(aaveAdapter), 1);
+        assertEq(victimRecovered, 0);
+    }
+
+    function test_AaveAttackerCanTransferATokensThenDrainLargeVictimAllocation() public {
+        _allocateAave(vault1, 100, 100);
+
+        collateral.approve(address(aavePool), 10_000);
+        aavePool.supply(address(collateral), 10_000, address(this), 0);
+        aToken.transfer(address(aaveAdapter), 10_000);
+
+        uint256 attackerSkimmableBeforeVictim = aaveAdapter.skimmable(address(vault1));
+
+        _allocateAave(vault2, 100, 100);
+
+        assertEq(aaveAdapter.vaultShares(address(collateral), address(vault2)), 0);
+        assertEq(vault2.adapterAllocated(address(aaveAdapter)), 100);
+        assertEq(aaveAdapter.deallocatable(address(vault2)), 0);
+        assertEq(aaveAdapter.skimmable(address(vault1)), attackerSkimmableBeforeVictim + 100);
+
+        uint256 attackerBalanceBefore = collateral.balanceOf(address(vault1));
+        uint256 skimmed = aaveAdapter.skim(address(vault1));
+        assertEq(skimmed, attackerSkimmableBeforeVictim + 100);
+        assertEq(collateral.balanceOf(address(vault1)) - attackerBalanceBefore, skimmed);
+
+        uint256 victimRecovered = _deallocateFromVault(vault2, address(aaveAdapter), 100);
+        assertEq(victimRecovered, 0);
+    }
+
     function test_AaveDeallocateCapsToVaultAllocation() public {
         _allocateAave(vault1, 80, 50);
 
@@ -1042,6 +1267,46 @@ contract VaultV2AdaptersTest is Test {
         assertEq(aaveAdapter.globalAllocated(address(collateral)), 70);
         assertEq(vault1.adapterAllocated(address(aaveAdapter)), 70);
         assertEq(aaveAdapter.deallocatable(address(vault1)), 70);
+    }
+
+    function test_AaveOneVaultCanDrainAllSharedLiquidityAndFreezeAnotherVault() public {
+        _allocateAave(vault1, 100, 100);
+        _allocateAave(vault2, 100, 100);
+
+        aavePool.drainLiquidity(address(this), 100);
+
+        assertEq(aaveAdapter.deallocatable(address(vault1)), 100);
+        assertEq(aaveAdapter.deallocatable(address(vault2)), 100);
+
+        uint256 deallocated = _deallocateFromVault(vault1, address(aaveAdapter), 100);
+
+        assertEq(deallocated, 100);
+        assertEq(collateral.balanceOf(address(vault1)), 100);
+        assertEq(aaveAdapter.deallocatable(address(vault2)), 0);
+        assertEq(vault2.adapterAllocated(address(aaveAdapter)), 100);
+    }
+
+    function testFuzz_AaveCrossVaultDeallocatableCanExceedSharedLiquidity(
+        uint256 vault1Allocation,
+        uint256 vault2Allocation,
+        uint256 drained
+    ) public {
+        vault1Allocation = bound(vault1Allocation, 1, 400_000 ether);
+        vault2Allocation = bound(vault2Allocation, 1, 400_000 ether);
+
+        uint256 totalAllocated = vault1Allocation + vault2Allocation;
+        drained = bound(drained, 1, totalAllocated - 1);
+
+        _allocateAave(vault1, vault1Allocation, vault1Allocation);
+        _allocateAave(vault2, vault2Allocation, vault2Allocation);
+
+        aavePool.drainLiquidity(address(this), drained);
+
+        uint256 remainingLiquidity = totalAllocated - drained;
+        uint256 totalDeallocatable =
+            aaveAdapter.deallocatable(address(vault1)) + aaveAdapter.deallocatable(address(vault2));
+
+        assertGt(totalDeallocatable, remainingLiquidity);
     }
 
     function _configureMorpho(address vaultAddress) internal {
@@ -1124,7 +1389,9 @@ contract VaultV2AdaptersTest is Test {
                 isDepositLimitSetRoleHolder: alice,
                 depositLimitSetRoleHolder: alice,
                 setAdapterLimitRoleHolder: alice,
-                allocateAdapterRoleHolder: alice
+                swapAdaptersRoleHolder: alice,
+                allocateAdapterRoleHolder: alice,
+                deallocateAdapterRoleHolder: alice
             })
         );
         bytes memory delegatorParams = abi.encode(
@@ -1135,6 +1402,8 @@ contract VaultV2AdaptersTest is Test {
                 createSlotRoleHolder: alice,
                 setSizeRoleHolder: alice,
                 swapSlotsRoleHolder: alice,
+                removeSlotRoleHolder: alice,
+                setWithdrawalBufferSizeRoleHolder: alice,
                 withdrawalBufferSize: 0
             })
         );

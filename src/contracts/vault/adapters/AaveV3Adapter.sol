@@ -6,14 +6,14 @@ import {Adapter} from "./Adapter.sol";
 
 import {ERC4626Math} from "../../libraries/ERC4626Math.sol";
 
-import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
-import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
 import {IAaveV3Adapter, REFERRAL_CODE} from "../../../interfaces/vault/adapters/aave_v3_adapter/IAaveV3Adapter.sol";
 import {IAaveV3Pool} from "../../../interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
+import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
 import {IRewards} from "../../../interfaces/vault/IRewards.sol";
+import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";

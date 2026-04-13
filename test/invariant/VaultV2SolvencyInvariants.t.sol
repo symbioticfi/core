@@ -61,8 +61,8 @@ contract VaultV2SolvencyInvariantsTest is StdInvariant, Test {
             return;
         }
 
-        assertGe(handler.lastClaimPostClaimableBacking(), handler.lastClaimPostUnclaimableReserve());
         assertGe(handler.lastClaimPostVaultBalance(), handler.lastClaimPostNoAdaptersSlashableStake());
+        assertGe(handler.lastClaimPostVaultBalance(), handler.lastClaimPostUnclaimableReserve());
     }
 
     function invariant_LastSuccessfulSyncPreservesNoAdaptersLiquidity() public view {

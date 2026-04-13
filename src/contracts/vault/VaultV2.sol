@@ -47,9 +47,9 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 /// @title VaultV2
 /// @notice Contract for upgradeable vault collateral, withdrawals, adapters, and migrations.
 /// @dev Priority over funds utilization:
-///      1. No-adapters subvaults can always slash full amount.
-///      2. Firstly, incoming funds are used for claimable withdrawals.
-///      3. Secondly, incoming funds are used to sync owed slashes.
+///      1. No-adapters reserve is always kept liquid and untouchable by claims or syncs.
+///      2. Sync owed slashes draw only from liquid above the no-adapters reserve.
+///      3. Claims are allowed only when leaving room for reserve and all outstanding owed slashes.
 ///      4. Remaining funds are used for instant withdrawals and adapters allocation simultaneously.
 contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, ERC20Upgradeable, IVaultV2 {
     using Math for uint256;
@@ -419,19 +419,19 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         }
 
         amount = withdrawalsOf(index, msg.sender);
+        if (
+            amount
+                > _liquidBalance()
+                    .saturatingSub(
+                        Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake())
+                            + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0)
+                    )
+        ) {
+            revert InsufficientAmount();
+        }
 
         isWithdrawalsClaimed[index][msg.sender] = true;
         _unclaimedRaw -= int256(amount);
-
-        // Keep claimable withdrawals from consuming liquidity reserved for
-        // no-adapters backing and outstanding owed slashes.
-        uint256 reserve = adaptersOwe();
-        if (slasher != address(0)) {
-            reserve = Math.max(reserve, UniversalSlasher(slasher).totalOwed());
-        }
-        if (unclaimed() < reserve) {
-            revert InsufficientAmount();
-        }
 
         _safeTransferOut(recipient, amount);
 
@@ -727,6 +727,11 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
         return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
     }
 
+    function _liquidBalance() internal view returns (uint256) {
+        return (totalStake() + unclaimed() + (slasher != address(0) ? UniversalSlasher(slasher).totalOwed() : 0))
+            .saturatingSub(adaptersAllocated);
+    }
+
     /// @inheritdoc AccessControlUpgradeable
     function _revokeRole(bytes32 role, address account) internal override returns (bool) {
         if (adapterLimit[account] > 0 && (role == ALLOCATE_ADAPTER_ROLE || role == DEALLOCATE_ADAPTER_ROLE)) {
@@ -745,7 +750,10 @@ contract VaultV2 is VaultV2Storage, MigratableEntity, AccessControlUpgradeable, 
 
         deallocateAdapters();
 
-        slashedAmount = Math.min(amount, UniversalSlasher(slasher).totalOwed().saturatingSub(adaptersOwe()));
+        slashedAmount = Math.min(
+            amount,
+            _liquidBalance().saturatingSub(Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake()))
+        );
         _safeTransferOut(burner, slashedAmount);
 
         emit SyncOwedSlash(slashedAmount);

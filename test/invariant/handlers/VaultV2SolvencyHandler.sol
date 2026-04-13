@@ -140,10 +140,14 @@ contract VaultV2SolvencyHandler is Test {
         return vault.unclaimed();
     }
 
+    function noAdaptersReserve() public view returns (uint256) {
+        uint256 noAdaptersSize = delegator.getNoAdaptersSize();
+        uint256 totalStake_ = vault.totalStake();
+        return noAdaptersSize < totalStake_ ? noAdaptersSize : totalStake_;
+    }
+
     function unclaimableReserve() public view returns (uint256) {
-        uint256 curAdaptersOwe = adaptersOwe();
-        uint256 curTotalOwed = slasher.totalOwed();
-        return curAdaptersOwe > curTotalOwed ? curAdaptersOwe : curTotalOwed;
+        return noAdaptersReserve() + slasher.totalOwed();
     }
 
     function noAdaptersSlashableStake() public view returns (uint256) {
@@ -151,9 +155,15 @@ contract VaultV2SolvencyHandler is Test {
     }
 
     function syncableOwedSlashCapacity() public view returns (uint256) {
+        uint256 liquidAboveNoAdaptersReserve = vaultBalance();
+        uint256 curNoAdaptersReserve = noAdaptersReserve();
+        if (liquidAboveNoAdaptersReserve <= curNoAdaptersReserve) {
+            return 0;
+        }
+        liquidAboveNoAdaptersReserve -= curNoAdaptersReserve;
+
         uint256 curTotalOwed = slasher.totalOwed();
-        uint256 curAdaptersOwe = adaptersOwe();
-        return curTotalOwed > curAdaptersOwe ? curTotalOwed - curAdaptersOwe : 0;
+        return curTotalOwed < liquidAboveNoAdaptersReserve ? curTotalOwed : liquidAboveNoAdaptersReserve;
     }
 
     function deposit(uint256 userSeed, uint256 amount, uint256 timeJumpSeed) external {

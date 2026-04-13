@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IRegistry} from "../../../interfaces/common/IRegistry.sol";
 import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
+import {IRegistry} from "../../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
