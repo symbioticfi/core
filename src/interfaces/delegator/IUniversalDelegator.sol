@@ -578,6 +578,7 @@ interface IUniversalDelegator {
      * @notice Reset allocation for a subnetwork.
      * @param subnetwork Full identifier of the subnetwork.
      * @dev Only a network or its middleware can call this function.
+     *      Warning: this functions resets all the pending slash requests, too.
      */
     function resetAllocation(bytes32 subnetwork) external;
 }
