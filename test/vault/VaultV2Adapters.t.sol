@@ -29,6 +29,7 @@ import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol
 import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
 import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
@@ -396,7 +397,16 @@ contract VaultV2AdaptersTest is Test {
                     address(vaultFactory),
                     address(feeRegistry),
                     address(pullRewards),
-                    address(adapterRegistry)
+                    address(adapterRegistry),
+                    address(
+                        new VaultV2Migrate(
+                            address(delegatorFactory),
+                            address(slasherFactory),
+                            address(feeRegistry),
+                            address(pullRewards),
+                            address(adapterRegistry)
+                        )
+                    )
                 )
             )
         );
@@ -1412,17 +1422,19 @@ contract VaultV2AdaptersTest is Test {
                 isDepositLimitSetRoleHolder: alice,
                 depositLimitSetRoleHolder: alice,
                 setAdapterLimitRoleHolder: alice,
-                allocateAdapterRoleHolder: alice
+                swapAdaptersRoleHolder: alice,
+                allocateAdapterRoleHolder: alice,
+                deallocateAdapterRoleHolder: alice
             })
         );
         bytes memory delegatorParams = abi.encode(
             IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: alice,
-                hook: address(0),
-                hookSetRoleHolder: alice,
                 createSlotRoleHolder: alice,
                 setSizeRoleHolder: alice,
                 swapSlotsRoleHolder: alice,
+                removeSlotRoleHolder: alice,
+                setWithdrawalBufferSizeRoleHolder: alice,
                 withdrawalBufferSize: 0
             })
         );
