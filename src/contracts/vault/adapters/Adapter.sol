@@ -180,4 +180,9 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
     function initialize() public initializer {
         __Ownable_init(msg.sender);
     }
+
+    /* STORAGE GAP */
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] internal __gap;
 }
