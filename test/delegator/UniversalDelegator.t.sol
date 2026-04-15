@@ -413,6 +413,11 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         slasher = IUniversalSlasher(slasher_);
     }
 
+    function test_OnSlashRejectsNonSlasherCaller() public {
+        vm.expectRevert(IBaseDelegator.NotSlasher.selector);
+        delegator.onSlash(alice.subnetwork(0), alice, 1);
+    }
+
     function test_checkpointTracksHistory_andDefaults() public {
         _createSlot(0, false, 30);
         uint96 slot1 = _rootIndex(uint32(1));

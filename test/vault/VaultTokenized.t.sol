@@ -39,6 +39,14 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
+contract VaultTokenizedUpdateHarness is VaultTokenized {
+    constructor() VaultTokenized(address(1), address(2), address(3)) {}
+
+    function exposeUpdate(address from, address to, uint256 value) external {
+        _update(from, to, value);
+    }
+}
+
 contract VaultTokenizedTest is Test {
     using Math for uint256;
     using Subnetwork for bytes32;
@@ -347,6 +355,28 @@ contract VaultTokenizedTest is Test {
         assertEq(vault.decimals(), collateral.decimals());
         assertEq(vault.symbol(), "TEST");
         assertEq(vault.name(), "Test");
+    }
+
+    function test_DepositAndWithdrawMaintainTokenizedShareAccounting() public {
+        (vault,,) = _getVaultAndDelegatorAndSlasher(7 days);
+
+        (, uint256 mintedShares) = _deposit(alice, 100);
+        assertGt(mintedShares, 0);
+
+        (uint256 burnedShares,) = _withdraw(alice, 40);
+        assertGt(burnedShares, 0);
+    }
+
+    function test_InternalUpdateHandlesMintAndBurnPaths() public {
+        VaultTokenizedUpdateHarness harness = new VaultTokenizedUpdateHarness();
+
+        harness.exposeUpdate(address(0), address(this), 100);
+        assertEq(harness.totalSupply(), 100);
+        assertEq(harness.balanceOf(address(this)), 100);
+
+        harness.exposeUpdate(address(this), address(0), 40);
+        assertEq(harness.totalSupply(), 60);
+        assertEq(harness.balanceOf(address(this)), 60);
     }
 
     function test_CreateRevertInvalidEpochDuration() public {

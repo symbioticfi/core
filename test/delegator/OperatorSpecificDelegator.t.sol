@@ -241,6 +241,24 @@ contract OperatorSpecificDelegatorTest is Test {
         );
     }
 
+    function test_StakeAtReturnsZeroForWrongOperatorEvenWithHints() public {
+        (vault, delegator) = _getVaultAndDelegator(7 days);
+
+        bytes memory hints = abi.encode(
+            IOperatorSpecificDelegator.StakeHints({
+                baseHints: abi.encode(
+                    IBaseDelegator.StakeBaseHints({
+                        operatorVaultOptInHint: abi.encode(uint32(0)), operatorNetworkOptInHint: abi.encode(uint32(0))
+                    })
+                ),
+                activeStakeHint: abi.encode(uint32(0)),
+                networkLimitHint: abi.encode(uint32(0))
+            })
+        );
+
+        assertEq(delegator.stakeAt(alice.subnetwork(0), bob, uint48(block.timestamp), hints), 0);
+    }
+
     function test_CreateRevertZeroAddressRoleHolder1(uint48 epochDuration) public {
         epochDuration = uint48(bound(epochDuration, 1, 50 weeks));
 

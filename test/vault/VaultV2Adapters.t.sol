@@ -279,6 +279,34 @@ contract MockAaveAToken is ERC20 {
     }
 }
 
+contract ZeroATokenPoolMock {
+    function getReserveData(address) external pure returns (AaveV3ReserveData memory reserveData) {
+        return reserveData;
+    }
+
+    function supply(address, uint256, address, uint16) external pure {}
+
+    function withdraw(address, uint256, address) external pure returns (uint256) {
+        return 0;
+    }
+}
+
+contract VaultCollateralMock {
+    address public immutable collateral;
+
+    constructor(address collateral_) {
+        collateral = collateral_;
+    }
+}
+
+contract AaveV3AdapterAssetsHarness is AaveV3Adapter {
+    constructor(address pool) AaveV3Adapter(pool, address(0xBEEF), address(0xCAFE)) {}
+
+    function exposeAdapterAssets(address vault) external view returns (uint256) {
+        return _getAdapterAssets(vault);
+    }
+}
+
 contract MockAavePoolAddressesProvider {
     address public pool;
     address public poolDataProvider;
@@ -594,6 +622,22 @@ contract VaultV2AdaptersTest is Test {
 
         assertEq(aaveAdapter.globalLimit(address(collateral)), 123);
         assertEq(aaveAdapter.globalLimit(address(otherCollateral)), 456);
+    }
+
+    function test_AaveSkimmableReturnsZeroWithoutReserve() public {
+        assertEq(aaveAdapter.skimmable(address(vault1)), 0);
+
+        IVaultV2 otherVault = _createVault(address(otherCollateral));
+        _depositIntoVault(otherVault, otherCollateral, 25);
+
+        assertEq(aaveAdapter.skimmable(address(otherVault)), 0);
+    }
+
+    function test_AaveAdapterAssetsReturnZeroWithoutReserveToken() public {
+        AaveV3AdapterAssetsHarness harness = new AaveV3AdapterAssetsHarness(address(new ZeroATokenPoolMock()));
+        VaultCollateralMock vaultMock = new VaultCollateralMock(address(0xDEAD));
+
+        assertEq(harness.exposeAdapterAssets(address(vaultMock)), 0);
     }
 
     function test_MorphoMulticallBubblesRevertReason() public {

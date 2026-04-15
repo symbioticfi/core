@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import {console2} from "forge-std/console2.sol";
 import {Test, stdError} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
+import {Vm, VmSafe} from "forge-std/Vm.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
@@ -4117,6 +4117,9 @@ contract VaultV2Test is Test {
     }
 
     function test_VaultV2CoverageHarness_codeSizeWithinLimit() public {
+        if (vm.isContext(VmSafe.ForgeContext.Coverage)) {
+            return;
+        }
         VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
         assertLe(address(harness).code.length, 24_576);
     }

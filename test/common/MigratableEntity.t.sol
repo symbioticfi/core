@@ -11,10 +11,23 @@ import {IMigratableEntityProxy} from "../../src/interfaces/common/IMigratableEnt
 
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
+import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 
 import {SimpleMigratableEntity} from "../mocks/SimpleMigratableEntity.sol";
 import {SimpleMigratableEntityV2} from "../mocks/SimpleMigratableEntityV2.sol";
+
+contract MigratableEntityDefaultsHarness is MigratableEntity {
+    constructor() MigratableEntity(address(0xFACADE)) {}
+
+    function exposeInitialize(uint64 initialVersion, address owner_, bytes memory data) external {
+        _initialize(initialVersion, owner_, data);
+    }
+
+    function exposeMigrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) external {
+        _migrate(oldVersion, newVersion, data);
+    }
+}
 
 contract MigratableEntityTest is Test {
     address owner;
@@ -101,5 +114,14 @@ contract MigratableEntityTest is Test {
         vm.expectRevert(IMigratableEntity.NotFactory.selector);
         IMigratableEntity(entity).migrate(lastVersion, abi.encode(0));
         vm.stopPrank();
+    }
+
+    function test_DefaultInitializeAndMigrateHooksDoNotRevert() public {
+        MigratableEntityDefaultsHarness entity = new MigratableEntityDefaultsHarness();
+
+        entity.exposeInitialize(1, address(0xBEEF), "init");
+        entity.exposeMigrate(1, 2, "migrate");
+
+        assertEq(entity.FACTORY(), address(0xFACADE));
     }
 }
