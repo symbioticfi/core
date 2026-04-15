@@ -25,8 +25,8 @@ import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
-import {AaveV3Adapter} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
-import {MorphoVaultV2Adapter} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
+import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
+import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
 
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVaultV2.sol";
@@ -41,6 +41,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
+
+import {UpgradeableBeacon} from "@solady/src/utils/UpgradeableBeacon.sol";
 
 contract MainnetCuratorRegistryHarness {
     mapping(address vault => address curator) public curators;
@@ -68,8 +70,6 @@ contract MainnetDonationRewardsHarness is ReentrancyGuard, IRewards {
 contract VaultV2MainnetAdaptersForkTest is Test {
     using SafeERC20 for IERC20;
 
-    uint256 internal constant MAINNET_FORK_BLOCK = 24_870_309;
-
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     address internal constant MORPHO_VAULT_FACTORY = 0xA1D94F746dEfa1928926b84fB2596c06926C0405;
@@ -81,7 +81,6 @@ contract VaultV2MainnetAdaptersForkTest is Test {
     uint256 internal constant YIELD_AMOUNT = 25e6;
     uint256 internal constant DEALLOCATE_AMOUNT = 100e6;
 
-    address internal owner;
     address internal alice;
     address internal curator;
 
@@ -105,15 +104,14 @@ contract VaultV2MainnetAdaptersForkTest is Test {
     MorphoVaultV2Adapter internal morphoAdapter;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), MAINNET_FORK_BLOCK);
+        vm.createSelectFork(vm.rpcUrl("mainnet"));
 
-        owner = address(this);
         alice = makeAddr("alice");
         curator = makeAddr("curator");
 
-        vaultFactory = new VaultFactory(owner);
-        delegatorFactory = new DelegatorFactory(owner);
-        slasherFactory = new SlasherFactory(owner);
+        vaultFactory = new VaultFactory(address(this));
+        delegatorFactory = new DelegatorFactory(address(this));
+        slasherFactory = new SlasherFactory(address(this));
         networkRegistry = new NetworkRegistry();
         operatorRegistry = new OperatorRegistry();
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
@@ -122,7 +120,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         operatorNetworkOptInService =
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
         feeRegistry = new MockFeeRegistry();
-        adapterRegistry = new AdapterRegistry(owner);
+        adapterRegistry = new AdapterRegistry(address(this));
         vaultConfigurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
         curatorRegistry = new MainnetCuratorRegistryHarness();
@@ -133,17 +131,11 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         aaveVault = _createVault(USDC);
         morphoVault = _createVault(USDC);
 
-        aaveAdapter = new AaveV3Adapter(AAVE_POOL, address(rewards), address(vaultFactory));
+        aaveAdapter = _deployAaveAdapter();
         aaveAdapter.initialize();
         aaveAdapter.setGlobalLimit(USDC, type(uint256).max);
 
-        morphoAdapter = new MorphoVaultV2Adapter(
-            MORPHO_VAULT_FACTORY,
-            MORPHO_ADAPTER_REGISTRY,
-            address(curatorRegistry),
-            address(rewards),
-            address(vaultFactory)
-        );
+        morphoAdapter = _deployMorphoAdapter();
         morphoAdapter.initialize();
         morphoAdapter.setGlobalLimit(USDC, type(uint256).max);
 
@@ -155,15 +147,28 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         morphoAdapter.setMorphoVault(address(morphoVault), MORPHO_GAUNTLET_USDC_PRIME);
     }
 
-    function testFork_MorphoGauntletUsdcPrime_DepositWorksWhenMaxDepositIsZero() public {
-        uint256 maxDeposit = IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).maxDeposit(address(this));
-        assertEq(maxDeposit, 0);
+    function testFork_Mainnet_AaveAdapter_RepeatedHealthyAllocateWithOutstandingYieldDoesNotRevert() public {
+        _fundAndDeposit(aaveVault, DEPOSIT_AMOUNT);
+        _prepareAdapter(aaveVault, address(aaveAdapter), type(uint208).max);
 
-        _fundUsdc(address(this), YIELD_AMOUNT);
-        IERC20(USDC).forceApprove(MORPHO_GAUNTLET_USDC_PRIME, YIELD_AMOUNT);
+        vm.prank(alice);
+        aaveVault.allocateAdapter(address(aaveAdapter), ALLOCATE_AMOUNT);
 
-        uint256 shares = IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).deposit(YIELD_AMOUNT, address(this));
-        assertGt(shares, 0);
+        _assertAaveHealthyReallocation(25e6, 50e6);
+        _assertAaveHealthyReallocation(7e6, 25e6);
+        _assertAaveHealthyReallocation(2e6, 10e6);
+    }
+
+    function testFork_Mainnet_MorphoAdapter_RepeatedHealthyAllocateWithOutstandingYieldDoesNotRevert() public {
+        _fundAndDeposit(morphoVault, DEPOSIT_AMOUNT);
+        _prepareAdapter(morphoVault, address(morphoAdapter), type(uint208).max);
+
+        vm.prank(alice);
+        morphoVault.allocateAdapter(address(morphoAdapter), ALLOCATE_AMOUNT);
+
+        _assertMorphoHealthyReallocation(25e6, 50e6);
+        _assertMorphoHealthyReallocation(7e6, 25e6);
+        _assertMorphoHealthyReallocation(2e6, 10e6);
     }
 
     function testFork_Mainnet_AaveAdapter_Gas() public {
@@ -174,9 +179,10 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         aaveVault.allocateAdapter(address(aaveAdapter), ALLOCATE_AMOUNT);
         uint256 allocateGas = vm.lastCallGas().gasTotalUsed;
 
+        address aaveAccount = aaveAdapter.getAccount(address(aaveVault));
         _fundUsdc(address(this), YIELD_AMOUNT);
         IERC20(USDC).forceApprove(AAVE_POOL, YIELD_AMOUNT);
-        IAaveV3Pool(AAVE_POOL).supply(USDC, YIELD_AMOUNT, address(aaveAdapter), 0);
+        IAaveV3Pool(AAVE_POOL).supply(USDC, YIELD_AMOUNT, aaveAccount, 0);
 
         uint256 skimmable = aaveAdapter.skimmable(address(aaveVault));
         assertGt(skimmable, 0);
@@ -206,9 +212,10 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         morphoVault.allocateAdapter(address(morphoAdapter), ALLOCATE_AMOUNT);
         uint256 allocateGas = vm.lastCallGas().gasTotalUsed;
 
+        address morphoAccount = morphoAdapter.getAccount(address(morphoVault));
         _fundUsdc(address(this), YIELD_AMOUNT);
         IERC20(USDC).forceApprove(MORPHO_GAUNTLET_USDC_PRIME, YIELD_AMOUNT);
-        IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).deposit(YIELD_AMOUNT, address(morphoAdapter));
+        IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).deposit(YIELD_AMOUNT, morphoAccount);
 
         uint256 skimmable = morphoAdapter.skimmable(address(morphoVault));
         assertGt(skimmable, 0);
@@ -230,10 +237,97 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         assertGt(IERC20(USDC).balanceOf(address(morphoVault)), DEPOSIT_AMOUNT - ALLOCATE_AMOUNT);
     }
 
+    function _assertAaveHealthyReallocation(uint256 yieldAmount, uint256 allocateAmount) internal {
+        address aaveAccount = aaveAdapter.getAccount(address(aaveVault));
+        _fundUsdc(address(this), yieldAmount);
+        IERC20(USDC).forceApprove(AAVE_POOL, yieldAmount);
+        IAaveV3Pool(AAVE_POOL).supply(USDC, yieldAmount, aaveAccount, 0);
+
+        uint256 skimmableBefore = aaveAdapter.skimmable(address(aaveVault));
+        uint256 vaultBalanceBefore = IERC20(USDC).balanceOf(address(aaveVault));
+        uint256 allocatedBefore = aaveVault.adapterAllocated(address(aaveAdapter));
+        assertGt(skimmableBefore, 0);
+
+        vm.prank(alice);
+        uint256 allocated = aaveVault.allocateAdapter(address(aaveAdapter), allocateAmount);
+        uint256 vaultBalanceAfterAllocate = IERC20(USDC).balanceOf(address(aaveVault));
+        uint256 skimmableAfterAllocate = aaveAdapter.skimmable(address(aaveVault));
+
+        assertEq(allocated, allocateAmount);
+        assertEq(aaveVault.adapterAllocated(address(aaveAdapter)), allocatedBefore + allocateAmount);
+        assertEq(aaveVault.adaptersAllocated(), allocatedBefore + allocateAmount);
+        assertEq(aaveAdapter.globalAllocated(USDC), allocatedBefore + allocateAmount);
+        assertEq(vaultBalanceAfterAllocate, vaultBalanceBefore - allocateAmount);
+        assertLe(skimmableAfterAllocate, skimmableBefore + 1);
+
+        VaultV2(address(aaveVault)).skimAdapters();
+
+        assertEq(aaveAdapter.skimmable(address(aaveVault)), 0);
+        assertApproxEqAbs(
+            IERC20(USDC).balanceOf(address(aaveVault)), vaultBalanceAfterAllocate + skimmableAfterAllocate, 1
+        );
+    }
+
+    function _assertMorphoHealthyReallocation(uint256 yieldAmount, uint256 allocateAmount) internal {
+        address morphoAccount = morphoAdapter.getAccount(address(morphoVault));
+        _fundUsdc(address(this), yieldAmount);
+        IERC20(USDC).forceApprove(MORPHO_GAUNTLET_USDC_PRIME, yieldAmount);
+        IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).deposit(yieldAmount, morphoAccount);
+
+        uint256 skimmableBefore = morphoAdapter.skimmable(address(morphoVault));
+        uint256 vaultBalanceBefore = IERC20(USDC).balanceOf(address(morphoVault));
+        uint256 allocatedBefore = morphoVault.adapterAllocated(address(morphoAdapter));
+        assertGt(skimmableBefore, 0);
+
+        vm.prank(alice);
+        uint256 allocated = morphoVault.allocateAdapter(address(morphoAdapter), allocateAmount);
+        uint256 vaultBalanceAfterAllocate = IERC20(USDC).balanceOf(address(morphoVault));
+        uint256 skimmableAfterAllocate = morphoAdapter.skimmable(address(morphoVault));
+
+        assertEq(allocated, allocateAmount);
+        assertEq(morphoVault.adapterAllocated(address(morphoAdapter)), allocatedBefore + allocateAmount);
+        assertEq(morphoVault.adaptersAllocated(), allocatedBefore + allocateAmount);
+        assertEq(morphoAdapter.globalAllocated(USDC), allocatedBefore + allocateAmount);
+        assertEq(vaultBalanceAfterAllocate, vaultBalanceBefore - allocateAmount);
+        assertLe(skimmableAfterAllocate, skimmableBefore + 1);
+
+        VaultV2(address(morphoVault)).skimAdapters();
+
+        assertEq(morphoAdapter.skimmable(address(morphoVault)), 0);
+        assertApproxEqAbs(
+            IERC20(USDC).balanceOf(address(morphoVault)), vaultBalanceAfterAllocate + skimmableAfterAllocate, 1
+        );
+    }
+
     function _fundAndDeposit(IVaultV2 vault_, uint256 amount) internal {
         _fundUsdc(address(this), amount);
         IERC20(USDC).forceApprove(address(vault_), amount);
         vault_.deposit(address(this), amount);
+    }
+
+    function _deployAaveAdapter() internal returns (AaveV3Adapter adapter) {
+        uint256 nonce = vm.getNonce(address(this));
+        address predictedAdapter = vm.computeCreateAddress(address(this), nonce + 2);
+        address beacon =
+            address(new UpgradeableBeacon(address(0), address(new AaveV3Account(AAVE_POOL, predictedAdapter))));
+
+        adapter =
+            new AaveV3Adapter(AAVE_POOL, address(curatorRegistry), address(rewards), address(vaultFactory), beacon);
+    }
+
+    function _deployMorphoAdapter() internal returns (MorphoVaultV2Adapter adapter) {
+        uint256 nonce = vm.getNonce(address(this));
+        address predictedAdapter = vm.computeCreateAddress(address(this), nonce + 2);
+        address beacon = address(new UpgradeableBeacon(address(0), address(new MorphoVaultV2Account(predictedAdapter))));
+
+        adapter = new MorphoVaultV2Adapter(
+            MORPHO_VAULT_FACTORY,
+            MORPHO_ADAPTER_REGISTRY,
+            address(curatorRegistry),
+            address(rewards),
+            address(vaultFactory),
+            beacon
+        );
     }
 
     function _prepareAdapter(IVaultV2 vault_, address adapter, uint208 limit) internal {
