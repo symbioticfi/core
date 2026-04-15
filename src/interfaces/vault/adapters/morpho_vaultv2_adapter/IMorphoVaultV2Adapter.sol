@@ -23,6 +23,13 @@ interface IMorphoVaultV2Adapter is IAdapter {
     /* EVENTS */
 
     /**
+     * @notice Emitted when the adapter deploys a deterministic account for a vault.
+     * @param vault Vault address.
+     * @param account Deterministic account address.
+     */
+    event DeployAccount(address indexed vault, address indexed account);
+
+    /**
      * @notice Emitted when a Morpho vault is configured for a vault.
      * @param vault Vault address.
      * @param morphoVault Morpho vault address.
@@ -39,19 +46,18 @@ interface IMorphoVaultV2Adapter is IAdapter {
     function morphoVaults(address vault) external view returns (address);
 
     /**
-     * @notice Returns the total adapter share supply tracked for a Morpho vault.
-     * @param morphoVault Morpho vault address.
-     * @return Total tracked shares.
+     * @notice Returns the deterministic account used to hold a vault's Morpho position.
+     * @param vault Vault address.
+     * @return account Deterministic account address.
      */
-    function totalVaultShares(address morphoVault) external view returns (uint256);
+    function getAccount(address vault) external view returns (address account);
 
     /**
-     * @notice Returns the tracked shares of a vault for a Morpho vault.
-     * @param morphoVault Morpho vault address.
+     * @notice Returns the vault's live claim on the configured Morpho vault.
      * @param vault Vault address.
-     * @return Tracked vault shares.
+     * @return assets Vault assets represented in collateral units.
      */
-    function vaultShares(address morphoVault, address vault) external view returns (uint256);
+    function getAssets(address vault) external view returns (uint256 assets);
 
     /**
      * @notice Sets the Morpho vault for a vault.

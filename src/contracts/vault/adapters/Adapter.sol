@@ -3,9 +3,9 @@
 pragma solidity ^0.8.28;
 
 import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
+import {ICuratorRegistry} from "../../../interfaces/vault/adapters/ICuratorRegistry.sol";
 import {IRegistry} from "../../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
-import {ICuratorRegistry} from "../../../interfaces/vault/adapters/ICuratorRegistry.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -24,7 +24,7 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
 
     /// @notice Registry that validates whether an address is a vault.
     address public immutable VAULT_FACTORY;
-    /// @notice Curator registry used to authorize loss recovery.
+    /// @dev Curator registry used to authorize loss recovery.
     address internal immutable CURATOR_REGISTRY;
 
     /* STATE VARIABLES */
@@ -70,8 +70,6 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
 
     /* CONSTRUCTOR */
 
-    /// @notice Creates the adapter base.
-    /// @param vaultFactory The vault registry address.
     constructor(address vaultFactory, address curatorRegistry) {
         VAULT_FACTORY = vaultFactory;
         CURATOR_REGISTRY = curatorRegistry;
@@ -95,7 +93,7 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
     /// @inheritdoc IAdapter
     function recover(address vault, uint256 amount) public onlyVault(vault) {
         if (amount == 0) {
-            revert();
+            revert ZeroAmount();
         }
 
         IVaultV2(vault).collateral().safeTransferFrom(msg.sender, address(this), amount);
@@ -137,7 +135,6 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
     /* INTERNAL FUNCTIONS */
 
     /// @dev Reverts when `vault` is not a registered vault entity.
-    /// @param vault The vault address to validate.
     function _validateVault(address vault) internal view {
         if (!IRegistry(VAULT_FACTORY).isEntity(vault)) {
             revert NotVault();
@@ -145,15 +142,11 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
     }
 
     /// @dev Increases the tracked allocated amount for a collateral.
-    /// @param collateral The collateral being allocated.
-    /// @param amount The amount to add.
     function _increaseGlobalAllocated(address collateral, uint256 amount) internal {
         globalAllocated[collateral] += amount;
     }
 
     /// @dev Decreases the tracked allocated amount for a collateral.
-    /// @param collateral The collateral being deallocated.
-    /// @param amount The amount to subtract.
     function _decreaseGlobalAllocated(address collateral, uint256 amount) internal {
         globalAllocated[collateral] -= amount;
     }

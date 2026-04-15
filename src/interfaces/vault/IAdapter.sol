@@ -17,6 +17,16 @@ interface IAdapter {
     error NotCurator();
 
     /**
+     * @notice Raised when a zero amount is passed where a positive amount is required.
+     */
+    error ZeroAmount();
+
+    /**
+     * @notice Raised when allocation is attempted while skimmable yield remains unsettled.
+     */
+    error SkimFailed();
+
+    /**
      * @notice Emitted when the global allocation limit is updated for an asset.
      * @param asset Asset address.
      * @param limit Adapter-wide allocation limit for the asset.

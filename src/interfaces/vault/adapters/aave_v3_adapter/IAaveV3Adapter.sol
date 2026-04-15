@@ -10,6 +10,15 @@ uint16 constant REFERRAL_CODE = 0;
  * @notice Interface for the Aave V3 vault adapter.
  */
 interface IAaveV3Adapter is IAdapter {
+    /* EVENTS */
+
+    /**
+     * @notice Emitted when the adapter deploys a deterministic account for a vault.
+     * @param vault Vault address.
+     * @param account Deterministic account address.
+     */
+    event DeployAccount(address indexed vault, address indexed account);
+
     /* FUNCTIONS */
 
     /**
@@ -20,17 +29,16 @@ interface IAaveV3Adapter is IAdapter {
     function aToken(address vault) external view returns (address);
 
     /**
-     * @notice Returns the total adapter share supply tracked for a collateral token.
-     * @param collateral Vault collateral token.
-     * @return Total tracked shares.
+     * @notice Returns the deterministic account used to hold a vault's Aave position.
+     * @param vault Vault address.
+     * @return account Deterministic account address.
      */
-    function totalCollateralShares(address collateral) external view returns (uint256);
+    function getAccount(address vault) external view returns (address account);
 
     /**
-     * @notice Returns the tracked shares of a vault for a collateral token.
-     * @param collateral Vault collateral token.
+     * @notice Returns the vault's live Aave-backed asset balance.
      * @param vault Vault address.
-     * @return Tracked vault shares.
+     * @return assets Vault assets represented in collateral units.
      */
-    function vaultShares(address collateral, address vault) external view returns (uint256);
+    function getAssets(address vault) external view returns (uint256 assets);
 }
