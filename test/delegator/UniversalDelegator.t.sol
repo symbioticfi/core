@@ -1352,6 +1352,60 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 5);
     }
 
+    function test_sharedSubvault_secondSlashDoesNotRestoreBothNetworksSlashableStake() public {
+        address network1 = makeAddr("shared-verify-network1");
+        address network2 = makeAddr("shared-verify-network2");
+        address middleware = makeAddr("shared-verify-middleware");
+
+        _registerNetwork(network1, middleware);
+        _registerNetwork(network2, middleware);
+        _registerOperator(alice);
+
+        vm.startPrank(alice);
+        operatorVaultOptInService.optIn(address(vault));
+        operatorNetworkOptInService.optIn(network1);
+        operatorNetworkOptInService.optIn(network2);
+        vm.stopPrank();
+
+        bytes32 subnetwork1 = network1.subnetwork(0);
+        bytes32 subnetwork2 = network2.subnetwork(0);
+        vm.prank(network1);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+        vm.prank(network2);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _createSlot(0, true, 200);
+        uint96 sharedSubvault = _rootIndex(uint32(1));
+        _createNetworkSlot(sharedSubvault, subnetwork1, 200);
+        _createNetworkSlot(sharedSubvault, subnetwork2, 200);
+        uint96 networkSlot1 = sharedSubvault.createIndex(uint32(1));
+        uint96 networkSlot2 = sharedSubvault.createIndex(uint32(2));
+        _createOperatorSlot(networkSlot1, alice, 200);
+        _createOperatorSlot(networkSlot2, alice, 200);
+
+        _deposit(alice, 100);
+        vm.warp(1);
+
+        assertEq(slasher.slashableStake(subnetwork1, alice, 0, ""), 100);
+        assertEq(slasher.slashableStake(subnetwork2, alice, 0, ""), 100);
+
+        vm.startPrank(middleware);
+        uint256 slashIndex1 = slasher.requestSlash(subnetwork1, alice, 100, 0, "");
+        assertEq(slasher.executeSlash(slashIndex1, ""), 100);
+        uint256 slashIndex2 = slasher.requestSlash(subnetwork2, alice, 100, 0, "");
+        assertEq(slasher.executeSlash(slashIndex2, ""), 0);
+        vm.stopPrank();
+
+        assertEq(vault.activeStake(), 0);
+        assertEq(delegator.getSlot(sharedSubvault).size, 100);
+        assertEq(delegator.getSlot(networkSlot1).size, 100);
+        assertEq(delegator.getSlot(networkSlot2).size, 100);
+        assertEq(delegator.stake(subnetwork1, alice), 0);
+        assertEq(delegator.stake(subnetwork2, alice), 0);
+        assertEq(slasher.slashableStake(subnetwork1, alice, 0, ""), 0);
+        assertEq(slasher.slashableStake(subnetwork2, alice, 0, ""), 0);
+    }
+
     function test_depth3Operators_areIsolatedWithinNetwork() public {
         _deposit(alice, 100);
 
@@ -3695,6 +3749,32 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getNoAdaptersSize(), 40);
     }
 
+    function test_onSlash_parentPendingAndSizeAreCappedByReducedActualAmount() public {
+        _deposit(alice, 100);
+
+        bytes32 subnetwork = makeAddr("slash-parent-cap").subnetwork(0);
+        uint96 subvault = delegator.createSlot(bytes32(0), 0, false, false, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, subvault, false, false, 100);
+        uint96 operatorSlot = delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 20);
+
+        vm.warp(1);
+        delegator.setSize(subvault, 30);
+
+        assertEq(delegator.getPending(subvault, 0), 70);
+        assertEq(delegator.getSlot(subvault).size, 30);
+        assertEq(delegator.getSlot(networkSlot).size, 100);
+        assertEq(delegator.getSlot(operatorSlot).size, 20);
+
+        vm.warp(2);
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlash(subnetwork, alice, 100), 20);
+
+        assertEq(delegator.getPending(subvault, 0), 50);
+        assertEq(delegator.getSlot(subvault).size, 30);
+        assertEq(delegator.getSlot(networkSlot).size, 80);
+        assertEq(delegator.getSlot(operatorSlot).size, 0);
+    }
+
     function test_onSlash_sharedSubvault_capsActualAmountToRemainingSharedBalance() public {
         _deposit(alice, 100);
 
@@ -3714,6 +3794,30 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.onSlash(subnetwork2, bob, 70), 30);
 
         assertEq(delegator.getSlot(subvault).size, 0);
+    }
+
+    function test_onSlash_sharedSubvault_partialSlashOnlyConsumesActualAmount() public {
+        _deposit(alice, 100);
+
+        bytes32 subnetwork = makeAddr("shared-actual-amount-network").subnetwork(0);
+        uint96 subvault = delegator.createSlot(bytes32(0), 0, true, false, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, subvault, false, false, 100);
+        uint96 operatorSlot = delegator.createSlot(_operatorKey(alice), networkSlot, false, false, 50);
+
+        vm.warp(1);
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlash(subnetwork, alice, 100), 50);
+
+        assertEq(delegator.getSlot(subvault).size, 50);
+        assertEq(delegator.getSlot(networkSlot).size, 50);
+        assertEq(delegator.getSlot(operatorSlot).size, 0);
+
+        vm.warp(2);
+        delegator.setSize(networkSlot, 100);
+        delegator.setSize(operatorSlot, 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(subnetwork, alice, 0), 50);
     }
 
     function test_onSlash_revertsNotAssigned() public {

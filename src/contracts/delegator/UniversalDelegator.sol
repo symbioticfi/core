@@ -774,13 +774,13 @@ contract UniversalDelegator is
         for (uint96 curIndex = index; curIndex > 0;) {
             SlotStorage storage slot = slots[curIndex];
             SlotStorage storage parent = slots[curIndex.getParentIndex()];
-            uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amount));
-            uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amount - pendingSlashed));
-            actualAmount = Math.min(actualAmount, pendingSlashed + sizeSlashed);
+            uint256 amountToSlash = actualAmount;
             if (curIndex.getDepth() == 1 && slot.isShared) {
                 // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
-                actualAmount = Math.min(actualAmount, getAllocated(curIndex, 0));
+                amountToSlash = Math.min(amountToSlash, getAllocated(curIndex, 0));
             }
+            uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amountToSlash));
+            uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amountToSlash - pendingSlashed));
             if (pendingSlashed > 0) {
                 // Clear slot's pending.
                 slot.clearedPendingCursor.push(uint48(block.timestamp), _getPendingCursor(curIndex) + pendingSlashed);
@@ -813,22 +813,23 @@ contract UniversalDelegator is
                     slot.sharedSizeConsumedCumulative
                         .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
                 }
-                uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), amount));
+                uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), actualAmount));
                 if (pendingConsumed > 0) {
                     slots[networkIndex].sharedPendingConsumedCursor
                         .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingConsumed);
                 }
                 uint208 sizeConsumed =
-                    uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount - pendingConsumed));
+                    uint208(Math.min(_getSharedSizeGuarantee(networkIndex), actualAmount - pendingConsumed));
                 if (sizeConsumed > 0) {
                     slots[networkIndex].sharedSizeConsumedCumulative
                         .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
                 }
             }
+            actualAmount = Math.min(actualAmount, pendingSlashed + sizeSlashed);
             curIndex = curIndex.getParentIndex();
         }
 
-        emit OnSlash(subnetwork, operator, amount);
+        emit OnSlash(subnetwork, operator, amount, actualAmount);
     }
 
     /* INITIALIZATION */

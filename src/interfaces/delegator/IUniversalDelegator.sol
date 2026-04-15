@@ -248,9 +248,10 @@ interface IUniversalDelegator {
      * @notice Emitted when a slash is applied.
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Address of the operator.
-     * @param amount Slashed amount.
+     * @param amount Requested slash amount.
+     * @param actualAmount Actual slashed amount after delegation caps are applied.
      */
-    event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
+    event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount, uint256 actualAmount);
 
     /**
      * @notice Emitted when the delegator is initialized.
