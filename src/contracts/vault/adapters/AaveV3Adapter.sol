@@ -43,7 +43,9 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
     /// @param aavePool The single Aave V3 pool used by the adapter.
     /// @param rewards The rewards contract that receives skimmed yield.
     /// @param vaultFactory The vault registry address.
-    constructor(address aavePool, address rewards, address vaultFactory) Adapter(vaultFactory) {
+    constructor(address aavePool, address curatorRegistry, address rewards, address vaultFactory)
+        Adapter(vaultFactory, curatorRegistry)
+    {
         AAVE_POOL = aavePool;
         REWARDS = rewards;
     }
@@ -80,16 +82,15 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
         }
 
         return Math.min(
-            IERC20(collateral).balanceOf(address(this))
-                + Math.min(_getVaultAssets(vault), IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(collateral)),
+            Math.min(_getVaultAssets(vault), IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(collateral)),
             IVaultV2(vault).adapterAllocated(address(this))
         );
     }
 
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+    /* INTERNAL FUNCTIONS */
 
-    /// @inheritdoc IAdapter
-    function skim(address vault) public onlyVault(vault) returns (uint256 amount) {
+    /// @dev Withdraws excess Aave yield back to the adapter and forwards it to rewards.
+    function _skim(address vault) internal override returns (uint256 amount) {
         amount = skimmable(vault);
         if (amount > 0) {
             address collateral = IVaultV2(vault).collateral();
@@ -108,11 +109,9 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
         }
     }
 
-    /* PUBLIC FUNCTIONS (INTERNAL) */
-
-    /// @inheritdoc IAdapter
-    function allocate(uint256 amount) public onlyVault(msg.sender) {
-        skim(msg.sender);
+    /// @dev Supplies collateral from the calling vault into Aave.
+    function _allocate(uint256 amount) internal override {
+        _skim(msg.sender);
 
         if (amount == 0) {
             return;
@@ -129,13 +128,13 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
             vaultShares[collateral][msg.sender] += mintedShares;
             totalCollateralShares[collateral] += mintedShares;
         } catch {
-            IVaultV2(msg.sender).deallocateAdapter(address(this), amount);
+            _recover(msg.sender, amount);
         }
     }
 
-    /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public onlyVault(msg.sender) returns (uint256 deallocated) {
-        skim(msg.sender);
+    /// @dev Withdraws collateral for the calling vault from Aave when liquidity is available.
+    function _deallocate(uint256 amount) internal override returns (uint256 deallocated) {
+        _skim(msg.sender);
 
         if (amount == 0) {
             return 0;
@@ -144,28 +143,22 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
         deallocated = Math.min(deallocatable(msg.sender), amount);
         if (deallocated > 0) {
             address collateral = IVaultV2(msg.sender).collateral();
-            uint256 curBalance = IERC20(collateral).balanceOf(address(this));
-            uint256 amountToWithdraw = deallocated.saturatingSub(curBalance);
-            if (amountToWithdraw > 0) {
-                uint256 burnedShares = _previewWithdraw(
-                    amountToWithdraw, totalCollateralShares[collateral], _getAdapterAssets(msg.sender)
-                );
-                try IAaveV3Pool(AAVE_POOL).withdraw(collateral, amountToWithdraw, address(this)) returns (uint256) {
-                    vaultShares[collateral][msg.sender] -= burnedShares;
-                    totalCollateralShares[collateral] -= burnedShares;
-                } catch {
-                    deallocated = curBalance;
-                }
+            uint256 burnedShares = _previewWithdraw(deallocated, totalCollateralShares[collateral], _getAdapterAssets(msg.sender));
+            try IAaveV3Pool(AAVE_POOL).withdraw(collateral, deallocated, address(this)) returns (uint256) {
+                vaultShares[collateral][msg.sender] -= burnedShares;
+                totalCollateralShares[collateral] -= burnedShares;
+            } catch {
+                deallocated = 0;
             }
 
-            _decreaseGlobalAllocated(collateral, deallocated);
-            if (IERC20(collateral).allowance(address(this), msg.sender) < deallocated) {
-                collateral.safeApproveWithRetry(msg.sender, type(uint256).max);
+            if (deallocated > 0) {
+                _decreaseGlobalAllocated(collateral, deallocated);
+                if (IERC20(collateral).allowance(address(this), msg.sender) < deallocated) {
+                    collateral.safeApproveWithRetry(msg.sender, type(uint256).max);
+                }
             }
         }
     }
-
-    /* INTERNAL FUNCTIONS */
 
     /// @dev Returns the adapter's total aToken-backed assets for the vault collateral.
     /// @param vault The vault whose collateral reserve is queried.

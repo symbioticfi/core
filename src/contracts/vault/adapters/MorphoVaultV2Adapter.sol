@@ -4,7 +4,6 @@ pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
 import {ERC4626Math} from "../common/ERC4626Math.sol";
-
 import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
 import {ICuratorRegistry} from "../../../interfaces/vault/adapters/ICuratorRegistry.sol";
 import {
@@ -38,8 +37,6 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
     address internal immutable MORPHO_VAULT_FACTORY;
     /// @notice Required Morpho adapter registry for configured vaults.
     address internal immutable MORPHO_ADAPTER_REGISTRY;
-    /// @notice Curator registry used for curator-gated configuration.
-    address internal immutable CURATOR_REGISTRY;
     /// @notice Rewards contract that receives skimmed adapter yield.
     address internal immutable REWARDS;
 
@@ -51,15 +48,6 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
     mapping(address morphoVault => uint256 shares) public totalVaultShares;
     /// @inheritdoc IMorphoVaultV2Adapter
     mapping(address morphoVault => mapping(address vault => uint256 shares)) public vaultShares;
-
-    /* MODIFIERS */
-
-    modifier onlyCurator(address vault) {
-        if (ICuratorRegistry(CURATOR_REGISTRY).getCurator(vault) != msg.sender) {
-            revert NotCurator();
-        }
-        _;
-    }
 
     /* CONSTRUCTOR */
 
@@ -75,10 +63,9 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
         address curatorRegistry,
         address rewards,
         address vaultFactory
-    ) Adapter(vaultFactory) {
+    ) Adapter(vaultFactory, curatorRegistry) {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
-        CURATOR_REGISTRY = curatorRegistry;
         REWARDS = rewards;
     }
 
@@ -109,20 +96,19 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
         address collateral = IMorphoVaultV2(morphoVault).asset();
         address liquidityAdapter = IMorphoVaultV2(morphoVault).liquidityAdapter();
         return Math.min(
-            collateral.balanceOf(address(this))
-                + Math.min(
-                    _getVaultAssets(vault),
-                    collateral.balanceOf(morphoVault)
-                        + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
-                ),
+            Math.min(
+                _getVaultAssets(vault),
+                collateral.balanceOf(morphoVault)
+                    + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
+            ),
             IVaultV2(vault).adapterAllocated(address(this))
         );
     }
 
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+    /* INTERNAL FUNCTIONS */
 
-    /// @inheritdoc IAdapter
-    function skim(address vault) public onlyVault(vault) returns (uint256 amount) {
+    /// @dev Withdraws excess Morpho yield back to the adapter and forwards it to rewards.
+    function _skim(address vault) internal override returns (uint256 amount) {
         amount = skimmable(vault);
         if (amount > 0) {
             address morphoVault = morphoVaults[vault];
@@ -142,11 +128,9 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
         }
     }
 
-    /* PUBLIC FUNCTIONS (INTERNAL) */
-
-    /// @inheritdoc IAdapter
-    function allocate(uint256 amount) public onlyVault(msg.sender) {
-        skim(msg.sender);
+    /// @dev Deposits collateral from the calling vault into the configured Morpho vault.
+    function _allocate(uint256 amount) internal override {
+        _skim(msg.sender);
 
         if (amount == 0) {
             return;
@@ -164,13 +148,13 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
             vaultShares[morphoVault][msg.sender] += mintedShares;
             totalVaultShares[morphoVault] += mintedShares;
         } catch {
-            IVaultV2(msg.sender).deallocateAdapter(address(this), amount);
+            _recover(msg.sender, amount);
         }
     }
 
-    /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public onlyVault(msg.sender) returns (uint256 deallocated) {
-        skim(msg.sender);
+    /// @dev Withdraws collateral for the calling vault from the configured Morpho vault.
+    function _deallocate(uint256 amount) internal override returns (uint256 deallocated) {
+        _skim(msg.sender);
 
         if (amount == 0) {
             return 0;
@@ -180,29 +164,22 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
         if (deallocated > 0) {
             address morphoVault = morphoVaults[msg.sender];
             address collateral = IMorphoVaultV2(morphoVault).asset();
-            uint256 curBalance = collateral.balanceOf(address(this));
-            uint256 amountToWithdraw = deallocated.saturatingSub(curBalance);
-            if (amountToWithdraw > 0) {
-                uint256 burnedShares =
-                    _previewWithdraw(amountToWithdraw, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
-                try IMorphoVaultV2(morphoVault).withdraw(amountToWithdraw, address(this), address(this)) returns (
-                    uint256
-                ) {
-                    vaultShares[morphoVault][msg.sender] -= burnedShares;
-                    totalVaultShares[morphoVault] -= burnedShares;
-                } catch {
-                    deallocated = curBalance;
-                }
+            uint256 burnedShares = _previewWithdraw(deallocated, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
+            try IMorphoVaultV2(morphoVault).withdraw(deallocated, address(this), address(this)) returns (uint256) {
+                vaultShares[morphoVault][msg.sender] -= burnedShares;
+                totalVaultShares[morphoVault] -= burnedShares;
+            } catch {
+                deallocated = 0;
             }
 
-            _decreaseGlobalAllocated(collateral, deallocated);
-            if (IERC20(collateral).allowance(address(this), msg.sender) < deallocated) {
-                collateral.safeApproveWithRetry(msg.sender, type(uint256).max);
+            if (deallocated > 0) {
+                _decreaseGlobalAllocated(collateral, deallocated);
+                if (IERC20(collateral).allowance(address(this), msg.sender) < deallocated) {
+                    collateral.safeApproveWithRetry(msg.sender, type(uint256).max);
+                }
             }
         }
     }
-
-    /* INTERNAL FUNCTIONS */
 
     /// @dev Returns the adapter's total claim on a Morpho vault in collateral units.
     /// @param morphoVault The Morpho vault being queried.

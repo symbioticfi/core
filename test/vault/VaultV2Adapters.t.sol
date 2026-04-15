@@ -615,7 +615,8 @@ contract VaultV2AdaptersTest is Test {
         morphoAdapter.initialize();
         morphoAdapter.setGlobalLimit(address(collateral), type(uint256).max);
 
-        aaveAdapter = new AaveV3Adapter(address(aavePool), address(pullRewards), address(vaultFactory));
+        aaveAdapter =
+            new AaveV3Adapter(address(aavePool), address(curatorRegistry), address(pullRewards), address(vaultFactory));
         aaveAdapter.initialize();
         aaveAdapter.setGlobalLimit(address(collateral), type(uint256).max);
 
@@ -685,7 +686,7 @@ contract VaultV2AdaptersTest is Test {
     }
 
     function test_MorphoSetVaultRejectsNonCurator() public {
-        vm.expectRevert(IMorphoVaultV2Adapter.NotCurator.selector);
+        vm.expectRevert(IAdapter.NotCurator.selector);
         morphoAdapter.setMorphoVault(address(vault1), address(morphoVault));
     }
 
@@ -988,6 +989,28 @@ contract VaultV2AdaptersTest is Test {
         assertEq(collateral.balanceOf(address(vault1)), 40);
     }
 
+    function test_MorphoRecoverReturnsCuratorFundsToVaultAndReducesAllocation() public {
+        _configureMorpho(address(vault1));
+        morphoAdapter.setGlobalLimit(address(collateral), 100);
+        _allocateMorpho(vault1, 80, 80);
+        assertEq(morphoAdapter.allocatable(address(vault1)), 20);
+
+        deal(address(collateral), curator, 10);
+
+        vm.startPrank(curator);
+        collateral.approve(address(morphoAdapter), 10);
+        morphoAdapter.recover(address(vault1), 10);
+        vm.stopPrank();
+
+        assertEq(collateral.balanceOf(address(vault1)), 20);
+        assertEq(collateral.balanceOf(address(morphoAdapter)), 0);
+        assertEq(vault1.adapterAllocated(address(morphoAdapter)), 70);
+        assertEq(morphoAdapter.globalAllocated(address(collateral)), 70);
+        assertEq(morphoAdapter.allocatable(address(vault1)), 30);
+        assertEq(morphoAdapter.deallocatable(address(vault1)), 70);
+        assertEq(morphoAdapter.skimmable(address(vault1)), 0);
+    }
+
     function test_MorphoDeallocateReturnsIdleBalanceWhenWithdrawFails() public {
         MockMorphoVaultConfigurable failingMorphoVault =
             new MockMorphoVaultConfigurable(address(collateral), morphoAdapterRegistry);
@@ -1003,11 +1026,12 @@ contract VaultV2AdaptersTest is Test {
 
         uint256 deallocated = _deallocateFromVault(vault1, address(morphoAdapter), 30);
 
-        assertEq(deallocated, 10);
-        assertEq(collateral.balanceOf(address(vault1)), 10);
-        assertEq(morphoAdapter.globalAllocated(address(collateral)), 70);
-        assertEq(vault1.adapterAllocated(address(morphoAdapter)), 70);
-        assertEq(morphoAdapter.deallocatable(address(vault1)), 70);
+        assertEq(deallocated, 0);
+        assertEq(collateral.balanceOf(address(vault1)), 0);
+        assertEq(collateral.balanceOf(address(morphoAdapter)), 10);
+        assertEq(morphoAdapter.globalAllocated(address(collateral)), 80);
+        assertEq(vault1.adapterAllocated(address(morphoAdapter)), 80);
+        assertEq(morphoAdapter.deallocatable(address(vault1)), 80);
     }
 
     function test_MorphoOneVaultCanDrainAllSharedLiquidityAndFreezeAnotherVault() public {
@@ -1172,7 +1196,9 @@ contract VaultV2AdaptersTest is Test {
 
     function test_AaveSkimRevertsWhenRewardsDonationFails() public {
         MockRewardsRevertAdapters revertingRewards = new MockRewardsRevertAdapters();
-        AaveV3Adapter adapter = new AaveV3Adapter(address(aavePool), address(revertingRewards), address(vaultFactory));
+        AaveV3Adapter adapter = new AaveV3Adapter(
+            address(aavePool), address(curatorRegistry), address(revertingRewards), address(vaultFactory)
+        );
         adapter.initialize();
         adapter.setGlobalLimit(address(collateral), type(uint256).max);
         adapterRegistry.whitelistAdapter(address(adapter));
@@ -1326,6 +1352,27 @@ contract VaultV2AdaptersTest is Test {
         assertEq(aaveAdapter.deallocatable(address(vault1)), 0);
     }
 
+    function test_AaveRecoverReturnsCuratorFundsToVaultAndReducesAllocation() public {
+        aaveAdapter.setGlobalLimit(address(collateral), 100);
+        _allocateAave(vault1, 80, 80);
+        assertEq(aaveAdapter.allocatable(address(vault1)), 20);
+
+        deal(address(collateral), curator, 10);
+
+        vm.startPrank(curator);
+        collateral.approve(address(aaveAdapter), 10);
+        aaveAdapter.recover(address(vault1), 10);
+        vm.stopPrank();
+
+        assertEq(collateral.balanceOf(address(vault1)), 20);
+        assertEq(collateral.balanceOf(address(aaveAdapter)), 0);
+        assertEq(vault1.adapterAllocated(address(aaveAdapter)), 70);
+        assertEq(aaveAdapter.globalAllocated(address(collateral)), 70);
+        assertEq(aaveAdapter.allocatable(address(vault1)), 30);
+        assertEq(aaveAdapter.deallocatable(address(vault1)), 70);
+        assertEq(aaveAdapter.skimmable(address(vault1)), 0);
+    }
+
     function test_AaveDeallocateReturnsIdleBalanceWhenWithdrawFails() public {
         _allocateAave(vault1, 80, 80);
 
@@ -1334,11 +1381,12 @@ contract VaultV2AdaptersTest is Test {
 
         uint256 deallocated = _deallocateFromVault(vault1, address(aaveAdapter), 30);
 
-        assertEq(deallocated, 10);
-        assertEq(collateral.balanceOf(address(vault1)), 10);
-        assertEq(aaveAdapter.globalAllocated(address(collateral)), 70);
-        assertEq(vault1.adapterAllocated(address(aaveAdapter)), 70);
-        assertEq(aaveAdapter.deallocatable(address(vault1)), 70);
+        assertEq(deallocated, 0);
+        assertEq(collateral.balanceOf(address(vault1)), 0);
+        assertEq(collateral.balanceOf(address(aaveAdapter)), 10);
+        assertEq(aaveAdapter.globalAllocated(address(collateral)), 80);
+        assertEq(vault1.adapterAllocated(address(aaveAdapter)), 80);
+        assertEq(aaveAdapter.deallocatable(address(vault1)), 80);
     }
 
     function test_AaveOneVaultCanDrainAllSharedLiquidityAndFreezeAnotherVault() public {

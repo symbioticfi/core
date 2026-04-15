@@ -12,11 +12,23 @@ interface IAdapter {
     error NotVault();
 
     /**
+     * @notice Raised when the caller is not the curator for the target vault.
+     */
+    error NotCurator();
+
+    /**
      * @notice Emitted when the global allocation limit is updated for an asset.
      * @param asset Asset address.
      * @param limit Adapter-wide allocation limit for the asset.
      */
     event SetGlobalLimit(address indexed asset, uint256 limit);
+
+    /**
+     * @notice Emitted when curator-provided recovery collateral is returned to a vault.
+     * @param vault Vault address.
+     * @param amount Recovered collateral amount.
+     */
+    event Recover(address indexed vault, uint256 amount);
 
     /**
      * @notice Execute a batch of delegatecalls on the adapter.
@@ -81,4 +93,11 @@ interface IAdapter {
      * @dev Must not revert.
      */
     function skim(address vault) external returns (uint256 amount);
+
+    /**
+     * @notice Replenish lost collateral and immediately return it to the vault.
+     * @param vault Address of the vault.
+     * @param amount Amount of collateral supplied for recovery.
+     */
+    function recover(address vault, uint256 amount) external;
 }

@@ -20,11 +20,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
      */
     error InvalidMorphoVault();
 
-    /**
-     * @notice Raised when the caller is not the curator for the target vault.
-     */
-    error NotCurator();
-
     /* EVENTS */
 
     /**
