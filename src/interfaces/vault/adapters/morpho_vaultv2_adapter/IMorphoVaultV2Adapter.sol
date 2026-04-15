@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import {IAdapter} from "../../IAdapter.sol";
 
+// Maximum tolerated loss in smallest units for normal deallocation before force deallocation is required.
+uint256 constant DEALLOCATE_BUFFER = 10;
+
 /**
  * @title IMorphoVaultV2Adapter
  * @notice Interface for the Morpho Vault V2 adapter.
@@ -14,6 +17,11 @@ interface IMorphoVaultV2Adapter is IAdapter {
      * @notice Raised when trying to replace a Morpho vault while a position is still active.
      */
     error ActivePosition();
+
+    /**
+     * @notice Raised when the provided amount is insufficient for the requested operation.
+     */
+    error InsufficientAmount();
 
     /**
      * @notice Raised when the provided Morpho vault does not match the vault collateral.
@@ -28,6 +36,14 @@ interface IMorphoVaultV2Adapter is IAdapter {
      * @param account Deterministic account address.
      */
     event DeployAccount(address indexed vault, address indexed account);
+
+    /**
+     * @notice Emitted when a curator force-deallocates funds for a vault.
+     * @param vault Vault address.
+     * @param amount Requested amount to deallocate.
+     * @param deallocated Actual amount deallocated.
+     */
+    event ForceDeallocate(address indexed vault, uint256 amount, uint256 deallocated);
 
     /**
      * @notice Emitted when a Morpho vault is configured for a vault.
@@ -58,6 +74,14 @@ interface IMorphoVaultV2Adapter is IAdapter {
      * @return assets Vault assets represented in collateral units.
      */
     function getAssets(address vault) external view returns (uint256 assets);
+
+    /**
+     * @notice Force-deallocates collateral for a vault.
+     * @param vault Vault address.
+     * @param amount Requested amount to deallocate.
+     * @return deallocated Actual amount deallocated.
+     */
+    function forceDeallocate(address vault, uint256 amount) external returns (uint256 deallocated);
 
     /**
      * @notice Sets the Morpho vault for a vault.
