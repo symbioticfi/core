@@ -52,7 +52,7 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
 
     /// @inheritdoc IAaveV3Adapter
     function aToken(address vault) public view returns (address) {
-        return IAaveV3Pool(AAVE_POOL).getReserveData(IVaultV2(vault).collateral()).aTokenAddress;
+        return IAaveV3Pool(AAVE_POOL).getReserveAToken(IVaultV2(vault).collateral());
     }
 
     /// @inheritdoc IAdapter
@@ -81,7 +81,7 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
 
         return Math.min(
             IERC20(collateral).balanceOf(address(this))
-                + Math.min(_getVaultAssets(vault), IERC20(collateral).balanceOf(curAToken)),
+                + Math.min(_getVaultAssets(vault), IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(collateral)),
             IVaultV2(vault).adapterAllocated(address(this))
         );
     }

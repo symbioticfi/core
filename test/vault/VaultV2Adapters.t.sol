@@ -33,7 +33,6 @@ import {MorphoVaultV2Adapter} from "../../src/contracts/vault/adapters/MorphoVau
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IAdapter} from "../../src/interfaces/vault/IAdapter.sol";
 import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVaultV2.sol";
-import {AaveV3ReserveData} from "../../src/interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {
@@ -347,6 +346,8 @@ contract MockAavePool {
 
     bool public revertOnSupply;
     bool public revertOnWithdraw;
+    bool public useVirtualUnderlyingBalanceOverride;
+    uint128 public virtualUnderlyingBalanceOverride;
 
     constructor(address asset_, address aToken_, address addressesProvider_) {
         asset = IERC20(asset_);
@@ -354,10 +355,18 @@ contract MockAavePool {
         ADDRESSES_PROVIDER = addressesProvider_;
     }
 
-    function getReserveData(address asset_) external view returns (AaveV3ReserveData memory reserveData) {
-        if (asset_ == address(asset)) {
-            reserveData.aTokenAddress = address(aToken);
+    function getReserveAToken(address asset_) external view returns (address) {
+        return asset_ == address(asset) ? address(aToken) : address(0);
+    }
+
+    function getVirtualUnderlyingBalance(address asset_) external view returns (uint128) {
+        if (asset_ != address(asset)) {
+            return 0;
         }
+        if (useVirtualUnderlyingBalanceOverride) {
+            return virtualUnderlyingBalanceOverride;
+        }
+        return uint128(asset.balanceOf(address(aToken)));
     }
 
     function setRevertOnSupply(bool value) external {
@@ -366,6 +375,15 @@ contract MockAavePool {
 
     function setRevertOnWithdraw(bool value) external {
         revertOnWithdraw = value;
+    }
+
+    function setVirtualUnderlyingBalance(uint128 value) external {
+        useVirtualUnderlyingBalanceOverride = true;
+        virtualUnderlyingBalanceOverride = value;
+    }
+
+    function clearVirtualUnderlyingBalanceOverride() external {
+        useVirtualUnderlyingBalanceOverride = false;
     }
 
     function supply(address asset_, uint256 amount, address onBehalfOf, uint16) external {
@@ -1048,6 +1066,14 @@ contract VaultV2AdaptersTest is Test {
 
     function test_AaveUsesPoolReserveForVaultCollateral() public view {
         assertEq(aaveAdapter.aToken(address(vault1)), address(aToken));
+    }
+
+    function test_AaveDeallocatableUsesVirtualUnderlyingBalance() public {
+        _allocateAave(vault1, 80, 80);
+
+        aavePool.setVirtualUnderlyingBalance(30);
+
+        assertEq(aaveAdapter.deallocatable(address(vault1)), 30);
     }
 
     function test_AaveSetGlobalLimitRejectsNonOwner() public {
