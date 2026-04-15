@@ -632,9 +632,12 @@ contract VaultV2AdaptersTest is Test {
 
     function test_MorphoDepositRejectsNonSelfCall() public {
         vm.startPrank(alice);
-        (bool success, bytes memory returnData) = address(morphoAdapter).call(
-            abi.encodeCall(MorphoVaultV2Adapter.deposit, (address(morphoVault), 1, morphoAdapter.getAccount(address(vault1))))
-        );
+        (bool success, bytes memory returnData) = address(morphoAdapter)
+            .call(
+                abi.encodeCall(
+                    MorphoVaultV2Adapter.deposit, (address(morphoVault), 1, morphoAdapter.getAccount(address(vault1)))
+                )
+            );
         vm.stopPrank();
 
         assertFalse(success);
@@ -643,8 +646,9 @@ contract VaultV2AdaptersTest is Test {
 
     function test_MorphoDepositRejectsMulticallRoute() public {
         bytes[] memory data = new bytes[](1);
-        data[0] =
-            abi.encodeCall(MorphoVaultV2Adapter.deposit, (address(morphoVault), 1, morphoAdapter.getAccount(address(vault1))));
+        data[0] = abi.encodeCall(
+            MorphoVaultV2Adapter.deposit, (address(morphoVault), 1, morphoAdapter.getAccount(address(vault1)))
+        );
 
         vm.prank(alice);
         vm.expectRevert(IMorphoVaultV2Adapter.NotSelf.selector);
@@ -890,8 +894,8 @@ contract VaultV2AdaptersTest is Test {
 
         _allocateMorpho(vault1, 100, 100);
 
-        collateral.approve(address(morphoVault), 1_000);
-        morphoVault.donateYield(1_000);
+        collateral.approve(address(morphoVault), 1000);
+        morphoVault.donateYield(1000);
 
         uint256 vault1SkimmableBefore = morphoAdapter.skimmable(address(vault1));
         uint256 vault2BalanceBefore = collateral.balanceOf(address(vault2));
