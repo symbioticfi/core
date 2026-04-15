@@ -28,6 +28,11 @@ interface IMorphoVaultV2Adapter is IAdapter {
      */
     error InvalidMorphoVault();
 
+    /**
+     * @notice Raised when the deposit helper is called directly instead of through the adapter self-call.
+     */
+    error NotSelf();
+
     /* EVENTS */
 
     /**
