@@ -131,6 +131,9 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, ERC4626Math, IMorphoVau
     /// @dev Deposits collateral from the calling vault into the configured Morpho vault.
     function _allocate(uint256 amount) internal override {
         _skim(msg.sender);
+        if (skimmable(msg.sender) > 0) {
+            revert();
+        }
 
         if (amount == 0) {
             return;

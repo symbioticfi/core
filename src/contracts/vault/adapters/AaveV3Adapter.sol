@@ -112,6 +112,9 @@ contract AaveV3Adapter is Initializable, Adapter, ERC4626Math, IAaveV3Adapter {
     /// @dev Supplies collateral from the calling vault into Aave.
     function _allocate(uint256 amount) internal override {
         _skim(msg.sender);
+        if (skimmable(msg.sender) > 0) {
+            revert();
+        }
 
         if (amount == 0) {
             return;

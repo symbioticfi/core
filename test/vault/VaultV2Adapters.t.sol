@@ -900,6 +900,35 @@ contract VaultV2AdaptersTest is Test {
         assertEq(morphoAdapter.deallocatable(address(vault1)), deallocatableBefore);
     }
 
+    function test_MorphoAllocateRevertsWhenSkimCannotClearExistingYield() public {
+        MockMorphoVaultConfigurable failingMorphoVault =
+            new MockMorphoVaultConfigurable(address(collateral), morphoAdapterRegistry);
+        morphoVaultFactory.setVault(address(failingMorphoVault), true);
+
+        vm.prank(curator);
+        morphoAdapter.setMorphoVault(address(vault1), address(failingMorphoVault));
+
+        _allocateMorpho(vault1, 100, 80);
+
+        collateral.approve(address(failingMorphoVault), 20);
+        failingMorphoVault.donateYield(20);
+        failingMorphoVault.setRevertOnWithdraw(true);
+
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault1));
+        uint256 adapterAllocatedBefore = vault1.adapterAllocated(address(morphoAdapter));
+        uint256 globalAllocatedBefore = morphoAdapter.globalAllocated(address(collateral));
+        uint256 skimmableBefore = morphoAdapter.skimmable(address(vault1));
+
+        vm.prank(alice);
+        vm.expectRevert();
+        vault1.allocateAdapter(address(morphoAdapter), 10);
+
+        assertEq(collateral.balanceOf(address(vault1)), vaultBalanceBefore);
+        assertEq(vault1.adapterAllocated(address(morphoAdapter)), adapterAllocatedBefore);
+        assertEq(morphoAdapter.globalAllocated(address(collateral)), globalAllocatedBefore);
+        assertEq(morphoAdapter.skimmable(address(vault1)), skimmableBefore);
+    }
+
     function test_MorphoSkimDoesNotDiluteOtherVault() public {
         _configureMorpho(address(vault1));
         _configureMorpho(address(vault2));
@@ -1273,6 +1302,28 @@ contract VaultV2AdaptersTest is Test {
         assertEq(vault1.activeStake(), activeStakeBefore);
         assertEq(aaveAdapter.skimmable(address(vault1)), skimmableBefore);
         assertEq(aaveAdapter.deallocatable(address(vault1)), deallocatableBefore);
+    }
+
+    function test_AaveAllocateRevertsWhenSkimCannotClearExistingYield() public {
+        _allocateAave(vault1, 100, 80);
+
+        collateral.approve(address(aavePool), 20);
+        aavePool.accrueYield(address(aaveAdapter), 20);
+        aavePool.setRevertOnWithdraw(true);
+
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault1));
+        uint256 adapterAllocatedBefore = vault1.adapterAllocated(address(aaveAdapter));
+        uint256 globalAllocatedBefore = aaveAdapter.globalAllocated(address(collateral));
+        uint256 skimmableBefore = aaveAdapter.skimmable(address(vault1));
+
+        vm.prank(alice);
+        vm.expectRevert();
+        vault1.allocateAdapter(address(aaveAdapter), 10);
+
+        assertEq(collateral.balanceOf(address(vault1)), vaultBalanceBefore);
+        assertEq(vault1.adapterAllocated(address(aaveAdapter)), adapterAllocatedBefore);
+        assertEq(aaveAdapter.globalAllocated(address(collateral)), globalAllocatedBefore);
+        assertEq(aaveAdapter.skimmable(address(vault1)), skimmableBefore);
     }
 
     function test_AaveSkimDoesNotDiluteOtherVault() public {
