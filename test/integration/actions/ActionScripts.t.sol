@@ -24,8 +24,6 @@ import {SetHookBaseScript} from "../../../script/actions/base/SetHookBase.s.sol"
 import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/base/SetMaxNetworkLimitBase.s.sol";
 import {SetNetworkLimitBaseScript} from "../../../script/actions/base/SetNetworkLimitBase.s.sol";
 import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/base/SetOperatorNetworkSharesBase.s.sol";
-import {SetResolverBaseScript} from "../../../script/actions/base/SetResolverBase.s.sol";
-import {VetoSlashBaseScript} from "../../../script/actions/base/VetoSlashBase.s.sol";
 
 interface IVetoSlasherExtended is IVetoSlasher {
     function slashRequests(uint256 index)
@@ -97,19 +95,26 @@ contract SetOperatorNetworkSharesScriptHarness is SetOperatorNetworkSharesBaseSc
     }
 }
 
-contract SetResolverScriptHarness is SetResolverBaseScript, ScriptBaseHarness {
+contract SetResolverScriptHarness is ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
+    function runBase(address vault, uint96 identifier, address resolver)
+        public
+        returns (bytes memory data, address target)
+    {
+        target = IVault(vault).slasher();
+        data = abi.encodeCall(IVetoSlasher.setResolver, (identifier, resolver, ""));
+        sendTransaction(target, data);
     }
 }
 
-contract VetoSlashScriptHarness is VetoSlashBaseScript, ScriptBaseHarness {
+contract VetoSlashScriptHarness is ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
+    function runBase(address vault, uint256 slashIndex) public returns (bytes memory data, address target) {
+        target = IVault(vault).slasher();
+        data = abi.encodeCall(IVetoSlasher.vetoSlash, (slashIndex, ""));
+        sendTransaction(target, data);
     }
 }
 

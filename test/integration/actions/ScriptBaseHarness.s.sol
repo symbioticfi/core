@@ -12,7 +12,11 @@ abstract contract ScriptBaseHarness is ScriptBase {
 
     function sendTransaction(address target, bytes memory data) public virtual override {
         vm.prank(broadcaster);
-        (bool success,) = target.call(data);
-        require(success, "transaction failed");
+        (bool success, bytes memory returnData) = target.call(data);
+        if (!success) {
+            assembly ("memory-safe") {
+                revert(add(returnData, 0x20), mload(returnData))
+            }
+        }
     }
 }

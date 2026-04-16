@@ -35,7 +35,7 @@ contract V2DeployBaseScript is Script {
     {
         require(adapterRegistryOwner != address(0), "invalid adapter registry owner");
 
-        data.core = SymbioticCoreConstants.core();
+        data.core = _core();
 
         _startBroadcast();
         data.adapterRegistry = new AdapterRegistry(adapterRegistryOwner);
@@ -89,5 +89,9 @@ contract V2DeployBaseScript is Script {
 
     function _stopBroadcast() internal virtual {
         vm.stopBroadcast();
+    }
+
+    function _core() internal view virtual returns (SymbioticCoreConstants.Core memory) {
+        return SymbioticCoreConstants.core();
     }
 }
