@@ -6,25 +6,15 @@ import {IUniversalSlasher} from "../../../src/interfaces/slasher/IUniversalSlash
 import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
-contract SetResolverBaseScript is ScriptBase {
-    function runBase(address vault, uint96 identifier, address resolver)
-        public
-        virtual
-        returns (bytes memory data, address target)
-    {
+contract ExecuteSlashBaseScript is ScriptBase {
+    function runBase(address vault, uint256 slashIndex) public virtual returns (bytes memory data, address target) {
         target = IVault(vault).slasher();
-        data = abi.encodeCall(IUniversalSlasher.setResolver, (identifier, resolver));
+        data = abi.encodeCall(IUniversalSlasher.executeSlash, (slashIndex, bytes("")));
         sendTransaction(target, data);
 
         Logs.log(
             string.concat(
-                "Set resolver ",
-                "\n    vault:",
-                vm.toString(vault),
-                "\n    identifier:",
-                vm.toString(identifier),
-                "\n    resolver:",
-                vm.toString(resolver)
+                "Execute slash ", "\n    vault:", vm.toString(vault), "\n    slashIndex:", vm.toString(slashIndex)
             )
         );
         Logs.logSimulationLink(target, data);

@@ -55,7 +55,6 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     uint48 public resolverSetDelay;
     /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => bool) public isResolverSet;
-    /// @dev Resolver mapping before pending resolver activation.
     /// @inheritdoc IUniversalSlasher
     mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
 
@@ -66,6 +65,7 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
     /// @dev Slash request storage.
     SlashRequest[] internal _slashRequests;
+    /// @dev Active resolver per subnetwork.
     mapping(bytes32 subnetwork => address value) internal _resolver;
     /// @dev Legacy latest slashed capture timestamps.
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) internal __latestSlashedCaptureTimestamp;
