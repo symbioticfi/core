@@ -1,0 +1,303 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
+import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
+import {MockMorphoVault} from "./MockMorphoVault.sol";
+
+interface IVaultDonateHoodiScenario {
+    function donate(uint256 amount) external;
+}
+
+contract MockCuratorRegistry {
+    mapping(address vault => address curator) public curators;
+
+    function setCurator(address vault, address curator) external {
+        curators[vault] = curator;
+    }
+
+    function getCurator(address vault) external view returns (address) {
+        return curators[vault];
+    }
+}
+
+contract MockMorphoVaultFactory {
+    mapping(address vault => bool status) public isVaultV2;
+
+    function setVault(address vault, bool status) external {
+        isVaultV2[vault] = status;
+    }
+}
+
+contract MockRewardsDistributor is IRewards, ReentrancyGuard {
+    event Donate(address indexed vault, uint256 amount);
+
+    uint256 public donationRewardCalls;
+    address public lastDonationVault;
+    uint256 public lastDonationAmount;
+    bool public pullIntoVault;
+
+    constructor(bool pullIntoVault_) {
+        pullIntoVault = pullIntoVault_;
+    }
+
+    function setPullIntoVault(bool value) external {
+        pullIntoVault = value;
+    }
+
+    function distributeDonationRewards(address vault, uint256 amount) external nonReentrant {
+        ++donationRewardCalls;
+        lastDonationVault = vault;
+        lastDonationAmount = amount;
+
+        if (pullIntoVault) {
+            IERC20 collateral = IERC20(IVaultV2Storage(vault).collateral());
+            if (!collateral.transferFrom(msg.sender, address(this), amount)) {
+                revert();
+            }
+            collateral.approve(vault, amount);
+            IVaultDonateHoodiScenario(vault).donate(amount);
+        }
+
+        emit Donate(vault, amount);
+    }
+}
+
+contract MockMorphoVaultHarness is MockMorphoVault {
+    address public immutable adapterRegistry;
+
+    constructor(address asset_, address adapterRegistry_) MockMorphoVault(asset_) {
+        adapterRegistry = adapterRegistry_;
+    }
+
+    function liquidityAdapter() external pure returns (address) {
+        return address(0);
+    }
+
+    function abdicated(bytes4) external pure returns (bool) {
+        return true;
+    }
+}
+
+contract MockMorphoVaultConfigurable {
+    IERC20 public immutable asset;
+    address public immutable adapterRegistry;
+    address public liquidityAdapter;
+
+    uint256 public totalShares;
+    mapping(address account => uint256 shares) public sharesOf;
+
+    bool public revertOnDeposit;
+    bool public revertOnWithdraw;
+
+    constructor(address asset_, address adapterRegistry_) {
+        asset = IERC20(asset_);
+        adapterRegistry = adapterRegistry_;
+    }
+
+    function setRevertOnDeposit(bool value) external {
+        revertOnDeposit = value;
+    }
+
+    function setRevertOnWithdraw(bool value) external {
+        revertOnWithdraw = value;
+    }
+
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+        if (revertOnDeposit) {
+            revert("deposit failed");
+        }
+
+        uint256 totalAssetsBefore = asset.balanceOf(address(this));
+        asset.transferFrom(msg.sender, address(this), assets);
+
+        if (totalShares == 0 || totalAssetsBefore == 0) {
+            shares = assets;
+        } else {
+            shares = assets * totalShares / totalAssetsBefore;
+        }
+
+        sharesOf[receiver] += shares;
+        totalShares += shares;
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+        if (revertOnWithdraw) {
+            revert("withdraw failed");
+        }
+
+        uint256 totalAssets = asset.balanceOf(address(this));
+        if (totalAssets == 0 || totalShares == 0) {
+            return 0;
+        }
+
+        shares = assets * totalShares / totalAssets;
+        if (shares > sharesOf[owner]) {
+            shares = sharesOf[owner];
+            assets = shares * totalAssets / totalShares;
+        }
+
+        sharesOf[owner] -= shares;
+        totalShares -= shares;
+        asset.transfer(receiver, assets);
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return sharesOf[account];
+    }
+
+    function previewRedeem(uint256 shares) external view returns (uint256) {
+        if (totalShares == 0) {
+            return 0;
+        }
+
+        return shares * asset.balanceOf(address(this)) / totalShares;
+    }
+
+    function donateYield(uint256 amount) external {
+        asset.transferFrom(msg.sender, address(this), amount);
+    }
+
+    function abdicated(bytes4) external pure returns (bool) {
+        return true;
+    }
+}
+
+contract MockAaveAToken is ERC20 {
+    address public immutable UNDERLYING_ASSET_ADDRESS;
+    address public pool;
+
+    constructor(address underlyingAsset) ERC20("Mock AToken", "maToken") {
+        UNDERLYING_ASSET_ADDRESS = underlyingAsset;
+    }
+
+    function setPool(address newPool) external {
+        require(pool == address(0), "pool already set");
+        pool = newPool;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+
+    function burn(address account, uint256 amount) external {
+        _burn(account, amount);
+    }
+
+    function transferUnderlying(address to, uint256 amount) external {
+        require(msg.sender == pool, "not pool");
+        IERC20(UNDERLYING_ASSET_ADDRESS).transfer(to, amount);
+    }
+}
+
+contract MockAavePoolAddressesProvider {
+    address public pool;
+    address public poolDataProvider;
+
+    function setPool(address pool_) external {
+        pool = pool_;
+    }
+
+    function getPool() external view returns (address) {
+        return pool;
+    }
+
+    function setPoolDataProvider(address poolDataProvider_) external {
+        poolDataProvider = poolDataProvider_;
+    }
+
+    function getPoolDataProvider() external view returns (address) {
+        return poolDataProvider;
+    }
+}
+
+contract MockAavePoolDataProvider {
+    mapping(address asset => address aToken) public aTokens;
+
+    function setReserveToken(address asset, address aToken) external {
+        aTokens[asset] = aToken;
+    }
+
+    function getReserveTokensAddresses(address asset) external view returns (address aToken, address, address) {
+        return (aTokens[asset], address(0), address(0));
+    }
+}
+
+contract MockAavePool {
+    IERC20 public immutable asset;
+    MockAaveAToken public immutable aToken;
+    address public immutable ADDRESSES_PROVIDER;
+
+    bool public revertOnSupply;
+    bool public revertOnWithdraw;
+    bool public useVirtualUnderlyingBalanceOverride;
+    uint128 public virtualUnderlyingBalanceOverride;
+
+    constructor(address asset_, address aToken_, address addressesProvider_) {
+        asset = IERC20(asset_);
+        aToken = MockAaveAToken(aToken_);
+        ADDRESSES_PROVIDER = addressesProvider_;
+    }
+
+    function getReserveAToken(address asset_) external view returns (address) {
+        return asset_ == address(asset) ? address(aToken) : address(0);
+    }
+
+    function getVirtualUnderlyingBalance(address asset_) external view returns (uint128) {
+        if (asset_ != address(asset)) {
+            return 0;
+        }
+        if (useVirtualUnderlyingBalanceOverride) {
+            return virtualUnderlyingBalanceOverride;
+        }
+        return uint128(asset.balanceOf(address(aToken)));
+    }
+
+    function setRevertOnSupply(bool value) external {
+        revertOnSupply = value;
+    }
+
+    function setRevertOnWithdraw(bool value) external {
+        revertOnWithdraw = value;
+    }
+
+    function setVirtualUnderlyingBalance(uint128 value) external {
+        useVirtualUnderlyingBalanceOverride = true;
+        virtualUnderlyingBalanceOverride = value;
+    }
+
+    function clearVirtualUnderlyingBalanceOverride() external {
+        useVirtualUnderlyingBalanceOverride = false;
+    }
+
+    function supply(address asset_, uint256 amount, address onBehalfOf, uint16) external {
+        require(asset_ == address(asset), "invalid asset");
+        require(!revertOnSupply, "supply failed");
+
+        asset.transferFrom(msg.sender, address(aToken), amount);
+        aToken.mint(onBehalfOf, amount);
+    }
+
+    function withdraw(address asset_, uint256 amount, address to) external returns (uint256 withdrawn) {
+        require(asset_ == address(asset), "invalid asset");
+        require(!revertOnWithdraw, "withdraw failed");
+
+        uint256 balance = aToken.balanceOf(msg.sender);
+        uint256 liquidity = asset.balanceOf(address(aToken));
+        withdrawn = amount > balance ? balance : amount;
+        withdrawn = withdrawn > liquidity ? liquidity : withdrawn;
+        if (withdrawn > 0) {
+            aToken.burn(msg.sender, withdrawn);
+            aToken.transferUnderlying(to, withdrawn);
+        }
+    }
+
+    function accrueYield(address account, uint256 amount) external {
+        asset.transferFrom(msg.sender, address(aToken), amount);
+        aToken.mint(account, amount);
+    }
+}

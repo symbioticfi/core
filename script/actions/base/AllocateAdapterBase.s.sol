@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
+import {Logs} from "../../utils/Logs.sol";
+import {ScriptBase} from "../../utils/ScriptBase.s.sol";
+
+contract AllocateAdapterBaseScript is ScriptBase {
+    function runBase(address vault, address adapter, uint256 amount)
+        public
+        virtual
+        returns (bytes memory data, address target)
+    {
+        target = vault;
+        data = abi.encodeCall(IVaultV2.allocateAdapter, (adapter, amount));
+        sendTransaction(target, data);
+
+        Logs.log(
+            string.concat(
+                "Allocate adapter",
+                "\n    vault:",
+                vm.toString(vault),
+                "\n    adapter:",
+                vm.toString(adapter),
+                "\n    amount:",
+                vm.toString(amount)
+            )
+        );
+        Logs.logSimulationLink(target, data);
+    }
+}
