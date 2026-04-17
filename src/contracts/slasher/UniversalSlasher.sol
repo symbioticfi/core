@@ -233,24 +233,23 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
 
         _slashRequests[slashIndex].completed = true;
 
+        UniversalDelegator delegator = UniversalDelegator(VaultV2(vault).delegator());
         if (request.createdAt >= migrateTimestamp) {
-            slashedAmount = UniversalDelegator(VaultV2(vault).delegator())
-                .onSlash(request.subnetwork, request.operator, slashedAmount);
+            slashedAmount = delegator.onSlash(request.subnetwork, request.operator, slashedAmount);
         } else {
             // Legacy support.
             __latestSlashedCaptureTimestamp[request.subnetwork][request.operator] = request.createdAt;
             __cumulativeSlash[request.subnetwork][request.operator].push(
                 uint48(block.timestamp), _cumulativeSlash(request.subnetwork, request.operator) + slashedAmount
             );
+            slashedAmount = delegator.onSlashLegacy(request.subnetwork, request.operator, slashedAmount);
         }
 
         uint256 owedAmount;
         (slashedAmount, owedAmount) = VaultV2(vault)
             .onSlash(
                 slashedAmount,
-                request.createdAt >= migrateTimestamp
-                    ? !UniversalDelegator(VaultV2(vault).delegator()).getIsNoAdapters(request.subnetwork)
-                    : false
+                request.createdAt >= migrateTimestamp ? !delegator.getIsNoAdapters(request.subnetwork) : false
             );
         if (owedAmount > 0) {
             totalOwed += owedAmount;

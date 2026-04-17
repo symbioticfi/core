@@ -13,11 +13,7 @@ contract RemoveSlotBaseScript is ScriptBase {
 
         Logs.log(
             string.concat(
-                "Remove slot",
-                "\n    delegator:",
-                vm.toString(delegator),
-                "\n    index:",
-                vm.toString(uint256(index))
+                "Remove slot", "\n    delegator:", vm.toString(delegator), "\n    index:", vm.toString(uint256(index))
             )
         );
         Logs.logSimulationLink(target, data);
