@@ -3946,6 +3946,182 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(address(delegator)).getNoAdaptersSize());
     }
 
+    function test_onSlashLegacy_sharedReserveCreatesGuaranteeForExistingDefaultChildren() public {
+        _deposit(alice, 100);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        bytes32 subnetwork1 = makeAddr("legacy-default-network-1").subnetwork(0);
+        bytes32 subnetwork2 = makeAddr("legacy-default-network-2").subnetwork(0);
+        uint96 networkSlot1 = delegator.createSlot(subnetwork1, noAdaptersSubvault, false, false, 100);
+        uint96 networkSlot2 = delegator.createSlot(subnetwork2, noAdaptersSubvault, false, false, 100);
+
+        vm.warp(1);
+        vm.expectEmit(address(delegator));
+        emit IUniversalDelegator.OnSlashLegacy(40, 40);
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 40), 40);
+
+        assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
+        assertEq(delegator.getNoAdaptersSize(), 60);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(networkSlot1, 0), 100);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(networkSlot2, 0), 100);
+    }
+
+    function test_onSlashLegacy_sharedReserveDoesNotGivePastGuaranteeToFutureChildren() public {
+        _deposit(alice, 100);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        bytes32 existingSubnetwork = makeAddr("legacy-existing-network").subnetwork(0);
+        uint96 existingNetworkSlot = delegator.createSlot(existingSubnetwork, noAdaptersSubvault, false, false, 100);
+
+        vm.warp(1);
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 40), 40);
+
+        bytes32 futureSubnetwork = makeAddr("legacy-future-network").subnetwork(0);
+        uint96 futureNetworkSlot = delegator.createSlot(futureSubnetwork, noAdaptersSubvault, false, false, 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(existingNetworkSlot, 0), 100);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(futureNetworkSlot, 0), 60);
+    }
+
+    function test_onSlashLegacy_sharedReservePendingSlashCreatesGuaranteeForExistingChildren() public {
+        _deposit(alice, 100);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        bytes32 subnetwork1 = makeAddr("legacy-pending-network-1").subnetwork(0);
+        bytes32 subnetwork2 = makeAddr("legacy-pending-network-2").subnetwork(0);
+        uint96 networkSlot1 = delegator.createSlot(subnetwork1, noAdaptersSubvault, false, false, 100);
+        uint96 networkSlot2 = delegator.createSlot(subnetwork2, noAdaptersSubvault, false, false, 100);
+
+        vm.warp(1);
+        delegator.setSize(noAdaptersSubvault, 60);
+
+        assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
+        assertEq(delegator.getPending(noAdaptersSubvault, 0), 40);
+        assertEq(delegator.getNoAdaptersSize(), 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 30), 30);
+
+        assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
+        assertEq(delegator.getPending(noAdaptersSubvault, 0), 10);
+        assertEq(delegator.getNoAdaptersSize(), 70);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(networkSlot1, 0), 100);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(networkSlot2, 0), 100);
+    }
+
+    function test_onSlashLegacy_sharedReservePendingGuaranteeDoesNotLeakToFutureChildren() public {
+        _deposit(alice, 100);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        bytes32 existingSubnetwork = makeAddr("legacy-existing-pending-network").subnetwork(0);
+        uint96 existingNetworkSlot = delegator.createSlot(existingSubnetwork, noAdaptersSubvault, false, false, 100);
+
+        vm.warp(1);
+        delegator.setSize(noAdaptersSubvault, 60);
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 30), 30);
+
+        bytes32 futureSubnetwork = makeAddr("legacy-future-pending-network").subnetwork(0);
+        uint96 futureNetworkSlot = delegator.createSlot(futureSubnetwork, noAdaptersSubvault, false, false, 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(existingNetworkSlot, 0), 100);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(futureNetworkSlot, 0), 70);
+    }
+
+    function test_onSlashLegacy_nonSharedReserveDoesNotCreateSharedGuarantee() public {
+        _deposit(alice, 100);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        bytes32 subnetwork1 = makeAddr("legacy-non-shared-network-1").subnetwork(0);
+        bytes32 subnetwork2 = makeAddr("legacy-non-shared-network-2").subnetwork(0);
+        uint96 networkSlot1 = delegator.createSlot(subnetwork1, noAdaptersSubvault, false, false, 100);
+        uint96 networkSlot2 = delegator.createSlot(subnetwork2, noAdaptersSubvault, false, false, 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 40), 40);
+
+        assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
+        assertEq(delegator.getNoAdaptersSize(), 60);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(networkSlot1, 0), 60);
+        vm.prank(address(slasher));
+        assertEq(delegator.getAllocated(networkSlot2, 0), 0);
+    }
+
+    function test_onSlashLegacy_nonSharedReserveCapsActualAmountToMigratedReserve() public {
+        _deposit(alice, 100);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 150), 100);
+
+        assertEq(delegator.getSlot(noAdaptersSubvault).size, 0);
+        assertEq(delegator.getNoAdaptersSize(), 0);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 1), 0);
+    }
+
+    function test_onSlashLegacy_ignoresMatchingSlotOutsideMigratedReserve() public {
+        _deposit(alice, 200);
+
+        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
+        vm.prank(address(vault));
+        delegator.migrate(address(oldDelegator));
+
+        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        bytes32 subnetwork = makeAddr("legacy-outside-reserve-network").subnetwork(0);
+        address operator = makeAddr("legacy-outside-reserve-operator");
+
+        uint96 adapterSubvault = delegator.createSlot(bytes32("legacy-adapter-subvault"), 0, false, false, 100);
+        uint96 networkSlot = delegator.createSlot(subnetwork, adapterSubvault, false, false, 100);
+        uint96 operatorSlot = delegator.createSlot(_operatorKey(operator), networkSlot, false, false, 100);
+
+        vm.prank(address(slasher));
+        assertEq(delegator.onSlashLegacy(subnetwork, operator, 60), 60);
+
+        assertEq(delegator.getSlot(noAdaptersSubvault).size, 140);
+        assertEq(delegator.getNoAdaptersSize(), 140);
+        assertEq(delegator.getSlot(adapterSubvault).size, 100);
+        assertEq(delegator.getSlot(networkSlot).size, 100);
+        assertEq(delegator.getSlot(operatorSlot).size, 100);
+    }
+
     function _requestAndExecuteSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp)
         internal
         returns (uint256)
