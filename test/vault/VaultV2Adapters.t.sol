@@ -38,6 +38,7 @@ import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVau
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {
+    DEALLOCATE_BUFFER,
     IMorphoVaultV2Adapter
 } from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Adapter.sol";
 
@@ -927,42 +928,48 @@ contract VaultV2AdaptersTest is Test {
     }
 
     function test_MorphoDeallocateAllowsLossAtBuffer() public {
+        uint256 liveAssets = DEALLOCATE_BUFFER;
+        uint256 allocated = liveAssets + DEALLOCATE_BUFFER;
+
         _configureMorpho(address(vault1));
-        _allocateMorpho(vault1, 80, 80);
+        _allocateMorpho(vault1, allocated, allocated);
 
-        deal(address(collateral), address(morphoVault), 70);
+        deal(address(collateral), address(morphoVault), liveAssets);
 
-        assertEq(morphoAdapter.getAssets(address(vault1)), 70);
-        assertEq(morphoAdapter.deallocatable(address(vault1)), 70);
+        assertEq(morphoAdapter.getAssets(address(vault1)), liveAssets);
+        assertEq(morphoAdapter.deallocatable(address(vault1)), liveAssets);
 
-        uint256 deallocated = _deallocateFromVault(vault1, address(morphoAdapter), 80);
+        uint256 deallocated = _deallocateFromVault(vault1, address(morphoAdapter), allocated);
 
-        assertEq(deallocated, 70);
-        assertEq(collateral.balanceOf(address(vault1)), 70);
+        assertEq(deallocated, liveAssets);
+        assertEq(collateral.balanceOf(address(vault1)), liveAssets);
         assertEq(collateral.balanceOf(address(morphoVault)), 0);
-        assertEq(vault1.adapterAllocated(address(morphoAdapter)), 10);
-        assertEq(morphoAdapter.globalAllocated(address(collateral)), 10);
+        assertEq(vault1.adapterAllocated(address(morphoAdapter)), DEALLOCATE_BUFFER);
+        assertEq(morphoAdapter.globalAllocated(address(collateral)), DEALLOCATE_BUFFER);
         assertEq(morphoAdapter.getAssets(address(vault1)), 0);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 0);
     }
 
     function test_MorphoForceDeallocateWithdrawsWhenLossExceedsBuffer() public {
+        uint256 liveAssets = DEALLOCATE_BUFFER;
+        uint256 allocated = liveAssets + DEALLOCATE_BUFFER + 1;
+
         _configureMorpho(address(vault1));
-        _allocateMorpho(vault1, 80, 80);
+        _allocateMorpho(vault1, allocated, allocated);
 
-        deal(address(collateral), address(morphoVault), 69);
+        deal(address(collateral), address(morphoVault), liveAssets);
 
-        assertEq(morphoAdapter.getAssets(address(vault1)), 69);
+        assertEq(morphoAdapter.getAssets(address(vault1)), liveAssets);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 0);
 
         vm.prank(curator);
-        uint256 deallocated = IMorphoVaultV2Adapter(address(morphoAdapter)).forceDeallocate(address(vault1), 80);
+        uint256 deallocated = IMorphoVaultV2Adapter(address(morphoAdapter)).forceDeallocate(address(vault1), allocated);
 
-        assertEq(deallocated, 69);
-        assertEq(collateral.balanceOf(address(vault1)), 69);
+        assertEq(deallocated, liveAssets);
+        assertEq(collateral.balanceOf(address(vault1)), liveAssets);
         assertEq(collateral.balanceOf(address(morphoVault)), 0);
-        assertEq(vault1.adapterAllocated(address(morphoAdapter)), 11);
-        assertEq(morphoAdapter.globalAllocated(address(collateral)), 11);
+        assertEq(vault1.adapterAllocated(address(morphoAdapter)), DEALLOCATE_BUFFER + 1);
+        assertEq(morphoAdapter.globalAllocated(address(collateral)), DEALLOCATE_BUFFER + 1);
         assertEq(morphoAdapter.getAssets(address(vault1)), 0);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 0);
     }
