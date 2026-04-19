@@ -613,6 +613,33 @@ contract VaultV2AdaptersTest is Test {
         morphoAdapter.setMorphoVault(address(vault1), address(otherMorphoVault));
     }
 
+    function test_MorphoSetVaultCanReplaceShareDustWithNoRedeemableAssets() public {
+        MockMorphoVaultHarness otherMorphoVault = new MockMorphoVaultHarness(address(collateral), morphoAdapterRegistry);
+        morphoVaultFactory.setVault(address(otherMorphoVault), true);
+
+        _configureMorpho(address(vault1));
+        _allocateMorpho(vault1, 80, 80);
+
+        address account = morphoAdapter.getAccount(address(vault1));
+        deal(address(collateral), address(morphoVault), 0);
+
+        assertEq(morphoVault.balanceOf(account), 80);
+        assertEq(morphoAdapter.getAssets(address(vault1)), 0);
+
+        vm.prank(curator);
+        morphoAdapter.setMorphoVault(address(vault1), address(otherMorphoVault));
+
+        assertEq(morphoAdapter.morphoVaults(address(vault1)), address(otherMorphoVault));
+        assertEq(morphoAdapter.getAssets(address(vault1)), 0);
+
+        collateral.approve(address(morphoVault), 10);
+        morphoVault.donateYield(10);
+        vm.prank(curator);
+        morphoAdapter.setMorphoVault(address(vault1), address(morphoVault));
+
+        assertEq(morphoAdapter.getAssets(address(vault1)), 10);
+    }
+
     function test_MorphoSetVaultCanClearWhenNoPosition() public {
         _configureMorpho(address(vault1));
 

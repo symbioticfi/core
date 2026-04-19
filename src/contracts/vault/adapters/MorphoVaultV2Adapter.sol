@@ -154,7 +154,7 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
             revert InvalidMorphoVault();
         }
         address curMorphoVault = morphoVaults[vault];
-        if (curMorphoVault != address(0) && IMorphoVaultV2(curMorphoVault).balanceOf(getAccount(vault)) > 0) {
+        if (curMorphoVault != address(0) && getAssets(vault) > 0) {
             revert ActivePosition();
         }
         morphoVaults[vault] = newMorphoVault;
