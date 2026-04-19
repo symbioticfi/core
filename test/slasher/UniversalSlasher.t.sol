@@ -472,6 +472,10 @@ contract MockUniversalDelegator {
     address public lastSlashOperator;
     uint256 public lastSlashAmount;
     uint256 public onSlashCalls;
+    uint256 public lastLegacySlashAmount;
+    uint256 public onSlashLegacyCalls;
+    bytes32 public lastLegacySlashSubnetwork;
+    address public lastLegacySlashOperator;
 
     function setStakeForValue(uint256 value) external {
         stakeForValue = value;
@@ -512,6 +516,14 @@ contract MockUniversalDelegator {
         lastSlashAmount = amount;
         ++onSlashCalls;
         return useExplicitOnSlashReturnValue ? onSlashReturnValue : amount;
+    }
+
+    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256) {
+        lastLegacySlashSubnetwork = subnetwork;
+        lastLegacySlashOperator = operator;
+        lastLegacySlashAmount = amount;
+        ++onSlashLegacyCalls;
+        return amount;
     }
 
     function getIsNoAdapters(bytes32) external view returns (bool) {
@@ -1259,11 +1271,15 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         _pushRequest(30, 90, 0, resolver1, false);
 
         vm.prank(middleware);
-        slasher.executeSlash(0, "");
+        assertEq(slasher.executeSlash(0, ""), 30);
 
         assertEq(slasher.exposeLatestSlashedCaptureTimestamp(subnetwork, operator), 90);
         assertEq(slasher.exposeCumulativeSlash(subnetwork, operator), 30);
         assertEq(delegator.onSlashCalls(), 0);
+        assertEq(delegator.onSlashLegacyCalls(), 1);
+        assertEq(delegator.lastLegacySlashSubnetwork(), subnetwork);
+        assertEq(delegator.lastLegacySlashOperator(), operator);
+        assertEq(delegator.lastLegacySlashAmount(), 30);
         assertFalse(vault.lastOnSlashWithAdapters());
     }
 

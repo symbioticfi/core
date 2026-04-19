@@ -13,10 +13,10 @@ library UniversalDelegatorIndex {
         if (parentIndex == 0) {
             return uint96(localIndex) << 64;
         }
-        if (parentIndex << 32 == 0) {
+        if (uint64(parentIndex) == 0) {
             return parentIndex | uint96(localIndex) << 32;
         }
-        if (parentIndex << 64 == 0) {
+        if (uint32(parentIndex) == 0) {
             return parentIndex | uint96(localIndex);
         }
         revert NotParentIndex();
@@ -26,10 +26,10 @@ library UniversalDelegatorIndex {
         if (index == 0) {
             revert ZeroIndex();
         }
-        if (index << 32 == 0) {
+        if (uint64(index) == 0) {
             return 0;
         }
-        if (index << 64 == 0) {
+        if (uint32(index) == 0) {
             return index & 0xFFFFFFFF0000000000000000;
         }
         return index & 0xFFFFFFFFFFFFFFFF00000000;
@@ -39,10 +39,10 @@ library UniversalDelegatorIndex {
         if (index == 0) {
             revert ZeroIndex();
         }
-        if (index << 32 == 0) {
+        if (uint64(index) == 0) {
             return uint32(index >> 64);
         }
-        if (index << 64 == 0) {
+        if (uint32(index) == 0) {
             return uint32(index >> 32);
         }
         return uint32(index);
@@ -52,10 +52,10 @@ library UniversalDelegatorIndex {
         if (index == 0) {
             return 0;
         }
-        if (index << 32 == 0) {
+        if (uint64(index) == 0) {
             return 1;
         }
-        if (index << 64 == 0) {
+        if (uint32(index) == 0) {
             return 2;
         }
         return 3;

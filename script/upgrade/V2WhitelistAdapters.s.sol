@@ -10,8 +10,7 @@ contract V2WhitelistAdaptersScript is V2WhitelistAdaptersBaseScript {
     address constant MORPHO_ADAPTER = address(0);
 
     function run() public {
-        (bytes memory whitelistAaveData, address whitelistAaveTarget) =
-            whitelistAdapter(ADAPTER_REGISTRY, AAVE_ADAPTER);
+        (bytes memory whitelistAaveData, address whitelistAaveTarget) = whitelistAdapter(ADAPTER_REGISTRY, AAVE_ADAPTER);
         (bytes memory whitelistMorphoData, address whitelistMorphoTarget) =
             whitelistAdapter(ADAPTER_REGISTRY, MORPHO_ADAPTER);
 

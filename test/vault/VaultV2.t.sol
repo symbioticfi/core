@@ -57,11 +57,19 @@ import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "../../src/interfaces/delegator/IFullRestakeDelegator.sol";
+import {
+    IOperatorSpecificDelegator,
+    OPERATOR_SPECIFIC_DELEGATOR_TYPE
+} from "../../src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {
+    IOperatorNetworkSpecificDelegator,
+    OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE
+} from "../../src/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {ISlasher} from "../../src/interfaces/slasher/ISlasher.sol";
 import {IBaseSlasher} from "../../src/interfaces/slasher/IBaseSlasher.sol";
-import {IVetoSlasher} from "../../src/interfaces/slasher/IVetoSlasher.sol";
+import {IVetoSlasher, VETO_SLASHER_TYPE} from "../../src/interfaces/slasher/IVetoSlasher.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {UNIVERSAL_SLASHER_TYPE} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 
@@ -297,6 +305,12 @@ contract VaultV2Test is Test {
         uint256 expectedEpoch1;
         uint256 expectedEpoch2;
         uint48 nextEpochStart;
+    }
+
+    struct LegacySlashMigrationScenario {
+        address middleware;
+        uint256 slashIndex;
+        bytes32 subnetwork;
     }
 
     struct CreateInitializedVaultParams {
@@ -4471,6 +4485,728 @@ contract VaultV2Test is Test {
         vm.stopPrank();
         assertEq(collateral.balanceOf(alice) - aliceBalanceBefore, state.expectedEpoch2);
         assertEq(vaultV2.isWithdrawalsClaimed(legacyEpochIndex, alice), true);
+    }
+
+    function test_MigrateLegacySlashShrinksNoAdaptersReserveSoClaimsUseLiquidCollateral() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("legacy-slash-network");
+            scenario.middleware = makeAddr("legacy-slash-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            address[] memory networkLimitSetRoleHolders = new address[](1);
+            networkLimitSetRoleHolders[0] = alice;
+            address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+            operatorNetworkSharesSetRoleHolders[0] = alice;
+            bytes memory vetoSlasherParams = abi.encode(
+                IVetoSlasher.InitParams({
+                    baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
+                    vetoDuration: 1,
+                    resolverSetEpochsDelay: 3
+                })
+            );
+            (IVaultV2 vault_, address oldDelegator_, address oldSlasher_) = _createInitializedVaultWithOwnerAndSlasher(
+                epochDuration,
+                networkLimitSetRoleHolders,
+                operatorNetworkSharesSetRoleHolders,
+                1,
+                address(0xdEaD),
+                false,
+                false,
+                0,
+                address(this),
+                1,
+                vetoSlasherParams
+            );
+            vaultV1 = VaultV1(address(vault_));
+            vault = IVaultV2(address(vaultV1));
+
+            _optInOperatorVault(alice);
+
+            IFullRestakeDelegator oldDelegator = IFullRestakeDelegator(oldDelegator_);
+            vm.prank(network);
+            oldDelegator.setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkLimit(scenario.subnetwork, alice, 100);
+
+            _deposit(alice, 100);
+
+            uint48 captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex =
+                IVetoSlasher(oldSlasher_).requestSlash(scenario.subnetwork, alice, 100, captureTimestamp, "");
+        }
+
+        vm.warp(block.timestamp + 1);
+        vaultFactory.migrate(
+            address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+        );
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+        bytes32 siblingSubnetwork = makeAddr("legacy-slash-sibling-network").subnetwork(0);
+        vm.startPrank(alice);
+        uint96 slashedNetworkSlot =
+            universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+        uint96 siblingNetworkSlot =
+            universalDelegator.createSlot(siblingSubnetwork, noAdaptersSubvault, false, false, 100);
+        vm.stopPrank();
+
+        vault = vaultV2;
+        _deposit(bob, 120);
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        vm.prank(address(adapter));
+        vaultV2.allocateAdapter(address(adapter), 100);
+        adapter.setShouldFail(true);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 100);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 0);
+        assertEq(vaultV2.totalStake(), 120);
+        assertEq(vaultV2.adaptersOwe(), 0);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(collateral.balanceOf(address(vaultV2)), 20);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(slashedNetworkSlot, 0), 0);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(siblingNetworkSlot, 0), 100);
+
+        uint256 bobClaimIndex = vaultV2.withdrawalsOfLength(bob);
+        vm.prank(bob);
+        (, uint256 mintedShares) = vaultV2.withdraw(bob, 10);
+        assertEq(mintedShares, 10);
+
+        vm.warp(block.timestamp + epochDuration + 1);
+
+        uint256 bobBalanceBefore = collateral.balanceOf(bob);
+        vm.prank(bob);
+        assertEq(vaultV2.claim(bob, bobClaimIndex), 10);
+        assertEq(collateral.balanceOf(bob) - bobBalanceBefore, 10);
+    }
+
+    function test_MigrateLegacySlashConsumesMatchingCurrentOperatorAllocation() public {
+        uint48 epochDuration = 100;
+        uint48 captureTimestamp;
+        LegacySlashMigrationScenario memory scenario;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("legacy-slash-current-operator-network");
+            scenario.middleware = makeAddr("legacy-slash-current-operator-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            (VaultV1 vaultV1, INetworkRestakeDelegator oldDelegator, IVetoSlasher oldSlasher) =
+                _createLegacyNetworkRestakeVetoVault(epochDuration);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(address(oldDelegator)).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkShares(scenario.subnetwork, alice, 1);
+
+            _deposit(alice, 1000);
+
+            captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex = oldSlasher.requestSlash(scenario.subnetwork, alice, 100, captureTimestamp, "");
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vault));
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+
+        vm.startPrank(alice);
+        uint96 networkSlot = universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+        uint96 operatorSlot = universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 100);
+
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(networkSlot, 0), 0);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(operatorSlot, 0), 0);
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 0);
+        vm.prank(scenario.middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        universalSlasher.requestSlash(scenario.subnetwork, alice, 100, 0, "");
+    }
+
+    function test_MigrateLegacySlashConsumesMatchingCurrentNetworkAllocationWhenOperatorSlotMissing() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("legacy-slash-current-network");
+            scenario.middleware = makeAddr("legacy-slash-current-network-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            (VaultV1 vaultV1, INetworkRestakeDelegator oldDelegator, IVetoSlasher oldSlasher) =
+                _createLegacyNetworkRestakeVetoVault(epochDuration);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(address(oldDelegator)).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkShares(scenario.subnetwork, alice, 1);
+
+            _deposit(alice, 1000);
+
+            uint48 captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex = oldSlasher.requestSlash(scenario.subnetwork, alice, 100, captureTimestamp, "");
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vault));
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+
+        vm.prank(alice);
+        uint96 networkSlot = universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 100);
+
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(networkSlot, 0), 0);
+    }
+
+    function test_MigrateLegacySlashUsesMigratedReserveNotPostMigrationAdapterBackedSlot() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        address network;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            network = makeAddr("legacy-slash-adapter-backed-network");
+            scenario.middleware = makeAddr("legacy-slash-adapter-backed-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            INetworkRestakeDelegator oldDelegator;
+            IVetoSlasher oldSlasher;
+            (vaultV1, oldDelegator, oldSlasher) = _createLegacyNetworkRestakeVetoVault(epochDuration);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(address(oldDelegator)).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkShares(scenario.subnetwork, alice, 1);
+
+            _deposit(alice, 100);
+
+            uint48 captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex = oldSlasher.requestSlash(scenario.subnetwork, alice, 100, captureTimestamp, "");
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+
+        _deposit(bob, 120);
+
+        vm.startPrank(alice);
+        uint96 adapterSubvault = universalDelegator.createSlot(bytes32("legacy-post-adapter"), 0, false, false, 100);
+        uint96 adapterNetworkSlot =
+            universalDelegator.createSlot(scenario.subnetwork, adapterSubvault, false, false, 100);
+        uint96 adapterOperatorSlot =
+            universalDelegator.createSlot(bytes32(bytes20(alice)), adapterNetworkSlot, false, false, 100);
+        vm.stopPrank();
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        vm.prank(address(adapter));
+        assertEq(vaultV2.allocateAdapter(address(adapter), 100), 100);
+        adapter.setShouldFail(true);
+
+        assertEq(vaultV2.adaptersAllocated(), 100);
+        assertEq(collateral.balanceOf(address(vaultV2)), 120);
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 100);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 100);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 0);
+        assertEq(vaultV2.totalStake(), 120);
+        assertEq(vaultV2.adaptersOwe(), 0);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(collateral.balanceOf(address(vaultV2)), 20);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(adapterNetworkSlot, 0), 100);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(adapterOperatorSlot, 0), 100);
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 100);
+    }
+
+    function test_MigrateLegacySlashWithoutCurrentSlotLeavesOnlyRemainingReserveForFutureSlot() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("legacy-slash-no-current-slot-network");
+            scenario.middleware = makeAddr("legacy-slash-no-current-slot-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            INetworkRestakeDelegator oldDelegator;
+            IVetoSlasher oldSlasher;
+            (vaultV1, oldDelegator, oldSlasher) = _createLegacyNetworkRestakeVetoVault(epochDuration);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(address(oldDelegator)).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkShares(scenario.subnetwork, alice, 1);
+
+            _deposit(alice, 100);
+
+            uint48 captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex = oldSlasher.requestSlash(scenario.subnetwork, alice, 60, captureTimestamp, "");
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+
+        _deposit(bob, 120);
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        vm.prank(address(adapter));
+        assertEq(vaultV2.allocateAdapter(address(adapter), 80), 80);
+        adapter.setShouldFail(true);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 60);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
+        assertEq(vaultV2.totalStake(), 160);
+        assertEq(vaultV2.adaptersOwe(), 0);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(collateral.balanceOf(address(vaultV2)), 80);
+
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+        vm.startPrank(alice);
+        uint96 networkSlot = universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+        uint96 operatorSlot = universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(networkSlot, 0), 40);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(operatorSlot, 0), 40);
+    }
+
+    function test_MigrateLegacySlashOperatorSpecificConsumesMigratedReserve() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("legacy-slash-operator-specific-network");
+            scenario.middleware = makeAddr("legacy-slash-operator-specific-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            address[] memory networkLimitSetRoleHolders = new address[](1);
+            networkLimitSetRoleHolders[0] = alice;
+            bytes memory delegatorParams = abi.encode(
+                IOperatorSpecificDelegator.InitParams({
+                    baseParams: IBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
+                    }),
+                    networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                    operator: alice
+                })
+            );
+
+            address oldDelegator;
+            IVetoSlasher oldSlasher;
+            (vaultV1, oldDelegator, oldSlasher) =
+                _createLegacyVetoVault(epochDuration, OPERATOR_SPECIFIC_DELEGATOR_TYPE, delegatorParams);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(oldDelegator).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            IOperatorSpecificDelegator(oldDelegator).setNetworkLimit(scenario.subnetwork, 100);
+
+            _deposit(alice, 100);
+
+            uint48 captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex = oldSlasher.requestSlash(scenario.subnetwork, alice, 60, captureTimestamp, "");
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 60);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
+        assertEq(vaultV2.totalStake(), 40);
+        assertEq(vaultV2.adaptersOwe(), 0);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(collateral.balanceOf(address(vaultV2)), 40);
+
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+        vm.startPrank(alice);
+        uint96 networkSlot = universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+        uint96 operatorSlot = universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(operatorSlot, 0), 40);
+    }
+
+    function test_MigrateLegacySlashOperatorNetworkSpecificConsumesNonSharedMigratedReserve() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("legacy-slash-operator-network-specific-network");
+            scenario.middleware = makeAddr("legacy-slash-operator-network-specific-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            bytes memory delegatorParams = abi.encode(
+                IOperatorNetworkSpecificDelegator.InitParams({
+                    baseParams: IBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
+                    }),
+                    network: network,
+                    operator: alice
+                })
+            );
+
+            address oldDelegator;
+            IVetoSlasher oldSlasher;
+            (vaultV1, oldDelegator, oldSlasher) =
+                _createLegacyVetoVault(epochDuration, OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE, delegatorParams);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(oldDelegator).setMaxNetworkLimit(0, type(uint256).max);
+
+            _deposit(alice, 100);
+
+            uint48 captureTimestamp = uint48(block.timestamp);
+            vm.warp(block.timestamp + 1);
+            vm.prank(scenario.middleware);
+            scenario.slashIndex = oldSlasher.requestSlash(scenario.subnetwork, alice, 60, captureTimestamp, "");
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+        IUniversalDelegator.Slot memory noAdaptersSlot = universalDelegator.getSlot(noAdaptersSubvault);
+
+        assertTrue(noAdaptersSlot.noAdapters);
+        assertFalse(noAdaptersSlot.isShared);
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(scenario.slashIndex, ""), 60);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 40);
+        assertEq(vaultV2.totalStake(), 40);
+        assertEq(vaultV2.adaptersOwe(), 0);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(collateral.balanceOf(address(vaultV2)), 40);
+
+        vm.startPrank(alice);
+        uint96 networkSlot = universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+        uint96 operatorSlot = universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+        vm.stopPrank();
+
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(operatorSlot, 0), 40);
+    }
+
+    function test_MigrateNewSlashForOldSubjectRequiresCurrentOperatorSlotAndUsesNoAdapters() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            address network = makeAddr("new-slash-old-subject-no-adapters-network");
+            scenario.middleware = makeAddr("new-slash-old-subject-no-adapters-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            INetworkRestakeDelegator oldDelegator;
+            (vaultV1, oldDelegator,) = _createLegacyNetworkRestakeVetoVault(epochDuration);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(address(oldDelegator)).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkShares(scenario.subnetwork, alice, 1);
+
+            _deposit(alice, 100);
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+        uint96 noAdaptersSubvault = uint96(0).createIndex(1);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 0);
+
+        vm.prank(scenario.middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        universalSlasher.requestSlash(scenario.subnetwork, alice, 40, 0, "");
+
+        vm.prank(alice);
+        uint96 networkSlot = universalDelegator.createSlot(scenario.subnetwork, noAdaptersSubvault, false, false, 100);
+
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 0);
+        vm.prank(scenario.middleware);
+        vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
+        universalSlasher.requestSlash(scenario.subnetwork, alice, 40, 0, "");
+
+        vm.prank(alice);
+        uint96 operatorSlot = universalDelegator.createSlot(bytes32(bytes20(alice)), networkSlot, false, false, 100);
+
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 100);
+        vm.prank(scenario.middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(scenario.subnetwork, alice, 40, 0, "");
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(slashIndex, ""), 40);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 60);
+        assertEq(vaultV2.totalStake(), 60);
+        assertEq(vaultV2.adaptersOwe(), 0);
+        assertEq(universalSlasher.totalOwed(), 0);
+        assertEq(collateral.balanceOf(address(vaultV2)), 60);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(operatorSlot, 0), 60);
+    }
+
+    function test_MigrateNewSlashForOldSubjectUsesPostMigrationAdapterBackedSlot() public {
+        uint48 epochDuration = 100;
+        LegacySlashMigrationScenario memory scenario;
+        address network;
+        VaultV1 vaultV1;
+
+        {
+            uint256 blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+            vm.warp(blockTimestamp);
+
+            network = makeAddr("new-slash-old-subject-adapter-network");
+            scenario.middleware = makeAddr("new-slash-old-subject-adapter-middleware");
+            scenario.subnetwork = network.subnetwork(0);
+            _registerNetwork(network, scenario.middleware);
+            _registerOperator(alice);
+            _optInOperatorNetwork(alice, network);
+
+            INetworkRestakeDelegator oldDelegator;
+            (vaultV1, oldDelegator,) = _createLegacyNetworkRestakeVetoVault(epochDuration);
+            vault = IVaultV2(address(vaultV1));
+            _optInOperatorVault(alice);
+
+            vm.prank(network);
+            IBaseDelegator(address(oldDelegator)).setMaxNetworkLimit(0, type(uint256).max);
+            vm.prank(alice);
+            oldDelegator.setNetworkLimit(scenario.subnetwork, 100);
+            vm.prank(alice);
+            oldDelegator.setOperatorNetworkShares(scenario.subnetwork, alice, 1);
+
+            _deposit(alice, 100);
+
+            vm.warp(block.timestamp + 1);
+            vaultFactory.migrate(
+                address(vaultV1), vaultFactory.lastVersion(), abi.encode(_buildMigrateParams(epochDuration))
+            );
+        }
+
+        IVaultV2 vaultV2 = IVaultV2(address(vaultV1));
+        vault = vaultV2;
+        UniversalDelegator universalDelegator = UniversalDelegator(vaultV2.delegator());
+        UniversalSlasher universalSlasher = UniversalSlasher(vaultV2.slasher());
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+
+        _deposit(bob, 120);
+
+        vm.startPrank(alice);
+        uint96 adapterSubvault =
+            universalDelegator.createSlot(bytes32("new-old-adapter-subvault"), 0, false, false, 100);
+        uint96 adapterNetworkSlot =
+            universalDelegator.createSlot(scenario.subnetwork, adapterSubvault, false, false, 100);
+        uint96 adapterOperatorSlot =
+            universalDelegator.createSlot(bytes32(bytes20(alice)), adapterNetworkSlot, false, false, 100);
+        vm.stopPrank();
+        vm.prank(network);
+        universalDelegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        MockAdapter adapter = _createAdapter();
+        _addAdapter(adapter);
+        vm.prank(address(adapter));
+        assertEq(vaultV2.allocateAdapter(address(adapter), 100), 100);
+        adapter.setShouldFail(true);
+
+        assertEq(vaultV2.adaptersAllocated(), 100);
+        assertEq(collateral.balanceOf(address(vaultV2)), 120);
+        assertEq(universalSlasher.slashableStake(scenario.subnetwork, alice, 0, ""), 100);
+
+        vm.prank(scenario.middleware);
+        uint256 slashIndex = universalSlasher.requestSlash(scenario.subnetwork, alice, 60, 0, "");
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(scenario.middleware);
+        assertEq(universalSlasher.executeSlash(slashIndex, ""), 60);
+
+        assertEq(universalDelegator.getNoAdaptersSize(), 100);
+        assertEq(vaultV2.totalStake(), 160);
+        assertEq(vaultV2.adaptersOwe(), 40);
+        assertEq(universalSlasher.totalOwed(), 40);
+        assertEq(universalSlasher.owed(scenario.subnetwork, alice), 40);
+        assertEq(collateral.balanceOf(address(vaultV2)), 100);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(adapterNetworkSlot, 0), 40);
+        vm.prank(address(universalSlasher));
+        assertEq(universalDelegator.getAllocated(adapterOperatorSlot, 0), 40);
     }
 
     function test_MigrateWithdrawals_LegacyBucketAndInsufficientWithdrawal() public {
@@ -8694,6 +9430,73 @@ contract VaultV2Test is Test {
         );
 
         return (IVaultV2(vault_), address(delegator_), address(slasher_));
+    }
+
+    function _createLegacyNetworkRestakeVetoVault(uint48 epochDuration)
+        internal
+        returns (VaultV1 vaultV1, INetworkRestakeDelegator oldDelegator, IVetoSlasher oldSlasher)
+    {
+        address[] memory networkLimitSetRoleHolders = new address[](1);
+        networkLimitSetRoleHolders[0] = alice;
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        operatorNetworkSharesSetRoleHolders[0] = alice;
+
+        address oldDelegatorAddress;
+        (vaultV1, oldDelegatorAddress, oldSlasher) = _createLegacyVetoVault(
+            epochDuration,
+            0,
+            abi.encode(
+                INetworkRestakeDelegator.InitParams({
+                    baseParams: IBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: alice, hook: address(0), hookSetRoleHolder: alice
+                    }),
+                    networkLimitSetRoleHolders: networkLimitSetRoleHolders,
+                    operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
+                })
+            )
+        );
+
+        return (vaultV1, INetworkRestakeDelegator(oldDelegatorAddress), oldSlasher);
+    }
+
+    function _createLegacyVetoVault(uint48 epochDuration, uint64 delegatorIndex, bytes memory delegatorParams)
+        internal
+        returns (VaultV1 vaultV1, address oldDelegator, IVetoSlasher oldSlasher)
+    {
+        IVault.InitParams memory baseParams = IVault.InitParams({
+            collateral: address(collateral),
+            burner: address(0xdEaD),
+            epochDuration: epochDuration,
+            depositWhitelist: false,
+            isDepositLimit: false,
+            depositLimit: 0,
+            defaultAdminRoleHolder: alice,
+            depositWhitelistSetRoleHolder: alice,
+            depositorWhitelistRoleHolder: alice,
+            isDepositLimitSetRoleHolder: alice,
+            depositLimitSetRoleHolder: alice
+        });
+
+        bytes memory vetoSlasherParams = abi.encode(
+            IVetoSlasher.InitParams({
+                baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}), vetoDuration: 1, resolverSetEpochsDelay: 3
+            })
+        );
+
+        (address vault_, address oldDelegator_, address oldSlasher_) = vaultConfigurator.create(
+            IVaultConfigurator.InitParams({
+                version: 1,
+                owner: address(this),
+                vaultParams: abi.encode(baseParams),
+                delegatorIndex: delegatorIndex,
+                delegatorParams: delegatorParams,
+                withSlasher: true,
+                slasherIndex: VETO_SLASHER_TYPE,
+                slasherParams: vetoSlasherParams
+            })
+        );
+
+        return (VaultV1(vault_), oldDelegator_, IVetoSlasher(oldSlasher_));
     }
 
     function _createInitializedUniversalVault(

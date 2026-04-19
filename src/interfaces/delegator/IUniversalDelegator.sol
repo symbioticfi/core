@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 
+uint96 constant MIGRATE_SUBVAULT_INDEX = 0x10000000000000000;
 uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
 uint96 constant WITHDRAWAL_BUFFER_INDEX = 0xFFFFFFFF0000000000000000;
 
@@ -252,6 +253,13 @@ interface IUniversalDelegator {
      * @param actualAmount Actual slashed amount after delegation caps are applied.
      */
     event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount, uint256 actualAmount);
+
+    /**
+     * @notice Emitted when a pre-migration slash is applied.
+     * @param amount Requested slash amount.
+     * @param actualAmount Actual slashed amount after delegation caps are applied.
+     */
+    event OnSlashLegacy(uint256 amount, uint256 actualAmount);
 
     /**
      * @notice Emitted when the delegator is initialized.

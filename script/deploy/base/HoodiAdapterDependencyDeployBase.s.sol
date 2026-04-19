@@ -66,7 +66,8 @@ contract HoodiAdapterDependencyDeployBaseScript is Script {
             deps.aToken = liveAToken;
         } else {
             deps.aaveMode = DependencyMode.Mock;
-            (deps.aToken, deps.aaveProvider, deps.aaveDataProvider, deps.aavePool) = _deployMockAaveReserve(deps.collateral);
+            (deps.aToken, deps.aaveProvider, deps.aaveDataProvider, deps.aavePool) =
+                _deployMockAaveReserve(deps.collateral);
         }
 
         address liveMorphoFactory = vm.envOr("HOODI_MORPHO_FACTORY", address(0));
@@ -75,8 +76,7 @@ contract HoodiAdapterDependencyDeployBaseScript is Script {
 
         if (
             preferLive && liveCollateral != address(0) && liveMorphoFactory != address(0)
-                && liveMorphoAdapterRegistry != address(0)
-                && liveMorphoVault != address(0)
+                && liveMorphoAdapterRegistry != address(0) && liveMorphoVault != address(0)
         ) {
             deps.morphoMode = DependencyMode.Live;
             deps.morphoVaultFactory = liveMorphoFactory;
