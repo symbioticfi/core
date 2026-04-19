@@ -4,11 +4,8 @@ pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
 
-import {
-    DEALLOCATE_BUFFER,
-    IMorphoVaultV2Adapter
-} from "../../../interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Adapter.sol";
-import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
+import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../../interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
+import {IAdapter} from "../../../interfaces/vault/adapters/IAdapter.sol";
 import {
     IMorphoLiquidityAdapter
 } from "../../../interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";

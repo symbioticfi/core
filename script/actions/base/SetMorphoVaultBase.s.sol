@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {
-    IMorphoVaultV2Adapter
-} from "../../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Adapter.sol";
+import {IMorphoVaultV2Adapter} from "../../../src/interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 

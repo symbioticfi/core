@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
+import {IAdapter} from "../../../interfaces/vault/adapters/IAdapter.sol";
 import {ICuratorRegistry} from "../../../interfaces/vault/adapters/ICuratorRegistry.sol";
 import {IRegistry} from "../../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
@@ -90,8 +90,10 @@ abstract contract Adapter is Initializable, OwnableUpgradeable, IAdapter {
         return _skim(vault);
     }
 
+    /* PUBLIC FUNCTIONS (CURATOR) */
+
     /// @inheritdoc IAdapter
-    function recover(address vault, uint256 amount) public onlyVault(vault) {
+    function recover(address vault, uint256 amount) public onlyVault(vault) onlyCurator(vault) {
         if (amount == 0) {
             revert ZeroAmount();
         }

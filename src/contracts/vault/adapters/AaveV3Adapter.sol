@@ -4,9 +4,9 @@ pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
 
-import {IAaveV3Adapter, REFERRAL_CODE} from "../../../interfaces/vault/adapters/aave_v3_adapter/IAaveV3Adapter.sol";
+import {IAaveV3Adapter, REFERRAL_CODE} from "../../../interfaces/vault/adapters/IAaveV3Adapter.sol";
 import {IAaveV3Pool} from "../../../interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
-import {IAdapter} from "../../../interfaces/vault/IAdapter.sol";
+import {IAdapter} from "../../../interfaces/vault/adapters/IAdapter.sol";
 import {IRewards} from "../../../interfaces/vault/IRewards.sol";
 import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAdapter} from "../../../src/interfaces/vault/IAdapter.sol";
+import {IAdapter} from "../../../src/interfaces/vault/adapters/IAdapter.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 

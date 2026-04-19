@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAdapter} from "../../IAdapter.sol";
+import {IAdapter} from "./IAdapter.sol";
 
 // Maximum tolerated loss in smallest units for normal deallocation before force deallocation is required.
 uint256 constant DEALLOCATE_BUFFER = 1000;

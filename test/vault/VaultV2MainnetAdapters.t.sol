@@ -29,7 +29,7 @@ import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/A
 import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
 
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IAdapter} from "../../src/interfaces/vault/IAdapter.sol";
+import {IAdapter} from "../../src/interfaces/vault/adapters/IAdapter.sol";
 import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
 import {IAaveV3Pool} from "../../src/interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
@@ -37,10 +37,7 @@ import {
     IMorphoVaultV2Factory
 } from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Factory.sol";
 import {IMorphoVaultV2} from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
-import {
-    DEALLOCATE_BUFFER,
-    IMorphoVaultV2Adapter
-} from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Adapter.sol";
+import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 
@@ -163,6 +160,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         adapterRegistry.whitelistAdapter(address(aaveAdapter));
         adapterRegistry.whitelistAdapter(address(morphoAdapter));
 
+        curatorRegistry.setCurator(address(aaveVault), curator);
         curatorRegistry.setCurator(address(morphoVault), curator);
         vm.prank(curator);
         morphoAdapter.setMorphoVault(address(morphoVault), MORPHO_GAUNTLET_USDC_PRIME);
@@ -268,6 +266,11 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         morphoAdapter.setMorphoVault(address(morphoVault), MORPHO_GAUNTLET_USDC_PRIME);
     }
 
+    function testFork_Mainnet_AdapterRecoverRejectsNonCurator() public {
+        vm.expectRevert(IAdapter.NotCurator.selector);
+        aaveAdapter.recover(address(aaveVault), 1);
+    }
+
     function testFork_Mainnet_AdapterMulticallBubblesRevertReason() public {
         bytes[] memory data = new bytes[](1);
         data[0] = abi.encodeCall(IAdapter.setGlobalLimit, (USDC, 1));
@@ -278,6 +281,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
     }
 
     function testFork_Mainnet_AdapterRecoverRejectsZeroAmount() public {
+        vm.prank(curator);
         vm.expectRevert(IAdapter.ZeroAmount.selector);
         aaveAdapter.recover(address(aaveVault), 0);
     }

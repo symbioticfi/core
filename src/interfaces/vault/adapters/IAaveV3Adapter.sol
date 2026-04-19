@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAdapter} from "../../IAdapter.sol";
+import {IAdapter} from "./IAdapter.sol";
 
 uint16 constant REFERRAL_CODE = 0;
 

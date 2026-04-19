@@ -33,14 +33,11 @@ import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
 import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
 import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IAdapter} from "../../src/interfaces/vault/IAdapter.sol";
+import {IAdapter} from "../../src/interfaces/vault/adapters/IAdapter.sol";
 import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
-import {
-    DEALLOCATE_BUFFER,
-    IMorphoVaultV2Adapter
-} from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Adapter.sol";
+import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
 
 import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 import {MockMorphoVault} from "../mocks/MockMorphoVault.sol";
@@ -572,6 +569,20 @@ contract VaultV2AdaptersTest is Test {
     function test_MorphoSetVaultRejectsNonCurator() public {
         vm.expectRevert(IAdapter.NotCurator.selector);
         morphoAdapter.setMorphoVault(address(vault1), address(morphoVault));
+    }
+
+    function test_AdapterRecoverRejectsNonCurator() public {
+        vm.expectRevert(IAdapter.NotCurator.selector);
+        aaveAdapter.recover(address(vault1), 1);
+
+        vm.expectRevert(IAdapter.NotCurator.selector);
+        morphoAdapter.recover(address(vault1), 1);
+    }
+
+    function test_AdapterRecoverRejectsZeroAmountForCurator() public {
+        vm.prank(curator);
+        vm.expectRevert(IAdapter.ZeroAmount.selector);
+        aaveAdapter.recover(address(vault1), 0);
     }
 
     function test_MorphoSetVaultRejectsWrongCollateral() public {
