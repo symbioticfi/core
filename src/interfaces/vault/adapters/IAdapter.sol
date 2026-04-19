@@ -84,7 +84,7 @@ interface IAdapter {
     /**
      * @notice Allocate collateral to the adapter.
      * @param amount Amount of the collateral to allocate.
-     * @dev Must not revert.
+     * @dev Should not revert (except extreme cases to mitigate external manipulations).
      */
     function allocate(uint256 amount) external;
 
