@@ -292,9 +292,12 @@ interface IUniversalSlasher {
      * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
      * @param operator Address of the operator.
      * @param amount Maximum amount of the collateral to be slashed.
+     * @param captureTimestamp Legacy parameter reserved for compatibility (can just use 0 instead).
      * @return slashedAmount Virtual amount of the collateral slashed.
      */
-    function slash(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256 slashedAmount);
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata)
+        external
+        returns (uint256 slashedAmount);
 
     /**
      * @notice Request a slash using a subnetwork for a particular operator by a given amount.
