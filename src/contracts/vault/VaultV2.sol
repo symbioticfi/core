@@ -685,7 +685,7 @@ contract VaultV2 is
     function _deallocateAdapter(address adapter, uint256 amount) internal returns (uint256 deallocated) {
         deallocated = IAdapterBase(adapter).deallocate(amount);
         if (deallocated > 0) {
-            _safeTransferIn(adapter, deallocated);
+            deallocated = _safeTransferIn(adapter, deallocated);
 
             adapterAllocated[adapter] -= deallocated;
             adaptersAllocated -= deallocated;

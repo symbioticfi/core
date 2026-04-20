@@ -132,6 +132,22 @@ contract VaultV2CoverageHarness is VaultV2 {
     function exposeMigrate(bytes calldata data) external {
         _migrate(1, VAULT_V2_VERSION, data);
     }
+
+    function setCollateralRaw(address collateral_) external {
+        collateral = collateral_;
+    }
+
+    function setAdaptersAllocatedRaw(uint256 amount) external {
+        adaptersAllocated = amount;
+    }
+
+    function setAdapterAllocatedRaw(address adapter, uint256 amount) external {
+        adapterAllocated[adapter] = amount;
+    }
+
+    function grantDeallocateRoleRaw(address account) external {
+        _grantRole(DEALLOCATE_ADAPTER_ROLE, account);
+    }
 }
 
 contract MockAdapterSkimRemovesAdapters is IAdapterBase {
@@ -7336,6 +7352,27 @@ contract VaultV2Test is Test {
         vm.prank(address(adapter));
         vm.expectRevert(IVaultV2.FeeOnTransferNotSupported.selector);
         vault.allocateAdapter(address(adapter), 10);
+    }
+
+    function test_DeallocateAdapter_usesActualTransferredAmountForAccounting() public {
+        VaultV2CoverageHarness harness = new VaultV2CoverageHarness();
+        MockAdapter adapter = new MockAdapter(address(harness), address(feeOnTransferCollateral));
+
+        harness.setCollateralRaw(address(feeOnTransferCollateral));
+        harness.setAdaptersAllocatedRaw(10);
+        harness.setAdapterAllocatedRaw(address(adapter), 10);
+        harness.grantDeallocateRoleRaw(address(this));
+
+        feeOnTransferCollateral.transfer(address(adapter), 10);
+
+        uint256 balanceBefore = feeOnTransferCollateral.balanceOf(address(harness));
+        uint256 deallocated = harness.deallocateAdapter(address(adapter), 10);
+
+        assertEq(deallocated, 8);
+        assertEq(harness.adaptersAllocated(), 2);
+        assertEq(harness.adapterAllocated(address(adapter)), 2);
+        assertEq(feeOnTransferCollateral.balanceOf(address(harness)) - balanceBefore, 8);
+        assertEq(feeOnTransferCollateral.balanceOf(address(adapter)), 0);
     }
 
     function test_SyncOwedSlashRevertNotSlasher() public {
