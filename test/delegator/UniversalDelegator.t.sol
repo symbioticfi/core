@@ -65,10 +65,27 @@ import {MockRewards} from "../mocks/MockRewards.sol";
 import {CoreV2StakeForInvariantHelper} from "../helpers/CoreV2StakeForInvariantHelper.sol";
 
 contract MockLegacyDelegatorType {
+    using Subnetwork for bytes32;
+
     uint64 public immutable TYPE;
+    bytes32 internal _subnetwork;
+    address public network;
+    address public operator;
+    uint256 internal _maxNetworkLimit;
 
     constructor(uint64 type_) {
         TYPE = type_;
+    }
+
+    function setOperatorNetworkSpecific(bytes32 subnetwork, address operator_, uint256 maxNetworkLimit_) external {
+        _subnetwork = subnetwork;
+        network = subnetwork.network();
+        operator = operator_;
+        _maxNetworkLimit = maxNetworkLimit_;
+    }
+
+    function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256) {
+        return subnetwork == _subnetwork ? _maxNetworkLimit : 0;
     }
 }
 
@@ -3961,44 +3978,32 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.migrate(address(0xBEEF));
     }
 
-    function test_migrate_fromVault_createsNoAdaptersSubvault() public {
+    function test_migrate_fromVault_recordsLegacyDelegatorOnly() public {
         MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
         vm.prank(address(vault));
         delegator.migrate(address(oldDelegator));
 
+        assertEq(delegator.oldDelegator(), address(oldDelegator));
+        assertEq(delegator.migrateTimestamp(), uint48(block.timestamp));
         IUniversalDelegator.Slot memory root = delegator.getSlot(0);
-        assertEq(root.existChildren, 1);
-        assertEq(root.firstChild, 1);
-
-        IUniversalDelegator.Slot memory noAdaptersSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noAdaptersSubvault.noAdapters);
-        assertTrue(noAdaptersSubvault.isShared);
-        assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(address(delegator)).getNoAdaptersSize());
+        assertEq(root.existChildren, 0);
     }
 
-    function test_migrate_fromVault_operatorNetworkSpecificLegacy_createsNonSharedNoAdaptersSubvault() public {
+    function test_migrate_fromVault_operatorNetworkSpecificLegacy_recordsLegacyDelegatorOnly() public {
         MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
         vm.prank(address(vault));
         delegator.migrate(address(oldDelegator));
 
+        assertEq(delegator.oldDelegator(), address(oldDelegator));
+        assertEq(delegator.migrateTimestamp(), uint48(block.timestamp));
         IUniversalDelegator.Slot memory root = delegator.getSlot(0);
-        assertEq(root.existChildren, 1);
-        assertEq(root.firstChild, 1);
-
-        IUniversalDelegator.Slot memory noAdaptersSubvault = delegator.getSlot(uint96(0).createIndex(root.firstChild));
-        assertTrue(noAdaptersSubvault.noAdapters);
-        assertFalse(noAdaptersSubvault.isShared);
-        assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(address(delegator)).getNoAdaptersSize());
+        assertEq(root.existChildren, 0);
     }
 
     function test_onSlashLegacy_sharedReserveCreatesGuaranteeForExistingDefaultChildren() public {
         _deposit(alice, 100);
 
-        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
-        vm.prank(address(vault));
-        delegator.migrate(address(oldDelegator));
-
-        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        uint96 noAdaptersSubvault = _migrateAndCreateLegacyReserve(address(new MockLegacyDelegatorType(0)), true, 100);
         bytes32 subnetwork1 = makeAddr("legacy-default-network-1").subnetwork(0);
         bytes32 subnetwork2 = makeAddr("legacy-default-network-2").subnetwork(0);
         uint96 networkSlot1 = delegator.createSlot(subnetwork1, noAdaptersSubvault, false, false, 100);
@@ -4021,11 +4026,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     function test_onSlashLegacy_sharedReserveDoesNotGivePastGuaranteeToFutureChildren() public {
         _deposit(alice, 100);
 
-        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
-        vm.prank(address(vault));
-        delegator.migrate(address(oldDelegator));
-
-        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        uint96 noAdaptersSubvault = _migrateAndCreateLegacyReserve(address(new MockLegacyDelegatorType(0)), true, 100);
         bytes32 existingSubnetwork = makeAddr("legacy-existing-network").subnetwork(0);
         uint96 existingNetworkSlot = delegator.createSlot(existingSubnetwork, noAdaptersSubvault, false, false, 100);
 
@@ -4045,11 +4046,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     function test_onSlashLegacy_sharedReservePendingSlashCreatesGuaranteeForExistingChildren() public {
         _deposit(alice, 100);
 
-        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
-        vm.prank(address(vault));
-        delegator.migrate(address(oldDelegator));
-
-        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        uint96 noAdaptersSubvault = _migrateAndCreateLegacyReserve(address(new MockLegacyDelegatorType(0)), true, 100);
         bytes32 subnetwork1 = makeAddr("legacy-pending-network-1").subnetwork(0);
         bytes32 subnetwork2 = makeAddr("legacy-pending-network-2").subnetwork(0);
         uint96 networkSlot1 = delegator.createSlot(subnetwork1, noAdaptersSubvault, false, false, 100);
@@ -4077,11 +4074,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     function test_onSlashLegacy_sharedReservePendingGuaranteeDoesNotLeakToFutureChildren() public {
         _deposit(alice, 100);
 
-        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
-        vm.prank(address(vault));
-        delegator.migrate(address(oldDelegator));
-
-        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        uint96 noAdaptersSubvault = _migrateAndCreateLegacyReserve(address(new MockLegacyDelegatorType(0)), true, 100);
         bytes32 existingSubnetwork = makeAddr("legacy-existing-pending-network").subnetwork(0);
         uint96 existingNetworkSlot = delegator.createSlot(existingSubnetwork, noAdaptersSubvault, false, false, 100);
 
@@ -4103,17 +4096,17 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         _deposit(alice, 100);
 
         MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
-        vm.prank(address(vault));
-        delegator.migrate(address(oldDelegator));
-
-        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
         bytes32 subnetwork1 = makeAddr("legacy-non-shared-network-1").subnetwork(0);
+        oldDelegator.setOperatorNetworkSpecific(subnetwork1, alice, 100);
+
+        uint96 noAdaptersSubvault = _migrateAndCreateLegacyReserve(address(oldDelegator), false, 100);
         bytes32 subnetwork2 = makeAddr("legacy-non-shared-network-2").subnetwork(0);
         uint96 networkSlot1 = delegator.createSlot(subnetwork1, noAdaptersSubvault, false, false, 100);
+        delegator.createSlot(_operatorKey(alice), networkSlot1, false, false, type(uint128).max);
         uint96 networkSlot2 = delegator.createSlot(subnetwork2, noAdaptersSubvault, false, false, 100);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 40), 40);
+        assertEq(delegator.onSlashLegacy(subnetwork1, alice, 40), 40);
 
         assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
         assertEq(delegator.getNoAdaptersSize(), 60);
@@ -4126,11 +4119,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
     function test_onSlashLegacy_ignoresMatchingSlotOutsideMigratedReserve() public {
         _deposit(alice, 200);
 
-        MockLegacyDelegatorType oldDelegator = new MockLegacyDelegatorType(0);
-        vm.prank(address(vault));
-        delegator.migrate(address(oldDelegator));
-
-        uint96 noAdaptersSubvault = _rootIndex(uint32(1));
+        uint96 noAdaptersSubvault = _migrateAndCreateLegacyReserve(address(new MockLegacyDelegatorType(0)), true, 200);
         bytes32 subnetwork = makeAddr("legacy-outside-reserve-network").subnetwork(0);
         address operator = makeAddr("legacy-outside-reserve-operator");
 
@@ -4172,6 +4161,15 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
             setWithdrawalBufferSizeRoleHolder: owner,
             withdrawalBufferSize: type(uint128).max
         });
+    }
+
+    function _migrateAndCreateLegacyReserve(address oldDelegator, bool isShared, uint128 size)
+        internal
+        returns (uint96)
+    {
+        vm.prank(address(vault));
+        delegator.migrate(oldDelegator);
+        return delegator.createSlot(bytes32(0), 0, isShared, true, size);
     }
 
     function _createSlot(uint96 parentIndex, bool isShared, uint256 size) internal {
@@ -4625,10 +4623,69 @@ contract UniversalDelegatorMigrationTest is Test {
 
         for (uint256 i = 0; i < delegatorIndices.length; ++i) {
             (IVaultV2 vault_, address oldDelegator,) = _createLegacyVault(delegatorIndices[i]);
+            if (delegatorIndices[i] == OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE) {
+                vm.prank(network);
+                IBaseDelegator(oldDelegator).setMaxNetworkLimit(0, 123);
+            }
             bytes memory migrateData = abi.encode(_buildMigrateParams());
             vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
             _assertDelegatorMigration(vault_, oldDelegator, delegatorIndices[i]);
         }
+    }
+
+    function test_MigrateLegacyDelegator_RestoresUniversalDelegatorRoles() public {
+        (IVaultV2 vault_,,) = _createLegacyVault(0);
+
+        bytes memory migrateData = abi.encode(_buildMigrateParams());
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), migrateData);
+
+        IAccessControl newDelegator = IAccessControl(vault_.delegator());
+        assertTrue(newDelegator.hasRole(bytes32(0), owner));
+        assertTrue(newDelegator.hasRole(CREATE_SLOT_ROLE, owner));
+        assertFalse(newDelegator.hasRole(bytes32(0), address(vault_)));
+        assertFalse(newDelegator.hasRole(CREATE_SLOT_ROLE, address(vault_)));
+    }
+
+    function test_MigrateOperatorNetworkSpecificDelegator_AllowsZeroUniversalDelegatorRoleHolders() public {
+        (IVaultV2 vault_, address oldDelegator,) = _createLegacyVault(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+        vm.prank(network);
+        IBaseDelegator(oldDelegator).setMaxNetworkLimit(0, 123);
+
+        IVaultV2.MigrateParams memory migrateParams = _buildMigrateParams();
+        IUniversalDelegator.InitParams memory delegatorParams =
+            abi.decode(migrateParams.delegatorParams, (IUniversalDelegator.InitParams));
+        delegatorParams.defaultAdminRoleHolder = address(0);
+        delegatorParams.createSlotRoleHolder = address(0);
+        migrateParams.delegatorParams = abi.encode(delegatorParams);
+
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), abi.encode(migrateParams));
+
+        IAccessControl newDelegator = IAccessControl(vault_.delegator());
+        assertFalse(newDelegator.hasRole(bytes32(0), owner));
+        assertFalse(newDelegator.hasRole(CREATE_SLOT_ROLE, owner));
+        assertFalse(newDelegator.hasRole(bytes32(0), address(vault_)));
+        assertFalse(newDelegator.hasRole(CREATE_SLOT_ROLE, address(vault_)));
+        _assertDelegatorMigration(vault_, oldDelegator, OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+    }
+
+    function test_MigrateOperatorNetworkSpecificDelegator_KeepsVaultUniversalDelegatorRolesWhenConfigured() public {
+        (IVaultV2 vault_, address oldDelegator,) = _createLegacyVault(OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
+        vm.prank(network);
+        IBaseDelegator(oldDelegator).setMaxNetworkLimit(0, 123);
+
+        IVaultV2.MigrateParams memory migrateParams = _buildMigrateParams();
+        IUniversalDelegator.InitParams memory delegatorParams =
+            abi.decode(migrateParams.delegatorParams, (IUniversalDelegator.InitParams));
+        delegatorParams.defaultAdminRoleHolder = address(vault_);
+        delegatorParams.createSlotRoleHolder = address(vault_);
+        migrateParams.delegatorParams = abi.encode(delegatorParams);
+
+        vaultFactory.migrate(address(vault_), vaultFactory.lastVersion(), abi.encode(migrateParams));
+
+        IAccessControl newDelegator = IAccessControl(vault_.delegator());
+        assertTrue(newDelegator.hasRole(bytes32(0), address(vault_)));
+        assertTrue(newDelegator.hasRole(CREATE_SLOT_ROLE, address(vault_)));
+        _assertDelegatorMigration(vault_, oldDelegator, OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
     }
 
     function test_MigratedUniversalDelegator_StakeAtBeforeMigrateTimestamp_UsesLegacyPath() public {
@@ -4768,6 +4825,7 @@ contract UniversalDelegatorMigrationTest is Test {
             swapAdaptersRoleHolder: owner,
             allocateAdapterRoleHolder: owner,
             deallocateAdapterRoleHolder: owner,
+            operatorNetworkSpecificSubnetworkId: 0,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
         });
@@ -4790,5 +4848,16 @@ contract UniversalDelegatorMigrationTest is Test {
         assertTrue(noAdaptersSubvault.noAdapters);
         assertEq(noAdaptersSubvault.isShared, legacyType < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE);
         assertEq(uint256(noAdaptersSubvault.size), IUniversalDelegator(newDelegator).getNoAdaptersSize());
+        if (legacyType == OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE) {
+            assertEq(noAdaptersSubvault.existChildren, 1);
+            uint96 networkSlot = uint96(0).createIndex(root.firstChild).createIndex(uint32(1));
+            uint96 operatorSlot = networkSlot.createIndex(uint32(1));
+            assertEq(IUniversalDelegator(newDelegator).getSlot(networkSlot).subnetworkOrOperator, network.subnetwork(0));
+            assertEq(IUniversalDelegator(newDelegator).getSlot(networkSlot).size, type(uint128).max);
+            assertEq(
+                IUniversalDelegator(newDelegator).getSlot(operatorSlot).subnetworkOrOperator, bytes32(bytes20(operator))
+            );
+            assertEq(IUniversalDelegator(newDelegator).getSlot(operatorSlot).size, type(uint128).max);
+        }
     }
 }

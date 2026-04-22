@@ -914,14 +914,6 @@ contract UniversalDelegator is
         }
         migrateTimestamp = uint48(block.timestamp);
         oldDelegator = oldDelegator_;
-
-        _createSlot(
-            bytes32(0),
-            0,
-            IEntity(oldDelegator_).TYPE() < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
-            true,
-            uint128(Math.min(VaultV2(vault).allocatable(), type(uint128).max))
-        );
     }
 
     /* UTILITY FUNCTIONS */

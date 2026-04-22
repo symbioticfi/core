@@ -430,6 +430,7 @@ contract UniversalSlasherMigrationTest is Test {
             swapAdaptersRoleHolder: owner,
             allocateAdapterRoleHolder: owner,
             deallocateAdapterRoleHolder: owner,
+            operatorNetworkSpecificSubnetworkId: 0,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
         });

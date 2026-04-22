@@ -35,6 +35,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         address swapAdaptersRoleHolder;
         address allocateAdapterRoleHolder;
         address deallocateAdapterRoleHolder;
+        uint96 operatorNetworkSpecificSubnetworkId;
         IUniversalDelegator.InitParams delegatorParams;
         IUniversalSlasher.InitParams slasherParams;
     }
@@ -90,6 +91,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
                 swapAdaptersRoleHolder: config.swapAdaptersRoleHolder,
                 allocateAdapterRoleHolder: config.allocateAdapterRoleHolder,
                 deallocateAdapterRoleHolder: config.deallocateAdapterRoleHolder,
+                operatorNetworkSpecificSubnetworkId: config.operatorNetworkSpecificSubnetworkId,
                 delegatorParams: abi.encode(config.delegatorParams),
                 slasherParams: abi.encode(config.slasherParams)
             })
@@ -107,7 +109,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         IUniversalDelegator.Slot memory migratedSubvault =
             IUniversalDelegator(delegator).getSlot(MIGRATED_SUBVAULT_INDEX);
         assert(migratedSubvault.exists);
-        assert(migratedSubvault.existChildren == 0);
+        uint32 firstNetworkChild = migratedSubvault.totalChildren + 1;
 
         uint256 totalCalls;
         for (uint256 i; i < networks.length; ++i) {
@@ -120,7 +122,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         for (uint32 i; i < networks.length; ++i) {
             NetworkAllocation memory networkAllocation = networks[i];
             bytes32 subnetwork = networkAllocation.network.subnetwork(networkAllocation.identifier);
-            uint96 networkSlotIndex = MIGRATED_SUBVAULT_INDEX.createIndex(i + 1);
+            uint96 networkSlotIndex = MIGRATED_SUBVAULT_INDEX.createIndex(firstNetworkChild + i);
 
             calls[callIndex++] = abi.encodeCall(
                 IUniversalDelegator.createSlot,
