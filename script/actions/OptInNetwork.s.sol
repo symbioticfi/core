@@ -10,7 +10,7 @@ contract OptInNetworkScript is OptInNetworkBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Network to opt into
-    address constant NETWORK = address(0);
+    address constant NETWORK = 0x0000000000000000000000000000000000000000;
 
     function run() public {
         (bytes memory data, address target) = runBase(NETWORK);

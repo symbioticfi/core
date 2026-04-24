@@ -11,7 +11,7 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the vault that will be migrated to V2.
-    address constant VAULT = address(0);
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
 
     // ######################### SETUP ############################
 
@@ -25,9 +25,9 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     // Delegator Params
 
     // Address that receives DEFAULT_ADMIN_ROLE.
-    address constant ADMIN_ROLE_HOLDER = address(0);
+    address constant ADMIN_ROLE_HOLDER = 0x0000000000000000000000000000000000000000;
     // Addresses that receive CREATE_SLOT_ROLE, SET_SIZE_ROLE, SWAP_SLOTS_ROLE, and REMOVE_SLOT_ROLE.
-    address[] ALLOCATORS = [0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000001];
+    address[] ALLOCATORS = [0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000];
     // Initial withdrawal buffer size.
     uint128 constant WITHDRAWAL_BUFFER_SIZE = 0;
     // Optional - used only if the previous slasher was not `VetoSlasher`
@@ -45,20 +45,20 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     // https://app.symbiotic.fi/vault/<vault address>
 
     function _setAllocations() internal returns (Network storage allocation) {
-        // Add subnetwork via (network - 0x0000000000000000000000000000000000000010, identifier - 0):
-        // allocation = _pushAllocation(0x0000000000000000000000000000000000000010, 0);
-        // Add operator to the subnetwork (operator - 0x0000000000000000000000000000000000000101, size - 100 ether):
-        // _pushOperator(allocation, 0x0000000000000000000000000000000000000101, 100 ether);
+        // Add subnetwork via (network - 0x0000000000000000000000000000000000000000, identifier - 0):
+        // allocation = _pushAllocation(0x0000000000000000000000000000000000000000, 0);
+        // Add operator to the subnetwork (operator - 0x0000000000000000000000000000000000000000, size - 100 ether):
+        // _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
 
-        allocation = _pushAllocation(0x0000000000000000000000000000000000000010, 0);
-        _pushOperator(allocation, 0x0000000000000000000000000000000000000101, 100 ether);
-        _pushOperator(allocation, 0x0000000000000000000000000000000000000102, 100 ether);
-        _pushOperator(allocation, 0x0000000000000000000000000000000000000103, 100 ether);
+        allocation = _pushAllocation(0x0000000000000000000000000000000000000000, 0);
+        _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
+        _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
+        _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
 
-        allocation = _pushAllocation(0x0000000000000000000000000000000000000020, 0);
-        _pushOperator(allocation, 0x0000000000000000000000000000000000000201, 100 ether);
-        _pushOperator(allocation, 0x0000000000000000000000000000000000000202, 100 ether);
-        _pushOperator(allocation, 0x0000000000000000000000000000000000000203, 100 ether);
+        allocation = _pushAllocation(0x0000000000000000000000000000000000000000, 0);
+        _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
+        _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
+        _pushOperator(allocation, 0x0000000000000000000000000000000000000000, 100 ether);
 
         // ... replace/remove data above, and/or add more allocations here ...
     }

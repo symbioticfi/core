@@ -13,9 +13,9 @@ contract SetNetworkLimitScript is SetNetworkLimitBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Vault
-    address constant VAULT = 0x450a90fdEa8B87a6448Ca1C87c88Ff65676aC45b;
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
     // Address of the Network to set the network limit for
-    address constant NETWORK = 0x759D4335cb712aa188935C2bD3Aa6D205aC61305;
+    address constant NETWORK = 0x0000000000000000000000000000000000000000;
     // Subnetwork Identifier
     uint96 constant IDENTIFIER = 0;
     // Network limit value to set

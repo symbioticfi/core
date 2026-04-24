@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./base/SetSizeBase.s.sol";
 
 contract SetSizeScript is SetSizeBaseScript {
-    address constant DELEGATOR = address(0);
+    address constant DELEGATOR = 0x0000000000000000000000000000000000000000;
     uint96 constant INDEX = 0;
     uint128 constant SIZE = 0;
 

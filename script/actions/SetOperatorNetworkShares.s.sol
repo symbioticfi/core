@@ -13,13 +13,13 @@ contract SetOperatorNetworkSharesScript is SetOperatorNetworkSharesBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Vault
-    address constant VAULT = address(0);
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
     // Address of the Network to set the operator network shares for
-    address constant NETWORK = address(0);
+    address constant NETWORK = 0x0000000000000000000000000000000000000000;
     // Subnetwork Identifier
     uint96 constant IDENTIFIER = 0;
     // Address of the Operator to set the operator network shares for
-    address constant OPERATOR = address(0);
+    address constant OPERATOR = 0x0000000000000000000000000000000000000000;
     // Operator-Network-specific shares
     uint256 constant SHARES = 0;
 

@@ -49,7 +49,7 @@ contract DeployVaultBase is Script {
         SlasherParams slasherParams;
     }
 
-    bytes32 DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 DEFAULT_ADMIN_ROLE = 0x0000000000000000000000000000000000000000000000000000000000000000;
 
     function runBase(DeployVaultParams memory params) public returns (address, address, address) {
         vm.startBroadcast();

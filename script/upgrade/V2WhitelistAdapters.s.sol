@@ -4,27 +4,25 @@ pragma solidity ^0.8.28;
 import "./base/V2WhitelistAdaptersBase.s.sol";
 import {Logs} from "../utils/Logs.sol";
 
+// forge script script/upgrade/V2WhitelistAdapters.s.sol:V2WhitelistAdaptersScript --rpc-url https://ethereum-rpc.gprptest.net/hoodi --broadcast
+
 contract V2WhitelistAdaptersScript is V2WhitelistAdaptersBaseScript {
-    address constant ADAPTER_REGISTRY = address(0);
-    address constant AAVE_ADAPTER = address(0);
-    address constant MORPHO_ADAPTER = address(0);
+    // Deployed V2 AdapterRegistry from V2DeployScript output.
+    address constant ADAPTER_REGISTRY = 0x0000000000000000000000000000000000000000;
+    // Deployed AaveV3Adapter from AaveV3AdapterDeployScript output.
+    address constant ADAPTER = 0x0000000000000000000000000000000000000000;
 
     function run() public {
-        (bytes memory whitelistAaveData, address whitelistAaveTarget) = whitelistAdapter(ADAPTER_REGISTRY, AAVE_ADAPTER);
-        (bytes memory whitelistMorphoData, address whitelistMorphoTarget) =
-            whitelistAdapter(ADAPTER_REGISTRY, MORPHO_ADAPTER);
+        (bytes memory whitelistAdapterData, address whitelistAdapterTarget) =
+            whitelistAdapter(ADAPTER_REGISTRY, ADAPTER);
 
         Logs.log(
             string.concat(
                 "V2WhitelistAdapters data:",
-                "\n    whitelistAaveData:",
-                vm.toString(whitelistAaveData),
-                "\n    whitelistAaveTarget:",
-                vm.toString(whitelistAaveTarget),
-                "\n    whitelistMorphoData:",
-                vm.toString(whitelistMorphoData),
-                "\n    whitelistMorphoTarget:",
-                vm.toString(whitelistMorphoTarget)
+                "\n    whitelistAdapterData:",
+                vm.toString(whitelistAdapterData),
+                "\n    whitelistAdapterTarget:",
+                vm.toString(whitelistAdapterTarget)
             )
         );
     }

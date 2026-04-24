@@ -10,9 +10,9 @@ contract SetHookScript is SetHookBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Vault to update
-    address constant VAULT = address(0);
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
     // Address of the hook contract to set
-    address constant HOOK = address(0);
+    address constant HOOK = 0x0000000000000000000000000000000000000000;
 
     function run() public {
         (bytes memory data, address target) = runBase(VAULT, HOOK);

@@ -10,7 +10,7 @@ contract OptInVaultScript is OptInVaultBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Vault to opt into
-    address constant VAULT = address(0);
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
 
     function run() public {
         (bytes memory data, address target) = runBase(VAULT);

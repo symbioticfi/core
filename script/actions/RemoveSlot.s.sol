@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./base/RemoveSlotBase.s.sol";
 
 contract RemoveSlotScript is RemoveSlotBaseScript {
-    address constant DELEGATOR = address(0);
+    address constant DELEGATOR = 0x0000000000000000000000000000000000000000;
     uint96 constant INDEX = 0;
 
     function run() public {

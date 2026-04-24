@@ -10,7 +10,7 @@ contract VetoSlashScript is VetoSlashBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Vault that created the slash request
-    address constant VAULT = address(0);
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
     // Index of the Slash Request to veto
     uint256 constant INDEX = 0;
 

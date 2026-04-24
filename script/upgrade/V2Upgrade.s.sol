@@ -4,16 +4,15 @@ pragma solidity ^0.8.0;
 import "./base/V2UpgradeBase.s.sol";
 import {Logs} from "../utils/Logs.sol";
 
-// forge script script/upgrade/V2Upgrade.s.sol:V2UpgradeScript --rpc-url=RPC --private-key PRIVATE_KEY --broadcast
-// forge script script/upgrade/V2Upgrade.s.sol:V2UpgradeScript --rpc-url=RPC --sender CORE_OWNER_ADDRESS --unlocked
+// forge script script/upgrade/V2Upgrade.s.sol:V2UpgradeScript --rpc-url https://ethereum-rpc.gprptest.net/hoodi --broadcast
 
 contract V2UpgradeScript is V2UpgradeBaseScript {
     // Address of the deployed VaultV2 implementation.
-    address constant VAULT_V2 = address(0);
+    address constant VAULT_V2 = 0x0000000000000000000000000000000000000000;
     // Address of the deployed UniversalDelegator implementation.
-    address constant UNIVERSAL_DELEGATOR = address(0);
+    address constant UNIVERSAL_DELEGATOR = 0x0000000000000000000000000000000000000000;
     // Address of the deployed UniversalSlasher implementation.
-    address constant UNIVERSAL_SLASHER = address(0);
+    address constant UNIVERSAL_SLASHER = 0x0000000000000000000000000000000000000000;
 
     function run() public {
         (bytes memory whitelistVaultData, address whitelistVaultTarget) = whitelistVaultV2(VAULT_V2);

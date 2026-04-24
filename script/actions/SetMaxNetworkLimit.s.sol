@@ -10,7 +10,7 @@ contract SetMaxNetworkLimitScript is SetMaxNetworkLimitBaseScript {
     // Configuration constants - UPDATE THESE BEFORE EXECUTING
 
     // Address of the Vault
-    address constant VAULT = address(0);
+    address constant VAULT = 0x0000000000000000000000000000000000000000;
     // Subnetwork Identifier (multiple subnetworks can be used, e.g., to have different max network limits for the same network)
     uint96 constant IDENTIFIER = 0;
     // Maximum amount of delegation that network is ready to receive

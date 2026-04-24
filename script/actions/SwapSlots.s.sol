@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./base/SwapSlotsBase.s.sol";
 
 contract SwapSlotsScript is SwapSlotsBaseScript {
-    address constant DELEGATOR = address(0);
+    address constant DELEGATOR = 0x0000000000000000000000000000000000000000;
     uint96 constant INDEX1 = 0;
     uint96 constant INDEX2 = 0;
 
