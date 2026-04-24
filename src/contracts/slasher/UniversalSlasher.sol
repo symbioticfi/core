@@ -173,7 +173,10 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IUniversalSlasher
-    function slash(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256) {
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata)
+        external
+        returns (uint256)
+    {
         return executeSlash(requestSlash(subnetwork, operator, amount, 0, Calldata.emptyBytes()), Calldata.emptyBytes());
     }
 

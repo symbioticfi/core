@@ -250,6 +250,7 @@ contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
             swapAdaptersRoleHolder: curator.addr,
             allocateAdapterRoleHolder: curator.addr,
             deallocateAdapterRoleHolder: curator.addr,
+            operatorNetworkSpecificSubnetworkId: 0,
             delegatorParams: IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: curator.addr,
                 createSlotRoleHolder: curator.addr,

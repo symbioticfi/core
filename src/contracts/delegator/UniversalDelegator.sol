@@ -600,8 +600,8 @@ contract UniversalDelegator is
         SlotStorage storage slot1 = slots[index1];
         SlotStorage storage slot2 = slots[index2];
 
-        uint32 nextSlot1 = uint32(slot1.nextSlot.latest());
-        slot1.nextSlot.push(uint48(block.timestamp), uint32(slot2.nextSlot.latest()));
+        uint208 nextSlot1 = slot1.nextSlot.latest();
+        slot1.nextSlot.push(uint48(block.timestamp), slot2.nextSlot.latest());
         slot2.nextSlot.push(uint48(block.timestamp), nextSlot1);
 
         if (slot1.nextSlot.latest() > 0) {
@@ -735,11 +735,19 @@ contract UniversalDelegator is
         if (index == 0) {
             revert NotAssigned();
         }
-        if (slots[index.getParentIndex()].existChildren == 1) {
-            index = index.getParentIndex();
+        uint96 parentIndex = index.getParentIndex();
+        // Not allow removing migration subvault for the withdrawal delay duration.
+        if (
+            slots[parentIndex].existChildren == 1
+                && (migrateTimestamp == 0
+                    || parentIndex != MIGRATE_SUBVAULT_INDEX
+                    || block.timestamp >= migrateTimestamp + _getEpochDuration())
+        ) {
+            index = parentIndex;
+            parentIndex = index.getParentIndex();
         }
         SlotStorage storage slot = slots[index];
-        SlotStorage storage parent = slots[index.getParentIndex()];
+        SlotStorage storage parent = slots[parentIndex];
 
         if (
             slot.size.latest() > 0 && parent.syncPrevSizeSums.latest() == 0
@@ -795,7 +803,7 @@ contract UniversalDelegator is
         emit OnSlashLegacy(amount, actualAmount);
     }
 
-    function _onSlash(uint96 index, uint256 amount) internal returns (uint256) {
+    function _onSlash(uint96 index, uint256 amount) internal returns (uint256 actualAmount) {
         uint96 networkIndex;
         if (index.getDepth() == 3) {
             networkIndex = index.getParentIndex();
@@ -808,11 +816,7 @@ contract UniversalDelegator is
             bool isSubvault = curIndex.getDepth() == 1;
             bool isShared = slot.isShared;
             bool isNoAdapters = slot.noAdapters;
-            uint256 amountToSlash = amount;
-            if (isSubvault && isShared) {
-                // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
-                amountToSlash = Math.min(amountToSlash, getAllocated(curIndex, 0));
-            }
+            uint256 amountToSlash = isSubvault ? Math.min(amount, getAllocated(curIndex, 0)) : amount;
             uint208 pendingSlashed = uint208(Math.min(getPending(curIndex, 0), amountToSlash));
             uint128 sizeSlashed = uint128(Math.min(slot.size.latest(), amountToSlash - pendingSlashed));
             if (pendingSlashed > 0) {
@@ -842,31 +846,32 @@ contract UniversalDelegator is
                     _noAdaptersSize -= sizeSlashed;
                 }
             }
-            if (isSubvault && isShared) {
-                // Consume guarantees for shared subvault.
-                if (sizeSlashed > 0) {
-                    slot.sharedSizeConsumedCumulative
-                        .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
-                }
-                if (networkIndex > 0) {
-                    uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), amount));
-                    if (pendingConsumed > 0) {
-                        slots[networkIndex].sharedPendingConsumedCursor
-                            .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingConsumed);
+            if (isSubvault) {
+                // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
+                actualAmount = pendingSlashed + sizeSlashed;
+                if (isShared) {
+                    // Consume guarantees for shared subvault.
+                    if (sizeSlashed > 0) {
+                        slot.sharedSizeConsumedCumulative
+                            .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
                     }
-                    uint208 sizeConsumed =
-                        uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount - pendingConsumed));
-                    if (sizeConsumed > 0) {
-                        slots[networkIndex].sharedSizeConsumedCumulative
-                            .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
+                    if (networkIndex > 0) {
+                        uint208 pendingConsumed = uint208(Math.min(_getSharedPendingGuarantee(networkIndex, 0), amount));
+                        if (pendingConsumed > 0) {
+                            slots[networkIndex].sharedPendingConsumedCursor
+                                .push(uint48(block.timestamp), _getSharedPendingCursor(networkIndex) + pendingConsumed);
+                        }
+                        uint208 sizeConsumed =
+                            uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount - pendingConsumed));
+                        if (sizeConsumed > 0) {
+                            slots[networkIndex].sharedSizeConsumedCumulative
+                                .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
+                        }
                     }
                 }
             }
-            amount = Math.min(amount, pendingSlashed + sizeSlashed);
             curIndex = curIndex.getParentIndex();
         }
-
-        return amount;
     }
 
     /* INITIALIZATION */
@@ -909,14 +914,6 @@ contract UniversalDelegator is
         }
         migrateTimestamp = uint48(block.timestamp);
         oldDelegator = oldDelegator_;
-
-        _createSlot(
-            bytes32(0),
-            0,
-            IEntity(oldDelegator_).TYPE() < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
-            true,
-            uint128(Math.min(VaultV2(vault).allocatable(), type(uint128).max))
-        );
     }
 
     /* UTILITY FUNCTIONS */

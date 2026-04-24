@@ -430,6 +430,7 @@ contract UniversalSlasherMigrationTest is Test {
             swapAdaptersRoleHolder: owner,
             allocateAdapterRoleHolder: owner,
             deallocateAdapterRoleHolder: owner,
+            operatorNetworkSpecificSubnetworkId: 0,
             delegatorParams: abi.encode(delegatorParams),
             slasherParams: abi.encode(slasherParams)
         });
@@ -1075,7 +1076,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
     function test_slash_capsToCurrentSlashableStakeAndExecutesImmediately() public {
         vm.prank(middleware);
-        uint256 slashedAmount = slasher.slash(subnetwork, operator, 150);
+        uint256 slashedAmount = slasher.slash(subnetwork, operator, 150, 0, "");
 
         assertEq(slashedAmount, 100);
         assertEq(slasher.slashRequestsLength(), 1);
@@ -1102,7 +1103,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
         vm.prank(middleware);
         vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
-        slasher.slash(subnetwork, operator, 10);
+        slasher.slash(subnetwork, operator, 10, 0, "");
 
         assertEq(slasher.slashRequestsLength(), 0);
         assertEq(delegator.onSlashCalls(), 0);
@@ -1115,7 +1116,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
         vm.prank(middleware);
         vm.expectRevert(IUniversalSlasher.VetoPeriodNotEnded.selector);
-        slasher.slash(subnetwork, operator, 10);
+        slasher.slash(subnetwork, operator, 10, 0, "");
 
         assertEq(slasher.slashRequestsLength(), 0);
         assertEq(delegator.onSlashCalls(), 0);

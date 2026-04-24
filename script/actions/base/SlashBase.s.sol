@@ -13,7 +13,7 @@ contract SlashBaseScript is ScriptBase {
         returns (bytes memory data, address target)
     {
         target = IVault(vault).slasher();
-        data = abi.encodeCall(IUniversalSlasher.slash, (subnetwork, operator, amount));
+        data = abi.encodeCall(IUniversalSlasher.slash, (subnetwork, operator, amount, 0, new bytes(0)));
         sendTransaction(target, data);
 
         Logs.log(

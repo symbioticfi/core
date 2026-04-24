@@ -348,7 +348,7 @@ contract VaultV2SolvencyHandler is Test {
         amount = _bound(amount, 1, slashableStake);
 
         vm.prank(middleware);
-        try slasher.slash(subnetwork, operator, amount) {} catch {}
+        try slasher.slash(subnetwork, operator, amount, 0, "") {} catch {}
     }
 
     function syncOwedSlash(uint256 networkSeed, uint256 timeJumpSeed) external {
