@@ -371,12 +371,15 @@ contract VaultV2MainnetAdaptersForkTest is Test {
 
         for (uint256 i; i < morphoVaults.length; ++i) {
             address liveMorphoVault = morphoVaults[i];
+            IVaultV2 vault_ = _createVault(USDC);
+            curatorRegistry.setCurator(address(vault_), curator);
+
             _assertLiveMorphoVault(liveMorphoVault, USDC);
 
             vm.prank(curator);
-            morphoAdapter.setMorphoVault(address(morphoVault), liveMorphoVault);
+            morphoAdapter.setMorphoVault(address(vault_), liveMorphoVault);
 
-            assertEq(morphoAdapter.morphoVaults(address(morphoVault)), liveMorphoVault);
+            assertEq(morphoAdapter.morphoVaults(address(vault_)), liveMorphoVault);
         }
     }
 

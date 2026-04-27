@@ -759,6 +759,28 @@ contract MockBurner {
     }
 }
 
+contract MockGasCappedReentrantBurner {
+    uint128 public calls;
+    uint128 public reentryCalls;
+    bool public lastCallSuccess;
+    uint256 public lastAmount;
+
+    address public reentryTarget;
+    bytes internal _reentryData;
+
+    function armReentry(address target, bytes calldata data) external {
+        reentryTarget = target;
+        _reentryData = data;
+    }
+
+    function onSlash(bytes32, address, uint256 amount, uint48) external {
+        ++calls;
+        ++reentryCalls;
+        (lastCallSuccess,) = reentryTarget.call(_reentryData);
+        lastAmount = amount;
+    }
+}
+
 contract UniversalSlasherCoverageHarness is UniversalSlasher {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -1413,7 +1435,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_executeSlash_burnerReentrancy_syncOwedSlashAttemptRollsBackUnderBurnerGasCap() public {
-        MockReentrantBurner reentrantBurner = new MockReentrantBurner();
+        MockGasCappedReentrantBurner reentrantBurner = new MockGasCappedReentrantBurner();
         vault.setBurner(address(reentrantBurner));
         slasher.setIsBurnerHookRaw(true);
         vault.setOnSlashResult(true, 0, 7);
@@ -1430,6 +1452,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(slashedAmount, 40);
         assertEq(reentrantBurner.calls(), 1);
         assertEq(reentrantBurner.reentryCalls(), 1);
+        assertEq(reentrantBurner.lastAmount(), 33);
         assertFalse(reentrantBurner.lastCallSuccess());
         assertEq(vault.lastSyncOwedAmount(), 0);
         assertEq(slasher.owed(subnetwork, operator), 7);
@@ -1477,7 +1500,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         owedAmount = bound(owedAmount, 0, delegatedSlashAmount);
         syncedAmount = bound(syncedAmount, 0, owedAmount);
 
-        MockReentrantBurner reentrantBurner = new MockReentrantBurner();
+        MockGasCappedReentrantBurner reentrantBurner = new MockGasCappedReentrantBurner();
         vault.setBurner(address(reentrantBurner));
         slasher.setIsBurnerHookRaw(true);
         delegator.setStakeForValue(slashableStake);
@@ -1494,19 +1517,13 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         uint256 slashedAmount = slasher.executeSlash(0, "");
 
         assertEq(slashedAmount, delegatedSlashAmount);
+        assertEq(reentrantBurner.calls(), 1);
         assertEq(reentrantBurner.reentryCalls(), 1);
-
-        if (reentrantBurner.lastCallSuccess()) {
-            assertEq(reentrantBurner.calls(), 2);
-            assertEq(vault.lastSyncOwedAmount(), owedAmount);
-            assertEq(slasher.owed(subnetwork, operator), owedAmount - syncedAmount);
-            assertEq(slasher.totalOwed(), owedAmount - syncedAmount);
-        } else {
-            assertEq(reentrantBurner.calls(), 1);
-            assertEq(vault.lastSyncOwedAmount(), 0);
-            assertEq(slasher.owed(subnetwork, operator), owedAmount);
-            assertEq(slasher.totalOwed(), owedAmount);
-        }
+        assertEq(reentrantBurner.lastAmount(), delegatedSlashAmount - owedAmount);
+        assertFalse(reentrantBurner.lastCallSuccess());
+        assertEq(vault.lastSyncOwedAmount(), 0);
+        assertEq(slasher.owed(subnetwork, operator), owedAmount);
+        assertEq(slasher.totalOwed(), owedAmount);
     }
 
     function testFuzz_syncOwedSlash_uncheckedSubtractionsAreSafe(

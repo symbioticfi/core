@@ -39,20 +39,14 @@ import {
 import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
 import {ScriptBaseHarness} from "./ScriptBaseHarness.s.sol";
 
-import {V2DeployScript} from "../../../script/deploy/V2Deploy.s.sol";
 import {V2DeployBaseScript} from "../../../script/deploy/base/V2DeployBase.s.sol";
-import {V2UpgradeScript} from "../../../script/upgrade/V2Upgrade.s.sol";
 import {V2UpgradeBaseScript} from "../../../script/upgrade/base/V2UpgradeBase.s.sol";
-import {V2WhitelistAdaptersScript} from "../../../script/upgrade/V2WhitelistAdapters.s.sol";
+import {V2WhitelistAdaptersBaseScript} from "../../../script/upgrade/base/V2WhitelistAdaptersBase.s.sol";
 
-import {AaveV3AdapterDeployScript} from "../../../script/deploy/AaveV3AdapterDeploy.s.sol";
 import {AaveV3AdapterDeployBaseScript} from "../../../script/deploy/base/AaveV3AdapterDeployBase.s.sol";
-import {AaveV3MocksDeployScript} from "../../../script/deploy/testnet/AaveV3MocksDeploy.s.sol";
 import {AaveV3MocksDeployBaseScript} from "../../../script/deploy/testnet/base/AaveV3MocksDeployBase.s.sol";
 
-import {MorphoVaultV2AdapterDeployScript} from "../../../script/deploy/MorphoVaultV2AdapterDeploy.s.sol";
 import {MorphoVaultV2AdapterDeployBaseScript} from "../../../script/deploy/base/MorphoVaultV2AdapterDeployBase.s.sol";
-import {MorphoVaultV2MocksDeployScript} from "../../../script/deploy/testnet/MorphoVaultV2MocksDeploy.s.sol";
 import {
     MorphoVaultV2MocksDeployBaseScript
 } from "../../../script/deploy/testnet/base/MorphoVaultV2MocksDeployBase.s.sol";
@@ -172,32 +166,11 @@ contract V2UpgradeScriptHarness is V2UpgradeBaseScript, ScriptBaseHarness {
     }
 }
 
-contract V2UpgradeScriptConstantsHarness is V2UpgradeScript {
-    function configuredImplementations()
-        external
-        pure
-        returns (address vaultV2, address universalDelegator, address universalSlasher)
-    {
-        return (VAULT_V2, UNIVERSAL_DELEGATOR, UNIVERSAL_SLASHER);
-    }
-}
-
-contract V2WhitelistAdaptersScriptConstantsHarness is V2WhitelistAdaptersScript {
-    function configuredAdapter() external pure returns (address adapterRegistry, address adapter) {
-        return (ADAPTER_REGISTRY, ADAPTER);
-    }
-}
-
-contract V2WhitelistAdaptersScriptHarness is ScriptBaseHarness {
+contract V2WhitelistAdaptersScriptHarness is V2WhitelistAdaptersBaseScript, ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
-    function whitelistAdapter(address adapterRegistry, address adapter)
-        public
-        returns (bytes memory data, address target)
-    {
-        target = adapterRegistry;
-        data = abi.encodeCall(AdapterRegistry.whitelistAdapter, (adapter));
-        sendTransaction(target, data);
+    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
+        ScriptBaseHarness.sendTransaction(target, data);
     }
 }
 
@@ -206,27 +179,13 @@ contract V2DeploymentScriptsTest is Test {
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     bytes32 internal constant ERC1967_ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 
-    address internal constant DEPLOY_OWNER = 0xe8616DEcea16b5216e805B0b8caf7784de7570E7;
     address internal constant HOODI_VAULT_FACTORY = 0x407A039D94948484D356eFB765b3c74382A050B4;
     address internal constant HOODI_DELEGATOR_FACTORY = 0x890CA3f95E0f40a79885B7400926544B2214B03f;
     address internal constant HOODI_SLASHER_FACTORY = 0xbf34bf75bb779c383267736c53a4ae86ac7bB299;
-    address internal constant FEE_REGISTRY = 0x4804a29f16E25cE1BcBd802547445012fa7e0051;
-    address internal constant CURATOR_REGISTRY = 0x0fbd01C89F4B12475A67204FF4e18E809839B7b4;
-    address internal constant REWARDS = 0x21f7454b6d6fc8bA317a65d1b3B36A98Cd2A4cF7;
-
-    address internal constant V2_ADAPTER_REGISTRY = 0x0462B857dD6AC1FBc22f84f9f73Dd74AE7721E5B;
-    address internal constant VAULT_V2 = 0x620E1D12FDd47a4EfdbD71869727b1c2a3F69ed1;
-    address internal constant UNIVERSAL_DELEGATOR = 0x7716005e01386e56e6A9CD8a389AeD4A0341270B;
-    address internal constant UNIVERSAL_SLASHER = 0x35730923C564F57437E904C32AC2c1d5d73E629E;
-
-    address internal constant MORPHO_VAULT_FACTORY = 0x889D97181ef426FA85A3578CCE28Dc027E454EB4;
-    address internal constant MORPHO_ADAPTER_REGISTRY = 0xcb0Cb061eB14bB71b268fceDeb8dF5Ed53013B4c;
-    address internal constant AAVE_POOL = 0x89a91e7880Db7C85c331fB2462FdD198bD887b90;
-    address internal constant MORPHO_ADAPTER = 0x5425D1604a4e01C34996cb662d831E0dEF66C210;
-    address internal constant AAVE_ADAPTER = 0xA0877b4EcE5d7e876F0e7e4037c5B6d894B24Acb;
 
     address internal broadcaster;
     address internal adapterOwner;
+    address internal feeRegistry;
     address internal curatorRegistry;
     address internal rewards;
 
@@ -235,54 +194,16 @@ contract V2DeploymentScriptsTest is Test {
 
         broadcaster = makeAddr("broadcaster");
         adapterOwner = makeAddr("adapterOwner");
+        feeRegistry = makeAddr("feeRegistry");
         curatorRegistry = makeAddr("curatorRegistry");
         rewards = address(new MockRewards());
     }
 
-    function test_HoodiWrapperConstants() public {
-        V2DeployScript v2DeployScript = new V2DeployScript();
-        assertEq(v2DeployScript.ADAPTER_REGISTRY_OWNER(), DEPLOY_OWNER, "V2Deploy owner mismatch");
-        assertEq(v2DeployScript.FEE_REGISTRY(), FEE_REGISTRY, "V2Deploy fee registry mismatch");
-        assertEq(v2DeployScript.REWARDS(), REWARDS, "V2Deploy rewards mismatch");
-
-        V2UpgradeScriptConstantsHarness v2UpgradeScript = new V2UpgradeScriptConstantsHarness();
-        (address vaultV2, address universalDelegator, address universalSlasher) =
-            v2UpgradeScript.configuredImplementations();
-        assertEq(vaultV2, VAULT_V2, "V2Upgrade vaultV2 mismatch");
-        assertEq(universalDelegator, UNIVERSAL_DELEGATOR, "V2Upgrade universalDelegator mismatch");
-        assertEq(universalSlasher, UNIVERSAL_SLASHER, "V2Upgrade universalSlasher mismatch");
-
-        V2WhitelistAdaptersScriptConstantsHarness whitelistScript = new V2WhitelistAdaptersScriptConstantsHarness();
-        (address adapterRegistry, address adapter) = whitelistScript.configuredAdapter();
-        assertEq(adapterRegistry, V2_ADAPTER_REGISTRY, "V2Whitelist adapter registry mismatch");
-        assertEq(adapter, AAVE_ADAPTER, "V2Whitelist adapter mismatch");
-
-        MorphoVaultV2AdapterDeployScript morphoAdapterScript = new MorphoVaultV2AdapterDeployScript();
-        assertEq(morphoAdapterScript.ADAPTER_OWNER(), DEPLOY_OWNER, "Morpho adapter owner mismatch");
-        assertEq(morphoAdapterScript.MORPHO_VAULT_FACTORY(), MORPHO_VAULT_FACTORY, "Morpho factory mismatch");
-        assertEq(morphoAdapterScript.MORPHO_ADAPTER_REGISTRY(), MORPHO_ADAPTER_REGISTRY, "Morpho registry mismatch");
-        assertEq(morphoAdapterScript.CURATOR_REGISTRY(), CURATOR_REGISTRY, "Morpho curator registry mismatch");
-        assertEq(morphoAdapterScript.REWARDS(), REWARDS, "Morpho rewards mismatch");
-
-        AaveV3AdapterDeployScript aaveAdapterScript = new AaveV3AdapterDeployScript();
-        assertEq(aaveAdapterScript.ADAPTER_OWNER(), DEPLOY_OWNER, "Aave adapter owner mismatch");
-        assertEq(aaveAdapterScript.AAVE_POOL(), AAVE_POOL, "Aave pool mismatch");
-        assertEq(aaveAdapterScript.CURATOR_REGISTRY(), CURATOR_REGISTRY, "Aave curator registry mismatch");
-        assertEq(aaveAdapterScript.REWARDS(), REWARDS, "Aave rewards mismatch");
-
-        MorphoVaultV2MocksDeployScript morphoMocksScript = new MorphoVaultV2MocksDeployScript();
-        assertEq(morphoMocksScript.ADAPTER_REGISTRY_OWNER(), DEPLOY_OWNER, "Morpho mocks owner mismatch");
-        assertEq(morphoMocksScript.COLLATERAL(), address(0), "Morpho mocks collateral should default to zero");
-
-        AaveV3MocksDeployScript aaveMocksScript = new AaveV3MocksDeployScript();
-        assertEq(aaveMocksScript.COLLATERAL(), address(0), "Aave mocks collateral should default to zero");
-    }
-
-    function test_V2DeployScriptDeploysCoreImplementations() public {
+    function test_V2DeployBaseScriptDeploysCoreImplementationsWithCustomValues() public {
         SymbioticCoreConstants.Core memory core = _localCore();
         V2DeployScriptHarness script = new V2DeployScriptHarness(broadcaster, core);
 
-        V2DeployBaseScript.DeploymentData memory data = script.runBase(adapterOwner, FEE_REGISTRY, rewards);
+        V2DeployBaseScript.DeploymentData memory data = script.runBase(adapterOwner, feeRegistry, rewards);
 
         assertEq(address(data.core.vaultFactory), address(core.vaultFactory), "vault factory mismatch");
         assertEq(address(data.core.delegatorFactory), address(core.delegatorFactory), "delegator factory mismatch");
@@ -308,32 +229,35 @@ contract V2DeploymentScriptsTest is Test {
         assertEq(IEntity(address(data.universalSlasher)).TYPE(), UNIVERSAL_SLASHER_TYPE, "slasher type mismatch");
     }
 
-    function test_V2UpgradeScriptBuildsHoodiWhitelistTransactions() public {
+    function test_V2UpgradeBaseScriptBuildsWhitelistTransactionsWithCustomImplementations() public {
         V2UpgradeScriptHarness script = new V2UpgradeScriptHarness(broadcaster);
-        _mockV2UpgradePostChecks();
+        address vaultV2 = makeAddr("vaultV2");
+        address universalDelegator = makeAddr("universalDelegator");
+        address universalSlasher = makeAddr("universalSlasher");
+        _mockV2UpgradePostChecks(vaultV2, universalDelegator, universalSlasher);
 
-        vm.expectCall(HOODI_VAULT_FACTORY, abi.encodeCall(IMigratablesFactory.whitelist, (VAULT_V2)));
-        (bytes memory whitelistVaultData, address whitelistVaultTarget) = script.whitelistVaultV2(VAULT_V2);
+        vm.expectCall(HOODI_VAULT_FACTORY, abi.encodeCall(IMigratablesFactory.whitelist, (vaultV2)));
+        (bytes memory whitelistVaultData, address whitelistVaultTarget) = script.whitelistVaultV2(vaultV2);
 
-        vm.expectCall(HOODI_DELEGATOR_FACTORY, abi.encodeCall(IFactory.whitelist, (UNIVERSAL_DELEGATOR)));
+        vm.expectCall(HOODI_DELEGATOR_FACTORY, abi.encodeCall(IFactory.whitelist, (universalDelegator)));
         (bytes memory whitelistDelegatorData, address whitelistDelegatorTarget) =
-            script.whitelistUniversalDelegator(UNIVERSAL_DELEGATOR);
+            script.whitelistUniversalDelegator(universalDelegator);
 
-        vm.expectCall(HOODI_SLASHER_FACTORY, abi.encodeCall(IFactory.whitelist, (UNIVERSAL_SLASHER)));
+        vm.expectCall(HOODI_SLASHER_FACTORY, abi.encodeCall(IFactory.whitelist, (universalSlasher)));
         (bytes memory whitelistSlasherData, address whitelistSlasherTarget) =
-            script.whitelistUniversalSlasher(UNIVERSAL_SLASHER);
+            script.whitelistUniversalSlasher(universalSlasher);
 
         assertEq(whitelistVaultTarget, HOODI_VAULT_FACTORY, "vault target mismatch");
-        assertEq(whitelistVaultData, abi.encodeCall(IMigratablesFactory.whitelist, (VAULT_V2)), "vault data mismatch");
+        assertEq(whitelistVaultData, abi.encodeCall(IMigratablesFactory.whitelist, (vaultV2)), "vault data mismatch");
         assertEq(whitelistDelegatorTarget, HOODI_DELEGATOR_FACTORY, "delegator target mismatch");
         assertEq(
-            whitelistDelegatorData, abi.encodeCall(IFactory.whitelist, (UNIVERSAL_DELEGATOR)), "delegator data mismatch"
+            whitelistDelegatorData, abi.encodeCall(IFactory.whitelist, (universalDelegator)), "delegator data mismatch"
         );
         assertEq(whitelistSlasherTarget, HOODI_SLASHER_FACTORY, "slasher target mismatch");
-        assertEq(whitelistSlasherData, abi.encodeCall(IFactory.whitelist, (UNIVERSAL_SLASHER)), "slasher data mismatch");
+        assertEq(whitelistSlasherData, abi.encodeCall(IFactory.whitelist, (universalSlasher)), "slasher data mismatch");
     }
 
-    function test_AaveV3MocksDeployScriptDeploysLinkedReserve() public {
+    function test_AaveV3MocksDeployBaseScriptDeploysLinkedReserve() public {
         AaveV3MocksDeployScriptHarness script = new AaveV3MocksDeployScriptHarness(broadcaster);
         AaveV3MocksDeployBaseScript.DeploymentData memory data = script.runBase(address(0));
 
@@ -397,7 +321,7 @@ contract V2DeploymentScriptsTest is Test {
         );
     }
 
-    function test_MorphoVaultV2MocksDeployScriptDeploysRegisteredVault() public {
+    function test_MorphoVaultV2MocksDeployBaseScriptDeploysRegisteredVault() public {
         MorphoVaultV2MocksDeployScriptHarness script = new MorphoVaultV2MocksDeployScriptHarness(broadcaster);
         MorphoVaultV2MocksDeployBaseScript.DeploymentData memory data = script.runBase(
             MorphoVaultV2MocksDeployBaseScript.DeployParams({
@@ -458,7 +382,7 @@ contract V2DeploymentScriptsTest is Test {
         );
     }
 
-    function test_AaveV3AdapterDeployScriptDeploysOwnedAdapter() public {
+    function test_AaveV3AdapterDeployBaseScriptDeploysOwnedAdapter() public {
         AaveV3MocksDeployBaseScript.DeploymentData memory mocks =
             new AaveV3MocksDeployScriptHarness(broadcaster).runBase(address(0));
 
@@ -483,7 +407,7 @@ contract V2DeploymentScriptsTest is Test {
         assertEq(AaveV3Adapter(data.adapter).VAULT_FACTORY(), HOODI_VAULT_FACTORY, "vault factory mismatch");
     }
 
-    function test_MorphoVaultV2AdapterDeployScriptDeploysOwnedAdapter() public {
+    function test_MorphoVaultV2AdapterDeployBaseScriptDeploysOwnedAdapter() public {
         MorphoVaultV2MocksDeployBaseScript.DeploymentData memory mocks = new MorphoVaultV2MocksDeployScriptHarness(
                 broadcaster
             )
@@ -518,7 +442,7 @@ contract V2DeploymentScriptsTest is Test {
         assertEq(MorphoVaultV2Adapter(data.adapter).VAULT_FACTORY(), HOODI_VAULT_FACTORY, "vault factory mismatch");
     }
 
-    function test_V2WhitelistAdaptersScriptWhitelistsSingleAdapter() public {
+    function test_V2WhitelistAdaptersBaseScriptWhitelistsSingleAdapter() public {
         AdapterRegistry adapterRegistry = new AdapterRegistry(adapterOwner);
         address adapter = makeAddr("adapter");
 
@@ -597,24 +521,24 @@ contract V2DeploymentScriptsTest is Test {
         });
     }
 
-    function _mockV2UpgradePostChecks() internal {
-        vm.mockCall(VAULT_V2, abi.encodeCall(IMigratableEntity.FACTORY, ()), abi.encode(HOODI_VAULT_FACTORY));
+    function _mockV2UpgradePostChecks(address vaultV2, address universalDelegator, address universalSlasher) internal {
+        vm.mockCall(vaultV2, abi.encodeCall(IMigratableEntity.FACTORY, ()), abi.encode(HOODI_VAULT_FACTORY));
         vm.mockCall(
             HOODI_VAULT_FACTORY,
             abi.encodeCall(IMigratablesFactory.implementation, (VAULT_V2_VERSION)),
-            abi.encode(VAULT_V2)
+            abi.encode(vaultV2)
         );
-        vm.mockCall(UNIVERSAL_DELEGATOR, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_DELEGATOR_TYPE));
+        vm.mockCall(universalDelegator, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_DELEGATOR_TYPE));
         vm.mockCall(
             HOODI_DELEGATOR_FACTORY,
             abi.encodeCall(IFactory.implementation, (UNIVERSAL_DELEGATOR_TYPE)),
-            abi.encode(UNIVERSAL_DELEGATOR)
+            abi.encode(universalDelegator)
         );
-        vm.mockCall(UNIVERSAL_SLASHER, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_SLASHER_TYPE));
+        vm.mockCall(universalSlasher, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_SLASHER_TYPE));
         vm.mockCall(
             HOODI_SLASHER_FACTORY,
             abi.encodeCall(IFactory.implementation, (UNIVERSAL_SLASHER_TYPE)),
-            abi.encode(UNIVERSAL_SLASHER)
+            abi.encode(universalSlasher)
         );
     }
 }
