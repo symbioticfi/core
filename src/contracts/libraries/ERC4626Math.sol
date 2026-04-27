@@ -10,7 +10,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
  */
 library ERC4626Math {
     using Math for uint256;
-    
+
     /**
      * @notice Preview the number of shares minted for a deposit of assets.
      * @param assets The amount of assets being deposited.
