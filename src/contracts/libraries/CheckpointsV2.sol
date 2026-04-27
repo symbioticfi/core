@@ -527,7 +527,7 @@ library Checkpoints {
 
     /**
      * @dev Return the index of the last (most recent) checkpoint with a key lower or equal than the search key, or `high`
-     * if there is none. `low` and `high` define a section where to do the search, with inclusive `low` and exclusive.
+     * if there is none. `low` and `high` define a section where to do the search, with inclusive `low` and exclusive
      * `high`.
      *
      * WARNING: `high` should not be greater than the array's length.
