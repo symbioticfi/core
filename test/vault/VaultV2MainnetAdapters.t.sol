@@ -662,6 +662,10 @@ contract VaultV2MainnetAdaptersForkTest is Test {
     function _prepareAdapter(IVaultV2 vault_, address adapter, uint208 limit) internal {
         vm.startPrank(alice);
         VaultV2(address(vault_)).setAdapterLimit(adapter, limit);
+        if (VaultV2(address(vault_)).adapterLimit(adapter) == 0 && limit > 0) {
+            vm.warp(VaultV2(address(vault_)).adapterAllowedAt(adapter));
+            VaultV2(address(vault_)).setAdapterLimit(adapter, limit);
+        }
         VaultV2(address(vault_)).grantRole(DEALLOCATE_ADAPTER_ROLE, alice);
         vm.stopPrank();
     }
@@ -683,6 +687,8 @@ contract VaultV2MainnetAdaptersForkTest is Test {
                 collateral: collateral_,
                 burner: address(0xdEaD),
                 epochDuration: epochDuration,
+                adapters: new address[](0),
+                adaptersAllowDelay: epochDuration + 1,
                 depositWhitelist: false,
                 depositorToWhitelist: address(0xBEEF),
                 isDepositLimit: false,

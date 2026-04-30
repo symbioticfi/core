@@ -172,6 +172,7 @@ contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
         assertEq(migrateTarget, address(symbioticCore.vaultFactory), "factory target mismatch");
         assertEq(createSlotsTarget, IVault(vault).delegator(), "delegator target mismatch");
         assertEq(IMigratableEntity(vault).version(), VAULT_V2_VERSION, "vault version mismatch");
+        assertEq(IVaultV2(vault).adaptersAllowDelay(), 8 days, "adapters allow delay mismatch");
         assertTrue(IVaultV2(vault).isInitialized(), "vault not initialized");
 
         address newDelegator = IVault(vault).delegator();
@@ -187,7 +188,6 @@ contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
 
         IUniversalDelegator.Slot memory migratedSubvault = delegator.getSlot(MIGRATED_SUBVAULT_INDEX);
         assertTrue(migratedSubvault.exists, "migrated subvault missing");
-        assertTrue(migratedSubvault.noAdapters, "migrated subvault should be no-adapters");
         assertEq(migratedSubvault.existChildren, 2, "network slot count mismatch");
 
         bytes32 subnetwork1 = network1.addr.subnetwork(IDENTIFIER);
@@ -245,6 +245,7 @@ contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
             vault: vault,
             name: "Migrated Vault V2",
             symbol: "mV2",
+            adaptersAllowDelay: 8 days,
             defaultAdminRoleHolder: curator.addr,
             setAdapterLimitRoleHolder: curator.addr,
             swapAdaptersRoleHolder: curator.addr,

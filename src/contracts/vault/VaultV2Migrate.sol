@@ -75,6 +75,11 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
             __ERC20_init(params.name, params.symbol);
         }
 
+        if (params.adaptersAllowDelay <= epochDuration || params.adaptersAllowDelay > MAX_DURATION) {
+            revert IVaultV2.InvalidAdaptersAddDelay();
+        }
+        adaptersAllowDelay = params.adaptersAllowDelay;
+
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(SET_ADAPTER_LIMIT_ROLE, params.setAdapterLimitRoleHolder);
         _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
@@ -116,7 +121,6 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
                 bytes32(0),
                 0,
                 oldDelegatorType < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
-                true,
                 uint128(Math.min(VaultV2(address(this)).allocatable(), type(uint128).max))
             );
         if (oldDelegatorType == OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE) {
@@ -127,13 +131,12 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
             if (oldMaxNetworkLimit == 0) {
                 revert IUniversalDelegator.NotEnoughBalance();
             }
-            uint96 networkIndex = UniversalDelegator(delegator)
-                .createSlot(subnetwork, MIGRATE_SUBVAULT_INDEX, false, false, type(uint128).max);
+            uint96 networkIndex =
+                UniversalDelegator(delegator).createSlot(subnetwork, MIGRATE_SUBVAULT_INDEX, false, type(uint128).max);
             UniversalDelegator(delegator)
                 .createSlot(
                     bytes32(bytes20(IOperatorNetworkSpecificDelegator(oldDelegator).operator())),
                     networkIndex,
-                    false,
                     false,
                     type(uint128).max
                 );

@@ -22,7 +22,7 @@ import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDe
 contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV2StakeForInvariantHelper {
     using UniversalDelegatorIndex for uint96;
 
-    uint256 internal constant SLOT_MAPPING_SLOT = 2;
+    uint256 internal constant SLOT_MAPPING_SLOT = 1;
     uint256 internal constant SLOT_TRACE_SIZE_OFFSET = 1;
     uint256 internal constant SLOT_TRACE_NEXT_SLOT_OFFSET = 2;
     uint256 internal constant SLOT_TRACE_LAST_CHILD_OFFSET = 3;
@@ -135,23 +135,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             }
             _assertCurrentParentState(delegator, networks[i], epochDuration);
         }
-    }
-
-    function invariant_NoAdaptersAggregateMatchesLiveRoots() public view {
-        UniversalDelegatorArithmeticHarness delegator = handler.delegator();
-        uint96[] memory roots = handler.getTrackedRootSlots();
-        uint256 expected;
-
-        for (uint256 i; i < roots.length; ++i) {
-            IUniversalDelegator.Slot memory slot = delegator.getSlot(roots[i]);
-            if (!slot.exists || !slot.noAdapters) {
-                continue;
-            }
-
-            expected += uint256(slot.size);
-        }
-
-        assertEq(delegator.getNoAdaptersSize(), expected);
     }
 
     function invariant_NonSharedParentsNeverOverfillCapacity() public view {
@@ -291,15 +274,10 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             if (state.sharedParent) {
                 _assertSharedParentPrefixState(delegator, child, childSlot, epochDuration, halfDuration, maxDuration);
             } else {
-                _assertNonSharedParentPrefixState(
-                    delegator,
-                    child,
-                    childSlot,
-                    state.expectedPrevSize
-                );
+                _assertNonSharedParentPrefixState(delegator, child, childSlot, state.expectedPrevSize);
             }
 
-            state.expectedPrevSize += childSlot.latestSize;
+            state.expectedPrevSize += uint208(childSlot.size);
             state.lastSeenChild = state.childIndex;
             state.childIndex = childSlot.nextSlot;
             ++state.visited;

@@ -30,6 +30,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         address vault;
         string name;
         string symbol;
+        uint48 adaptersAllowDelay;
         address defaultAdminRoleHolder;
         address setAdapterLimitRoleHolder;
         address swapAdaptersRoleHolder;
@@ -86,6 +87,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
             IVaultV2.MigrateParams({
                 name: config.name,
                 symbol: config.symbol,
+                adaptersAllowDelay: config.adaptersAllowDelay,
                 defaultAdminRoleHolder: config.defaultAdminRoleHolder,
                 setAdapterLimitRoleHolder: config.setAdapterLimitRoleHolder,
                 swapAdaptersRoleHolder: config.swapAdaptersRoleHolder,
@@ -125,8 +127,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
             uint96 networkSlotIndex = MIGRATED_SUBVAULT_INDEX.createIndex(firstNetworkChild + i);
 
             calls[callIndex++] = abi.encodeCall(
-                IUniversalDelegator.createSlot,
-                (subnetwork, MIGRATED_SUBVAULT_INDEX, false, false, networkAllocation.size)
+                IUniversalDelegator.createSlot, (subnetwork, MIGRATED_SUBVAULT_INDEX, false, networkAllocation.size)
             );
 
             for (uint32 j; j < networkAllocation.operators.length; ++j) {
@@ -134,7 +135,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
 
                 calls[callIndex++] = abi.encodeCall(
                     IUniversalDelegator.createSlot,
-                    (_operatorKey(operatorAllocation.operator), networkSlotIndex, false, false, operatorAllocation.size)
+                    (_operatorKey(operatorAllocation.operator), networkSlotIndex, false, operatorAllocation.size)
                 );
             }
         }

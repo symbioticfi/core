@@ -8,10 +8,9 @@ contract CreateSlotScript is CreateSlotBaseScript {
     bytes32 constant SUBNETWORK_OR_OPERATOR = 0x0000000000000000000000000000000000000000000000000000000000000000;
     uint96 constant PARENT_INDEX = 0;
     bool constant IS_SHARED = false;
-    bool constant NO_ADAPTERS = false;
     uint128 constant SIZE = 0;
 
     function run() public {
-        runBase(DELEGATOR, SUBNETWORK_OR_OPERATOR, PARENT_INDEX, IS_SHARED, NO_ADAPTERS, SIZE);
+        runBase(DELEGATOR, SUBNETWORK_OR_OPERATOR, PARENT_INDEX, IS_SHARED, SIZE);
     }
 }

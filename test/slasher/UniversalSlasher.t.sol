@@ -425,6 +425,7 @@ contract UniversalSlasherMigrationTest is Test {
         return IVaultV2.MigrateParams({
             name: VAULT_NAME,
             symbol: VAULT_SYMBOL,
+            adaptersAllowDelay: EPOCH_DURATION + 2,
             defaultAdminRoleHolder: owner,
             setAdapterLimitRoleHolder: owner,
             swapAdaptersRoleHolder: owner,
@@ -464,8 +465,6 @@ contract MockNetworkMiddlewareService {
 contract MockUniversalDelegator {
     uint256 public stakeForValue;
     uint256 public stakeAtValue;
-    bool public isNoAdapters;
-    bool public revertOnGetIsNoAdapters;
     uint256 public onSlashReturnValue;
     bool public useExplicitOnSlashReturnValue;
 
@@ -489,14 +488,6 @@ contract MockUniversalDelegator {
     function setOnSlashReturnValue(uint256 value) external {
         onSlashReturnValue = value;
         useExplicitOnSlashReturnValue = true;
-    }
-
-    function setIsNoAdapters(bool value) external {
-        isNoAdapters = value;
-    }
-
-    function setRevertOnGetIsNoAdapters(bool value) external {
-        revertOnGetIsNoAdapters = value;
     }
 
     function stakeFor(bytes32, address, uint48) external view returns (uint256) {
@@ -526,13 +517,6 @@ contract MockUniversalDelegator {
         ++onSlashLegacyCalls;
         return amount;
     }
-
-    function getIsNoAdapters(bytes32) external view returns (bool) {
-        if (revertOnGetIsNoAdapters) {
-            revert("NOT_ASSIGNED");
-        }
-        return isNoAdapters;
-    }
 }
 
 contract MockVaultV2ForSlasher {
@@ -549,7 +533,6 @@ contract MockVaultV2ForSlasher {
 
     uint256 public onSlashCalls;
     uint256 public lastOnSlashAmount;
-    bool public lastOnSlashWithAdapters;
     uint256 public lastSyncOwedAmount;
 
     function setDelegator(address value) external {
@@ -582,10 +565,9 @@ contract MockVaultV2ForSlasher {
         syncOwedReturn = value;
     }
 
-    function onSlash(uint256 amount, bool withAdapters) external returns (uint256, uint256) {
+    function onSlash(uint256 amount) external returns (uint256, uint256) {
         ++onSlashCalls;
         lastOnSlashAmount = amount;
-        lastOnSlashWithAdapters = withAdapters;
 
         uint256 slashedAmount = useInputOnSlashAmount ? amount : fixedOnSlashAmount;
         return (slashedAmount, onSlashOwed);
@@ -1287,7 +1269,6 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.setOldSlasherRaw(address(legacySlasher));
         slasher.setMigrateTimestampRaw(100);
         delegator.setStakeAtValue(90);
-        delegator.setRevertOnGetIsNoAdapters(true);
         legacySlasher.setCumulativeSlash(0);
         legacySlasher.setCumulativeSlashAt(0);
         vm.warp(120);
@@ -1303,7 +1284,8 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(delegator.lastLegacySlashSubnetwork(), subnetwork);
         assertEq(delegator.lastLegacySlashOperator(), operator);
         assertEq(delegator.lastLegacySlashAmount(), 30);
-        assertFalse(vault.lastOnSlashWithAdapters());
+        assertEq(vault.onSlashCalls(), 1);
+        assertEq(vault.lastOnSlashAmount(), 30);
     }
 
     function test_executeSlash_postMigrateCallsDelegatorHook() public {
@@ -1320,22 +1302,21 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(delegator.lastSlashAmount(), 40);
     }
 
-    function test_executeSlash_postMigrateAdapterBackedPathPassesWithAdapters() public {
+    function test_executeSlash_postMigrateCallsVaultSlash() public {
         slasher.setMigrateTimestampRaw(10);
-        delegator.setIsNoAdapters(false);
         vm.warp(20);
         _pushRequest(40, 15, 0, resolver1, false);
 
         vm.prank(middleware);
         slasher.executeSlash(0, "");
 
-        assertTrue(vault.lastOnSlashWithAdapters());
+        assertEq(vault.onSlashCalls(), 1);
+        assertEq(vault.lastOnSlashAmount(), 40);
     }
 
-    function test_executeSlash_postMigrateNoAdaptersFullyOwed_callsBurnerHookWithZeroAmount() public {
+    function test_executeSlash_postMigrateFullyOwed_callsBurnerHookWithZeroAmount() public {
         slasher.setMigrateTimestampRaw(10);
         slasher.setIsBurnerHookRaw(true);
-        delegator.setIsNoAdapters(true);
         vault.setOnSlashResult(true, 0, 40);
         vm.warp(20);
         _pushRequest(40, 15, 0, resolver1, false);
@@ -1344,7 +1325,6 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         uint256 slashedAmount = slasher.executeSlash(0, "");
 
         assertEq(slashedAmount, 40);
-        assertFalse(vault.lastOnSlashWithAdapters());
         assertEq(slasher.totalOwed(), 40);
         assertEq(slasher.owed(subnetwork, operator), 40);
         assertEq(burner.calls(), 1);

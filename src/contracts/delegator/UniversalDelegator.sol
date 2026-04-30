@@ -68,7 +68,6 @@ contract UniversalDelegator is
     struct SlotStorage {
         bool exists;
         bool isShared;
-        bool noAdapters;
         uint32 prevSlot;
         uint32 totalChildren;
         uint32 existChildren;
@@ -84,7 +83,6 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     address public vault;
 
-    uint32[] internal _noAdaptersSubvaults;
     /// @dev Slot storage keyed by encoded slot index.
     mapping(uint96 index => SlotStorage slot) internal slots;
     /// @dev Mapping from subnetwork id to slot index checkpoints.
@@ -218,7 +216,6 @@ contract UniversalDelegator is
             firstChild: uint32(slot.firstChild.latest()),
             lastChild: uint32(slot.lastChild.latest()),
             isShared: slot.isShared,
-            noAdapters: slot.noAdapters,
             size: getSize(index),
             latestSize: uint128(slot.size.latest()),
             prevSizeSum: _getPrevSum(index),
@@ -364,15 +361,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getIsNoAdapters(bytes32 subnetwork) public view returns (bool) {
-        uint96 index = getSlotOfNetwork(subnetwork);
-        if (index == 0) {
-            revert NotAssigned();
-        }
-        return slots[index.getParentIndex()].noAdapters;
-    }
-
-    /// @inheritdoc IUniversalDelegator
     function getSizeAt(uint96 index, uint48 timestamp) public view returns (uint128) {
         return uint128(slots[index].size.upperLookupRecent(timestamp));
     }
@@ -383,14 +371,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getNoAdaptersSize() public view returns (uint256 amount) {
-        uint256 length = _noAdaptersSubvaults.length;
-        for (uint256 i; i < length; ++i) {
-            amount += getSize(uint96(0).createIndex(_noAdaptersSubvaults[i]));
-        }
-    }
-
-    /// @inheritdoc IUniversalDelegator
     function getWithdrawalBuffer() public view returns (uint256) {
         return getAllocated(WITHDRAWAL_BUFFER_INDEX, 0);
     }
@@ -398,23 +378,23 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IUniversalDelegator
-    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
         returns (uint96 index)
     {
-        return _createSlot(subnetworkOrOperator, parentIndex, isShared, noAdapters, size);
+        return _createSlot(subnetworkOrOperator, parentIndex, isShared, size);
     }
 
     /// @dev Create a new slot.
-    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, bool noAdapters, uint128 size)
+    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, uint128 size)
         internal
         syncPrevSizeSums(parentIndex)
         returns (uint96 index)
     {
         _revertIfNotExists(parentIndex);
         uint256 parentDepth = parentIndex.getDepth();
-        if (parentDepth > 0 && (isShared || noAdapters)) {
+        if (parentDepth > 0 && isShared) {
             revert WrongDepth();
         }
 
@@ -471,19 +451,12 @@ contract UniversalDelegator is
         if (parentDepth == 0) {
             slot.nextSlot.push(uint48(block.timestamp), WITHDRAWAL_BUFFER_CHILD_INDEX);
             slot.isShared = isShared;
-            if (noAdapters) {
-                if (size > VaultV2(vault).allocatable()) {
-                    revert NotEnoughNoAdapters();
-                }
-                slot.noAdapters = true;
-                _noAdaptersSubvaults.push(index.getChildIndex());
-            }
         } else if (parentDepth == 1 && parent.isShared) {
             slot.sharedSizeConsumedCumulative
                 .push(uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest());
         }
 
-        emit CreateSlot(index, isShared, noAdapters, size);
+        emit CreateSlot(index, isShared, size);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -518,9 +491,6 @@ contract UniversalDelegator is
                 if (newSize - curSize > minBalance.saturatingSub(_getPrevSum(lastIndex) + getSize(lastIndex))) {
                     revert NotEnoughBalance();
                 }
-            }
-            if (slot.noAdapters && newSize - curSize > VaultV2(vault).allocatable()) {
-                revert NotEnoughNoAdapters();
             }
             slot.size.push(uint48(block.timestamp), newSize);
         } else {
@@ -635,10 +605,6 @@ contract UniversalDelegator is
                     _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
                 }
                 childIndex = uint32(slots[curIndex].nextSlot.latest());
-            }
-
-            if (slot.noAdapters) {
-                _removeNoAdaptersSubvault(index.getChildIndex());
             }
         } else if (index.getDepth() == 2) {
             bytes32 subnetwork = _slotToNetwork[index];
@@ -962,18 +928,6 @@ contract UniversalDelegator is
     /// @dev Read the connected vault epoch duration.
     function _getEpochDuration() internal view returns (uint48) {
         return VaultV2(vault).epochDuration();
-    }
-
-    /// @dev Remove a no-adapters subvault child index from the aggregate list.
-    function _removeNoAdaptersSubvault(uint32 childIndex) internal {
-        uint256 length = _noAdaptersSubvaults.length;
-        for (uint256 i; i < length; ++i) {
-            if (_noAdaptersSubvaults[i] == childIndex) {
-                _noAdaptersSubvaults[i] = _noAdaptersSubvaults[length - 1];
-                _noAdaptersSubvaults.pop();
-                return;
-            }
-        }
     }
 
     /// @dev Get the storage pointer to the withdrawal buffer slot.

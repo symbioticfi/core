@@ -175,7 +175,7 @@ contract VaultV2UncheckedMathHandler is Test {
         amount = _bound(amount, 1, slashableStake);
 
         vm.prank(vault.slasher());
-        (uint256 slashedAmount,) = VaultV2(address(vault)).onSlash(amount, false);
+        (uint256 slashedAmount,) = VaultV2(address(vault)).onSlash(amount);
 
         totalSlashed += slashedAmount;
     }
@@ -329,6 +329,8 @@ contract VaultV2UncheckedMathHandler is Test {
             collateral: address(collateral),
             burner: address(0xBEEF),
             epochDuration: 7 days,
+            adapters: new address[](0),
+            adaptersAllowDelay: 7 days + 1,
             depositWhitelist: false,
             depositorToWhitelist: address(0xBEEF),
             isDepositLimit: false,

@@ -100,6 +100,12 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /// @inheritdoc IVaultV2Storage
     address[] public adapters;
     /// @inheritdoc IVaultV2Storage
+    mapping(address adapter => uint256 position) public adapterIndex;
+    /// @inheritdoc IVaultV2Storage
+    uint48 public adaptersAllowDelay;
+    /// @inheritdoc IVaultV2Storage
+    mapping(address adapter => uint48 timestamp) public adapterAllowedAt;
+    /// @inheritdoc IVaultV2Storage
     mapping(address adapter => uint208 amount) public adapterLimit;
     /// @inheritdoc IVaultV2Storage
     uint256 public adaptersAllocated;
@@ -177,5 +183,5 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /* STORAGE GAP */
 
     /// @dev Reserved storage gap for future upgrades.
-    uint256[36] internal __gap;
+    uint256[34] internal __gap;
 }

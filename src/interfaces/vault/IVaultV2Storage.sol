@@ -97,6 +97,27 @@ interface IVaultV2Storage {
     function adapters(uint256 index) external view returns (address);
 
     /**
+     * @notice Get a zero-based adapter position in the adapters array.
+     * @dev A zero return value can mean the adapter is first or absent; compare `adapters(0)` to disambiguate.
+     * @param adapter Address of the adapter.
+     * @return Index Zero-based adapter index.
+     */
+    function adapterIndex(address adapter) external view returns (uint256);
+
+    /**
+     * @notice Get the delay before a newly introduced adapter can receive a non-zero limit.
+     * @return Delay Adapter add delay.
+     */
+    function adaptersAllowDelay() external view returns (uint48);
+
+    /**
+     * @notice Get the timestamp when an adapter becomes eligible for a non-zero limit.
+     * @param adapter Address of the adapter.
+     * @return AvailableAt Timestamp when the adapter can receive a non-zero limit, or zero if not scheduled.
+     */
+    function adapterAllowedAt(address adapter) external view returns (uint48);
+
+    /**
      * @notice Get a adapter allocation limit.
      * @param adapter Address of the adapter.
      * @return Limit Maximum collateral amount allocatable to the adapter.

@@ -227,6 +227,8 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                         collateral: address(collateral),
                         burner: address(0xdEaD),
                         epochDuration: EPOCH_DURATION,
+                        adapters: new address[](0),
+                        adaptersAllowDelay: EPOCH_DURATION + 1,
                         depositWhitelist: false,
                         depositorToWhitelist: address(0xBEEF),
                         isDepositLimit: false,
@@ -393,7 +395,7 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
 
         for (uint256 subvaultIndex = 0; subvaultIndex < 3; ++subvaultIndex) {
             bool isShared = sharedTargetSubvault && subvaultIndex == 2;
-            uint96 subvaultSlot = delegator.createSlot(bytes32(0), 0, isShared, false, SUBVAULT_SIZE);
+            uint96 subvaultSlot = delegator.createSlot(bytes32(0), 0, isShared, SUBVAULT_SIZE);
 
             for (uint256 networkIndex = 0; networkIndex < 3; ++networkIndex) {
                 address network =
@@ -404,7 +406,7 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                 vm.prank(network);
                 delegator.setMaxNetworkLimit(networkIdentifier, type(uint256).max);
 
-                uint96 networkSlot = delegator.createSlot(subnetwork, subvaultSlot, false, false, NETWORK_SIZE);
+                uint96 networkSlot = delegator.createSlot(subnetwork, subvaultSlot, false, NETWORK_SIZE);
 
                 for (uint256 operatorIndex = 0; operatorIndex < 10; ++operatorIndex) {
                     address operator = address(
@@ -413,7 +415,7 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
                         )
                     );
                     uint96 operatorSlot =
-                        delegator.createSlot(_operatorKey(operator), networkSlot, false, false, OPERATOR_SIZE);
+                        delegator.createSlot(_operatorKey(operator), networkSlot, false, OPERATOR_SIZE);
                     operatorSlots.push(operatorSlot);
 
                     if (subvaultIndex == 2 && networkIndex == 2 && operatorIndex == 9) {

@@ -64,11 +64,11 @@ contract VaultV2SolvencyHandler is Test {
     MockAdapter public adapter;
 
     address public operator;
-    address public noAdaptersNetwork;
-    address public noAdaptersMiddleware;
+    address public primaryNetwork;
+    address public primaryMiddleware;
     address public adapterNetwork;
     address public adapterMiddleware;
-    bytes32 public noAdaptersSubnetwork;
+    bytes32 public primarySubnetwork;
     bytes32 public adapterSubnetwork;
 
     uint256 public totalDeposited;
@@ -82,14 +82,12 @@ contract VaultV2SolvencyHandler is Test {
     uint256 public lastClaimPostClaimableBacking;
     uint256 public lastClaimPostUnclaimableReserve;
     uint256 public lastClaimPostVaultBalance;
-    uint256 public lastClaimPostNoAdaptersSlashableStake;
 
     bool public sawSuccessfulSync;
     uint256 public lastSyncedAmount;
     uint256 public lastSyncPreTotalOwed;
     uint256 public lastSyncPostTotalOwed;
     uint256 public lastSyncPostVaultBalance;
-    uint256 public lastSyncPostNoAdaptersSlashableStake;
 
     address[] internal depositors;
     mapping(address account => bool isKnownDepositor) internal knownDepositor;
@@ -127,9 +125,7 @@ contract VaultV2SolvencyHandler is Test {
     }
 
     function maxAllocatable() public view returns (uint256) {
-        uint256 totalStake_ = vault.totalStake();
-        uint256 noAdaptersSize = delegator.getNoAdaptersSize();
-        return totalStake_ > noAdaptersSize ? totalStake_ - noAdaptersSize : 0;
+        return vault.totalStake();
     }
 
     function adaptersOwe() public view returns (uint256) {
@@ -140,30 +136,14 @@ contract VaultV2SolvencyHandler is Test {
         return vault.unclaimed();
     }
 
-    function noAdaptersReserve() public view returns (uint256) {
-        uint256 noAdaptersSize = delegator.getNoAdaptersSize();
-        uint256 totalStake_ = vault.totalStake();
-        return noAdaptersSize < totalStake_ ? noAdaptersSize : totalStake_;
-    }
-
     function unclaimableReserve() public view returns (uint256) {
-        return noAdaptersReserve() + slasher.totalOwed();
-    }
-
-    function noAdaptersSlashableStake() public view returns (uint256) {
-        return slasher.slashableStake(noAdaptersSubnetwork, operator, 0, "");
+        return slasher.totalOwed();
     }
 
     function syncableOwedSlashCapacity() public view returns (uint256) {
-        uint256 liquidAboveNoAdaptersReserve = vaultBalance();
-        uint256 curNoAdaptersReserve = noAdaptersReserve();
-        if (liquidAboveNoAdaptersReserve <= curNoAdaptersReserve) {
-            return 0;
-        }
-        liquidAboveNoAdaptersReserve -= curNoAdaptersReserve;
-
         uint256 curTotalOwed = slasher.totalOwed();
-        return curTotalOwed < liquidAboveNoAdaptersReserve ? curTotalOwed : liquidAboveNoAdaptersReserve;
+        uint256 liquidBalance = vaultBalance();
+        return curTotalOwed < liquidBalance ? curTotalOwed : liquidBalance;
     }
 
     function deposit(uint256 userSeed, uint256 amount, uint256 timeJumpSeed) external {
@@ -250,7 +230,6 @@ contract VaultV2SolvencyHandler is Test {
             lastClaimPostClaimableBacking = claimableBacking();
             lastClaimPostUnclaimableReserve = unclaimableReserve();
             lastClaimPostVaultBalance = vaultBalance();
-            lastClaimPostNoAdaptersSlashableStake = noAdaptersSlashableStake();
         } catch {}
     }
 
@@ -337,8 +316,8 @@ contract VaultV2SolvencyHandler is Test {
     function slash(uint256 networkSeed, uint256 amount, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        bytes32 subnetwork = networkSeed % 2 == 0 ? noAdaptersSubnetwork : adapterSubnetwork;
-        address middleware = networkSeed % 2 == 0 ? noAdaptersMiddleware : adapterMiddleware;
+        bytes32 subnetwork = networkSeed % 2 == 0 ? primarySubnetwork : adapterSubnetwork;
+        address middleware = networkSeed % 2 == 0 ? primaryMiddleware : adapterMiddleware;
 
         uint256 slashableStake = slasher.slashableStake(subnetwork, operator, 0, "");
         if (slashableStake == 0) {
@@ -354,7 +333,7 @@ contract VaultV2SolvencyHandler is Test {
     function syncOwedSlash(uint256 networkSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        bytes32 subnetwork = networkSeed % 2 == 0 ? noAdaptersSubnetwork : adapterSubnetwork;
+        bytes32 subnetwork = networkSeed % 2 == 0 ? primarySubnetwork : adapterSubnetwork;
         uint256 curOwed = slasher.owed(subnetwork, operator);
         if (curOwed == 0) {
             return;
@@ -368,7 +347,6 @@ contract VaultV2SolvencyHandler is Test {
             lastSyncPreTotalOwed = preTotalOwed;
             lastSyncPostTotalOwed = slasher.totalOwed();
             lastSyncPostVaultBalance = vaultBalance();
-            lastSyncPostNoAdaptersSlashableStake = noAdaptersSlashableStake();
         } catch {}
     }
 
@@ -521,6 +499,8 @@ contract VaultV2SolvencyHandler is Test {
             collateral: address(collateral),
             burner: BURNER,
             epochDuration: 7 days,
+            adapters: new address[](0),
+            adaptersAllowDelay: 7 days + 1,
             depositWhitelist: false,
             depositorToWhitelist: address(0xBEEF),
             isDepositLimit: false,
@@ -567,19 +547,19 @@ contract VaultV2SolvencyHandler is Test {
         slasher = UniversalSlasher(slasher_);
 
         operator = makeAddr("invariant-operator");
-        noAdaptersNetwork = makeAddr("invariant-no-adapters-network");
-        noAdaptersMiddleware = makeAddr("invariant-no-adapters-middleware");
+        primaryNetwork = makeAddr("invariant-primary-network");
+        primaryMiddleware = makeAddr("invariant-primary-middleware");
         adapterNetwork = makeAddr("invariant-adapter-network");
         adapterMiddleware = makeAddr("invariant-adapter-middleware");
-        noAdaptersSubnetwork = noAdaptersNetwork.subnetwork(0);
+        primarySubnetwork = primaryNetwork.subnetwork(0);
         adapterSubnetwork = adapterNetwork.subnetwork(0);
 
         vm.prank(operator);
         operatorRegistry.registerOperator();
 
-        vm.startPrank(noAdaptersNetwork);
+        vm.startPrank(primaryNetwork);
         networkRegistry.registerNetwork();
-        networkMiddlewareService.setMiddleware(noAdaptersMiddleware);
+        networkMiddlewareService.setMiddleware(primaryMiddleware);
         vm.stopPrank();
 
         vm.startPrank(adapterNetwork);
@@ -590,11 +570,11 @@ contract VaultV2SolvencyHandler is Test {
         vm.prank(operator);
         operatorVaultOptInService.optIn(address(vault));
         vm.prank(operator);
-        operatorNetworkOptInService.optIn(noAdaptersNetwork);
+        operatorNetworkOptInService.optIn(primaryNetwork);
         vm.prank(operator);
         operatorNetworkOptInService.optIn(adapterNetwork);
 
-        vm.prank(noAdaptersNetwork);
+        vm.prank(primaryNetwork);
         delegator.setMaxNetworkLimit(0, type(uint256).max);
         vm.prank(adapterNetwork);
         delegator.setMaxNetworkLimit(0, type(uint256).max);
@@ -612,17 +592,18 @@ contract VaultV2SolvencyHandler is Test {
         _rememberDepositor(bootstrapDepositor);
 
         uint128 slotSize = 100 ether;
-        uint96 noAdaptersSubvault = delegator.createSlot(bytes32("no-adapters-subvault"), 0, false, true, slotSize);
-        uint96 noAdaptersNetworkSlot =
-            delegator.createSlot(noAdaptersSubnetwork, noAdaptersSubvault, false, false, slotSize);
-        delegator.createSlot(bytes32(bytes20(operator)), noAdaptersNetworkSlot, false, false, slotSize);
+        uint96 primarySubvault = delegator.createSlot(bytes32("primary-subvault"), 0, false, slotSize);
+        uint96 primaryNetworkSlot = delegator.createSlot(primarySubnetwork, primarySubvault, false, slotSize);
+        delegator.createSlot(bytes32(bytes20(operator)), primaryNetworkSlot, false, slotSize);
 
-        uint96 adapterSubvault = delegator.createSlot(bytes32("adapter-subvault"), 0, false, false, slotSize);
-        uint96 adapterNetworkSlot = delegator.createSlot(adapterSubnetwork, adapterSubvault, false, false, slotSize);
-        delegator.createSlot(bytes32(bytes20(operator)), adapterNetworkSlot, false, false, slotSize);
+        uint96 adapterSubvault = delegator.createSlot(bytes32("adapter-subvault"), 0, false, slotSize);
+        uint96 adapterNetworkSlot = delegator.createSlot(adapterSubnetwork, adapterSubvault, false, slotSize);
+        delegator.createSlot(bytes32(bytes20(operator)), adapterNetworkSlot, false, slotSize);
 
         adapter = new MockAdapter(address(vault), address(collateral));
         adapterRegistry.whitelistAdapter(address(adapter));
+        VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
+        vm.warp(VaultV2(address(vault)).adapterAllowedAt(address(adapter)));
         VaultV2(address(vault)).setAdapterLimit(address(adapter), type(uint208).max);
 
         vm.prank(address(adapter));

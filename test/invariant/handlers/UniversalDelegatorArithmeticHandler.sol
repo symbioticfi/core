@@ -180,11 +180,10 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         bytes32 slotKey = bytes32(uint256(trackedRootSlots.length + 1));
         bool isShared = flagsSeed & 1 == 1;
-        bool noAdapters = flagsSeed & 2 == 2;
         uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
         (bool success, bytes memory returnData) =
-            address(delegator).call(abi.encodeCall(delegator.createSlot, (slotKey, 0, isShared, noAdapters, size)));
+            address(delegator).call(abi.encodeCall(delegator.createSlot, (slotKey, 0, isShared, size)));
         if (success) {
             trackedRootSlots.push(abi.decode(returnData, (uint96)));
         }
@@ -215,7 +214,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
         uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
         (bool success, bytes memory returnData) =
-            address(delegator).call(abi.encodeCall(delegator.createSlot, (subnetwork, rootSlot, false, false, size)));
+            address(delegator).call(abi.encodeCall(delegator.createSlot, (subnetwork, rootSlot, false, size)));
         if (success) {
             trackedNetworkSlots.push(abi.decode(returnData, (uint96)));
         }
@@ -237,7 +236,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
         uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
         (bool success, bytes memory returnData) = address(delegator)
-            .call(abi.encodeCall(delegator.createSlot, (bytes32(bytes20(operator)), networkSlot, false, false, size)));
+            .call(abi.encodeCall(delegator.createSlot, (bytes32(bytes20(operator)), networkSlot, false, size)));
         if (success) {
             uint96 operatorSlot = abi.decode(returnData, (uint96));
             trackedOperatorSlots.push(operatorSlot);
@@ -509,6 +508,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
             collateral: address(collateral),
             burner: address(0xBEEF),
             epochDuration: EPOCH_DURATION,
+            adapters: new address[](0),
+            adaptersAllowDelay: EPOCH_DURATION + 1,
             depositWhitelist: false,
             depositorToWhitelist: address(0xBEEF),
             isDepositLimit: false,
@@ -573,17 +574,17 @@ contract UniversalDelegatorArithmeticHandler is Test {
         address sharedOperator1 = _prepareFreshOperator(sharedSubnetwork1);
         address sharedOperator2 = _prepareFreshOperator(sharedSubnetwork2);
 
-        uint96 sharedRoot = delegator.createSlot(bytes32("bootstrap-shared-root"), 0, true, true, uint128(220 ether));
+        uint96 sharedRoot = delegator.createSlot(bytes32("bootstrap-shared-root"), 0, true, uint128(220 ether));
         trackedRootSlots.push(sharedRoot);
-        uint96 sharedNetwork1 = delegator.createSlot(sharedSubnetwork1, sharedRoot, false, false, uint128(220 ether));
-        uint96 sharedNetwork2 = delegator.createSlot(sharedSubnetwork2, sharedRoot, false, false, uint128(220 ether));
+        uint96 sharedNetwork1 = delegator.createSlot(sharedSubnetwork1, sharedRoot, false, uint128(220 ether));
+        uint96 sharedNetwork2 = delegator.createSlot(sharedSubnetwork2, sharedRoot, false, uint128(220 ether));
         trackedNetworkSlots.push(sharedNetwork1);
         trackedNetworkSlots.push(sharedNetwork2);
 
         uint96 sharedOperatorSlot1 =
-            delegator.createSlot(bytes32(bytes20(sharedOperator1)), sharedNetwork1, false, false, uint128(150 ether));
+            delegator.createSlot(bytes32(bytes20(sharedOperator1)), sharedNetwork1, false, uint128(150 ether));
         uint96 sharedOperatorSlot2 =
-            delegator.createSlot(bytes32(bytes20(sharedOperator2)), sharedNetwork2, false, false, uint128(160 ether));
+            delegator.createSlot(bytes32(bytes20(sharedOperator2)), sharedNetwork2, false, uint128(160 ether));
         trackedOperatorSlots.push(sharedOperatorSlot1);
         trackedOperatorSlots.push(sharedOperatorSlot2);
         operatorOfSlot[sharedOperatorSlot1] = sharedOperator1;
@@ -593,19 +594,15 @@ contract UniversalDelegatorArithmeticHandler is Test {
         address isolatedOperator1 = _prepareFreshOperator(isolatedSubnetwork);
         address isolatedOperator2 = _prepareFreshOperator(isolatedSubnetwork);
 
-        uint96 isolatedRoot =
-            delegator.createSlot(bytes32("bootstrap-isolated-root"), 0, false, false, uint128(260 ether));
+        uint96 isolatedRoot = delegator.createSlot(bytes32("bootstrap-isolated-root"), 0, false, uint128(260 ether));
         trackedRootSlots.push(isolatedRoot);
-        uint96 isolatedNetwork =
-            delegator.createSlot(isolatedSubnetwork, isolatedRoot, false, false, uint128(260 ether));
+        uint96 isolatedNetwork = delegator.createSlot(isolatedSubnetwork, isolatedRoot, false, uint128(260 ether));
         trackedNetworkSlots.push(isolatedNetwork);
 
-        uint96 isolatedOperatorSlot1 = delegator.createSlot(
-            bytes32(bytes20(isolatedOperator1)), isolatedNetwork, false, false, uint128(130 ether)
-        );
-        uint96 isolatedOperatorSlot2 = delegator.createSlot(
-            bytes32(bytes20(isolatedOperator2)), isolatedNetwork, false, false, uint128(120 ether)
-        );
+        uint96 isolatedOperatorSlot1 =
+            delegator.createSlot(bytes32(bytes20(isolatedOperator1)), isolatedNetwork, false, uint128(130 ether));
+        uint96 isolatedOperatorSlot2 =
+            delegator.createSlot(bytes32(bytes20(isolatedOperator2)), isolatedNetwork, false, uint128(120 ether));
         trackedOperatorSlots.push(isolatedOperatorSlot1);
         trackedOperatorSlots.push(isolatedOperatorSlot2);
         operatorOfSlot[isolatedOperatorSlot1] = isolatedOperator1;

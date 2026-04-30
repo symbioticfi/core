@@ -21,6 +21,8 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     string constant NAME = "Symbiotic Vault V2";
     // Symbol of the VaultV2 shares token.
     string constant SYMBOL = "svV2";
+    // Delay before a newly introduced adapter can receive a non-zero limit. Must be greater than the vault epoch duration.
+    uint48 constant ADAPTERS_ALLOW_DELAY = 21 days;
 
     // Delegator Params
 
@@ -84,6 +86,7 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
             vault: VAULT,
             name: NAME,
             symbol: SYMBOL,
+            adaptersAllowDelay: ADAPTERS_ALLOW_DELAY,
             defaultAdminRoleHolder: ADMIN_ROLE_HOLDER,
             setAdapterLimitRoleHolder: ADMIN_ROLE_HOLDER,
             swapAdaptersRoleHolder: ADMIN_ROLE_HOLDER,
@@ -134,7 +137,7 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     }
 
     function _networkAllocations() internal view returns (NetworkAllocation[] memory networkAllocations) {
-        // The migrated no-adapters subvault is created automatically during `VaultFactory.migrate`.
+        // The migrated subvault is created automatically during `VaultFactory.migrate`.
         // Fill the absolute network/operator allocations you want to recreate under that migrated subvault.
         // Existing network/operator allocations can be copied from:
         // https://app.symbiotic.fi/vault/<vault address>

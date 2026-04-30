@@ -59,6 +59,8 @@ contract UniversalDelegatorUiSetup is Script {
             collateral: address(collateral),
             burner: address(0),
             epochDuration: 1 days,
+            adapters: new address[](0),
+            adaptersAllowDelay: 1 days + 1,
             depositWhitelist: false,
             depositorToWhitelist: broadcaster,
             isDepositLimit: false,

@@ -32,7 +32,7 @@ import {
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher, UNIVERSAL_SLASHER_TYPE} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IVault} from "../../../src/interfaces/vault/IVault.sol";
-import {VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
 
 import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
 import {MigrateToVaultV2BaseScript} from "../../../script/actions/base/MigrateToVaultV2Base.s.sol";
@@ -239,6 +239,7 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         assertEq(migrateTarget, IMigratableEntity(vault).FACTORY(), "factory target mismatch");
         assertEq(createSlotsTarget, IVault(vault).delegator(), "delegator target mismatch");
         assertEq(IMigratableEntity(vault).version(), VAULT_V2_VERSION, "vault version mismatch");
+        assertEq(IVaultV2(vault).adaptersAllowDelay(), 8 days, "adapters allow delay mismatch");
 
         address newDelegator = IVault(vault).delegator();
         address newSlasher = IVault(vault).slasher();
@@ -253,7 +254,6 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
 
         IUniversalDelegator.Slot memory migratedSubvault = delegator.getSlot(MIGRATED_SUBVAULT_INDEX);
         assertTrue(migratedSubvault.exists, "migrated subvault missing");
-        assertTrue(migratedSubvault.noAdapters, "migrated subvault should be no-adapters");
         assertEq(migratedSubvault.existChildren, 2, "network slot count mismatch");
 
         bytes32 subnetwork1 = network1.addr.subnetwork(IDENTIFIER);
@@ -288,6 +288,7 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
             vault: vault,
             name: "Migrated Vault V2",
             symbol: "mV2",
+            adaptersAllowDelay: 8 days,
             defaultAdminRoleHolder: curator.addr,
             setAdapterLimitRoleHolder: curator.addr,
             swapAdaptersRoleHolder: curator.addr,

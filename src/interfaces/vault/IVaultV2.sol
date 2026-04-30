@@ -90,6 +90,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InvalidSlasher();
 
     /**
+     * @notice Raised when adapter add delay is not greater than epoch duration.
+     */
+    error InvalidAdaptersAddDelay();
+
+    /**
      * @notice Raised when the provided adapter is not whitelisted in adapter registry.
      */
     error NotAdapter();
@@ -148,6 +153,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param collateral Vault's underlying collateral.
      * @param burner Vault's burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
      * @param epochDuration Duration of the vault epoch (it determines sync points for withdrawals).
+     * @param adapters Initial adapters that can receive non-zero limits without the add delay.
+     * @param adaptersAllowDelay Delay before a newly introduced adapter can receive a non-zero limit.
      * @param depositWhitelist If enabling deposit whitelist.
      * @param depositorToWhitelist Initial depositor address to whitelist.
      * @param isDepositLimit If enabling deposit limit.
@@ -168,6 +175,8 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address collateral;
         address burner;
         uint48 epochDuration;
+        address[] adapters;
+        uint48 adaptersAllowDelay;
         bool depositWhitelist;
         address depositorToWhitelist;
         bool isDepositLimit;
@@ -187,6 +196,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Initial parameters needed for a vault migration.
      * @param name Name of the vault.
      * @param symbol Symbol of the vault.
+     * @param adaptersAllowDelay Delay before a newly introduced adapter can receive a non-zero limit.
      * @param defaultAdminRoleHolder Address of the DEFAULT_ADMIN_ROLE holder to grant on migration.
      * @param setAdapterLimitRoleHolder Address of the SET_ADAPTER_LIMIT_ROLE holder to grant on migration.
      * @param swapAdaptersRoleHolder Address of the SWAP_ADAPTERS_ROLE holder to grant on migration.
@@ -199,6 +209,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     struct MigrateParams {
         string name;
         string symbol;
+        uint48 adaptersAllowDelay;
         address defaultAdminRoleHolder;
         address setAdapterLimitRoleHolder;
         address swapAdaptersRoleHolder;
@@ -599,7 +610,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param limit Limit of the adapter.
      * @dev Only a SET_ADAPTER_LIMIT_ROLE holder can call this function.
      */
-    function setAdapterLimit(address adapter, uint208 limit) external;
+    function setAdapterLimit(address adapter, uint208 limit) external returns (bool);
 
     /**
      * @notice Swap adapter order.

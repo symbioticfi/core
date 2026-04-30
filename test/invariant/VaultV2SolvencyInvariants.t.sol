@@ -44,12 +44,9 @@ contract VaultV2SolvencyInvariantsTest is StdInvariant, Test {
         assertGe(handler.adapterBalance(), handler.vault().adapterAllocated(address(handler.adapter())));
     }
 
-    function invariant_NoAdaptersSlashableStakeAlwaysLiquid() public view {
-        assertLe(handler.noAdaptersSlashableStake(), handler.vaultBalance());
-    }
-
-    function invariant_MaxSyncableOwedSlashStillKeepsNoAdaptersLiquid() public view {
-        assertGe(handler.vaultBalance(), handler.noAdaptersSlashableStake() + handler.syncableOwedSlashCapacity());
+    function invariant_SyncableOwedSlashCapacityBoundedByLiquidBalance() public view {
+        assertLe(handler.syncableOwedSlashCapacity(), handler.vaultBalance());
+        assertLe(handler.syncableOwedSlashCapacity(), handler.slasher().totalOwed());
     }
 
     function invariant_SystemHoldingsAlwaysCoverLiveStakeAndClaimableBacking() public view {
@@ -61,16 +58,14 @@ contract VaultV2SolvencyInvariantsTest is StdInvariant, Test {
             return;
         }
 
-        assertGe(handler.lastClaimPostVaultBalance(), handler.lastClaimPostNoAdaptersSlashableStake());
         assertGe(handler.lastClaimPostVaultBalance(), handler.lastClaimPostUnclaimableReserve());
     }
 
-    function invariant_LastSuccessfulSyncPreservesNoAdaptersLiquidity() public view {
+    function invariant_LastSuccessfulSyncReducesOwed() public view {
         if (!handler.sawSuccessfulSync()) {
             return;
         }
 
         assertEq(handler.lastSyncPostTotalOwed(), handler.lastSyncPreTotalOwed() - handler.lastSyncedAmount());
-        assertGe(handler.lastSyncPostVaultBalance(), handler.lastSyncPostNoAdaptersSlashableStake());
     }
 }

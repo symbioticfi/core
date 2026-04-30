@@ -6,18 +6,13 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract CreateSlotBaseScript is ScriptBase {
-    function runBase(
-        address delegator,
-        bytes32 subnetworkOrOperator,
-        uint96 parentIndex,
-        bool isShared,
-        bool noAdapters,
-        uint128 size
-    ) public virtual returns (bytes memory data, address target) {
+    function runBase(address delegator, bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, uint128 size)
+        public
+        virtual
+        returns (bytes memory data, address target)
+    {
         target = delegator;
-        data = abi.encodeCall(
-            IUniversalDelegator.createSlot, (subnetworkOrOperator, parentIndex, isShared, noAdapters, size)
-        );
+        data = abi.encodeCall(IUniversalDelegator.createSlot, (subnetworkOrOperator, parentIndex, isShared, size));
         sendTransaction(target, data);
 
         Logs.log(

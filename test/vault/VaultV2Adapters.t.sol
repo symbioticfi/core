@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import {stdError} from "forge-std/StdError.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -34,7 +35,12 @@ import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/A
 import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IAdapter} from "../../src/interfaces/vault/adapters/IAdapter.sol";
-import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVaultV2.sol";
+import {
+    IVaultV2,
+    ALLOCATE_ADAPTER_ROLE,
+    DEALLOCATE_ADAPTER_ROLE,
+    MAX_ADAPTERS
+} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
@@ -527,6 +533,153 @@ contract VaultV2AdaptersTest is Test {
     function test_AdapterInitializeSetsCallerAsOwner() public view {
         assertEq(morphoAdapter.owner(), address(this));
         assertEq(aaveAdapter.owner(), address(this));
+    }
+
+    function test_CreateRevertsWhenAdaptersAllowDelayNotGreaterThanEpochDuration() public {
+        address[] memory initialAdapters = new address[](0);
+
+        vm.expectRevert(IVaultV2.InvalidAdaptersAddDelay.selector);
+        this.createVaultForInvalidAdaptersAllowDelayTest(address(collateral), initialAdapters, 1 days);
+    }
+
+    function test_SetAdapterLimitSchedulesNewAdapterBeforeLimitCanBeSet() public {
+        uint48 availableAt = uint48(block.timestamp + 2 days);
+
+        vm.prank(alice);
+        bool isSet = VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 100);
+
+        assertFalse(isSet);
+        assertEq(VaultV2(address(vault1)).adapterAllowedAt(address(aaveAdapter)), availableAt);
+        assertEq(vault1.adapterLimit(address(aaveAdapter)), 0);
+        assertEq(vault1.adaptersLength(), 1);
+        assertEq(vault1.adapters(0), address(aaveAdapter));
+        assertEq(vault1.adapterIndex(address(aaveAdapter)), 1);
+
+        vm.prank(alice);
+        isSet = VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 100);
+
+        assertFalse(isSet);
+        assertEq(vault1.adapterLimit(address(aaveAdapter)), 0);
+
+        vm.warp(availableAt);
+
+        vm.prank(alice);
+        isSet = VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 100);
+
+        assertTrue(isSet);
+        assertEq(vault1.adapterLimit(address(aaveAdapter)), 100);
+        assertEq(vault1.adaptersLength(), 1);
+        assertEq(vault1.adapters(0), address(aaveAdapter));
+    }
+
+    function test_SetAdapterLimitAllowsInitialAdapterImmediately() public {
+        address[] memory initialAdapters = new address[](1);
+        initialAdapters[0] = address(aaveAdapter);
+        IVaultV2 vault_ = _createVault(address(collateral), initialAdapters, 2 days);
+
+        vm.prank(alice);
+        bool isSet = VaultV2(address(vault_)).setAdapterLimit(address(aaveAdapter), 100);
+
+        assertTrue(isSet);
+        assertEq(VaultV2(address(vault_)).adapterAllowedAt(address(aaveAdapter)), 0);
+        assertEq(vault_.adapterLimit(address(aaveAdapter)), 100);
+        assertEq(vault_.adaptersLength(), 1);
+        assertEq(vault_.adapters(0), address(aaveAdapter));
+        assertEq(vault_.adapterIndex(address(aaveAdapter)), 1);
+        assertTrue(VaultV2(address(vault_)).hasRole(ALLOCATE_ADAPTER_ROLE, address(aaveAdapter)));
+        assertTrue(VaultV2(address(vault_)).hasRole(DEALLOCATE_ADAPTER_ROLE, address(aaveAdapter)));
+    }
+
+    function test_SetAdapterLimitUpdatesAdapterIndexWhenRemovingAdapter() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+        _prepareAdapter(vault1, address(morphoAdapter), 100);
+
+        vm.prank(alice);
+        VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 0);
+
+        assertEq(vault1.adaptersLength(), 1);
+        assertEq(vault1.adapters(0), address(morphoAdapter));
+        assertEq(vault1.adapterIndex(address(aaveAdapter)), 0);
+        assertEq(vault1.adapterIndex(address(morphoAdapter)), 1);
+    }
+
+    function test_SetAdapterLimitZeroForAbsentAdapterRevertsAndKeepsFirstAdapter() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.NotAdapter.selector);
+        VaultV2(address(vault1)).setAdapterLimit(address(morphoAdapter), 0);
+
+        assertEq(vault1.adaptersLength(), 1);
+        assertEq(vault1.adapters(0), address(aaveAdapter));
+        assertEq(vault1.adapterLimit(address(aaveAdapter)), 100);
+        assertEq(vault1.adapterLimit(address(morphoAdapter)), 0);
+    }
+
+    function test_SetAdapterLimitZeroForAbsentAdapterRevertsWhenAdaptersEmpty() public {
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.NotAdapter.selector);
+        VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 0);
+
+        assertEq(vault1.adaptersLength(), 0);
+        assertEq(vault1.adapterLimit(address(aaveAdapter)), 0);
+    }
+
+    function test_SwapAdaptersUpdatesAdapterIndexes() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+        _prepareAdapter(vault1, address(morphoAdapter), 100);
+
+        vm.prank(alice);
+        vault1.swapAdapters(address(aaveAdapter), address(morphoAdapter));
+
+        assertEq(vault1.adapters(0), address(morphoAdapter));
+        assertEq(vault1.adapters(1), address(aaveAdapter));
+        assertEq(vault1.adapterIndex(address(morphoAdapter)), 1);
+        assertEq(vault1.adapterIndex(address(aaveAdapter)), 2);
+    }
+
+    function test_SwapAdaptersRevertsWhenFirstAdapterAbsent() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+
+        vm.prank(alice);
+        vm.expectRevert(stdError.arithmeticError);
+        vault1.swapAdapters(address(morphoAdapter), address(aaveAdapter));
+    }
+
+    function test_SwapAdaptersRevertsWhenSecondAdapterAbsent() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+
+        vm.prank(alice);
+        vm.expectRevert(stdError.arithmeticError);
+        vault1.swapAdapters(address(aaveAdapter), address(morphoAdapter));
+    }
+
+    function test_SwapAdaptersSameAdapterIsNoop() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+
+        vm.prank(alice);
+        vault1.swapAdapters(address(aaveAdapter), address(aaveAdapter));
+
+        assertEq(vault1.adaptersLength(), 1);
+        assertEq(vault1.adapters(0), address(aaveAdapter));
+        assertEq(vault1.adapterIndex(address(aaveAdapter)), 1);
+    }
+
+    function test_SetAdapterLimitRevertsWhenAdaptersLimitExceeded() public {
+        for (uint160 i; i < MAX_ADAPTERS; ++i) {
+            address adapter = address(0x1000 + i);
+            adapterRegistry.whitelistAdapter(adapter);
+
+            vm.prank(alice);
+            VaultV2(address(vault1)).setAdapterLimit(adapter, 1);
+        }
+
+        address extraAdapter = address(0x2000);
+        adapterRegistry.whitelistAdapter(extraAdapter);
+
+        vm.prank(alice);
+        vm.expectRevert(IVaultV2.TooManyAdapters.selector);
+        VaultV2(address(vault1)).setAdapterLimit(extraAdapter, 1);
     }
 
     function test_AaveMulticallExecutesCallsSequentially() public {
@@ -1408,6 +1561,10 @@ contract VaultV2AdaptersTest is Test {
     function _prepareAdapter(IVaultV2 vault_, address adapter, uint208 limit) internal {
         vm.startPrank(alice);
         VaultV2(address(vault_)).setAdapterLimit(adapter, limit);
+        if (VaultV2(address(vault_)).adapterLimit(adapter) == 0 && limit > 0) {
+            vm.warp(VaultV2(address(vault_)).adapterAllowedAt(adapter));
+            VaultV2(address(vault_)).setAdapterLimit(adapter, limit);
+        }
         VaultV2(address(vault_)).grantRole(DEALLOCATE_ADAPTER_ROLE, alice);
         vm.stopPrank();
     }
@@ -1452,7 +1609,23 @@ contract VaultV2AdaptersTest is Test {
         return _createVault(address(collateral_));
     }
 
+    function createVaultForInvalidAdaptersAllowDelayTest(
+        address collateral_,
+        address[] memory initialAdapters,
+        uint48 adaptersAllowDelay
+    ) external returns (IVaultV2 vault_) {
+        return _createVault(collateral_, initialAdapters, adaptersAllowDelay);
+    }
+
     function _createVault(address collateral_) internal returns (IVaultV2 vault_) {
+        address[] memory initialAdapters = new address[](0);
+        return _createVault(collateral_, initialAdapters, 2 days);
+    }
+
+    function _createVault(address collateral_, address[] memory initialAdapters, uint48 adaptersAllowDelay)
+        internal
+        returns (IVaultV2 vault_)
+    {
         uint48 epochDuration = 1 days;
         bytes memory vaultParams = abi.encode(
             IVaultV2.InitParams({
@@ -1461,6 +1634,8 @@ contract VaultV2AdaptersTest is Test {
                 collateral: collateral_,
                 burner: address(0xdEaD),
                 epochDuration: epochDuration,
+                adapters: initialAdapters,
+                adaptersAllowDelay: adaptersAllowDelay,
                 depositWhitelist: false,
                 depositorToWhitelist: address(0xBEEF),
                 isDepositLimit: false,

@@ -47,10 +47,9 @@ import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.so
 /// @title VaultV2
 /// @notice Contract for upgradeable vault collateral, withdrawals, adapters, and migrations.
 /// @dev Priority over funds utilization:
-///      1. No-adapters reserve is always kept liquid and untouchable by claims or syncs.
-///      2. Sync owed slashes draw only from liquid above the no-adapters reserve.
-///      3. Claims are allowed only when leaving room for reserve and all outstanding owed slashes.
-///      4. Remaining funds are used for instant withdrawals and adapters allocation simultaneously.
+///      1. Sync owed slashes draw from liquid balance.
+///      2. Claims are allowed only when leaving room for all outstanding owed slashes.
+///      3. Remaining funds are used for instant withdrawals and adapters allocation simultaneously.
 contract VaultV2 is
     VaultV2Storage,
     MigratableEntity,
@@ -275,12 +274,12 @@ contract VaultV2 is
 
     /// @inheritdoc IVaultV2
     function allocatable() public view returns (uint256) {
-        return _maxAllocatable().saturatingSub(adaptersAllocated);
+        return totalStake().saturatingSub(adaptersAllocated);
     }
 
     /// @inheritdoc IVaultV2
     function adaptersOwe() public view returns (uint256) {
-        return adaptersAllocated.saturatingSub(_maxAllocatable());
+        return adaptersAllocated.saturatingSub(totalStake());
     }
 
     /// @inheritdoc IVaultV2
@@ -393,7 +392,7 @@ contract VaultV2 is
 
         deallocateAdapters();
 
-        if (_maxAllocatable() < adaptersAllocated) {
+        if (totalStake() < adaptersAllocated) {
             revert InsufficientAmount();
         }
 
@@ -424,7 +423,7 @@ contract VaultV2 is
         }
 
         amount = withdrawalsOf(index, msg.sender);
-        if (amount > (totalStake() + unclaimed()).saturatingSub(_nonLiquidBalance())) {
+        if (amount > (totalStake() + unclaimed()).saturatingSub(adaptersAllocated)) {
             revert InsufficientAmount();
         }
 
@@ -464,11 +463,7 @@ contract VaultV2 is
     }
 
     // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount, bool withAdapters)
-        public
-        nonReentrant
-        returns (uint256 slashedAmount, uint256 owedAmount)
-    {
+    function onSlash(uint256 amount) public nonReentrant returns (uint256 slashedAmount, uint256 owedAmount) {
         if (slasher != msg.sender) {
             revert NotSlasher();
         }
@@ -485,10 +480,8 @@ contract VaultV2 is
                 _updateWithdrawalsSharePrice(curActiveWithdrawals - (slashedAmount - activeSlashed));
             }
 
-            if (withAdapters) {
-                deallocateAdapters();
-                owedAmount = Math.min(slashedAmount, adaptersOwe());
-            }
+            deallocateAdapters();
+            owedAmount = Math.min(slashedAmount, adaptersOwe());
             if (slashedAmount > owedAmount) {
                 _safeTransferOut(burner, slashedAmount - owedAmount);
             }
@@ -585,58 +578,69 @@ contract VaultV2 is
     }
 
     /// @inheritdoc IVaultV2
-    function setAdapterLimit(address adapter, uint208 newLimit) public nonReentrant onlyRole(SET_ADAPTER_LIMIT_ROLE) {
+    function setAdapterLimit(address adapter, uint208 newLimit)
+        public
+        nonReentrant
+        onlyRole(SET_ADAPTER_LIMIT_ROLE)
+        returns (bool)
+    {
         _revertIfZero(adapter);
 
         if (adapterAllocated[adapter] > newLimit) {
             revert AdapterAllocated();
         }
 
-        uint256 numAdapters = adapters.length;
+        uint256 curAdapterIndex = adapterIndex[adapter];
         if (newLimit > 0) {
-            if (adapterLimit[adapter] == 0) {
-                if (numAdapters + 1 > MAX_ADAPTERS) {
-                    revert TooManyAdapters();
-                }
-                if (!IRegistry(ADAPTER_REGISTRY).isEntity(adapter)) {
-                    revert NotAdapter();
-                }
-                adapters.push(adapter);
-                _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, adapter);
-                _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, adapter);
+            if (curAdapterIndex == 0) {
+                _addAdapter(adapter);
+                adapterAllowedAt[adapter] = uint48(block.timestamp) + adaptersAllowDelay;
+                return false;
+            }
+            if (block.timestamp < adapterAllowedAt[adapter]) {
+                return false;
             }
         } else {
-            for (uint256 i; i < numAdapters; ++i) {
-                if (adapter == adapters[i]) {
-                    adapters[i] = adapters[numAdapters - 1];
-                    adapters.pop();
-                    super._revokeRole(ALLOCATE_ADAPTER_ROLE, adapter);
-                    super._revokeRole(DEALLOCATE_ADAPTER_ROLE, adapter);
-                    break;
-                }
+            if (curAdapterIndex == 0) {
+                revert NotAdapter();
             }
+            address lastAdapter = adapters[adapters.length - 1];
+            adapters[curAdapterIndex - 1] = lastAdapter;
+            adapters.pop();
+            adapterIndex[lastAdapter] = curAdapterIndex;
+            adapterIndex[adapter] = 0;
+            super._revokeRole(ALLOCATE_ADAPTER_ROLE, adapter);
+            super._revokeRole(DEALLOCATE_ADAPTER_ROLE, adapter);
+            adapterAllowedAt[adapter] = 0;
         }
         adapterLimit[adapter] = newLimit;
 
         emit SetAdapterLimit(adapter, newLimit);
+        return true;
+    }
+
+    function _addAdapter(address adapter) internal {
+        uint256 newAdapterIndex = adapters.length + 1;
+        if (newAdapterIndex > MAX_ADAPTERS) {
+            revert TooManyAdapters();
+        }
+        if (!IRegistry(ADAPTER_REGISTRY).isEntity(adapter)) {
+            revert NotAdapter();
+        }
+        adapters.push(adapter);
+        adapterIndex[adapter] = newAdapterIndex;
+        _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, adapter);
+        _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, adapter);
     }
 
     /// @inheritdoc IVaultV2
     function swapAdapters(address adapter1, address adapter2) public nonReentrant onlyRole(SWAP_ADAPTERS_ROLE) {
-        uint256 index1 = type(uint256).max;
-        uint256 index2 = type(uint256).max;
-        uint256 numAdapters = adapters.length;
-        for (uint256 i; i < numAdapters; ++i) {
-            address curAdapter = adapters[i];
-            if (adapter1 == curAdapter) {
-                index1 = i;
-            } else if (adapter2 == curAdapter) {
-                index2 = i;
-            }
-        }
-        require(index1 < type(uint256).max);
-        require(index2 < type(uint256).max);
-        (adapters[index1], adapters[index2]) = (adapters[index2], adapters[index1]);
+        uint256 index1 = adapterIndex[adapter1];
+        uint256 index2 = adapterIndex[adapter2];
+        uint256 pos1 = index1 - 1;
+        uint256 pos2 = index2 - 1;
+        (adapters[pos1], adapters[pos2]) = (adapters[pos2], adapters[pos1]);
+        (adapterIndex[adapter1], adapterIndex[adapter2]) = (index2, index1);
 
         emit SwapAdapters(adapter1, adapter2);
     }
@@ -720,16 +724,6 @@ contract VaultV2 is
 
     /* INTERNAL FUNCTIONS (ADAPTERS) */
 
-    /// @dev Get the vault stake that may still be allocated after reserving no-adapters capacity.
-    function _maxAllocatable() internal view returns (uint256) {
-        return totalStake().saturatingSub(UniversalDelegator(delegator).getNoAdaptersSize());
-    }
-
-    /// @dev Get the vault balance that is not liquid because it is allocated to adapters or reserved for no-adapters stake.
-    function _nonLiquidBalance() internal view returns (uint256) {
-        return adaptersAllocated + Math.min(UniversalDelegator(delegator).getNoAdaptersSize(), totalStake());
-    }
-
     /// @inheritdoc AccessControlUpgradeable
     function _revokeRole(bytes32 role, address account) internal override returns (bool) {
         if (adapterLimit[account] > 0 && (role == ALLOCATE_ADAPTER_ROLE || role == DEALLOCATE_ADAPTER_ROLE)) {
@@ -750,7 +744,7 @@ contract VaultV2 is
 
         slashedAmount = Math.min(
             amount,
-            (totalStake() + unclaimed() + UniversalSlasher(slasher).totalOwed()).saturatingSub(_nonLiquidBalance())
+            (totalStake() + unclaimed() + UniversalSlasher(slasher).totalOwed()).saturatingSub(adaptersAllocated)
         );
         _safeTransferOut(burner, slashedAmount);
 
@@ -814,6 +808,9 @@ contract VaultV2 is
         if (params.epochDuration == uint48(0) || params.epochDuration > MAX_DURATION) {
             revert TooLongDuration();
         }
+        if (params.adaptersAllowDelay <= params.epochDuration || params.adaptersAllowDelay > MAX_DURATION) {
+            revert InvalidAdaptersAddDelay();
+        }
 
         if (params.depositorToWhitelist == address(0)) {
             revert InvalidDepositorToWhitelist();
@@ -826,12 +823,17 @@ contract VaultV2 is
         burner = params.burner;
 
         epochDuration = params.epochDuration;
+        adaptersAllowDelay = params.adaptersAllowDelay;
 
         depositWhitelist = params.depositWhitelist;
         isDepositorWhitelisted[params.depositorToWhitelist] = true;
 
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
+
+        for (uint256 i; i < params.adapters.length; ++i) {
+            _addAdapter(params.adapters[i]);
+        }
 
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);

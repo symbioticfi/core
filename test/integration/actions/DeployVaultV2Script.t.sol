@@ -118,6 +118,8 @@ contract DeployVaultV2ScriptTest is Test {
                     collateral: collateral,
                     burner: burner,
                     epochDuration: 7 days,
+                    adapters: new address[](0),
+                    adaptersAllowDelay: 7 days + 1,
                     depositWhitelist: true,
                     depositorToWhitelist: depositor,
                     isDepositLimit: true,

@@ -48,6 +48,8 @@ contract DeployVaultV2Script is DeployVaultV2Base {
                     collateral: COLLATERAL,
                     burner: BURNER,
                     epochDuration: EPOCH_DURATION,
+                    adapters: new address[](0),
+                    adaptersAllowDelay: EPOCH_DURATION + 1,
                     depositWhitelist: false,
                     depositorToWhitelist: DEPOSITOR_TO_WHITELIST,
                     isDepositLimit: DEPOSIT_LIMIT != 0,
