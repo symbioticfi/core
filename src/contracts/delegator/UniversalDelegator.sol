@@ -17,7 +17,6 @@ import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddle
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IUniversalDelegator,
-    MAX_SUBVAULTS,
     MAX_NETWORKS,
     MAX_OPERATORS,
     CREATE_SLOT_ROLE,
@@ -25,13 +24,9 @@ import {
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
     SET_WITHDRAWAL_BUFFER_SIZE_ROLE,
-    MIGRATE_SUBVAULT_INDEX,
     WITHDRAWAL_BUFFER_INDEX,
     WITHDRAWAL_BUFFER_CHILD_INDEX
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {
-    OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE
-} from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -40,7 +35,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
 /// @title UniversalDelegator
-/// @notice Contract for hierarchical stake allocation across subvaults, networks, and operators.
+/// @notice Contract for hierarchical stake allocation across networks and operators.
 contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
@@ -51,7 +46,7 @@ contract UniversalDelegator is
     using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint96;
+    using UniversalDelegatorIndex for uint64;
     using Checkpoints for Checkpoints.Trace208;
 
     /* IMMUTABLES */
@@ -67,7 +62,6 @@ contract UniversalDelegator is
 
     struct SlotStorage {
         bool exists;
-        bool isShared;
         uint32 prevSlot;
         uint32 totalChildren;
         uint32 existChildren;
@@ -77,22 +71,21 @@ contract UniversalDelegator is
         Checkpoints.Trace208 firstChild;
         Checkpoints.Trace208 prevSizeSum;
         Checkpoints.Trace208 syncPrevSizeSums;
-        Checkpoints.Trace208 sharedSizeConsumedCumulative;
     }
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
 
     /// @dev Slot storage keyed by encoded slot index.
-    mapping(uint96 index => SlotStorage slot) internal slots;
+    mapping(uint64 index => SlotStorage slot) internal slots;
     /// @dev Mapping from subnetwork id to slot index checkpoints.
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _networkToSlot;
     /// @dev Mapping from slot index to subnetwork id.
-    mapping(uint96 index => bytes32 subnetwork) internal _slotToNetwork;
+    mapping(uint64 index => bytes32 subnetwork) internal _slotToNetwork;
     /// @dev Mapping from parent slot and operator to slot index checkpoints.
-    mapping(uint96 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
+    mapping(uint64 parentIndex => mapping(address operator => Checkpoints.Trace208)) internal _operatorToSlot;
     /// @dev Mapping from slot index to operator address.
-    mapping(uint96 index => address operator) internal _slotToOperator;
+    mapping(uint64 index => address operator) internal _slotToOperator;
     /// @dev Maximum network limit per subnetwork.
     mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _maxNetworkLimit;
 
@@ -103,7 +96,7 @@ contract UniversalDelegator is
 
     /* MODIFIERS */
 
-    modifier syncPrevSizeSums(uint96 parentIndex) {
+    modifier syncPrevSizeSums(uint64 parentIndex) {
         _syncPrevSizeSums(parentIndex);
         if (slots[parentIndex].syncPrevSizeSums.latest() > 0) {
             slots[parentIndex].syncPrevSizeSums.push(uint48(block.timestamp), 0);
@@ -113,10 +106,7 @@ contract UniversalDelegator is
     }
 
     /// @dev Synchronize cumulative child size prefix sums for a parent slot.
-    function _syncPrevSizeSums(uint96 parentIndex) internal {
-        if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
-            return;
-        }
+    function _syncPrevSizeSums(uint64 parentIndex) internal {
         uint32 childIndex = uint32(slots[parentIndex].firstChild.latest());
         if (childIndex == 0) {
             if (parentIndex == 0 && _withdrawalBufferSlot().prevSizeSum.latest() != 0) {
@@ -205,7 +195,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlot(uint96 index) public view returns (Slot memory) {
+    function getSlot(uint64 index) public view returns (Slot memory) {
         SlotStorage storage slot = slots[index];
         return Slot({
             exists: slot.exists,
@@ -215,88 +205,78 @@ contract UniversalDelegator is
             existChildren: slot.existChildren,
             firstChild: uint32(slot.firstChild.latest()),
             lastChild: uint32(slot.lastChild.latest()),
-            isShared: slot.isShared,
             size: getSize(index),
             latestSize: uint128(slot.size.latest()),
             prevSizeSum: _getPrevSum(index),
-            subnetworkOrOperator: index.getDepth() == 3
+            subnetworkOrOperator: index.getDepth() == 2
                 ? bytes20(_slotToOperator[index])
-                : index.getDepth() == 2 ? _slotToNetwork[index] : bytes32(0)
+                : index.getDepth() == 1 ? _slotToNetwork[index] : bytes32(0)
         });
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getBalanceAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
+    function getBalanceAt(uint64 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         return index > 0
             ? getAllocatedAt(index, duration, timestamp)
             : VaultV2(vault).activeStakeAt(timestamp, "") + VaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getBalance(uint96 index, uint48 duration) public view returns (uint256) {
+    function getBalance(uint64 index, uint48 duration) public view returns (uint256) {
         return index > 0
             ? getAllocated(index, duration)
             : VaultV2(vault).activeStake() + VaultV2(vault).activeWithdrawalsFor(duration);
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getAllocatedAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
+    function getAllocatedAt(uint64 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         if (duration >= _getEpochDuration()) {
             return 0;
         }
-        uint96 parentIndex = index.getParentIndex();
+        uint64 parentIndex = index.getParentIndex();
         uint256 slotBalance = getBalanceAt(parentIndex, duration, timestamp);
-        if (parentIndex.getDepth() != 1 || !slots[parentIndex].isShared) {
-            slotBalance = slotBalance.saturatingSub(_getPrevSumAt(index, timestamp));
-        }
-        return Math.min(slotBalance, getSizeAt(index, timestamp));
+        slotBalance = slotBalance.saturatingSub(_getPrevSumAt(index, timestamp));
+        return Math.min(slotBalance, getSizeAt(index, timestamp + duration));
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getAllocated(uint96 index, uint48 duration) public view returns (uint256) {
+    function getAllocated(uint64 index, uint48 duration) public view returns (uint256) {
         if (duration >= _getEpochDuration()) {
             return 0;
         }
-        uint96 parentIndex = index.getParentIndex();
+        uint64 parentIndex = index.getParentIndex();
         uint256 slotBalance = getBalance(parentIndex, duration);
-        if (parentIndex.getDepth() == 1 && slots[parentIndex].isShared) {
-            if (VaultV2(vault).slasher() == msg.sender) {
-                // Support slashing without captureTimestamp for shared subvaults.
-                slotBalance += _getSharedSizeGuarantee(index);
-            }
-        } else {
-            slotBalance = slotBalance.saturatingSub(_getPrevSum(index));
-        }
-        return Math.min(slotBalance, getSize(index));
+        slotBalance = slotBalance.saturatingSub(_getPrevSum(index));
+        return Math.min(slotBalance, getSizeAt(index, uint48(block.timestamp) + duration));
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint96) {
-        return uint96(_networkToSlot[subnetwork].upperLookupRecent(timestamp));
+    function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint64) {
+        return uint64(_networkToSlot[subnetwork].upperLookupRecent(timestamp));
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlotOfNetwork(bytes32 subnetwork) public view returns (uint96) {
-        return uint96(_networkToSlot[subnetwork].latest());
+    function getSlotOfNetwork(bytes32 subnetwork) public view returns (uint64) {
+        return uint64(_networkToSlot[subnetwork].latest());
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlotOfOperatorAt(uint96 parentIndex, address operator, uint48 timestamp) public view returns (uint96) {
-        return uint96(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp));
+    function getSlotOfOperatorAt(uint64 parentIndex, address operator, uint48 timestamp) public view returns (uint64) {
+        return uint64(_operatorToSlot[parentIndex][operator].upperLookupRecent(timestamp));
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlotOfOperator(uint96 parentIndex, address operator) public view returns (uint96) {
-        return uint96(_operatorToSlot[parentIndex][operator].latest());
+    function getSlotOfOperator(uint64 parentIndex, address operator) public view returns (uint64) {
+        return uint64(_operatorToSlot[parentIndex][operator].latest());
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint96) {
+    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint64) {
         return getSlotOfOperatorAt(getSlotOfNetworkAt(subnetwork, timestamp), operator, timestamp);
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint96) {
+    function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint64) {
         return getSlotOfOperator(getSlotOfNetwork(subnetwork), operator);
     }
 
@@ -306,37 +286,37 @@ contract UniversalDelegator is
         view
         returns (uint256)
     {
-        uint96 index = getSlotOfAt(subnetwork, operator, timestamp);
+        uint64 index = getSlotOfAt(subnetwork, operator, timestamp);
         return index > 0 ? getAllocatedAt(index, duration, timestamp) : 0;
     }
 
     /// @inheritdoc IUniversalDelegator
     function getAllocated(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
-        uint96 index = getSlotOf(subnetwork, operator);
+        uint64 index = getSlotOf(subnetwork, operator);
         return index > 0 ? getAllocated(index, duration) : 0;
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getFilledAt(uint96 index, uint48 duration, uint48 timestamp) public view returns (uint256 filled) {
+    function getFilledAt(uint64 index, uint48 duration, uint48 timestamp) public view returns (uint256 filled) {
         for (
             uint32 childIndex = uint32(slots[index].firstChild.upperLookupRecent(timestamp));
             childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
 
         ) {
-            uint96 childSlotIndex = index.createIndex(childIndex);
+            uint64 childSlotIndex = index.createIndex(childIndex);
             filled += getAllocatedAt(childSlotIndex, duration, timestamp);
             childIndex = uint32(slots[childSlotIndex].nextSlot.upperLookupRecent(timestamp));
         }
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getFilled(uint96 index, uint48 duration) public view returns (uint256 filled) {
+    function getFilled(uint64 index, uint48 duration) public view returns (uint256 filled) {
         for (
             uint32 childIndex = uint32(slots[index].firstChild.latest());
             childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
 
         ) {
-            uint96 childSlotIndex = index.createIndex(childIndex);
+            uint64 childSlotIndex = index.createIndex(childIndex);
             filled += getAllocated(childSlotIndex, duration);
             childIndex = uint32(slots[childSlotIndex].nextSlot.latest());
         }
@@ -352,21 +332,12 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getIsShared(bytes32 subnetwork) public view returns (bool) {
-        uint96 index = getSlotOfNetwork(subnetwork);
-        if (index == 0) {
-            revert NotAssigned();
-        }
-        return slots[index.getParentIndex()].isShared;
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function getSizeAt(uint96 index, uint48 timestamp) public view returns (uint128) {
+    function getSizeAt(uint64 index, uint48 timestamp) public view returns (uint128) {
         return uint128(slots[index].size.upperLookupRecent(timestamp));
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSize(uint96 index) public view returns (uint128) {
+    function getSize(uint64 index) public view returns (uint128) {
         return uint128(slots[index].size.upperLookupRecent(uint48(block.timestamp)));
     }
 
@@ -378,38 +349,35 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IUniversalDelegator
-    function createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, uint128 size)
+    function createSlot(bytes32 subnetworkOrOperator, uint64 parentIndex, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
-        returns (uint96 index)
+        returns (uint64 index)
     {
-        return _createSlot(subnetworkOrOperator, parentIndex, isShared, size);
+        return _createSlot(subnetworkOrOperator, parentIndex, size);
     }
 
     /// @dev Create a new slot.
-    function _createSlot(bytes32 subnetworkOrOperator, uint96 parentIndex, bool isShared, uint128 size)
+    function _createSlot(bytes32 subnetworkOrOperator, uint64 parentIndex, uint128 size)
         internal
         syncPrevSizeSums(parentIndex)
-        returns (uint96 index)
+        returns (uint64 index)
     {
         _revertIfNotExists(parentIndex);
         uint256 parentDepth = parentIndex.getDepth();
-        if (parentDepth > 0 && isShared) {
+        if (parentDepth > 1) {
             revert WrongDepth();
         }
 
         SlotStorage storage parent = slots[parentIndex];
-        if (
-            ++parent.existChildren
-                > (parentDepth == 0 ? MAX_SUBVAULTS : parentDepth == 1 ? MAX_NETWORKS : MAX_OPERATORS)
-        ) {
+        if (++parent.existChildren > (parentDepth == 0 ? MAX_NETWORKS : MAX_OPERATORS)) {
             revert TooManyChildren();
         }
         ++parent.totalChildren;
 
         index = parentIndex.createIndex(parent.totalChildren);
 
-        if (parentDepth == 1) {
+        if (parentDepth == 0) {
             if (_networkToSlot[subnetworkOrOperator].latest() > 0) {
                 revert AlreadyAssigned();
             }
@@ -419,13 +387,10 @@ contract UniversalDelegator is
             // Legacy support.
             if (_maxNetworkLimit[subnetworkOrOperator].length() == 0 && migrateTimestamp > 0) {
                 _maxNetworkLimit[subnetworkOrOperator].push(
-                    uint48(block.timestamp),
-                    maxNetworkLimit(subnetworkOrOperator) > 0 && parentIndex.getChildIndex() == 1
-                        ? type(uint208).max
-                        : 0
+                    uint48(block.timestamp), maxNetworkLimit(subnetworkOrOperator) > 0 ? type(uint208).max : 0
                 );
             }
-        } else if (parentDepth == 2) {
+        } else {
             if (_operatorToSlot[parentIndex][address(bytes20(subnetworkOrOperator))].latest() > 0) {
                 revert AlreadyAssigned();
             }
@@ -439,7 +404,7 @@ contract UniversalDelegator is
         if (parent.firstChild.latest() == 0) {
             parent.firstChild.push(uint48(block.timestamp), index.getChildIndex());
         } else {
-            uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
+            uint64 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
             slots[lastIndex].nextSlot.push(uint48(block.timestamp), index.getChildIndex());
             slot.prevSlot = uint32(parent.lastChild.latest());
         }
@@ -450,17 +415,13 @@ contract UniversalDelegator is
 
         if (parentDepth == 0) {
             slot.nextSlot.push(uint48(block.timestamp), WITHDRAWAL_BUFFER_CHILD_INDEX);
-            slot.isShared = isShared;
-        } else if (parentDepth == 1 && parent.isShared) {
-            slot.sharedSizeConsumedCumulative
-                .push(uint48(block.timestamp), parent.sharedSizeConsumedCumulative.latest());
         }
 
-        emit CreateSlot(index, isShared, size);
+        emit CreateSlot(index, size);
     }
 
     /// @inheritdoc IUniversalDelegator
-    function setSize(uint96 index, uint128 newSize)
+    function setSize(uint64 index, uint128 newSize)
         public
         onlyRole(SET_SIZE_ROLE)
         syncPrevSizeSums(index.getParentIndex())
@@ -471,7 +432,7 @@ contract UniversalDelegator is
         if (curSize == newSize) {
             return;
         }
-        uint96 parentIndex = index.getParentIndex();
+        uint64 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
 
         (bool exists, uint48 latestTimestamp,) = slot.size.latestCheckpoint();
@@ -484,10 +445,10 @@ contract UniversalDelegator is
             uint256 curBalance = getBalance(parentIndex, 0);
             uint256 minBalance = getBalance(parentIndex, maxDuration);
             if (
-                !parent.isShared && _getPrevSum(index) + curSize < curBalance && slot.nextSlot.latest() > 0
+                _getPrevSum(index) + curSize < curBalance && slot.nextSlot.latest() > 0
                     && slot.nextSlot.latest() < WITHDRAWAL_BUFFER_CHILD_INDEX
             ) {
-                uint96 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
+                uint64 lastIndex = parentIndex.createIndex(uint32(parent.lastChild.latest()));
                 if (newSize - curSize > minBalance.saturatingSub(_getPrevSum(lastIndex) + getSize(lastIndex))) {
                     revert NotEnoughBalance();
                 }
@@ -495,28 +456,24 @@ contract UniversalDelegator is
             slot.size.push(uint48(block.timestamp), newSize);
         } else {
             slot.size.push(uint48(block.timestamp) + _getEpochDuration(), newSize);
-            parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
         }
 
         emit SetSize(index, newSize);
     }
 
     /// @inheritdoc IUniversalDelegator
-    function swapSlots(uint96 index1, uint96 index2)
+    function swapSlots(uint64 index1, uint64 index2)
         public
         onlyRole(SWAP_SLOTS_ROLE)
         syncPrevSizeSums(index1.getParentIndex())
     {
         _revertIfNotExists(index1);
         _revertIfNotExists(index2);
-        uint96 parentIndex = index1.getParentIndex();
+        uint64 parentIndex = index1.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
 
         if (parentIndex != index2.getParentIndex()) {
             revert NotSameParent();
-        }
-        if (parent.isShared) {
-            revert IsShared();
         }
         for (
             uint32 childIndex = index2.getChildIndex();
@@ -575,7 +532,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function removeSlot(uint96 index) public onlyRole(REMOVE_SLOT_ROLE) syncPrevSizeSums(index.getParentIndex()) {
+    function removeSlot(uint64 index) public onlyRole(REMOVE_SLOT_ROLE) syncPrevSizeSums(index.getParentIndex()) {
         _revertIfNotExists(index);
         if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
@@ -586,9 +543,9 @@ contract UniversalDelegator is
     }
 
     /// @dev Remove a slot from the linked-list structure and mark it as non-existent.
-    function _removeSlot(uint96 index) internal {
+    function _removeSlot(uint64 index) internal {
         SlotStorage storage slot = slots[index];
-        uint96 parentIndex = index.getParentIndex();
+        uint64 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
 
         if (index.getDepth() == 1) {
@@ -597,23 +554,18 @@ contract UniversalDelegator is
                 childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX;
 
             ) {
-                uint96 curIndex = index.createIndex(childIndex);
-                bytes32 subnetwork = _slotToNetwork[curIndex];
-                _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
-                _slotToNetwork[curIndex] = bytes32(0);
-                if (_maxNetworkLimit[subnetwork].latest() > 0) {
-                    _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
-                }
+                uint64 curIndex = index.createIndex(childIndex);
+                _operatorToSlot[index][_slotToOperator[curIndex]].push(uint48(block.timestamp), 0);
+                _slotToOperator[curIndex] = address(0);
                 childIndex = uint32(slots[curIndex].nextSlot.latest());
             }
-        } else if (index.getDepth() == 2) {
             bytes32 subnetwork = _slotToNetwork[index];
             _networkToSlot[subnetwork].push(uint48(block.timestamp), 0);
             _slotToNetwork[index] = bytes32(0);
             if (_maxNetworkLimit[subnetwork].latest() > 0) {
                 _maxNetworkLimit[subnetwork].push(uint48(block.timestamp), 0);
             }
-        } else if (index.getDepth() == 3) {
+        } else if (index.getDepth() == 2) {
             _operatorToSlot[parentIndex][_slotToOperator[index]].push(uint48(block.timestamp), 0);
             _slotToOperator[index] = address(0);
         }
@@ -676,27 +628,17 @@ contract UniversalDelegator is
             revert NotNetworkOrMiddleware();
         }
 
-        uint96 index = getSlotOfNetwork(subnetwork);
+        uint64 index = getSlotOfNetwork(subnetwork);
         if (index == 0) {
             revert NotAssigned();
         }
-        uint96 parentIndex = index.getParentIndex();
-        // Not allow removing migration subvault for the withdrawal delay duration.
-        if (
-            slots[parentIndex].existChildren == 1
-                && (migrateTimestamp == 0
-                    || parentIndex != MIGRATE_SUBVAULT_INDEX
-                    || block.timestamp >= migrateTimestamp + _getEpochDuration())
-        ) {
-            index = parentIndex;
-            parentIndex = index.getParentIndex();
-        }
+        uint64 parentIndex = index.getParentIndex();
         SlotStorage storage slot = slots[index];
         SlotStorage storage parent = slots[parentIndex];
 
         if (
             getSize(index) > 0 && parent.syncPrevSizeSums.latest() == 0
-                && (index.getDepth() == 1 || (!parent.isShared && slot.nextSlot.latest() > 0))
+                && (index.getDepth() == 1 || slot.nextSlot.latest() > 0)
         ) {
             parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
         }
@@ -710,58 +652,37 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
     /// @dev Apply slash accounting updates across the affected slot chain.
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount)
-        public
-        nonReentrant
-        returns (uint256 actualAmount)
-    {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount) public nonReentrant {
         _checkSlasher();
 
-        actualAmount = _onSlash(getSlotOf(subnetwork, operator), amount);
+        _onSlash(getSlotOf(subnetwork, operator), amount);
 
-        emit OnSlash(subnetwork, operator, amount, actualAmount);
+        emit OnSlash(subnetwork, operator, amount);
     }
 
-    /// @dev Apply a pre-migration slash to the deepest matching migrated-reserve slot, or the reserve itself.
-    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount)
-        public
-        nonReentrant
-        returns (uint256 actualAmount)
-    {
+    /// @dev Apply a pre-migration slash to the deepest matching migrated slot.
+    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) public nonReentrant {
         _checkSlasher();
 
-        if (!slots[MIGRATE_SUBVAULT_INDEX].exists) {
-            return 0;
+        uint64 index = getSlotOfNetwork(subnetwork);
+        if (!slots[index].exists) {
+            return;
         }
-        uint96 index = MIGRATE_SUBVAULT_INDEX;
-        uint96 networkIndex = getSlotOfNetwork(subnetwork);
-        if (slots[networkIndex].exists && networkIndex.getParentIndex() == MIGRATE_SUBVAULT_INDEX) {
-            index = networkIndex;
-            uint96 operatorIndex = getSlotOfOperator(networkIndex, operator);
-            if (slots[operatorIndex].exists) {
-                index = operatorIndex;
-            }
+        uint64 operatorIndex = getSlotOfOperator(index, operator);
+        if (slots[operatorIndex].exists) {
+            index = operatorIndex;
         }
 
-        actualAmount = _onSlash(index, amount);
+        _onSlash(index, amount);
 
-        emit OnSlashLegacy(amount, actualAmount);
+        emit OnSlashLegacy(amount);
     }
 
-    function _onSlash(uint96 index, uint256 amount) internal returns (uint256 actualAmount) {
-        uint96 networkIndex;
-        if (index.getDepth() == 3) {
-            networkIndex = index.getParentIndex();
-        } else if (index.getDepth() == 2) {
-            networkIndex = index;
-        }
-
-        for (uint96 curIndex = index; curIndex > 0;) {
+    function _onSlash(uint64 index, uint256 amount) internal {
+        for (uint64 curIndex = index; curIndex > 0;) {
             SlotStorage storage slot = slots[curIndex];
-            bool isSubvault = curIndex.getDepth() == 1;
-            bool isShared = slot.isShared;
-            uint256 amountToSlash = isSubvault ? Math.min(amount, getAllocated(curIndex, 0)) : amount;
-            uint128 sizeSlashed = uint128(Math.min(getSize(curIndex), amountToSlash));
+            bool isNetwork = curIndex.getDepth() == 1;
+            uint128 sizeSlashed = uint128(Math.min(getSize(curIndex), amount));
             if (sizeSlashed > 0) {
                 (bool exists, uint48 latestTimestamp, uint208 latestSize) = slot.size.latestCheckpoint();
                 if (exists && latestTimestamp > block.timestamp) {
@@ -776,30 +697,8 @@ contract UniversalDelegator is
                 }
 
                 SlotStorage storage parent = slots[curIndex.getParentIndex()];
-                if (
-                    parent.syncPrevSizeSums.latest() == 0
-                        && (isSubvault
-                            || ((curIndex.getDepth() == 3 || !parent.isShared) && slot.nextSlot.latest() > 0))
-                ) {
+                if (parent.syncPrevSizeSums.latest() == 0 && (isNetwork || slot.nextSlot.latest() > 0)) {
                     parent.syncPrevSizeSums.push(uint48(block.timestamp), 1);
-                }
-            }
-            if (isSubvault) {
-                // Actual slashed amount can be lower than requested due to slashing by multiple shared networks.
-                actualAmount = sizeSlashed;
-                if (isShared) {
-                    // Consume guarantees for shared subvault.
-                    if (sizeSlashed > 0) {
-                        slot.sharedSizeConsumedCumulative
-                            .push(uint48(block.timestamp), slot.sharedSizeConsumedCumulative.latest() + sizeSlashed);
-                    }
-                    if (networkIndex > 0) {
-                        uint208 sizeConsumed = uint208(Math.min(_getSharedSizeGuarantee(networkIndex), amount));
-                        if (sizeConsumed > 0) {
-                            slots[networkIndex].sharedSizeConsumedCumulative
-                                .push(uint48(block.timestamp), _getSharedSizeCursor(networkIndex) + sizeConsumed);
-                        }
-                    }
                 }
             }
             curIndex = curIndex.getParentIndex();
@@ -851,20 +750,17 @@ contract UniversalDelegator is
     /* UTILITY FUNCTIONS */
 
     /// @dev Get the prefix sum of previous sibling sizes at a timestamp.
-    function _getPrevSumAt(uint96 index, uint48 timestamp) internal view returns (uint208 prevSizeSum) {
+    function _getPrevSumAt(uint64 index, uint48 timestamp) internal view returns (uint208 prevSizeSum) {
         if (index == 0) {
             return 0;
         }
-        uint96 parentIndex = index.getParentIndex();
+        uint64 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
-        if (parentIndex.getDepth() == 1 && parent.isShared) {
-            return 0;
-        }
         if (parent.syncPrevSizeSums.upperLookupRecent(timestamp) == 0) {
             return slots[index].prevSizeSum.upperLookupRecent(timestamp);
         }
         for (uint32 childIndex = uint32(parent.firstChild.upperLookupRecent(timestamp)); childIndex > 0;) {
-            uint96 curIndex = parentIndex.createIndex(childIndex);
+            uint64 curIndex = parentIndex.createIndex(childIndex);
             if (index == curIndex) {
                 break;
             }
@@ -874,55 +770,23 @@ contract UniversalDelegator is
     }
 
     /// @dev Get the current prefix sum of previous sibling sizes.
-    function _getPrevSum(uint96 index) internal view returns (uint208 prevSizeSum) {
+    function _getPrevSum(uint64 index) internal view returns (uint208 prevSizeSum) {
         if (index == 0) {
             return 0;
         }
-        uint96 parentIndex = index.getParentIndex();
+        uint64 parentIndex = index.getParentIndex();
         SlotStorage storage parent = slots[parentIndex];
-        if (parentIndex.getDepth() == 1 && parent.isShared) {
-            return 0;
-        }
         if (parent.syncPrevSizeSums.latest() == 0) {
             return slots[index].prevSizeSum.latest();
         }
         for (uint32 childIndex = uint32(parent.firstChild.latest()); childIndex > 0;) {
-            uint96 curIndex = parentIndex.createIndex(childIndex);
+            uint64 curIndex = parentIndex.createIndex(childIndex);
             if (index == curIndex) {
                 break;
             }
             prevSizeSum += getSize(curIndex);
             childIndex = uint32(slots[curIndex].nextSlot.latest());
         }
-    }
-
-    /// @dev Get the effective shared-size consumption cursor for a network under a shared subvault.
-    function _getSharedSizeCursor(uint96 networkIndex) internal view returns (uint208) {
-        return _getCursor(
-            slots[networkIndex.getParentIndex()].sharedSizeConsumedCumulative,
-            slots[networkIndex].sharedSizeConsumedCumulative
-        );
-    }
-
-    /// @dev Get the remaining shared size guarantee available to a network.
-    function _getSharedSizeGuarantee(uint96 networkIndex) internal view returns (uint208) {
-        return uint208(
-            uint256(slots[networkIndex.getParentIndex()].sharedSizeConsumedCumulative.latest())
-                .saturatingSub(_getSharedSizeCursor(networkIndex))
-        );
-    }
-
-    /// @dev Get the effective cursor after applying the rolling epoch floor to a cumulative series.
-    function _getCursor(Checkpoints.Trace208 storage base, Checkpoints.Trace208 storage cursor)
-        internal
-        view
-        returns (uint208)
-    {
-        return uint208(
-            Math.max(
-                base.upperLookupRecent(uint48(block.timestamp.saturatingSub(_getEpochDuration()))), cursor.latest()
-            )
-        );
     }
 
     /// @dev Read the connected vault epoch duration.
@@ -936,7 +800,7 @@ contract UniversalDelegator is
     }
 
     /// @dev Revert when a non-zero slot index does not exist.
-    function _revertIfNotExists(uint96 index) internal view {
+    function _revertIfNotExists(uint64 index) internal view {
         if (index > 0 && !slots[index].exists) {
             revert SlotNotExists();
         }

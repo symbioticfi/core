@@ -44,7 +44,6 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
     uint48 internal constant CAPTURE_OFFSET = 4;
     uint48 internal constant START_TIMESTAMP = 1000;
     uint256 internal constant SECOND_CALL_WARP = 12;
-    uint128 internal constant SUBVAULT_SIZE = 3000 ether;
     uint128 internal constant NETWORK_SIZE = 1000 ether;
     uint128 internal constant OPERATOR_SIZE = 100 ether;
     uint256 internal constant DEPOSIT_AMOUNT = 9000 ether;
@@ -75,7 +74,7 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
     bytes32 internal targetSubnetwork;
     address internal targetOperator;
     address internal nextOperator;
-    uint96[] internal operatorSlots;
+    uint64[] internal operatorSlots;
 
     function setUp() public {
         owner = address(this);
@@ -278,7 +277,7 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
     }
 
     function test_Gas_StakeForAt_ExecuteSlash() public {
-        _prepareScenario(false);
+        _prepareScenario();
 
         uint48 timestamp = _currentCaptureTimestamp();
         bytes memory noHints = "";
@@ -309,26 +308,9 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
         _assertStakeForInvariantAcrossOperatorSlots();
     }
 
-    function test_Gas_StakeForAt_ExecuteSlash_SharedSubvault() public {
-        _prepareScenario(true);
-
-        bytes memory noHints = "";
-
-        uint256 snapshot = vm.snapshotState();
-        _measureIsolatedSequential("shared_no_capture", 0, noHints);
-        vm.revertToState(snapshot);
-
-        _measureSingleTx("shared_no_capture", 0, noHints, noHints);
-        vm.revertToState(snapshot);
-
-        _measureStakeForTimestamp("shared_no_capture", 0, noHints, noHints);
-    }
-
-    function _prepareScenario(bool sharedTargetSubvault) internal {
-        _setupTopology(sharedTargetSubvault);
-        if (!sharedTargetSubvault) {
-            _assertStakeForInvariantAcrossOperatorSlots();
-        }
+    function _prepareScenario() internal {
+        _setupTopology();
+        _assertStakeForInvariantAcrossOperatorSlots();
         vm.warp(uint256(START_TIMESTAMP + EPOCH_DURATION + CAPTURE_OFFSET + 1));
     }
 
@@ -387,52 +369,42 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
         console2.log(string.concat(labelPrefix, "_stake_after"), stakeAfter);
     }
 
-    function _setupTopology(bool sharedTargetSubvault) internal {
+    function _setupTopology() internal {
         delete operatorSlots;
         targetSubnetwork = bytes32(0);
         targetOperator = address(0);
         nextOperator = address(0);
 
-        for (uint256 subvaultIndex = 0; subvaultIndex < 3; ++subvaultIndex) {
-            bool isShared = sharedTargetSubvault && subvaultIndex == 2;
-            uint96 subvaultSlot = delegator.createSlot(bytes32(0), 0, isShared, SUBVAULT_SIZE);
+        for (uint256 networkIndex = 0; networkIndex < 9; ++networkIndex) {
+            address network = address(uint160(uint256(keccak256(abi.encodePacked("network", networkIndex)))));
+            _registerNetwork(network);
+            uint96 networkIdentifier = uint96(networkIndex + 1);
+            bytes32 subnetwork = network.subnetwork(networkIdentifier);
+            vm.prank(network);
+            delegator.setMaxNetworkLimit(networkIdentifier, type(uint256).max);
 
-            for (uint256 networkIndex = 0; networkIndex < 3; ++networkIndex) {
-                address network =
-                    address(uint160(uint256(keccak256(abi.encodePacked("network", subvaultIndex, networkIndex)))));
-                _registerNetwork(network);
-                uint96 networkIdentifier = uint96(networkIndex + 1);
-                bytes32 subnetwork = network.subnetwork(networkIdentifier);
-                vm.prank(network);
-                delegator.setMaxNetworkLimit(networkIdentifier, type(uint256).max);
+            uint64 networkSlot = delegator.createSlot(subnetwork, 0, NETWORK_SIZE);
 
-                uint96 networkSlot = delegator.createSlot(subnetwork, subvaultSlot, false, NETWORK_SIZE);
+            for (uint256 operatorIndex = 0; operatorIndex < 10; ++operatorIndex) {
+                address operator =
+                    address(uint160(uint256(keccak256(abi.encodePacked("operator", networkIndex, operatorIndex)))));
+                uint64 operatorSlot = delegator.createSlot(_operatorKey(operator), networkSlot, OPERATOR_SIZE);
+                operatorSlots.push(operatorSlot);
 
-                for (uint256 operatorIndex = 0; operatorIndex < 10; ++operatorIndex) {
-                    address operator = address(
-                        uint160(
-                            uint256(keccak256(abi.encodePacked("operator", subvaultIndex, networkIndex, operatorIndex)))
-                        )
-                    );
-                    uint96 operatorSlot =
-                        delegator.createSlot(_operatorKey(operator), networkSlot, false, OPERATOR_SIZE);
-                    operatorSlots.push(operatorSlot);
+                if (networkIndex == 8 && operatorIndex == 9) {
+                    targetSubnetwork = subnetwork;
+                    targetOperator = operator;
+                }
 
-                    if (subvaultIndex == 2 && networkIndex == 2 && operatorIndex == 9) {
-                        targetSubnetwork = subnetwork;
-                        targetOperator = operator;
-                    }
-
-                    if (subvaultIndex == 2 && networkIndex == 2 && operatorIndex == 8) {
-                        nextOperator = operator;
-                    }
+                if (networkIndex == 8 && operatorIndex == 8) {
+                    nextOperator = operator;
                 }
             }
         }
     }
 
     function _assertStakeForInvariantAcrossOperatorSlots() internal view {
-        uint96[] memory slots = new uint96[](operatorSlots.length);
+        uint64[] memory slots = new uint64[](operatorSlots.length);
         for (uint256 i = 0; i < operatorSlots.length; ++i) {
             slots[i] = operatorSlots[i];
         }
@@ -508,14 +480,14 @@ contract UniversalDelegatorGasTest is Test, CoreV2StakeForInvariantHelper {
         return abi.encode(_slotOfHints(), "");
     }
 
-    function _subvaultAllocatedHints() internal pure returns (bytes memory) {
+    function _rootChildAllocatedHints() internal pure returns (bytes memory) {
         return _baseAllocatedHints(_rootAvailableHints());
     }
 
     function _operatorAllocatedHints() internal pure returns (bytes memory) {
-        bytes memory subvaultAllocated = _subvaultAllocatedHints();
-        bytes memory subvaultAvailable = _availableHints(subvaultAllocated);
-        bytes memory networkAllocated = _baseAllocatedHints(subvaultAvailable);
+        bytes memory rootChildAllocated = _rootChildAllocatedHints();
+        bytes memory rootChildAvailable = _availableHints(rootChildAllocated);
+        bytes memory networkAllocated = _baseAllocatedHints(rootChildAvailable);
         bytes memory networkAvailable = _availableHints(networkAllocated);
         return _baseAllocatedHints(networkAvailable);
     }

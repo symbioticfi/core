@@ -7,19 +7,19 @@ import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDe
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract SwapSlotsVerificationTest is UniversalDelegatorTest {
-    using UniversalDelegatorIndex for uint96;
+    using UniversalDelegatorIndex for uint64;
     using Subnetwork for address;
 
     function test_stakeForInvariant_preSwapPendingWindow() public {
         _deposit(alice, 50);
 
-        _createSlot(0, false, 50);
-        uint96 subvault = _rootIndex(uint32(1));
+        _createSlot(0, 50);
+        uint64 networkSlot = _rootIndex(uint32(1));
 
-        _createSlot(subvault, false, 50);
-        _createSlot(subvault, false, 50);
-        uint96 slot1 = subvault.createIndex(uint32(1));
-        uint96 slot2 = subvault.createIndex(uint32(2));
+        _createSlot(networkSlot, 50);
+        _createSlot(networkSlot, 50);
+        uint64 slot1 = networkSlot.createIndex(uint32(1));
+        uint64 slot2 = networkSlot.createIndex(uint32(2));
 
         vm.warp(1);
         delegator.setSize(slot1, 0);
@@ -31,13 +31,13 @@ contract SwapSlotsVerificationTest is UniversalDelegatorTest {
     function test_swapSlots_revertsReorderingAcrossPendingWindow() public {
         _deposit(alice, 50);
 
-        _createSlot(0, false, 50);
-        uint96 subvault = _rootIndex(uint32(1));
+        _createSlot(0, 50);
+        uint64 networkSlot = _rootIndex(uint32(1));
 
-        _createSlot(subvault, false, 50);
-        _createSlot(subvault, false, 50);
-        uint96 slot1 = subvault.createIndex(uint32(1));
-        uint96 slot2 = subvault.createIndex(uint32(2));
+        _createSlot(networkSlot, 50);
+        _createSlot(networkSlot, 50);
+        uint64 slot1 = networkSlot.createIndex(uint32(1));
+        uint64 slot2 = networkSlot.createIndex(uint32(2));
 
         vm.warp(1);
         delegator.setSize(slot1, 0);
@@ -59,17 +59,14 @@ contract SwapSlotsVerificationTest is UniversalDelegatorTest {
         _deposit(alice, 260);
 
         bytes32 subnetwork = makeAddr("swap-dirty-subnetwork").subnetwork(0);
-        _createSlot(0, false, 260);
-        uint96 subvault = _rootIndex(uint32(1));
-        _createNetworkSlot(subvault, subnetwork, 260);
-        uint96 networkSlot = subvault.createIndex(uint32(1));
+        uint64 networkSlot = delegator.createSlot(subnetwork, 0, 260);
 
         _createOperatorSlot(networkSlot, alice, 80);
         _createOperatorSlot(networkSlot, bob, 60);
         _createOperatorSlot(networkSlot, carol, 60);
         _createOperatorSlot(networkSlot, dave, 40);
-        uint96 slot2 = networkSlot.createIndex(uint32(2));
-        uint96 slot3 = networkSlot.createIndex(uint32(3));
+        uint64 slot2 = networkSlot.createIndex(uint32(2));
+        uint64 slot3 = networkSlot.createIndex(uint32(3));
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 10);
@@ -95,18 +92,15 @@ contract SwapSlotsVerificationTest is UniversalDelegatorTest {
         _deposit(alice, 220);
 
         bytes32 subnetwork = makeAddr("swap-pending-subnetwork").subnetwork(0);
-        _createSlot(0, false, 220);
-        uint96 subvault = _rootIndex(uint32(1));
-        _createNetworkSlot(subvault, subnetwork, 220);
-        uint96 networkSlot = subvault.createIndex(uint32(1));
+        uint64 networkSlot = delegator.createSlot(subnetwork, 0, 220);
 
         _createOperatorSlot(networkSlot, alice, 80);
         _createOperatorSlot(networkSlot, bob, 40);
         _createOperatorSlot(networkSlot, carol, 40);
         _createOperatorSlot(networkSlot, dave, 40);
-        uint96 slot2 = networkSlot.createIndex(uint32(2));
-        uint96 slot3 = networkSlot.createIndex(uint32(3));
-        uint96 slot4 = networkSlot.createIndex(uint32(4));
+        uint64 slot2 = networkSlot.createIndex(uint32(2));
+        uint64 slot3 = networkSlot.createIndex(uint32(3));
+        uint64 slot4 = networkSlot.createIndex(uint32(4));
 
         vm.warp(1);
         delegator.setSize(slot2, 0);

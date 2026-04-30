@@ -71,10 +71,9 @@ contract MigrateToVaultV2ScriptHarness is MigrateToVaultV2BaseScript, ScriptBase
 
 contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint96;
+    using UniversalDelegatorIndex for uint64;
 
     uint96 internal constant IDENTIFIER = 0;
-    uint96 internal constant MIGRATED_SUBVAULT_INDEX = uint96(1) << 64;
 
     Vm.Wallet internal curator;
     Vm.Wallet internal network1;
@@ -184,17 +183,13 @@ contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
         IUniversalDelegator delegator = IUniversalDelegator(newDelegator);
 
         IUniversalDelegator.Slot memory root = delegator.getSlot(0);
-        assertEq(root.existChildren, 1, "unexpected root children");
-
-        IUniversalDelegator.Slot memory migratedSubvault = delegator.getSlot(MIGRATED_SUBVAULT_INDEX);
-        assertTrue(migratedSubvault.exists, "migrated subvault missing");
-        assertEq(migratedSubvault.existChildren, 2, "network slot count mismatch");
+        assertEq(root.existChildren, 2, "network slot count mismatch");
 
         bytes32 subnetwork1 = network1.addr.subnetwork(IDENTIFIER);
         bytes32 subnetwork2 = network2.addr.subnetwork(IDENTIFIER);
 
-        uint96 networkSlot1 = MIGRATED_SUBVAULT_INDEX.createIndex(1);
-        uint96 networkSlot2 = MIGRATED_SUBVAULT_INDEX.createIndex(2);
+        uint64 networkSlot1 = uint64(0).createIndex(1);
+        uint64 networkSlot2 = uint64(0).createIndex(2);
 
         assertEq(delegator.getSlotOfNetwork(subnetwork1), networkSlot1, "network1 slot mismatch");
         assertEq(delegator.getSlotOfNetwork(subnetwork2), networkSlot2, "network2 slot mismatch");
@@ -203,9 +198,9 @@ contract V2DeployAndUpgradeActionScriptTest is SymbioticCoreInit {
         assertEq(delegator.maxNetworkLimit(subnetwork1), type(uint208).max, "network1 max limit mismatch");
         assertEq(delegator.maxNetworkLimit(subnetwork2), type(uint208).max, "network2 max limit mismatch");
 
-        uint96 operatorSlot1 = networkSlot1.createIndex(1);
-        uint96 operatorSlot2 = networkSlot1.createIndex(2);
-        uint96 operatorSlot3 = networkSlot2.createIndex(1);
+        uint64 operatorSlot1 = networkSlot1.createIndex(1);
+        uint64 operatorSlot2 = networkSlot1.createIndex(2);
+        uint64 operatorSlot3 = networkSlot2.createIndex(1);
 
         assertEq(delegator.getSlotOfOperator(networkSlot1, operator1.addr), operatorSlot1, "operator1 slot mismatch");
         assertEq(delegator.getSlotOfOperator(networkSlot1, operator2.addr), operatorSlot2, "operator2 slot mismatch");

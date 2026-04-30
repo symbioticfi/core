@@ -6,7 +6,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract RemoveSlotBaseScript is ScriptBase {
-    function runBase(address delegator, uint96 index) public virtual returns (bytes memory data, address target) {
+    function runBase(address delegator, uint64 index) public virtual returns (bytes memory data, address target) {
         target = delegator;
         data = abi.encodeCall(IUniversalDelegator.removeSlot, (index));
         sendTransaction(target, data);

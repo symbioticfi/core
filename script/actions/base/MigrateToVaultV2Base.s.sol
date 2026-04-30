@@ -22,9 +22,7 @@ import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract MigrateToVaultV2BaseScript is ScriptBase {
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint96;
-
-    uint96 internal constant MIGRATED_SUBVAULT_INDEX = uint96(1) << 64;
+    using UniversalDelegatorIndex for uint64;
 
     struct Config {
         address vault;
@@ -36,7 +34,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         address swapAdaptersRoleHolder;
         address allocateAdapterRoleHolder;
         address deallocateAdapterRoleHolder;
-        uint96 operatorNetworkSpecificSubnetworkId;
+        uint64 operatorNetworkSpecificSubnetworkId;
         IUniversalDelegator.InitParams delegatorParams;
         IUniversalSlasher.InitParams slasherParams;
     }
@@ -106,12 +104,7 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         returns (bytes[] memory calls)
     {
         IUniversalDelegator.Slot memory root = IUniversalDelegator(delegator).getSlot(0);
-        assert(root.existChildren == 1);
-
-        IUniversalDelegator.Slot memory migratedSubvault =
-            IUniversalDelegator(delegator).getSlot(MIGRATED_SUBVAULT_INDEX);
-        assert(migratedSubvault.exists);
-        uint32 firstNetworkChild = migratedSubvault.totalChildren + 1;
+        uint32 firstNetworkChild = root.totalChildren + 1;
 
         uint256 totalCalls;
         for (uint256 i; i < networks.length; ++i) {
@@ -124,18 +117,17 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         for (uint32 i; i < networks.length; ++i) {
             NetworkAllocation memory networkAllocation = networks[i];
             bytes32 subnetwork = networkAllocation.network.subnetwork(networkAllocation.identifier);
-            uint96 networkSlotIndex = MIGRATED_SUBVAULT_INDEX.createIndex(firstNetworkChild + i);
+            uint64 networkSlotIndex = uint64(0).createIndex(firstNetworkChild + i);
 
-            calls[callIndex++] = abi.encodeCall(
-                IUniversalDelegator.createSlot, (subnetwork, MIGRATED_SUBVAULT_INDEX, false, networkAllocation.size)
-            );
+            calls[callIndex++] =
+                abi.encodeCall(IUniversalDelegator.createSlot, (subnetwork, uint64(0), networkAllocation.size));
 
             for (uint32 j; j < networkAllocation.operators.length; ++j) {
                 OperatorAllocation memory operatorAllocation = networkAllocation.operators[j];
 
                 calls[callIndex++] = abi.encodeCall(
                     IUniversalDelegator.createSlot,
-                    (_operatorKey(operatorAllocation.operator), networkSlotIndex, false, operatorAllocation.size)
+                    (_operatorKey(operatorAllocation.operator), networkSlotIndex, operatorAllocation.size)
                 );
             }
         }

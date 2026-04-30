@@ -21,7 +21,6 @@ import {
 import {
     IUniversalDelegator,
     CREATE_SLOT_ROLE,
-    MIGRATE_SUBVAULT_INDEX,
     UNIVERSAL_DELEGATOR_TYPE
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {
@@ -38,7 +37,6 @@ import {VAULT_VERSION} from "../../interfaces/vault/IVault.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
 
 /// @title VaultV2Migrate
@@ -116,13 +114,6 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
         delegator = DelegatorFactory(DELEGATOR_FACTORY)
             .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
         UniversalDelegator(delegator).migrate(oldDelegator);
-        UniversalDelegator(delegator)
-            .createSlot(
-                bytes32(0),
-                0,
-                oldDelegatorType < OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE,
-                uint128(Math.min(VaultV2(address(this)).allocatable(), type(uint128).max))
-            );
         if (oldDelegatorType == OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE) {
             // If previous delegator is OperatorNetworkSpecificDelegator, specific migration is needed.
             bytes32 subnetwork = IOperatorNetworkSpecificDelegator(oldDelegator).network()
@@ -131,13 +122,11 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
             if (oldMaxNetworkLimit == 0) {
                 revert IUniversalDelegator.NotEnoughBalance();
             }
-            uint96 networkIndex =
-                UniversalDelegator(delegator).createSlot(subnetwork, MIGRATE_SUBVAULT_INDEX, false, type(uint128).max);
+            uint64 networkIndex = UniversalDelegator(delegator).createSlot(subnetwork, 0, type(uint128).max);
             UniversalDelegator(delegator)
                 .createSlot(
                     bytes32(bytes20(IOperatorNetworkSpecificDelegator(oldDelegator).operator())),
                     networkIndex,
-                    false,
                     type(uint128).max
                 );
         }

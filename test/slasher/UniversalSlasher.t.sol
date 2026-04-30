@@ -465,8 +465,6 @@ contract MockNetworkMiddlewareService {
 contract MockUniversalDelegator {
     uint256 public stakeForValue;
     uint256 public stakeAtValue;
-    uint256 public onSlashReturnValue;
-    bool public useExplicitOnSlashReturnValue;
 
     bytes32 public lastSlashSubnetwork;
     address public lastSlashOperator;
@@ -485,11 +483,6 @@ contract MockUniversalDelegator {
         stakeAtValue = value;
     }
 
-    function setOnSlashReturnValue(uint256 value) external {
-        onSlashReturnValue = value;
-        useExplicitOnSlashReturnValue = true;
-    }
-
     function stakeFor(bytes32, address, uint48) external view returns (uint256) {
         return stakeForValue;
     }
@@ -502,20 +495,18 @@ contract MockUniversalDelegator {
         return stakeAtValue;
     }
 
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256) {
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount) external {
         lastSlashSubnetwork = subnetwork;
         lastSlashOperator = operator;
         lastSlashAmount = amount;
         ++onSlashCalls;
-        return useExplicitOnSlashReturnValue ? onSlashReturnValue : amount;
     }
 
-    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) external returns (uint256) {
+    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) external {
         lastLegacySlashSubnetwork = subnetwork;
         lastLegacySlashOperator = operator;
         lastLegacySlashAmount = amount;
         ++onSlashLegacyCalls;
-        return amount;
     }
 }
 
@@ -1381,17 +1372,16 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(vault.lastSyncOwedAmount(), 11);
     }
 
-    function test_executeSlash_doesNotBookSharedGuaranteeGapAsOwed() public {
+    function test_executeSlash_usesRequestedAmountAfterDelegatorHook() public {
         delegator.setStakeForValue(10);
-        delegator.setOnSlashReturnValue(0);
         _pushRequest(10, uint48(block.timestamp), 0, resolver1, false);
 
         vm.prank(middleware);
-        assertEq(slasher.executeSlash(0, ""), 0);
+        assertEq(slasher.executeSlash(0, ""), 10);
 
         assertEq(delegator.onSlashCalls(), 1);
         assertEq(delegator.lastSlashAmount(), 10);
-        assertEq(vault.lastOnSlashAmount(), 0);
+        assertEq(vault.lastOnSlashAmount(), 10);
         assertEq(slasher.owed(subnetwork, operator), 0);
     }
 
@@ -1443,26 +1433,23 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     function testFuzz_executeSlash_uncheckedBurnerSubtractionIsSafe(
         uint256 slashableStake,
         uint256 requestedAmount,
-        uint256 delegatedSlashAmount,
         uint256 owedAmount
     ) public {
         slashableStake = bound(slashableStake, 1, SUPPLY_CAP);
         requestedAmount = bound(requestedAmount, 1, slashableStake);
-        delegatedSlashAmount = bound(delegatedSlashAmount, 0, requestedAmount);
-        owedAmount = bound(owedAmount, 0, delegatedSlashAmount);
+        owedAmount = bound(owedAmount, 0, requestedAmount);
 
         slasher.setIsBurnerHookRaw(true);
         delegator.setStakeForValue(slashableStake);
-        delegator.setOnSlashReturnValue(delegatedSlashAmount);
         vault.setOnSlashResult(true, 0, owedAmount);
         _pushRequest(requestedAmount, uint48(block.timestamp), 0, resolver1, false);
 
         vm.prank(middleware);
         uint256 slashedAmount = slasher.executeSlash(0, "");
 
-        assertEq(slashedAmount, delegatedSlashAmount);
-        assertEq(vault.lastOnSlashAmount(), delegatedSlashAmount);
-        assertEq(burner.lastAmount(), delegatedSlashAmount - owedAmount);
+        assertEq(slashedAmount, requestedAmount);
+        assertEq(vault.lastOnSlashAmount(), requestedAmount);
+        assertEq(burner.lastAmount(), requestedAmount - owedAmount);
         assertEq(slasher.totalOwed(), owedAmount);
         assertEq(slasher.owed(subnetwork, operator), owedAmount);
     }
@@ -1470,21 +1457,18 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     function testFuzz_executeSlash_burnerReentrantSyncOwedSlashAttempt_rollsBackUnderBurnerGasCap(
         uint256 slashableStake,
         uint256 requestedAmount,
-        uint256 delegatedSlashAmount,
         uint256 owedAmount,
         uint256 syncedAmount
     ) public {
         slashableStake = bound(slashableStake, 1, SUPPLY_CAP);
         requestedAmount = bound(requestedAmount, 1, slashableStake);
-        delegatedSlashAmount = bound(delegatedSlashAmount, 1, requestedAmount);
-        owedAmount = bound(owedAmount, 0, delegatedSlashAmount);
+        owedAmount = bound(owedAmount, 0, requestedAmount);
         syncedAmount = bound(syncedAmount, 0, owedAmount);
 
         MockGasCappedReentrantBurner reentrantBurner = new MockGasCappedReentrantBurner();
         vault.setBurner(address(reentrantBurner));
         slasher.setIsBurnerHookRaw(true);
         delegator.setStakeForValue(slashableStake);
-        delegator.setOnSlashReturnValue(delegatedSlashAmount);
         vault.setOnSlashResult(true, 0, owedAmount);
         vault.setSyncOwedReturn(syncedAmount);
 
@@ -1496,10 +1480,10 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         vm.prank(middleware);
         uint256 slashedAmount = slasher.executeSlash(0, "");
 
-        assertEq(slashedAmount, delegatedSlashAmount);
+        assertEq(slashedAmount, requestedAmount);
         assertEq(reentrantBurner.calls(), 1);
         assertEq(reentrantBurner.reentryCalls(), 1);
-        assertEq(reentrantBurner.lastAmount(), delegatedSlashAmount - owedAmount);
+        assertEq(reentrantBurner.lastAmount(), requestedAmount - owedAmount);
         assertFalse(reentrantBurner.lastCallSuccess());
         assertEq(vault.lastSyncOwedAmount(), 0);
         assertEq(slasher.owed(subnetwork, operator), owedAmount);

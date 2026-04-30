@@ -592,13 +592,11 @@ contract VaultV2SolvencyHandler is Test {
         _rememberDepositor(bootstrapDepositor);
 
         uint128 slotSize = 100 ether;
-        uint96 primarySubvault = delegator.createSlot(bytes32("primary-subvault"), 0, false, slotSize);
-        uint96 primaryNetworkSlot = delegator.createSlot(primarySubnetwork, primarySubvault, false, slotSize);
-        delegator.createSlot(bytes32(bytes20(operator)), primaryNetworkSlot, false, slotSize);
+        uint64 primaryNetworkSlot = delegator.createSlot(primarySubnetwork, 0, slotSize);
+        delegator.createSlot(bytes32(bytes20(operator)), primaryNetworkSlot, slotSize);
 
-        uint96 adapterSubvault = delegator.createSlot(bytes32("adapter-subvault"), 0, false, slotSize);
-        uint96 adapterNetworkSlot = delegator.createSlot(adapterSubnetwork, adapterSubvault, false, slotSize);
-        delegator.createSlot(bytes32(bytes20(operator)), adapterNetworkSlot, false, slotSize);
+        uint64 adapterNetworkSlot = delegator.createSlot(adapterSubnetwork, 0, slotSize);
+        delegator.createSlot(bytes32(bytes20(operator)), adapterNetworkSlot, slotSize);
 
         adapter = new MockAdapter(address(vault), address(collateral));
         adapterRegistry.whitelistAdapter(address(adapter));

@@ -137,8 +137,7 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
     }
 
     function _networkAllocations() internal view returns (NetworkAllocation[] memory networkAllocations) {
-        // The migrated subvault is created automatically during `VaultFactory.migrate`.
-        // Fill the absolute network/operator allocations you want to recreate under that migrated subvault.
+        // Fill the absolute network/operator allocations you want to recreate after migration.
         // Existing network/operator allocations can be copied from:
         // https://app.symbiotic.fi/vault/<vault address>
         //

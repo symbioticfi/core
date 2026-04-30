@@ -5,7 +5,7 @@ import "./base/RemoveSlotBase.s.sol";
 
 contract RemoveSlotScript is RemoveSlotBaseScript {
     address constant DELEGATOR = 0x0000000000000000000000000000000000000000;
-    uint96 constant INDEX = 0;
+    uint64 constant INDEX = 0;
 
     function run() public {
         runBase(DELEGATOR, INDEX);

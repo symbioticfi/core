@@ -20,21 +20,19 @@ import {
 import {UniversalDelegatorIndex} from "../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 
 contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV2StakeForInvariantHelper {
-    using UniversalDelegatorIndex for uint96;
+    using UniversalDelegatorIndex for uint64;
 
     uint256 internal constant SLOT_MAPPING_SLOT = 1;
     uint256 internal constant SLOT_TRACE_SIZE_OFFSET = 1;
     uint256 internal constant SLOT_TRACE_NEXT_SLOT_OFFSET = 2;
     uint256 internal constant SLOT_TRACE_LAST_CHILD_OFFSET = 3;
     uint256 internal constant SLOT_TRACE_FIRST_CHILD_OFFSET = 4;
-    uint256 internal constant SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET = 7;
 
     struct CurrentParentState {
         uint208 expectedPrevSize;
         uint32 childIndex;
         uint32 lastSeenChild;
         uint256 visited;
-        bool sharedParent;
     }
 
     UniversalDelegatorArithmeticHandler internal handler;
@@ -60,33 +58,10 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         targetContract(address(handler));
     }
 
-    function invariant_CurrentSharedSizeCursorsNeverExceedCumulative() public view {
-        UniversalDelegatorArithmeticHarness delegator = handler.delegator();
-        uint48 epochDuration = handler.vault().epochDuration();
-        uint96[] memory trackedSlots = handler.getTrackedSlots();
-
-        for (uint256 i; i < trackedSlots.length; ++i) {
-            uint96 slot = trackedSlots[i];
-            if (!delegator.getSlot(slot).exists) {
-                continue;
-            }
-
-            if (slot.getDepth() == 2) {
-                uint96 parent = slot.getParentIndex();
-                if (delegator.getSlot(parent).exists && delegator.getSlot(parent).isShared) {
-                    assertLe(
-                        _sharedSizeCursor(delegator, slot, epochDuration),
-                        _slotSharedSizeConsumedCumulativeLatest(delegator, parent)
-                    );
-                }
-            }
-        }
-    }
-
     function invariant_RootStakeForSumsStayWithinVaultCapacity() public view {
         UniversalDelegatorArithmeticHarness delegator = handler.delegator();
         IVaultV2 vault = handler.vault();
-        uint96[] memory liveRoots = _liveTracked(handler.getTrackedRootSlots(), delegator);
+        uint64[] memory liveRoots = _liveTracked(handler.getTrackedRootSlots(), delegator);
 
         _assertStakeForInvariantForDurations(address(vault), address(delegator), liveRoots, vault.epochDuration());
     }
@@ -95,8 +70,8 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         UniversalDelegatorArithmeticHarness delegator = handler.delegator();
         IVaultV2 vault = handler.vault();
         uint48 epochDuration = vault.epochDuration();
-        uint96[] memory roots = handler.getTrackedRootSlots();
-        uint96[] memory networks = handler.getTrackedNetworkSlots();
+        uint64[] memory roots = handler.getTrackedRootSlots();
+        uint64[] memory networks = handler.getTrackedNetworkSlots();
         _assertCurrentFilledMatchesTrackedChildren(delegator, 0, epochDuration);
 
         for (uint256 i; i < roots.length; ++i) {
@@ -116,47 +91,46 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
 
     function invariant_CurrentParentPrefixSumsAndLinkedListsStayConsistent() public view {
         UniversalDelegatorArithmeticHarness delegator = handler.delegator();
-        uint48 epochDuration = handler.vault().epochDuration();
-        uint96[] memory roots = handler.getTrackedRootSlots();
-        uint96[] memory networks = handler.getTrackedNetworkSlots();
+        uint64[] memory roots = handler.getTrackedRootSlots();
+        uint64[] memory networks = handler.getTrackedNetworkSlots();
 
-        _assertCurrentParentState(delegator, 0, epochDuration);
+        _assertCurrentParentState(delegator, 0);
 
         for (uint256 i; i < roots.length; ++i) {
             if (!delegator.getSlot(roots[i]).exists) {
                 continue;
             }
-            _assertCurrentParentState(delegator, roots[i], epochDuration);
+            _assertCurrentParentState(delegator, roots[i]);
         }
 
         for (uint256 i; i < networks.length; ++i) {
             if (!delegator.getSlot(networks[i]).exists) {
                 continue;
             }
-            _assertCurrentParentState(delegator, networks[i], epochDuration);
+            _assertCurrentParentState(delegator, networks[i]);
         }
     }
 
-    function invariant_NonSharedParentsNeverOverfillCapacity() public view {
+    function invariant_ParentsNeverOverfillCapacity() public view {
         UniversalDelegatorArithmeticHarness delegator = handler.delegator();
         IVaultV2 vault = handler.vault();
         uint48 epochDuration = vault.epochDuration();
-        uint96[] memory roots = handler.getTrackedRootSlots();
-        uint96[] memory networks = handler.getTrackedNetworkSlots();
-        _assertNonSharedParentCapacity(delegator, 0, epochDuration);
+        uint64[] memory roots = handler.getTrackedRootSlots();
+        uint64[] memory networks = handler.getTrackedNetworkSlots();
+        _assertParentCapacity(delegator, 0, epochDuration);
 
         for (uint256 i; i < roots.length; ++i) {
             if (!delegator.getSlot(roots[i]).exists) {
                 continue;
             }
-            _assertNonSharedParentCapacity(delegator, roots[i], epochDuration);
+            _assertParentCapacity(delegator, roots[i], epochDuration);
         }
 
         for (uint256 i; i < networks.length; ++i) {
             if (!delegator.getSlot(networks[i]).exists) {
                 continue;
             }
-            _assertNonSharedParentCapacity(delegator, networks[i], epochDuration);
+            _assertParentCapacity(delegator, networks[i], epochDuration);
         }
     }
 
@@ -165,9 +139,9 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         IVaultV2 vault = handler.vault();
         uint48 epochDuration = vault.epochDuration();
         uint48[] memory timestamps = _sampledTimestamps();
-        uint96[] memory roots = handler.getTrackedRootSlots();
-        uint96[] memory networks = handler.getTrackedNetworkSlots();
-        uint96[] memory allSlots = handler.getTrackedSlots();
+        uint64[] memory roots = handler.getTrackedRootSlots();
+        uint64[] memory networks = handler.getTrackedNetworkSlots();
+        uint64[] memory allSlots = handler.getTrackedSlots();
 
         for (uint256 i; i < timestamps.length; ++i) {
             uint48 timestamp = timestamps[i];
@@ -182,7 +156,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             }
 
             for (uint256 j; j < allSlots.length; ++j) {
-                uint96 slot = allSlots[j];
+                uint64 slot = allSlots[j];
                 _assertHistoricalAllocationBounds(delegator, slot, epochDuration, timestamp);
             }
         }
@@ -190,7 +164,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
 
     function _assertCurrentFilledMatchesTrackedChildren(
         UniversalDelegatorArithmeticHarness delegator,
-        uint96 parent,
+        uint64 parent,
         uint48 epochDuration
     ) internal view {
         for (uint256 i; i < 3; ++i) {
@@ -201,7 +175,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
 
     function _assertHistoricalFilledMatchesTrackedChildren(
         UniversalDelegatorArithmeticHarness delegator,
-        uint96 parent,
+        uint64 parent,
         uint48 epochDuration,
         uint48 timestamp
     ) internal view {
@@ -210,56 +184,41 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             uint256 filledAt = delegator.getFilledAt(parent, duration, timestamp);
             uint256 summed = _sumHistoricalChildAllocations(delegator, parent, duration, timestamp);
             assertEq(filledAt, summed);
-
-            if (!_isSharedParent(delegator, parent)) {
-                assertLe(filledAt, delegator.getBalanceAt(parent, duration, timestamp));
-            }
+            assertLe(filledAt, delegator.getBalanceAt(parent, duration, timestamp));
         }
     }
 
     function _assertHistoricalAllocationBounds(
         UniversalDelegatorArithmeticHarness delegator,
-        uint96 slot,
+        uint64 slot,
         uint48 epochDuration,
         uint48 timestamp
     ) internal view {
         for (uint256 i; i < 3; ++i) {
             uint48 duration = _durationAt(i, epochDuration);
             if (slot > 0) {
+                uint48 horizon = timestamp + duration;
                 assertLe(
                     delegator.getAllocatedAt(slot, duration, timestamp),
                     delegator.getBalanceAt(slot.getParentIndex(), duration, timestamp)
                 );
                 assertLe(
-                    delegator.getAllocatedAt(slot, duration, timestamp),
-                    uint256(_slotSizeAt(delegator, slot, timestamp))
+                    delegator.getAllocatedAt(slot, duration, timestamp), uint256(_slotSizeAt(delegator, slot, horizon))
                 );
             }
         }
     }
 
-    function _assertCurrentParentState(
-        UniversalDelegatorArithmeticHarness delegator,
-        uint96 parent,
-        uint48 epochDuration
-    ) internal view {
+    function _assertCurrentParentState(UniversalDelegatorArithmeticHarness delegator, uint64 parent) internal view {
         IUniversalDelegator.Slot memory parentSlot = delegator.getSlot(parent);
-        uint48 halfDuration = epochDuration / 2;
-        uint48 maxDuration = epochDuration - 1;
-        CurrentParentState memory state = CurrentParentState({
-            expectedPrevSize: 0,
-            childIndex: parentSlot.firstChild,
-            lastSeenChild: 0,
-            visited: 0,
-            sharedParent: _isSharedParent(delegator, parent)
-        });
+        CurrentParentState memory state =
+            CurrentParentState({expectedPrevSize: 0, childIndex: parentSlot.firstChild, lastSeenChild: 0, visited: 0});
         assertEq(parentSlot.firstChild, _slotFirstChildAt(delegator, parent, uint48(block.timestamp)));
         assertEq(parentSlot.lastChild, _slotLastChildAt(delegator, parent, uint48(block.timestamp)));
-        uint32[] memory seenChildIndexes =
-            new uint32[](parent == 0 ? 1 + handler.getTrackedRootSlots().length : parent.getDepth() == 1 ? 32 : 32);
+        uint32[] memory seenChildIndexes = new uint32[](handler.getTrackedSlots().length + 1);
 
         while (state.childIndex > 0 && state.childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
-            uint96 child = parent.createIndex(state.childIndex);
+            uint64 child = parent.createIndex(state.childIndex);
             IUniversalDelegator.Slot memory childSlot = delegator.getSlot(child);
 
             assertTrue(childSlot.exists);
@@ -271,11 +230,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             }
             seenChildIndexes[state.visited] = state.childIndex;
 
-            if (state.sharedParent) {
-                _assertSharedParentPrefixState(delegator, child, childSlot, epochDuration, halfDuration, maxDuration);
-            } else {
-                _assertNonSharedParentPrefixState(delegator, child, childSlot, state.expectedPrevSize);
-            }
+            _assertParentPrefixState(childSlot, state.expectedPrevSize);
 
             state.expectedPrevSize += uint208(childSlot.size);
             state.lastSeenChild = state.childIndex;
@@ -294,42 +249,24 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         assertEq(parentSlot.lastChild, state.lastSeenChild);
     }
 
-    function _assertSharedParentPrefixState(
-        UniversalDelegatorArithmeticHarness delegator,
-        uint96 child,
-        IUniversalDelegator.Slot memory childSlot,
-        uint48 epochDuration,
-        uint48 halfDuration,
-        uint48 maxDuration
-    ) internal view {
-        assertEq(childSlot.prevSizeSum, 0);
-    }
-
-    function _assertNonSharedParentPrefixState(
-        UniversalDelegatorArithmeticHarness delegator,
-        uint96 child,
-        IUniversalDelegator.Slot memory childSlot,
-        uint208 expectedPrevSize
-    ) internal view {
+    function _assertParentPrefixState(IUniversalDelegator.Slot memory childSlot, uint208 expectedPrevSize)
+        internal
+        view
+    {
         assertEq(childSlot.prevSizeSum, expectedPrevSize);
     }
 
-    function _assertNonSharedParentCapacity(
-        UniversalDelegatorArithmeticHarness delegator,
-        uint96 parent,
-        uint48 epochDuration
-    ) internal view {
-        if (_isSharedParent(delegator, parent)) {
-            return;
-        }
-
+    function _assertParentCapacity(UniversalDelegatorArithmeticHarness delegator, uint64 parent, uint48 epochDuration)
+        internal
+        view
+    {
         for (uint256 i; i < 3; ++i) {
             uint48 duration = _durationAt(i, epochDuration);
             assertLe(_sumCurrentChildAllocations(delegator, parent, duration), delegator.getBalance(parent, duration));
         }
     }
 
-    function _sumCurrentChildAllocations(UniversalDelegatorArithmeticHarness delegator, uint96 parent, uint48 duration)
+    function _sumCurrentChildAllocations(UniversalDelegatorArithmeticHarness delegator, uint64 parent, uint48 duration)
         internal
         view
         returns (uint256 total)
@@ -340,7 +277,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         for (uint256 visited; childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX; ++visited) {
             assertLt(visited, maxChildren);
 
-            uint96 child = parent.createIndex(childIndex);
+            uint64 child = parent.createIndex(childIndex);
             total += delegator.getAllocated(child, duration);
             childIndex = delegator.getSlot(child).nextSlot;
         }
@@ -348,7 +285,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
 
     function _sumHistoricalChildAllocations(
         UniversalDelegatorArithmeticHarness delegator,
-        uint96 parent,
+        uint64 parent,
         uint48 duration,
         uint48 timestamp
     ) internal view returns (uint256 total) {
@@ -358,17 +295,17 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         for (uint256 visited; childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX; ++visited) {
             assertLt(visited, maxChildren);
 
-            uint96 child = parent.createIndex(childIndex);
+            uint64 child = parent.createIndex(childIndex);
             total += delegator.getAllocatedAt(child, duration, timestamp);
             childIndex = _slotNextSlotAt(delegator, child, timestamp);
         }
     }
 
-    function _slotStorageBase(uint96 index) internal pure returns (uint256) {
+    function _slotStorageBase(uint64 index) internal pure returns (uint256) {
         return uint256(keccak256(abi.encode(index, uint256(SLOT_MAPPING_SLOT))));
     }
 
-    function _slotTraceSlot(uint96 index, uint256 offset) internal pure returns (uint256) {
+    function _slotTraceSlot(uint64 index, uint256 offset) internal pure returns (uint256) {
         return _slotStorageBase(index) + offset;
     }
 
@@ -454,15 +391,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         return (true, key, value);
     }
 
-    function _slotSharedSizeConsumedCumulativeLatest(UniversalDelegatorArithmeticHarness delegator, uint96 index)
-        internal
-        view
-        returns (uint208)
-    {
-        return _traceLatest(address(delegator), _slotTraceSlot(index, SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET));
-    }
-
-    function _slotSizeAt(UniversalDelegatorArithmeticHarness delegator, uint96 index, uint48 timestamp)
+    function _slotSizeAt(UniversalDelegatorArithmeticHarness delegator, uint64 index, uint48 timestamp)
         internal
         view
         returns (uint208)
@@ -470,7 +399,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         return _traceUpperLookupRecent(address(delegator), _slotTraceSlot(index, SLOT_TRACE_SIZE_OFFSET), timestamp);
     }
 
-    function _slotFirstChildAt(UniversalDelegatorArithmeticHarness delegator, uint96 index, uint48 timestamp)
+    function _slotFirstChildAt(UniversalDelegatorArithmeticHarness delegator, uint64 index, uint48 timestamp)
         internal
         view
         returns (uint32)
@@ -480,7 +409,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         );
     }
 
-    function _slotLastChildAt(UniversalDelegatorArithmeticHarness delegator, uint96 index, uint48 timestamp)
+    function _slotLastChildAt(UniversalDelegatorArithmeticHarness delegator, uint64 index, uint48 timestamp)
         internal
         view
         returns (uint32)
@@ -490,7 +419,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         );
     }
 
-    function _slotNextSlotAt(UniversalDelegatorArithmeticHarness delegator, uint96 index, uint48 timestamp)
+    function _slotNextSlotAt(UniversalDelegatorArithmeticHarness delegator, uint64 index, uint48 timestamp)
         internal
         view
         returns (uint32)
@@ -500,43 +429,12 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         );
     }
 
-    function _cursor(uint208 baseValue, uint208 cursorValue) internal pure returns (uint208) {
-        return baseValue > cursorValue ? baseValue : cursorValue;
-    }
-
-    function _cursorForCurrentWindow(
-        address target,
-        uint256 baseTraceSlot,
-        uint256 cursorTraceSlot,
-        uint48 epochDuration
-    ) internal view returns (uint208) {
-        uint48 fromTimestamp = uint48(block.timestamp > epochDuration ? block.timestamp - epochDuration : 0);
-        return
-            _cursor(
-                _traceUpperLookupRecent(target, baseTraceSlot, fromTimestamp), _traceLatest(target, cursorTraceSlot)
-            );
-    }
-
-    function _sharedSizeCursor(UniversalDelegatorArithmeticHarness delegator, uint96 networkIndex, uint48 epochDuration)
+    function _liveTracked(uint64[] memory tracked, UniversalDelegatorArithmeticHarness delegator)
         internal
         view
-        returns (uint208)
+        returns (uint64[] memory liveTracked)
     {
-        uint96 parent = networkIndex.getParentIndex();
-        return _cursorForCurrentWindow(
-            address(delegator),
-            _slotTraceSlot(parent, SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET),
-            _slotTraceSlot(networkIndex, SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET),
-            epochDuration
-        );
-    }
-
-    function _liveTracked(uint96[] memory tracked, UniversalDelegatorArithmeticHarness delegator)
-        internal
-        view
-        returns (uint96[] memory liveTracked)
-    {
-        uint96[] memory scratch = new uint96[](tracked.length);
+        uint64[] memory scratch = new uint64[](tracked.length);
         uint256 count;
         for (uint256 i; i < tracked.length; ++i) {
             if (!delegator.getSlot(tracked[i]).exists) {
@@ -545,7 +443,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             scratch[count++] = tracked[i];
         }
 
-        liveTracked = new uint96[](count);
+        liveTracked = new uint64[](count);
         for (uint256 i; i < count; ++i) {
             liveTracked[i] = scratch[i];
         }
@@ -560,14 +458,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         for (uint256 i; i < tracked.length; ++i) {
             timestamps[i + 3] = tracked[i];
         }
-    }
-
-    function _isSharedParent(UniversalDelegatorArithmeticHarness delegator, uint96 parent)
-        internal
-        view
-        returns (bool)
-    {
-        return parent.getDepth() == 1 && delegator.getSlot(parent).isShared;
     }
 
     function _durationAt(uint256 index, uint48 epochDuration) internal pure returns (uint48) {

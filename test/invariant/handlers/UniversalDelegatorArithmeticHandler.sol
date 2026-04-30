@@ -33,7 +33,6 @@ import {
     IUniversalDelegator,
     MAX_NETWORKS,
     MAX_OPERATORS,
-    MAX_SUBVAULTS,
     WITHDRAWAL_BUFFER_CHILD_INDEX
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
@@ -55,7 +54,7 @@ contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
 contract UniversalDelegatorArithmeticHandler is Test {
     using Subnetwork for address;
     using Subnetwork for bytes32;
-    using UniversalDelegatorIndex for uint96;
+    using UniversalDelegatorIndex for uint64;
 
     uint256 internal constant MAX_ACTION_AMOUNT = 1_000_000 ether;
     uint256 internal constant MAX_SLOT_SIZE = 250_000 ether;
@@ -78,13 +77,13 @@ contract UniversalDelegatorArithmeticHandler is Test {
     UniversalDelegatorArithmeticHarness public delegator;
     IUniversalSlasher public slasher;
 
-    uint96[] internal trackedRootSlots;
-    uint96[] internal trackedNetworkSlots;
-    uint96[] internal trackedOperatorSlots;
+    uint64[] internal trackedRootSlots;
+    uint64[] internal trackedNetworkSlots;
+    uint64[] internal trackedOperatorSlots;
     uint48[] internal trackedTimestamps;
 
     mapping(bytes32 subnetwork => address middleware) internal middlewareOf;
-    mapping(uint96 operatorSlot => address operator) internal operatorOfSlot;
+    mapping(uint64 operatorSlot => address operator) internal operatorOfSlot;
     mapping(address account => bool knownDepositor) internal isKnownDepositor;
     address[] internal depositors;
 
@@ -96,20 +95,20 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _initialize();
     }
 
-    function getTrackedRootSlots() external view returns (uint96[] memory) {
+    function getTrackedRootSlots() external view returns (uint64[] memory) {
         return trackedRootSlots;
     }
 
-    function getTrackedNetworkSlots() external view returns (uint96[] memory) {
+    function getTrackedNetworkSlots() external view returns (uint64[] memory) {
         return trackedNetworkSlots;
     }
 
-    function getTrackedOperatorSlots() external view returns (uint96[] memory) {
+    function getTrackedOperatorSlots() external view returns (uint64[] memory) {
         return trackedOperatorSlots;
     }
 
-    function getTrackedSlots() external view returns (uint96[] memory slots_) {
-        slots_ = new uint96[](trackedRootSlots.length + trackedNetworkSlots.length + trackedOperatorSlots.length);
+    function getTrackedSlots() external view returns (uint64[] memory slots_) {
+        slots_ = new uint64[](trackedRootSlots.length + trackedNetworkSlots.length + trackedOperatorSlots.length);
 
         uint256 cursor;
         for (uint256 i; i < trackedRootSlots.length; ++i) {
@@ -175,17 +174,18 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _recordTimestamp();
     }
 
-    function createRootSlot(uint256 sizeSeed, uint256 flagsSeed, uint256 timeJumpSeed) external {
+    function createRootSlot(uint256 sizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        bytes32 slotKey = bytes32(uint256(trackedRootSlots.length + 1));
-        bool isShared = flagsSeed & 1 == 1;
+        (,, bytes32 slotKey) = _prepareFreshSubnetwork();
         uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
         (bool success, bytes memory returnData) =
-            address(delegator).call(abi.encodeCall(delegator.createSlot, (slotKey, 0, isShared, size)));
+            address(delegator).call(abi.encodeCall(delegator.createSlot, (slotKey, 0, size)));
         if (success) {
-            trackedRootSlots.push(abi.decode(returnData, (uint96)));
+            uint64 slot = abi.decode(returnData, (uint64));
+            trackedRootSlots.push(slot);
+            trackedNetworkSlots.push(slot);
         }
 
         _recordTimestamp();
@@ -196,7 +196,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         (address network,,) = _prepareFreshSubnetwork();
         vm.prank(network);
-        address(delegator).call(abi.encodeCall(delegator.setMaxNetworkLimit, (uint96(0), type(uint256).max)));
+        address(delegator).call(abi.encodeCall(delegator.setMaxNetworkLimit, (uint64(0), type(uint256).max)));
 
         _recordTimestamp();
     }
@@ -204,19 +204,15 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function createNetworkSlot(uint256 rootSeed, uint256 sizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 rootSlot = _selectLiveSlot(trackedRootSlots, rootSeed);
-        if (rootSlot == 0) {
-            _recordTimestamp();
-            return;
-        }
-
         (,, bytes32 subnetwork) = _prepareFreshSubnetwork();
         uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
         (bool success, bytes memory returnData) =
-            address(delegator).call(abi.encodeCall(delegator.createSlot, (subnetwork, rootSlot, false, size)));
+            address(delegator).call(abi.encodeCall(delegator.createSlot, (subnetwork, 0, size)));
         if (success) {
-            trackedNetworkSlots.push(abi.decode(returnData, (uint96)));
+            uint64 slot = abi.decode(returnData, (uint64));
+            trackedRootSlots.push(slot);
+            trackedNetworkSlots.push(slot);
         }
 
         _recordTimestamp();
@@ -225,7 +221,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function createOperatorSlot(uint256 networkSeed, uint256 sizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 networkSlot = _selectLiveSlot(trackedNetworkSlots, networkSeed);
+        uint64 networkSlot = _selectLiveSlot(trackedNetworkSlots, networkSeed);
         if (networkSlot == 0) {
             _recordTimestamp();
             return;
@@ -236,9 +232,9 @@ contract UniversalDelegatorArithmeticHandler is Test {
         uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
         (bool success, bytes memory returnData) = address(delegator)
-            .call(abi.encodeCall(delegator.createSlot, (bytes32(bytes20(operator)), networkSlot, false, size)));
+            .call(abi.encodeCall(delegator.createSlot, (bytes32(bytes20(operator)), networkSlot, size)));
         if (success) {
-            uint96 operatorSlot = abi.decode(returnData, (uint96));
+            uint64 operatorSlot = abi.decode(returnData, (uint64));
             trackedOperatorSlots.push(operatorSlot);
             operatorOfSlot[operatorSlot] = operator;
         }
@@ -249,7 +245,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function setSize(uint256 slotSeed, uint256 newSizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 slot = _selectLiveAnySlot(slotSeed);
+        uint64 slot = _selectLiveAnySlot(slotSeed);
         if (slot == 0) {
             _recordTimestamp();
             return;
@@ -264,13 +260,13 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function swapSlots(uint256 parentSeed, uint256 leftSeed, uint256 rightSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 parent = _selectParentWithAtLeastTwoChildren(parentSeed);
-        if (parent == type(uint96).max) {
+        uint64 parent = _selectParentWithAtLeastTwoChildren(parentSeed);
+        if (parent == type(uint64).max) {
             _recordTimestamp();
             return;
         }
 
-        uint96[] memory siblings = _liveChildrenOf(parent);
+        uint64[] memory siblings = _liveChildrenOf(parent);
         if (siblings.length < 2) {
             _recordTimestamp();
             return;
@@ -282,8 +278,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
             rightIndex = (rightIndex + 1) % siblings.length;
         }
 
-        uint96 left = siblings[leftIndex];
-        uint96 right = siblings[rightIndex];
+        uint64 left = siblings[leftIndex];
+        uint64 right = siblings[rightIndex];
         if (left.getChildIndex() > right.getChildIndex()) {
             (left, right) = (right, left);
         }
@@ -296,7 +292,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function removeSlot(uint256 slotSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 slot = _selectRemovableLiveSlot(slotSeed);
+        uint64 slot = _selectRemovableLiveSlot(slotSeed);
         if (slot == 0) {
             _recordTimestamp();
             return;
@@ -310,7 +306,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function resetAllocation(uint256 networkSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 networkSlot = _selectLiveSlot(trackedNetworkSlots, networkSeed);
+        uint64 networkSlot = _selectLiveSlot(trackedNetworkSlots, networkSeed);
         if (networkSlot == 0) {
             _recordTimestamp();
             return;
@@ -332,7 +328,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function slash(uint256 operatorSeed, uint256 amountSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint96 operatorSlot = _selectLiveSlot(trackedOperatorSlots, operatorSeed);
+        uint64 operatorSlot = _selectLiveSlot(trackedOperatorSlots, operatorSeed);
         if (operatorSlot == 0) {
             _recordTimestamp();
             return;
@@ -569,40 +565,39 @@ contract UniversalDelegatorArithmeticHandler is Test {
     }
 
     function _bootstrapMixedTopology() internal {
-        (,, bytes32 sharedSubnetwork1) = _prepareFreshSubnetwork();
-        (,, bytes32 sharedSubnetwork2) = _prepareFreshSubnetwork();
-        address sharedOperator1 = _prepareFreshOperator(sharedSubnetwork1);
-        address sharedOperator2 = _prepareFreshOperator(sharedSubnetwork2);
+        (,, bytes32 primarySubnetwork1) = _prepareFreshSubnetwork();
+        (,, bytes32 primarySubnetwork2) = _prepareFreshSubnetwork();
+        address primaryOperator1 = _prepareFreshOperator(primarySubnetwork1);
+        address primaryOperator2 = _prepareFreshOperator(primarySubnetwork2);
 
-        uint96 sharedRoot = delegator.createSlot(bytes32("bootstrap-shared-root"), 0, true, uint128(220 ether));
-        trackedRootSlots.push(sharedRoot);
-        uint96 sharedNetwork1 = delegator.createSlot(sharedSubnetwork1, sharedRoot, false, uint128(220 ether));
-        uint96 sharedNetwork2 = delegator.createSlot(sharedSubnetwork2, sharedRoot, false, uint128(220 ether));
-        trackedNetworkSlots.push(sharedNetwork1);
-        trackedNetworkSlots.push(sharedNetwork2);
+        uint64 primaryNetwork1 = delegator.createSlot(primarySubnetwork1, 0, uint128(220 ether));
+        uint64 primaryNetwork2 = delegator.createSlot(primarySubnetwork2, 0, uint128(220 ether));
+        trackedRootSlots.push(primaryNetwork1);
+        trackedRootSlots.push(primaryNetwork2);
+        trackedNetworkSlots.push(primaryNetwork1);
+        trackedNetworkSlots.push(primaryNetwork2);
 
-        uint96 sharedOperatorSlot1 =
-            delegator.createSlot(bytes32(bytes20(sharedOperator1)), sharedNetwork1, false, uint128(150 ether));
-        uint96 sharedOperatorSlot2 =
-            delegator.createSlot(bytes32(bytes20(sharedOperator2)), sharedNetwork2, false, uint128(160 ether));
-        trackedOperatorSlots.push(sharedOperatorSlot1);
-        trackedOperatorSlots.push(sharedOperatorSlot2);
-        operatorOfSlot[sharedOperatorSlot1] = sharedOperator1;
-        operatorOfSlot[sharedOperatorSlot2] = sharedOperator2;
+        uint64 primaryOperatorSlot1 =
+            delegator.createSlot(bytes32(bytes20(primaryOperator1)), primaryNetwork1, uint128(150 ether));
+        uint64 primaryOperatorSlot2 =
+            delegator.createSlot(bytes32(bytes20(primaryOperator2)), primaryNetwork2, uint128(160 ether));
+        trackedOperatorSlots.push(primaryOperatorSlot1);
+        trackedOperatorSlots.push(primaryOperatorSlot2);
+        operatorOfSlot[primaryOperatorSlot1] = primaryOperator1;
+        operatorOfSlot[primaryOperatorSlot2] = primaryOperator2;
 
         (,, bytes32 isolatedSubnetwork) = _prepareFreshSubnetwork();
         address isolatedOperator1 = _prepareFreshOperator(isolatedSubnetwork);
         address isolatedOperator2 = _prepareFreshOperator(isolatedSubnetwork);
 
-        uint96 isolatedRoot = delegator.createSlot(bytes32("bootstrap-isolated-root"), 0, false, uint128(260 ether));
-        trackedRootSlots.push(isolatedRoot);
-        uint96 isolatedNetwork = delegator.createSlot(isolatedSubnetwork, isolatedRoot, false, uint128(260 ether));
+        uint64 isolatedNetwork = delegator.createSlot(isolatedSubnetwork, 0, uint128(260 ether));
+        trackedRootSlots.push(isolatedNetwork);
         trackedNetworkSlots.push(isolatedNetwork);
 
-        uint96 isolatedOperatorSlot1 =
-            delegator.createSlot(bytes32(bytes20(isolatedOperator1)), isolatedNetwork, false, uint128(130 ether));
-        uint96 isolatedOperatorSlot2 =
-            delegator.createSlot(bytes32(bytes20(isolatedOperator2)), isolatedNetwork, false, uint128(120 ether));
+        uint64 isolatedOperatorSlot1 =
+            delegator.createSlot(bytes32(bytes20(isolatedOperator1)), isolatedNetwork, uint128(130 ether));
+        uint64 isolatedOperatorSlot2 =
+            delegator.createSlot(bytes32(bytes20(isolatedOperator2)), isolatedNetwork, uint128(120 ether));
         trackedOperatorSlots.push(isolatedOperatorSlot1);
         trackedOperatorSlots.push(isolatedOperatorSlot2);
         operatorOfSlot[isolatedOperatorSlot1] = isolatedOperator1;
@@ -678,7 +673,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
         nextTimestampWriteIndex = (nextTimestampWriteIndex + 1) % MAX_TRACKED_TIMESTAMPS;
     }
 
-    function _selectLiveSlot(uint96[] storage trackedSlots, uint256 seed) internal view returns (uint96) {
+    function _selectLiveSlot(uint64[] storage trackedSlots, uint256 seed) internal view returns (uint64) {
         uint256 liveCount;
         for (uint256 i; i < trackedSlots.length; ++i) {
             if (delegator.getSlot(trackedSlots[i]).exists) {
@@ -691,7 +686,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         uint256 target = _bound(seed, 0, liveCount - 1);
         for (uint256 i; i < trackedSlots.length; ++i) {
-            uint96 slot = trackedSlots[i];
+            uint64 slot = trackedSlots[i];
             if (!delegator.getSlot(slot).exists) {
                 continue;
             }
@@ -704,8 +699,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
         return 0;
     }
 
-    function _selectLiveAnySlot(uint256 seed) internal view returns (uint96) {
-        uint96[] memory slots_ = this.getTrackedSlots();
+    function _selectLiveAnySlot(uint256 seed) internal view returns (uint64) {
+        uint64[] memory slots_ = this.getTrackedSlots();
         uint256 liveCount;
         for (uint256 i; i < slots_.length; ++i) {
             if (delegator.getSlot(slots_[i]).exists) {
@@ -729,8 +724,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
         return 0;
     }
 
-    function _selectRemovableLiveSlot(uint256 seed) internal view returns (uint96) {
-        uint96[] memory slots_ = this.getTrackedSlots();
+    function _selectRemovableLiveSlot(uint256 seed) internal view returns (uint64) {
+        uint64[] memory slots_ = this.getTrackedSlots();
         uint256 removableCount;
         for (uint256 i; i < slots_.length; ++i) {
             if (delegator.getSlot(slots_[i]).exists && delegator.getAllocated(slots_[i], 0) == 0) {
@@ -743,7 +738,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         uint256 target = _bound(seed, 0, removableCount - 1);
         for (uint256 i; i < slots_.length; ++i) {
-            uint96 slot = slots_[i];
+            uint64 slot = slots_[i];
             if (!delegator.getSlot(slot).exists || delegator.getAllocated(slot, 0) > 0) {
                 continue;
             }
@@ -755,8 +750,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
         return 0;
     }
 
-    function _selectParentWithAtLeastTwoChildren(uint256 seed) internal view returns (uint96) {
-        uint96[] memory parents = new uint96[](1 + trackedRootSlots.length + trackedNetworkSlots.length);
+    function _selectParentWithAtLeastTwoChildren(uint256 seed) internal view returns (uint64) {
+        uint64[] memory parents = new uint64[](1 + trackedRootSlots.length + trackedNetworkSlots.length);
         parents[0] = 0;
 
         uint256 cursor = 1;
@@ -778,7 +773,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
             }
         }
         if (eligibleCount == 0) {
-            return type(uint96).max;
+            return type(uint64).max;
         }
 
         uint256 target = _bound(seed, 0, eligibleCount - 1);
@@ -791,25 +786,24 @@ contract UniversalDelegatorArithmeticHandler is Test {
             }
             --target;
         }
-        return type(uint96).max;
+        return type(uint64).max;
     }
 
-    function _liveChildrenOf(uint96 parent) internal view returns (uint96[] memory children) {
+    function _liveChildrenOf(uint64 parent) internal view returns (uint64[] memory children) {
         IUniversalDelegator.Slot memory parentSlot = delegator.getSlot(parent);
-        uint96[] memory scratch =
-            new uint96[](parent == 0 ? MAX_SUBVAULTS : parent.getDepth() == 1 ? MAX_NETWORKS : MAX_OPERATORS);
+        uint64[] memory scratch = new uint64[](parent == 0 ? MAX_NETWORKS : MAX_OPERATORS);
         uint256 count;
         uint32 childIndex = parentSlot.firstChild;
 
         while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
-            uint96 child = parent.createIndex(childIndex);
+            uint64 child = parent.createIndex(childIndex);
             if (delegator.getSlot(child).exists) {
                 scratch[count++] = child;
             }
             childIndex = delegator.getSlot(child).nextSlot;
         }
 
-        children = new uint96[](count);
+        children = new uint64[](count);
         for (uint256 i; i < count; ++i) {
             children[i] = scratch[i];
         }

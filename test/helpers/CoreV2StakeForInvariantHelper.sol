@@ -4,16 +4,16 @@ pragma solidity ^0.8.25;
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
 
 interface IStakeForDelegator {
-    function getAllocated(uint96 index, uint48 duration) external view returns (uint256);
+    function getAllocated(uint64 index, uint48 duration) external view returns (uint256);
 }
 
 abstract contract CoreV2StakeForInvariantHelper {
     error StakeForSumExceedsCapacity(uint48 duration, uint256 totalStakeFor, uint256 capacity);
     error StakeForDecreasesWithDuration(
-        uint96 slot, uint48 shorterDuration, uint256 shorterStakeFor, uint48 longerDuration, uint256 longerStakeFor
+        uint64 slot, uint48 shorterDuration, uint256 shorterStakeFor, uint48 longerDuration, uint256 longerStakeFor
     );
 
-    function _assertStakeForSumLeCapacity(address vault_, address delegator_, uint96[] memory slots, uint48 duration)
+    function _assertStakeForSumLeCapacity(address vault_, address delegator_, uint64[] memory slots, uint48 duration)
         internal
         view
     {
@@ -33,13 +33,13 @@ abstract contract CoreV2StakeForInvariantHelper {
 
     function _assertStakeForNonDecreasingAcrossDurations(
         address delegator_,
-        uint96[] memory slots,
+        uint64[] memory slots,
         uint48 epochDuration
     ) internal view {
         uint48 halfDuration = epochDuration / 2;
 
         for (uint256 i = 0; i < slots.length; ++i) {
-            uint96 slot = slots[i];
+            uint64 slot = slots[i];
             if (slot == 0) {
                 continue;
             }
@@ -70,7 +70,7 @@ abstract contract CoreV2StakeForInvariantHelper {
     function _assertStakeForInvariantForDurations(
         address vault_,
         address delegator_,
-        uint96[] memory slots,
+        uint64[] memory slots,
         uint48 epochDuration
     ) internal view {
         _assertStakeForSumLeCapacity(vault_, delegator_, slots, 0);
@@ -87,12 +87,12 @@ abstract contract CoreV2StakeForInvariantHelper {
     function _assertStakeForInvariantForThreeSlots(
         address vault_,
         address delegator_,
-        uint96 slot1,
-        uint96 slot2,
-        uint96 slot3,
+        uint64 slot1,
+        uint64 slot2,
+        uint64 slot3,
         uint48 epochDuration
     ) internal view {
-        uint96[] memory slots = new uint96[](3);
+        uint64[] memory slots = new uint64[](3);
         slots[0] = slot1;
         slots[1] = slot2;
         slots[2] = slot3;

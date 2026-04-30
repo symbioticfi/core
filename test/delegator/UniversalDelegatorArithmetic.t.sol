@@ -33,7 +33,6 @@ import {
     IUniversalDelegator,
     MAX_NETWORKS,
     MAX_OPERATORS,
-    MAX_SUBVAULTS,
     WITHDRAWAL_BUFFER_CHILD_INDEX
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
@@ -57,48 +56,44 @@ contract UniversalDelegatorCoverageHarness is Test, UniversalDelegator {
         vault = vault_;
     }
 
-    function pushSlotSizeRaw(uint96 index, uint48 timestamp, uint208 value) external {
+    function pushSlotSizeRaw(uint64 index, uint48 timestamp, uint208 value) external {
         slots[index].size.push(timestamp, value);
     }
 
-    function pushNextSlotRaw(uint96 index, uint48 timestamp, uint208 value) external {
+    function pushNextSlotRaw(uint64 index, uint48 timestamp, uint208 value) external {
         slots[index].nextSlot.push(timestamp, value);
     }
 
-    function pushFirstChildRaw(uint96 index, uint48 timestamp, uint208 value) external {
+    function pushFirstChildRaw(uint64 index, uint48 timestamp, uint208 value) external {
         slots[index].firstChild.push(timestamp, value);
     }
 
-    function pushSyncPrevSizeSumsRaw(uint96 index, uint48 timestamp, uint208 value) external {
+    function pushSyncPrevSizeSumsRaw(uint64 index, uint48 timestamp, uint208 value) external {
         slots[index].syncPrevSizeSums.push(timestamp, value);
     }
 
-    function setSlotSharedRaw(uint96 index, bool isShared_) external {
-        slots[index].isShared = isShared_;
-    }
-
-    function latestPrevSizeSum(uint96 index) external view returns (uint208) {
+    function latestPrevSizeSum(uint64 index) external view returns (uint208) {
         return slots[index].prevSizeSum.latest();
     }
 
-    function latestSyncPrevSizeSums(uint96 index) external view returns (uint208) {
+    function latestSyncPrevSizeSums(uint64 index) external view returns (uint208) {
         return slots[index].syncPrevSizeSums.latest();
     }
 
-    function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
+    function exposeSyncPrevSizeSums(uint64 parentIndex) external syncPrevSizeSums(parentIndex) {}
 
-    function exposeGetPrevSum(uint96 index) external view returns (uint208) {
+    function exposeGetPrevSum(uint64 index) external view returns (uint208) {
         return _getPrevSum(index);
     }
 
-    function exposeGetPrevSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
+    function exposeGetPrevSumAt(uint64 index, uint48 timestamp) external view returns (uint208) {
         return _getPrevSumAt(index, timestamp);
     }
 }
 
 contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper {
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint96;
+    using UniversalDelegatorIndex for uint64;
 
     uint48 internal constant EPOCH_DURATION = 3;
     uint256 internal constant MAX_AMOUNT = 1_000_000 ether;
@@ -126,14 +121,13 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
     IUniversalSlasher internal slasher;
 
     struct DenseTopologyState {
-        uint96 selectedRoot;
-        uint96 selectedNetworkSlot;
+        uint64 selectedNetworkSlot;
         bytes32 selectedSubnetwork;
         address selectedNetwork;
         address selectedOperator0;
-        uint96 selectedOperatorSlot0;
-        uint96 selectedOperatorSlot1;
-        uint96 selectedOperatorSlot2;
+        uint64 selectedOperatorSlot0;
+        uint64 selectedOperatorSlot1;
+        uint64 selectedOperatorSlot2;
     }
 
     DenseTopologyState internal denseTopo;
@@ -144,11 +138,10 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         address operator2;
         address operator3;
         bytes32 subnetwork;
-        uint96 root;
-        uint96 networkSlot;
-        uint96 op1;
-        uint96 op2;
-        uint96 op3;
+        uint64 networkSlot;
+        uint64 op1;
+        uint64 op2;
+        uint64 op3;
     }
 
     RealChainState internal realChain;
@@ -356,19 +349,18 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
 
         UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
         MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
-        uint96 parent = _rootIndex(1);
+        uint64 parent = _rootIndex(1);
         uint48 timestamp = 1;
 
         vm.warp(timestamp);
         harness.setVaultRaw(address(vaultMock));
-        harness.setSlotSharedRaw(parent, false);
         harness.pushFirstChildRaw(parent, timestamp, 1);
         harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
 
         uint208 expectedPrevSize;
 
         for (uint32 i = 1; i <= siblingCount; ++i) {
-            uint96 slot = parent.createIndex(i);
+            uint64 slot = parent.createIndex(i);
             uint128 childSize = sizeSeed + uint128(i * 3);
 
             harness.pushSlotSizeRaw(slot, timestamp, childSize);
@@ -385,35 +377,11 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         harness.exposeSyncPrevSizeSums(parent);
         expectedPrevSize = 0;
         for (uint32 i = 1; i <= siblingCount; ++i) {
-            uint96 slot = parent.createIndex(i);
+            uint64 slot = parent.createIndex(i);
             assertEq(harness.latestPrevSizeSum(slot), expectedPrevSize);
             expectedPrevSize += sizeSeed + uint128(i * 3);
         }
         assertEq(harness.latestSyncPrevSizeSums(parent), 0);
-    }
-
-    function test_sharedParent_prefixViewsStayZero() public {
-        UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
-        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
-        uint96 parent = _rootIndex(1);
-        uint48 timestamp = 1;
-
-        vm.warp(timestamp);
-        harness.setVaultRaw(address(vaultMock));
-        harness.setSlotSharedRaw(parent, true);
-        harness.pushFirstChildRaw(parent, timestamp, 1);
-        harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
-
-        for (uint32 i = 1; i <= 3; ++i) {
-            uint96 slot = parent.createIndex(i);
-            harness.pushSlotSizeRaw(slot, timestamp, 10 * i);
-            if (i < 3) {
-                harness.pushNextSlotRaw(slot, timestamp, i + 1);
-            }
-
-            assertEq(harness.exposeGetPrevSumAt(slot, timestamp), 0);
-            assertEq(harness.exposeGetPrevSum(slot), 0);
-        }
     }
 
     function testFuzz_realSiblingChain_setSizeSlashAndHistoryKeepsCapacity(
@@ -431,7 +399,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
 
         _buildRealSiblingChain(size1, size2, size3);
 
-        uint96[] memory slots = new uint96[](3);
+        uint64[] memory slots = new uint64[](3);
         slots[0] = realChain.op1;
         slots[1] = realChain.op2;
         slots[2] = realChain.op3;
@@ -448,7 +416,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         assertEq(delegator.getFilledAt(realChain.networkSlot, 0, beforeChurn), uint256(size1) + size2 + size3);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlash(realChain.subnetwork, realChain.operator1, slashAmount), slashAmount);
+        delegator.onSlash(realChain.subnetwork, realChain.operator1, slashAmount);
 
         _assertStakeForInvariantForDurations(address(vault), address(delegator), slots, EPOCH_DURATION);
     }
@@ -456,24 +424,17 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
     function test_maxDensityTopology_protocolLimits_andChurn() public {
         _deposit(alice, MAX_AMOUNT);
 
-        for (uint256 rootIndex = 0; rootIndex < MAX_SUBVAULTS; ++rootIndex) {
-            uint96 root = _buildDenseRoot(rootIndex);
-
-            uint256 expectedRootFilled;
-            for (uint256 networkIndex = 0; networkIndex < MAX_NETWORKS; ++networkIndex) {
-                uint96 networkSlot = _buildDenseNetwork(rootIndex, root, networkIndex);
-                expectedRootFilled += delegator.getAllocated(networkSlot, 0);
-            }
-
-            assertEq(delegator.getSlot(root).existChildren, MAX_NETWORKS);
-            assertEq(delegator.getSlot(root).totalChildren, MAX_NETWORKS);
-            assertEq(delegator.getFilled(root, 0), expectedRootFilled);
-            _assertFilledMatchesChildren(root);
-
-            if (rootIndex == 1) {
-                _assertSiblingPrefixSums(root);
-            }
+        uint256 expectedRootFilled;
+        for (uint256 networkIndex = 0; networkIndex < MAX_NETWORKS; ++networkIndex) {
+            uint64 networkSlot = _buildDenseNetwork(networkIndex);
+            expectedRootFilled += delegator.getAllocated(networkSlot, 0);
         }
+
+        assertEq(delegator.getSlot(0).existChildren, MAX_NETWORKS);
+        assertEq(delegator.getSlot(0).totalChildren, MAX_NETWORKS);
+        assertEq(delegator.getFilled(0, 0), expectedRootFilled);
+        _assertFilledMatchesChildren(0);
+        _assertSiblingPrefixSums(0);
 
         _assertSiblingPrefixSums(denseTopo.selectedNetworkSlot);
         _assertFilledMatchesChildren(denseTopo.selectedNetworkSlot);
@@ -497,7 +458,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         _assertSiblingPrefixSums(denseTopo.selectedNetworkSlot);
 
         vm.prank(address(slasher));
-        assertEq(delegator.onSlash(denseTopo.selectedSubnetwork, denseTopo.selectedOperator0, 10 ether), 10 ether);
+        delegator.onSlash(denseTopo.selectedSubnetwork, denseTopo.selectedOperator0, 10 ether);
 
         vm.warp(EPOCH_DURATION + 2);
         delegator.setSize(denseTopo.selectedOperatorSlot2, 0);
@@ -508,10 +469,9 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         vm.prank(denseTopo.selectedNetwork);
         delegator.resetAllocation(denseTopo.selectedSubnetwork);
 
-        assertTrue(delegator.getSlot(denseTopo.selectedRoot).exists);
         assertFalse(delegator.getSlot(denseTopo.selectedNetworkSlot).exists);
         assertEq(delegator.getSlotOfNetwork(denseTopo.selectedSubnetwork), 0);
-        assertEq(delegator.getSlot(denseTopo.selectedRoot).existChildren, MAX_NETWORKS - 1);
+        assertEq(delegator.getSlot(0).existChildren, MAX_NETWORKS - 1);
     }
 
     function _registerOperator(address operator) internal {
@@ -547,30 +507,30 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         return bytes32(bytes20(operator));
     }
 
-    function _rootIndex(uint32 localIndex) internal pure returns (uint96) {
-        return uint96(0).createIndex(localIndex);
+    function _rootIndex(uint32 localIndex) internal pure returns (uint64) {
+        return uint64(0).createIndex(localIndex);
     }
 
-    function _assertSiblingPrefixSums(uint96 parentIndex) internal view {
+    function _assertSiblingPrefixSums(uint64 parentIndex) internal view {
         IUniversalDelegator.Slot memory parent = delegator.getSlot(parentIndex);
         uint208 expectedPrevSize;
         uint32 childIndex = parent.firstChild;
 
         while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
-            uint96 slotIndex = parentIndex.createIndex(childIndex);
+            uint64 slotIndex = parentIndex.createIndex(childIndex);
             IUniversalDelegator.Slot memory slot = delegator.getSlot(slotIndex);
-            assertEq(slot.prevSizeSum, parent.isShared ? 0 : expectedPrevSize);
+            assertEq(slot.prevSizeSum, expectedPrevSize);
             expectedPrevSize += uint208(slot.size);
             childIndex = slot.nextSlot;
         }
     }
 
-    function _assertFilledMatchesChildren(uint96 parentIndex) internal view {
+    function _assertFilledMatchesChildren(uint64 parentIndex) internal view {
         uint256 expected;
         uint32 childIndex = delegator.getSlot(parentIndex).firstChild;
 
         while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
-            uint96 slotIndex = parentIndex.createIndex(childIndex);
+            uint64 slotIndex = parentIndex.createIndex(childIndex);
             expected += delegator.getAllocated(slotIndex, 0);
             childIndex = delegator.getSlot(slotIndex).nextSlot;
         }
@@ -578,31 +538,18 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         assertEq(delegator.getFilled(parentIndex, 0), expected);
     }
 
-    function _pending(uint96 index) internal view returns (uint208) {
+    function _pending(uint64 index) internal view returns (uint208) {
         IUniversalDelegator.Slot memory slot = delegator.getSlot(index);
         return slot.size > slot.latestSize ? uint208(slot.size - slot.latestSize) : 0;
     }
 
-    function _buildDenseRoot(uint256 rootIndex) internal returns (uint96 root) {
-        bool isShared = rootIndex == 1;
-        uint128 rootSize = uint128(75_000 ether + rootIndex * 500 ether);
-
-        root = delegator.createSlot(bytes32(0), 0, isShared, rootSize);
-        if (rootIndex == 0) {
-            denseTopo.selectedRoot = root;
-        }
-    }
-
-    function _buildDenseNetwork(uint256 rootIndex, uint96 root, uint256 networkIndex)
-        internal
-        returns (uint96 networkSlot)
-    {
-        address network = _denseNetworkAddress(rootIndex, networkIndex);
+    function _buildDenseNetwork(uint256 networkIndex) internal returns (uint64 networkSlot) {
+        address network = _denseNetworkAddress(networkIndex);
         bytes32 subnetwork = network.subnetwork(0);
-        uint128 networkSize = uint128(3000 ether + rootIndex * 50 ether + networkIndex * 20 ether);
+        uint128 networkSize = uint128(3000 ether + networkIndex * 20 ether);
 
-        networkSlot = delegator.createSlot(subnetwork, root, false, networkSize);
-        if (rootIndex == 0 && networkIndex == 0) {
+        networkSlot = delegator.createSlot(subnetwork, 0, networkSize);
+        if (networkIndex == 0) {
             denseTopo.selectedNetwork = network;
             denseTopo.selectedSubnetwork = subnetwork;
             denseTopo.selectedNetworkSlot = networkSlot;
@@ -614,7 +561,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
 
         uint256 expectedNetworkFilled;
         for (uint256 operatorIndex = 0; operatorIndex < MAX_OPERATORS; ++operatorIndex) {
-            uint96 operatorSlot = _buildDenseOperator(rootIndex, networkIndex, networkSlot, operatorIndex);
+            uint64 operatorSlot = _buildDenseOperator(networkIndex, networkSlot, operatorIndex);
             expectedNetworkFilled += delegator.getAllocated(operatorSlot, 0);
         }
 
@@ -624,15 +571,15 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         _assertSiblingPrefixSums(networkSlot);
     }
 
-    function _buildDenseOperator(uint256 rootIndex, uint256 networkIndex, uint96 networkSlot, uint256 operatorIndex)
+    function _buildDenseOperator(uint256 networkIndex, uint64 networkSlot, uint256 operatorIndex)
         internal
-        returns (uint96 operatorSlot)
+        returns (uint64 operatorSlot)
     {
-        address operator = _denseOperatorAddress(rootIndex, networkIndex, operatorIndex);
+        address operator = _denseOperatorAddress(networkIndex, operatorIndex);
         uint128 operatorSize = uint128(100 ether + operatorIndex);
 
-        operatorSlot = delegator.createSlot(_operatorKey(operator), networkSlot, false, operatorSize);
-        if (rootIndex == 0 && networkIndex == 0) {
+        operatorSlot = delegator.createSlot(_operatorKey(operator), networkSlot, operatorSize);
+        if (networkIndex == 0) {
             if (operatorIndex == 0) {
                 denseTopo.selectedOperator0 = operator;
                 denseTopo.selectedOperatorSlot0 = operatorSlot;
@@ -664,26 +611,20 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         vm.prank(realChain.network);
         delegator.setMaxNetworkLimit(0, type(uint256).max);
 
-        uint256 rootSize = uint256(size1) + size2 + size3 + 1000 ether;
         uint256 networkSize = uint256(size1) + size2 + size3 + 500 ether;
-        _deposit(alice, rootSize);
+        _deposit(alice, networkSize);
 
-        realChain.root = delegator.createSlot(bytes32(0), 0, false, uint128(rootSize));
-        realChain.networkSlot = delegator.createSlot(realChain.subnetwork, realChain.root, false, uint128(networkSize));
-        realChain.op1 = delegator.createSlot(_operatorKey(realChain.operator1), realChain.networkSlot, false, size1);
-        realChain.op2 = delegator.createSlot(_operatorKey(realChain.operator2), realChain.networkSlot, false, size2);
-        realChain.op3 = delegator.createSlot(_operatorKey(realChain.operator3), realChain.networkSlot, false, size3);
+        realChain.networkSlot = delegator.createSlot(realChain.subnetwork, 0, uint128(networkSize));
+        realChain.op1 = delegator.createSlot(_operatorKey(realChain.operator1), realChain.networkSlot, size1);
+        realChain.op2 = delegator.createSlot(_operatorKey(realChain.operator2), realChain.networkSlot, size2);
+        realChain.op3 = delegator.createSlot(_operatorKey(realChain.operator3), realChain.networkSlot, size3);
     }
 
-    function _denseNetworkAddress(uint256 rootIndex, uint256 networkIndex) internal pure returns (address) {
-        return address(uint160(0x100000 + rootIndex * 1000 + networkIndex + 1));
+    function _denseNetworkAddress(uint256 networkIndex) internal pure returns (address) {
+        return address(uint160(0x100000 + networkIndex + 1));
     }
 
-    function _denseOperatorAddress(uint256 rootIndex, uint256 networkIndex, uint256 operatorIndex)
-        internal
-        pure
-        returns (address)
-    {
-        return address(uint160(0x200000 + rootIndex * 100_000 + networkIndex * 1000 + operatorIndex + 1));
+    function _denseOperatorAddress(uint256 networkIndex, uint256 operatorIndex) internal pure returns (address) {
+        return address(uint160(0x200000 + networkIndex * 1000 + operatorIndex + 1));
     }
 }
