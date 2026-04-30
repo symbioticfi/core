@@ -61,10 +61,6 @@ contract UniversalDelegatorCoverageHarness is Test, UniversalDelegator {
         slots[index].size.push(timestamp, value);
     }
 
-    function pushPendingCumulativeRaw(uint96 index, uint48 timestamp, uint208 value) external {
-        slots[index].pendingCumulative.push(timestamp, value);
-    }
-
     function pushNextSlotRaw(uint96 index, uint48 timestamp, uint208 value) external {
         slots[index].nextSlot.push(timestamp, value);
     }
@@ -81,10 +77,6 @@ contract UniversalDelegatorCoverageHarness is Test, UniversalDelegator {
         slots[index].isShared = isShared_;
     }
 
-    function setChildrenPendingAtRaw(uint96 index, uint48 timestamp) external {
-        slots[index]._childrenPendingAt = timestamp;
-    }
-
     function latestPrevSizeSum(uint96 index) external view returns (uint208) {
         return slots[index].prevSizeSum.latest();
     }
@@ -95,28 +87,12 @@ contract UniversalDelegatorCoverageHarness is Test, UniversalDelegator {
 
     function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
 
-    function exposeGetPendingSize(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPendingSize(index, duration);
+    function exposeGetPrevSum(uint96 index) external view returns (uint208) {
+        return _getPrevSum(index);
     }
 
-    function exposeGetPrevSum(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPrevSum(index, duration);
-    }
-
-    function exposeGetPrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
-        return _getPrevSizeSumAt(index, timestamp);
-    }
-
-    function exposeGetPrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp)
-        external
-        view
-        returns (uint208)
-    {
-        return _getPrevPendingSumAt(index, duration, timestamp);
-    }
-
-    function exposeGetPrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPrevPendingSum(index, duration);
+    function exposeGetPrevSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
+        return _getPrevSumAt(index, timestamp);
     }
 }
 
@@ -374,12 +350,9 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         slasher = IUniversalSlasher(slasher_);
     }
 
-    function testFuzz_rawPrefixMath_matchesManualOracle(uint8 siblingCount, uint208 sizeSeed, uint208 pendingSeed)
-        public
-    {
+    function testFuzz_rawPrefixMath_matchesManualOracle(uint8 siblingCount, uint208 sizeSeed) public {
         siblingCount = uint8(bound(siblingCount, 2, 20));
         sizeSeed = uint208(bound(sizeSeed, 1, type(uint208).max / 80));
-        pendingSeed = uint208(bound(pendingSeed, 0, type(uint208).max / 80));
 
         UniversalDelegatorCoverageHarness harness = new UniversalDelegatorCoverageHarness();
         MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
@@ -391,32 +364,22 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         harness.setSlotSharedRaw(parent, false);
         harness.pushFirstChildRaw(parent, timestamp, 1);
         harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
-        harness.setChildrenPendingAtRaw(parent, timestamp);
 
         uint208 expectedPrevSize;
-        uint208 expectedPrevPending;
 
         for (uint32 i = 1; i <= siblingCount; ++i) {
             uint96 slot = parent.createIndex(i);
             uint208 childSize = sizeSeed + uint208(i * 3);
-            uint208 childPending = pendingSeed + uint208(i * 5);
-            uint256 expectedPendingSize = uint256(childSize) + uint256(childPending);
-            assertLe(expectedPendingSize, type(uint208).max);
 
             harness.pushSlotSizeRaw(slot, timestamp, childSize);
-            harness.pushPendingCumulativeRaw(slot, timestamp, childPending);
             if (i < siblingCount) {
                 harness.pushNextSlotRaw(slot, timestamp, i + 1);
             }
 
-            assertEq(harness.exposeGetPendingSize(slot, 0), expectedPendingSize);
-            assertEq(harness.exposeGetPrevSizeSumAt(slot, timestamp), expectedPrevSize);
-            assertEq(harness.exposeGetPrevPendingSumAt(slot, 0, timestamp), expectedPrevPending);
-            assertEq(harness.exposeGetPrevPendingSum(slot, 0), expectedPrevPending);
-            assertEq(harness.exposeGetPrevSum(slot, 0), uint256(expectedPrevSize) + uint256(expectedPrevPending));
+            assertEq(harness.exposeGetPrevSumAt(slot, timestamp), expectedPrevSize);
+            assertEq(harness.exposeGetPrevSum(slot), expectedPrevSize);
 
             expectedPrevSize += childSize;
-            expectedPrevPending += childPending;
         }
 
         harness.exposeSyncPrevSizeSums(parent);
@@ -440,21 +403,16 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         harness.setSlotSharedRaw(parent, true);
         harness.pushFirstChildRaw(parent, timestamp, 1);
         harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
-        harness.setChildrenPendingAtRaw(parent, timestamp);
 
         for (uint32 i = 1; i <= 3; ++i) {
             uint96 slot = parent.createIndex(i);
             harness.pushSlotSizeRaw(slot, timestamp, 10 * i);
-            harness.pushPendingCumulativeRaw(slot, timestamp, 5 * i);
             if (i < 3) {
                 harness.pushNextSlotRaw(slot, timestamp, i + 1);
             }
 
-            assertEq(harness.exposeGetPendingSize(slot, 0), uint256(15 * i));
-            assertEq(harness.exposeGetPrevSizeSumAt(slot, timestamp), 0);
-            assertEq(harness.exposeGetPrevPendingSumAt(slot, 0, timestamp), 0);
-            assertEq(harness.exposeGetPrevPendingSum(slot, 0), 0);
-            assertEq(harness.exposeGetPrevSum(slot, 0), 0);
+            assertEq(harness.exposeGetPrevSumAt(slot, timestamp), 0);
+            assertEq(harness.exposeGetPrevSum(slot), 0);
         }
     }
 
@@ -485,8 +443,8 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
 
         vm.warp(1);
         delegator.setSize(realChain.op1, size1 - shrink);
-        assertEq(delegator.getPending(realChain.op1, 0), shrink);
-        assertEq(delegator.getPendingAt(realChain.op1, 0, beforeChurn), 0);
+        assertEq(_pending(realChain.op1), shrink);
+        assertEq(_pendingAt(realChain.op1, beforeChurn), 0);
         assertEq(delegator.getAllocatedAt(realChain.op1, 0, beforeChurn), size1);
         assertEq(delegator.getFilledAt(realChain.networkSlot, 0, beforeChurn), uint256(size1) + size2 + size3);
 
@@ -529,8 +487,8 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         vm.warp(1);
         delegator.setSize(denseTopo.selectedOperatorSlot0, 40 ether);
         delegator.setSize(denseTopo.selectedOperatorSlot1, 40 ether);
-        assertEq(delegator.getPending(denseTopo.selectedOperatorSlot0, 0), selectedOperator0Size - 40 ether);
-        assertEq(delegator.getPending(denseTopo.selectedOperatorSlot1, 0), selectedOperator1Size - 40 ether);
+        assertEq(_pending(denseTopo.selectedOperatorSlot0), selectedOperator0Size - 40 ether);
+        assertEq(_pending(denseTopo.selectedOperatorSlot1), selectedOperator1Size - 40 ether);
         assertEq(delegator.getAllocatedAt(denseTopo.selectedOperatorSlot0, 0, beforeMutation), selectedOperator0Size);
         assertEq(
             delegator.getFilledAt(denseTopo.selectedNetworkSlot, 0, beforeMutation),
@@ -606,7 +564,7 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
             uint96 slotIndex = parentIndex.createIndex(childIndex);
             IUniversalDelegator.Slot memory slot = delegator.getSlot(slotIndex);
             assertEq(slot.prevSizeSum, parent.isShared ? 0 : expectedPrevSize);
-            expectedPrevSize += slot.size;
+            expectedPrevSize += slot.latestSize;
             childIndex = slot.nextSlot;
         }
     }
@@ -622,6 +580,17 @@ contract UniversalDelegatorArithmeticTest is Test, CoreV2StakeForInvariantHelper
         }
 
         assertEq(delegator.getFilled(parentIndex, 0), expected);
+    }
+
+    function _pending(uint96 index) internal view returns (uint208) {
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(index);
+        return slot.size > slot.latestSize ? uint208(slot.size - slot.latestSize) : 0;
+    }
+
+    function _pendingAt(uint96 index, uint48 timestamp) internal view returns (uint208) {
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(index);
+        uint128 sizeAt = delegator.getSizeAt(index, timestamp);
+        return sizeAt > slot.latestSize ? uint208(sizeAt - slot.latestSize) : 0;
     }
 
     function _buildDenseRoot(uint256 rootIndex) internal returns (uint96 root) {

@@ -27,19 +27,10 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
     uint256 internal constant SLOT_TRACE_NEXT_SLOT_OFFSET = 2;
     uint256 internal constant SLOT_TRACE_LAST_CHILD_OFFSET = 3;
     uint256 internal constant SLOT_TRACE_FIRST_CHILD_OFFSET = 4;
-    uint256 internal constant SLOT_TRACE_PENDING_CUMULATIVE_OFFSET = 7;
-    uint256 internal constant SLOT_TRACE_CLEARED_PENDING_CURSOR_OFFSET = 8;
-    uint256 internal constant SLOT_TRACE_SHARED_PENDING_CONSUMED_OFFSET = 9;
-    uint256 internal constant SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET = 10;
-    uint256 internal constant NO_ADAPTERS_PENDING_CUMULATIVE_SLOT = 7;
-    uint256 internal constant CLEARED_NO_ADAPTERS_PENDING_CURSOR_SLOT = 8;
-    uint256 internal constant CHILDREN_PENDING_AT_OFFSET_BYTES = 15;
+    uint256 internal constant SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET = 7;
 
     struct CurrentParentState {
         uint208 expectedPrevSize;
-        uint208 expectedPrevPending0;
-        uint208 expectedPrevPendingHalf;
-        uint208 expectedPrevPendingMax;
         uint32 childIndex;
         uint32 lastSeenChild;
         uint256 visited;
@@ -69,7 +60,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         targetContract(address(handler));
     }
 
-    function invariant_CurrentCursorsNeverExceedCumulative() public view {
+    function invariant_CurrentSharedSizeCursorsNeverExceedCumulative() public view {
         UniversalDelegatorArithmeticHarness delegator = handler.delegator();
         uint48 epochDuration = handler.vault().epochDuration();
         uint96[] memory trackedSlots = handler.getTrackedSlots();
@@ -80,15 +71,9 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
                 continue;
             }
 
-            assertLe(_pendingCursor(delegator, slot, epochDuration), _slotPendingCumulativeLatest(delegator, slot));
-
             if (slot.getDepth() == 2) {
                 uint96 parent = slot.getParentIndex();
                 if (delegator.getSlot(parent).exists && delegator.getSlot(parent).isShared) {
-                    assertLe(
-                        _sharedPendingCursor(delegator, slot, epochDuration),
-                        _slotClearedPendingCursorLatest(delegator, parent)
-                    );
                     assertLe(
                         _sharedSizeCursor(delegator, slot, epochDuration),
                         _slotSharedSizeConsumedCumulativeLatest(delegator, parent)
@@ -96,8 +81,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
                 }
             }
         }
-
-        assertLe(_noAdaptersPendingCursor(delegator, epochDuration), _noAdaptersPendingCumulativeLatest(delegator));
     }
 
     function invariant_RootStakeForSumsStayWithinVaultCapacity() public view {
@@ -165,7 +148,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
                 continue;
             }
 
-            expected += uint256(slot.size) + delegator.getPending(roots[i], 0);
+            expected += uint256(slot.size);
         }
 
         assertEq(delegator.getNoAdaptersSize(), expected);
@@ -217,7 +200,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
 
             for (uint256 j; j < allSlots.length; ++j) {
                 uint96 slot = allSlots[j];
-                _assertHistoricalPendingBounds(delegator, slot, epochDuration, timestamp);
+                _assertHistoricalAllocationBounds(delegator, slot, epochDuration, timestamp);
             }
         }
     }
@@ -251,7 +234,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         }
     }
 
-    function _assertHistoricalPendingBounds(
+    function _assertHistoricalAllocationBounds(
         UniversalDelegatorArithmeticHarness delegator,
         uint96 slot,
         uint48 epochDuration,
@@ -259,9 +242,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
     ) internal view {
         for (uint256 i; i < 3; ++i) {
             uint48 duration = _durationAt(i, epochDuration);
-            uint208 pendingAt = delegator.getPendingAt(slot, duration, timestamp);
-            assertLe(pendingAt, _slotPendingCumulativeAt(delegator, slot, timestamp));
-
             if (slot > 0) {
                 assertLe(
                     delegator.getAllocatedAt(slot, duration, timestamp),
@@ -269,7 +249,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
                 );
                 assertLe(
                     delegator.getAllocatedAt(slot, duration, timestamp),
-                    uint256(_slotSizeAt(delegator, slot, timestamp)) + pendingAt
+                    uint256(_slotSizeAt(delegator, slot, timestamp))
                 );
             }
         }
@@ -285,9 +265,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         uint48 maxDuration = epochDuration - 1;
         CurrentParentState memory state = CurrentParentState({
             expectedPrevSize: 0,
-            expectedPrevPending0: 0,
-            expectedPrevPendingHalf: 0,
-            expectedPrevPendingMax: 0,
             childIndex: parentSlot.firstChild,
             lastSeenChild: 0,
             visited: 0,
@@ -318,20 +295,11 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
                     delegator,
                     child,
                     childSlot,
-                    state.expectedPrevSize,
-                    state.expectedPrevPending0,
-                    state.expectedPrevPendingHalf,
-                    state.expectedPrevPendingMax,
-                    epochDuration,
-                    halfDuration,
-                    maxDuration
+                    state.expectedPrevSize
                 );
-                state.expectedPrevPending0 += uint208(delegator.getPending(child, 0));
-                state.expectedPrevPendingHalf += uint208(delegator.getPending(child, halfDuration));
-                state.expectedPrevPendingMax += uint208(delegator.getPending(child, maxDuration));
             }
 
-            state.expectedPrevSize += childSlot.size;
+            state.expectedPrevSize += childSlot.latestSize;
             state.lastSeenChild = state.childIndex;
             state.childIndex = childSlot.nextSlot;
             ++state.visited;
@@ -357,27 +325,15 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         uint48 maxDuration
     ) internal view {
         assertEq(childSlot.prevSizeSum, 0);
-        assertEq(_currentPrevPendingSum(delegator, child, 0, epochDuration), 0);
-        assertEq(_currentPrevPendingSum(delegator, child, halfDuration, epochDuration), 0);
-        assertEq(_currentPrevPendingSum(delegator, child, maxDuration, epochDuration), 0);
     }
 
     function _assertNonSharedParentPrefixState(
         UniversalDelegatorArithmeticHarness delegator,
         uint96 child,
         IUniversalDelegator.Slot memory childSlot,
-        uint208 expectedPrevSize,
-        uint208 expectedPrevPending0,
-        uint208 expectedPrevPendingHalf,
-        uint208 expectedPrevPendingMax,
-        uint48 epochDuration,
-        uint48 halfDuration,
-        uint48 maxDuration
+        uint208 expectedPrevSize
     ) internal view {
         assertEq(childSlot.prevSizeSum, expectedPrevSize);
-        assertEq(_currentPrevPendingSum(delegator, child, 0, epochDuration), expectedPrevPending0);
-        assertEq(_currentPrevPendingSum(delegator, child, halfDuration, epochDuration), expectedPrevPendingHalf);
-        assertEq(_currentPrevPendingSum(delegator, child, maxDuration, epochDuration), expectedPrevPendingMax);
     }
 
     function _assertNonSharedParentCapacity(
@@ -520,48 +476,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         return (true, key, value);
     }
 
-    function _slotPackedWord(UniversalDelegatorArithmeticHarness delegator, uint96 index)
-        internal
-        view
-        returns (uint256)
-    {
-        return uint256(vm.load(address(delegator), bytes32(_slotStorageBase(index))));
-    }
-
-    function _slotChildrenPendingAt(UniversalDelegatorArithmeticHarness delegator, uint96 index)
-        internal
-        view
-        returns (uint48)
-    {
-        return uint48(_slotPackedWord(delegator, index) >> (CHILDREN_PENDING_AT_OFFSET_BYTES * 8));
-    }
-
-    function _slotPendingCumulativeLatest(UniversalDelegatorArithmeticHarness delegator, uint96 index)
-        internal
-        view
-        returns (uint208)
-    {
-        return _traceLatest(address(delegator), _slotTraceSlot(index, SLOT_TRACE_PENDING_CUMULATIVE_OFFSET));
-    }
-
-    function _slotPendingCumulativeAt(UniversalDelegatorArithmeticHarness delegator, uint96 index, uint48 timestamp)
-        internal
-        view
-        returns (uint208)
-    {
-        return _traceUpperLookupRecent(
-            address(delegator), _slotTraceSlot(index, SLOT_TRACE_PENDING_CUMULATIVE_OFFSET), timestamp
-        );
-    }
-
-    function _slotClearedPendingCursorLatest(UniversalDelegatorArithmeticHarness delegator, uint96 index)
-        internal
-        view
-        returns (uint208)
-    {
-        return _traceLatest(address(delegator), _slotTraceSlot(index, SLOT_TRACE_CLEARED_PENDING_CURSOR_OFFSET));
-    }
-
     function _slotSharedSizeConsumedCumulativeLatest(UniversalDelegatorArithmeticHarness delegator, uint96 index)
         internal
         view
@@ -608,21 +522,8 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
         );
     }
 
-    function _noAdaptersPendingCumulativeLatest(UniversalDelegatorArithmeticHarness delegator)
-        internal
-        view
-        returns (uint208)
-    {
-        return _traceLatest(address(delegator), NO_ADAPTERS_PENDING_CUMULATIVE_SLOT);
-    }
-
     function _cursor(uint208 baseValue, uint208 cursorValue) internal pure returns (uint208) {
         return baseValue > cursorValue ? baseValue : cursorValue;
-    }
-
-    function _windowStart(uint48 timestamp, uint48 duration, uint48 epochDuration) internal pure returns (uint48) {
-        uint256 delta = uint256(epochDuration) - uint256(duration);
-        return timestamp > delta ? uint48(uint256(timestamp) - delta) : 0;
     }
 
     function _cursorForCurrentWindow(
@@ -638,46 +539,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             );
     }
 
-    function _pendingCursor(UniversalDelegatorArithmeticHarness delegator, uint96 index, uint48 epochDuration)
-        internal
-        view
-        returns (uint208)
-    {
-        return _cursorForCurrentWindow(
-            address(delegator),
-            _slotTraceSlot(index, SLOT_TRACE_PENDING_CUMULATIVE_OFFSET),
-            _slotTraceSlot(index, SLOT_TRACE_CLEARED_PENDING_CURSOR_OFFSET),
-            epochDuration
-        );
-    }
-
-    function _noAdaptersPendingCursor(UniversalDelegatorArithmeticHarness delegator, uint48 epochDuration)
-        internal
-        view
-        returns (uint208)
-    {
-        return _cursorForCurrentWindow(
-            address(delegator),
-            NO_ADAPTERS_PENDING_CUMULATIVE_SLOT,
-            CLEARED_NO_ADAPTERS_PENDING_CURSOR_SLOT,
-            epochDuration
-        );
-    }
-
-    function _sharedPendingCursor(
-        UniversalDelegatorArithmeticHarness delegator,
-        uint96 networkIndex,
-        uint48 epochDuration
-    ) internal view returns (uint208) {
-        uint96 parent = networkIndex.getParentIndex();
-        return _cursorForCurrentWindow(
-            address(delegator),
-            _slotTraceSlot(parent, SLOT_TRACE_CLEARED_PENDING_CURSOR_OFFSET),
-            _slotTraceSlot(networkIndex, SLOT_TRACE_SHARED_PENDING_CONSUMED_OFFSET),
-            epochDuration
-        );
-    }
-
     function _sharedSizeCursor(UniversalDelegatorArithmeticHarness delegator, uint96 networkIndex, uint48 epochDuration)
         internal
         view
@@ -690,37 +551,6 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test, CoreV
             _slotTraceSlot(networkIndex, SLOT_TRACE_SHARED_SIZE_CONSUMED_OFFSET),
             epochDuration
         );
-    }
-
-    function _currentPrevPendingSum(
-        UniversalDelegatorArithmeticHarness delegator,
-        uint96 index,
-        uint48 duration,
-        uint48 epochDuration
-    ) internal view returns (uint208 prevPendingSum) {
-        if (index == 0) {
-            return 0;
-        }
-
-        uint96 parent = index.getParentIndex();
-        if (_isSharedParent(delegator, parent)) {
-            return 0;
-        }
-
-        if (_slotChildrenPendingAt(delegator, parent) <= _windowStart(uint48(block.timestamp), duration, epochDuration))
-        {
-            return 0;
-        }
-
-        uint32 childIndex = delegator.getSlot(parent).firstChild;
-        while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
-            uint96 child = parent.createIndex(childIndex);
-            if (child == index) {
-                break;
-            }
-            prevPendingSum += delegator.getPending(child, duration);
-            childIndex = delegator.getSlot(child).nextSlot;
-        }
     }
 
     function _liveTracked(uint96[] memory tracked, UniversalDelegatorArithmeticHarness delegator)

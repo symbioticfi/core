@@ -147,7 +147,8 @@ interface IUniversalDelegator {
      * @param lastChild Last child index.
      * @param isShared Whether slot allocation is shared among children.
      * @param noAdapters Whether slot stake must stay outside adapters.
-     * @param size Slot size value.
+     * @param size Effective slot size at the current timestamp.
+     * @param latestSize Latest stored slot size checkpoint value.
      * @param prevSizeSum Prefix sum of previous sibling sizes.
      * @param subnetworkOrOperator Subnetwork or operator identifier or zero if not assigned.
      */
@@ -162,6 +163,7 @@ interface IUniversalDelegator {
         bool isShared;
         bool noAdapters;
         uint128 size;
+        uint128 latestSize;
         uint208 prevSizeSum;
         bytes32 subnetworkOrOperator;
     }
@@ -337,21 +339,19 @@ interface IUniversalDelegator {
     function getSlot(uint96 index) external view returns (Slot memory slot);
 
     /**
-     * @notice Get slot pending amount at a timestamp.
+     * @notice Get effective slot size at a timestamp.
      * @param index Slot index.
-     * @param duration Duration window.
      * @param timestamp Lookup timestamp.
-     * @return pending Slot pending amount.
+     * @return size Effective slot size.
      */
-    function getPendingAt(uint96 index, uint48 duration, uint48 timestamp) external view returns (uint208 pending);
+    function getSizeAt(uint96 index, uint48 timestamp) external view returns (uint128 size);
 
     /**
-     * @notice Get current slot pending amount.
+     * @notice Get current effective slot size.
      * @param index Slot index.
-     * @param duration Duration window.
-     * @return pending Slot pending amount.
+     * @return size Effective slot size.
      */
-    function getPending(uint96 index, uint48 duration) external view returns (uint208 pending);
+    function getSize(uint96 index) external view returns (uint128 size);
 
     /**
      * @notice Get slot balance at a timestamp.

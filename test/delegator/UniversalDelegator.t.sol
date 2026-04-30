@@ -115,10 +115,6 @@ contract UniversalDelegatorCoverageHarnessTest is Test, UniversalDelegator {
         slots[index].size.push(timestamp, value);
     }
 
-    function pushPendingCumulativeRaw(uint96 index, uint48 timestamp, uint208 value) external {
-        slots[index].pendingCumulative.push(timestamp, value);
-    }
-
     function pushNextSlotRaw(uint96 index, uint48 timestamp, uint208 value) external {
         slots[index].nextSlot.push(timestamp, value);
     }
@@ -135,10 +131,6 @@ contract UniversalDelegatorCoverageHarnessTest is Test, UniversalDelegator {
         slots[index].isShared = isShared_;
     }
 
-    function setChildrenPendingAtRaw(uint96 index, uint48 timestamp) external {
-        slots[index]._childrenPendingAt = timestamp;
-    }
-
     function latestSyncPrevSizeSums(uint96 index) external view returns (uint208) {
         return slots[index].syncPrevSizeSums.latest();
     }
@@ -149,28 +141,12 @@ contract UniversalDelegatorCoverageHarnessTest is Test, UniversalDelegator {
 
     function exposeSyncPrevSizeSums(uint96 parentIndex) external syncPrevSizeSums(parentIndex) {}
 
-    function exposeGetPendingSize(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPendingSize(index, duration);
+    function exposeGetPrevSum(uint96 index) external view returns (uint208) {
+        return _getPrevSum(index);
     }
 
-    function exposeGetPrevSum(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPrevSum(index, duration);
-    }
-
-    function exposeGetPrevSizeSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
-        return _getPrevSizeSumAt(index, timestamp);
-    }
-
-    function exposeGetPrevPendingSumAt(uint96 index, uint48 duration, uint48 timestamp)
-        external
-        view
-        returns (uint208)
-    {
-        return _getPrevPendingSumAt(index, duration, timestamp);
-    }
-
-    function exposeGetPrevPendingSum(uint96 index, uint48 duration) external view returns (uint208) {
-        return _getPrevPendingSum(index, duration);
+    function exposeGetPrevSumAt(uint96 index, uint48 timestamp) external view returns (uint208) {
+        return _getPrevSumAt(index, timestamp);
     }
 }
 
@@ -233,6 +209,18 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         address[6] operators;
         uint96[6] operatorSlots;
         bool[6] exists;
+    }
+
+    struct PendingDecreaseSwapFuzzState {
+        address network;
+        address operator3;
+        bytes32 subnetwork;
+        uint128 firstSize;
+        uint128 middleSize;
+        uint128 lastSize;
+        uint96 slot1;
+        uint96 slot2;
+        uint96 slot3;
     }
 
     function setUp() public {
@@ -448,7 +436,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(7);
         delegator.setSize(slot1, 20);
         assertEq(delegator.getAllocatedAt(slot1, 0, 7), 30);
-        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION - 1, 9), 20);
+        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION - 1, 9), 30);
+        assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION - 1, 10), 20);
         assertEq(delegator.getAllocatedAt(slot1, EPOCH_DURATION, 9), 0);
     }
 
@@ -620,14 +609,14 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(networkSlot, 222);
 
-        assertEq(delegator.getPending(networkSlot, 0), 222);
+        assertEq(_pending(networkSlot), 222);
         assertEq(delegator.getAllocated(networkSlot, 0), 444);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
 
         vm.warp(2);
         delegator.setSize(operatorSlot, 222);
 
-        assertEq(delegator.getPending(operatorSlot, 0), 222);
+        assertEq(_pending(operatorSlot), 222);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
     }
 
@@ -642,7 +631,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(slot1, 30);
 
-        assertEq(delegator.getPending(slot1, 0), 30);
+        assertEq(_pending(slot1), 30);
         assertEq(delegator.getAllocated(slot1, 0), 60);
         assertEq(delegator.getAllocated(slot2, 0), 40);
         assertEq(_unallocated2(0, slot1, slot2), 0);
@@ -660,7 +649,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(networkSlot, 30);
 
-        assertEq(delegator.getPending(networkSlot, 0), 50);
+        assertEq(_pending(networkSlot), 50);
         assertEq(delegator.getAllocated(networkSlot, 0), 80);
         assertEq(delegator.getFilled(subvault, 0), 80);
         assertEq(delegator.getAllocated(subvault, 0), 100);
@@ -676,7 +665,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(noAdaptersSubvault, 25);
 
-        assertEq(delegator.getPending(noAdaptersSubvault, 0), 55);
+        assertEq(_pending(noAdaptersSubvault), 55);
         assertEq(delegator.getAllocated(noAdaptersSubvault, 0), 80);
         assertEq(delegator.getNoAdaptersSize(), 80);
     }
@@ -696,13 +685,13 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(operatorSlot, 222);
 
-        assertEq(delegator.getPending(operatorSlot, 0), 222);
+        assertEq(_pending(operatorSlot), 222);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
 
         vm.warp(2);
         delegator.setSize(operatorSlot, 0);
 
-        assertEq(delegator.getPending(operatorSlot, 0), 444);
+        assertEq(_pending(operatorSlot), 444);
         assertEq(delegator.getAllocated(networkSlot, 0), 444);
         assertEq(delegator.getAllocated(operatorSlot, 0), 444);
     }
@@ -727,7 +716,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.setSize(operatorSlot, 0);
 
         uint48 timestampBeforeSlash = uint48(block.timestamp);
-        uint208 pendingBefore = delegator.getPendingAt(operatorSlot, 0, timestampBeforeSlash);
+        uint208 pendingBefore = _pendingAt(operatorSlot, timestampBeforeSlash);
         uint256 balanceBefore = delegator.getBalanceAt(networkSlot, 0, timestampBeforeSlash);
         uint256 allocatedBefore = delegator.getAllocatedAt(operatorSlot, 0, timestampBeforeSlash);
         assertGt(pendingBefore, 0);
@@ -735,7 +724,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 20);
         uint48 timestampAfterSlash = uint48(block.timestamp);
-        uint208 pendingAfter = delegator.getPendingAt(operatorSlot, 0, timestampAfterSlash);
+        uint208 pendingAfter = _pendingAt(operatorSlot, timestampAfterSlash);
         uint256 balanceAfter = delegator.getBalanceAt(networkSlot, 0, timestampAfterSlash);
         uint256 allocatedAfter = delegator.getAllocatedAt(operatorSlot, 0, timestampAfterSlash);
 
@@ -762,15 +751,15 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(3);
         delegator.setSize(operatorSlot, 70);
 
-        assertEq(delegator.getPending(operatorSlot, 0), 130);
+        assertEq(_pending(operatorSlot), 130);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 100);
 
-        assertEq(delegator.getPending(operatorSlot, 0), 30);
+        assertEq(_pending(operatorSlot), 30);
 
         vm.warp(4);
-        assertEq(delegator.getPending(operatorSlot, 0), 30);
+        assertEq(_pending(operatorSlot), 30);
     }
 
     function test_noAdaptersPendingWindow_afterSlash_keepsRecentPendingWhenOldPendingExpires() public {
@@ -789,17 +778,17 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(3);
         delegator.setSize(noAdaptersSubvault, 70);
 
-        assertEq(delegator.getPending(noAdaptersSubvault, 0), 130);
+        assertEq(_pending(noAdaptersSubvault), 130);
         assertEq(delegator.getNoAdaptersSize(), 200);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 100);
 
-        assertEq(delegator.getPending(noAdaptersSubvault, 0), 30);
+        assertEq(_pending(noAdaptersSubvault), 30);
         assertEq(delegator.getNoAdaptersSize(), 100);
 
         vm.warp(4);
-        assertEq(delegator.getPending(noAdaptersSubvault, 0), 30);
+        assertEq(_pending(noAdaptersSubvault), 30);
         assertEq(delegator.getNoAdaptersSize(), 100);
     }
 
@@ -865,7 +854,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.warp(1);
         delegator.setSize(networkSlot, 0);
-        assertGt(delegator.getPending(networkSlot, 0), 0);
+        assertGt(_pending(networkSlot), 0);
         assertEq(delegator.getAllocated(networkSlot, 0), 100);
         assertEq(delegator.getAllocated(networkSlot, EPOCH_DURATION), 0);
 
@@ -1162,7 +1151,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         _createOperatorSlot(networkSlot2, bob, 100);
 
         assertEq(delegator.getAllocated(sharedSubvault, 0), 8);
-        assertEq(delegator.getPending(sharedSubvault, 0), 3);
+        assertEq(_pending(sharedSubvault), 3);
         assertEq(delegator.stake(subnetwork2, bob), 8);
         assertEq(slasher.slashableStake(subnetwork2, bob, 0, ""), 8);
     }
@@ -1547,7 +1536,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         // Decrease network size: allocation stays 500 due to pending=80.
         vm.warp(1);
         delegator.setSize(network1, 420);
-        assertEq(delegator.getPending(network1, 0), 80);
+        assertEq(_pending(network1), 80);
         assertEq(delegator.getAllocated(network1, 0), 500);
         assertEq(delegator.getAllocated(network2, 0), 200);
         assertEq(delegator.getFilled(network1, 0), 500);
@@ -1555,7 +1544,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         // Decrease operator2 size: creates pending=60 for operator2/network1.
         vm.warp(2);
         delegator.setSize(op2, 120);
-        assertEq(delegator.getPending(op2, 0), 60);
+        assertEq(_pending(op2), 60);
         assertEq(delegator.getAllocated(op1, 0), 220);
         assertEq(delegator.getAllocated(op2, 0), 180);
         assertEq(delegator.getAllocated(op3, 0), 100);
@@ -1568,7 +1557,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         // Decrease operator3 size from 160 -> 100: pending remains 0 (allocated was already 100).
         vm.warp(3);
         delegator.setSize(op3, 100);
-        assertEq(delegator.getPending(op3, 0), 0);
+        assertEq(_pending(op3), 0);
         assertEq(delegator.getAllocated(op3, 0), 100);
 
         // Attempting operator1 increase 220 -> 260 reverts in this state (no tail unallocated amount).
@@ -1578,8 +1567,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         // After pending windows expire, the same topology has lower filled amount.
         vm.warp(6);
-        assertEq(delegator.getPending(network1, 0), 0);
-        assertEq(delegator.getPending(op2, 0), 0);
+        assertEq(_pending(network1), 0);
+        assertEq(_pending(op2), 0);
         assertEq(delegator.getAllocated(network1, 0), 420);
         assertEq(delegator.getAllocated(op1, 0), 220);
         assertEq(delegator.getAllocated(op2, 0), 120);
@@ -1614,7 +1603,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.warp(1);
         delegator.setSize(op2, 120);
-        assertEq(delegator.getPending(op2, 0), 30);
+        assertEq(_pending(op2), 30);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
@@ -1623,8 +1612,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.warp(2);
         delegator.setSize(op1, 170);
-        assertEq(delegator.getPending(op1, 0), 30);
-        assertEq(delegator.getPending(op1, 0) + delegator.getPending(op2, 0) + delegator.getPending(op3, 0), 60);
+        assertEq(_pending(op1), 30);
+        assertEq(_pending(op1) + _pending(op2) + _pending(op3), 60);
 
         uint48 maxDuration = EPOCH_DURATION - 1;
         uint256 filledWithPending = delegator.getFilled(networkSlot, 0);
@@ -1653,8 +1642,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getFilled(networkSlot, 0), 400);
 
         vm.warp(EPOCH_DURATION + 4);
-        assertEq(delegator.getPending(op1, 0), 0);
-        assertEq(delegator.getPending(op2, 0), 0);
+        assertEq(_pending(op1), 0);
+        assertEq(_pending(op2), 0);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
@@ -1697,7 +1686,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.warp(2);
         delegator.setSize(op3, 70);
-        assertEq(delegator.getPending(op3, 0), 30);
+        assertEq(_pending(op3), 30);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
@@ -1722,7 +1711,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getFilled(networkSlot, 0), 300);
 
         vm.warp(EPOCH_DURATION + 5);
-        assertEq(delegator.getPending(op3, 0), 0);
+        assertEq(_pending(op3), 0);
         assertEq(
             delegator.getFilled(networkSlot, 0),
             delegator.getAllocated(op1, 0) + delegator.getAllocated(op2, 0) + delegator.getAllocated(op3, 0)
@@ -1926,7 +1915,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(slot1, 30);
 
-        assertEq(delegator.getPending(slot1, 0), 40);
+        assertEq(_pending(slot1), 40);
         assertEq(delegator.getAllocated(slot1, 0), 70);
         assertEq(delegator.getAllocated(slot2, 0), 30);
 
@@ -2702,7 +2691,66 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getAllocated(slot2, 0), 50);
     }
 
-    function test_getPendingAt_doesNotUnderflowForSmallTimestamps() public {
+    function testFuzz_nonSharedOperatorSwapPreservesStakeForGuaranteeWindow(
+        uint128 firstSize,
+        uint128 middleSize,
+        uint128 lastSize
+    ) public {
+        PendingDecreaseSwapFuzzState memory state;
+        state.firstSize = uint128(bound(firstSize, 1, 100));
+        state.middleSize = uint128(bound(middleSize, 1, 100));
+        state.lastSize = uint128(bound(lastSize, 1, 100));
+        state.network = makeAddr("non-shared-pending-swap-network");
+        state.operator3 = makeAddr("non-shared-pending-swap-operator-3");
+        state.subnetwork = state.network.subnetwork(0);
+        uint128 totalSize = state.firstSize + state.middleSize + state.lastSize;
+
+        _registerNetwork(state.network, makeAddr("non-shared-pending-swap-middleware"));
+        _registerOperator(alice);
+        _registerOperator(bob);
+        _registerOperator(state.operator3);
+        _optIn(alice, state.network);
+        _optIn(bob, state.network);
+        _optIn(state.operator3, state.network);
+        vm.prank(state.network);
+        delegator.setMaxNetworkLimit(0, type(uint256).max);
+
+        _deposit(alice, totalSize);
+        uint96 root = delegator.createSlot(bytes32(0), 0, false, false, totalSize);
+        uint96 networkSlot = delegator.createSlot(state.subnetwork, root, false, false, totalSize);
+        state.slot1 = delegator.createSlot(_operatorKey(alice), networkSlot, false, false, state.firstSize);
+        state.slot2 = delegator.createSlot(_operatorKey(bob), networkSlot, false, false, state.middleSize);
+        state.slot3 = delegator.createSlot(_operatorKey(state.operator3), networkSlot, false, false, state.lastSize);
+
+        vm.warp(1);
+        delegator.setSize(networkSlot, state.lastSize);
+        delegator.setSize(state.slot1, 0);
+        delegator.setSize(state.slot2, 0);
+
+        uint48 start = uint48(block.timestamp);
+        uint256 beforeStake0 = delegator.stakeFor(state.subnetwork, state.operator3, 0);
+        uint256 beforeStake1 = delegator.stakeFor(state.subnetwork, state.operator3, 1);
+        uint256 beforeStake2 = delegator.stakeFor(state.subnetwork, state.operator3, EPOCH_DURATION - 1);
+
+        delegator.swapSlots(state.slot2, state.slot3);
+
+        assertEq(beforeStake0, state.lastSize);
+        assertEq(beforeStake1, state.lastSize);
+        assertEq(beforeStake2, state.lastSize);
+
+        assertGe(delegator.stakeFor(state.subnetwork, state.operator3, 0), beforeStake0);
+        assertGe(delegator.stakeFor(state.subnetwork, state.operator3, 1), beforeStake1);
+        assertGe(delegator.stakeFor(state.subnetwork, state.operator3, EPOCH_DURATION - 1), beforeStake2);
+
+        vm.warp(start + 1);
+        assertGe(delegator.stakeFor(state.subnetwork, state.operator3, 0), beforeStake1);
+        assertGe(delegator.stakeFor(state.subnetwork, state.operator3, 1), beforeStake2);
+
+        vm.warp(start + EPOCH_DURATION - 1);
+        assertGe(delegator.stakeFor(state.subnetwork, state.operator3, 0), beforeStake2);
+    }
+
+    function test_getSizeAt_handlesDelayedDecreaseForSmallTimestamps() public {
         _deposit(alice, 100);
 
         _createSlot(0, false, 60);
@@ -2711,8 +2759,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(slot1, 40);
 
-        assertEq(delegator.getPendingAt(slot1, 0, 2), 20);
-        assertEq(delegator.getPendingAt(slot1, 0, 4), 0);
+        assertEq(delegator.getSizeAt(slot1, 2), 60);
+        assertEq(delegator.getSizeAt(slot1, 4), 40);
     }
 
     function test_miscViewsAndMaxNetworkLimitMethods() public {
@@ -2774,25 +2822,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         harness.exposeSlotExists(_rootIndex(uint32(1)), true);
     }
 
-    function testFuzz_getPendingSize_sumOfUint128SizeAndPendingFitsUint208(uint128 size, uint128 pending) public {
-        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
-        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
-        uint96 index = _rootIndex(uint32(1));
-        uint48 timestamp = 1;
-
-        vm.warp(timestamp);
-        harness.setVaultRaw(address(vaultMock));
-        harness.pushSlotSizeRaw(index, timestamp, size);
-        if (pending > 0) {
-            harness.pushPendingCumulativeRaw(index, timestamp, pending);
-        }
-
-        uint256 expected = uint256(size) + uint256(pending);
-        assertEq(harness.exposeGetPendingSize(index, 0), expected);
-        assertLe(expected, type(uint208).max);
-    }
-
-    function testFuzz_getPrevSum_siblingPrefixFitsUint208(uint8 siblingCount, uint128 size, uint128 pending) public {
+    function testFuzz_getPrevSum_siblingPrefixFitsUint208(uint8 siblingCount, uint128 size) public {
         UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
         MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
         uint96 parent = _rootIndex(uint32(1));
@@ -2804,23 +2834,19 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         harness.setVaultRaw(address(vaultMock));
         harness.pushFirstChildRaw(parent, timestamp, 1);
         harness.pushSyncPrevSizeSumsRaw(parent, timestamp, 1);
-        harness.setChildrenPendingAtRaw(parent, timestamp);
 
         for (uint32 i = 1; i <= siblingCount; ++i) {
             uint96 slot = parent.createIndex(i);
             harness.pushSlotSizeRaw(slot, timestamp, size);
-            if (pending > 0) {
-                harness.pushPendingCumulativeRaw(slot, timestamp, pending);
-            }
             if (i < siblingCount) {
                 harness.pushNextSlotRaw(slot, timestamp, i + 1);
             }
         }
 
         uint96 target = parent.createIndex(uint32(siblingCount));
-        uint256 expected = (uint256(siblingCount) - 1) * (uint256(size) + uint256(pending));
+        uint256 expected = (uint256(siblingCount) - 1) * uint256(size);
 
-        assertEq(harness.exposeGetPrevSum(target, 0), expected);
+        assertEq(harness.exposeGetPrevSum(target), expected);
         assertLe(expected, type(uint208).max);
     }
 
@@ -2845,7 +2871,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(harness.latestSyncPrevSizeSums(parent), 0);
     }
 
-    function test_getPrevSizeSumAt_returnsZeroForRootAndSharedParent() public {
+    function test_getPrevSumAt_returnsZeroForRootAndSharedParent() public {
         UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
         uint96 parent = _rootIndex(uint32(1));
         uint96 slot = parent.createIndex(uint32(1));
@@ -2856,43 +2882,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         harness.pushFirstChildRaw(parent, timestamp, 1);
         harness.pushSlotSizeRaw(slot, timestamp, 5);
 
-        assertEq(harness.exposeGetPrevSizeSumAt(0, timestamp), 0);
-        assertEq(harness.exposeGetPrevSizeSumAt(slot, timestamp), 0);
-    }
-
-    function test_getPrevPendingSumAt_returnsZeroForRootAndSharedParent() public {
-        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
-        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
-        uint96 parent = _rootIndex(uint32(1));
-        uint96 slot = parent.createIndex(uint32(1));
-        uint48 timestamp = 1;
-
-        vm.warp(timestamp);
-        harness.setVaultRaw(address(vaultMock));
-        harness.setSlotSharedRaw(parent, true);
-        harness.pushFirstChildRaw(parent, timestamp, 1);
-        harness.pushPendingCumulativeRaw(slot, timestamp, 5);
-
-        assertEq(harness.exposeGetPrevPendingSumAt(0, 0, timestamp), 0);
-        assertEq(harness.exposeGetPrevPendingSumAt(slot, 0, timestamp), 0);
-    }
-
-    function test_getPrevPendingSum_returnsZeroForRootAndSharedParent() public {
-        UniversalDelegatorCoverageHarnessTest harness = new UniversalDelegatorCoverageHarnessTest();
-        MockVaultForDelegatorCoverage vaultMock = new MockVaultForDelegatorCoverage();
-        uint96 parent = _rootIndex(uint32(1));
-        uint96 slot = parent.createIndex(uint32(1));
-        uint48 timestamp = 1;
-
-        vm.warp(timestamp);
-        harness.setVaultRaw(address(vaultMock));
-        harness.setSlotSharedRaw(parent, true);
-        harness.pushFirstChildRaw(parent, timestamp, 1);
-        harness.pushPendingCumulativeRaw(slot, timestamp, 5);
-        harness.setChildrenPendingAtRaw(parent, timestamp);
-
-        assertEq(harness.exposeGetPrevPendingSum(0, 0), 0);
-        assertEq(harness.exposeGetPrevPendingSum(slot, 0), 0);
+        assertEq(harness.exposeGetPrevSumAt(0, timestamp), 0);
+        assertEq(harness.exposeGetPrevSumAt(slot, timestamp), 0);
     }
 
     function test_createSlot_revertsForMissingParentSlot() public {
@@ -2957,7 +2948,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         uint128 currentSize = delegator.getSlot(operatorSlot).size;
         delegator.setSize(operatorSlot, currentSize);
-        assertEq(delegator.getPending(operatorSlot, 0), 0);
+        assertEq(_pending(operatorSlot), 0);
     }
 
     function test_syncPrevSums_multipleSlashes_thenCreateOperator_preservesExistingSiblingAllocations() public {
@@ -3043,8 +3034,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.getBalanceAt(operatorSlot, 0, uint48(block.timestamp)), 80);
         assertEq(delegator.getBalanceAt(0, 0, uint48(block.timestamp)), 100);
         assertEq(delegator.getBalance(operatorSlot, 0), 80);
-        assertEq(delegator.getPendingAt(operatorSlot, 0, uint48(block.timestamp)), 0);
-        assertEq(delegator.getPending(operatorSlot, 0), 0);
+        assertEq(_pendingAt(operatorSlot, uint48(block.timestamp)), 0);
+        assertEq(_pending(operatorSlot), 0);
     }
 
     function test_stakeFor_usesMaxNetworkLimitAsGate_notAsCap() public {
@@ -3306,7 +3297,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         vm.warp(1);
         delegator.setSize(subvault, 10);
-        assertEq(delegator.getPending(subvault, 0), 30);
+        assertEq(_pending(subvault), 30);
         assertEq(delegator.getNoAdaptersSize(), 40);
 
         vm.warp(EPOCH_DURATION + 1);
@@ -3460,8 +3451,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(5);
         assertEq(delegator.getAllocated(noAdaptersSubvault1, 0), 0);
         assertEq(delegator.getAllocated(noAdaptersSubvault2, 0), 0);
-        assertEq(delegator.getPending(noAdaptersSubvault1, 0), 0);
-        assertEq(delegator.getPending(noAdaptersSubvault2, 0), 40);
+        assertEq(_pending(noAdaptersSubvault1), 0);
+        assertEq(_pending(noAdaptersSubvault2), 40);
         assertEq(delegator.getNoAdaptersSize(), 150);
         assertEq(
             delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault1).size
@@ -3473,7 +3464,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         assertFalse(delegator.getSlot(noAdaptersSubvault2).exists);
         assertTrue(delegator.getSlot(noAdaptersSubvault1).exists);
-        assertEq(delegator.getPending(noAdaptersSubvault1, 0), 0);
+        assertEq(_pending(noAdaptersSubvault1), 0);
         assertEq(delegator.getNoAdaptersSize(), 50);
         assertEq(delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault1).size, 0);
     }
@@ -3609,7 +3600,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.setSize(operatorSlot3, 0);
         vm.warp(EPOCH_DURATION + 2);
         assertEq(delegator.getAllocated(operatorSlot3, 0), 0);
-        assertEq(delegator.getPending(operatorSlot3, 0), 0);
+        assertEq(_pending(operatorSlot3), 0);
 
         vm.prank(address(slasher));
         delegator.onSlash(subnetwork, alice, 10);
@@ -3681,8 +3672,8 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(2);
         delegator.setSize(noAdaptersSubvault2, 60);
 
-        assertEq(delegator.getPending(noAdaptersSubvault1, 0), 50);
-        assertEq(delegator.getPending(noAdaptersSubvault2, 0), 40);
+        assertEq(_pending(noAdaptersSubvault1), 50);
+        assertEq(_pending(noAdaptersSubvault2), 40);
         assertEq(delegator.getNoAdaptersSize(), 200);
         assertEq(
             delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault1).size
@@ -3700,7 +3691,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         assertEq(delegator.maxNetworkLimit(subnetwork2), type(uint208).max);
         assertEq(delegator.getNoAdaptersSize(), 100);
         assertTrue(delegator.getSlot(noAdaptersSubvault2).exists);
-        assertEq(delegator.getPending(noAdaptersSubvault2, 0), 40);
+        assertEq(_pending(noAdaptersSubvault2), 40);
         assertEq(delegator.getNoAdaptersSize() - delegator.getSlot(noAdaptersSubvault2).size, 40);
     }
 
@@ -3758,14 +3749,14 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(subvault, 30);
 
-        assertEq(delegator.getPending(subvault, 0), 50);
+        assertEq(_pending(subvault), 50);
         assertEq(delegator.getNoAdaptersSize(), 80);
 
         vm.prank(address(slasher));
         assertEq(delegator.onSlash(subnetwork, alice, 40), 40);
 
         assertEq(delegator.getSlot(subvault).size, 30);
-        assertEq(delegator.getPending(subvault, 0), 10);
+        assertEq(_pending(subvault), 10);
         assertEq(delegator.getSlot(networkSlot).size, 40);
         assertEq(delegator.getSlot(operatorSlot).size, 40);
         assertEq(delegator.getNoAdaptersSize(), 40);
@@ -3794,7 +3785,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(1);
         delegator.setSize(subvault, 30);
 
-        assertEq(delegator.getPending(subvault, 0), 70);
+        assertEq(_pending(subvault), 70);
         assertEq(delegator.getSlot(subvault).size, 30);
         assertEq(delegator.getSlot(networkSlot).size, 100);
         assertEq(delegator.getSlot(operatorSlot).size, 20);
@@ -3803,7 +3794,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         vm.warp(2);
         assertEq(_requestAndExecuteSlash(middleware, subnetwork, alice, 100, 0), 20);
 
-        assertEq(delegator.getPending(subvault, 0), 50);
+        assertEq(_pending(subvault), 50);
         assertEq(delegator.getSlot(subvault).size, 30);
         assertEq(delegator.getSlot(networkSlot).size, 80);
         assertEq(delegator.getSlot(operatorSlot).size, 0);
@@ -3911,7 +3902,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
 
         uint128 currentSize = delegator.getSlot(subvault).size;
         delegator.setSize(subvault, currentSize);
-        assertEq(delegator.getPending(subvault, 0), 0);
+        assertEq(_pending(subvault), 0);
     }
 
     function test_initializeReverts_NotVault_OldVault_AndAllowsMissingRoleHolders() public {
@@ -4056,14 +4047,14 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         delegator.setSize(noAdaptersSubvault, 60);
 
         assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
-        assertEq(delegator.getPending(noAdaptersSubvault, 0), 40);
+        assertEq(_pending(noAdaptersSubvault), 40);
         assertEq(delegator.getNoAdaptersSize(), 100);
 
         vm.prank(address(slasher));
         assertEq(delegator.onSlashLegacy(bytes32(0), address(0), 30), 30);
 
         assertEq(delegator.getSlot(noAdaptersSubvault).size, 60);
-        assertEq(delegator.getPending(noAdaptersSubvault, 0), 10);
+        assertEq(_pending(noAdaptersSubvault), 10);
         assertEq(delegator.getNoAdaptersSize(), 70);
         vm.prank(address(slasher));
         assertEq(delegator.getAllocated(networkSlot1, 0), 100);
@@ -4219,6 +4210,17 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
         return available > allocated ? available - allocated : 0;
     }
 
+    function _pending(uint96 index) internal view returns (uint208) {
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(index);
+        return slot.size > slot.latestSize ? uint208(slot.size - slot.latestSize) : 0;
+    }
+
+    function _pendingAt(uint96 index, uint48 timestamp) internal view returns (uint208) {
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(index);
+        uint128 sizeAt = delegator.getSizeAt(index, timestamp);
+        return sizeAt > slot.latestSize ? uint208(sizeAt - slot.latestSize) : 0;
+    }
+
     function _assertManualPrevSizeSumsMatch(uint96 parentIndex) internal view {
         bool sharedParent = parentIndex.getDepth() == 1 && delegator.getSlot(parentIndex).isShared;
         uint208 expectedPrevSizeSum;
@@ -4228,7 +4230,7 @@ contract UniversalDelegatorTest is Test, CoreV2StakeForInvariantHelper {
             uint96 slotIndex = parentIndex.createIndex(childIndex);
             IUniversalDelegator.Slot memory slot = delegator.getSlot(slotIndex);
             assertEq(slot.prevSizeSum, sharedParent ? 0 : expectedPrevSizeSum);
-            expectedPrevSizeSum += slot.size;
+            expectedPrevSizeSum += slot.latestSize;
             childIndex = slot.nextSlot;
         }
     }
