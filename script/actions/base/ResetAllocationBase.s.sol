@@ -7,14 +7,24 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract ResetAllocationBaseScript is ScriptBase {
-    function runBase(address vault, bytes32 subnetwork) public virtual returns (bytes memory data, address target) {
+    function runBase(address vault, bytes32 subnetwork, address operator)
+        public
+        virtual
+        returns (bytes memory data, address target)
+    {
         target = IVault(vault).delegator();
-        data = abi.encodeCall(IUniversalDelegator.resetAllocation, (subnetwork));
+        data = abi.encodeCall(IUniversalDelegator.resetAllocation, (subnetwork, operator));
         sendTransaction(target, data);
 
         Logs.log(
             string.concat(
-                "Reset allocation", "\n    vault:", vm.toString(vault), "\n    subnetwork:", vm.toString(subnetwork)
+                "Reset allocation",
+                "\n    vault:",
+                vm.toString(vault),
+                "\n    subnetwork:",
+                vm.toString(subnetwork),
+                "\n    operator:",
+                vm.toString(operator)
             )
         );
         Logs.logSimulationLink(target, data);

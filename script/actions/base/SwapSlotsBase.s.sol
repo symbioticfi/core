@@ -6,7 +6,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SwapSlotsBaseScript is ScriptBase {
-    function runBase(address delegator, uint64 index1, uint64 index2)
+    function runBase(address delegator, uint32 index1, uint32 index2)
         public
         virtual
         returns (bytes memory data, address target)

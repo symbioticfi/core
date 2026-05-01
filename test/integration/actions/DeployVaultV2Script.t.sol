@@ -8,11 +8,7 @@ import {VaultV2Migrate} from "../../../src/contracts/vault/VaultV2Migrate.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {UniversalSlasher} from "../../../src/contracts/slasher/UniversalSlasher.sol";
 
-import {
-    IUniversalDelegator,
-    UNIVERSAL_DELEGATOR_TYPE,
-    WITHDRAWAL_BUFFER_INDEX
-} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher, UNIVERSAL_SLASHER_TYPE} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {
     IVaultV2,
@@ -166,9 +162,6 @@ contract DeployVaultV2ScriptTest is Test {
         assertEq(VaultV2(vault).delegator(), delegator, "delegator mismatch");
         assertEq(UniversalDelegator(delegator).TYPE(), UNIVERSAL_DELEGATOR_TYPE, "delegator type mismatch");
         assertEq(UniversalDelegator(delegator).vault(), vault, "delegator vault mismatch");
-        assertEq(
-            IUniversalDelegator(delegator).getSlot(WITHDRAWAL_BUFFER_INDEX).size, 1 ether, "withdrawal buffer mismatch"
-        );
 
         assertEq(VaultV2(vault).slasher(), slasher, "slasher mismatch");
         assertEq(UniversalSlasher(slasher).TYPE(), UNIVERSAL_SLASHER_TYPE, "slasher type mismatch");

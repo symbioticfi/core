@@ -12,10 +12,8 @@ import {
     IUniversalDelegator,
     REMOVE_SLOT_ROLE,
     SET_SIZE_ROLE,
-    SET_WITHDRAWAL_BUFFER_SIZE_ROLE,
     SWAP_SLOTS_ROLE,
-    UNIVERSAL_DELEGATOR_TYPE,
-    WITHDRAWAL_BUFFER_INDEX
+    UNIVERSAL_DELEGATOR_TYPE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher, UNIVERSAL_SLASHER_TYPE} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {
@@ -158,14 +156,12 @@ contract DeployVaultV2Base is Script {
     ) internal view {
         assert(UniversalDelegator(delegator).TYPE() == UNIVERSAL_DELEGATOR_TYPE);
         assert(UniversalDelegator(delegator).vault() == vault);
-        assert(IUniversalDelegator(delegator).getSlot(WITHDRAWAL_BUFFER_INDEX).size == params.withdrawalBufferSize);
 
         _assertDelegatorRole(delegator, DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _assertDelegatorRole(delegator, CREATE_SLOT_ROLE, params.createSlotRoleHolder);
         _assertDelegatorRole(delegator, SET_SIZE_ROLE, params.setSizeRoleHolder);
         _assertDelegatorRole(delegator, SWAP_SLOTS_ROLE, params.swapSlotsRoleHolder);
         _assertDelegatorRole(delegator, REMOVE_SLOT_ROLE, params.removeSlotRoleHolder);
-        _assertDelegatorRole(delegator, SET_WITHDRAWAL_BUFFER_SIZE_ROLE, params.setWithdrawalBufferSizeRoleHolder);
 
         if (deployer != params.defaultAdminRoleHolder) {
             assert(UniversalDelegator(delegator).hasRole(DEFAULT_ADMIN_ROLE, deployer) == false);
@@ -181,9 +177,6 @@ contract DeployVaultV2Base is Script {
         }
         if (deployer != params.removeSlotRoleHolder) {
             assert(UniversalDelegator(delegator).hasRole(REMOVE_SLOT_ROLE, deployer) == false);
-        }
-        if (deployer != params.setWithdrawalBufferSizeRoleHolder) {
-            assert(UniversalDelegator(delegator).hasRole(SET_WITHDRAWAL_BUFFER_SIZE_ROLE, deployer) == false);
         }
     }
 

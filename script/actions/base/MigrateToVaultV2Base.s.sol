@@ -16,13 +16,11 @@ import {IUniversalSlasher} from "../../../src/interfaces/slasher/IUniversalSlash
 import {IVault} from "../../../src/interfaces/vault/IVault.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
-import {UniversalDelegatorIndex} from "../../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract MigrateToVaultV2BaseScript is ScriptBase {
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint64;
 
     struct Config {
         address vault;
@@ -103,12 +101,9 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         view
         returns (bytes[] memory calls)
     {
-        IUniversalDelegator.Slot memory root = IUniversalDelegator(delegator).getSlot(0);
-        uint32 firstNetworkChild = root.totalChildren + 1;
-
         uint256 totalCalls;
         for (uint256 i; i < networks.length; ++i) {
-            totalCalls += 1 + networks[i].operators.length;
+            totalCalls += networks[i].operators.length;
         }
 
         calls = new bytes[](totalCalls);
@@ -117,17 +112,12 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         for (uint32 i; i < networks.length; ++i) {
             NetworkAllocation memory networkAllocation = networks[i];
             bytes32 subnetwork = networkAllocation.network.subnetwork(networkAllocation.identifier);
-            uint64 networkSlotIndex = uint64(0).createIndex(firstNetworkChild + i);
-
-            calls[callIndex++] =
-                abi.encodeCall(IUniversalDelegator.createSlot, (subnetwork, uint64(0), networkAllocation.size));
 
             for (uint32 j; j < networkAllocation.operators.length; ++j) {
                 OperatorAllocation memory operatorAllocation = networkAllocation.operators[j];
 
                 calls[callIndex++] = abi.encodeCall(
-                    IUniversalDelegator.createSlot,
-                    (_operatorKey(operatorAllocation.operator), networkSlotIndex, operatorAllocation.size)
+                    IUniversalDelegator.createSlot, (subnetwork, operatorAllocation.operator, operatorAllocation.size)
                 );
             }
         }

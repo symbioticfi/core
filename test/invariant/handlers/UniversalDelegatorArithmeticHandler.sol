@@ -26,15 +26,9 @@ import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 import {UniversalSlasher} from "../../../src/contracts/slasher/UniversalSlasher.sol";
 
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
-import {UniversalDelegatorIndex} from "../../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 
 import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
-import {
-    IUniversalDelegator,
-    MAX_NETWORKS,
-    MAX_OPERATORS,
-    WITHDRAWAL_BUFFER_CHILD_INDEX
-} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol";
 
@@ -54,11 +48,36 @@ contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
 contract UniversalDelegatorArithmeticHandler is Test {
     using Subnetwork for address;
     using Subnetwork for bytes32;
-    using UniversalDelegatorIndex for uint64;
+
+    error StakeForSumExceedsCapacity(uint48 duration, uint256 totalStakeFor, uint256 capacity);
+    error StakeForDecreasesWithDuration(
+        uint32 slot, uint48 shorterDuration, uint256 shorterStakeFor, uint48 longerDuration, uint256 longerStakeFor
+    );
+    error StakeViewDecreased(uint32 slot, bytes4 selector, uint48 duration, uint256 beforeValue, uint256 afterValue);
+    error StakeForPromiseDecreased(
+        uint32 slot,
+        uint48 promisedAt,
+        uint48 duration,
+        uint48 checkedAt,
+        uint48 remainingDuration,
+        uint256 promisedValue,
+        uint256 actualValue
+    );
+    error UnexpectedActionRevert(bytes4 selector, bytes data);
+
+    struct StakeForPromise {
+        uint32 slot;
+        uint48 timestamp;
+        uint48 duration;
+        uint256 value;
+        uint256 generation;
+    }
 
     uint256 internal constant MAX_ACTION_AMOUNT = 1_000_000 ether;
     uint256 internal constant MAX_SLOT_SIZE = 250_000 ether;
     uint256 internal constant MAX_TRACKED_TIMESTAMPS = 64;
+    uint256 internal constant MAX_STAKE_FOR_PROMISES = 192;
+    uint8 internal constant DURATION_SAMPLES = 5;
     uint48 internal constant EPOCH_DURATION = 7 days;
 
     VaultFactory internal vaultFactory;
@@ -77,49 +96,54 @@ contract UniversalDelegatorArithmeticHandler is Test {
     UniversalDelegatorArithmeticHarness public delegator;
     IUniversalSlasher public slasher;
 
-    uint64[] internal trackedRootSlots;
-    uint64[] internal trackedNetworkSlots;
-    uint64[] internal trackedOperatorSlots;
+    uint32[] internal trackedSlots;
     uint48[] internal trackedTimestamps;
+    bytes32[] internal knownSubnetworks;
+    address[] internal knownOperators;
 
+    mapping(uint32 slot => bool tracked) internal isTrackedSlot;
+    mapping(uint32 slot => bytes32 subnetwork) internal subnetworkOfSlot;
+    mapping(uint32 slot => address operator) internal operatorOfSlot;
+    mapping(bytes32 subnetwork => bool known) internal isKnownSubnetwork;
+    mapping(address operator => bool known) internal isKnownOperator;
+    mapping(bytes32 subnetwork => mapping(address operator => uint32 slot)) internal expectedSlotOf;
     mapping(bytes32 subnetwork => address middleware) internal middlewareOf;
-    mapping(uint64 operatorSlot => address operator) internal operatorOfSlot;
     mapping(address account => bool knownDepositor) internal isKnownDepositor;
     address[] internal depositors;
+
+    uint48 internal sameBlockTimestamp;
+    mapping(uint32 slot => uint256 value) internal lastStake;
+    mapping(uint32 slot => uint256 value) internal lastStakeAt;
+    mapping(uint32 slot => mapping(uint8 durationIndex => uint256 value)) internal lastStakeFor;
+    mapping(uint32 slot => mapping(uint8 durationIndex => uint256 value)) internal lastStakeForAt;
+    mapping(uint32 slot => uint256 generation) internal guaranteeGeneration;
+    StakeForPromise[] internal stakeForPromises;
+    bool internal sameBlockStakeViewDecreased;
+    uint32 internal sameBlockStakeViewDecreasedSlot;
+    bytes4 internal sameBlockStakeViewDecreasedSelector;
+    uint48 internal sameBlockStakeViewDecreasedDuration;
+    uint256 internal sameBlockStakeViewBefore;
+    uint256 internal sameBlockStakeViewAfter;
+    bool internal stakeForPromiseDecreased;
+    StakeForPromise internal decreasedStakeForPromise;
+    uint48 internal decreasedStakeForPromiseCheckedAt;
+    uint48 internal decreasedStakeForPromiseRemainingDuration;
+    uint256 internal decreasedStakeForPromiseActualValue;
+    bool internal unexpectedActionReverted;
+    bytes4 internal unexpectedActionSelector;
+    bytes internal unexpectedActionRevertData;
 
     uint256 internal nextNetworkNonce;
     uint256 internal nextOperatorNonce;
     uint256 internal nextTimestampWriteIndex;
+    uint256 internal nextStakeForPromiseWriteIndex;
 
     constructor() {
         _initialize();
     }
 
-    function getTrackedRootSlots() external view returns (uint64[] memory) {
-        return trackedRootSlots;
-    }
-
-    function getTrackedNetworkSlots() external view returns (uint64[] memory) {
-        return trackedNetworkSlots;
-    }
-
-    function getTrackedOperatorSlots() external view returns (uint64[] memory) {
-        return trackedOperatorSlots;
-    }
-
-    function getTrackedSlots() external view returns (uint64[] memory slots_) {
-        slots_ = new uint64[](trackedRootSlots.length + trackedNetworkSlots.length + trackedOperatorSlots.length);
-
-        uint256 cursor;
-        for (uint256 i; i < trackedRootSlots.length; ++i) {
-            slots_[cursor++] = trackedRootSlots[i];
-        }
-        for (uint256 i; i < trackedNetworkSlots.length; ++i) {
-            slots_[cursor++] = trackedNetworkSlots[i];
-        }
-        for (uint256 i; i < trackedOperatorSlots.length; ++i) {
-            slots_[cursor++] = trackedOperatorSlots[i];
-        }
+    function getTrackedSlots() external view returns (uint32[] memory) {
+        return trackedSlots;
     }
 
     function getTrackedTimestamps() external view returns (uint48[] memory) {
@@ -145,10 +169,9 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         vm.startPrank(user);
         collateral.approve(address(vault), amount);
-        try vault.deposit(user, amount) returns (uint256, uint256) {
-            _rememberDepositor(user);
-        } catch {}
+        vault.deposit(user, amount);
         vm.stopPrank();
+        _rememberDepositor(user);
 
         _recordTimestamp();
     }
@@ -157,134 +180,70 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _warp(timeJumpSeed);
 
         address user = _selectDepositor(userSeed);
-        if (user == address(0)) {
-            _recordTimestamp();
-            return;
+        if (user != address(0)) {
+            uint256 balance = vault.activeBalanceOf(user);
+            if (balance > 0) {
+                vm.prank(user);
+                vault.withdraw(user, _bound(amount, 1, balance));
+            }
         }
-
-        uint256 balance = vault.activeBalanceOf(user);
-        if (balance == 0) {
-            _recordTimestamp();
-            return;
-        }
-
-        vm.prank(user);
-        try vault.withdraw(user, _bound(amount, 1, balance)) {} catch {}
 
         _recordTimestamp();
     }
 
     function createRootSlot(uint256 sizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
-
-        (,, bytes32 slotKey) = _prepareFreshSubnetwork();
-        uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
-
-        (bool success, bytes memory returnData) =
-            address(delegator).call(abi.encodeCall(delegator.createSlot, (slotKey, 0, size)));
-        if (success) {
-            uint64 slot = abi.decode(returnData, (uint64));
-            trackedRootSlots.push(slot);
-            trackedNetworkSlots.push(slot);
-        }
-
+        _createFreshSlot(sizeSeed);
         _recordTimestamp();
     }
 
     function setMaxNetworkLimit(uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
-
-        (address network,,) = _prepareFreshSubnetwork();
-        vm.prank(network);
-        address(delegator).call(abi.encodeCall(delegator.setMaxNetworkLimit, (uint64(0), type(uint256).max)));
-
         _recordTimestamp();
     }
 
-    function createNetworkSlot(uint256 rootSeed, uint256 sizeSeed, uint256 timeJumpSeed) external {
+    function createNetworkSlot(uint256, uint256 sizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
-
-        (,, bytes32 subnetwork) = _prepareFreshSubnetwork();
-        uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
-
-        (bool success, bytes memory returnData) =
-            address(delegator).call(abi.encodeCall(delegator.createSlot, (subnetwork, 0, size)));
-        if (success) {
-            uint64 slot = abi.decode(returnData, (uint64));
-            trackedRootSlots.push(slot);
-            trackedNetworkSlots.push(slot);
-        }
-
+        _createFreshSlot(sizeSeed);
         _recordTimestamp();
     }
 
-    function createOperatorSlot(uint256 networkSeed, uint256 sizeSeed, uint256 timeJumpSeed) external {
+    function createOperatorSlot(uint256, uint256 sizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
-
-        uint64 networkSlot = _selectLiveSlot(trackedNetworkSlots, networkSeed);
-        if (networkSlot == 0) {
-            _recordTimestamp();
-            return;
-        }
-
-        bytes32 subnetwork = delegator.getSlot(networkSlot).subnetworkOrOperator;
-        address operator = _prepareFreshOperator(subnetwork);
-        uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
-
-        (bool success, bytes memory returnData) = address(delegator)
-            .call(abi.encodeCall(delegator.createSlot, (bytes32(bytes20(operator)), networkSlot, size)));
-        if (success) {
-            uint64 operatorSlot = abi.decode(returnData, (uint64));
-            trackedOperatorSlots.push(operatorSlot);
-            operatorOfSlot[operatorSlot] = operator;
-        }
-
+        _createFreshSlot(sizeSeed);
         _recordTimestamp();
     }
 
     function setSize(uint256 slotSeed, uint256 newSizeSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint64 slot = _selectLiveAnySlot(slotSeed);
-        if (slot == 0) {
-            _recordTimestamp();
-            return;
+        uint32 slot = _selectLiveSlot(slotSeed);
+        if (slot != 0) {
+            uint128 newSize = uint128(_bound(newSizeSeed, 0, delegator.getSize(slot)));
+            try delegator.setSize(slot, newSize) {}
+            catch (bytes memory revertData) {
+                _recordUnexpectedActionRevert(UniversalDelegator.setSize.selector, revertData);
+            }
         }
-
-        address(delegator)
-            .call(abi.encodeCall(delegator.setSize, (slot, uint128(_bound(newSizeSeed, 0, MAX_SLOT_SIZE)))));
 
         _recordTimestamp();
     }
 
-    function swapSlots(uint256 parentSeed, uint256 leftSeed, uint256 rightSeed, uint256 timeJumpSeed) external {
+    function swapSlots(uint256, uint256 leftSeed, uint256 rightSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint64 parent = _selectParentWithAtLeastTwoChildren(parentSeed);
-        if (parent == type(uint64).max) {
-            _recordTimestamp();
-            return;
+        uint32 left = _selectLiveSlot(leftSeed);
+        uint32 right = _selectLiveSlot(rightSeed);
+        if (left != 0 && right != 0 && left != right) {
+            bool ordered;
+            (left, right, ordered) = _orderSlotsByCurrentPosition(left, right);
+            if (ordered && _canSwapSlotsWithoutRevert(left, right)) {
+                try delegator.swapSlots(left, right) {}
+                catch (bytes memory revertData) {
+                    _recordUnexpectedActionRevert(UniversalDelegator.swapSlots.selector, revertData);
+                }
+            }
         }
-
-        uint64[] memory siblings = _liveChildrenOf(parent);
-        if (siblings.length < 2) {
-            _recordTimestamp();
-            return;
-        }
-
-        uint256 leftIndex = _bound(leftSeed, 0, siblings.length - 1);
-        uint256 rightIndex = _bound(rightSeed, 0, siblings.length - 1);
-        if (leftIndex == rightIndex) {
-            rightIndex = (rightIndex + 1) % siblings.length;
-        }
-
-        uint64 left = siblings[leftIndex];
-        uint64 right = siblings[rightIndex];
-        if (left.getChildIndex() > right.getChildIndex()) {
-            (left, right) = (right, left);
-        }
-
-        address(delegator).call(abi.encodeCall(delegator.swapSlots, (left, right)));
 
         _recordTimestamp();
     }
@@ -292,71 +251,194 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function removeSlot(uint256 slotSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint64 slot = _selectRemovableLiveSlot(slotSeed);
-        if (slot == 0) {
-            _recordTimestamp();
-            return;
+        uint32 slot = _selectRemovableLiveSlot(slotSeed);
+        if (slot != 0) {
+            try delegator.removeSlot(slot) {
+                _dropSlotGuarantees(slot);
+            } catch (bytes memory revertData) {
+                _recordUnexpectedActionRevert(UniversalDelegator.removeSlot.selector, revertData);
+            }
         }
-
-        address(delegator).call(abi.encodeCall(delegator.removeSlot, (slot)));
 
         _recordTimestamp();
     }
 
-    function resetAllocation(uint256 networkSeed, uint256 timeJumpSeed) external {
+    function resetAllocation(uint256 slotSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint64 networkSlot = _selectLiveSlot(trackedNetworkSlots, networkSeed);
-        if (networkSlot == 0) {
-            _recordTimestamp();
-            return;
+        uint32 slot = _selectLiveSlot(slotSeed);
+        if (slot != 0) {
+            bytes32 subnetwork = subnetworkOfSlot[slot];
+            address middleware = middlewareOf[subnetwork];
+            if (middleware != address(0)) {
+                vm.prank(middleware);
+                try delegator.resetAllocation(subnetwork, operatorOfSlot[slot]) {
+                    _dropSlotGuarantees(slot);
+                } catch (bytes memory revertData) {
+                    _recordUnexpectedActionRevert(UniversalDelegator.resetAllocation.selector, revertData);
+                }
+            }
         }
-
-        bytes32 subnetwork = delegator.getSlot(networkSlot).subnetworkOrOperator;
-        address middleware = middlewareOf[subnetwork];
-        if (middleware == address(0)) {
-            _recordTimestamp();
-            return;
-        }
-
-        vm.prank(middleware);
-        address(delegator).call(abi.encodeCall(delegator.resetAllocation, (subnetwork)));
 
         _recordTimestamp();
     }
 
-    function slash(uint256 operatorSeed, uint256 amountSeed, uint256 timeJumpSeed) external {
+    function slash(uint256 slotSeed, uint256 amountSeed, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
-        uint64 operatorSlot = _selectLiveSlot(trackedOperatorSlots, operatorSeed);
-        if (operatorSlot == 0) {
-            _recordTimestamp();
-            return;
+        uint32 slot = _selectLiveSlot(slotSeed);
+        if (slot != 0) {
+            bytes32 subnetwork = subnetworkOfSlot[slot];
+            address operator = operatorOfSlot[slot];
+            uint256 slashable = slasher.slashableStake(subnetwork, operator, 0, "");
+            address middleware = middlewareOf[subnetwork];
+            if (slashable > 0 && middleware != address(0)) {
+                vm.startPrank(middleware);
+                try slasher.requestSlash(subnetwork, operator, _bound(amountSeed, 1, slashable), 0, "") returns (
+                    uint256 index
+                ) {
+                    try slasher.executeSlash(index, "") {
+                        _invalidateSlotGuarantees(slot);
+                    } catch (bytes memory revertData) {
+                        _recordUnexpectedActionRevert(IUniversalSlasher.executeSlash.selector, revertData);
+                    }
+                } catch (bytes memory revertData) {
+                    _recordUnexpectedActionRevert(IUniversalSlasher.requestSlash.selector, revertData);
+                }
+                vm.stopPrank();
+            }
         }
-
-        address operator = operatorOfSlot[operatorSlot];
-        bytes32 subnetwork = delegator.getSlot(operatorSlot.getParentIndex()).subnetworkOrOperator;
-        uint256 slashable = slasher.slashableStake(subnetwork, operator, 0, "");
-        if (slashable == 0) {
-            _recordTimestamp();
-            return;
-        }
-
-        address middleware = middlewareOf[subnetwork];
-        if (middleware == address(0)) {
-            _recordTimestamp();
-            return;
-        }
-
-        vm.startPrank(middleware);
-        try slasher.requestSlash(subnetwork, operator, _bound(amountSeed, 1, slashable), 0, "") returns (
-            uint256 index
-        ) {
-            try slasher.executeSlash(index, "") {} catch {}
-        } catch {}
-        vm.stopPrank();
 
         _recordTimestamp();
+    }
+
+    function assertStakeForDurationAndCapacityInvariants() external view {
+        for (uint8 i; i < DURATION_SAMPLES; ++i) {
+            _assertStakeForSumLeCapacity(_durationAt(i));
+        }
+        _assertStakeForNonIncreasingAcrossDurations();
+    }
+
+    function assertTrackedSlotAssignmentsIsolated() external view {
+        uint48 timestamp = uint48(block.timestamp);
+        uint48 maxDuration = vault.epochDuration() - 1;
+
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            IUniversalDelegator.Slot memory slotData = delegator.getSlot(slot);
+            if (!slotData.exists) {
+                continue;
+            }
+
+            bytes32 subnetwork = subnetworkOfSlot[slot];
+            address operator = operatorOfSlot[slot];
+
+            uint32 currentSlot = delegator.getSlotOf(subnetwork, operator);
+            uint32 historicalSlot = delegator.getSlotOfAt(subnetwork, operator, timestamp);
+            assertEq(currentSlot, slot);
+            assertEq(historicalSlot, slot);
+            assertEq(delegator.getAllocated(currentSlot, 0), delegator.getAllocated(slot, 0));
+            assertEq(
+                delegator.getAllocatedAt(historicalSlot, 0, timestamp), delegator.getAllocatedAt(slot, 0, timestamp)
+            );
+            assertEq(delegator.stakeFor(subnetwork, operator, maxDuration), delegator.stake(subnetwork, operator));
+            assertEq(
+                delegator.stakeForAt(subnetwork, operator, maxDuration, timestamp),
+                delegator.stakeAt(subnetwork, operator, timestamp, "")
+            );
+        }
+
+        _assertKnownPairCrossProductIsolation(timestamp);
+    }
+
+    function assertHistoricalStakeForAtCapacityInvariants() external view {
+        for (uint256 i; i < trackedTimestamps.length; ++i) {
+            uint48 timestamp = trackedTimestamps[i];
+            for (uint8 j; j < DURATION_SAMPLES; ++j) {
+                uint48 duration = _durationAt(j);
+                uint256 totalStakeForAt;
+                for (uint256 k; k < knownSubnetworks.length; ++k) {
+                    for (uint256 l; l < knownOperators.length; ++l) {
+                        totalStakeForAt += delegator.stakeForAt(
+                            knownSubnetworks[k], knownOperators[l], duration, timestamp
+                        );
+                    }
+                }
+
+                uint256 capacity =
+                    vault.activeStakeAt(timestamp, "") + vault.activeWithdrawalsForAt(duration, timestamp);
+                if (totalStakeForAt > capacity) {
+                    revert StakeForSumExceedsCapacity(duration, totalStakeForAt, capacity);
+                }
+            }
+        }
+    }
+
+    function assertNoUnexpectedActionReverts() external view {
+        if (unexpectedActionReverted) {
+            revert UnexpectedActionRevert(unexpectedActionSelector, unexpectedActionRevertData);
+        }
+    }
+
+    function assertSameBlockStakeViewsNonDecreasing() public view {
+        if (sameBlockStakeViewDecreased) {
+            revert StakeViewDecreased(
+                sameBlockStakeViewDecreasedSlot,
+                sameBlockStakeViewDecreasedSelector,
+                sameBlockStakeViewDecreasedDuration,
+                sameBlockStakeViewBefore,
+                sameBlockStakeViewAfter
+            );
+        }
+    }
+
+    function assertTemporalStakeForPromisesHold() public view {
+        if (stakeForPromiseDecreased) {
+            revert StakeForPromiseDecreased(
+                decreasedStakeForPromise.slot,
+                decreasedStakeForPromise.timestamp,
+                decreasedStakeForPromise.duration,
+                decreasedStakeForPromiseCheckedAt,
+                decreasedStakeForPromiseRemainingDuration,
+                decreasedStakeForPromise.value,
+                decreasedStakeForPromiseActualValue
+            );
+        }
+
+        uint48 timestamp = uint48(block.timestamp);
+        for (uint256 i; i < stakeForPromises.length; ++i) {
+            StakeForPromise storage stakePromise = stakeForPromises[i];
+            if (timestamp < stakePromise.timestamp) {
+                continue;
+            }
+
+            uint48 elapsed = timestamp - stakePromise.timestamp;
+            if (elapsed > stakePromise.duration) {
+                continue;
+            }
+
+            bytes32 subnetwork = subnetworkOfSlot[stakePromise.slot];
+            address operator = operatorOfSlot[stakePromise.slot];
+            if (
+                expectedSlotOf[subnetwork][operator] != stakePromise.slot
+                    || guaranteeGeneration[stakePromise.slot] != stakePromise.generation
+            ) {
+                continue;
+            }
+            uint48 remainingDuration = stakePromise.duration - elapsed;
+            uint256 actualValue = delegator.stakeForAt(subnetwork, operator, remainingDuration, timestamp);
+            if (actualValue < stakePromise.value) {
+                revert StakeForPromiseDecreased(
+                    stakePromise.slot,
+                    stakePromise.timestamp,
+                    stakePromise.duration,
+                    timestamp,
+                    remainingDuration,
+                    stakePromise.value,
+                    actualValue
+                );
+            }
+        }
     }
 
     function _initialize() internal {
@@ -560,48 +642,47 @@ contract UniversalDelegatorArithmeticHandler is Test {
         vm.stopPrank();
         _rememberDepositor(bootstrapDepositor);
 
-        _bootstrapMixedTopology();
+        _bootstrapSharedIdentityTopology();
+        _createFreshSlot(120 ether);
         _recordTimestamp();
     }
 
-    function _bootstrapMixedTopology() internal {
-        (,, bytes32 primarySubnetwork1) = _prepareFreshSubnetwork();
-        (,, bytes32 primarySubnetwork2) = _prepareFreshSubnetwork();
-        address primaryOperator1 = _prepareFreshOperator(primarySubnetwork1);
-        address primaryOperator2 = _prepareFreshOperator(primarySubnetwork2);
+    function _createFreshSlot(uint256 sizeSeed) internal {
+        (,, bytes32 subnetwork) = _prepareFreshSubnetwork();
+        address operator = _prepareFreshOperator(subnetwork);
+        uint128 size = uint128(_bound(sizeSeed, 0, MAX_SLOT_SIZE));
 
-        uint64 primaryNetwork1 = delegator.createSlot(primarySubnetwork1, 0, uint128(220 ether));
-        uint64 primaryNetwork2 = delegator.createSlot(primarySubnetwork2, 0, uint128(220 ether));
-        trackedRootSlots.push(primaryNetwork1);
-        trackedRootSlots.push(primaryNetwork2);
-        trackedNetworkSlots.push(primaryNetwork1);
-        trackedNetworkSlots.push(primaryNetwork2);
+        _createSlotFor(subnetwork, operator, size);
+    }
 
-        uint64 primaryOperatorSlot1 =
-            delegator.createSlot(bytes32(bytes20(primaryOperator1)), primaryNetwork1, uint128(150 ether));
-        uint64 primaryOperatorSlot2 =
-            delegator.createSlot(bytes32(bytes20(primaryOperator2)), primaryNetwork2, uint128(160 ether));
-        trackedOperatorSlots.push(primaryOperatorSlot1);
-        trackedOperatorSlots.push(primaryOperatorSlot2);
-        operatorOfSlot[primaryOperatorSlot1] = primaryOperator1;
-        operatorOfSlot[primaryOperatorSlot2] = primaryOperator2;
+    function _bootstrapSharedIdentityTopology() internal {
+        (,, bytes32 subnetwork1) = _prepareFreshSubnetwork();
+        (,, bytes32 subnetwork2) = _prepareFreshSubnetwork();
+        address operator1 = _prepareFreshOperator(subnetwork1);
+        address operator2 = _prepareFreshOperator(subnetwork1);
+        _optInOperatorToSubnetwork(operator1, subnetwork2);
 
-        (,, bytes32 isolatedSubnetwork) = _prepareFreshSubnetwork();
-        address isolatedOperator1 = _prepareFreshOperator(isolatedSubnetwork);
-        address isolatedOperator2 = _prepareFreshOperator(isolatedSubnetwork);
+        _createSlotFor(subnetwork1, operator1, 220 ether);
+        _createSlotFor(subnetwork1, operator2, 160 ether);
+        _createSlotFor(subnetwork2, operator1, 130 ether);
+    }
 
-        uint64 isolatedNetwork = delegator.createSlot(isolatedSubnetwork, 0, uint128(260 ether));
-        trackedRootSlots.push(isolatedNetwork);
-        trackedNetworkSlots.push(isolatedNetwork);
+    function _createSlotFor(bytes32 subnetwork, address operator, uint128 size) internal {
+        uint32 slot = delegator.createSlot(subnetwork, operator, size);
+        _trackSlot(slot, subnetwork, operator);
+    }
 
-        uint64 isolatedOperatorSlot1 =
-            delegator.createSlot(bytes32(bytes20(isolatedOperator1)), isolatedNetwork, uint128(130 ether));
-        uint64 isolatedOperatorSlot2 =
-            delegator.createSlot(bytes32(bytes20(isolatedOperator2)), isolatedNetwork, uint128(120 ether));
-        trackedOperatorSlots.push(isolatedOperatorSlot1);
-        trackedOperatorSlots.push(isolatedOperatorSlot2);
-        operatorOfSlot[isolatedOperatorSlot1] = isolatedOperator1;
-        operatorOfSlot[isolatedOperatorSlot2] = isolatedOperator2;
+    function _trackSlot(uint32 slot, bytes32 subnetwork, address operator) internal {
+        if (slot == 0 || isTrackedSlot[slot]) {
+            return;
+        }
+        isTrackedSlot[slot] = true;
+        trackedSlots.push(slot);
+        subnetworkOfSlot[slot] = subnetwork;
+        operatorOfSlot[slot] = operator;
+        expectedSlotOf[subnetwork][operator] = slot;
+        _rememberSubnetwork(subnetwork);
+        _rememberOperator(operator);
     }
 
     function _prepareFreshSubnetwork() internal returns (address network, address middleware, bytes32 subnetwork) {
@@ -616,9 +697,6 @@ contract UniversalDelegatorArithmeticHandler is Test {
         vm.stopPrank();
 
         middlewareOf[subnetwork] = middleware;
-
-        vm.prank(network);
-        delegator.setMaxNetworkLimit(0, type(uint256).max);
     }
 
     function _prepareFreshOperator(bytes32 subnetwork) internal returns (address operator) {
@@ -629,10 +707,196 @@ contract UniversalDelegatorArithmeticHandler is Test {
         operatorRegistry.registerOperator();
 
         vm.prank(operator);
-        address(operatorVaultOptInService).call(abi.encodeWithSignature("optIn(address)", address(vault)));
+        operatorVaultOptInService.optIn(address(vault));
 
         vm.prank(operator);
-        address(operatorNetworkOptInService).call(abi.encodeWithSignature("optIn(address)", subnetwork.network()));
+        operatorNetworkOptInService.optIn(subnetwork.network());
+    }
+
+    function _optInOperatorToSubnetwork(address operator, bytes32 subnetwork) internal {
+        vm.prank(operator);
+        operatorNetworkOptInService.optIn(subnetwork.network());
+    }
+
+    function _rememberSubnetwork(bytes32 subnetwork) internal {
+        if (isKnownSubnetwork[subnetwork]) {
+            return;
+        }
+        isKnownSubnetwork[subnetwork] = true;
+        knownSubnetworks.push(subnetwork);
+    }
+
+    function _rememberOperator(address operator) internal {
+        if (isKnownOperator[operator]) {
+            return;
+        }
+        isKnownOperator[operator] = true;
+        knownOperators.push(operator);
+    }
+
+    function _assertStakeForSumLeCapacity(uint48 duration) internal view {
+        uint256 totalStakeFor;
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            if (!delegator.getSlot(slot).exists) {
+                continue;
+            }
+            totalStakeFor += delegator.getAllocated(slot, duration);
+        }
+
+        uint256 capacity = vault.activeStake() + vault.activeWithdrawalsFor(duration);
+        if (totalStakeFor > capacity) {
+            revert StakeForSumExceedsCapacity(duration, totalStakeFor, capacity);
+        }
+    }
+
+    function _assertStakeForNonIncreasingAcrossDurations() internal view {
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            if (!delegator.getSlot(slot).exists) {
+                continue;
+            }
+
+            uint48 previousDuration = _durationAt(0);
+            uint256 previousValue = delegator.getAllocated(slot, previousDuration);
+            for (uint8 j = 1; j < DURATION_SAMPLES; ++j) {
+                uint48 duration = _durationAt(j);
+                uint256 value = delegator.getAllocated(slot, duration);
+                if (previousValue < value) {
+                    revert StakeForDecreasesWithDuration(slot, previousDuration, previousValue, duration, value);
+                }
+                previousDuration = duration;
+                previousValue = value;
+            }
+        }
+    }
+
+    function _assertKnownPairCrossProductIsolation(uint48 timestamp) internal view {
+        uint48 maxDuration = vault.epochDuration() - 1;
+        for (uint256 i; i < knownSubnetworks.length; ++i) {
+            bytes32 subnetwork = knownSubnetworks[i];
+            for (uint256 j; j < knownOperators.length; ++j) {
+                address operator = knownOperators[j];
+                uint32 expectedSlot = expectedSlotOf[subnetwork][operator];
+
+                assertEq(delegator.getSlotOf(subnetwork, operator), expectedSlot);
+                assertEq(delegator.getSlotOfAt(subnetwork, operator, timestamp), expectedSlot);
+
+                if (expectedSlot == 0) {
+                    assertEq(delegator.stake(subnetwork, operator), 0);
+                    assertEq(delegator.stakeFor(subnetwork, operator, 0), 0);
+                    assertEq(delegator.stakeAt(subnetwork, operator, timestamp, ""), 0);
+                    assertEq(delegator.stakeForAt(subnetwork, operator, 0, timestamp), 0);
+                    continue;
+                }
+
+                uint32 currentSlot = delegator.getSlotOf(subnetwork, operator);
+                uint32 historicalSlot = delegator.getSlotOfAt(subnetwork, operator, timestamp);
+                assertEq(delegator.getAllocated(currentSlot, 0), delegator.getAllocated(expectedSlot, 0));
+                assertEq(
+                    delegator.getAllocatedAt(historicalSlot, 0, timestamp),
+                    delegator.getAllocatedAt(expectedSlot, 0, timestamp)
+                );
+                assertEq(delegator.stakeFor(subnetwork, operator, maxDuration), delegator.stake(subnetwork, operator));
+                assertEq(
+                    delegator.stakeForAt(subnetwork, operator, maxDuration, timestamp),
+                    delegator.stakeAt(subnetwork, operator, timestamp, "")
+                );
+            }
+        }
+    }
+
+    function _selectLiveSlot(uint256 seed) internal view returns (uint32) {
+        uint256 liveCount;
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            if (delegator.getSlot(trackedSlots[i]).exists) {
+                ++liveCount;
+            }
+        }
+        if (liveCount == 0) {
+            return 0;
+        }
+
+        uint256 target = _bound(seed, 0, liveCount - 1);
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            if (!delegator.getSlot(slot).exists) {
+                continue;
+            }
+            if (target == 0) {
+                return slot;
+            }
+            --target;
+        }
+
+        return 0;
+    }
+
+    function _selectRemovableLiveSlot(uint256 seed) internal view returns (uint32) {
+        uint256 removableCount;
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            if (delegator.getSlot(slot).exists && delegator.getAllocated(slot, 0) == 0) {
+                ++removableCount;
+            }
+        }
+        if (removableCount == 0) {
+            return 0;
+        }
+
+        uint256 target = _bound(seed, 0, removableCount - 1);
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            if (!delegator.getSlot(slot).exists || delegator.getAllocated(slot, 0) > 0) {
+                continue;
+            }
+            if (target == 0) {
+                return slot;
+            }
+            --target;
+        }
+        return 0;
+    }
+
+    function _orderSlotsByCurrentPosition(uint32 slot1, uint32 slot2)
+        internal
+        view
+        returns (uint32 left, uint32 right, bool ordered)
+    {
+        uint32 cursor = delegator.firstSlot();
+        while (cursor != 0) {
+            if (cursor == slot1) {
+                return (slot1, slot2, true);
+            }
+            if (cursor == slot2) {
+                return (slot2, slot1, true);
+            }
+            cursor = delegator.getSlot(cursor).nextSlot;
+        }
+        return (0, 0, false);
+    }
+
+    function _canSwapSlotsWithoutRevert(uint32 left, uint32 right) internal view returns (bool) {
+        uint48 maxDuration = vault.epochDuration() - 1;
+        return
+            delegator.getAllocated(right, maxDuration) == delegator.getSize(right)
+                || delegator.getAllocated(left, 0) == 0;
+    }
+
+    function _durationAt(uint8 index) internal view returns (uint48) {
+        if (index == 0) {
+            return 0;
+        }
+        if (index == 1) {
+            return vault.epochDuration() > 1 ? 1 : 0;
+        }
+        if (index == 2) {
+            return vault.epochDuration() / 2;
+        }
+        if (index == 3) {
+            return vault.epochDuration() - 1;
+        }
+        return vault.epochDuration();
     }
 
     function _rememberDepositor(address user) internal {
@@ -651,13 +915,13 @@ contract UniversalDelegatorArithmeticHandler is Test {
     }
 
     function _user(uint256 seed) internal pure returns (address user) {
-        user = address(uint160(seed + 500));
-        if (user == address(0)) {
-            user = address(500);
-        }
+        user = address(uint160(10_000_000 + (seed % 1_000_000)));
     }
 
     function _warp(uint256 timeJumpSeed) internal {
+        if (timeJumpSeed % 4 == 0) {
+            return;
+        }
         uint256 timeJump = _bound(timeJumpSeed, 1 hours, 14 days);
         vm.warp(block.timestamp + timeJump);
     }
@@ -666,146 +930,203 @@ contract UniversalDelegatorArithmeticHandler is Test {
         uint48 timestamp = uint48(block.timestamp);
         if (trackedTimestamps.length < MAX_TRACKED_TIMESTAMPS) {
             trackedTimestamps.push(timestamp);
-            return;
+        } else {
+            trackedTimestamps[nextTimestampWriteIndex] = timestamp;
+            nextTimestampWriteIndex = (nextTimestampWriteIndex + 1) % MAX_TRACKED_TIMESTAMPS;
         }
 
-        trackedTimestamps[nextTimestampWriteIndex] = timestamp;
-        nextTimestampWriteIndex = (nextTimestampWriteIndex + 1) % MAX_TRACKED_TIMESTAMPS;
+        _recordSameBlockStakeViews(timestamp);
+        _recordStakeForPromiseGuarantees(timestamp);
+        _recordStakeForPromises(timestamp);
     }
 
-    function _selectLiveSlot(uint64[] storage trackedSlots, uint256 seed) internal view returns (uint64) {
-        uint256 liveCount;
-        for (uint256 i; i < trackedSlots.length; ++i) {
-            if (delegator.getSlot(trackedSlots[i]).exists) {
-                ++liveCount;
-            }
-        }
-        if (liveCount == 0) {
-            return 0;
+    function _recordSameBlockStakeViews(uint48 timestamp) internal {
+        bool sameBlock = sameBlockTimestamp == timestamp;
+        if (!sameBlock) {
+            sameBlockTimestamp = timestamp;
         }
 
-        uint256 target = _bound(seed, 0, liveCount - 1);
         for (uint256 i; i < trackedSlots.length; ++i) {
-            uint64 slot = trackedSlots[i];
+            _recordSameBlockSlotViews(trackedSlots[i], timestamp, sameBlock);
+        }
+    }
+
+    function _recordSameBlockSlotViews(uint32 slot, uint48 timestamp, bool sameBlock) internal {
+        bytes32 subnetwork = subnetworkOfSlot[slot];
+        address operator = operatorOfSlot[slot];
+
+        uint256 stakeValue = delegator.stake(subnetwork, operator);
+        if (sameBlock && stakeValue < lastStake[slot]) {
+            _recordStakeViewDecrease(
+                slot, delegator.stake.selector, vault.epochDuration() - 1, lastStake[slot], stakeValue
+            );
+        }
+        lastStake[slot] = stakeValue;
+
+        uint256 stakeAtValue = delegator.stakeAt(subnetwork, operator, timestamp, "");
+        if (sameBlock && stakeAtValue < lastStakeAt[slot]) {
+            _recordStakeViewDecrease(
+                slot, delegator.stakeAt.selector, vault.epochDuration() - 1, lastStakeAt[slot], stakeAtValue
+            );
+        }
+        lastStakeAt[slot] = stakeAtValue;
+
+        for (uint8 j; j < DURATION_SAMPLES; ++j) {
+            _recordSameBlockStakeForViews(slot, subnetwork, operator, j, timestamp, sameBlock);
+        }
+    }
+
+    function _recordSameBlockStakeForViews(
+        uint32 slot,
+        bytes32 subnetwork,
+        address operator,
+        uint8 durationIndex,
+        uint48 timestamp,
+        bool sameBlock
+    ) internal {
+        uint48 duration = _durationAt(durationIndex);
+        uint256 stakeForValue = delegator.stakeFor(subnetwork, operator, duration);
+        if (sameBlock && stakeForValue < lastStakeFor[slot][durationIndex]) {
+            _recordStakeViewDecrease(
+                slot, delegator.stakeFor.selector, duration, lastStakeFor[slot][durationIndex], stakeForValue
+            );
+        }
+        lastStakeFor[slot][durationIndex] = stakeForValue;
+
+        uint256 stakeForAtValue = delegator.stakeForAt(subnetwork, operator, duration, timestamp);
+        if (sameBlock && stakeForAtValue < lastStakeForAt[slot][durationIndex]) {
+            _recordStakeViewDecrease(
+                slot, delegator.stakeForAt.selector, duration, lastStakeForAt[slot][durationIndex], stakeForAtValue
+            );
+        }
+        lastStakeForAt[slot][durationIndex] = stakeForAtValue;
+    }
+
+    function _recordStakeViewDecrease(
+        uint32 slot,
+        bytes4 selector,
+        uint48 duration,
+        uint256 beforeValue,
+        uint256 afterValue
+    ) internal {
+        if (sameBlockStakeViewDecreased) {
+            return;
+        }
+        sameBlockStakeViewDecreased = true;
+        sameBlockStakeViewDecreasedSlot = slot;
+        sameBlockStakeViewDecreasedSelector = selector;
+        sameBlockStakeViewDecreasedDuration = duration;
+        sameBlockStakeViewBefore = beforeValue;
+        sameBlockStakeViewAfter = afterValue;
+    }
+
+    function _recordUnexpectedActionRevert(bytes4 selector, bytes memory revertData) internal {
+        if (unexpectedActionReverted) {
+            return;
+        }
+        unexpectedActionReverted = true;
+        unexpectedActionSelector = selector;
+        unexpectedActionRevertData = revertData;
+    }
+
+    function _dropSlotGuarantees(uint32 slot) internal {
+        bytes32 subnetwork = subnetworkOfSlot[slot];
+        address operator = operatorOfSlot[slot];
+        expectedSlotOf[subnetwork][operator] = 0;
+        _invalidateSlotGuarantees(slot);
+    }
+
+    function _invalidateSlotGuarantees(uint32 slot) internal {
+        ++guaranteeGeneration[slot];
+
+        lastStake[slot] = 0;
+        lastStakeAt[slot] = 0;
+        for (uint8 i; i < DURATION_SAMPLES; ++i) {
+            lastStakeFor[slot][i] = 0;
+            lastStakeForAt[slot][i] = 0;
+        }
+    }
+
+    function _recordStakeForPromiseGuarantees(uint48 timestamp) internal {
+        for (uint256 i; i < stakeForPromises.length; ++i) {
+            StakeForPromise storage stakePromise = stakeForPromises[i];
+            if (timestamp < stakePromise.timestamp) {
+                continue;
+            }
+
+            uint48 elapsed = timestamp - stakePromise.timestamp;
+            if (elapsed > stakePromise.duration) {
+                continue;
+            }
+
+            bytes32 subnetwork = subnetworkOfSlot[stakePromise.slot];
+            address operator = operatorOfSlot[stakePromise.slot];
+            if (
+                expectedSlotOf[subnetwork][operator] != stakePromise.slot
+                    || guaranteeGeneration[stakePromise.slot] != stakePromise.generation
+            ) {
+                continue;
+            }
+            uint48 remainingDuration = stakePromise.duration - elapsed;
+            uint256 actualValue = delegator.stakeForAt(subnetwork, operator, remainingDuration, timestamp);
+            if (actualValue < stakePromise.value) {
+                _recordStakeForPromiseDecrease(stakePromise, timestamp, remainingDuration, actualValue);
+            }
+        }
+    }
+
+    function _recordStakeForPromiseDecrease(
+        StakeForPromise storage stakePromise,
+        uint48 checkedAt,
+        uint48 remainingDuration,
+        uint256 actualValue
+    ) internal {
+        if (stakeForPromiseDecreased) {
+            return;
+        }
+        stakeForPromiseDecreased = true;
+        decreasedStakeForPromise = StakeForPromise({
+            slot: stakePromise.slot,
+            timestamp: stakePromise.timestamp,
+            duration: stakePromise.duration,
+            value: stakePromise.value,
+            generation: stakePromise.generation
+        });
+        decreasedStakeForPromiseCheckedAt = checkedAt;
+        decreasedStakeForPromiseRemainingDuration = remainingDuration;
+        decreasedStakeForPromiseActualValue = actualValue;
+    }
+
+    function _recordStakeForPromises(uint48 timestamp) internal {
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
             if (!delegator.getSlot(slot).exists) {
                 continue;
             }
-            if (target == 0) {
-                return slot;
-            }
-            --target;
-        }
 
-        return 0;
-    }
+            bytes32 subnetwork = subnetworkOfSlot[slot];
+            address operator = operatorOfSlot[slot];
+            for (uint8 j = 1; j < DURATION_SAMPLES - 1; ++j) {
+                uint48 duration = _durationAt(j);
+                uint256 value = delegator.stakeFor(subnetwork, operator, duration);
+                if (value == 0) {
+                    continue;
+                }
 
-    function _selectLiveAnySlot(uint256 seed) internal view returns (uint64) {
-        uint64[] memory slots_ = this.getTrackedSlots();
-        uint256 liveCount;
-        for (uint256 i; i < slots_.length; ++i) {
-            if (delegator.getSlot(slots_[i]).exists) {
-                ++liveCount;
+                StakeForPromise memory stakePromise = StakeForPromise({
+                    slot: slot,
+                    timestamp: timestamp,
+                    duration: duration,
+                    value: value,
+                    generation: guaranteeGeneration[slot]
+                });
+                if (stakeForPromises.length < MAX_STAKE_FOR_PROMISES) {
+                    stakeForPromises.push(stakePromise);
+                } else {
+                    stakeForPromises[nextStakeForPromiseWriteIndex] = stakePromise;
+                    nextStakeForPromiseWriteIndex = (nextStakeForPromiseWriteIndex + 1) % MAX_STAKE_FOR_PROMISES;
+                }
             }
-        }
-        if (liveCount == 0) {
-            return 0;
-        }
-
-        uint256 target = _bound(seed, 0, liveCount - 1);
-        for (uint256 i; i < slots_.length; ++i) {
-            if (!delegator.getSlot(slots_[i]).exists) {
-                continue;
-            }
-            if (target == 0) {
-                return slots_[i];
-            }
-            --target;
-        }
-        return 0;
-    }
-
-    function _selectRemovableLiveSlot(uint256 seed) internal view returns (uint64) {
-        uint64[] memory slots_ = this.getTrackedSlots();
-        uint256 removableCount;
-        for (uint256 i; i < slots_.length; ++i) {
-            if (delegator.getSlot(slots_[i]).exists && delegator.getAllocated(slots_[i], 0) == 0) {
-                ++removableCount;
-            }
-        }
-        if (removableCount == 0) {
-            return 0;
-        }
-
-        uint256 target = _bound(seed, 0, removableCount - 1);
-        for (uint256 i; i < slots_.length; ++i) {
-            uint64 slot = slots_[i];
-            if (!delegator.getSlot(slot).exists || delegator.getAllocated(slot, 0) > 0) {
-                continue;
-            }
-            if (target == 0) {
-                return slot;
-            }
-            --target;
-        }
-        return 0;
-    }
-
-    function _selectParentWithAtLeastTwoChildren(uint256 seed) internal view returns (uint64) {
-        uint64[] memory parents = new uint64[](1 + trackedRootSlots.length + trackedNetworkSlots.length);
-        parents[0] = 0;
-
-        uint256 cursor = 1;
-        for (uint256 i; i < trackedRootSlots.length; ++i) {
-            if (delegator.getSlot(trackedRootSlots[i]).exists) {
-                parents[cursor++] = trackedRootSlots[i];
-            }
-        }
-        for (uint256 i; i < trackedNetworkSlots.length; ++i) {
-            if (delegator.getSlot(trackedNetworkSlots[i]).exists) {
-                parents[cursor++] = trackedNetworkSlots[i];
-            }
-        }
-
-        uint256 eligibleCount;
-        for (uint256 i; i < cursor; ++i) {
-            if (_liveChildrenOf(parents[i]).length >= 2) {
-                ++eligibleCount;
-            }
-        }
-        if (eligibleCount == 0) {
-            return type(uint64).max;
-        }
-
-        uint256 target = _bound(seed, 0, eligibleCount - 1);
-        for (uint256 i; i < cursor; ++i) {
-            if (_liveChildrenOf(parents[i]).length < 2) {
-                continue;
-            }
-            if (target == 0) {
-                return parents[i];
-            }
-            --target;
-        }
-        return type(uint64).max;
-    }
-
-    function _liveChildrenOf(uint64 parent) internal view returns (uint64[] memory children) {
-        IUniversalDelegator.Slot memory parentSlot = delegator.getSlot(parent);
-        uint64[] memory scratch = new uint64[](parent == 0 ? MAX_NETWORKS : MAX_OPERATORS);
-        uint256 count;
-        uint32 childIndex = parentSlot.firstChild;
-
-        while (childIndex > 0 && childIndex < WITHDRAWAL_BUFFER_CHILD_INDEX) {
-            uint64 child = parent.createIndex(childIndex);
-            if (delegator.getSlot(child).exists) {
-                scratch[count++] = child;
-            }
-            childIndex = delegator.getSlot(child).nextSlot;
-        }
-
-        children = new uint64[](count);
-        for (uint256 i; i < count; ++i) {
-            children[i] = scratch[i];
         }
     }
 }

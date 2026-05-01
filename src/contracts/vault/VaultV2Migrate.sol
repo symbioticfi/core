@@ -122,13 +122,8 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
             if (oldMaxNetworkLimit == 0) {
                 revert IUniversalDelegator.NotEnoughBalance();
             }
-            uint64 networkIndex = UniversalDelegator(delegator).createSlot(subnetwork, 0, type(uint128).max);
             UniversalDelegator(delegator)
-                .createSlot(
-                    bytes32(bytes20(IOperatorNetworkSpecificDelegator(oldDelegator).operator())),
-                    networkIndex,
-                    type(uint128).max
-                );
+                .createSlot(subnetwork, IOperatorNetworkSpecificDelegator(oldDelegator).operator(), type(uint128).max);
         }
         if (createSlotRoleHolder != address(this)) {
             if (createSlotRoleHolder != address(0)) {

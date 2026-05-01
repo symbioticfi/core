@@ -574,11 +574,6 @@ contract VaultV2SolvencyHandler is Test {
         vm.prank(operator);
         operatorNetworkOptInService.optIn(adapterNetwork);
 
-        vm.prank(primaryNetwork);
-        delegator.setMaxNetworkLimit(0, type(uint256).max);
-        vm.prank(adapterNetwork);
-        delegator.setMaxNetworkLimit(0, type(uint256).max);
-
         address bootstrapDepositor = _user(0);
         uint256 bootstrapAmount = 200 ether;
         deal(address(collateral), bootstrapDepositor, bootstrapAmount);
@@ -592,11 +587,8 @@ contract VaultV2SolvencyHandler is Test {
         _rememberDepositor(bootstrapDepositor);
 
         uint128 slotSize = 100 ether;
-        uint64 primaryNetworkSlot = delegator.createSlot(primarySubnetwork, 0, slotSize);
-        delegator.createSlot(bytes32(bytes20(operator)), primaryNetworkSlot, slotSize);
-
-        uint64 adapterNetworkSlot = delegator.createSlot(adapterSubnetwork, 0, slotSize);
-        delegator.createSlot(bytes32(bytes20(operator)), adapterNetworkSlot, slotSize);
+        delegator.createSlot(primarySubnetwork, operator, slotSize);
+        delegator.createSlot(adapterSubnetwork, operator, slotSize);
 
         adapter = new MockAdapter(address(vault), address(collateral));
         adapterRegistry.whitelistAdapter(address(adapter));

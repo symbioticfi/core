@@ -6,7 +6,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SetSizeBaseScript is ScriptBase {
-    function runBase(address delegator, uint64 index, uint128 size)
+    function runBase(address delegator, uint32 index, uint128 size)
         public
         virtual
         returns (bytes memory data, address target)

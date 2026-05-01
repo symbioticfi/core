@@ -465,10 +465,12 @@ contract MockNetworkMiddlewareService {
 contract MockUniversalDelegator {
     uint256 public stakeForValue;
     uint256 public stakeAtValue;
+    uint256 public generation;
 
     bytes32 public lastSlashSubnetwork;
     address public lastSlashOperator;
     uint256 public lastSlashAmount;
+    uint256 public lastSlashGeneration;
     uint256 public onSlashCalls;
     uint256 public lastLegacySlashAmount;
     uint256 public onSlashLegacyCalls;
@@ -481,6 +483,10 @@ contract MockUniversalDelegator {
 
     function setStakeAtValue(uint256 value) external {
         stakeAtValue = value;
+    }
+
+    function setGeneration(uint256 value) external {
+        generation = value;
     }
 
     function stakeFor(bytes32, address, uint48) external view returns (uint256) {
@@ -499,6 +505,7 @@ contract MockUniversalDelegator {
         lastSlashSubnetwork = subnetwork;
         lastSlashOperator = operator;
         lastSlashAmount = amount;
+        lastSlashGeneration = generation;
         ++onSlashCalls;
     }
 
@@ -1237,6 +1244,30 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
         assertEq(slashedAmount, 30);
         assertEq(vault.lastOnSlashAmount(), 30);
+    }
+
+    function test_executeSlash_DelayedRequestReReadsCurrentPairState() public {
+        vm.prank(network);
+        slasher.setResolver(0, resolver1);
+
+        delegator.setStakeForValue(100);
+        delegator.setGeneration(1);
+
+        vm.prank(middleware);
+        uint256 slashIndex = slasher.requestSlash(subnetwork, operator, 80, 0, "");
+        IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(slashIndex);
+
+        delegator.setStakeForValue(90);
+        delegator.setGeneration(2);
+
+        vm.warp(request.vetoDeadline);
+        vm.prank(middleware);
+        assertEq(slasher.executeSlash(slashIndex, ""), 80);
+
+        assertEq(delegator.lastSlashSubnetwork(), subnetwork);
+        assertEq(delegator.lastSlashOperator(), operator);
+        assertEq(delegator.lastSlashAmount(), 80);
+        assertEq(delegator.lastSlashGeneration(), 2);
     }
 
     function test_executeSlashReverts_Completed() public {

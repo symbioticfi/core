@@ -6,7 +6,6 @@ import "../SymbioticCoreInit.sol";
 import "../SymbioticCoreImports.sol";
 import "../base/SymbioticCoreInitBase.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
-import {UniversalDelegatorIndex} from "../../../src/contracts/libraries/UniversalDelegatorIndex.sol";
 import {Vault as VaultV1} from "../../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
@@ -53,7 +52,6 @@ contract MigrateToVaultV2ScriptHarness is MigrateToVaultV2BaseScript, ScriptBase
 
 contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
     using Subnetwork for address;
-    using UniversalDelegatorIndex for uint64;
 
     uint96 internal constant IDENTIFIER = 0;
 
@@ -248,34 +246,38 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
 
         IUniversalDelegator delegator = IUniversalDelegator(newDelegator);
 
-        IUniversalDelegator.Slot memory root = delegator.getSlot(0);
-        assertEq(root.existChildren, 2, "network slot count mismatch");
-
         bytes32 subnetwork1 = network1.addr.subnetwork(IDENTIFIER);
         bytes32 subnetwork2 = network2.addr.subnetwork(IDENTIFIER);
 
-        uint64 networkSlot1 = uint64(0).createIndex(1);
-        uint64 networkSlot2 = uint64(0).createIndex(2);
+        uint32 operatorSlot1 = delegator.getSlotOf(subnetwork1, operator1.addr);
+        uint32 operatorSlot2 = delegator.getSlotOf(subnetwork1, operator2.addr);
+        uint32 operatorSlot3 = delegator.getSlotOf(subnetwork2, operator2.addr);
 
-        assertEq(delegator.getSlotOfNetwork(subnetwork1), networkSlot1, "network1 slot mismatch");
-        assertEq(delegator.getSlotOfNetwork(subnetwork2), networkSlot2, "network2 slot mismatch");
-        assertEq(uint256(delegator.getSlot(networkSlot1).size), 100 ether, "network1 size mismatch");
-        assertEq(uint256(delegator.getSlot(networkSlot2).size), 60 ether, "network2 size mismatch");
-        assertEq(delegator.maxNetworkLimit(subnetwork1), type(uint208).max, "network1 max limit mismatch");
-        assertEq(delegator.maxNetworkLimit(subnetwork2), type(uint208).max, "network2 max limit mismatch");
+        assertEq(UniversalDelegator(newDelegator).totalSlots(), 3, "slot count mismatch");
+        assertEq(operatorSlot1, 1, "operator1 slot mismatch");
+        assertEq(operatorSlot2, 2, "operator2 slot mismatch");
+        assertEq(operatorSlot3, 3, "operator3 slot mismatch");
 
-        uint64 operatorSlot1 = networkSlot1.createIndex(1);
-        uint64 operatorSlot2 = networkSlot1.createIndex(2);
-        uint64 operatorSlot3 = networkSlot2.createIndex(1);
-
-        assertEq(delegator.getSlotOfOperator(networkSlot1, operator1.addr), operatorSlot1, "operator1 slot mismatch");
-        assertEq(delegator.getSlotOfOperator(networkSlot1, operator2.addr), operatorSlot2, "operator2 slot mismatch");
-        assertEq(delegator.getSlotOfOperator(networkSlot2, operator2.addr), operatorSlot3, "operator3 slot mismatch");
-        assertEq(uint256(delegator.getSlot(operatorSlot1).size), 40 ether, "operator1 size mismatch");
-        assertEq(uint256(delegator.getSlot(operatorSlot2).size), 60 ether, "operator2 size mismatch");
-        assertEq(uint256(delegator.getSlot(operatorSlot3).size), 60 ether, "operator3 size mismatch");
+        _assertSlot(delegator, operatorSlot1, subnetwork1, operator1.addr, 40 ether, "operator1");
+        _assertSlot(delegator, operatorSlot2, subnetwork1, operator2.addr, 60 ether, "operator2");
+        _assertSlot(delegator, operatorSlot3, subnetwork2, operator2.addr, 60 ether, "operator3");
 
         _assertAllocatorRoles(newDelegator, operator1.addr);
+    }
+
+    function _assertSlot(
+        IUniversalDelegator delegator,
+        uint32 slotIndex,
+        bytes32 subnetwork,
+        address operator,
+        uint256 size,
+        string memory label
+    ) internal view {
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(slotIndex);
+        assertTrue(slot.exists, string.concat(label, " slot missing"));
+        assertEq(slot.subnetwork, subnetwork, string.concat(label, " subnetwork mismatch"));
+        assertEq(slot.operator, operator, string.concat(label, " operator mismatch"));
+        assertEq(uint256(slot.size), size, string.concat(label, " size mismatch"));
     }
 
     function _config() internal view returns (MigrateToVaultV2BaseScript.Config memory) {

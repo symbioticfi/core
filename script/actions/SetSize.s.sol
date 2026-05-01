@@ -5,7 +5,7 @@ import "./base/SetSizeBase.s.sol";
 
 contract SetSizeScript is SetSizeBaseScript {
     address constant DELEGATOR = 0x0000000000000000000000000000000000000000;
-    uint64 constant INDEX = 0;
+    uint32 constant INDEX = 0;
     uint128 constant SIZE = 0;
 
     function run() public {

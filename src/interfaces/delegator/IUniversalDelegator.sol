@@ -3,9 +3,6 @@ pragma solidity ^0.8.0;
 
 uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 
-uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
-uint64 constant WITHDRAWAL_BUFFER_INDEX = uint64(WITHDRAWAL_BUFFER_CHILD_INDEX) << 32;
-
 // Keccak256("CREATE_SLOT_ROLE").
 bytes32 constant CREATE_SLOT_ROLE = 0x8aef711962d032b5812b71f6f4353b179696ada38e16233a26a539c32c729007;
 // Keccak256("SET_SIZE_ROLE").
@@ -17,6 +14,8 @@ bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a
 // Keccak256("SET_WITHDRAWAL_BUFFER_SIZE_ROLE").
 bytes32 constant SET_WITHDRAWAL_BUFFER_SIZE_ROLE = 0x6f48b129515ad8dd335666ffdfdf6533e7a5a9a9cd01b8a62f938f739fc9a4ce;
 
+uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
+uint64 constant WITHDRAWAL_BUFFER_INDEX = uint64(WITHDRAWAL_BUFFER_CHILD_INDEX) << 32;
 uint256 constant MAX_NETWORKS = 15;
 uint256 constant MAX_OPERATORS = 20;
 
@@ -127,29 +126,21 @@ interface IUniversalDelegator {
     /**
      * @notice Slot snapshot data.
      * @param exists Whether the slot exists.
-     * @param nextSlot Next sibling child index.
-     * @param prevSlot Previous sibling child index.
-     * @param totalChildren Total number of children ever created.
-     * @param existChildren Number of currently existing children.
-     * @param firstChild First child index.
-     * @param lastChild Last child index.
+     * @param prevSlot Previous slot index.
+     * @param nextSlot Next slot index.
+     * @param operator Operator assigned to the slot.
+     * @param subnetwork Subnetwork assigned to the slot.
      * @param size Effective slot size at the current timestamp.
      * @param latestSize Latest stored slot size checkpoint value.
-     * @param prevSizeSum Prefix sum of previous sibling sizes.
-     * @param subnetworkOrOperator Subnetwork or operator identifier or zero if not assigned.
      */
     struct Slot {
         bool exists;
-        uint32 nextSlot;
         uint32 prevSlot;
-        uint32 totalChildren;
-        uint32 existChildren;
-        uint32 firstChild;
-        uint32 lastChild;
+        uint32 nextSlot;
+        address operator;
+        bytes32 subnetwork;
         uint128 size;
         uint128 latestSize;
-        uint208 prevSizeSum;
-        bytes32 subnetworkOrOperator;
     }
 
     /**
@@ -159,8 +150,8 @@ interface IUniversalDelegator {
      * @param setSizeRoleHolder Address of the initial SET_SIZE_ROLE holder.
      * @param swapSlotsRoleHolder Address of the initial SWAP_SLOTS_ROLE holder.
      * @param removeSlotRoleHolder Address of the initial REMOVE_SLOT_ROLE holder.
-     * @param setWithdrawalBufferSizeRoleHolder Address of the initial SET_WITHDRAWAL_BUFFER_SIZE_ROLE holder.
-     * @param withdrawalBufferSize Initial withdrawal buffer size.
+     * @param setWithdrawalBufferSizeRoleHolder Deprecated.
+     * @param withdrawalBufferSize Deprecated.
      */
     struct InitParams {
         address defaultAdminRoleHolder;
@@ -187,47 +178,34 @@ interface IUniversalDelegator {
      * @param index Index of the created slot.
      * @param size Initial slot size.
      */
-    event CreateSlot(uint64 indexed index, uint128 size);
+    event CreateSlot(uint32 indexed index, uint128 size);
 
     /**
      * @notice Emitted when a slot size is updated.
      * @param index Slot index.
      * @param size New slot size.
      */
-    event SetSize(uint64 indexed index, uint128 size);
+    event SetSize(uint32 indexed index, uint128 size);
 
     /**
      * @notice Emitted when two sibling slots are swapped.
      * @param index1 First slot index.
      * @param index2 Second slot index.
      */
-    event SwapSlots(uint64 indexed index1, uint64 indexed index2);
+    event SwapSlots(uint32 indexed index1, uint32 indexed index2);
 
     /**
      * @notice Emitted when a slot is removed.
      * @param index Removed slot index.
      */
-    event RemoveSlot(uint64 indexed index);
+    event RemoveSlot(uint32 indexed index);
 
     /**
      * @notice Emitted when a subnetwork allocation is reset.
      * @param index Slot index that was removed.
      * @param subnetwork Full subnetwork identifier.
      */
-    event ResetAllocation(uint64 indexed index, bytes32 indexed subnetwork);
-
-    /**
-     * @notice Emitted when withdrawal buffer size is updated.
-     * @param newWithdrawalBufferSize New withdrawal buffer size.
-     */
-    event SetWithdrawalBufferSize(uint128 newWithdrawalBufferSize);
-
-    /**
-     * @notice Emitted when a subnetwork's maximum limit is set.
-     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
-     * @param amount New maximum subnetwork's limit (how much stake the subnetwork is ready to get).
-     */
-    event SetMaxNetworkLimit(bytes32 indexed subnetwork, uint256 amount);
+    event ResetAllocation(uint32 indexed index, bytes32 indexed subnetwork);
 
     /**
      * @notice Emitted when a slash is applied.
@@ -334,21 +312,19 @@ interface IUniversalDelegator {
     function getSize(uint64 index) external view returns (uint128 size);
 
     /**
-     * @notice Get slot balance at a timestamp.
-     * @param index Slot index.
+     * @notice Get vault balance at a timestamp.
      * @param duration Duration window.
      * @param timestamp Lookup timestamp.
-     * @return balance Slot balance.
+     * @return balance Vault balance.
      */
-    function getBalanceAt(uint64 index, uint48 duration, uint48 timestamp) external view returns (uint256 balance);
+    function getBalanceAt(uint48 duration, uint48 timestamp) external view returns (uint256 balance);
 
     /**
-     * @notice Get current slot balance.
-     * @param index Slot index.
+     * @notice Get current vault balance.
      * @param duration Duration window.
-     * @return balance Slot balance.
+     * @return balance Vault balance.
      */
-    function getBalance(uint64 index, uint48 duration) external view returns (uint256 balance);
+    function getBalance(uint48 duration) external view returns (uint256 balance);
 
     /**
      * @notice Get allocated amount for a slot index at a timestamp.
@@ -357,7 +333,7 @@ interface IUniversalDelegator {
      * @param timestamp Lookup timestamp.
      * @return allocated Allocated amount.
      */
-    function getAllocatedAt(uint64 index, uint48 duration, uint48 timestamp) external view returns (uint256 allocated);
+    function getAllocatedAt(uint32 index, uint48 duration, uint48 timestamp) external view returns (uint256 allocated);
 
     /**
      * @notice Get current allocated amount for a slot index.
@@ -365,42 +341,7 @@ interface IUniversalDelegator {
      * @param duration Duration window.
      * @return allocated Allocated amount.
      */
-    function getAllocated(uint64 index, uint48 duration) external view returns (uint256 allocated);
-
-    /**
-     * @notice Get assigned slot of a network at a timestamp.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param timestamp Lookup timestamp.
-     * @return index Slot index.
-     */
-    function getSlotOfNetworkAt(bytes32 subnetwork, uint48 timestamp) external view returns (uint64 index);
-
-    /**
-     * @notice Get current assigned slot of a network.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @return index Slot index.
-     */
-    function getSlotOfNetwork(bytes32 subnetwork) external view returns (uint64 index);
-
-    /**
-     * @notice Get assigned operator slot at a timestamp.
-     * @param parentIndex Parent slot index.
-     * @param operator Address of the operator.
-     * @param timestamp Lookup timestamp.
-     * @return index Slot index.
-     */
-    function getSlotOfOperatorAt(uint64 parentIndex, address operator, uint48 timestamp)
-        external
-        view
-        returns (uint64 index);
-
-    /**
-     * @notice Get current assigned operator slot.
-     * @param parentIndex Parent slot index.
-     * @param operator Address of the operator.
-     * @return index Slot index.
-     */
-    function getSlotOfOperator(uint64 parentIndex, address operator) external view returns (uint64 index);
+    function getAllocated(uint32 index, uint48 duration) external view returns (uint256 allocated);
 
     /**
      * @notice Get assigned slot for a subnetwork/operator at a timestamp.
@@ -409,7 +350,7 @@ interface IUniversalDelegator {
      * @param timestamp Lookup timestamp.
      * @return index Slot index.
      */
-    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) external view returns (uint64 index);
+    function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) external view returns (uint32 index);
 
     /**
      * @notice Get current assigned slot for a subnetwork/operator.
@@ -417,59 +358,7 @@ interface IUniversalDelegator {
      * @param operator Address of the operator.
      * @return index Slot index.
      */
-    function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint64 index);
-
-    /**
-     * @notice Get allocated amount for a subnetwork/operator at a timestamp.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Address of the operator.
-     * @param duration Duration window.
-     * @param timestamp Lookup timestamp.
-     * @return allocated Allocated amount.
-     */
-    function getAllocatedAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
-        external
-        view
-        returns (uint256 allocated);
-
-    /**
-     * @notice Get current allocated amount for a subnetwork/operator.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Address of the operator.
-     * @param duration Duration window.
-     * @return allocated Allocated amount.
-     */
-    function getAllocated(bytes32 subnetwork, address operator, uint48 duration)
-        external
-        view
-        returns (uint256 allocated);
-
-    /**
-     * @notice Get filled amount at a timestamp.
-     * @param index Slot index.
-     * @param duration Duration window.
-     * @param timestamp Lookup timestamp.
-     * @return filled Filled amount.
-     */
-    function getFilledAt(uint64 index, uint48 duration, uint48 timestamp) external view returns (uint256 filled);
-
-    /**
-     * @notice Get current filled amount.
-     * @param index Slot index.
-     * @param duration Duration window.
-     * @return filled Filled amount.
-     */
-    function getFilled(uint64 index, uint48 duration) external view returns (uint256 filled);
-
-    /**
-     * @notice Get the legacy maximum limit value for a subnetwork.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @return limit Maximum possible uint256 value.
-     * @dev The function changed its behavior:
-     *      - it is nullified once the subnetwork is removed/reset,
-     *      - it returns either 0 or 2^208-1 if set.
-     */
-    function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256 limit);
+    function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint32 index);
 
     /**
      * @notice Get configured withdrawal buffer size.
@@ -490,14 +379,14 @@ interface IUniversalDelegator {
     function oldDelegator() external view returns (address oldDelegator);
 
     /**
-     * @notice Create a new slot under a parent.
-     * @param subnetworkOrOperator Encoded subnetwork or operator identifier.
-     * @param parentIndex Parent slot index.
+     * @notice Create a new network-operator slot.
+     * @param subnetwork Full subnetwork identifier.
+     * @param operator Operator address.
      * @param size Initial slot size.
      * @return index Created slot index.
      * @dev Only a CREATE_SLOT_ROLE holder can call this function.
      */
-    function createSlot(bytes32 subnetworkOrOperator, uint64 parentIndex, uint128 size) external returns (uint64 index);
+    function createSlot(bytes32 subnetwork, address operator, uint128 size) external returns (uint32 index);
 
     /**
      * @notice Update slot size.
@@ -505,7 +394,7 @@ interface IUniversalDelegator {
      * @param size New slot size.
      * @dev Only a SET_SIZE_ROLE holder can call this function.
      */
-    function setSize(uint64 index, uint128 size) external;
+    function setSize(uint32 index, uint128 size) external;
 
     /**
      * @notice Swap two sibling slots.
@@ -513,37 +402,46 @@ interface IUniversalDelegator {
      * @param index2 Second slot index.
      * @dev Only a SWAP_SLOTS_ROLE holder can call this function.
      */
-    function swapSlots(uint64 index1, uint64 index2) external;
+    function swapSlots(uint32 index1, uint32 index2) external;
 
     /**
      * @notice Remove a slot.
      * @param index Slot index.
      * @dev Only a REMOVE_SLOT_ROLE holder can call this function.
      */
-    function removeSlot(uint64 index) external;
-
-    /**
-     * @notice Update withdrawal buffer size.
-     * @param newWithdrawalBufferSize New withdrawal buffer size.
-     * @dev Only a SET_WITHDRAWAL_BUFFER_SIZE_ROLE holder can call this function.
-     */
-    function setWithdrawalBufferSize(uint128 newWithdrawalBufferSize) external;
-
-    /**
-     * @notice Set the maximum limit for a subnetwork.
-     * @param identifier Subnetwork identifier.
-     * @param amount New maximum limit.
-     * @dev This function changed its behavior:
-     *      - it accepts only 2^256-1 once setting the maximum limit,
-     *      - the max network limit can be reset only via `resetAllocation()`.
-     */
-    function setMaxNetworkLimit(uint96 identifier, uint256 amount) external;
+    function removeSlot(uint32 index) external;
 
     /**
      * @notice Reset allocation for a subnetwork.
      * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Operator address.
      * @dev Only a network or its middleware can call this function.
      *      Warning: this functions resets all the pending slash requests, too.
      */
-    function resetAllocation(bytes32 subnetwork) external;
+    function resetAllocation(bytes32 subnetwork, address operator) external;
+
+    /**
+     * @notice Apply a slash to the current slot assigned to a subnetwork/operator.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Operator address.
+     * @param amount Slash amount.
+     * @dev Only the vault slasher can call this function.
+     */
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount) external;
+
+    /**
+     * @notice Apply a slash to the migrated slot assigned to a subnetwork/operator.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Operator address.
+     * @param amount Slash amount.
+     * @dev Only the vault slasher can call this function.
+     */
+    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) external;
+
+    /**
+     * @notice Record the previous delegator used before migration.
+     * @param oldDelegator_ Previous delegator address.
+     * @dev Only the vault can call this function.
+     */
+    function migrate(address oldDelegator_) external;
 }
