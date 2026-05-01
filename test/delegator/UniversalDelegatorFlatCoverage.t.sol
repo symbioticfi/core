@@ -326,6 +326,54 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stakeForAt(subnetwork, operatorA, vault.epochDuration() - 1, 49), 0);
     }
 
+    function test_OnSlashLegacyCapsToSlotSizeWhenAmountExceedsCurrentAllocation() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        bytes32 subnetworkB = networkA.subnetwork(1);
+        vault.setActiveStake(10);
+        vault.setSlasher(address(this));
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 25);
+        delegator.createSlot(subnetworkB, operatorB, 100);
+
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 10);
+        assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 0);
+
+        delegator.onSlashLegacy(subnetworkA, operatorA, 40);
+
+        assertEq(delegator.getSize(slotA), 0);
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 0);
+        assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 10);
+    }
+
+    function test_OnSlashLegacyCapsPendingDecreaseWhenAmountExceedsCurrentAllocation() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        bytes32 subnetworkB = networkA.subnetwork(1);
+        vault.setActiveStake(40);
+        vault.setSlasher(address(this));
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkB, operatorB, 100);
+        delegator.setSize(slotA, 0);
+
+        assertEq(delegator.getSize(slotA), 40);
+        assertEq(delegator.indexesToSyncLength(), 1);
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 40);
+        assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 0);
+
+        delegator.onSlashLegacy(subnetworkA, operatorA, 70);
+
+        assertEq(delegator.getSize(slotA), 0);
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 0);
+        assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 40);
+
+        vm.warp(block.timestamp + vault.epochDuration());
+        delegator.setSize(slotB, 100);
+
+        assertEq(delegator.indexesToSyncLength(), 0);
+        assertEq(delegator.getSize(slotA), 0);
+        assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 40);
+    }
+
     function test_NetworkOperatorPairsAreFullyIsolated() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         bytes32 subnetworkB = networkB.subnetwork(0);

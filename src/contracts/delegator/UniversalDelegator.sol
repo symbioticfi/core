@@ -478,8 +478,9 @@ contract UniversalDelegator is
             slot.size.pop();
         }
 
-        slot.size.push(uint48(block.timestamp), uint208(slot.size.latest() - amount));
-        _prevSums.modify(indexToPos[index].latest(), -int256(amount));
+        uint256 slashed = Math.min(slot.size.latest(), amount);
+        slot.size.push(uint48(block.timestamp), uint208(slot.size.latest() - slashed));
+        _prevSums.modify(indexToPos[index].latest(), -int256(slashed));
 
         if (exists && latestTimestamp > block.timestamp) {
             uint208 futureSize = uint208(Math.min(slot.size.latest(), latestSize));
