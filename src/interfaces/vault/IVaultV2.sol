@@ -65,6 +65,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error InsufficientAmount();
 
     /**
+     * @notice Raised when adapter add delay is not greater than epoch duration.
+     */
+    error InvalidAdaptersAddDelay();
+
+    /**
      * @notice Raised when an address argument is invalid.
      */
     error InvalidAddress();
@@ -88,11 +93,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Raised when slasher address is invalid.
      */
     error InvalidSlasher();
-
-    /**
-     * @notice Raised when adapter add delay is not greater than epoch duration.
-     */
-    error InvalidAdaptersAddDelay();
 
     /**
      * @notice Raised when the provided adapter is not whitelisted in adapter registry.
