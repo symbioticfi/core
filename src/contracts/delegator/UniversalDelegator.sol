@@ -57,8 +57,6 @@ contract UniversalDelegator is
 
     struct SlotStorage {
         bool exists;
-        uint32 prevSlot;
-        uint32 nextSlot;
         address operator;
         bytes32 subnetwork;
         Checkpoints.Trace208 size;
@@ -66,8 +64,6 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
-    uint32 public lastSlot;
-    uint32 public firstSlot;
     uint32 public totalSlots;
 
     uint32[] public syncIndexes;
@@ -209,8 +205,6 @@ contract UniversalDelegator is
         SlotStorage storage slot = slots[index];
         return Slot({
             exists: slot.exists,
-            prevSlot: slot.prevSlot,
-            nextSlot: slot.nextSlot,
             operator: slot.operator,
             subnetwork: slot.subnetwork,
             size: getSize(index),
@@ -271,7 +265,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getWithdrawalBuffer() public view returns (uint256) {
-        return getBalance(_maxDuration()).saturatingSub(_getPrevSum(lastSlot) + getSize(lastSlot));
+        return getBalance(_maxDuration()).saturatingSub(_prevSums.get(totalSlots - 1));
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -305,13 +299,6 @@ contract UniversalDelegator is
         slot.exists = true;
         slot.operator = operator;
         slot.subnetwork = subnetwork;
-        if (firstSlot == 0) {
-            firstSlot = index;
-        } else {
-            slots[lastSlot].nextSlot = index;
-            slot.prevSlot = lastSlot;
-        }
-        lastSlot = index;
         if (size > 0) {
             slot.size.push(uint48(block.timestamp), size);
         }
@@ -340,7 +327,10 @@ contract UniversalDelegator is
 
         if (newSize > curSize) {
             uint128 delta = newSize - curSize;
-            if (_getPrevSum(index) + curSize < getBalance(0) && slot.nextSlot > 0 && delta > getWithdrawalBuffer()) {
+            if (
+                _prevSums.get(totalSlots - 1) > _prevSums.get(indexToPos[index].latest())
+                    && _getPrevSum(index) + curSize < getBalance(0) && delta > getWithdrawalBuffer()
+            ) {
                 revert NotEnoughBalance();
             }
             slot.size.push(uint48(block.timestamp), newSize);
@@ -393,30 +383,6 @@ contract UniversalDelegator is
         _prevSums.modify(pos1, delta);
         _prevSums.modify(pos2, -delta);
 
-        if (index1 == firstSlot) {
-            firstSlot = index2;
-        }
-        if (index2 == lastSlot) {
-            lastSlot = index1;
-        }
-
-        SlotStorage storage slot1 = slots[index1];
-        SlotStorage storage slot2 = slots[index2];
-
-        (slot1.nextSlot, slot2.nextSlot) = (slot2.nextSlot, slot1.nextSlot);
-
-        if (slot1.nextSlot > 0) {
-            slots[slot1.nextSlot].prevSlot = index1;
-        }
-        slots[slot2.nextSlot].prevSlot = index2;
-
-        (slot1.prevSlot, slot2.prevSlot) = (slot2.prevSlot, slot1.prevSlot);
-
-        slots[slot1.prevSlot].nextSlot = index1;
-        if (slot2.prevSlot > 0) {
-            slots[slot2.prevSlot].nextSlot = index2;
-        }
-
         emit SwapSlots(index1, index2);
     }
 
@@ -431,7 +397,7 @@ contract UniversalDelegator is
         emit RemoveSlot(index);
     }
 
-    /// @dev Remove a slot from the linked-list structure and mark it as non-existent.
+    /// @dev Remove a slot and mark it as non-existent.
     function _removeSlot(uint32 index) internal {
         SlotStorage storage slot = slots[index];
 
@@ -441,17 +407,6 @@ contract UniversalDelegator is
             slots[index].size.pop();
         }
         _prevSums.modify(indexToPos[index].latest(), -int256(uint256(getSize(index))));
-
-        if (index == firstSlot) {
-            firstSlot = slot.nextSlot;
-        } else {
-            slots[slot.prevSlot].nextSlot = slot.nextSlot;
-        }
-        if (index == lastSlot) {
-            lastSlot = slot.prevSlot;
-        } else {
-            slots[slot.nextSlot].prevSlot = slot.prevSlot;
-        }
 
         slot.exists = false;
     }

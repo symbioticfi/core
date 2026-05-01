@@ -6,7 +6,12 @@ import {Test} from "forge-std/Test.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {FenwickTreeCheckpoints} from "../../src/contracts/libraries/FenwickTreeCheckpoints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
-import {CREATE_SLOT_ROLE, SET_SIZE_ROLE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {
+    CREATE_SLOT_ROLE,
+    REMOVE_SLOT_ROLE,
+    SET_SIZE_ROLE
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 contract UniversalDelegatorFlatRegistryMock {
     function isEntity(address) external pure returns (bool) {
@@ -72,6 +77,7 @@ contract UniversalDelegatorFlatHarness is UniversalDelegator {
         _prevSums.initialize(1);
         _grantRole(CREATE_SLOT_ROLE, roleHolder);
         _grantRole(SET_SIZE_ROLE, roleHolder);
+        _grantRole(REMOVE_SLOT_ROLE, roleHolder);
     }
 
     function setMigrationForTest(address oldDelegator_, uint48 migrateTimestamp_) external {
@@ -224,5 +230,53 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         assertEq(delegator.stake(subnetworkA, operatorA), 0);
         assertEq(delegator.stake(subnetworkA, operatorB), 100);
+    }
+
+    function test_RemoveMiddleSlotReleasesPrefixForLaterSlot() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        bytes32 subnetworkB = networkB.subnetwork(0);
+        bytes32 subnetworkC = address(0x1003).subnetwork(0);
+        address operatorC = address(0x3003);
+        vault.setActiveStake(100);
+
+        delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkB, operatorB, 100);
+        delegator.createSlot(subnetworkC, operatorC, 100);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkB, operatorB), 0);
+        assertEq(delegator.stake(subnetworkC, operatorC), 0);
+
+        delegator.removeSlot(slotB);
+        vault.setActiveStake(200);
+
+        assertEq(delegator.stake(subnetworkB, operatorB), 0);
+        assertEq(delegator.stake(subnetworkC, operatorC), 100);
+    }
+
+    function test_LastLiveSlotCanGrowBeyondWithdrawalBuffer() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 50);
+
+        delegator.setSize(slotA, 101);
+
+        assertEq(delegator.getSize(slotA), 101);
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+    }
+
+    function test_EarlierSlotCannotGrowByStealingLaterAllocation() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(150);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkA, operatorB, 100);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 50);
+
+        vm.expectRevert(IUniversalDelegator.NotEnoughBalance.selector);
+        delegator.setSize(slotA, 151);
     }
 }

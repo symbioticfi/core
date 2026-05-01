@@ -26,6 +26,7 @@ import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 import {UniversalSlasher} from "../../../src/contracts/slasher/UniversalSlasher.sol";
 
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
+import {Checkpoints} from "../../../src/contracts/libraries/CheckpointsV2.sol";
 
 import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
@@ -36,6 +37,8 @@ import {Token} from "../../mocks/Token.sol";
 import {MockRewards} from "../../mocks/MockRewards.sol";
 
 contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
+    using Checkpoints for Checkpoints.Trace208;
+
     constructor(
         address networkRegistry,
         address vaultFactory,
@@ -43,6 +46,10 @@ contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
         uint64 entityType,
         address networkMiddlewareService
     ) UniversalDelegator(networkRegistry, vaultFactory, delegatorFactory, entityType, networkMiddlewareService) {}
+
+    function positionOf(uint32 index) public view returns (uint32) {
+        return uint32(indexToPos[index].latest());
+    }
 }
 
 contract UniversalDelegatorArithmeticHandler is Test {
@@ -863,17 +870,12 @@ contract UniversalDelegatorArithmeticHandler is Test {
         view
         returns (uint32 left, uint32 right, bool ordered)
     {
-        uint32 cursor = delegator.firstSlot();
-        while (cursor != 0) {
-            if (cursor == slot1) {
-                return (slot1, slot2, true);
-            }
-            if (cursor == slot2) {
-                return (slot2, slot1, true);
-            }
-            cursor = delegator.getSlot(cursor).nextSlot;
+        uint32 pos1 = delegator.positionOf(slot1);
+        uint32 pos2 = delegator.positionOf(slot2);
+        if (pos1 == pos2) {
+            return (0, 0, false);
         }
-        return (0, 0, false);
+        return pos1 < pos2 ? (slot1, slot2, true) : (slot2, slot1, true);
     }
 
     function _canSwapSlotsWithoutRevert(uint32 left, uint32 right) internal view returns (bool) {

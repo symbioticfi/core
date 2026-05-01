@@ -126,8 +126,6 @@ interface IUniversalDelegator {
     /**
      * @notice Slot snapshot data.
      * @param exists Whether the slot exists.
-     * @param prevSlot Previous slot index.
-     * @param nextSlot Next slot index.
      * @param operator Operator assigned to the slot.
      * @param subnetwork Subnetwork assigned to the slot.
      * @param size Effective slot size at the current timestamp.
@@ -135,8 +133,6 @@ interface IUniversalDelegator {
      */
     struct Slot {
         bool exists;
-        uint32 prevSlot;
-        uint32 nextSlot;
         address operator;
         bytes32 subnetwork;
         uint128 size;
@@ -397,7 +393,7 @@ interface IUniversalDelegator {
     function setSize(uint32 index, uint128 size) external;
 
     /**
-     * @notice Swap two sibling slots.
+     * @notice Swap two slots.
      * @param index1 First slot index.
      * @param index2 Second slot index.
      * @dev Only a SWAP_SLOTS_ROLE holder can call this function.
