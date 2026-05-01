@@ -23,6 +23,7 @@ import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 /// @author Modified from FenwickTreeLibrary (https://github.com/mellow-finance/flexible-vaults/blob/main/src/libraries/FenwickTreeLibrary.sol)
 library FenwickTreeCheckpoints {
     using CheckpointsV2 for CheckpointsV2.Trace208;
+    using FenwickTreeCheckpoints for Tree;
 
     /// @notice Thrown when initializing with an invalid length (must be power of 2 and nonzero), or during overflow.
     error InvalidLength();
@@ -53,6 +54,14 @@ library FenwickTreeCheckpoints {
     /// @return The length of the tree.
     function length(Tree storage tree) internal view returns (uint256) {
         return tree._length;
+    }
+
+    /// @notice Return the current sum across the whole tree, or zero for an uninitialized tree.
+    /// @param tree The Fenwick tree.
+    /// @return The sum of all elements in the tree.
+    function total(Tree storage tree) internal view returns (uint256) {
+        uint256 length = tree.length();
+        return length > 0 ? tree.get(length - 1) : 0;
     }
 
     /// @notice Doubles the length of the Fenwick tree while preserving internal state.

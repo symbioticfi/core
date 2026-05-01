@@ -265,7 +265,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getWithdrawalBuffer() public view returns (uint256) {
-        return getBalance(_maxDuration()).saturatingSub(_prevSums.get(totalSlots - 1));
+        return getBalance(_maxDuration()).saturatingSub(_prevSums.total());
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -328,7 +328,7 @@ contract UniversalDelegator is
         if (newSize > curSize) {
             uint128 delta = newSize - curSize;
             if (
-                _prevSums.get(totalSlots - 1) > _prevSums.get(indexToPos[index].latest())
+                _prevSums.total() > _prevSums.get(indexToPos[index].latest())
                     && _getPrevSum(index) + curSize < getBalance(0) && delta > getWithdrawalBuffer()
             ) {
                 revert NotEnoughBalance();
