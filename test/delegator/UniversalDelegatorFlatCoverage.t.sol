@@ -243,6 +243,111 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.getSize(slotA), 80);
     }
 
+    function test_SyncedSizeViewsTrackCreatesIncreasesAndPendingSync() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        bytes32 subnetworkB = networkB.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
+        delegator.createSlot(subnetworkB, operatorA, 30);
+
+        uint48 createdAt = uint48(block.timestamp);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, createdAt), 200);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, createdAt), 100);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, createdAt), 100);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkB, createdAt), 30);
+        assertEq(delegator.getSyncedSizeAt(subnetworkB, operatorA, createdAt), 30);
+
+        vm.warp(createdAt + 1);
+        delegator.setSize(slotB, 120);
+        uint48 increasedAt = uint48(block.timestamp);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, increasedAt), 220);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, increasedAt), 120);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkB, increasedAt), 30);
+
+        delegator.setSize(slotA, 0);
+        uint48 delayedAt = uint48(block.timestamp);
+        assertEq(delegator.indexToSyncIndex(slotA), 1);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, delayedAt), 220);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, delayedAt), 100);
+
+        vm.warp(delayedAt + vault.epochDuration());
+        assertEq(delegator.getSize(slotA), 0);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 220);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 100);
+
+        delegator.setSize(slotB, 120);
+
+        assertEq(delegator.indexToSyncIndex(slotA), 0);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 120);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 120);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkB, uint48(block.timestamp)), 30);
+    }
+
+    function test_SyncedSizeViewsDropResetSlotOnly() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+
+        delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkA, operatorB, 50);
+
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 150);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 100);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 50);
+
+        vm.prank(middlewareA);
+        delegator.resetAllocation(subnetworkA, operatorA);
+
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 50);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 50);
+    }
+
+    function test_OnSlashUpdatesSyncedSizeViews() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setSlasher(address(this));
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkA, operatorB, 50);
+
+        delegator.onSlash(subnetworkA, operatorA, 40);
+
+        assertEq(delegator.getSize(slotA), 60);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 110);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 60);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 50);
+    }
+
+    function test_SyncedSizeViewsIgnoreMaturedButUnsyncedDecreaseAfterSameSubnetworkSlash() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(100);
+        vault.setSlasher(address(this));
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkA, operatorB, 100);
+
+        delegator.setSize(slotA, 0);
+        vm.warp(block.timestamp + vault.epochDuration());
+
+        assertEq(delegator.getSize(slotA), 0);
+        assertEq(delegator.indexToSyncIndex(slotA), 1);
+
+        delegator.onSlash(subnetworkA, operatorB, 10);
+
+        assertEq(delegator.indexToSyncIndex(slotA), 1);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 190);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 100);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 90);
+
+        delegator.setSize(2, 90);
+
+        assertEq(delegator.indexToSyncIndex(slotA), 0);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 90);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 90);
+    }
+
     function test_ResetAfterMaturedDecreasePreservesOtherSlotHistoricalStake() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         bytes32 subnetworkB = networkB.subnetwork(0);

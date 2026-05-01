@@ -102,41 +102,9 @@ contract VaultV2Migrate is VaultV2Storage, AccessControlUpgradeable, ERC20Upgrad
 
         // Deploy and migrate delegator.
         address oldDelegator = delegator;
-        uint64 oldDelegatorType = IEntity(oldDelegator).TYPE();
-        IUniversalDelegator.InitParams memory initParams =
-            abi.decode(params.delegatorParams, (IUniversalDelegator.InitParams));
-        address defaultAdminRoleHolder = initParams.defaultAdminRoleHolder;
-        address createSlotRoleHolder = initParams.createSlotRoleHolder;
-        initParams.defaultAdminRoleHolder = address(this);
-        initParams.createSlotRoleHolder = address(this);
-        params.delegatorParams = abi.encode(initParams);
-
         delegator = DelegatorFactory(DELEGATOR_FACTORY)
             .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(address(this), params.delegatorParams));
         UniversalDelegator(delegator).migrate(oldDelegator);
-        if (oldDelegatorType == OPERATOR_NETWORK_SPECIFIC_DELEGATOR_TYPE) {
-            // If previous delegator is OperatorNetworkSpecificDelegator, specific migration is needed.
-            bytes32 subnetwork = IOperatorNetworkSpecificDelegator(oldDelegator).network()
-                .subnetwork(params.operatorNetworkSpecificSubnetworkId);
-            uint256 oldMaxNetworkLimit = IOperatorNetworkSpecificDelegator(oldDelegator).maxNetworkLimit(subnetwork);
-            if (oldMaxNetworkLimit == 0) {
-                revert IUniversalDelegator.NotEnoughBalance();
-            }
-            UniversalDelegator(delegator)
-                .createSlot(subnetwork, IOperatorNetworkSpecificDelegator(oldDelegator).operator(), type(uint128).max);
-        }
-        if (createSlotRoleHolder != address(this)) {
-            if (createSlotRoleHolder != address(0)) {
-                UniversalDelegator(delegator).grantRole(CREATE_SLOT_ROLE, createSlotRoleHolder);
-            }
-            UniversalDelegator(delegator).renounceRole(CREATE_SLOT_ROLE, address(this));
-        }
-        if (defaultAdminRoleHolder != address(this)) {
-            if (defaultAdminRoleHolder != address(0)) {
-                UniversalDelegator(delegator).grantRole(DEFAULT_ADMIN_ROLE, defaultAdminRoleHolder);
-            }
-            UniversalDelegator(delegator).renounceRole(DEFAULT_ADMIN_ROLE, address(this));
-        }
 
         // Deploy and migrate slasher.
         if (slasher != address(0)) {

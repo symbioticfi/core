@@ -32,7 +32,6 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         address swapAdaptersRoleHolder;
         address allocateAdapterRoleHolder;
         address deallocateAdapterRoleHolder;
-        uint64 operatorNetworkSpecificSubnetworkId;
         IUniversalDelegator.InitParams delegatorParams;
         IUniversalSlasher.InitParams slasherParams;
     }
@@ -89,7 +88,6 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
                 swapAdaptersRoleHolder: config.swapAdaptersRoleHolder,
                 allocateAdapterRoleHolder: config.allocateAdapterRoleHolder,
                 deallocateAdapterRoleHolder: config.deallocateAdapterRoleHolder,
-                operatorNetworkSpecificSubnetworkId: config.operatorNetworkSpecificSubnetworkId,
                 delegatorParams: abi.encode(config.delegatorParams),
                 slasherParams: abi.encode(config.slasherParams)
             })

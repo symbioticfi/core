@@ -48,7 +48,7 @@ contract UniversalDelegatorArithmeticHarness is UniversalDelegator {
     ) UniversalDelegator(networkRegistry, vaultFactory, delegatorFactory, entityType, networkMiddlewareService) {}
 
     function positionOf(uint32 index) public view returns (uint32) {
-        return uint32(indexToPos[index].latest());
+        return uint32(_indexToPos[index].latest());
     }
 }
 

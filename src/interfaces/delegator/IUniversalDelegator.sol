@@ -244,6 +244,26 @@ interface IUniversalDelegator {
     function vault() external view returns (address vaultAddress);
 
     /**
+     * @notice Get the total number of slots ever created.
+     * @return totalSlotCount Total slot count.
+     */
+    function totalSlots() external view returns (uint32 totalSlotCount);
+
+    /**
+     * @notice Get a slot index pending prefix-sum synchronization.
+     * @param index Pending sync array index.
+     * @return slotIndex Slot index at the pending sync array position.
+     */
+    function indexesToSync(uint256 index) external view returns (uint32 slotIndex);
+
+    /**
+     * @notice Get a slot index's one-based pending sync array position.
+     * @param index Slot index.
+     * @return toSyncIndex One-based pending sync array position, or zero when the slot is not pending sync.
+     */
+    function indexToSyncIndex(uint32 index) external view returns (uint32 toSyncIndex);
+
+    /**
      * @notice Get slashable stake for a subnetwork/operator at a timestamp and duration.
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Address of the operator.
@@ -361,6 +381,26 @@ interface IUniversalDelegator {
      * @return withdrawalBuffer Current withdrawal buffer size.
      */
     function getWithdrawalBuffer() external view returns (uint256 withdrawalBuffer);
+
+    /**
+     * @notice Get total synced slot size for a subnetwork at a timestamp.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param timestamp Lookup timestamp.
+     * @return totalSyncedSize Total synced size.
+     */
+    function getTotalSyncedSizeAt(bytes32 subnetwork, uint48 timestamp) external view returns (uint208 totalSyncedSize);
+
+    /**
+     * @notice Get synced slot size for a subnetwork/operator at a timestamp.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Operator address.
+     * @param timestamp Lookup timestamp.
+     * @return syncedSize Synced size.
+     */
+    function getSyncedSizeAt(bytes32 subnetwork, address operator, uint48 timestamp)
+        external
+        view
+        returns (uint128 syncedSize);
 
     /**
      * @notice Get the timestamp when migration occurred.

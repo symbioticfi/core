@@ -265,6 +265,61 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         _assertAllocatorRoles(newDelegator, operator1.addr);
     }
 
+    function test_MigrateToVaultV2_DoesNotAutoSeedOperatorNetworkSpecificSlot() public {
+        SymbioticCoreInitBase.VaultParams memory vaultParams = SymbioticCoreInitBase.VaultParams({
+            owner: operator1.addr,
+            collateral: collateral,
+            burner: address(0x000000000000000000000000000000000000dEaD),
+            epochDuration: uint48(7 days),
+            whitelistedDepositors: new address[](0),
+            depositLimit: 0,
+            delegatorIndex: 3,
+            hook: address(0),
+            network: network1.addr,
+            withSlasher: false,
+            slasherIndex: 0,
+            vetoDuration: uint48(0)
+        });
+        address operatorNetworkSpecificVault = _getVault_SymbioticCore(vaultParams);
+        address oldDelegator = IVault(operatorNetworkSpecificVault).delegator();
+        bytes32 subnetwork = network1.addr.subnetwork(IDENTIFIER);
+
+        _networkSetMaxNetworkLimit_SymbioticCore(network1.addr, operatorNetworkSpecificVault, IDENTIFIER, 1 ether);
+        assertGt(
+            OperatorNetworkSpecificDelegator(oldDelegator).maxNetworkLimit(subnetwork), 0, "old delegator not allocated"
+        );
+
+        MigrateToVaultV2BaseScript.Config memory config = _config();
+        config.vault = operatorNetworkSpecificVault;
+        IVaultV2.MigrateParams memory migrateParams = IVaultV2.MigrateParams({
+            name: config.name,
+            symbol: config.symbol,
+            adaptersAllowDelay: config.adaptersAllowDelay,
+            defaultAdminRoleHolder: config.defaultAdminRoleHolder,
+            setAdapterLimitRoleHolder: config.setAdapterLimitRoleHolder,
+            swapAdaptersRoleHolder: config.swapAdaptersRoleHolder,
+            allocateAdapterRoleHolder: config.allocateAdapterRoleHolder,
+            deallocateAdapterRoleHolder: config.deallocateAdapterRoleHolder,
+            delegatorParams: abi.encode(config.delegatorParams),
+            slasherParams: abi.encode(config.slasherParams)
+        });
+
+        vm.prank(operator1.addr);
+        symbioticCore.vaultFactory.migrate(operatorNetworkSpecificVault, VAULT_V2_VERSION, abi.encode(migrateParams));
+
+        address newDelegator = IVault(operatorNetworkSpecificVault).delegator();
+        assertEq(UniversalDelegator(newDelegator).oldDelegator(), oldDelegator, "old delegator mismatch");
+        assertEq(UniversalDelegator(newDelegator).totalSlots(), 0, "unexpected migrated slot");
+        assertEq(IUniversalDelegator(newDelegator).getSlotOf(subnetwork, operator1.addr), 0, "unexpected pair slot");
+        assertTrue(IAccessControl(newDelegator).hasRole(CREATE_SLOT_ROLE, curator.addr), "missing create role");
+
+        vm.prank(curator.addr);
+        uint32 slot = IUniversalDelegator(newDelegator).createSlot(subnetwork, operator1.addr, uint128(1 ether));
+
+        assertEq(slot, 1, "manual slot index mismatch");
+        _assertSlot(IUniversalDelegator(newDelegator), slot, subnetwork, operator1.addr, 1 ether, "manual");
+    }
+
     function _assertSlot(
         IUniversalDelegator delegator,
         uint32 slotIndex,
@@ -291,7 +346,6 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
             swapAdaptersRoleHolder: curator.addr,
             allocateAdapterRoleHolder: curator.addr,
             deallocateAdapterRoleHolder: curator.addr,
-            operatorNetworkSpecificSubnetworkId: 0,
             delegatorParams: IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: curator.addr,
                 createSlotRoleHolder: curator.addr,

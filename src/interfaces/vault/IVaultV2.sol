@@ -202,7 +202,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param swapAdaptersRoleHolder Address of the SWAP_ADAPTERS_ROLE holder to grant on migration.
      * @param allocateAdapterRoleHolder Address of the ALLOCATE_ADAPTER_ROLE holder to grant on migration.
      * @param deallocateAdapterRoleHolder Address of the DEALLOCATE_ADAPTER_ROLE holder to grant on migration.
-     * @param operatorNetworkSpecificSubnetworkId Subnetwork identifier to seed when migrating from OperatorNetworkSpecificDelegator.
      * @param delegatorParams Parameters for the delegator migration.
      * @param slasherParams Parameters for the slasher migration.
      */
@@ -215,7 +214,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         address swapAdaptersRoleHolder;
         address allocateAdapterRoleHolder;
         address deallocateAdapterRoleHolder;
-        uint96 operatorNetworkSpecificSubnetworkId;
         bytes delegatorParams;
         bytes slasherParams;
     }

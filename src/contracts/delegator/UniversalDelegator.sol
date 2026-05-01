@@ -64,16 +64,24 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
+    /// @inheritdoc IUniversalDelegator
     uint32 public totalSlots;
 
+    /// @inheritdoc IUniversalDelegator
     uint32[] public indexesToSync;
-    mapping(uint32 index => uint32 toSyncIndex) indexToSyncIndex;
+    /// @inheritdoc IUniversalDelegator
+    mapping(uint32 index => uint32 toSyncIndex) public indexToSyncIndex;
 
+    /// @dev Fenwick tree of synced slot size prefix sums by current slot position.
     FenwickTreeCheckpoints.Tree _prevSums;
     /// @dev Slot storage keyed by encoded slot index.
     mapping(uint64 index => SlotStorage slot) internal slots;
-    mapping(uint32 index => Checkpoints.Trace208) public indexToPos;
-    mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace208 index)) public _slotOf;
+    /// @dev Position checkpoints for each slot index.
+    mapping(uint32 index => Checkpoints.Trace208) internal _indexToPos;
+    /// @dev Synced total slot size checkpoints per subnetwork.
+    mapping(bytes32 subnetwork => Checkpoints.Trace208) internal _totalSyncedSize;
+    /// @dev Slot index checkpoints keyed by subnetwork and operator.
+    mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace208 index)) internal _slotOf;
 
     /// @inheritdoc IUniversalDelegator
     uint48 public migrateTimestamp;
@@ -105,15 +113,16 @@ contract UniversalDelegator is
         if (syncIndex == 0) {
             return false;
         }
-        Checkpoints.Trace208 storage sizeCheckpoints = slots[index].size;
+        SlotStorage storage slot = slots[index];
+        Checkpoints.Trace208 storage sizeCheckpoints = slot.size;
         (, uint48 latestTimestamp, uint208 latestSize) = sizeCheckpoints.latestCheckpoint();
         if (latestTimestamp > block.timestamp) {
             return false;
         }
-        _prevSums.modify(
-            indexToPos[index].latest(),
-            int256(uint256(latestSize))
-                - int256(uint256(sizeCheckpoints.at(uint32(sizeCheckpoints.length() - 2))._value))
+        slot.size.push(uint48(block.timestamp), uint128(latestSize));
+        _modifySize(
+            index,
+            -int256(uint256(sizeCheckpoints.at(uint32(sizeCheckpoints.length() - 2))._value - uint128(latestSize)))
         );
         return true;
     }
@@ -269,6 +278,27 @@ contract UniversalDelegator is
         return getBalance(_maxDuration()).saturatingSub(_prevSums.total());
     }
 
+    /// @inheritdoc IUniversalDelegator
+    function getTotalSyncedSizeAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint208) {
+        return _totalSyncedSize[subnetwork].upperLookupRecent(timestamp);
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function getSyncedSizeAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint128) {
+        uint32 index = getSlotOfAt(subnetwork, operator, timestamp);
+        if (index == 0) {
+            return 0;
+        }
+        (bool exists,, uint208 sizeData, uint32 pos) = slots[index].size.upperLookupRecentCheckpoint(timestamp);
+        if (!exists) {
+            return 0;
+        }
+        if (sizeData >> 128 == 0) {
+            return uint128(sizeData);
+        }
+        return uint128(slots[index].size.at(pos - 1)._value);
+    }
+
     /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IUniversalDelegator
@@ -291,7 +321,7 @@ contract UniversalDelegator is
         }
 
         index = ++totalSlots;
-        indexToPos[index].push(uint48(block.timestamp), index - 1);
+        _indexToPos[index].push(uint48(block.timestamp), index - 1);
 
         _slotOf[subnetwork][operator].push(uint48(block.timestamp), index);
 
@@ -300,14 +330,14 @@ contract UniversalDelegator is
         slot.exists = true;
         slot.operator = operator;
         slot.subnetwork = subnetwork;
-        if (size > 0) {
-            slot.size.push(uint48(block.timestamp), size);
-        }
 
         if (_prevSums.length() < totalSlots) {
             _prevSums.extend();
         }
-        _prevSums.modify(index - 1, int256(uint256(size)));
+        if (size > 0) {
+            slot.size.push(uint48(block.timestamp), size);
+        }
+        _modifySize(index, int256(uint256(size)));
 
         emit CreateSlot(index, size);
     }
@@ -327,31 +357,34 @@ contract UniversalDelegator is
         }
 
         if (newSize > curSize) {
-            uint128 delta = newSize - curSize;
+            uint256 delta = newSize - curSize;
             // The provided stake guarantees for all slots are kept even if:
             // - the index's prevSum plus its size is equal to total size => size be increased infinitely,
             // - not the whole slot's size is allocated (the slot is "unfilled") given the max balance => size be increased infinitely,
             // - slot's size is increased less or equal than freely allocatable funds (withdrawal buffer),
             // - otherwise, revert.
             if (
-                _prevSums.total() > _prevSums.get(indexToPos[index].latest())
+                _prevSums.total() > _prevSums.get(_indexToPos[index].latest())
                     && _getPrevSum(index) + curSize < getBalance(0) && delta > getWithdrawalBuffer()
             ) {
                 revert NotEnoughBalance();
             }
             slot.size.push(uint48(block.timestamp), newSize);
-            _prevSums.modify(indexToPos[index].latest(), int256(uint256(delta)));
+            _modifySize(index, int256(delta));
         } else {
-            uint128 delta = curSize - newSize;
-            uint256 reduced = Math.min(curSize - getAllocated(index, 0), uint256(delta));
+            uint256 delta = curSize - newSize;
+            uint256 reduced = Math.min(curSize - getAllocated(index, 0), delta);
             // Reduce the current size instatly for "unfilled" part of the slot.
             if (reduced > 0) {
                 slot.size.push(uint48(block.timestamp), uint208(curSize - reduced));
-                _prevSums.modify(indexToPos[index].latest(), -int256(reduced));
+                _modifySize(index, -int256(reduced));
             }
             // Create a delayed reduce for the "filled" part of slot.
             if (reduced < delta) {
-                slot.size.push(uint48(block.timestamp) + VaultV2(vault).epochDuration(), newSize);
+                slot.size
+                    .push(
+                        uint48(block.timestamp) + VaultV2(vault).epochDuration(), (uint208(1) << 128) | uint208(newSize)
+                    );
                 indexesToSync.push(index);
                 indexToSyncIndex[index] = uint32(indexesToSync.length);
             }
@@ -365,8 +398,8 @@ contract UniversalDelegator is
         _revertIfNotExists(index1);
         _revertIfNotExists(index2);
 
-        uint32 pos1 = uint32(indexToPos[index1].latest());
-        uint32 pos2 = uint32(indexToPos[index2].latest());
+        uint32 pos1 = uint32(_indexToPos[index1].latest());
+        uint32 pos2 = uint32(_indexToPos[index2].latest());
         if (pos1 >= pos2) {
             revert WrongOrder();
         }
@@ -379,8 +412,8 @@ contract UniversalDelegator is
             revert NotSameAllocated();
         }
 
-        indexToPos[index1].push(uint48(block.timestamp), pos2);
-        indexToPos[index2].push(uint48(block.timestamp), pos1);
+        _indexToPos[index1].push(uint48(block.timestamp), pos2);
+        _indexToPos[index2].push(uint48(block.timestamp), pos1);
 
         int256 delta = int256(uint256(getSize(index2))) - int256(uint256(getSize(index1)));
         _prevSums.modify(pos1, delta);
@@ -407,7 +440,7 @@ contract UniversalDelegator is
         _slotOf[slot.subnetwork][slot.operator].push(uint48(block.timestamp), 0);
 
         _removeSyncIndex(index);
-        _prevSums.modify(indexToPos[index].latest(), -int256(uint256(getSize(index))));
+        _modifySize(index, -int256(uint256(getSize(index))));
 
         slot.exists = false;
     }
@@ -458,7 +491,7 @@ contract UniversalDelegator is
             return;
         }
 
-        _onSlash(index, amount);
+        _onSlash(index, Math.min(getSize(index), amount));
 
         emit OnSlashLegacy(amount);
     }
@@ -478,12 +511,11 @@ contract UniversalDelegator is
             slot.size.pop();
         }
 
-        uint256 slashed = Math.min(slot.size.latest(), amount);
-        slot.size.push(uint48(block.timestamp), uint208(slot.size.latest() - slashed));
-        _prevSums.modify(indexToPos[index].latest(), -int256(slashed));
+        slot.size.push(uint48(block.timestamp), uint208(uint128(slot.size.latest()) - amount));
+        _modifySize(index, -int256(amount));
 
         if (exists && latestTimestamp > block.timestamp) {
-            uint208 futureSize = uint208(Math.min(slot.size.latest(), latestSize));
+            uint208 futureSize = uint208(Math.min(uint128(slot.size.latest()), latestSize));
             slot.size.push(latestTimestamp, futureSize);
         }
     }
@@ -533,7 +565,7 @@ contract UniversalDelegator is
 
     /// @dev Get the prefix sum of previous slot sizes at a timestamp.
     function _getPrevSumAt(uint32 index, uint48 timestamp) internal view returns (uint208 prevSizeSum) {
-        uint32 pos = uint32(indexToPos[index].upperLookupRecent(timestamp));
+        uint32 pos = uint32(_indexToPos[index].upperLookupRecent(timestamp));
         if (pos == 0) {
             return 0;
         }
@@ -542,7 +574,7 @@ contract UniversalDelegator is
 
     /// @dev Get the current prefix sum of previous slot sizes.
     function _getPrevSum(uint32 index) internal view returns (uint208 prevSizeSum) {
-        uint32 pos = uint32(indexToPos[index].latest());
+        uint32 pos = uint32(_indexToPos[index].latest());
         if (pos == 0) {
             return 0;
         }
@@ -559,6 +591,19 @@ contract UniversalDelegator is
         if (index == 0 || !slots[index].exists) {
             revert SlotNotExists();
         }
+    }
+
+    /// @dev Apply a signed delta to the synced total size checkpoint for a subnetwork.
+    function _modifySize(uint32 index, int256 delta) internal {
+        if (delta == 0) {
+            return;
+        }
+        SlotStorage storage slot = slots[index];
+        _prevSums.modify(_indexToPos[index].latest(), delta);
+        _totalSyncedSize[slot.subnetwork].push(
+            uint48(block.timestamp),
+            uint208(uint256(int256(uint256(_totalSyncedSize[slot.subnetwork].latest())) + delta))
+        );
     }
 
     /// @dev Grant a role when the holder address is not zero.

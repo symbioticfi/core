@@ -92,7 +92,6 @@ contract MigrateToVaultV2Script is MigrateToVaultV2BaseScript {
             swapAdaptersRoleHolder: ADMIN_ROLE_HOLDER,
             allocateAdapterRoleHolder: ADMIN_ROLE_HOLDER,
             deallocateAdapterRoleHolder: ADMIN_ROLE_HOLDER,
-            operatorNetworkSpecificSubnetworkId: 0,
             delegatorParams: IUniversalDelegator.InitParams({
                 defaultAdminRoleHolder: ADMIN_ROLE_HOLDER,
                 createSlotRoleHolder: ADMIN_ROLE_HOLDER,
