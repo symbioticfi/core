@@ -291,7 +291,7 @@ contract UniversalDelegator is
         }
 
         index = ++totalSlots;
-        indexToPos[index].push(uint48(block.timestamp), totalSlots - 1);
+        indexToPos[index].push(uint48(block.timestamp), index - 1);
 
         _slotOf[subnetwork][operator].push(uint48(block.timestamp), index);
 
