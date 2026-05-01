@@ -364,16 +364,11 @@ contract UniversalDelegator is
             revert WrongOrder();
         }
 
-        uint256 minBalance = getBalance(_maxDuration());
-        uint256 curPrevSum = _getPrevSum(index2);
         // - slot2 fully allocated at maxDuration (epochDuration - 1) => slot1 is fully allocated too,
         // - slot1 unallocated at duration=0 => slot2 is unallocated too,
         // - otherwise, revert.
-        if (curPrevSum < minBalance) {
-            if (curPrevSum + getSize(index2) > minBalance) {
-                revert PartiallyAllocated();
-            }
-        } else if (_getPrevSum(index1) < getBalance(0)) {
+        if (!(_getPrevSum(index2) + getSize(index2) <= getBalance(_maxDuration())
+                    || _getPrevSum(index1) >= getBalance(0))) {
             revert NotSameAllocated();
         }
 
