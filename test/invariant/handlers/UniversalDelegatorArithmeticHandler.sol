@@ -187,14 +187,19 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _warp(timeJumpSeed);
 
         address user = _selectDepositor(userSeed);
+        bool withdrew;
         if (user != address(0)) {
             uint256 balance = vault.activeBalanceOf(user);
             if (balance > 0) {
                 vm.prank(user);
                 vault.withdraw(user, _bound(amount, 1, balance));
+                withdrew = true;
             }
         }
 
+        if (withdrew) {
+            _resetSameBlockStakeViewBaseline();
+        }
         _recordTimestamp();
     }
 
@@ -226,10 +231,17 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         uint32 slot = _selectLiveSlot(slotSeed);
         if (slot != 0) {
-            uint128 newSize = uint128(_bound(newSizeSeed, 0, delegator.getSize(slot)));
+            uint128 curSize = delegator.getSize(slot);
+            uint128 newSize = uint128(_bound(newSizeSeed, 0, MAX_SLOT_SIZE));
+            bool canRevertNotEnoughBalance = newSize > curSize;
             try delegator.setSize(slot, newSize) {}
             catch (bytes memory revertData) {
-                _recordUnexpectedActionRevert(UniversalDelegator.setSize.selector, revertData);
+                if (
+                    !canRevertNotEnoughBalance
+                        || !_isSelector(revertData, IUniversalDelegator.NotEnoughBalance.selector)
+                ) {
+                    _recordUnexpectedActionRevert(UniversalDelegator.setSize.selector, revertData);
+                }
             }
         }
 
@@ -1022,6 +1034,11 @@ contract UniversalDelegatorArithmeticHandler is Test {
         sameBlockStakeViewAfter = afterValue;
     }
 
+    /// @dev Starts a fresh same-block baseline after a global vault backing mutation.
+    function _resetSameBlockStakeViewBaseline() internal {
+        sameBlockTimestamp = 0;
+    }
+
     function _recordUnexpectedActionRevert(bytes4 selector, bytes memory revertData) internal {
         if (unexpectedActionReverted) {
             return;
@@ -1029,6 +1046,11 @@ contract UniversalDelegatorArithmeticHandler is Test {
         unexpectedActionReverted = true;
         unexpectedActionSelector = selector;
         unexpectedActionRevertData = revertData;
+    }
+
+    /// @dev Returns true when revert data is exactly a selector-only custom error.
+    function _isSelector(bytes memory revertData, bytes4 selector) internal pure returns (bool) {
+        return revertData.length == 4 && bytes4(revertData) == selector;
     }
 
     function _dropSlotGuarantees(uint32 slot) internal {

@@ -334,8 +334,8 @@ contract UniversalDelegator is
             // - slot's size is increased less or equal than freely allocatable funds (withdrawal buffer),
             // - otherwise, revert.
             if (
-                _prevSums.total() > _prevSums.get(indexToPos[index].latest()) && getAllocated(index, 0) == curSize
-                    && delta > getWithdrawalBuffer()
+                _prevSums.total() > _prevSums.get(indexToPos[index].latest())
+                    && _getPrevSum(index) + curSize < getBalance(0) && delta > getWithdrawalBuffer()
             ) {
                 revert NotEnoughBalance();
             }
@@ -428,6 +428,7 @@ contract UniversalDelegator is
         uint32 index = getSlotOf(subnetwork, operator);
         _revertIfNotExists(index);
 
+        _syncPrevSum(index);
         _removeSlot(index);
 
         emit ResetAllocation(index, subnetwork);

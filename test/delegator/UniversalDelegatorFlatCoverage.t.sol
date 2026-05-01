@@ -263,6 +263,59 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stake(subnetworkA, operatorA), 0);
     }
 
+    function test_ResetBeforePendingDecreaseMaturesClearsFutureSyncEntry() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        bytes32 subnetworkB = networkB.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkB, operatorB, 100);
+        delegator.setSize(slotA, 0);
+
+        assertEq(delegator.indexesToSyncLength(), 1);
+        assertEq(delegator.syncIndexOf(slotA), 1);
+
+        vm.prank(middlewareA);
+        delegator.resetAllocation(subnetworkA, operatorA);
+
+        assertEq(delegator.indexesToSyncLength(), 0);
+        assertEq(delegator.syncIndexOf(slotA), 0);
+
+        vm.warp(block.timestamp + vault.epochDuration());
+        delegator.setSize(2, 100);
+
+        assertEq(delegator.indexesToSyncLength(), 0);
+        assertEq(delegator.stake(subnetworkA, operatorA), 0);
+        assertEq(delegator.stake(subnetworkB, operatorB), 100);
+    }
+
+    function test_RemoveBeforePendingDecreaseMaturesClearsFutureSyncEntry() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        bytes32 subnetworkB = networkB.subnetwork(0);
+        vault.setActiveStake(50);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkB, operatorB, 100);
+        delegator.setSize(slotA, 0);
+
+        assertEq(delegator.indexesToSyncLength(), 1);
+        assertEq(delegator.syncIndexOf(slotA), 1);
+        assertEq(delegator.stake(subnetworkA, operatorA), 50);
+        assertEq(delegator.stake(subnetworkB, operatorB), 0);
+
+        vault.setActiveStake(0);
+        delegator.removeSlot(slotA);
+
+        assertEq(delegator.indexesToSyncLength(), 0);
+        assertEq(delegator.syncIndexOf(slotA), 0);
+
+        vm.warp(block.timestamp + vault.epochDuration());
+        vault.setActiveStake(100);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 0);
+        assertEq(delegator.stake(subnetworkB, operatorB), 100);
+    }
+
     function test_StakeForAtBeforeMigrationDoesNotSynthesizeLegacyStakeForAt() public {
         bytes32 subnetwork = networkA.subnetwork(0);
         UniversalDelegatorFlatLegacyMock legacy = new UniversalDelegatorFlatLegacyMock();
@@ -308,6 +361,69 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         vm.expectRevert(IUniversalDelegator.WrongOrder.selector);
         delegator.swapSlots(slotB, slotA);
+    }
+
+    function test_SwapSlotsRevertsForPartiallyAllocatedSecondSlot() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(150);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 50);
+
+        vm.expectRevert();
+        delegator.swapSlots(slotA, slotB);
+    }
+
+    function test_SwapSlotsAllowsZeroSizeBoundarySecondSlot() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 0);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 0);
+
+        uint48 timestamp = uint48(block.timestamp);
+        delegator.swapSlots(slotA, slotB);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 100);
+        assertEq(delegator.stakeAt(subnetworkA, operatorA, timestamp, ""), 100);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, timestamp), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 0);
+        assertEq(delegator.stakeFor(subnetworkA, operatorB, 0), 0);
+        assertEq(delegator.stakeAt(subnetworkA, operatorB, timestamp, ""), 0);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorB, 0, timestamp), 0);
+    }
+
+    function test_SwapSlotsAllowsFullyAllocatedSlots() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(200);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
+
+        delegator.swapSlots(slotA, slotB);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 100);
+    }
+
+    function test_SwapSlotsAllowsUnallocatedSlots() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(0);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
+
+        delegator.swapSlots(slotA, slotB);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 0);
+        assertEq(delegator.stake(subnetworkA, operatorB), 0);
     }
 
     function test_ResetAllocationDropsOnlyTargetPair() public {
@@ -359,6 +475,23 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         assertEq(delegator.getSize(slotA), 101);
         assertEq(delegator.stake(subnetworkA, operatorA), 100);
+    }
+
+    function test_FullyAllocatedBoundarySlotCanGrowWithoutStealingLaterAllocation() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.createSlot(subnetworkA, operatorB, 100);
+
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 0);
+
+        delegator.setSize(slotA, 101);
+
+        assertEq(delegator.getSize(slotA), 101);
+        assertEq(delegator.stake(subnetworkA, operatorA), 100);
+        assertEq(delegator.stake(subnetworkA, operatorB), 0);
     }
 
     function test_EarlierSlotCannotGrowByStealingLaterAllocation() public {

@@ -603,6 +603,19 @@ contract VaultV2AdaptersTest is Test {
         assertEq(vault1.adapterIndex(address(morphoAdapter)), 1);
     }
 
+    function test_SetAdapterLimitUpdatesAdapterIndexWhenRemovingLastAdapter() public {
+        _prepareAdapter(vault1, address(aaveAdapter), 100);
+        _prepareAdapter(vault1, address(morphoAdapter), 100);
+
+        vm.prank(alice);
+        VaultV2(address(vault1)).setAdapterLimit(address(morphoAdapter), 0);
+
+        assertEq(vault1.adaptersLength(), 1);
+        assertEq(vault1.adapters(0), address(aaveAdapter));
+        assertEq(vault1.adapterIndex(address(aaveAdapter)), 1);
+        assertEq(vault1.adapterIndex(address(morphoAdapter)), 0);
+    }
+
     function test_SetAdapterLimitZeroForAbsentAdapterRevertsAndKeepsFirstAdapter() public {
         _prepareAdapter(vault1, address(aaveAdapter), 100);
 
