@@ -66,7 +66,7 @@ contract UniversalDelegator is
     address public vault;
     uint32 public totalSlots;
 
-    uint32[] public syncIndexes;
+    uint32[] public indexesToSync;
     mapping(uint32 index => uint32 toSyncIndex) indexToSyncIndex;
 
     FenwickTreeCheckpoints.Tree _prevSums;
@@ -83,22 +83,24 @@ contract UniversalDelegator is
     /* MODIFIERS */
 
     /// @dev Synchronize pending size checkpoints before executing the function.
-    modifier syncPrevSizeSums() {
-        _syncPrevSizeSums();
+    modifier syncPrevSums() {
+        _syncPrevSums();
         _;
     }
 
     /// @dev Synchronize all due pending slot size checkpoints into prefix sums.
-    function _syncPrevSizeSums() internal {
-        for (uint256 i; i < syncIndexes.length;) {
-            if (!_syncPrevSizeSum(syncIndexes[i])) {
+    function _syncPrevSums() internal {
+        for (uint256 i; i < indexesToSync.length;) {
+            if (_syncPrevSum(indexesToSync[i])) {
+                _removeSyncIndex(indexesToSync[i]);
+            } else {
                 ++i;
             }
         }
     }
 
     /// @dev Synchronize a due pending size checkpoint into prefix sums.
-    function _syncPrevSizeSum(uint32 index) internal returns (bool) {
+    function _syncPrevSum(uint32 index) internal returns (bool) {
         uint32 syncIndex = indexToSyncIndex[index];
         if (syncIndex == 0) {
             return false;
@@ -113,20 +115,19 @@ contract UniversalDelegator is
             int256(uint256(latestSize))
                 - int256(uint256(sizeCheckpoints.at(uint32(sizeCheckpoints.length() - 2))._value))
         );
-        _clearSyncPrevSizeSum(index);
         return true;
     }
 
     /// @dev Remove a slot from the pending prefix-sum synchronization list.
-    function _clearSyncPrevSizeSum(uint32 index) internal returns (bool) {
+    function _removeSyncIndex(uint32 index) internal returns (bool) {
         uint32 syncIndex = indexToSyncIndex[index];
         if (syncIndex == 0) {
             return false;
         }
-        uint32 lastIndex = syncIndexes[syncIndexes.length - 1];
-        syncIndexes[syncIndex - 1] = lastIndex;
+        uint32 lastIndex = indexesToSync[indexesToSync.length - 1];
+        indexesToSync[syncIndex - 1] = lastIndex;
         indexToSyncIndex[lastIndex] = syncIndex;
-        syncIndexes.pop();
+        indexesToSync.pop();
         indexToSyncIndex[index] = 0;
         return true;
     }
@@ -282,11 +283,11 @@ contract UniversalDelegator is
     /// @dev Create a new slot.
     function _createSlot(bytes32 subnetwork, address operator, uint128 size)
         internal
-        syncPrevSizeSums
+        syncPrevSums
         returns (uint32 index)
     {
         if (_slotOf[subnetwork][operator].latest() > 0) {
-            revert();
+            revert AlreadyAssigned();
         }
 
         index = ++totalSlots;
@@ -312,7 +313,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function setSize(uint32 index, uint128 newSize) public onlyRole(SET_SIZE_ROLE) syncPrevSizeSums {
+    function setSize(uint32 index, uint128 newSize) public onlyRole(SET_SIZE_ROLE) syncPrevSums {
         _revertIfNotExists(index);
 
         SlotStorage storage slot = slots[index];
@@ -321,7 +322,7 @@ contract UniversalDelegator is
             return;
         }
 
-        if (_clearSyncPrevSizeSum(index)) {
+        if (_removeSyncIndex(index)) {
             slots[index].size.pop();
         }
 
@@ -344,8 +345,8 @@ contract UniversalDelegator is
             }
             if (reduced < delta) {
                 slot.size.push(uint48(block.timestamp) + VaultV2(vault).epochDuration(), newSize);
-                syncIndexes.push(index);
-                indexToSyncIndex[index] = uint32(syncIndexes.length);
+                indexesToSync.push(index);
+                indexToSyncIndex[index] = uint32(indexesToSync.length);
             }
         }
 
@@ -353,14 +354,14 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function swapSlots(uint32 index1, uint32 index2) public onlyRole(SWAP_SLOTS_ROLE) syncPrevSizeSums {
+    function swapSlots(uint32 index1, uint32 index2) public onlyRole(SWAP_SLOTS_ROLE) syncPrevSums {
         _revertIfNotExists(index1);
         _revertIfNotExists(index2);
 
         uint32 pos1 = uint32(indexToPos[index1].latest());
         uint32 pos2 = uint32(indexToPos[index2].latest());
         if (pos1 >= pos2) {
-            revert();
+            revert WrongOrder();
         }
 
         uint256 minBalance = getBalance(_maxDuration());
@@ -387,7 +388,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function removeSlot(uint32 index) public onlyRole(REMOVE_SLOT_ROLE) syncPrevSizeSums {
+    function removeSlot(uint32 index) public onlyRole(REMOVE_SLOT_ROLE) syncPrevSums {
         _revertIfNotExists(index);
         if (getAllocated(index, 0) > 0) {
             revert SlotAllocated();
@@ -403,7 +404,7 @@ contract UniversalDelegator is
 
         _slotOf[slot.subnetwork][slot.operator].push(uint48(block.timestamp), 0);
 
-        if (_clearSyncPrevSizeSum(index)) {
+        if (_removeSyncIndex(index)) {
             slots[index].size.pop();
         }
         _prevSums.modify(indexToPos[index].latest(), -int256(uint256(getSize(index))));
@@ -466,7 +467,9 @@ contract UniversalDelegator is
         if (index == 0) {
             return;
         }
-        _syncPrevSizeSum(index);
+        if (_syncPrevSum(index)) {
+            _removeSyncIndex(index);
+        }
 
         SlotStorage storage slot = slots[index];
         (bool exists, uint48 latestTimestamp, uint208 latestSize) = slot.size.latestCheckpoint();
