@@ -6,13 +6,13 @@ import {Test} from "forge-std/Test.sol";
 import {CoreV2StakeForInvariantHelper} from "./CoreV2StakeForInvariantHelper.sol";
 
 contract MockStakeForDelegator {
-    mapping(uint64 => mapping(uint48 => uint256)) internal _allocated;
+    mapping(uint32 => mapping(uint48 => uint256)) internal _allocated;
 
-    function setAllocated(uint64 slot, uint48 duration, uint256 amount) external {
+    function setAllocated(uint32 slot, uint48 duration, uint256 amount) external {
         _allocated[slot][duration] = amount;
     }
 
-    function getAllocated(uint64 slot, uint48 duration) external view returns (uint256) {
+    function getAllocated(uint32 slot, uint48 duration) external view returns (uint256) {
         return _allocated[slot][duration];
     }
 }
@@ -51,9 +51,9 @@ contract CoreV2StakeForInvariantHarness is CoreV2StakeForInvariantHelper {
     function assertInvariantForThreeSlots(
         address vault_,
         address delegator_,
-        uint64 slot1,
-        uint64 slot2,
-        uint64 slot3,
+        uint32 slot1,
+        uint32 slot2,
+        uint32 slot3,
         uint48 epochDuration
     ) external view {
         _assertStakeForInvariantForThreeSlots(vault_, delegator_, slot1, slot2, slot3, epochDuration);
@@ -103,7 +103,7 @@ contract CoreV2StakeForInvariantHelperTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(
                 CoreV2StakeForInvariantHelper.StakeForDecreasesWithDuration.selector,
-                uint64(1),
+                uint32(1),
                 uint48(0),
                 uint256(10),
                 uint48(EPOCH_DURATION / 2),
