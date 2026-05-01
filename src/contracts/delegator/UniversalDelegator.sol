@@ -328,9 +328,14 @@ contract UniversalDelegator is
 
         if (newSize > curSize) {
             uint128 delta = newSize - curSize;
+            // The provided stake guarantees for all slots are kept even if:
+            // - the index's prevSum plus its size is equal to total size => size be increased infinitely,
+            // - not the whole slot's size is allocated (the slot is "unfilled") given the max balance => size be increased infinitely,
+            // - slot's size is increased less or equal than freely allocatable funds (withdrawal buffer),
+            // - otherwise, revert.
             if (
-                _prevSums.total() > _prevSums.get(indexToPos[index].latest())
-                    && _getPrevSum(index) + curSize < getBalance(0) && delta > getWithdrawalBuffer()
+                _prevSums.total() > _prevSums.get(indexToPos[index].latest()) && getAllocated(index, 0) == curSize
+                    && delta > getWithdrawalBuffer()
             ) {
                 revert NotEnoughBalance();
             }
@@ -338,11 +343,13 @@ contract UniversalDelegator is
             _prevSums.modify(indexToPos[index].latest(), int256(uint256(delta)));
         } else {
             uint128 delta = curSize - newSize;
-            uint256 reduced = Math.min(uint256(curSize).saturatingSub(getAllocated(index, 0)), uint256(delta));
+            uint256 reduced = Math.min(curSize - getAllocated(index, 0), uint256(delta));
+            // Reduce the current size instatly for "unfilled" part of the slot.
             if (reduced > 0) {
                 slot.size.push(uint48(block.timestamp), uint208(curSize - reduced));
                 _prevSums.modify(indexToPos[index].latest(), -int256(reduced));
             }
+            // Create a delayed reduce for the "filled" part of slot.
             if (reduced < delta) {
                 slot.size.push(uint48(block.timestamp) + VaultV2(vault).epochDuration(), newSize);
                 indexesToSync.push(index);
@@ -364,11 +371,11 @@ contract UniversalDelegator is
             revert WrongOrder();
         }
 
+        // The swap succeeds if:
         // - slot2 fully allocated at maxDuration (epochDuration - 1) => slot1 is fully allocated too,
         // - slot1 unallocated at duration=0 => slot2 is unallocated too,
         // - otherwise, revert.
-        if (!(_getPrevSum(index2) + getSize(index2) <= getBalance(_maxDuration())
-                    || _getPrevSum(index1) >= getBalance(0))) {
+        if (_getPrevSum(index2) + getSize(index2) > getBalance(_maxDuration()) && _getPrevSum(index1) < getBalance(0)) {
             revert NotSameAllocated();
         }
 
@@ -399,9 +406,7 @@ contract UniversalDelegator is
 
         _slotOf[slot.subnetwork][slot.operator].push(uint48(block.timestamp), 0);
 
-        if (_removeSyncIndex(index)) {
-            slots[index].size.pop();
-        }
+        _removeSyncIndex(index);
         _prevSums.modify(indexToPos[index].latest(), -int256(uint256(getSize(index))));
 
         slot.exists = false;

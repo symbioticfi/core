@@ -606,8 +606,8 @@ contract VaultV2 is
             }
             address lastAdapter = adapters[adapters.length - 1];
             adapters[curAdapterIndex - 1] = lastAdapter;
-            adapters.pop();
             adapterIndex[lastAdapter] = curAdapterIndex;
+            adapters.pop();
             adapterIndex[adapter] = 0;
             super._revokeRole(ALLOCATE_ADAPTER_ROLE, adapter);
             super._revokeRole(DEALLOCATE_ADAPTER_ROLE, adapter);
