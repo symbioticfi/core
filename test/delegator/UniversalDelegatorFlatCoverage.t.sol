@@ -287,6 +287,39 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.indexesToSyncLength(), 0);
     }
 
+    function test_ResetAllocationEmitsSlotIndex() public {
+        bytes32 subnetwork = networkA.subnetwork(0);
+        uint32 slot = delegator.createSlot(subnetwork, operatorA, 100);
+
+        vm.expectEmit(true, false, false, true, address(delegator));
+        emit IUniversalDelegator.ResetAllocation(slot);
+
+        vm.prank(middlewareA);
+        delegator.resetAllocation(subnetwork, operatorA);
+    }
+
+    function test_OnSlashEmitsResolvedSlotIndex() public {
+        bytes32 subnetwork = networkA.subnetwork(0);
+        uint32 slot = delegator.createSlot(subnetwork, operatorA, 100);
+        vault.setSlasher(address(this));
+
+        vm.expectEmit(true, false, false, true, address(delegator));
+        emit IUniversalDelegator.OnSlash(slot, 40);
+
+        delegator.onSlash(subnetwork, operatorA, 40);
+    }
+
+    function test_OnSlashLegacyEmitsResolvedSlotIndexAndAppliedAmount() public {
+        bytes32 subnetwork = networkA.subnetwork(0);
+        uint32 slot = delegator.createSlot(subnetwork, operatorA, 25);
+        vault.setSlasher(address(this));
+
+        vm.expectEmit(true, false, false, true, address(delegator));
+        emit IUniversalDelegator.OnSlash(slot, 25);
+
+        delegator.onSlashLegacy(subnetwork, operatorA, 40);
+    }
+
     function test_DecreaseImmediatelyReleasesOnlyUnusedStakeAndDelaysAllocatedRemainder() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         bytes32 subnetworkB = networkB.subnetwork(0);

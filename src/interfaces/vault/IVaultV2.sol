@@ -40,6 +40,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error AdapterAllocated();
 
     /**
+     * @notice Raised when adding an adapter that is already registered.
+     */
+    error AlreadyAdded();
+
+    /**
      * @notice Raised when a withdrawal is already claimed.
      */
     error AlreadyClaimed();
@@ -608,6 +613,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @notice Set a adapter limit.
      * @param adapter Address of the adapter.
      * @param limit Limit of the adapter.
+     * @return If the adapter limit was applied in this call.
      * @dev Only a SET_ADAPTER_LIMIT_ROLE holder can call this function.
      */
     function setAdapterLimit(address adapter, uint208 limit) external returns (bool);

@@ -96,19 +96,21 @@ contract MockVaultV2MigrateReverter {
     }
 }
 
-contract VaultV2MigrateFailureHarness is VaultV2 {
-    constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory,
-        address feeRegistry,
-        address rewards,
-        address adapterRegistry,
-        address vaultV2Migrate
-    ) VaultV2(delegatorFactory, slasherFactory, vaultFactory, feeRegistry, rewards, adapterRegistry, vaultV2Migrate) {}
+contract VaultV2MigrateFailureHarness {
+    address internal immutable vaultV2Migrate;
 
-    function exposeMigrate(uint64 oldVersion, bytes calldata data) external {
-        _migrate(oldVersion, 0, data);
+    constructor(address vaultV2Migrate_) {
+        vaultV2Migrate = vaultV2Migrate_;
+    }
+
+    function exposeMigrate() external {
+        (bool success, bytes memory returnData) =
+            vaultV2Migrate.delegatecall(abi.encodeCall(VaultV2Migrate.migrate, (uint64(1), "")));
+        if (!success) {
+            assembly ("memory-safe") {
+                revert(add(32, returnData), mload(returnData))
+            }
+        }
     }
 }
 
@@ -585,6 +587,15 @@ contract VaultV2AdaptersTest is Test {
         this.createVaultForInvalidAdaptersAllowDelayTest(address(collateral), initialAdapters, 1 days);
     }
 
+    function test_CreateRevertsWhenInitialAdaptersContainDuplicate() public {
+        address[] memory initialAdapters = new address[](2);
+        initialAdapters[0] = address(aaveAdapter);
+        initialAdapters[1] = address(aaveAdapter);
+
+        vm.expectRevert(IVaultV2.AlreadyAdded.selector);
+        this.createVaultForDuplicateAdaptersTest(address(collateral), initialAdapters);
+    }
+
     function test_SetAdapterLimitSchedulesNewAdapterBeforeLimitCanBeSet() public {
         uint48 availableAt = uint48(block.timestamp + 2 days);
 
@@ -659,24 +670,24 @@ contract VaultV2AdaptersTest is Test {
         assertEq(vault1.adapterIndex(address(morphoAdapter)), 0);
     }
 
-    function test_SetAdapterLimitZeroForAbsentAdapterRevertsAndKeepsFirstAdapter() public {
+    function test_SetAdapterLimitZeroForAbsentAdapterReturnsFalseAndKeepsFirstAdapter() public {
         _prepareAdapter(vault1, address(aaveAdapter), 100);
 
         vm.prank(alice);
-        vm.expectRevert(IVaultV2.NotAdapter.selector);
-        VaultV2(address(vault1)).setAdapterLimit(address(morphoAdapter), 0);
+        bool isSet = VaultV2(address(vault1)).setAdapterLimit(address(morphoAdapter), 0);
 
+        assertFalse(isSet);
         assertEq(vault1.adaptersLength(), 1);
         assertEq(vault1.adapters(0), address(aaveAdapter));
         assertEq(vault1.adapterLimit(address(aaveAdapter)), 100);
         assertEq(vault1.adapterLimit(address(morphoAdapter)), 0);
     }
 
-    function test_SetAdapterLimitZeroForAbsentAdapterRevertsWhenAdaptersEmpty() public {
+    function test_SetAdapterLimitZeroForAbsentAdapterReturnsFalseWhenAdaptersEmpty() public {
         vm.prank(alice);
-        vm.expectRevert(IVaultV2.NotAdapter.selector);
-        VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 0);
+        bool isSet = VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 0);
 
+        assertFalse(isSet);
         assertEq(vault1.adaptersLength(), 0);
         assertEq(vault1.adapterLimit(address(aaveAdapter)), 0);
     }
@@ -1100,18 +1111,11 @@ contract VaultV2AdaptersTest is Test {
         vm.expectRevert(IVaultV2.InvalidSlasher.selector);
         VaultV2(address(bareVault)).setSlasher(address(1));
 
-        VaultV2MigrateFailureHarness harness = new VaultV2MigrateFailureHarness(
-            address(delegatorFactory),
-            address(slasherFactory),
-            address(vaultFactory),
-            address(feeRegistry),
-            address(pullRewards),
-            address(adapterRegistry),
-            address(new MockVaultV2MigrateReverter())
-        );
+        VaultV2MigrateFailureHarness harness =
+            new VaultV2MigrateFailureHarness(address(new MockVaultV2MigrateReverter()));
 
         vm.expectRevert("migrate failed");
-        harness.exposeMigrate(1, "");
+        harness.exposeMigrate();
     }
 
     function test_AaveSkimRejectsNonVault() public {
@@ -2027,6 +2031,13 @@ contract VaultV2AdaptersTest is Test {
         uint48 adaptersAllowDelay
     ) external returns (IVaultV2 vault_) {
         return _createVault(collateral_, initialAdapters, adaptersAllowDelay);
+    }
+
+    function createVaultForDuplicateAdaptersTest(address collateral_, address[] memory initialAdapters)
+        external
+        returns (IVaultV2 vault_)
+    {
+        return _createVault(collateral_, initialAdapters, 2 days);
     }
 
     function createVaultForInitializationCoverageTest(

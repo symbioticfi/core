@@ -606,7 +606,7 @@ contract VaultV2 is
             }
         } else {
             if (curAdapterIndex == 0) {
-                revert NotAdapter();
+                return false;
             }
             address lastAdapter = adapters[adapters.length - 1];
             adapters[curAdapterIndex - 1] = lastAdapter;
@@ -624,6 +624,9 @@ contract VaultV2 is
     }
 
     function _addAdapter(address adapter) internal {
+        if (adapterIndex[adapter] > 0) {
+            revert AlreadyAdded();
+        }
         uint256 newAdapterIndex = adapters.length + 1;
         if (newAdapterIndex > MAX_ADAPTERS) {
             revert TooManyAdapters();
