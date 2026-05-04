@@ -949,6 +949,35 @@ contract VaultV2AdaptersTest is Test {
         assertGt(vault1.activeWithdrawals(), 0);
     }
 
+    function test_VaultV2DonateEmitsActiveAndWithdrawalAmounts() public {
+        _depositIntoVault(vault1, collateral, 100);
+        vault1.withdraw(alice, 40);
+
+        collateral.transfer(address(pullRewards), 10);
+        vm.prank(address(pullRewards));
+        collateral.approve(address(vault1), 10);
+
+        vm.expectEmit(false, false, false, true, address(vault1));
+        emit IVaultV2.Donate(6, 4);
+
+        vm.prank(address(pullRewards));
+        VaultV2(address(vault1)).donate(10);
+    }
+
+    function test_VaultV2OnSlashEmitsRequestedAndSplitSlashedAmounts() public {
+        _depositIntoVault(vault1, collateral, 100);
+        vault1.withdraw(alice, 40);
+
+        vm.expectEmit(false, false, false, true, address(vault1));
+        emit IVaultV2.OnSlash(150, 60, 40);
+
+        vm.prank(vault1.slasher());
+        (uint256 slashedAmount, uint256 owedAmount) = VaultV2(address(vault1)).onSlash(150);
+
+        assertEq(slashedAmount, 100);
+        assertEq(owedAmount, 0);
+    }
+
     function test_VaultV2DonateSlashInstantWithdrawAndTransferPaths() public {
         _depositIntoVault(vault1, collateral, 100);
         vault1.withdraw(alice, 40);

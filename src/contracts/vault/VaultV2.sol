@@ -452,14 +452,15 @@ contract VaultV2 is
 
         uint256 curActiveStake = activeStake();
         uint256 curActiveWithdrawals = activeWithdrawals();
-        uint256 withdrawalsDonated = amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
 
+        uint256 withdrawalsDonated = amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
         if (withdrawalsDonated > 0) {
             _updateWithdrawalsSharePrice(curActiveWithdrawals + withdrawalsDonated);
         }
-        _activeStake.push(uint48(block.timestamp), amount - withdrawalsDonated + curActiveStake);
+        uint256 activeDonated = amount - withdrawalsDonated;
+        _activeStake.push(uint48(block.timestamp), curActiveStake + activeDonated);
 
-        emit Donate(amount);
+        emit Donate(activeDonated, withdrawalsDonated);
     }
 
     // @dev Internal dev function to handle slashing.
@@ -472,12 +473,15 @@ contract VaultV2 is
         uint256 curActiveWithdrawals = activeWithdrawals();
         uint256 slashableStake = curActiveStake + curActiveWithdrawals;
 
+        uint256 activeSlashed;
+        uint256 withdrawalsSlashed;
         slashedAmount = Math.min(amount, slashableStake);
         if (slashedAmount > 0) {
-            uint256 activeSlashed = slashedAmount.fullMulDiv(curActiveStake, slashableStake);
+            activeSlashed = slashedAmount.fullMulDiv(curActiveStake, slashableStake);
             _activeStake.push(uint48(block.timestamp), curActiveStake - activeSlashed);
             if (curActiveWithdrawals > 0) {
-                _updateWithdrawalsSharePrice(curActiveWithdrawals - (slashedAmount - activeSlashed));
+                withdrawalsSlashed = slashedAmount - activeSlashed;
+                _updateWithdrawalsSharePrice(curActiveWithdrawals - withdrawalsSlashed);
             }
 
             deallocateAdapters();
@@ -487,7 +491,7 @@ contract VaultV2 is
             }
         }
 
-        emit OnSlash(amount, slashedAmount);
+        emit OnSlash(amount, activeSlashed, withdrawalsSlashed);
     }
 
     /* INTERNAL FUNCTIONS (ACCOUNTING) */

@@ -97,10 +97,10 @@ interface IVaultV2Storage {
     function adapters(uint256 index) external view returns (address);
 
     /**
-     * @notice Get a zero-based adapter position in the adapters array.
-     * @dev A zero return value can mean the adapter is first or absent; compare `adapters(0)` to disambiguate.
+     * @notice Get a one-based adapter position in the adapters array.
+     * @dev A zero return value means the adapter is not registered.
      * @param adapter Address of the adapter.
-     * @return Index Zero-based adapter index.
+     * @return Index One-based adapter index, or zero if the adapter is not registered.
      */
     function adapterIndex(address adapter) external view returns (uint256);
 

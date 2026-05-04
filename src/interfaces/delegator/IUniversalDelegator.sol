@@ -197,25 +197,17 @@ interface IUniversalDelegator {
     event RemoveSlot(uint32 indexed index);
 
     /**
-     * @notice Emitted when a subnetwork allocation is reset.
-     * @param index Slot index that was removed.
-     * @param subnetwork Full subnetwork identifier.
+     * @notice Emitted when a slot allocation is reset.
+     * @param index Slot index that was reset and removed.
      */
-    event ResetAllocation(uint32 indexed index, bytes32 indexed subnetwork);
+    event ResetAllocation(uint32 indexed index);
 
     /**
-     * @notice Emitted when a slash is applied.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Address of the operator.
-     * @param amount Requested slash amount.
+     * @notice Emitted when slash accounting is applied to a slot.
+     * @param index Slot index whose size was reduced.
+     * @param amount Slash amount applied to slot accounting.
      */
-    event OnSlash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
-
-    /**
-     * @notice Emitted when a pre-migration slash is applied.
-     * @param amount Requested slash amount.
-     */
-    event OnSlashLegacy(uint256 amount);
+    event OnSlash(uint32 indexed index, uint256 amount);
 
     /**
      * @notice Emitted when the delegator is initialized.

@@ -266,16 +266,18 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
 
     /**
      * @notice Emitted when collateral is donated into vault accounting.
-     * @param amount Donated collateral amount.
+     * @param activeAmount Donated collateral amount credited to active stake.
+     * @param withdrawalsAmount Donated collateral amount credited to active withdrawals.
      */
-    event Donate(uint256 amount);
+    event Donate(uint256 activeAmount, uint256 withdrawalsAmount);
 
     /**
      * @notice Emitted when a slash happens.
-     * @param amount Amount of the collateral to slash.
-     * @param slashedAmount Real amount of the collateral slashed.
+     * @param amount Requested amount of the collateral to slash.
+     * @param activeSlashed Amount slashed from active stake.
+     * @param withdrawalsSlashed Amount slashed from active withdrawals.
      */
-    event OnSlash(uint256 amount, uint256 slashedAmount);
+    event OnSlash(uint256 amount, uint256 activeSlashed, uint256 withdrawalsSlashed);
 
     /**
      * @notice Emitted when a deposit whitelist status is enabled/disabled.

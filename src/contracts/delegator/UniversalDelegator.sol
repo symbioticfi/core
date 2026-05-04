@@ -464,7 +464,7 @@ contract UniversalDelegator is
         _syncPrevSum(index);
         _removeSlot(index);
 
-        emit ResetAllocation(index, subnetwork);
+        emit ResetAllocation(index);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
@@ -476,8 +476,6 @@ contract UniversalDelegator is
         }
 
         _onSlash(getSlotOf(subnetwork, operator), amount);
-
-        emit OnSlash(subnetwork, operator, amount);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -490,17 +488,11 @@ contract UniversalDelegator is
         if (index == 0 || !slots[index].exists) {
             return;
         }
-
         _onSlash(index, Math.min(getSize(index), amount));
-
-        emit OnSlashLegacy(amount);
     }
 
     /// @dev Apply slash accounting updates to a slot and its pending checkpoint.
     function _onSlash(uint32 index, uint256 amount) internal {
-        if (index == 0) {
-            return;
-        }
         if (_syncPrevSum(index)) {
             _removeSyncIndex(index);
         }
@@ -521,6 +513,8 @@ contract UniversalDelegator is
                     (uint208(1) << 128) | uint208(Math.min(uint128(slot.size.latest()), uint128(latestSize)))
                 );
         }
+
+        emit OnSlash(index, amount);
     }
 
     /* INITIALIZATION */
