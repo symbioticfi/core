@@ -48,6 +48,14 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         OperatorAllocation[] operators;
     }
 
+    struct TemporaryDelegatorRoles {
+        address scriptCaller;
+        address defaultAdminRoleHolder;
+        address createSlotRoleHolder;
+        bool shouldRenounceTemporaryDefaultAdminRole;
+        bool shouldRenounceTemporaryCreateRole;
+    }
+
     function runBase(Config memory config, NetworkAllocation[] memory networks, address[] memory allocators)
         public
         virtual
@@ -62,19 +70,16 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
     {
         assert(config.vault != address(0));
 
-        address scriptCaller = _getScriptCaller();
-        bool shouldRenounceTemporaryCreateRole = scriptCaller != config.delegatorParams.createSlotRoleHolder;
-        if (shouldRenounceTemporaryCreateRole) {
-            config.delegatorParams.createSlotRoleHolder = scriptCaller;
-        }
+        TemporaryDelegatorRoles memory temporaryRoles = _prepareTemporaryDelegatorRoles(config);
 
         (migrateData, migrateTarget) = _migrateToVaultV2(config);
 
         address delegator = IVault(config.vault).delegator();
         (createSlotsData, createSlotsTarget) = _createSlots(config.vault, delegator, networks);
 
-        _cleanupTemporaryCreateRole(delegator, scriptCaller, shouldRenounceTemporaryCreateRole);
+        _cleanupTemporaryCreateRole(delegator, temporaryRoles);
         (grantAllocatorRolesData, grantAllocatorRolesTarget) = _grantAllocatorRoles(delegator, allocators);
+        _cleanupTemporaryDefaultAdminRole(delegator, temporaryRoles);
     }
 
     function _buildMigrateData(Config memory config) internal pure returns (bytes memory) {
@@ -185,16 +190,51 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
         vm.stopBroadcast();
     }
 
-    function _cleanupTemporaryCreateRole(
-        address delegator,
-        address scriptCaller,
-        bool shouldRenounceTemporaryCreateRole
-    ) internal {
-        if (!shouldRenounceTemporaryCreateRole) {
+    function _prepareTemporaryDelegatorRoles(Config memory config)
+        internal
+        returns (TemporaryDelegatorRoles memory temporaryRoles)
+    {
+        temporaryRoles.scriptCaller = _getScriptCaller();
+        temporaryRoles.defaultAdminRoleHolder = config.delegatorParams.defaultAdminRoleHolder;
+        temporaryRoles.createSlotRoleHolder = config.delegatorParams.createSlotRoleHolder;
+
+        temporaryRoles.shouldRenounceTemporaryDefaultAdminRole =
+            temporaryRoles.scriptCaller != temporaryRoles.defaultAdminRoleHolder;
+        if (temporaryRoles.shouldRenounceTemporaryDefaultAdminRole) {
+            config.delegatorParams.defaultAdminRoleHolder = temporaryRoles.scriptCaller;
+        }
+
+        temporaryRoles.shouldRenounceTemporaryCreateRole =
+            temporaryRoles.scriptCaller != temporaryRoles.createSlotRoleHolder;
+        if (temporaryRoles.shouldRenounceTemporaryCreateRole) {
+            config.delegatorParams.createSlotRoleHolder = temporaryRoles.scriptCaller;
+        }
+    }
+
+    function _cleanupTemporaryCreateRole(address delegator, TemporaryDelegatorRoles memory temporaryRoles) internal {
+        if (!temporaryRoles.shouldRenounceTemporaryCreateRole) {
             return;
         }
 
-        bytes memory cleanupData = abi.encodeCall(IAccessControl.renounceRole, (CREATE_SLOT_ROLE, scriptCaller));
+        if (temporaryRoles.createSlotRoleHolder != address(0)) {
+            bytes memory grantData =
+                abi.encodeCall(IAccessControl.grantRole, (CREATE_SLOT_ROLE, temporaryRoles.createSlotRoleHolder));
+            sendTransaction(delegator, grantData);
+
+            Logs.log(
+                string.concat(
+                    "Grant CREATE_SLOT_ROLE",
+                    "\n    delegator:",
+                    vm.toString(delegator),
+                    "\n    createSlotRoleHolder:",
+                    vm.toString(temporaryRoles.createSlotRoleHolder)
+                )
+            );
+            Logs.logSimulationLink(delegator, grantData);
+        }
+
+        bytes memory cleanupData =
+            abi.encodeCall(IAccessControl.renounceRole, (CREATE_SLOT_ROLE, temporaryRoles.scriptCaller));
         sendTransaction(delegator, cleanupData);
 
         Logs.log(
@@ -203,7 +243,47 @@ contract MigrateToVaultV2BaseScript is ScriptBase {
                 "\n    delegator:",
                 vm.toString(delegator),
                 "\n    scriptCaller:",
-                vm.toString(scriptCaller)
+                vm.toString(temporaryRoles.scriptCaller)
+            )
+        );
+        Logs.logSimulationLink(delegator, cleanupData);
+    }
+
+    function _cleanupTemporaryDefaultAdminRole(address delegator, TemporaryDelegatorRoles memory temporaryRoles)
+        internal
+    {
+        if (!temporaryRoles.shouldRenounceTemporaryDefaultAdminRole) {
+            return;
+        }
+
+        if (temporaryRoles.defaultAdminRoleHolder != address(0)) {
+            bytes memory grantData =
+                abi.encodeCall(IAccessControl.grantRole, (bytes32(0), temporaryRoles.defaultAdminRoleHolder));
+            sendTransaction(delegator, grantData);
+
+            Logs.log(
+                string.concat(
+                    "Grant DEFAULT_ADMIN_ROLE",
+                    "\n    delegator:",
+                    vm.toString(delegator),
+                    "\n    defaultAdminRoleHolder:",
+                    vm.toString(temporaryRoles.defaultAdminRoleHolder)
+                )
+            );
+            Logs.logSimulationLink(delegator, grantData);
+        }
+
+        bytes memory cleanupData =
+            abi.encodeCall(IAccessControl.renounceRole, (bytes32(0), temporaryRoles.scriptCaller));
+        sendTransaction(delegator, cleanupData);
+
+        Logs.log(
+            string.concat(
+                "Renounce temporary DEFAULT_ADMIN_ROLE",
+                "\n    delegator:",
+                vm.toString(delegator),
+                "\n    scriptCaller:",
+                vm.toString(temporaryRoles.scriptCaller)
             )
         );
         Logs.logSimulationLink(delegator, cleanupData);

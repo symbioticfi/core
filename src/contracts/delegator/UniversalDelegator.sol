@@ -119,11 +119,11 @@ contract UniversalDelegator is
         if (latestTimestamp > block.timestamp) {
             return false;
         }
-        slot.size.push(uint48(block.timestamp), uint128(latestSize));
         _modifySize(
             index,
             -int256(uint256(sizeCheckpoints.at(uint32(sizeCheckpoints.length() - 2))._value - uint128(latestSize)))
         );
+        slot.size.push(uint48(block.timestamp), uint128(latestSize));
         return true;
     }
 
@@ -515,8 +515,11 @@ contract UniversalDelegator is
         _modifySize(index, -int256(amount));
 
         if (exists && latestTimestamp > block.timestamp) {
-            uint208 futureSize = uint208(Math.min(uint128(slot.size.latest()), latestSize));
-            slot.size.push(latestTimestamp, futureSize);
+            slot.size
+                .push(
+                    latestTimestamp,
+                    (uint208(1) << 128) | uint208(Math.min(uint128(slot.size.latest()), uint128(latestSize)))
+                );
         }
     }
 

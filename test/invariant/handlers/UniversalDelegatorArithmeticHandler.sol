@@ -57,6 +57,9 @@ contract UniversalDelegatorArithmeticHandler is Test {
     using Subnetwork for bytes32;
 
     error StakeForSumExceedsCapacity(uint48 duration, uint256 totalStakeFor, uint256 capacity);
+    error SyncedSizeSumMismatch(
+        bytes32 subnetwork, uint48 timestamp, uint256 operatorSyncedSizeSum, uint256 totalSyncedSize
+    );
     error StakeForDecreasesWithDuration(
         uint32 slot, uint48 shorterDuration, uint256 shorterStakeFor, uint48 longerDuration, uint256 longerStakeFor
     );
@@ -390,6 +393,24 @@ contract UniversalDelegatorArithmeticHandler is Test {
                     revert StakeForSumExceedsCapacity(duration, totalStakeForAt, capacity);
                 }
             }
+        }
+    }
+
+    function assertSyncedSizeSumsMatchTotals() external view {
+        uint48 timestamp = uint48(block.timestamp);
+        _assertSyncedSizeSumsMatchTotalsAt(timestamp);
+        if (timestamp > 0) {
+            _assertSyncedSizeSumsMatchTotalsAt(timestamp - 1);
+        }
+        _assertSyncedSizeSumsMatchTotalsAtPlusEpoch(timestamp);
+
+        for (uint256 i; i < trackedTimestamps.length; ++i) {
+            timestamp = trackedTimestamps[i];
+            _assertSyncedSizeSumsMatchTotalsAt(timestamp);
+            if (timestamp > 0) {
+                _assertSyncedSizeSumsMatchTotalsAt(timestamp - 1);
+            }
+            _assertSyncedSizeSumsMatchTotalsAtPlusEpoch(timestamp);
         }
     }
 
@@ -821,6 +842,28 @@ contract UniversalDelegatorArithmeticHandler is Test {
                     delegator.stakeForAt(subnetwork, operator, maxDuration, timestamp),
                     delegator.stakeAt(subnetwork, operator, timestamp, "")
                 );
+            }
+        }
+    }
+
+    function _assertSyncedSizeSumsMatchTotalsAtPlusEpoch(uint48 timestamp) internal view {
+        uint48 epochDuration = vault.epochDuration();
+        if (timestamp <= type(uint48).max - epochDuration) {
+            _assertSyncedSizeSumsMatchTotalsAt(timestamp + epochDuration);
+        }
+    }
+
+    function _assertSyncedSizeSumsMatchTotalsAt(uint48 timestamp) internal view {
+        for (uint256 i; i < knownSubnetworks.length; ++i) {
+            bytes32 subnetwork = knownSubnetworks[i];
+            uint256 operatorSyncedSizeSum;
+            for (uint256 j; j < knownOperators.length; ++j) {
+                operatorSyncedSizeSum += delegator.getSyncedSizeAt(subnetwork, knownOperators[j], timestamp);
+            }
+
+            uint256 totalSyncedSize = delegator.getTotalSyncedSizeAt(subnetwork, timestamp);
+            if (operatorSyncedSizeSum != totalSyncedSize) {
+                revert SyncedSizeSumMismatch(subnetwork, timestamp, operatorSyncedSizeSum, totalSyncedSize);
             }
         }
     }

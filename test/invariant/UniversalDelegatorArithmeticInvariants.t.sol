@@ -50,6 +50,10 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test {
         handler.assertHistoricalStakeForAtCapacityInvariants();
     }
 
+    function invariant_SyncedSizeSumsMatchSubnetworkTotals() public view {
+        handler.assertSyncedSizeSumsMatchTotals();
+    }
+
     function invariant_HandlerActionsDoNotUnexpectedlyRevert() public view {
         handler.assertNoUnexpectedActionReverts();
     }

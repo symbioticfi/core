@@ -224,6 +224,11 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
     }
 
     function test_MigrateToVaultV2() public {
+        IERC20(collateral).transfer(curator.addr, 100 ether);
+        _deposit_SymbioticCore(curator.addr, vault, 100 ether);
+        _withdraw_SymbioticCore(curator.addr, vault, 20 ether);
+        vm.warp(block.timestamp + IVault(vault).epochDuration());
+
         MigrateToVaultV2ScriptHarness script = new MigrateToVaultV2ScriptHarness(curator.addr);
         MigrateToVaultV2BaseScript.Config memory config = _config();
         MigrateToVaultV2BaseScript.NetworkAllocation[] memory networks = _networkAllocations();
@@ -261,6 +266,28 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         _assertSlot(delegator, operatorSlot1, subnetwork1, operator1.addr, 40 ether, "operator1");
         _assertSlot(delegator, operatorSlot2, subnetwork1, operator2.addr, 60 ether, "operator2");
         _assertSlot(delegator, operatorSlot3, subnetwork2, operator2.addr, 60 ether, "operator3");
+
+        uint48 migrateTimestamp = IVaultV2(vault).migrateTimestamp();
+        uint48 epochDuration = IVaultV2(vault).epochDuration();
+        assertGt(IVaultV2(vault).withdrawalsOfLength(curator.addr), 0, "legacy withdrawals length missing");
+        assertGt(
+            IVaultV2(vault).activeWithdrawalSharesOfAt(curator.addr, migrateTimestamp),
+            0,
+            "legacy active withdrawal shares missing"
+        );
+        assertGt(IVaultV2(vault).withdrawalSharesOf(1, curator.addr), 0, "legacy withdrawal shares missing");
+        assertEq(
+            IVaultV2(vault).withdrawalUnlockAt(1, curator.addr),
+            migrateTimestamp + epochDuration,
+            "legacy current unlock mismatch"
+        );
+        assertEq(
+            IVaultV2(vault).withdrawalUnlockAt(2, curator.addr),
+            migrateTimestamp + epochDuration,
+            "legacy next unlock mismatch"
+        );
+        assertEq(IVaultV2(vault).withdrawalsOf(0, curator.addr), 0, "legacy past withdrawal mismatch");
+        assertGt(IVaultV2(vault).withdrawalsOf(1, curator.addr), 0, "legacy current withdrawal missing");
 
         _assertAllocatorRoles(newDelegator, operator1.addr);
     }
@@ -318,6 +345,62 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
 
         assertEq(slot, 1, "manual slot index mismatch");
         _assertSlot(IUniversalDelegator(newDelegator), slot, subnetwork, operator1.addr, 1 ether, "manual");
+    }
+
+    function test_MigrateToVaultV2_RunBaseMigratesOperatorNetworkSpecificWithSplitAdmin() public {
+        SymbioticCoreInitBase.VaultParams memory vaultParams = SymbioticCoreInitBase.VaultParams({
+            owner: operator1.addr,
+            collateral: collateral,
+            burner: address(0x000000000000000000000000000000000000dEaD),
+            epochDuration: uint48(7 days),
+            whitelistedDepositors: new address[](0),
+            depositLimit: 0,
+            delegatorIndex: 3,
+            hook: address(0),
+            network: network1.addr,
+            withSlasher: false,
+            slasherIndex: 0,
+            vetoDuration: uint48(0)
+        });
+        address operatorNetworkSpecificVault = _getVault_SymbioticCore(vaultParams);
+        address oldDelegator = IVault(operatorNetworkSpecificVault).delegator();
+        bytes32 subnetwork = network1.addr.subnetwork(IDENTIFIER);
+
+        _networkSetMaxNetworkLimit_SymbioticCore(network1.addr, operatorNetworkSpecificVault, IDENTIFIER, 1 ether);
+
+        MigrateToVaultV2BaseScript.Config memory config = _config();
+        config.vault = operatorNetworkSpecificVault;
+
+        MigrateToVaultV2BaseScript.NetworkAllocation[] memory networks =
+            new MigrateToVaultV2BaseScript.NetworkAllocation[](1);
+        networks[0].network = network1.addr;
+        networks[0].identifier = IDENTIFIER;
+        networks[0].size = uint128(1 ether);
+        networks[0].operators = new MigrateToVaultV2BaseScript.OperatorAllocation[](1);
+        networks[0].operators[0] =
+            MigrateToVaultV2BaseScript.OperatorAllocation({operator: operator1.addr, size: uint128(1 ether)});
+
+        address[] memory allocators = new address[](1);
+        allocators[0] = operator2.addr;
+
+        MigrateToVaultV2ScriptHarness script = new MigrateToVaultV2ScriptHarness(operator1.addr);
+        script.runBase(config, networks, allocators);
+
+        address newDelegator = IVault(operatorNetworkSpecificVault).delegator();
+
+        assertEq(UniversalDelegator(newDelegator).oldDelegator(), oldDelegator, "old delegator mismatch");
+
+        IUniversalDelegator delegator = IUniversalDelegator(newDelegator);
+        uint32 slot = delegator.getSlotOf(subnetwork, operator1.addr);
+        assertEq(UniversalDelegator(newDelegator).totalSlots(), 1, "slot count mismatch");
+        assertEq(slot, 1, "operator slot mismatch");
+        _assertSlot(delegator, slot, subnetwork, operator1.addr, 1 ether, "script manual");
+
+        assertTrue(IAccessControl(newDelegator).hasRole(bytes32(0), curator.addr), "missing final admin");
+        assertFalse(IAccessControl(newDelegator).hasRole(bytes32(0), operator1.addr), "temporary admin remains");
+        assertFalse(IAccessControl(newDelegator).hasRole(CREATE_SLOT_ROLE, operator1.addr), "temporary creator remains");
+        _assertAllocatorRoles(newDelegator, curator.addr);
+        _assertAllocatorRoles(newDelegator, operator2.addr);
     }
 
     function _assertSlot(
