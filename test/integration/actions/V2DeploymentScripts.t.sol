@@ -40,6 +40,7 @@ import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
 import {ScriptBaseHarness} from "./ScriptBaseHarness.s.sol";
 
 import {V2DeployBaseScript} from "../../../script/deploy/base/V2DeployBase.s.sol";
+import {DeployAndWhitelistAaveMorphoScript} from "../../../script/deploy/DeployAndWhitelistAaveMorpho.s.sol";
 import {V2UpgradeBaseScript} from "../../../script/upgrade/base/V2UpgradeBase.s.sol";
 import {V2WhitelistAdaptersBaseScript} from "../../../script/upgrade/base/V2WhitelistAdaptersBase.s.sol";
 
@@ -171,6 +172,110 @@ contract V2WhitelistAdaptersScriptHarness is V2WhitelistAdaptersBaseScript, Scri
 
     function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
         ScriptBaseHarness.sendTransaction(target, data);
+    }
+}
+
+contract DeployAndWhitelistAaveMorphoScriptHarness is DeployAndWhitelistAaveMorphoScript {
+    address internal immutable aaveAdapter;
+    address internal immutable deployer;
+    address internal immutable morphoAdapter;
+
+    uint256 public deployV2Calls;
+    uint256 public deployAaveCalls;
+    uint256 public deployMorphoCalls;
+    uint256 public whitelistCalls;
+
+    address public capturedAdapterRegistryOwner;
+    address public capturedAdapterOwner;
+    address public capturedFeeRegistry;
+    address public capturedAavePool;
+    address public capturedMorphoVaultFactory;
+    address public capturedMorphoAdapterRegistry;
+    address public capturedCuratorRegistry;
+    address public capturedRewards;
+    address public transferredAdapterRegistry;
+    address public transferredAdapterRegistryOwner;
+
+    mapping(uint256 index => address adapterRegistry) public whitelistedAdapterRegistry;
+    mapping(uint256 index => address adapter) public whitelistedAdapter;
+
+    constructor(address deployer_, address aaveAdapter_, address morphoAdapter_) {
+        deployer = deployer_;
+        aaveAdapter = aaveAdapter_;
+        morphoAdapter = morphoAdapter_;
+    }
+
+    function _scriptOwner() internal view override returns (address) {
+        return deployer;
+    }
+
+    function _deployV2(DeployParams memory params)
+        internal
+        override
+        returns (V2DeployBaseScript.DeploymentData memory data)
+    {
+        ++deployV2Calls;
+        capturedAdapterRegistryOwner = params.adapterRegistryOwner;
+        capturedFeeRegistry = params.feeRegistry;
+        capturedRewards = params.rewards;
+
+        data.adapterRegistry = new AdapterRegistry(params.adapterRegistryOwner);
+    }
+
+    function _deployAave(DeployParams memory params)
+        internal
+        override
+        returns (AaveV3AdapterDeployBaseScript.DeploymentData memory data)
+    {
+        ++deployAaveCalls;
+        capturedAdapterOwner = params.adapterOwner;
+        capturedAavePool = params.aavePool;
+        capturedCuratorRegistry = params.curatorRegistry;
+        capturedRewards = params.rewards;
+
+        data.adapter = aaveAdapter;
+    }
+
+    function _deployMorpho(DeployParams memory params)
+        internal
+        override
+        returns (MorphoVaultV2AdapterDeployBaseScript.DeploymentData memory data)
+    {
+        ++deployMorphoCalls;
+        capturedMorphoVaultFactory = params.morphoVaultFactory;
+        capturedMorphoAdapterRegistry = params.morphoAdapterRegistry;
+
+        data.adapter = morphoAdapter;
+    }
+
+    function _whitelistAdapter(address adapterRegistry_, address adapter)
+        internal
+        override
+        returns (bytes memory data, address target)
+    {
+        ++whitelistCalls;
+        whitelistedAdapterRegistry[whitelistCalls] = adapterRegistry_;
+        whitelistedAdapter[whitelistCalls] = adapter;
+
+        vm.prank(deployer);
+        AdapterRegistry(adapterRegistry_).whitelistAdapter(adapter);
+
+        target = adapterRegistry_;
+        data = abi.encodeCall(AdapterRegistry.whitelistAdapter, (adapter));
+    }
+
+    function sendTransaction(address target, bytes memory data) public override {
+        transferredAdapterRegistry = target;
+
+        vm.prank(deployer);
+        (bool success, bytes memory returnData) = target.call(data);
+        if (!success) {
+            assembly ("memory-safe") {
+                revert(add(returnData, 0x20), mload(returnData))
+            }
+        }
+
+        transferredAdapterRegistryOwner = Ownable(target).owner();
     }
 }
 
@@ -454,6 +559,67 @@ contract V2DeploymentScriptsTest is Test {
         assertTrue(IRegistry(address(adapterRegistry)).isEntity(adapter), "adapter not whitelisted");
         assertEq(IRegistry(address(adapterRegistry)).totalEntities(), 1, "unexpected entity count");
         assertEq(IRegistry(address(adapterRegistry)).entity(0), adapter, "entity mismatch");
+    }
+
+    function test_DeployAndWhitelistAaveMorphoScriptDeploysAndWhitelistsBothAdapters() public {
+        address deployer = makeAddr("deployer");
+        address aaveAdapter = makeAddr("aaveAdapter");
+        address morphoAdapter = makeAddr("morphoAdapter");
+        address aavePool = makeAddr("aavePool");
+        address morphoVaultFactory = makeAddr("morphoVaultFactory");
+        address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
+
+        DeployAndWhitelistAaveMorphoScriptHarness script =
+            new DeployAndWhitelistAaveMorphoScriptHarness(deployer, aaveAdapter, morphoAdapter);
+
+        DeployAndWhitelistAaveMorphoScript.DeployParams memory params = DeployAndWhitelistAaveMorphoScript.DeployParams({
+            adapterRegistryOwner: adapterOwner,
+            adapterOwner: adapterOwner,
+            feeRegistry: feeRegistry,
+            aavePool: aavePool,
+            morphoVaultFactory: morphoVaultFactory,
+            morphoAdapterRegistry: morphoAdapterRegistry,
+            curatorRegistry: curatorRegistry,
+            rewards: rewards
+        });
+
+        DeployAndWhitelistAaveMorphoScript.DeploymentData memory data = script.runBase(params);
+
+        assertEq(script.deployV2Calls(), 1, "unexpected V2 deploy calls");
+        assertEq(script.deployAaveCalls(), 1, "unexpected Aave deploy calls");
+        assertEq(script.deployMorphoCalls(), 1, "unexpected Morpho deploy calls");
+        assertEq(script.whitelistCalls(), 2, "unexpected whitelist calls");
+
+        assertEq(script.capturedAdapterRegistryOwner(), deployer, "initial adapter registry owner mismatch");
+        assertEq(script.capturedAdapterOwner(), adapterOwner, "adapter owner mismatch");
+        assertEq(script.capturedFeeRegistry(), feeRegistry, "fee registry mismatch");
+        assertEq(script.capturedAavePool(), aavePool, "aave pool mismatch");
+        assertEq(script.capturedMorphoVaultFactory(), morphoVaultFactory, "morpho vault factory mismatch");
+        assertEq(script.capturedMorphoAdapterRegistry(), morphoAdapterRegistry, "morpho adapter registry mismatch");
+        assertEq(script.capturedCuratorRegistry(), curatorRegistry, "curator registry mismatch");
+        assertEq(script.capturedRewards(), rewards, "rewards mismatch");
+
+        address deployedAdapterRegistry = address(data.v2.adapterRegistry);
+        assertEq(Ownable(deployedAdapterRegistry).owner(), adapterOwner, "final adapter registry owner mismatch");
+        assertEq(data.aave.adapter, aaveAdapter, "deployed Aave adapter mismatch");
+        assertEq(data.morpho.adapter, morphoAdapter, "deployed Morpho adapter mismatch");
+        assertEq(data.whitelistAaveTarget, deployedAdapterRegistry, "Aave whitelist target mismatch");
+        assertEq(data.whitelistAaveData, abi.encodeCall(AdapterRegistry.whitelistAdapter, (aaveAdapter)));
+        assertEq(data.whitelistMorphoTarget, deployedAdapterRegistry, "Morpho whitelist target mismatch");
+        assertEq(data.whitelistMorphoData, abi.encodeCall(AdapterRegistry.whitelistAdapter, (morphoAdapter)));
+
+        assertEq(script.whitelistedAdapterRegistry(1), deployedAdapterRegistry, "Aave registry mismatch");
+        assertEq(script.whitelistedAdapter(1), aaveAdapter, "Aave adapter mismatch");
+        assertEq(script.whitelistedAdapterRegistry(2), deployedAdapterRegistry, "Morpho registry mismatch");
+        assertEq(script.whitelistedAdapter(2), morphoAdapter, "Morpho adapter mismatch");
+        assertEq(script.transferredAdapterRegistry(), deployedAdapterRegistry, "transferred registry mismatch");
+        assertEq(script.transferredAdapterRegistryOwner(), adapterOwner, "transferred owner mismatch");
+        assertEq(data.transferAdapterRegistryOwnershipTarget, deployedAdapterRegistry, "transfer target mismatch");
+        assertEq(
+            data.transferAdapterRegistryOwnershipData,
+            abi.encodeCall(Ownable.transferOwnership, (adapterOwner)),
+            "transfer data mismatch"
+        );
     }
 
     function _proxyImplementation(address proxy) internal view returns (address) {

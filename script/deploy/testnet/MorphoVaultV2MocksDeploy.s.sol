@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {MorphoVaultV2MocksDeployBaseScript} from "./base/MorphoVaultV2MocksDeployBase.s.sol";
 
-// forge script script/deploy/testnet/MorphoVaultV2MocksDeploy.s.sol:MorphoVaultV2MocksDeployScript --rpc-url https://ethereum-rpc.gprptest.net/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/testnet/MorphoVaultV2MocksDeploy.s.sol:MorphoVaultV2MocksDeployScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
 contract MorphoVaultV2MocksDeployScript is MorphoVaultV2MocksDeployBaseScript {
     // Address that will own the mock Morpho AdapterRegistry.

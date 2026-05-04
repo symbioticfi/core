@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import "./base/V2WhitelistAdaptersBase.s.sol";
 import {Logs} from "../utils/Logs.sol";
 
-// forge script script/upgrade/V2WhitelistAdapters.s.sol:V2WhitelistAdaptersScript --rpc-url https://ethereum-rpc.gprptest.net/hoodi --broadcast
+// forge script script/upgrade/V2WhitelistAdapters.s.sol:V2WhitelistAdaptersScript --rpc-url RPC/hoodi --broadcast
 
 contract V2WhitelistAdaptersScript is V2WhitelistAdaptersBaseScript {
     // Deployed V2 AdapterRegistry from V2DeployScript output.

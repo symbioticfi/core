@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./base/V2UpgradeBase.s.sol";
 import {Logs} from "../utils/Logs.sol";
 
-// forge script script/upgrade/V2Upgrade.s.sol:V2UpgradeScript --rpc-url https://ethereum-rpc.gprptest.net/hoodi --broadcast
+// forge script script/upgrade/V2Upgrade.s.sol:V2UpgradeScript --rpc-url RPC/hoodi --broadcast
 
 contract V2UpgradeScript is V2UpgradeBaseScript {
     // Address of the deployed VaultV2 implementation.
