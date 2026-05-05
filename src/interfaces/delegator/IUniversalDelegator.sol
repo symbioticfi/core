@@ -37,6 +37,11 @@ interface IUniversalDelegator {
     error AlreadySet();
 
     /**
+     * @notice Raised when the provided subnetwork or operator is zero.
+     */
+    error InvalidNetOrOp();
+
+    /**
      * @notice Raised when the provided maximum network limit is not 2^256-1.
      */
     error LimitNotUint256Max();
@@ -174,9 +179,11 @@ interface IUniversalDelegator {
     /**
      * @notice Emitted when a slot is created.
      * @param index Index of the created slot.
+     * @param subnetwork Subnetwork assigned to the slot.
+     * @param operator Operator assigned to the slot.
      * @param size Initial slot size.
      */
-    event CreateSlot(uint32 indexed index, uint128 size);
+    event CreateSlot(uint32 indexed index, bytes32 subnetwork, address operator, uint128 size);
 
     /**
      * @notice Emitted when a slot size is updated.

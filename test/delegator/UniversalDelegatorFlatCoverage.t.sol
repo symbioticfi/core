@@ -281,6 +281,15 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.onSlashLegacy(networkA.subnetwork(0), operatorA, 1);
     }
 
+    function test_CreateSlotEmitsSlotMetadata() public {
+        bytes32 subnetwork = networkA.subnetwork(0);
+
+        vm.expectEmit(true, false, false, true, address(delegator));
+        emit IUniversalDelegator.CreateSlot(1, subnetwork, operatorA, 100);
+
+        delegator.createSlot(subnetwork, operatorA, 100);
+    }
+
     function test_OnSlashSyncsMaturedPendingDecreaseBeforeSlashing() public {
         bytes32 subnetwork = networkA.subnetwork(0);
         uint32 slot = delegator.createSlot(subnetwork, operatorA, 100);
@@ -837,6 +846,16 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         vm.expectRevert(IUniversalDelegator.AlreadyAssigned.selector);
         delegator.createSlot(subnetworkA, operatorA, 100);
+    }
+
+    function test_CreateSlotRevertsInvalidZeroSubnetwork() public {
+        vm.expectRevert(IUniversalDelegator.InvalidNetOrOp.selector);
+        delegator.createSlot(bytes32(0), operatorA, 100);
+    }
+
+    function test_CreateSlotRevertsInvalidZeroOperator() public {
+        vm.expectRevert(IUniversalDelegator.InvalidNetOrOp.selector);
+        delegator.createSlot(networkA.subnetwork(0), address(0), 100);
     }
 
     function test_SwapSlotsRevertsWrongOrderForReverseOrder() public {

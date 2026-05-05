@@ -297,19 +297,14 @@ contract UniversalDelegator is
     function createSlot(bytes32 subnetwork, address operator, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
-        returns (uint32)
-    {
-        return _createSlot(subnetwork, operator, size);
-    }
-
-    /// @dev Create a new slot.
-    function _createSlot(bytes32 subnetwork, address operator, uint128 size)
-        internal
         syncPrevSums
         returns (uint32 index)
     {
         if (_slotOf[subnetwork][operator].latest() > 0) {
             revert AlreadyAssigned();
+        }
+        if (subnetwork == bytes32(0) || operator == address(0)) {
+            revert InvalidNetOrOp();
         }
 
         index = ++totalSlots;
@@ -331,7 +326,7 @@ contract UniversalDelegator is
         }
         _modifySize(index, int256(uint256(size)));
 
-        emit CreateSlot(index, size);
+        emit CreateSlot(index, subnetwork, operator, size);
     }
 
     /// @inheritdoc IUniversalDelegator
