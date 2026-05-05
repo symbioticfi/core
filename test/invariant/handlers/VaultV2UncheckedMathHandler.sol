@@ -130,7 +130,7 @@ contract VaultV2UncheckedMathHandler is Test {
         if (vault.isWithdrawalsClaimed(index, user)) {
             return;
         }
-        if (block.timestamp < vault.withdrawalUnlockAt(index, user)) {
+        if (vm.getBlockTimestamp() < vault.withdrawalUnlockAt(index, user)) {
             return;
         }
 
@@ -399,6 +399,6 @@ contract VaultV2UncheckedMathHandler is Test {
 
     function _warp(uint256 timeJumpSeed) internal {
         uint256 timeJump = _bound(timeJumpSeed, 1 hours, 14 days);
-        vm.warp(block.timestamp + timeJump);
+        vm.warp(vm.getBlockTimestamp() + timeJump);
     }
 }

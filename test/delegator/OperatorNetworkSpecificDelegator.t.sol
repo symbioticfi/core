@@ -283,7 +283,8 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         vm.assume(amount2 != amount3);
         vm.assume(amount3 != amount4);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp()
+            * vm.getBlockTimestamp() / vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -377,7 +378,8 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
 
         vm.assume(networkLimit1 != networkLimit2);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp()
+            * vm.getBlockTimestamp() / vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -465,7 +467,8 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
         slashAmount1 = bound(slashAmount1, 1, type(uint256).max);
         slashAmount2 = bound(slashAmount2, 1, type(uint256).max);
 
-        uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+        uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp()
+            * vm.getBlockTimestamp() / vm.getBlockTimestamp();
         blockTimestamp = blockTimestamp + 1_720_700_948;
         vm.warp(blockTimestamp);
 
@@ -794,7 +797,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
     //     hintStruct.num = bound(hintStruct.num, 0, 25);
     //     hintStruct.secondsAgo = bound(hintStruct.secondsAgo, 0, 1_720_700_948);
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -855,7 +858,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
     //             uint32(bound(stakeBaseHintsUint32.operatorNetworkOptInHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -964,7 +967,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
     //         stakeHintsUint32.maxNetworkLimitHint = uint32(bound(stakeHintsUint32.maxNetworkLimitHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1082,7 +1085,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
     //         stakeHintsUint32.maxNetworkLimitHint = uint32(bound(stakeHintsUint32.maxNetworkLimitHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 
@@ -1207,7 +1210,7 @@ contract OperatorNetworkSpecificDelegatorTest is Test {
     //             uint32(bound(onSlashHintsUint32.hints.maxNetworkLimitHint, 0, 10 * hintStruct.num));
     //     }
 
-    //     uint256 blockTimestamp = block.timestamp * block.timestamp / block.timestamp * block.timestamp / block.timestamp;
+    //     uint256 blockTimestamp = vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp() * vm.getBlockTimestamp() / vm.getBlockTimestamp();
     //     blockTimestamp = blockTimestamp + 1_720_700_948;
     //     vm.warp(blockTimestamp);
 

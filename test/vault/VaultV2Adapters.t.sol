@@ -597,7 +597,7 @@ contract VaultV2AdaptersTest is Test {
     }
 
     function test_SetAdapterLimitSchedulesNewAdapterBeforeLimitCanBeSet() public {
-        uint48 availableAt = uint48(block.timestamp + 2 days);
+        uint48 availableAt = uint48(vm.getBlockTimestamp() + 2 days);
 
         vm.prank(alice);
         bool isSet = VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 100);
@@ -835,14 +835,14 @@ contract VaultV2AdaptersTest is Test {
         assertEq(VaultV2(address(vault1)).totalSupply(), vault1.activeShares());
         assertEq(VaultV2(address(vault1)).balanceOf(address(this)), vault1.activeSharesOf(address(this)));
         assertEq(vault1.totalStake(), 100);
-        assertEq(vault1.activeBalanceOfAt(address(this), uint48(block.timestamp), ""), 100);
+        assertEq(vault1.activeBalanceOfAt(address(this), uint48(vm.getBlockTimestamp()), ""), 100);
         assertEq(vault1.activeWithdrawalsFor(vault1.epochDuration() + 1), 0);
-        assertEq(vault1.activeWithdrawalsForAt(vault1.epochDuration() + 1, uint48(block.timestamp)), 0);
+        assertEq(vault1.activeWithdrawalsForAt(vault1.epochDuration() + 1, uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault1.activeWithdrawals(), 0);
-        assertEq(vault1.activeWithdrawalsAt(uint48(block.timestamp)), 0);
+        assertEq(vault1.activeWithdrawalsAt(uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault1.activeWithdrawalShares(), 0);
-        assertEq(vault1.activeWithdrawalSharesAt(uint48(block.timestamp)), 0);
-        assertEq(vault1.activeWithdrawalSharesOfAt(alice, uint48(block.timestamp)), 0);
+        assertEq(vault1.activeWithdrawalSharesAt(uint48(vm.getBlockTimestamp())), 0);
+        assertEq(vault1.activeWithdrawalSharesOfAt(alice, uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault1.allocatable(), 100);
         assertEq(vault1.adaptersOwe(), 0);
         assertEq(vault1.unclaimed(), 0);
@@ -850,7 +850,7 @@ contract VaultV2AdaptersTest is Test {
         vault1.withdraw(alice, 20);
         vault1.redeem(alice, vault1.activeSharesOf(address(this)) / 10);
 
-        uint48 requestedAt = uint48(block.timestamp);
+        uint48 requestedAt = uint48(vm.getBlockTimestamp());
         assertEq(vault1.withdrawalsOfLength(alice), 2);
         assertGt(vault1.withdrawalSharesOf(0, alice), 0);
         assertGt(vault1.withdrawalSharesOf(1, alice), 0);
@@ -935,7 +935,7 @@ contract VaultV2AdaptersTest is Test {
         vault_.deposit(address(this), 100);
         vault_.withdraw(alice, 50);
 
-        vm.warp(block.timestamp + vault_.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault_.epochDuration());
 
         vm.prank(alice);
         vm.expectRevert(IVaultV2.InsufficientAmount.selector);
@@ -946,7 +946,7 @@ contract VaultV2AdaptersTest is Test {
         _depositIntoVault(vault1, collateral, 100);
         vault1.withdraw(alice, 20);
 
-        vm.warp(block.timestamp + vault1.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault1.epochDuration());
         vault1.withdraw(alice, 10);
 
         collateral.transfer(address(pullRewards), 10);

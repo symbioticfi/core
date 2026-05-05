@@ -13,19 +13,19 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test {
         handler = new UniversalDelegatorArithmeticHandler();
 
         bytes4[] memory selectors = new bytes4[](13);
-        selectors[0] = UniversalDelegatorArithmeticHandler.warp.selector;
-        selectors[1] = UniversalDelegatorArithmeticHandler.deposit.selector;
-        selectors[2] = UniversalDelegatorArithmeticHandler.withdraw.selector;
-        selectors[3] = UniversalDelegatorArithmeticHandler.createRootSlot.selector;
-        selectors[4] = UniversalDelegatorArithmeticHandler.setMaxNetworkLimit.selector;
-        selectors[5] = UniversalDelegatorArithmeticHandler.createNetworkSlot.selector;
-        selectors[6] = UniversalDelegatorArithmeticHandler.createOperatorSlot.selector;
-        selectors[7] = UniversalDelegatorArithmeticHandler.setSize.selector;
-        selectors[8] = UniversalDelegatorArithmeticHandler.swapSlots.selector;
-        selectors[9] = UniversalDelegatorArithmeticHandler.removeSlot.selector;
-        selectors[10] = UniversalDelegatorArithmeticHandler.resetAllocation.selector;
-        selectors[11] = UniversalDelegatorArithmeticHandler.slash.selector;
-        selectors[12] = UniversalDelegatorArithmeticHandler.touchMaturedDecreaseThenIncreaseSameBlock.selector;
+        selectors[0] = UniversalDelegatorArithmeticHandler.deposit.selector;
+        selectors[1] = UniversalDelegatorArithmeticHandler.withdraw.selector;
+        selectors[2] = UniversalDelegatorArithmeticHandler.createRootSlot.selector;
+        selectors[3] = UniversalDelegatorArithmeticHandler.setMaxNetworkLimit.selector;
+        selectors[4] = UniversalDelegatorArithmeticHandler.createNetworkSlot.selector;
+        selectors[5] = UniversalDelegatorArithmeticHandler.createOperatorSlot.selector;
+        selectors[6] = UniversalDelegatorArithmeticHandler.setSize.selector;
+        selectors[7] = UniversalDelegatorArithmeticHandler.swapSlots.selector;
+        selectors[8] = UniversalDelegatorArithmeticHandler.removeSlot.selector;
+        selectors[9] = UniversalDelegatorArithmeticHandler.resetAllocation.selector;
+        selectors[10] = UniversalDelegatorArithmeticHandler.slash.selector;
+        selectors[11] = UniversalDelegatorArithmeticHandler.touchMaturedDecreaseThenIncreaseSameBlock.selector;
+        selectors[12] = UniversalDelegatorArithmeticHandler.sameBlockDelayedDecrease.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

@@ -41,39 +41,37 @@ lint_on_build = false
 exclude_lints = ["asm-keccak256","mixed-case-function","mixed-case-variable","pascal-case-struct","screaming-snake-case-const"]
 ignore = ["test/**/*.sol","script/**/*.sol","src/interfaces/**/*.sol"]
 
-[[profile.default.additional_compiler_profiles]]
-name = "test"
-via_ir = false
-optimizer = true
-
-[[profile.default.compilation_restrictions]]
-paths = "test/**"
-via_ir = false
-optimizer = true
-
 [profile.default.fuzz]
 runs = 100
 max_test_rejects = 4294967295
 
 [profile.default.invariant]
 runs = 1
-depth = 5
+depth = 8
+max_time_delay = 1209600
+max_block_delay = 2
 
 [profile.pr.fuzz]
 runs = 100
 max_test_rejects = 4294967295
 
 [profile.pr.invariant]
-runs = 2
-depth = 10
+runs = 1
+depth = 16
+check_interval = 4
+max_time_delay = 1209600
+max_block_delay = 2
 
 [profile.ci.fuzz]
 runs = 100
 max_test_rejects = 4294967295
 
 [profile.ci.invariant]
-runs = 4
-depth = 20
+runs = 2
+depth = 32
+check_interval = 8
+max_time_delay = 1209600
+max_block_delay = 2
 
 [profile.debug]
 via_ir = false

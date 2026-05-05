@@ -518,8 +518,8 @@ contract V2DeploymentScriptsTest is Test {
             )
             .runBase(
                 MorphoVaultV2MocksDeployBaseScript.DeployParams({
-                    adapterRegistryOwner: adapterOwner, collateral: address(0)
-                })
+                adapterRegistryOwner: adapterOwner, collateral: address(0)
+            })
             );
 
         MorphoVaultV2AdapterDeployScriptHarness script = new MorphoVaultV2AdapterDeployScriptHarness(broadcaster);
@@ -688,20 +688,20 @@ contract V2DeploymentScriptsTest is Test {
     }
 
     function _mockV2UpgradePostChecks(address vaultV2, address universalDelegator, address universalSlasher) internal {
-        vm.mockCall(vaultV2, abi.encodeCall(IMigratableEntity.FACTORY, ()), abi.encode(HOODI_VAULT_FACTORY));
-        vm.mockCall(
+        expectAndMockCall(vaultV2, abi.encodeCall(IMigratableEntity.FACTORY, ()), abi.encode(HOODI_VAULT_FACTORY));
+        expectAndMockCall(
             HOODI_VAULT_FACTORY,
             abi.encodeCall(IMigratablesFactory.implementation, (VAULT_V2_VERSION)),
             abi.encode(vaultV2)
         );
-        vm.mockCall(universalDelegator, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_DELEGATOR_TYPE));
-        vm.mockCall(
+        expectAndMockCall(universalDelegator, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_DELEGATOR_TYPE));
+        expectAndMockCall(
             HOODI_DELEGATOR_FACTORY,
             abi.encodeCall(IFactory.implementation, (UNIVERSAL_DELEGATOR_TYPE)),
             abi.encode(universalDelegator)
         );
-        vm.mockCall(universalSlasher, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_SLASHER_TYPE));
-        vm.mockCall(
+        expectAndMockCall(universalSlasher, abi.encodeCall(IEntity.TYPE, ()), abi.encode(UNIVERSAL_SLASHER_TYPE));
+        expectAndMockCall(
             HOODI_SLASHER_FACTORY,
             abi.encodeCall(IFactory.implementation, (UNIVERSAL_SLASHER_TYPE)),
             abi.encode(universalSlasher)

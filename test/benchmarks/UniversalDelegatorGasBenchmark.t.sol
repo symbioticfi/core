@@ -92,7 +92,7 @@ abstract contract UniversalDelegatorGasBenchmarkBase is Test {
         _depositFullCapacity();
         _createSlots();
 
-        vm.warp(block.timestamp + 1);
+        vm.warp(vm.getBlockTimestamp() + 1);
     }
 
     function _whitelistVaults() internal {

@@ -227,7 +227,7 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         IERC20(collateral).transfer(curator.addr, 100 ether);
         _deposit_SymbioticCore(curator.addr, vault, 100 ether);
         _withdraw_SymbioticCore(curator.addr, vault, 20 ether);
-        vm.warp(block.timestamp + IVault(vault).epochDuration());
+        vm.warp(vm.getBlockTimestamp() + IVault(vault).epochDuration());
 
         MigrateToVaultV2ScriptHarness script = new MigrateToVaultV2ScriptHarness(curator.addr);
         MigrateToVaultV2BaseScript.Config memory config = _config();

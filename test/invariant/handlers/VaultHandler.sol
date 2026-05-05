@@ -63,7 +63,7 @@ contract VaultHandler is Test {
 
     modifier adjustTimestamp(uint256 timeJumpSeed) {
         uint256 timeJump = _bound(timeJumpSeed, 2 minutes, 1 days);
-        vm.warp(block.timestamp + timeJump);
+        vm.warp(vm.getBlockTimestamp() + timeJump);
         _;
     }
 
@@ -298,7 +298,7 @@ contract VaultHandler is Test {
             return;
         }
 
-        uint48 captureTimestamp = uint48(block.timestamp) - 1;
+        uint48 captureTimestamp = uint48(vm.getBlockTimestamp()) - 1;
         amount = _bound(amount, 1, stake / 2);
 
         uint256 slashedAmount = slasher.slash(subnetwork, operator, amount, captureTimestamp, "");

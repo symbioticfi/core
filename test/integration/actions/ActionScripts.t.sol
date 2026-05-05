@@ -273,8 +273,8 @@ contract ActionScriptsTest is SymbioticCoreInit {
         _deal_Symbiotic(collateral, staker.addr, depositAmount, true);
         _stakerDeposit_SymbioticCore(staker.addr, vaultAddr, depositAmount);
 
-        vm.warp(block.timestamp + 10);
-        captureTimestamp = uint48(block.timestamp - 1);
+        vm.warp(vm.getBlockTimestamp() + 10);
+        captureTimestamp = uint48(vm.getBlockTimestamp() - 1);
     }
 
     function _setupStakeForFullRestake(
@@ -297,8 +297,8 @@ contract ActionScriptsTest is SymbioticCoreInit {
         _deal_Symbiotic(collateral, staker.addr, depositAmount, true);
         _stakerDeposit_SymbioticCore(staker.addr, vaultAddr, depositAmount);
 
-        vm.warp(block.timestamp + 10);
-        captureTimestamp = uint48(block.timestamp - 1);
+        vm.warp(vm.getBlockTimestamp() + 10);
+        captureTimestamp = uint48(vm.getBlockTimestamp() - 1);
     }
 
     function test_RegisterOperator() public {

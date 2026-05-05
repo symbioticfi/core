@@ -181,11 +181,6 @@ contract UniversalDelegatorArithmeticHandler is Test {
         return middlewareOf[subnetwork];
     }
 
-    function warp(uint256 timeJumpSeed) external {
-        _warp(timeJumpSeed);
-        _recordTimestamp();
-    }
-
     function deposit(uint256 userSeed, uint256 amount, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);
 
@@ -358,10 +353,28 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _trackSlot(slot, subnetwork, operator);
 
         delegator.setSize(slot, 20 ether);
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
 
         _recordTimestamp();
         delegator.setSize(slot, 100 ether);
+        _recordTimestamp();
+    }
+
+    function sameBlockDelayedDecrease(uint256 slotSeed, uint256 newSizeSeed) external {
+        _recordTimestamp();
+
+        uint32 slot = _selectLiveSlot(slotSeed);
+        if (slot != 0) {
+            uint128 curSize = _slotSize(slot);
+            if (curSize > 0) {
+                uint128 newSize = uint128(_bound(newSizeSeed, 0, curSize));
+                try delegator.setSize(slot, newSize) {}
+                catch (bytes memory revertData) {
+                    _recordUnexpectedActionRevert(UniversalDelegator.setSize.selector, revertData);
+                }
+            }
+        }
+
         _recordTimestamp();
     }
 
@@ -373,7 +386,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     }
 
     function assertTrackedSlotAssignmentsIsolated() external view {
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         uint48 maxDuration = vault.epochDuration() - 1;
 
         for (uint256 i; i < trackedSlots.length; ++i) {
@@ -428,7 +441,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     }
 
     function assertSyncedSizeSumsMatchTotals() external view {
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         _assertSyncedSizeSumsMatchTotalsAt(timestamp);
         if (timestamp > 0) {
             _assertSyncedSizeSumsMatchTotalsAt(timestamp - 1);
@@ -476,7 +489,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
             );
         }
 
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         for (uint256 i; i < stakeForPromises.length; ++i) {
             StakeForPromise storage stakePromise = stakeForPromises[i];
             if (timestamp < stakePromise.timestamp) {
@@ -525,7 +538,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         for (uint256 i; i < stakeForAtObservations.length; ++i) {
             StakeForAtObservation storage observation = stakeForAtObservations[i];
-            if (observation.timestamp >= block.timestamp) {
+            if (observation.timestamp >= vm.getBlockTimestamp()) {
                 continue;
             }
 
@@ -1049,11 +1062,11 @@ contract UniversalDelegatorArithmeticHandler is Test {
             return;
         }
         uint256 timeJump = _bound(timeJumpSeed, 1 hours, 14 days);
-        vm.warp(block.timestamp + timeJump);
+        vm.warp(vm.getBlockTimestamp() + timeJump);
     }
 
     function _recordTimestamp() internal {
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         _recordFinalizedStakeForAtObservations(timestamp);
 
         if (trackedTimestamps.length < MAX_TRACKED_TIMESTAMPS) {
@@ -1189,7 +1202,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function _recordStakeForAtObservationGuarantees() internal {
         for (uint256 i; i < stakeForAtObservations.length; ++i) {
             StakeForAtObservation storage observation = stakeForAtObservations[i];
-            if (observation.timestamp >= block.timestamp) {
+            if (observation.timestamp >= vm.getBlockTimestamp()) {
                 continue;
             }
 

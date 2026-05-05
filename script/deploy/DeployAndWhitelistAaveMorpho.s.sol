@@ -125,11 +125,11 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         data = new AaveV3AdapterDeployBaseScript()
             .runBase(
                 AaveV3AdapterDeployBaseScript.DeployParams({
-                    adapterOwner: params.adapterOwner,
-                    aavePool: params.aavePool,
-                    curatorRegistry: params.curatorRegistry,
-                    rewards: params.rewards
-                })
+                adapterOwner: params.adapterOwner,
+                aavePool: params.aavePool,
+                curatorRegistry: params.curatorRegistry,
+                rewards: params.rewards
+            })
             );
     }
 
@@ -141,12 +141,12 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         data = new MorphoVaultV2AdapterDeployBaseScript()
             .runBase(
                 MorphoVaultV2AdapterDeployBaseScript.DeployParams({
-                    adapterOwner: params.adapterOwner,
-                    morphoVaultFactory: params.morphoVaultFactory,
-                    morphoAdapterRegistry: params.morphoAdapterRegistry,
-                    curatorRegistry: params.curatorRegistry,
-                    rewards: params.rewards
-                })
+                adapterOwner: params.adapterOwner,
+                morphoVaultFactory: params.morphoVaultFactory,
+                morphoAdapterRegistry: params.morphoAdapterRegistry,
+                curatorRegistry: params.curatorRegistry,
+                rewards: params.rewards
+            })
             );
     }
 

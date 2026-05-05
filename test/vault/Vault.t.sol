@@ -315,7 +315,7 @@ contract VaultTest is Test {
 
         assertGt(vault.withdrawalsOf(vault.currentEpoch() + 1, alice), 0);
 
-        uint48 futureCapture = uint48(block.timestamp + vault.epochDuration());
+        uint48 futureCapture = uint48(vm.getBlockTimestamp() + vault.epochDuration());
         vm.prank(address(slasher));
         vm.expectRevert(IVault.InvalidCaptureEpoch.selector);
         vault.onSlash(1, futureCapture);

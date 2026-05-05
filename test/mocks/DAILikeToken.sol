@@ -2,8 +2,11 @@
 pragma solidity ^0.8.0;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 contract DAILikeToken is ERC20 {
+    Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+
     bytes32 public DOMAIN_SEPARATOR;
     // bytes32 public constant PERMIT_TYPEHASH = keccak256("Permit(address holder,address spender,uint256 nonce,uint256 expiry,bool allowed)");
     bytes32 public constant PERMIT_TYPEHASH = 0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb;
@@ -50,7 +53,7 @@ contract DAILikeToken is ERC20 {
 
         require(holder != address(0), "Dai/invalid-address-0");
         require(holder == ecrecover(digest, v, r, s), "Dai/invalid-permit");
-        require(expiry == 0 || block.timestamp <= expiry, "Dai/permit-expired");
+        require(expiry == 0 || vm.getBlockTimestamp() <= expiry, "Dai/permit-expired");
         require(nonce == nonces[holder]++, "Dai/invalid-nonce");
         uint256 wad = allowed ? type(uint256).max : 0;
         _approve(holder, spender, wad);

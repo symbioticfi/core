@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
@@ -13,6 +14,8 @@ interface IRewardsDonateBorrow {
 }
 
 contract MockMorphoBorrowAdapter is IAdapterBase {
+    Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+
     IERC20 public immutable collateral;
     IERC4626 public immutable morphoVault;
     address public immutable vault;
@@ -36,7 +39,7 @@ contract MockMorphoBorrowAdapter is IAdapterBase {
     }
 
     function allocatable(address) external view returns (uint256) {
-        if (block.timestamp < borrowUnlockAt) {
+        if (vm.getBlockTimestamp() < borrowUnlockAt) {
             return borrowedAmount < type(uint256).max ? type(uint256).max - borrowedAmount : 0;
         }
         return type(uint256).max;
@@ -54,7 +57,7 @@ contract MockMorphoBorrowAdapter is IAdapterBase {
             return;
         }
 
-        if (block.timestamp < borrowUnlockAt && borrowedAmount > 0) {
+        if (vm.getBlockTimestamp() < borrowUnlockAt && borrowedAmount > 0) {
             return;
         }
 
@@ -148,7 +151,7 @@ contract MockMorphoBorrowAdapter is IAdapterBase {
 
         borrowed = amount - remaining;
         if (borrowed > 0) {
-            borrowUnlockAt = uint48(block.timestamp + 1 days);
+            borrowUnlockAt = uint48(vm.getBlockTimestamp() + 1 days);
             uint256 allocatedToThisAdapter = IVaultV2(vault).allocateAdapter(address(this), borrowed);
             borrowedAmount += allocatedToThisAdapter;
             borrowed = allocatedToThisAdapter;

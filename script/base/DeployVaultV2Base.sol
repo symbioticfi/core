@@ -48,15 +48,15 @@ contract DeployVaultV2Base is Script {
         (address vault_, address delegator_, address slasher_) = IVaultConfigurator(_core().vaultConfigurator)
             .create(
                 IVaultConfigurator.InitParams({
-                    version: VAULT_V2_VERSION,
-                    owner: params.owner,
-                    vaultParams: _getVaultParamsEncoded(params),
-                    delegatorIndex: UNIVERSAL_DELEGATOR_TYPE,
-                    delegatorParams: abi.encode(params.delegatorParams),
-                    withSlasher: params.withSlasher,
-                    slasherIndex: UNIVERSAL_SLASHER_TYPE,
-                    slasherParams: abi.encode(params.slasherParams)
-                })
+                version: VAULT_V2_VERSION,
+                owner: params.owner,
+                vaultParams: _getVaultParamsEncoded(params),
+                delegatorIndex: UNIVERSAL_DELEGATOR_TYPE,
+                delegatorParams: abi.encode(params.delegatorParams),
+                withSlasher: params.withSlasher,
+                slasherIndex: UNIVERSAL_SLASHER_TYPE,
+                slasherParams: abi.encode(params.slasherParams)
+            })
             );
 
         Logs.log(

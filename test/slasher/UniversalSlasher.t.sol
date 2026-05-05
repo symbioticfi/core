@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {Test, stdError} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
@@ -227,7 +228,7 @@ contract UniversalSlasherMigrationTest is Test {
         address newSlasher = vault_.slasher();
         assertTrue(newSlasher != oldSlasher);
         assertEq(IEntity(newSlasher).TYPE(), slasherFactory.totalTypes() - 1);
-        assertEq(IUniversalSlasher(newSlasher).migrateTimestamp(), uint48(block.timestamp));
+        assertEq(IUniversalSlasher(newSlasher).migrateTimestamp(), uint48(vm.getBlockTimestamp()));
         assertEq(IUniversalSlasher(newSlasher).oldSlasher(), oldSlasher);
         assertEq(IUniversalSlasher(newSlasher).slashRequestsLength(), 0);
     }
@@ -259,7 +260,7 @@ contract UniversalSlasherMigrationTest is Test {
         address newSlasher = vault_.slasher();
         assertTrue(newSlasher != oldSlasher);
         assertEq(IEntity(newSlasher).TYPE(), slasherFactory.totalTypes() - 1);
-        assertEq(IUniversalSlasher(newSlasher).migrateTimestamp(), uint48(block.timestamp));
+        assertEq(IUniversalSlasher(newSlasher).migrateTimestamp(), uint48(vm.getBlockTimestamp()));
         assertEq(IUniversalSlasher(newSlasher).oldSlasher(), oldSlasher);
         assertEq(IUniversalSlasher(newSlasher).slashRequestsLength(), expectedSlashRequestsLength);
     }
@@ -316,13 +317,15 @@ contract UniversalSlasherMigrationTest is Test {
         assertEq(newSlasher.resolver(subnetwork_), resolver_1);
         assertEq(
             newSlasher.pendingResolverData(subnetwork_),
-            bytes32((uint256(uint160(resolver_2)) << 48) | (uint256(block.timestamp + newSlasher.resolverSetDelay())))
+            bytes32(
+                (uint256(uint160(resolver_2)) << 48) | (uint256(vm.getBlockTimestamp() + newSlasher.resolverSetDelay()))
+            )
         );
 
-        vm.warp(block.timestamp + newSlasher.resolverSetDelay() - 1);
+        vm.warp(vm.getBlockTimestamp() + newSlasher.resolverSetDelay() - 1);
         assertEq(newSlasher.resolver(subnetwork_), resolver_1);
 
-        vm.warp(block.timestamp + 1);
+        vm.warp(vm.getBlockTimestamp() + 1);
         assertEq(newSlasher.resolver(subnetwork_), resolver_2);
     }
 
@@ -577,6 +580,8 @@ contract MockVaultV2ForSlasher {
 }
 
 contract MockLegacySlasher {
+    Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+
     uint64 public type_;
     uint256 public slashRequestsLength_;
     uint48 public vetoDuration_;
@@ -692,7 +697,7 @@ contract MockLegacySlasher {
     }
 
     function resolver(bytes32, bytes memory) external view returns (address) {
-        return resolverSwitchTimestamp_ > 0 && block.timestamp >= resolverSwitchTimestamp_
+        return resolverSwitchTimestamp_ > 0 && vm.getBlockTimestamp() >= resolverSwitchTimestamp_
             ? resolverAtAfter_
             : resolverAtBefore_;
     }
@@ -979,12 +984,12 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     function test_resolver_switchesToPendingWhenDelayReached() public {
         slasher.setResolverRaw(subnetwork, resolver1);
         slasher.setPendingResolverDataRaw(
-            subnetwork, bytes32((uint256(uint160(resolver2)) << 48) | (uint256(block.timestamp + 5)))
+            subnetwork, bytes32((uint256(uint160(resolver2)) << 48) | (uint256(vm.getBlockTimestamp() + 5)))
         );
 
         assertEq(slasher.resolver(subnetwork), resolver1);
 
-        vm.warp(block.timestamp + 5);
+        vm.warp(vm.getBlockTimestamp() + 5);
         assertEq(slasher.resolver(subnetwork), resolver2);
     }
 
@@ -1016,11 +1021,13 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.setResolver(0, resolver2);
         assertEq(
             slasher.pendingResolverData(subnetwork),
-            bytes32((uint256(uint160(resolver2)) << 48) | (uint256(block.timestamp + slasher.resolverSetDelay())))
+            bytes32(
+                (uint256(uint160(resolver2)) << 48) | (uint256(vm.getBlockTimestamp() + slasher.resolverSetDelay()))
+            )
         );
         assertEq(slasher.resolver(subnetwork), resolver1);
 
-        vm.warp(block.timestamp + slasher.resolverSetDelay());
+        vm.warp(vm.getBlockTimestamp() + slasher.resolverSetDelay());
         vm.prank(network);
         slasher.setResolver(0, makeAddr("resolver-3"));
 
@@ -1042,10 +1049,12 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(slasher.resolver(subnetwork), resolver1);
         assertEq(
             slasher.pendingResolverData(subnetwork),
-            bytes32((uint256(uint160(resolver2)) << 48) | (uint256(block.timestamp + slasher.resolverSetDelay())))
+            bytes32(
+                (uint256(uint160(resolver2)) << 48) | (uint256(vm.getBlockTimestamp() + slasher.resolverSetDelay()))
+            )
         );
 
-        vm.warp(block.timestamp + slasher.resolverSetDelay());
+        vm.warp(vm.getBlockTimestamp() + slasher.resolverSetDelay());
         assertEq(slasher.resolver(subnetwork), resolver2);
     }
 
@@ -1072,7 +1081,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
         IUniversalSlasher.SlashRequest memory request = slasher.slashRequests(slashIndex);
         assertEq(request.resolver, resolver1);
-        assertEq(request.vetoDeadline, uint48(block.timestamp + slasher.vetoDuration()));
+        assertEq(request.vetoDeadline, uint48(vm.getBlockTimestamp() + slasher.vetoDuration()));
     }
 
     function test_slash_capsToCurrentSlashableStakeAndExecutesImmediately() public {
@@ -1086,9 +1095,9 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         assertEq(request.subnetwork, subnetwork);
         assertEq(request.operator, operator);
         assertEq(request.amount, 100);
-        assertEq(request.createdAt, uint48(block.timestamp));
+        assertEq(request.createdAt, uint48(vm.getBlockTimestamp()));
         assertEq(request.resolver, address(0));
-        assertEq(request.vetoDeadline, uint48(block.timestamp));
+        assertEq(request.vetoDeadline, uint48(vm.getBlockTimestamp()));
         assertTrue(request.completed);
 
         assertEq(delegator.onSlashCalls(), 1);
@@ -1131,7 +1140,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         vm.warp(120);
 
         assertEq(slasher.slashableStake(subnetwork, operator, 10, ""), 0);
-        assertEq(slasher.slashableStake(subnetwork, operator, uint48(block.timestamp), ""), 0);
+        assertEq(slasher.slashableStake(subnetwork, operator, uint48(vm.getBlockTimestamp()), ""), 0);
         assertEq(slasher.slashableStake(subnetwork, operator, 40, ""), 0);
     }
 
@@ -1149,8 +1158,10 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     function test_slashableStake_newPath_LastPossibleSecondBoundary() public {
         vm.warp(1000);
 
-        assertEq(slasher.slashableStake(subnetwork, operator, uint48(block.timestamp - EPOCH_DURATION), ""), 0);
-        assertEq(slasher.slashableStake(subnetwork, operator, uint48(block.timestamp - EPOCH_DURATION + 1), ""), 100);
+        assertEq(slasher.slashableStake(subnetwork, operator, uint48(vm.getBlockTimestamp() - EPOCH_DURATION), ""), 0);
+        assertEq(
+            slasher.slashableStake(subnetwork, operator, uint48(vm.getBlockTimestamp() - EPOCH_DURATION + 1), ""), 100
+        );
     }
 
     function test_executeSlash_WithVetoDurationEpochMinusOne_LastPossibleSecondSucceeds() public {
@@ -1189,7 +1200,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_executeSlashReverts_VetoPeriodNotEnded() public {
-        _pushRequest(10, uint48(block.timestamp - 1), uint48(block.timestamp + 1), resolver1, false);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), uint48(vm.getBlockTimestamp() + 1), resolver1, false);
 
         vm.prank(middleware);
         vm.expectRevert(IUniversalSlasher.VetoPeriodNotEnded.selector);
@@ -1270,7 +1281,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_executeSlashReverts_Completed() public {
-        _pushRequest(10, uint48(block.timestamp - 1), 0, resolver1, true);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), 0, resolver1, true);
 
         vm.prank(middleware);
         vm.expectRevert(IUniversalSlasher.SlashRequestCompleted.selector);
@@ -1279,7 +1290,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
     function test_executeSlashReverts_InsufficientSlash() public {
         delegator.setStakeForValue(0);
-        _pushRequest(10, uint48(block.timestamp - 1), 0, resolver1, false);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), 0, resolver1, false);
 
         vm.prank(middleware);
         vm.expectRevert(IUniversalSlasher.InsufficientSlash.selector);
@@ -1354,7 +1365,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
     function test_executeSlash_tracksOwedAndSyncOwedSlash() public {
         vault.setOnSlashResult(true, 0, 7);
-        _pushRequest(40, uint48(block.timestamp), 0, resolver1, false);
+        _pushRequest(40, uint48(vm.getBlockTimestamp()), 0, resolver1, false);
 
         vm.prank(middleware);
         slasher.executeSlash(0, "");
@@ -1404,7 +1415,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
 
     function test_executeSlash_usesRequestedAmountAfterDelegatorHook() public {
         delegator.setStakeForValue(10);
-        _pushRequest(10, uint48(block.timestamp), 0, resolver1, false);
+        _pushRequest(10, uint48(vm.getBlockTimestamp()), 0, resolver1, false);
 
         vm.prank(middleware);
         assertEq(slasher.executeSlash(0, ""), 10);
@@ -1422,7 +1433,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.setIsBurnerHookRaw(true);
 
         reentrantBurner.armReentry(address(slasher), abi.encodeCall(UniversalSlasher.executeSlash, (0, bytes(""))));
-        _pushRequest(40, uint48(block.timestamp), 0, resolver1, false);
+        _pushRequest(40, uint48(vm.getBlockTimestamp()), 0, resolver1, false);
 
         vm.prank(address(reentrantBurner));
         uint256 slashedAmount = slasher.executeSlash(0, "");
@@ -1444,7 +1455,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         reentrantBurner.armReentry(
             address(slasher), abi.encodeCall(UniversalSlasher.syncOwedSlash, (subnetwork, operator))
         );
-        _pushRequest(40, uint48(block.timestamp), 0, resolver1, false);
+        _pushRequest(40, uint48(vm.getBlockTimestamp()), 0, resolver1, false);
 
         vm.prank(middleware);
         uint256 slashedAmount = slasher.executeSlash(0, "");
@@ -1472,7 +1483,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         slasher.setIsBurnerHookRaw(true);
         delegator.setStakeForValue(slashableStake);
         vault.setOnSlashResult(true, 0, owedAmount);
-        _pushRequest(requestedAmount, uint48(block.timestamp), 0, resolver1, false);
+        _pushRequest(requestedAmount, uint48(vm.getBlockTimestamp()), 0, resolver1, false);
 
         vm.prank(middleware);
         uint256 slashedAmount = slasher.executeSlash(0, "");
@@ -1505,7 +1516,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
         reentrantBurner.armReentry(
             address(slasher), abi.encodeCall(UniversalSlasher.syncOwedSlash, (subnetwork, operator))
         );
-        _pushRequest(requestedAmount, uint48(block.timestamp), 0, resolver1, false);
+        _pushRequest(requestedAmount, uint48(vm.getBlockTimestamp()), 0, resolver1, false);
 
         vm.prank(middleware);
         uint256 slashedAmount = slasher.executeSlash(0, "");
@@ -1549,7 +1560,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_vetoSlashReverts_NotResolver() public {
-        _pushRequest(10, uint48(block.timestamp - 1), uint48(block.timestamp + 10), resolver1, false);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), uint48(vm.getBlockTimestamp() + 10), resolver1, false);
 
         vm.prank(resolver2);
         vm.expectRevert(IUniversalSlasher.NotResolver.selector);
@@ -1557,7 +1568,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_vetoSlashReverts_VetoPeriodEnded() public {
-        _pushRequest(10, uint48(block.timestamp - 1), uint48(block.timestamp), resolver1, false);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), uint48(vm.getBlockTimestamp()), resolver1, false);
 
         vm.prank(resolver1);
         vm.expectRevert(IUniversalSlasher.VetoPeriodEnded.selector);
@@ -1565,7 +1576,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_vetoSlashReverts_AlreadyCompleted() public {
-        _pushRequest(10, uint48(block.timestamp - 1), uint48(block.timestamp + 10), resolver1, true);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), uint48(vm.getBlockTimestamp() + 10), resolver1, true);
 
         vm.prank(resolver1);
         vm.expectRevert(IUniversalSlasher.SlashRequestCompleted.selector);
@@ -1573,7 +1584,7 @@ contract UniversalSlasherRuntimeCoverageTest is Test {
     }
 
     function test_vetoSlash_marksCompleted() public {
-        _pushRequest(10, uint48(block.timestamp - 1), uint48(block.timestamp + 10), resolver1, false);
+        _pushRequest(10, uint48(vm.getBlockTimestamp() - 1), uint48(vm.getBlockTimestamp() + 10), resolver1, false);
 
         vm.prank(resolver1);
         slasher.vetoSlash(0);

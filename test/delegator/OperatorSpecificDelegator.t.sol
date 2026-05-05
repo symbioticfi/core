@@ -256,7 +256,7 @@ contract OperatorSpecificDelegatorTest is Test {
             })
         );
 
-        assertEq(delegator.stakeAt(alice.subnetwork(0), bob, uint48(block.timestamp), hints), 0);
+        assertEq(delegator.stakeAt(alice.subnetwork(0), bob, uint48(vm.getBlockTimestamp()), hints), 0);
     }
 
     function test_CreateRevertZeroAddressRoleHolder1(uint48 epochDuration) public {

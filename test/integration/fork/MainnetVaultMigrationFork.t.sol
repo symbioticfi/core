@@ -179,7 +179,7 @@ contract MainnetVaultMigrationForkTest is Test {
             PRE_MIGRATION_NEXT_WITHDRAW,
             "next epoch V1 withdrawal mismatch"
         );
-        assertGt(vault.nextEpochStart(), block.timestamp, "migration should happen mid-epoch");
+        assertGt(vault.nextEpochStart(), vm.getBlockTimestamp(), "migration should happen mid-epoch");
     }
 
     function _snapshotLiveVault() internal view returns (LiveVaultSnapshot memory snapshot) {
@@ -202,7 +202,7 @@ contract MainnetVaultMigrationForkTest is Test {
             currentEpochDepositorWithdrawal: vault.withdrawalsOf(currentEpoch, DEPOSITOR),
             nextEpochDepositorWithdrawal: vault.withdrawalsOf(currentEpoch + 1, DEPOSITOR),
             currentEpochWithdrawalUnlockAt: currentEpochWithdrawalUnlockAt,
-            nextEpochWithdrawalUnlockAt: uint48(block.timestamp) + vault.epochDuration(),
+            nextEpochWithdrawalUnlockAt: uint48(vm.getBlockTimestamp()) + vault.epochDuration(),
             currentEpoch: currentEpoch,
             totalStake: vault.totalStake()
         });
@@ -324,7 +324,7 @@ contract MainnetVaultMigrationForkTest is Test {
     function _assertMigratedVaultState(IVaultV2 migratedVault, LiveVaultSnapshot memory snapshot) internal view {
         assertEq(IMigratableEntity(VAULT).version(), VAULT_V2_VERSION, "vault version mismatch");
         assertTrue(migratedVault.isInitialized(), "vault not initialized");
-        assertEq(migratedVault.migrateTimestamp(), uint48(block.timestamp), "vault migration timestamp mismatch");
+        assertEq(migratedVault.migrateTimestamp(), uint48(vm.getBlockTimestamp()), "vault migration timestamp mismatch");
         assertEq(migratedVault.collateral(), LBTC, "collateral not preserved");
         assertEq(migratedVault.burner(), snapshot.burner, "burner not preserved");
         assertEq(migratedVault.epochDuration(), 7 days, "epoch duration not preserved");
@@ -366,9 +366,13 @@ contract MainnetVaultMigrationForkTest is Test {
         assertEq(migratedDelegator.oldDelegator(), snapshot.oldDelegator, "old delegator mismatch");
         assertEq(migratedSlasher.oldSlasher(), snapshot.oldSlasher, "old slasher mismatch");
         assertEq(
-            migratedDelegator.migrateTimestamp(), uint48(block.timestamp), "delegator migration timestamp mismatch"
+            migratedDelegator.migrateTimestamp(),
+            uint48(vm.getBlockTimestamp()),
+            "delegator migration timestamp mismatch"
         );
-        assertEq(migratedSlasher.migrateTimestamp(), uint48(block.timestamp), "slasher migration timestamp mismatch");
+        assertEq(
+            migratedSlasher.migrateTimestamp(), uint48(vm.getBlockTimestamp()), "slasher migration timestamp mismatch"
+        );
         assertTrue(migratedSlasher.isBurnerHook(), "burner hook not migrated");
         assertEq(migratedSlasher.vetoDuration(), 2 days, "veto duration not migrated");
         assertEq(migratedSlasher.resolverSetDelay(), 21 days, "resolver delay not migrated");
@@ -528,7 +532,7 @@ contract MainnetVaultMigrationForkTest is Test {
         );
 
         uint48 unlockAt = migratedVault.withdrawalUnlockAt(withdrawalIndex, DEPOSITOR);
-        assertEq(unlockAt, uint48(block.timestamp) + migratedVault.epochDuration(), "withdrawal unlock mismatch");
+        assertEq(unlockAt, uint48(vm.getBlockTimestamp()) + migratedVault.epochDuration(), "withdrawal unlock mismatch");
 
         vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
         migratedVault.claim(recipient, withdrawalIndex);
