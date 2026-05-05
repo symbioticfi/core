@@ -148,6 +148,12 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         vault.setActiveStake(1000);
     }
 
+    function _effectiveSize(uint32 index) internal view returns (uint128) {
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(index);
+        return
+            slot.delayedTimestamp > 0 && slot.delayedTimestamp <= vm.getBlockTimestamp() ? slot.delayedSize : slot.size;
+    }
+
     function test_MaturedDecreaseKeepsLaterSlotUnusedUntilSync() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         bytes32 subnetworkB = networkB.subnetwork(0);
@@ -162,16 +168,16 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stake(subnetworkB, operatorB), 0);
 
         delegator.setSize(slotA, 0);
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
 
-        assertEq(delegator.getSize(slotA), 0);
+        assertEq(_effectiveSize(slotA), 0);
         assertEq(delegator.stake(subnetworkB, operatorB), 0);
-        assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, uint48(block.timestamp)), 0);
+        assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, uint48(vm.getBlockTimestamp())), 0);
 
         delegator.setSize(slotB, 100);
 
         assertEq(delegator.stake(subnetworkB, operatorB), 100);
-        assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, uint48(block.timestamp)), 100);
+        assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, uint48(vm.getBlockTimestamp())), 100);
     }
 
     function test_PublicViewHelpersAndVersion() public {
@@ -181,15 +187,17 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         uint32 zeroSlot = delegator.createSlot(networkB.subnetwork(0), operatorB, 0);
 
         assertEq(delegator.VERSION(), 2);
-        assertEq(delegator.getBalanceAt(0, uint48(block.timestamp)), 1000);
+        assertEq(delegator.getBalanceAt(0, uint48(vm.getBlockTimestamp())), 1000);
         assertEq(delegator.getBalance(0), 1000);
-        assertEq(delegator.getAllocatedAt(slot, 0, uint48(block.timestamp)), 100);
+        assertEq(delegator.getAllocatedAt(slot, 0, uint48(vm.getBlockTimestamp())), 100);
         assertEq(delegator.getAllocated(slot, 0), 100);
-        assertEq(delegator.getSlotOfAt(subnetwork, operatorA, uint48(block.timestamp)), slot);
-        assertEq(delegator.getSizeAt(slot, uint48(block.timestamp)), 100);
-        assertEq(delegator.getSyncedSizeAt(subnetwork, operatorB, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(networkB.subnetwork(0), operatorB, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSlot(zeroSlot).latestSize, 0);
+        assertEq(delegator.getSlotOfAt(subnetwork, operatorA, uint48(vm.getBlockTimestamp())), slot);
+        assertEq(delegator.getSlot(slot).size, 100);
+        assertEq(delegator.getSyncedSizeAt(subnetwork, operatorB, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(networkB.subnetwork(0), operatorB, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSlot(zeroSlot).size, 0);
+        assertEq(delegator.getSlot(zeroSlot).delayedTimestamp, 0);
+        assertEq(delegator.getSlot(zeroSlot).delayedSize, 0);
     }
 
     function test_MulticallBubblesRevertReason() public {
@@ -278,12 +286,12 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         uint32 slot = delegator.createSlot(subnetwork, operatorA, 100);
 
         delegator.setSize(slot, 40);
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
         vault.setSlasher(address(this));
 
         delegator.onSlash(subnetwork, operatorA, 10);
 
-        assertEq(delegator.getSize(slot), 30);
+        assertEq(_effectiveSize(slot), 30);
         assertEq(delegator.indexesToSyncLength(), 0);
     }
 
@@ -333,13 +341,13 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         delegator.setSize(slotA, 20);
 
-        assertEq(delegator.getSize(slotA), 40);
+        assertEq(_effectiveSize(slotA), 40);
         assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 40);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 0);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
 
-        assertEq(delegator.getSize(slotA), 20);
+        assertEq(_effectiveSize(slotA), 20);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 0);
 
         delegator.setSize(slotB, 100);
@@ -366,7 +374,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.indexesToSyncLength(), 1);
         assertEq(delegator.syncIndexOf(slotA), 1);
 
-        vm.warp(block.timestamp + vault.epochDuration() / 2);
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration() / 2);
         delegator.setSize(slotB, 0);
         assertEq(delegator.indexesToSyncLength(), 2);
         assertGt(delegator.syncIndexOf(slotA), 0);
@@ -377,15 +385,15 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.indexesToSyncLength(), 1);
         assertEq(delegator.syncIndexOf(slotA), 0);
         assertGt(delegator.syncIndexOf(slotB), 0);
-        assertEq(delegator.getSize(slotA), 0);
-        assertEq(delegator.getSize(slotB), 100);
+        assertEq(_effectiveSize(slotA), 0);
+        assertEq(_effectiveSize(slotB), 100);
         assertEq(delegator.stake(subnetworkC, operatorC), 100);
 
         vm.warp(1 + vault.epochDuration() + vault.epochDuration() / 2);
         delegator.createSlot(subnetworkE, operatorE, 0);
         assertEq(delegator.indexesToSyncLength(), 0);
         assertEq(delegator.syncIndexOf(slotB), 0);
-        assertEq(delegator.getSize(slotB), 0);
+        assertEq(_effectiveSize(slotB), 0);
         assertEq(delegator.stake(subnetworkC, operatorC), 100);
     }
 
@@ -405,12 +413,12 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.indexesToSyncLength(), 1);
         assertEq(delegator.syncIndexOf(slotA), 1);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
         delegator.setSize(slotB, 100);
 
         assertEq(delegator.indexesToSyncLength(), 0);
         assertEq(delegator.syncIndexOf(slotA), 0);
-        assertEq(delegator.getSize(slotA), 80);
+        assertEq(_effectiveSize(slotA), 80);
     }
 
     function test_SyncedSizeViewsTrackCreatesIncreasesAndPendingSync() public {
@@ -422,7 +430,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
         delegator.createSlot(subnetworkB, operatorA, 30);
 
-        uint48 createdAt = uint48(block.timestamp);
+        uint48 createdAt = uint48(vm.getBlockTimestamp());
         assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, createdAt), 200);
         assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, createdAt), 100);
         assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, createdAt), 100);
@@ -431,29 +439,29 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         vm.warp(createdAt + 1);
         delegator.setSize(slotB, 120);
-        uint48 increasedAt = uint48(block.timestamp);
+        uint48 increasedAt = uint48(vm.getBlockTimestamp());
         assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, increasedAt), 220);
         assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, increasedAt), 120);
         assertEq(delegator.getTotalSyncedSizeAt(subnetworkB, increasedAt), 30);
 
         delegator.setSize(slotA, 0);
-        uint48 delayedAt = uint48(block.timestamp);
+        uint48 delayedAt = uint48(vm.getBlockTimestamp());
         assertEq(delegator.indexToSyncIndex(slotA), 1);
         assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, delayedAt), 220);
         assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, delayedAt), 100);
 
         vm.warp(delayedAt + vault.epochDuration());
-        assertEq(delegator.getSize(slotA), 0);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 220);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 100);
+        assertEq(_effectiveSize(slotA), 0);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 220);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 100);
 
         delegator.setSize(slotB, 120);
 
         assertEq(delegator.indexToSyncIndex(slotA), 0);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 120);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 120);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkB, uint48(block.timestamp)), 30);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 120);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 120);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkB, uint48(vm.getBlockTimestamp())), 30);
     }
 
     function test_MaturedDecreaseCanSyncAfterEffectiveTimestamp() public {
@@ -464,18 +472,18 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
 
         delegator.setSize(slotA, 0);
-        vm.warp(block.timestamp + vault.epochDuration() + 1);
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration() + 1);
 
-        assertEq(delegator.getSize(slotA), 0);
+        assertEq(_effectiveSize(slotA), 0);
         assertEq(delegator.indexToSyncIndex(slotA), 1);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 200);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 200);
 
         delegator.setSize(slotB, 100);
 
         assertEq(delegator.indexToSyncIndex(slotA), 0);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 100);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 100);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 100);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 100);
     }
 
     function test_SyncedSizeViewsDropResetSlotOnly() public {
@@ -484,16 +492,16 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.createSlot(subnetworkA, operatorA, 100);
         delegator.createSlot(subnetworkA, operatorB, 50);
 
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 150);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 100);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 50);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 150);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 100);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 50);
 
         vm.prank(middlewareA);
         delegator.resetAllocation(subnetworkA, operatorA);
 
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 50);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 50);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 50);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 50);
     }
 
     function test_OnSlashUpdatesSyncedSizeViews() public {
@@ -505,10 +513,10 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         delegator.onSlash(subnetworkA, operatorA, 40);
 
-        assertEq(delegator.getSize(slotA), 60);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 110);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 60);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 50);
+        assertEq(_effectiveSize(slotA), 60);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 110);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 60);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 50);
     }
 
     function test_SyncedSizeViewsIgnoreMaturedButUnsyncedDecreaseAfterSameSubnetworkSlash() public {
@@ -520,24 +528,24 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.createSlot(subnetworkA, operatorB, 100);
 
         delegator.setSize(slotA, 0);
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
 
-        assertEq(delegator.getSize(slotA), 0);
+        assertEq(_effectiveSize(slotA), 0);
         assertEq(delegator.indexToSyncIndex(slotA), 1);
 
         delegator.onSlash(subnetworkA, operatorB, 10);
 
         assertEq(delegator.indexToSyncIndex(slotA), 1);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 190);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 100);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 90);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 190);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 100);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 90);
 
         delegator.setSize(2, 90);
 
         assertEq(delegator.indexToSyncIndex(slotA), 0);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 90);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(block.timestamp)), 90);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 90);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorB, uint48(vm.getBlockTimestamp())), 90);
     }
 
     function test_OnSlashBeforePendingDecreaseKeepsDelayedTarget() public {
@@ -550,20 +558,20 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.setSize(slotA, 0);
         delegator.onSlash(subnetworkA, operatorA, 10);
 
-        assertEq(delegator.getSize(slotA), 30);
+        assertEq(_effectiveSize(slotA), 30);
         assertEq(delegator.indexToSyncIndex(slotA), 1);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 30);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 30);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
 
-        assertEq(delegator.getSize(slotA), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 30);
+        assertEq(_effectiveSize(slotA), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 30);
 
         delegator.setSize(slotA, 0);
 
         assertEq(delegator.indexToSyncIndex(slotA), 0);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 0);
     }
 
     function test_OnSlashLegacyBeforePendingDecreaseKeepsDelayedTarget() public {
@@ -576,20 +584,20 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.setSize(slotA, 0);
         delegator.onSlashLegacy(subnetworkA, operatorA, 10);
 
-        assertEq(delegator.getSize(slotA), 30);
+        assertEq(_effectiveSize(slotA), 30);
         assertEq(delegator.indexToSyncIndex(slotA), 1);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 30);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 30);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
 
-        assertEq(delegator.getSize(slotA), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 30);
+        assertEq(_effectiveSize(slotA), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 30);
 
         delegator.setSize(slotA, 0);
 
         assertEq(delegator.indexToSyncIndex(slotA), 0);
-        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(block.timestamp)), 0);
-        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(block.timestamp)), 0);
+        assertEq(delegator.getTotalSyncedSizeAt(subnetworkA, uint48(vm.getBlockTimestamp())), 0);
+        assertEq(delegator.getSyncedSizeAt(subnetworkA, operatorA, uint48(vm.getBlockTimestamp())), 0);
     }
 
     function test_ResetAfterMaturedDecreasePreservesOtherSlotHistoricalStake() public {
@@ -601,7 +609,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.createSlot(subnetworkB, operatorB, 100);
         delegator.setSize(slotA, 0);
 
-        uint48 maturedAt = uint48(block.timestamp + vault.epochDuration());
+        uint48 maturedAt = uint48(vm.getBlockTimestamp() + vault.epochDuration());
         vm.warp(maturedAt);
         assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, maturedAt), 0);
 
@@ -612,14 +620,14 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stake(subnetworkA, operatorA), 0);
     }
 
-    function test_StakeForAtPreservesMaturedDecreaseAfterSameBlockIncrease() public {
+    function test_StakeForAtUsesFinalSameBlockValueAfterMaturedDecreaseIncrease() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         vault.setActiveStake(100);
 
         uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
         delegator.setSize(slotA, 20);
 
-        uint48 maturedAt = uint48(block.timestamp + vault.epochDuration());
+        uint48 maturedAt = uint48(vm.getBlockTimestamp() + vault.epochDuration());
         vm.warp(maturedAt);
 
         assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 20);
@@ -628,7 +636,48 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.setSize(slotA, 100);
 
         assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 100);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, maturedAt), 100);
+
+        vm.warp(maturedAt + 1);
+
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, maturedAt), 100);
+    }
+
+    function test_StakeForAtPreservesPastBlockMaturedDecreaseAfterLaterIncrease() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.setSize(slotA, 20);
+
+        uint48 maturedAt = uint48(vm.getBlockTimestamp() + vault.epochDuration());
+        vm.warp(maturedAt);
+
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 20);
         assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, maturedAt), 20);
+
+        vm.warp(maturedAt + 1);
+        delegator.setSize(slotA, 100);
+
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 100);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, maturedAt), 20);
+    }
+
+    function test_StakeForAtPreservesPastBlockDurationAgainstLaterIncrease() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(200);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint48 capturedAt = uint48(vm.getBlockTimestamp());
+        uint48 duration = 5;
+
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, duration, capturedAt), 100);
+
+        vm.warp(capturedAt + 1);
+        delegator.setSize(slotA, 150);
+
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, duration), 150);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, duration, capturedAt), 100);
     }
 
     function test_ResetBeforePendingDecreaseMaturesClearsFutureSyncEntry() public {
@@ -649,7 +698,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.indexesToSyncLength(), 0);
         assertEq(delegator.syncIndexOf(slotA), 0);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
         delegator.setSize(2, 100);
 
         assertEq(delegator.indexesToSyncLength(), 0);
@@ -677,7 +726,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.indexesToSyncLength(), 0);
         assertEq(delegator.syncIndexOf(slotA), 0);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
         vault.setActiveStake(100);
 
         assertEq(delegator.stake(subnetworkA, operatorA), 0);
@@ -708,7 +757,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         delegator.onSlashLegacy(subnetworkA, operatorA, 40);
 
-        assertEq(delegator.getSize(slotA), 0);
+        assertEq(_effectiveSize(slotA), 0);
         assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 0);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 10);
     }
@@ -723,22 +772,22 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         uint32 slotB = delegator.createSlot(subnetworkB, operatorB, 100);
         delegator.setSize(slotA, 0);
 
-        assertEq(delegator.getSize(slotA), 40);
+        assertEq(_effectiveSize(slotA), 40);
         assertEq(delegator.indexesToSyncLength(), 1);
         assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 40);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 0);
 
         delegator.onSlashLegacy(subnetworkA, operatorA, 70);
 
-        assertEq(delegator.getSize(slotA), 0);
+        assertEq(_effectiveSize(slotA), 0);
         assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 0);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 40);
 
-        vm.warp(block.timestamp + vault.epochDuration());
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration());
         delegator.setSize(slotB, 100);
 
         assertEq(delegator.indexesToSyncLength(), 0);
-        assertEq(delegator.getSize(slotA), 0);
+        assertEq(_effectiveSize(slotA), 0);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 40);
     }
 
@@ -756,8 +805,8 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.getSlotOf(subnetworkB, operatorB), 0);
         assertEq(delegator.stake(subnetworkB, operatorB), 0);
         assertEq(delegator.stakeFor(subnetworkB, operatorB, 0), 0);
-        assertEq(delegator.stakeAt(subnetworkB, operatorB, uint48(block.timestamp), ""), 0);
-        assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, uint48(block.timestamp)), 0);
+        assertEq(delegator.stakeAt(subnetworkB, operatorB, uint48(vm.getBlockTimestamp()), ""), 0);
+        assertEq(delegator.stakeForAt(subnetworkB, operatorB, 0, uint48(vm.getBlockTimestamp())), 0);
     }
 
     function test_CreateSlotRevertsAlreadyAssignedForExistingPair() public {
@@ -803,7 +852,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stake(subnetworkA, operatorA), 100);
         assertEq(delegator.stake(subnetworkA, operatorB), 0);
 
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         delegator.swapSlots(slotA, slotB);
 
         assertEq(delegator.stake(subnetworkA, operatorA), 100);
@@ -889,7 +938,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         delegator.setSize(slotA, 101);
 
-        assertEq(delegator.getSize(slotA), 101);
+        assertEq(_effectiveSize(slotA), 101);
         assertEq(delegator.stake(subnetworkA, operatorA), 100);
     }
 
@@ -905,7 +954,7 @@ contract UniversalDelegatorFlatCoverageTest is Test {
 
         delegator.setSize(slotA, 101);
 
-        assertEq(delegator.getSize(slotA), 101);
+        assertEq(_effectiveSize(slotA), 101);
         assertEq(delegator.stake(subnetworkA, operatorA), 100);
         assertEq(delegator.stake(subnetworkA, operatorB), 0);
     }

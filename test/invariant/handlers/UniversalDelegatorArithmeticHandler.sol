@@ -251,7 +251,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         uint32 slot = _selectLiveSlot(slotSeed);
         if (slot != 0) {
-            uint128 curSize = delegator.getSize(slot);
+            uint128 curSize = _slotSize(slot);
             uint128 newSize = uint128(_bound(newSizeSeed, 0, MAX_SLOT_SIZE));
             bool canRevertNotEnoughBalance = newSize > curSize;
             try delegator.setSize(slot, newSize) {}
@@ -525,6 +525,10 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         for (uint256 i; i < stakeForAtObservations.length; ++i) {
             StakeForAtObservation storage observation = stakeForAtObservations[i];
+            if (observation.timestamp >= block.timestamp) {
+                continue;
+            }
+
             bytes32 subnetwork = subnetworkOfSlot[observation.slot];
             address operator = operatorOfSlot[observation.slot];
             if (
@@ -998,9 +1002,11 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
     function _canSwapSlotsWithoutRevert(uint32 left, uint32 right) internal view returns (bool) {
         uint48 maxDuration = vault.epochDuration() - 1;
-        return
-            delegator.getAllocated(right, maxDuration) == delegator.getSize(right)
-                || delegator.getAllocated(left, 0) == 0;
+        return delegator.getAllocated(right, maxDuration) == _slotSize(right) || delegator.getAllocated(left, 0) == 0;
+    }
+
+    function _slotSize(uint32 slot) internal view returns (uint128) {
+        return delegator.getSlot(slot).size;
     }
 
     function _durationAt(uint8 index) internal view returns (uint48) {
@@ -1048,6 +1054,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
     function _recordTimestamp() internal {
         uint48 timestamp = uint48(block.timestamp);
+        _recordFinalizedStakeForAtObservations(timestamp);
+
         if (trackedTimestamps.length < MAX_TRACKED_TIMESTAMPS) {
             trackedTimestamps.push(timestamp);
         } else {
@@ -1059,7 +1067,6 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _recordStakeForPromiseGuarantees(timestamp);
         _recordStakeForAtObservationGuarantees();
         _recordStakeForPromises(timestamp);
-        _recordStakeForAtObservations(timestamp);
     }
 
     function _recordSameBlockStakeViews(uint48 timestamp) internal {
@@ -1182,6 +1189,10 @@ contract UniversalDelegatorArithmeticHandler is Test {
     function _recordStakeForAtObservationGuarantees() internal {
         for (uint256 i; i < stakeForAtObservations.length; ++i) {
             StakeForAtObservation storage observation = stakeForAtObservations[i];
+            if (observation.timestamp >= block.timestamp) {
+                continue;
+            }
+
             bytes32 subnetwork = subnetworkOfSlot[observation.slot];
             address operator = operatorOfSlot[observation.slot];
             if (
@@ -1214,6 +1225,13 @@ contract UniversalDelegatorArithmeticHandler is Test {
             generation: observation.generation
         });
         changedStakeForAtObservationActualValue = actualValue;
+    }
+
+    function _recordFinalizedStakeForAtObservations(uint48 timestamp) internal {
+        uint48 previousTimestamp = sameBlockTimestamp;
+        if (previousTimestamp != 0 && previousTimestamp < timestamp) {
+            _recordStakeForAtObservations(previousTimestamp);
+        }
     }
 
     function _recordStakeForPromiseGuarantees(uint48 timestamp) internal {
@@ -1308,25 +1326,27 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
             bytes32 subnetwork = subnetworkOfSlot[slot];
             address operator = operatorOfSlot[slot];
-            uint48 duration;
-            uint256 value = delegator.stakeForAt(subnetwork, operator, duration, timestamp);
-            if (value == 0) {
-                continue;
-            }
+            for (uint8 j; j < DURATION_SAMPLES; ++j) {
+                uint48 duration = _durationAt(j);
+                uint256 value = delegator.stakeForAt(subnetwork, operator, duration, timestamp);
+                if (value == 0) {
+                    continue;
+                }
 
-            StakeForAtObservation memory observation = StakeForAtObservation({
-                slot: slot,
-                timestamp: timestamp,
-                duration: duration,
-                value: value,
-                generation: guaranteeGeneration[slot]
-            });
-            if (stakeForAtObservations.length < MAX_STAKE_FOR_AT_OBSERVATIONS) {
-                stakeForAtObservations.push(observation);
-            } else {
-                stakeForAtObservations[nextStakeForAtObservationWriteIndex] = observation;
-                nextStakeForAtObservationWriteIndex =
-                    (nextStakeForAtObservationWriteIndex + 1) % MAX_STAKE_FOR_AT_OBSERVATIONS;
+                StakeForAtObservation memory observation = StakeForAtObservation({
+                    slot: slot,
+                    timestamp: timestamp,
+                    duration: duration,
+                    value: value,
+                    generation: guaranteeGeneration[slot]
+                });
+                if (stakeForAtObservations.length < MAX_STAKE_FOR_AT_OBSERVATIONS) {
+                    stakeForAtObservations.push(observation);
+                } else {
+                    stakeForAtObservations[nextStakeForAtObservationWriteIndex] = observation;
+                    nextStakeForAtObservationWriteIndex =
+                        (nextStakeForAtObservationWriteIndex + 1) % MAX_STAKE_FOR_AT_OBSERVATIONS;
+                }
             }
         }
     }

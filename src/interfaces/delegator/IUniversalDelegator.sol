@@ -128,15 +128,17 @@ interface IUniversalDelegator {
      * @param exists Whether the slot exists.
      * @param operator Operator assigned to the slot.
      * @param subnetwork Subnetwork assigned to the slot.
-     * @param size Effective slot size at the current timestamp.
-     * @param latestSize Latest stored slot size checkpoint value.
+     * @param size Latest synced slot size checkpoint value.
+     * @param delayedTimestamp Timestamp when the delayed size becomes effective, or zero when there is no delay.
+     * @param delayedSize Delayed target size, or zero when there is no delay.
      */
     struct Slot {
         bool exists;
         address operator;
         bytes32 subnetwork;
         uint128 size;
-        uint128 latestSize;
+        uint48 delayedTimestamp;
+        uint128 delayedSize;
     }
 
     /**
@@ -256,6 +258,13 @@ interface IUniversalDelegator {
     function indexToSyncIndex(uint32 index) external view returns (uint32 toSyncIndex);
 
     /**
+     * @notice Get a delayed size by index.
+     * @param index Delayed size index.
+     * @return delayedSize Delayed size.
+     */
+    function delayedSizes(uint256 index) external view returns (uint128 delayedSize);
+
+    /**
      * @notice Get slashable stake for a subnetwork/operator at a timestamp and duration.
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Address of the operator.
@@ -303,21 +312,6 @@ interface IUniversalDelegator {
      * @return slot Slot data snapshot.
      */
     function getSlot(uint64 index) external view returns (Slot memory slot);
-
-    /**
-     * @notice Get effective slot size at a timestamp.
-     * @param index Slot index.
-     * @param timestamp Lookup timestamp.
-     * @return size Effective slot size.
-     */
-    function getSizeAt(uint64 index, uint48 timestamp) external view returns (uint128 size);
-
-    /**
-     * @notice Get current effective slot size.
-     * @param index Slot index.
-     * @return size Effective slot size.
-     */
-    function getSize(uint64 index) external view returns (uint128 size);
 
     /**
      * @notice Get vault balance at a timestamp.

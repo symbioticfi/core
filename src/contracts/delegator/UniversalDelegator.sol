@@ -74,7 +74,8 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     mapping(uint32 index => uint32 toSyncIndex) public indexToSyncIndex;
 
-    uint128[] delayedSizes;
+    /// @inheritdoc IUniversalDelegator
+    uint128[] public delayedSizes;
     /// @dev Fenwick tree of synced slot size prefix sums by current slot position.
     FenwickTreeCheckpoints.Tree _prevSums;
     /// @dev Slot storage keyed by encoded slot index.
@@ -213,12 +214,14 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getSlot(uint64 index) public view returns (Slot memory) {
         SlotStorage storage slot = slots[index];
+        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slot.size.latest());
         return Slot({
             exists: slot.exists,
             operator: slot.operator,
             subnetwork: slot.subnetwork,
-            size: getSize(index),
-            latestSize: uint128(slot.size.latest())
+            size: size,
+            delayedTimestamp: delayedTimestamp,
+            delayedSize: delayedTimestamp > 0 ? delayedSizes[delayedSizePos] : 0
         });
     }
 
@@ -237,9 +240,11 @@ contract UniversalDelegator is
         if (duration >= VaultV2(vault).epochDuration()) {
             return 0;
         }
+        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) =
+            _decodeSizeData(slots[index].size.upperLookupRecent(timestamp));
         return Math.min(
             getBalanceAt(duration, timestamp).saturatingSub(_getPrevSumAt(index, timestamp)),
-            getSizeAt(index, timestamp + duration)
+            delayedTimestamp > 0 && delayedTimestamp <= timestamp + duration ? delayedSizes[delayedSizePos] : size
         );
     }
 
@@ -248,8 +253,12 @@ contract UniversalDelegator is
         if (duration >= VaultV2(vault).epochDuration()) {
             return 0;
         }
+        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slots[index].size.latest());
         return Math.min(
-            getBalance(duration).saturatingSub(_getPrevSum(index)), getSizeAt(index, uint48(block.timestamp) + duration)
+            getBalance(duration).saturatingSub(_getPrevSum(index)),
+            delayedTimestamp > 0 && delayedTimestamp <= uint48(block.timestamp) + duration
+                ? delayedSizes[delayedSizePos]
+                : size
         );
     }
 
@@ -261,19 +270,6 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint32) {
         return uint32(_slotOf[subnetwork][operator].latest());
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function getSizeAt(uint64 index, uint48 timestamp) public view returns (uint128) {
-        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) =
-            _decodeSizeData(slots[index].size.upperLookupRecent(timestamp));
-        return delayedTimestamp > 0 && delayedTimestamp <= timestamp ? delayedSizes[delayedSizePos] : size;
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function getSize(uint64 index) public view returns (uint128) {
-        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slots[index].size.latest());
-        return delayedTimestamp > 0 && delayedTimestamp <= block.timestamp ? delayedSizes[delayedSizePos] : size;
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -341,13 +337,15 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function setSize(uint32 index, uint128 newSize) public onlyRole(SET_SIZE_ROLE) syncPrevSums {
         _revertIfNotExists(index);
+        // clear pending size decrease
+        _removeSyncIndex(index);
 
         SlotStorage storage slot = slots[index];
-        uint128 curSize = getSize(index);
-        if (_removeSyncIndex(index)) {
-            slot.size.push(uint48(block.timestamp), curSize);
-        }
+        uint128 curSize = uint128(slot.size.latest());
         if (curSize == newSize) {
+            if (slot.size.latest() != curSize) {
+                slot.size.push(uint48(block.timestamp), curSize);
+            }
             return;
         }
 
@@ -382,7 +380,7 @@ contract UniversalDelegator is
                         _encodeSizeData(
                             uint32(delayedSizes.length),
                             uint48(block.timestamp + VaultV2(vault).epochDuration()),
-                            uint128(curSize - recuded)
+                            uint128(slot.size.latest())
                         )
                     );
                 delayedSizes.push(newSize);
@@ -405,18 +403,21 @@ contract UniversalDelegator is
             revert WrongOrder();
         }
 
+        uint128 size1 = uint128(slots[index1].size.latest());
+        uint128 size2 = uint128(slots[index2].size.latest());
+
         // The swap succeeds if:
         // - slot2 fully allocated at maxDuration (epochDuration - 1) => slot1 is fully allocated too,
         // - slot1 unallocated at duration=0 => slot2 is unallocated too,
         // - otherwise, revert.
-        if (_getPrevSum(index2) + getSize(index2) > getBalance(_maxDuration()) && _getPrevSum(index1) < getBalance(0)) {
+        if (_getPrevSum(index2) + size2 > getBalance(_maxDuration()) && _getPrevSum(index1) < getBalance(0)) {
             revert NotSameAllocated();
         }
 
         _indexToPos[index1].push(uint48(block.timestamp), pos2);
         _indexToPos[index2].push(uint48(block.timestamp), pos1);
 
-        int256 delta = int256(uint256(getSize(index2))) - int256(uint256(getSize(index1)));
+        int256 delta = int256(uint256(size2)) - int256(uint256(size1));
         _prevSums.modify(pos1, delta);
         _prevSums.modify(pos2, -delta);
 
@@ -441,7 +442,7 @@ contract UniversalDelegator is
         _slotOf[slot.subnetwork][slot.operator].push(uint48(block.timestamp), 0);
 
         _removeSyncIndex(index);
-        _modifySize(index, -int256(uint256(getSize(index))));
+        _modifySize(index, -int256(uint256(uint128(slot.size.latest()))));
         slot.size.push(uint48(block.timestamp), 0);
 
         slot.exists = false;
@@ -490,7 +491,7 @@ contract UniversalDelegator is
         if (index == 0 || !slots[index].exists) {
             return;
         }
-        _onSlash(index, Math.min(getSize(index), amount));
+        _onSlash(index, amount);
     }
 
     /// @dev Apply slash accounting updates to a slot and its pending checkpoint.
@@ -500,15 +501,15 @@ contract UniversalDelegator is
         }
 
         SlotStorage storage slot = slots[index];
-
         (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 curSize) = _decodeSizeData(slot.size.latest());
+        if (curSize < amount) {
+            // This is needed only for onSlashLegacy().
+            amount = curSize;
+        }
         uint128 newSize = uint128(curSize - amount);
-        if (delayedTimestamp > 0) {
-            uint128 curDelayedSize = delayedSizes[delayedSizePos];
-            if (newSize < curDelayedSize) {
-                delayedSizePos = uint32(delayedSizes.length);
-                delayedSizes.push(newSize);
-            }
+        if (delayedTimestamp > 0 && newSize < delayedSizes[delayedSizePos]) {
+            delayedSizePos = uint32(delayedSizes.length);
+            delayedSizes.push(newSize);
         }
         slot.size.push(uint48(block.timestamp), _encodeSizeData(delayedSizePos, delayedTimestamp, newSize));
         _modifySize(index, -int256(amount));
@@ -589,6 +590,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @dev Encode delayed size position, delayed timestamp, and synced size into one checkpoint value.
     function _encodeSizeData(uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size)
         internal
         pure
@@ -597,6 +599,7 @@ contract UniversalDelegator is
         return uint208(delayedSizePos) << 176 | uint208(delayedTimestamp) << 128 | uint208(size);
     }
 
+    /// @dev Decode one checkpoint value into delayed size position, delayed timestamp, and synced size.
     function _decodeSizeData(uint208 sizeData) internal pure returns (uint32, uint48, uint128) {
         return (uint32(sizeData >> 176), uint48(sizeData >> 128), uint128(sizeData));
     }
