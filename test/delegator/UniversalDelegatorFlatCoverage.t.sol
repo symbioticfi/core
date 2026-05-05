@@ -612,6 +612,25 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stake(subnetworkA, operatorA), 0);
     }
 
+    function test_StakeForAtPreservesMaturedDecreaseAfterSameBlockIncrease() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+        vault.setActiveStake(100);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        delegator.setSize(slotA, 20);
+
+        uint48 maturedAt = uint48(block.timestamp + vault.epochDuration());
+        vm.warp(maturedAt);
+
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 20);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, maturedAt), 20);
+
+        delegator.setSize(slotA, 100);
+
+        assertEq(delegator.stakeFor(subnetworkA, operatorA, 0), 100);
+        assertEq(delegator.stakeForAt(subnetworkA, operatorA, 0, maturedAt), 20);
+    }
+
     function test_ResetBeforePendingDecreaseMaturesClearsFutureSyncEntry() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         bytes32 subnetworkB = networkB.subnetwork(0);

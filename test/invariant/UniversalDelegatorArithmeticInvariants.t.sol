@@ -12,7 +12,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test {
     function setUp() public {
         handler = new UniversalDelegatorArithmeticHandler();
 
-        bytes4[] memory selectors = new bytes4[](12);
+        bytes4[] memory selectors = new bytes4[](13);
         selectors[0] = UniversalDelegatorArithmeticHandler.warp.selector;
         selectors[1] = UniversalDelegatorArithmeticHandler.deposit.selector;
         selectors[2] = UniversalDelegatorArithmeticHandler.withdraw.selector;
@@ -25,6 +25,7 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test {
         selectors[9] = UniversalDelegatorArithmeticHandler.removeSlot.selector;
         selectors[10] = UniversalDelegatorArithmeticHandler.resetAllocation.selector;
         selectors[11] = UniversalDelegatorArithmeticHandler.slash.selector;
+        selectors[12] = UniversalDelegatorArithmeticHandler.touchMaturedDecreaseThenIncreaseSameBlock.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
@@ -50,11 +51,33 @@ contract UniversalDelegatorArithmeticInvariantsTest is StdInvariant, Test {
         handler.assertHistoricalStakeForAtCapacityInvariants();
     }
 
+    function invariant_HistoricalStakeForAtObservationsStayExact() public view {
+        handler.assertHistoricalStakeForAtObservationsExact();
+    }
+
     function invariant_SyncedSizeSumsMatchSubnetworkTotals() public view {
         handler.assertSyncedSizeSumsMatchTotals();
     }
 
     function invariant_HandlerActionsDoNotUnexpectedlyRevert() public view {
         handler.assertNoUnexpectedActionReverts();
+    }
+}
+
+contract UniversalDelegatorHistoricalStakeForAtInvariantsTest is StdInvariant, Test {
+    UniversalDelegatorArithmeticHandler internal handler;
+
+    function setUp() public {
+        handler = new UniversalDelegatorArithmeticHandler();
+
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = UniversalDelegatorArithmeticHandler.touchMaturedDecreaseThenIncreaseSameBlock.selector;
+
+        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+        targetContract(address(handler));
+    }
+
+    function invariant_HistoricalStakeForAtObservationsStayExact() public view {
+        handler.assertHistoricalStakeForAtObservationsExact();
     }
 }

@@ -73,9 +73,20 @@ contract UniversalDelegatorArithmeticHandler is Test {
         uint256 promisedValue,
         uint256 actualValue
     );
+    error StakeForAtObservationChanged(
+        uint32 slot, uint48 timestamp, uint48 duration, uint256 observedValue, uint256 actualValue
+    );
     error UnexpectedActionRevert(bytes4 selector, bytes data);
 
     struct StakeForPromise {
+        uint32 slot;
+        uint48 timestamp;
+        uint48 duration;
+        uint256 value;
+        uint256 generation;
+    }
+
+    struct StakeForAtObservation {
         uint32 slot;
         uint48 timestamp;
         uint48 duration;
@@ -87,6 +98,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     uint256 internal constant MAX_SLOT_SIZE = 250_000 ether;
     uint256 internal constant MAX_TRACKED_TIMESTAMPS = 64;
     uint256 internal constant MAX_STAKE_FOR_PROMISES = 192;
+    uint256 internal constant MAX_STAKE_FOR_AT_OBSERVATIONS = 256;
     uint8 internal constant DURATION_SAMPLES = 5;
     uint48 internal constant EPOCH_DURATION = 7 days;
 
@@ -128,6 +140,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     mapping(uint32 slot => mapping(uint8 durationIndex => uint256 value)) internal lastStakeForAt;
     mapping(uint32 slot => uint256 generation) internal guaranteeGeneration;
     StakeForPromise[] internal stakeForPromises;
+    StakeForAtObservation[] internal stakeForAtObservations;
     bool internal sameBlockStakeViewDecreased;
     uint32 internal sameBlockStakeViewDecreasedSlot;
     bytes4 internal sameBlockStakeViewDecreasedSelector;
@@ -139,6 +152,9 @@ contract UniversalDelegatorArithmeticHandler is Test {
     uint48 internal decreasedStakeForPromiseCheckedAt;
     uint48 internal decreasedStakeForPromiseRemainingDuration;
     uint256 internal decreasedStakeForPromiseActualValue;
+    bool internal stakeForAtObservationChanged;
+    StakeForAtObservation internal changedStakeForAtObservation;
+    uint256 internal changedStakeForAtObservationActualValue;
     bool internal unexpectedActionReverted;
     bytes4 internal unexpectedActionSelector;
     bytes internal unexpectedActionRevertData;
@@ -147,6 +163,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
     uint256 internal nextOperatorNonce;
     uint256 internal nextTimestampWriteIndex;
     uint256 internal nextStakeForPromiseWriteIndex;
+    uint256 internal nextStakeForAtObservationWriteIndex;
 
     constructor() {
         _initialize();
@@ -334,6 +351,20 @@ contract UniversalDelegatorArithmeticHandler is Test {
         _recordTimestamp();
     }
 
+    function touchMaturedDecreaseThenIncreaseSameBlock() external {
+        (,, bytes32 subnetwork) = _prepareFreshSubnetwork();
+        address operator = _prepareFreshOperator(subnetwork);
+        uint32 slot = delegator.createSlot(subnetwork, operator, 100 ether);
+        _trackSlot(slot, subnetwork, operator);
+
+        delegator.setSize(slot, 20 ether);
+        vm.warp(block.timestamp + vault.epochDuration());
+
+        _recordTimestamp();
+        delegator.setSize(slot, 100 ether);
+        _recordTimestamp();
+    }
+
     function assertStakeForDurationAndCapacityInvariants() external view {
         for (uint8 i; i < DURATION_SAMPLES; ++i) {
             _assertStakeForSumLeCapacity(_durationAt(i));
@@ -476,6 +507,38 @@ contract UniversalDelegatorArithmeticHandler is Test {
                     remainingDuration,
                     stakePromise.value,
                     actualValue
+                );
+            }
+        }
+    }
+
+    function assertHistoricalStakeForAtObservationsExact() public view {
+        if (stakeForAtObservationChanged) {
+            revert StakeForAtObservationChanged(
+                changedStakeForAtObservation.slot,
+                changedStakeForAtObservation.timestamp,
+                changedStakeForAtObservation.duration,
+                changedStakeForAtObservation.value,
+                changedStakeForAtObservationActualValue
+            );
+        }
+
+        for (uint256 i; i < stakeForAtObservations.length; ++i) {
+            StakeForAtObservation storage observation = stakeForAtObservations[i];
+            bytes32 subnetwork = subnetworkOfSlot[observation.slot];
+            address operator = operatorOfSlot[observation.slot];
+            if (
+                expectedSlotOf[subnetwork][operator] != observation.slot
+                    || guaranteeGeneration[observation.slot] != observation.generation
+            ) {
+                continue;
+            }
+
+            uint256 actualValue =
+                delegator.stakeForAt(subnetwork, operator, observation.duration, observation.timestamp);
+            if (actualValue != observation.value) {
+                revert StakeForAtObservationChanged(
+                    observation.slot, observation.timestamp, observation.duration, observation.value, actualValue
                 );
             }
         }
@@ -994,7 +1057,9 @@ contract UniversalDelegatorArithmeticHandler is Test {
 
         _recordSameBlockStakeViews(timestamp);
         _recordStakeForPromiseGuarantees(timestamp);
+        _recordStakeForAtObservationGuarantees();
         _recordStakeForPromises(timestamp);
+        _recordStakeForAtObservations(timestamp);
     }
 
     function _recordSameBlockStakeViews(uint48 timestamp) internal {
@@ -1114,6 +1179,43 @@ contract UniversalDelegatorArithmeticHandler is Test {
         }
     }
 
+    function _recordStakeForAtObservationGuarantees() internal {
+        for (uint256 i; i < stakeForAtObservations.length; ++i) {
+            StakeForAtObservation storage observation = stakeForAtObservations[i];
+            bytes32 subnetwork = subnetworkOfSlot[observation.slot];
+            address operator = operatorOfSlot[observation.slot];
+            if (
+                expectedSlotOf[subnetwork][operator] != observation.slot
+                    || guaranteeGeneration[observation.slot] != observation.generation
+            ) {
+                continue;
+            }
+
+            uint256 actualValue =
+                delegator.stakeForAt(subnetwork, operator, observation.duration, observation.timestamp);
+            if (actualValue != observation.value) {
+                _recordStakeForAtObservationChange(observation, actualValue);
+            }
+        }
+    }
+
+    function _recordStakeForAtObservationChange(StakeForAtObservation storage observation, uint256 actualValue)
+        internal
+    {
+        if (stakeForAtObservationChanged) {
+            return;
+        }
+        stakeForAtObservationChanged = true;
+        changedStakeForAtObservation = StakeForAtObservation({
+            slot: observation.slot,
+            timestamp: observation.timestamp,
+            duration: observation.duration,
+            value: observation.value,
+            generation: observation.generation
+        });
+        changedStakeForAtObservationActualValue = actualValue;
+    }
+
     function _recordStakeForPromiseGuarantees(uint48 timestamp) internal {
         for (uint256 i; i < stakeForPromises.length; ++i) {
             StakeForPromise storage stakePromise = stakeForPromises[i];
@@ -1193,6 +1295,38 @@ contract UniversalDelegatorArithmeticHandler is Test {
                     stakeForPromises[nextStakeForPromiseWriteIndex] = stakePromise;
                     nextStakeForPromiseWriteIndex = (nextStakeForPromiseWriteIndex + 1) % MAX_STAKE_FOR_PROMISES;
                 }
+            }
+        }
+    }
+
+    function _recordStakeForAtObservations(uint48 timestamp) internal {
+        for (uint256 i; i < trackedSlots.length; ++i) {
+            uint32 slot = trackedSlots[i];
+            if (!delegator.getSlot(slot).exists) {
+                continue;
+            }
+
+            bytes32 subnetwork = subnetworkOfSlot[slot];
+            address operator = operatorOfSlot[slot];
+            uint48 duration;
+            uint256 value = delegator.stakeForAt(subnetwork, operator, duration, timestamp);
+            if (value == 0) {
+                continue;
+            }
+
+            StakeForAtObservation memory observation = StakeForAtObservation({
+                slot: slot,
+                timestamp: timestamp,
+                duration: duration,
+                value: value,
+                generation: guaranteeGeneration[slot]
+            });
+            if (stakeForAtObservations.length < MAX_STAKE_FOR_AT_OBSERVATIONS) {
+                stakeForAtObservations.push(observation);
+            } else {
+                stakeForAtObservations[nextStakeForAtObservationWriteIndex] = observation;
+                nextStakeForAtObservationWriteIndex =
+                    (nextStakeForAtObservationWriteIndex + 1) % MAX_STAKE_FOR_AT_OBSERVATIONS;
             }
         }
     }
