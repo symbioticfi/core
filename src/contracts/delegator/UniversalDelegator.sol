@@ -343,9 +343,7 @@ contract UniversalDelegator is
         SlotStorage storage slot = slots[index];
         uint128 curSize = uint128(slot.size.latest());
         if (curSize == newSize) {
-            if (slot.size.latest() != curSize) {
-                slot.size.push(uint48(block.timestamp), curSize);
-            }
+            slot.size.push(uint48(block.timestamp), curSize);
             return;
         }
 
