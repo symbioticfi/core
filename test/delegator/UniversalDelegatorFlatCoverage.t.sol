@@ -328,6 +328,27 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         delegator.onSlashLegacy(subnetwork, operatorA, 40);
     }
 
+    function test_SetSizeSameSizeEmitsAndClearsPendingDecrease() public {
+        bytes32 subnetwork = networkA.subnetwork(0);
+        uint32 slot = delegator.createSlot(subnetwork, operatorA, 100);
+
+        delegator.setSize(slot, 40);
+        assertEq(delegator.indexesToSyncLength(), 1);
+        assertGt(delegator.getSlot(slot).delayedTimestamp, 0);
+        assertEq(delegator.getSlot(slot).delayedSize, 40);
+
+        vm.expectEmit(true, false, false, true, address(delegator));
+        emit IUniversalDelegator.SetSize(slot, 100);
+
+        delegator.setSize(slot, 100);
+
+        assertEq(delegator.indexesToSyncLength(), 0);
+        assertEq(_effectiveSize(slot), 100);
+        assertEq(delegator.getSlot(slot).delayedTimestamp, 0);
+        assertEq(delegator.getSlot(slot).delayedSize, 0);
+        assertEq(delegator.stake(subnetwork, operatorA), 100);
+    }
+
     function test_DecreaseImmediatelyReleasesOnlyUnusedStakeAndDelaysAllocatedRemainder() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         bytes32 subnetworkB = networkB.subnetwork(0);
