@@ -317,6 +317,12 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     event SetAdapterLimit(address indexed adapter, uint208 limit);
 
     /**
+     * @notice Emitted when a adapter is added.
+     * @param adapter Address of the adapter.
+     */
+    event AddAdapter(address indexed adapter);
+
+    /**
      * @notice Emitted when a adapter is swapped.
      * @param adapter1 Address of the first adapter.
      * @param adapter2 Address of the second adapter.

@@ -905,6 +905,25 @@ contract UniversalDelegatorFlatCoverageTest is Test {
         assertEq(delegator.stakeForAt(subnetworkA, operatorB, 0, timestamp), 0);
     }
 
+    function test_GetSlotReturnsCurrentPositionFirst() public {
+        bytes32 subnetworkA = networkA.subnetwork(0);
+
+        uint32 slotA = delegator.createSlot(subnetworkA, operatorA, 100);
+        uint32 slotB = delegator.createSlot(subnetworkA, operatorB, 100);
+
+        delegator.swapSlots(slotA, slotB);
+
+        IUniversalDelegator.Slot memory slot = delegator.getSlot(slotA);
+
+        assertEq(slot.pos, 1);
+        assertTrue(slot.exists);
+        assertEq(slot.operator, operatorA);
+        assertEq(slot.subnetwork, subnetworkA);
+        assertEq(slot.size, 100);
+        assertEq(slot.delayedTimestamp, 0);
+        assertEq(slot.delayedSize, 0);
+    }
+
     function test_SwapSlotsAllowsFullyAllocatedSlots() public {
         bytes32 subnetworkA = networkA.subnetwork(0);
         vault.setActiveStake(200);

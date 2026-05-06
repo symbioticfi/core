@@ -11,13 +11,6 @@ bytes32 constant SET_SIZE_ROLE = 0xc9c130a1412d72f4d79081ca47a83fb21e212d7ff5794
 bytes32 constant SWAP_SLOTS_ROLE = 0xffd98ac79bb60993f79efa77ec34b3f446950a5c284ae3036fc0fb810a00af60;
 // Keccak256("REMOVE_SLOT_ROLE").
 bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a0f7f47acb5d727ef90e6f4;
-// Keccak256("SET_WITHDRAWAL_BUFFER_SIZE_ROLE").
-bytes32 constant SET_WITHDRAWAL_BUFFER_SIZE_ROLE = 0x6f48b129515ad8dd335666ffdfdf6533e7a5a9a9cd01b8a62f938f739fc9a4ce;
-
-uint32 constant WITHDRAWAL_BUFFER_CHILD_INDEX = 0xFFFFFFFF;
-uint64 constant WITHDRAWAL_BUFFER_INDEX = uint64(WITHDRAWAL_BUFFER_CHILD_INDEX) << 32;
-uint256 constant MAX_NETWORKS = 15;
-uint256 constant MAX_OPERATORS = 20;
 
 /**
  * @title IUniversalDelegator
@@ -130,6 +123,7 @@ interface IUniversalDelegator {
 
     /**
      * @notice Slot snapshot data.
+     * @param pos Current slot position.
      * @param exists Whether the slot exists.
      * @param operator Operator assigned to the slot.
      * @param subnetwork Subnetwork assigned to the slot.
@@ -138,6 +132,7 @@ interface IUniversalDelegator {
      * @param delayedSize Delayed target size, or zero when there is no delay.
      */
     struct Slot {
+        uint32 pos;
         bool exists;
         address operator;
         bytes32 subnetwork;
@@ -318,7 +313,7 @@ interface IUniversalDelegator {
      * @param index Slot index.
      * @return slot Slot data snapshot.
      */
-    function getSlot(uint64 index) external view returns (Slot memory slot);
+    function getSlot(uint32 index) external view returns (Slot memory slot);
 
     /**
      * @notice Get vault balance at a timestamp.

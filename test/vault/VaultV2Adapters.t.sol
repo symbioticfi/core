@@ -599,6 +599,9 @@ contract VaultV2AdaptersTest is Test {
     function test_SetAdapterLimitSchedulesNewAdapterBeforeLimitCanBeSet() public {
         uint48 availableAt = uint48(vm.getBlockTimestamp() + 2 days);
 
+        vm.expectEmit(true, false, false, true, address(vault1));
+        emit IVaultV2.AddAdapter(address(aaveAdapter));
+
         vm.prank(alice);
         bool isSet = VaultV2(address(vault1)).setAdapterLimit(address(aaveAdapter), 100);
 

@@ -212,10 +212,11 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getSlot(uint64 index) public view returns (Slot memory) {
+    function getSlot(uint32 index) public view returns (Slot memory) {
         SlotStorage storage slot = slots[index];
         (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slot.size.latest());
         return Slot({
+            pos: uint32(_indexToPos[index].latest()),
             exists: slot.exists,
             operator: slot.operator,
             subnetwork: slot.subnetwork,

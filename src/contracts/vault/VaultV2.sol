@@ -638,6 +638,8 @@ contract VaultV2 is
         adapterIndex[adapter] = newAdapterIndex;
         _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, adapter);
         _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, adapter);
+
+        emit AddAdapter(adapter);
     }
 
     /// @inheritdoc IVaultV2
