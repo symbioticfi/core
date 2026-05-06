@@ -975,7 +975,7 @@ contract VaultV2AdaptersTest is Test {
         emit IVaultV2.Donate(6, 4);
 
         vm.prank(address(pullRewards));
-        VaultV2(address(vault1)).donate(10);
+        IVaultV2(address(vault1)).donate(10);
     }
 
     function test_VaultV2OnSlashEmitsRequestedAndSplitSlashedAmounts() public {

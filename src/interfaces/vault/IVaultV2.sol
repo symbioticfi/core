@@ -587,6 +587,13 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
 
     /**
+     * @notice Donate collateral into vault accounting.
+     * @param amount Amount of the collateral to donate.
+     * @dev Only the configured rewards address can call this function.
+     */
+    function donate(uint256 amount) external;
+
+    /**
      * @notice Enable/disable deposit whitelist.
      * @param status If enabling deposit whitelist.
      * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.

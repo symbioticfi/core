@@ -442,7 +442,7 @@ contract VaultV2 is
         }
     }
 
-    /// @dev Credit rewards donation into active stake after pulling collateral from the rewards address.
+    /// @inheritdoc IVaultV2
     function donate(uint256 amount) public {
         if (REWARDS != msg.sender) {
             revert NotRewards();
