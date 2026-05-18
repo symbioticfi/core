@@ -26,7 +26,7 @@ import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 import {UniversalSlasher} from "../../../src/contracts/slasher/UniversalSlasher.sol";
 
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
-import {Checkpoints} from "../../../src/contracts/libraries/CheckpointsV2.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
 import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
@@ -431,8 +431,8 @@ contract UniversalDelegatorArithmeticHandler is Test {
                     }
                 }
 
-                uint256 capacity =
-                    vault.activeStakeAt(timestamp, "") + vault.activeWithdrawalsForAt(duration, timestamp);
+                uint256 capacity = vault.activeStakeAt(timestamp, "")
+                    + (duration < vault.epochDuration() ? vault.activeWithdrawalsAt(timestamp) : 0);
                 if (totalStakeForAt > capacity) {
                     revert StakeForSumExceedsCapacity(duration, totalStakeForAt, capacity);
                 }
@@ -864,7 +864,7 @@ contract UniversalDelegatorArithmeticHandler is Test {
             totalStakeFor += delegator.getAllocated(slot, duration);
         }
 
-        uint256 capacity = vault.activeStake() + vault.activeWithdrawalsFor(duration);
+        uint256 capacity = vault.activeStake() + (duration < vault.epochDuration() ? vault.activeWithdrawals() : 0);
         if (totalStakeFor > capacity) {
             revert StakeForSumExceedsCapacity(duration, totalStakeFor, capacity);
         }

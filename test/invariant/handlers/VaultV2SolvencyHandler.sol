@@ -75,7 +75,6 @@ contract VaultV2SolvencyHandler is Test {
     uint256 public totalDonated;
     uint256 public totalAdapterYield;
     uint256 public totalClaimed;
-    uint256 public totalInstantWithdrawn;
 
     bool public sawSuccessfulClaim;
     uint256 public lastClaimedAmount;
@@ -121,7 +120,7 @@ contract VaultV2SolvencyHandler is Test {
     }
 
     function trackedOutflows() public view returns (uint256) {
-        return totalClaimed + totalInstantWithdrawn + burnerBalance();
+        return totalClaimed + burnerBalance();
     }
 
     function maxAllocatable() public view returns (uint256) {
@@ -218,10 +217,6 @@ contract VaultV2SolvencyHandler is Test {
         if (vault.isWithdrawalsClaimed(index, user)) {
             return;
         }
-        if (vm.getBlockTimestamp() < vault.withdrawalUnlockAt(index, user)) {
-            return;
-        }
-
         vm.prank(user);
         try vault.claim(user, index) returns (uint256 claimedAmount) {
             totalClaimed += claimedAmount;
@@ -230,27 +225,6 @@ contract VaultV2SolvencyHandler is Test {
             lastClaimPostClaimableBacking = claimableBacking();
             lastClaimPostUnclaimableReserve = unclaimableReserve();
             lastClaimPostVaultBalance = vaultBalance();
-        } catch {}
-    }
-
-    function instantWithdraw(uint256 userSeed, uint256 amount, uint256 timeJumpSeed) external {
-        _warp(timeJumpSeed);
-
-        address user = _selectDepositor(userSeed);
-        if (user == address(0)) {
-            return;
-        }
-
-        uint256 balance = vault.activeBalanceOf(user);
-        if (balance == 0) {
-            return;
-        }
-
-        amount = _bound(amount, 1, balance);
-
-        vm.prank(user);
-        try VaultV2(address(vault)).instantWithdraw(user, amount) returns (uint256 withdrawnAssets, uint256) {
-            totalInstantWithdrawn += withdrawnAssets;
         } catch {}
     }
 

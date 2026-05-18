@@ -59,11 +59,11 @@ contract UniversalDelegatorFlatVaultMock {
         return activeStake;
     }
 
-    function activeWithdrawalsFor(uint48) external pure returns (uint256) {
+    function activeWithdrawals() external pure returns (uint256) {
         return 0;
     }
 
-    function activeWithdrawalsForAt(uint48, uint48) external pure returns (uint256) {
+    function activeWithdrawalsAt(uint48) external pure returns (uint256) {
         return 0;
     }
 }

@@ -16,12 +16,12 @@ import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 /// @title BaseSlasher
 /// @notice Base contract for shared slashing flow, middleware checks, and burner hooks.
-abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
+abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
 
@@ -173,8 +173,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
-
-        __ReentrancyGuard_init();
 
         vault = vault_;
 

@@ -831,7 +831,7 @@ contract VaultV2AdaptersTest is Test {
         vault_.deallocateAdapters();
     }
 
-    function test_VaultV2RedeemClaimBatchAndWithdrawalViews() public {
+    function test_VaultV2RedeemAndWithdrawalViews() public {
         _depositIntoVault(vault1, collateral, 100);
 
         assertEq(VaultV2(address(vault1)).decimals(), collateral.decimals() + 6);
@@ -839,8 +839,6 @@ contract VaultV2AdaptersTest is Test {
         assertEq(VaultV2(address(vault1)).balanceOf(address(this)), vault1.activeSharesOf(address(this)));
         assertEq(vault1.totalStake(), 100);
         assertEq(vault1.activeBalanceOfAt(address(this), uint48(vm.getBlockTimestamp()), ""), 100);
-        assertEq(vault1.activeWithdrawalsFor(vault1.epochDuration() + 1), 0);
-        assertEq(vault1.activeWithdrawalsForAt(vault1.epochDuration() + 1, uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault1.activeWithdrawals(), 0);
         assertEq(vault1.activeWithdrawalsAt(uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault1.activeWithdrawalShares(), 0);
@@ -857,35 +855,37 @@ contract VaultV2AdaptersTest is Test {
         assertEq(vault1.withdrawalsOfLength(alice), 2);
         assertGt(vault1.withdrawalSharesOf(0, alice), 0);
         assertGt(vault1.withdrawalSharesOf(1, alice), 0);
-        assertEq(vault1.withdrawalUnlockAt(0, alice), requestedAt + vault1.epochDuration());
-        assertEq(vault1.withdrawalUnlockAt(1, alice), requestedAt + vault1.epochDuration());
         assertGt(vault1.withdrawalsOf(0, alice), 0);
         assertGt(vault1.withdrawalsOf(1, alice), 0);
-        assertGt(vault1.activeWithdrawals(), 0);
-        assertGt(vault1.activeWithdrawalShares(), 0);
-        assertGt(vault1.activeWithdrawalSharesFor(0), 0);
-        assertGt(vault1.activeWithdrawalSharesForAt(0, requestedAt), 0);
-        assertGt(vault1.activeWithdrawalSharesOfAt(alice, requestedAt), 0);
+        assertEq(vault1.activeWithdrawals(), vault1.withdrawalsOf(0, alice) + vault1.withdrawalsOf(1, alice));
+        assertEq(
+            vault1.activeWithdrawalShares(), vault1.withdrawalSharesOf(0, alice) + vault1.withdrawalSharesOf(1, alice)
+        );
+        assertEq(vault1.activeWithdrawalSharesAt(requestedAt), vault1.activeWithdrawalShares());
+        assertEq(vault1.unclaimed(), 0);
+    }
 
+    function test_VaultV2SlashRepricesActiveWithdrawalBucket() public {
+        _depositIntoVault(vault1, collateral, 100);
+
+        UniversalDelegator delegator = UniversalDelegator(vault1.delegator());
         vm.prank(alice);
-        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
-        vault1.claim(alice, 0);
+        delegator.createSlot(bytes32(uint256(1)), address(0x1234), 60);
 
-        vm.warp(requestedAt + vault1.epochDuration());
+        vault1.withdraw(alice, 40);
+        vault1.withdraw(alice, 20);
 
-        uint256[] memory indexes = new uint256[](2);
-        indexes[0] = 0;
-        indexes[1] = 1;
-        uint256 balanceBefore = collateral.balanceOf(alice);
-        vm.prank(alice);
-        uint256 claimed = vault1.claimBatch(alice, indexes);
+        assertEq(vault1.withdrawalsOf(0, alice), 40);
+        assertEq(vault1.withdrawalsOf(1, alice), 20);
+        assertEq(vault1.unclaimed(), 0);
+        assertEq(vault1.activeWithdrawals(), 60);
 
-        assertGt(claimed, 0);
-        assertEq(collateral.balanceOf(alice) - balanceBefore, claimed);
+        vm.prank(vault1.slasher());
+        VaultV2(address(vault1)).onSlash(30);
 
-        vm.prank(alice);
-        vm.expectRevert(IVaultV2.AlreadyClaimed.selector);
-        vault1.claim(alice, 0);
+        assertEq(vault1.withdrawalsOf(0, alice), 28);
+        assertEq(vault1.withdrawalsOf(1, alice), 14);
+        assertEq(vault1.activeWithdrawals(), 42);
     }
 
     function test_VaultV2AccountingGuardReverts() public {
@@ -899,28 +899,6 @@ contract VaultV2AdaptersTest is Test {
         vault1.redeem(alice, tooManyShares);
 
         VaultV2(address(vault1)).transfer(alice, 1);
-
-        vm.prank(alice);
-        vm.expectRevert(IVaultV2.TooMuchWithdraw.selector);
-        vault1.instantWithdraw(alice, 10);
-    }
-
-    function test_VaultV2InstantWithdrawRevertsWhenAdapterCannotDeallocateOwedStake() public {
-        MockCoverageAdapter adapter = new MockCoverageAdapter();
-        adapterRegistry.whitelistAdapter(address(adapter));
-
-        address[] memory initialAdapters = new address[](1);
-        initialAdapters[0] = address(adapter);
-        IVaultV2 vault_ = _createVault(address(collateral), initialAdapters, 2 days);
-
-        vm.prank(alice);
-        VaultV2(address(vault_)).setAdapterLimit(address(adapter), 100);
-
-        collateral.approve(address(vault_), 100);
-        vault_.deposit(address(this), 100);
-
-        vm.expectRevert(IVaultV2.InsufficientAmount.selector);
-        vault_.instantWithdraw(alice, 10);
     }
 
     function test_VaultV2ClaimRevertsWhenAdapterCannotDeallocateOwedStake() public {
@@ -945,12 +923,9 @@ contract VaultV2AdaptersTest is Test {
         vault_.claim(alice, 0);
     }
 
-    function test_VaultV2DonationRollsMaturedWithdrawalsIntoClaimableBucket() public {
+    function test_VaultV2DonationRepricesActiveWithdrawalBucket() public {
         _depositIntoVault(vault1, collateral, 100);
         vault1.withdraw(alice, 20);
-
-        vm.warp(vm.getBlockTimestamp() + vault1.epochDuration());
-        vault1.withdraw(alice, 10);
 
         collateral.transfer(address(pullRewards), 10);
         vm.prank(address(pullRewards));
@@ -959,8 +934,9 @@ contract VaultV2AdaptersTest is Test {
         vm.prank(address(pullRewards));
         VaultV2(address(vault1)).donate(10);
 
-        assertEq(vault1.unclaimed(), 20);
-        assertGt(vault1.activeWithdrawals(), 0);
+        assertEq(vault1.unclaimed(), 0);
+        assertEq(vault1.withdrawalsOf(0, alice), 21);
+        assertEq(vault1.activeWithdrawals(), 22);
     }
 
     function test_VaultV2DonateEmitsActiveAndWithdrawalAmounts() public {
@@ -992,7 +968,7 @@ contract VaultV2AdaptersTest is Test {
         assertEq(owedAmount, 0);
     }
 
-    function test_VaultV2DonateSlashInstantWithdrawAndTransferPaths() public {
+    function test_VaultV2DonateSlashAndTransferPaths() public {
         _depositIntoVault(vault1, collateral, 100);
         vault1.withdraw(alice, 40);
 
@@ -1015,12 +991,6 @@ contract VaultV2AdaptersTest is Test {
         assertEq(slashedAmount, 10);
         assertEq(owedAmount, 0);
         assertEq(collateral.balanceOf(vault1.burner()) - burnerBefore, 10);
-
-        feeRegistry.setInstantWithdrawFee(address(vault1), 100_000);
-        uint256 aliceBefore = collateral.balanceOf(alice);
-        vault1.instantWithdraw(alice, 10);
-        assertGt(collateral.balanceOf(alice) - aliceBefore, 0);
-        assertLt(collateral.balanceOf(alice) - aliceBefore, 10);
 
         uint256 aliceSharesBefore = vault1.activeSharesOf(alice);
         VaultV2(address(vault1)).transfer(alice, 5);

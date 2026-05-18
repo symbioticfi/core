@@ -9,7 +9,7 @@ import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
 import {VaultV2} from "./VaultV2.sol";
 
-import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints as CheckpointsV2} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 

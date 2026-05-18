@@ -371,6 +371,12 @@ interface IUniversalDelegator {
     function getWithdrawalBuffer() external view returns (uint256 withdrawalBuffer);
 
     /**
+     * @notice Synchronize delayed slot-size changes and return currently allocated stake.
+     * @return allocated Total stake currently allocated across slots, capped by vault balance.
+     */
+    function totalAllocated() external returns (uint256 allocated);
+
+    /**
      * @notice Get total synced slot size for a subnetwork at a timestamp.
      * @param subnetwork Full identifier of the subnetwork.
      * @param timestamp Lookup timestamp.

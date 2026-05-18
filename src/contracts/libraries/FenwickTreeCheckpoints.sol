@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.25;
 
-import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
 /// @title FenwickTreeLibrary
 /// @notice Implements a 0-indexed Fenwick Tree (Binary Indexed Tree) for prefix sum operations.
@@ -22,7 +22,7 @@ import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
 /// - https://en.wikipedia.org/wiki/Fenwick_tree
 /// @author Modified from FenwickTreeLibrary (https://github.com/mellow-finance/flexible-vaults/blob/main/src/libraries/FenwickTreeLibrary.sol)
 library FenwickTreeCheckpoints {
-    using CheckpointsV2 for CheckpointsV2.Trace208;
+    using Checkpoints for Checkpoints.Trace208;
     using FenwickTreeCheckpoints for Tree;
 
     /// @notice Thrown when initializing with an invalid length (must be power of 2 and nonzero), or during overflow.
@@ -34,7 +34,7 @@ library FenwickTreeCheckpoints {
     /// @notice Internal Fenwick Tree structure using a mapping as a flat array.
     struct Tree {
         /// @notice Mapping of index to its cumulative value.
-        mapping(uint256 index => CheckpointsV2.Trace208) _values;
+        mapping(uint256 index => Checkpoints.Trace208) _values;
         /// @notice Length of the tree (must be a power of 2).
         uint256 _length;
     }
@@ -107,7 +107,7 @@ library FenwickTreeCheckpoints {
     /// @param timestamp Timestamp for the checkpointed update.
     function _modify(Tree storage tree, uint256 index, uint256 length_, int256 value, uint48 timestamp) private {
         while (index < length_) {
-            CheckpointsV2.Trace208 storage trace = tree._values[index];
+            Checkpoints.Trace208 storage trace = tree._values[index];
             trace.push(timestamp, uint208(uint256(int256(uint256(trace.latest())) + value)));
             index |= index + 1;
         }

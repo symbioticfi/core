@@ -7,7 +7,7 @@ import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
 
-import {Checkpoints} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IBaseSlasher} from "../../interfaces/slasher/IBaseSlasher.sol";
@@ -21,13 +21,13 @@ import {IVetoSlasher, VETO_SLASHER_TYPE} from "../../interfaces/slasher/IVetoSla
 import {VAULT_V2_VERSION, MAX_DURATION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
 /// @title UniversalSlasher
 /// @notice Contract for slash request lifecycle, resolver updates, and owed slash synchronization.
-contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IUniversalSlasher {
+contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuard, IUniversalSlasher {
     using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
@@ -369,8 +369,6 @@ contract UniversalSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgr
         if (VaultV2(initVault).burner() == address(0) && params.isBurnerHook) {
             revert NoBurner();
         }
-
-        __ReentrancyGuard_init();
 
         vault = initVault;
 

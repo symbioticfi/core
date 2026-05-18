@@ -26,7 +26,7 @@ import {Slasher} from "../../src/contracts/slasher/Slasher.sol";
 import {UniversalSlasher} from "../../src/contracts/slasher/UniversalSlasher.sol";
 import {VetoSlasher} from "../../src/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
-import {Checkpoints} from "../../src/contracts/libraries/CheckpointsV2.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
 import {IBaseDelegator} from "../../src/interfaces/delegator/IBaseDelegator.sol";
 import {INetworkRestakeDelegator} from "../../src/interfaces/delegator/INetworkRestakeDelegator.sol";

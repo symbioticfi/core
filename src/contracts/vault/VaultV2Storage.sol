@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints as CheckpointsV2} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {IVaultV2Storage} from "../../interfaces/vault/IVaultV2Storage.sol";
@@ -15,7 +15,6 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using CheckpointsV2 for CheckpointsV2.Trace256;
-    using CheckpointsV2 for CheckpointsV2.Trace208;
 
     /* IMMUTABLES */
 
@@ -63,8 +62,8 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     mapping(uint256 epoch => uint256 amount) internal __withdrawalShares;
     /// @dev Withdrawal shares per withdrawal index and account.
     mapping(uint256 index => mapping(address account => uint256 amount)) internal _withdrawalSharesOf;
-    /// @inheritdoc IVaultV2Storage
-    mapping(uint256 index => mapping(address account => bool value)) public isWithdrawalsClaimed;
+    /// @dev DEPRECATED: This variable is kept for storage layout compatibility with previous versions.
+    mapping(uint256 index => mapping(address account => bool value)) public __isWithdrawalsClaimed;
 
     /// @dev Checkpointed total active shares.
     Checkpoints.Trace256 internal _activeShares;
@@ -80,16 +79,19 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
     /// @dev Timestamp of the next epoch boundary at migration.
     uint48 internal __migrateNextEpochTimestamp;
 
+    /// @dev Withdrawal unlock timestamp per withdrawal index and account.
+    CheckpointsV2.Trace256 internal _claimableCumulShares;
     /// @dev Number of withdrawal requests per account.
     mapping(address account => uint256 value) internal _withdrawalsOfLength;
     /// @dev Withdrawal unlock timestamp per withdrawal index and account.
-    mapping(uint256 index => mapping(address account => uint48 timestamp)) internal _withdrawalUnlockAt;
+    mapping(uint256 index => mapping(address account => uint256 shares)) internal _withdrawalCumulShares;
+    mapping(uint256 index => mapping(address account => uint256 shares)) internal _withdrawalClaimedShares;
     /// @dev Checkpointed withdrawal shares per bucket.
     mapping(uint256 bucketIndex => CheckpointsV2.Trace256 shares) internal _withdrawalShares;
     /// @dev Checkpointed withdrawal amounts per bucket.
-    mapping(uint256 bucketIndex => CheckpointsV2.Trace256 withdrawals) internal _withdrawals;
-    /// @dev Checkpointed mapping from unlock time to withdrawal bucket index.
-    CheckpointsV2.Trace208 internal _unlockToBucket;
+    mapping(uint256 bucketIndex => CheckpointsV2.Trace256 amount) internal _withdrawals;
+    /// @dev Checkpointed mapping from cumulative withdrawal shares to withdrawal bucket index.
+    CheckpointsV2.Trace256 internal _cumulSharesToBucket;
     /// @dev Cumulative withdrawal share checkpoints.
     CheckpointsV2.Trace256 internal _withdrawalSharesCumulative;
     /// @dev Cumulative withdrawal share checkpoints per account.
@@ -162,7 +164,16 @@ abstract contract VaultV2Storage is StaticDelegateCallable, IVaultV2Storage {
 
     /// @inheritdoc IVaultV2Storage
     function withdrawalBucket() public view returns (uint208) {
-        return _unlockToBucket.latest();
+        return uint208(_cumulSharesToBucket.latest());
+    }
+
+    /// @inheritdoc IVaultV2Storage
+    function isWithdrawalsClaimed(uint256 index, address account) public view virtual returns (bool) {
+        if (index < __migrateEpoch) {
+            // Legacy support.
+            return __isWithdrawalsClaimed[index][account];
+        }
+        return _withdrawalSharesOf[index][account] == _withdrawalClaimedShares[index][account];
     }
 
     /// @inheritdoc IVaultV2Storage

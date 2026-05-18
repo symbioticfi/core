@@ -6,7 +6,7 @@ import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
 
-import {Checkpoints} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {FenwickTreeCheckpoints} from "../libraries/FenwickTreeCheckpoints.sol";
 import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 
@@ -25,7 +25,7 @@ import {
 import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 
@@ -35,7 +35,7 @@ contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     IUniversalDelegator
 {
     using Math for uint256;
@@ -57,17 +57,22 @@ contract UniversalDelegator is
 
     struct SlotStorage {
         bool exists;
+        uint48 slashedAt;
         address operator;
         bytes32 subnetwork;
         /// @dev The value is 32 bits for delayedSize pos (can be zero) +
         ///      48 bits for delayedSize timestamp (can be zero) + 128 bits for size value.
         Checkpoints.Trace208 size;
+        Checkpoints.Trace208 slashed;
     }
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
     /// @inheritdoc IUniversalDelegator
     uint32 public totalSlots;
+
+    Checkpoints.Trace256 internal _cumulIncrease;
+    Checkpoints.Trace256 internal _cumulDecrease;
 
     /// @inheritdoc IUniversalDelegator
     uint32[] public indexesToSync;
@@ -119,13 +124,30 @@ contract UniversalDelegator is
         }
         SlotStorage storage slot = slots[index];
         (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 curSize) = _decodeSizeData(slot.size.latest());
-        if (delayedTimestamp > block.timestamp) {
-            return false;
+        uint128 newSize = curSize;
+
+        if (slot.slashedAt > 0) {
+            if (slot.slashedAt <= block.timestamp - VaultV2(vault).epochDuration()) {
+                newSize = newSize.saturatingSub(slot.slashed);
+                slot.slashed.push(uint48(block.timestamp), 0);
+                slot.slashedAt = 0;
+            }
         }
-        uint128 newSize = delayedSizes[delayedSizePos];
-        _modifySize(index, -int256(uint256(curSize - newSize)));
-        slot.size.push(uint48(block.timestamp), newSize);
-        return true;
+        bool flag = true;
+        if (delayedTimestamp > 0) {
+            if (delayedTimestamp <= block.timestamp) {
+                newSize = Math.min(delayedSizes[delayedSizePos]);
+            } else {
+                flag = false;
+            }
+        }
+        if (newSize != curSize) {
+            _modifySize(index, -int256(uint256(curSize - newSize)));
+            slot.size
+                .push(
+                    uint48(block.timestamp), flag ? newSize : _encodeSizeData(delayedSizePos, delayedTimestamp, newSize)
+                );
+        }
     }
 
     /// @dev Remove a slot from the pending prefix-sum synchronization list.
@@ -228,12 +250,12 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function getBalanceAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
-        return VaultV2(vault).activeStakeAt(timestamp, "") + VaultV2(vault).activeWithdrawalsForAt(duration, timestamp);
+        return _cumulIncrease.upperLookupRecent(timestamp) - _cumulDecrease.upperLookupRecent(timestamp + duration);
     }
 
     /// @inheritdoc IUniversalDelegator
     function getBalance(uint48 duration) public view returns (uint256) {
-        return VaultV2(vault).activeStake() + VaultV2(vault).activeWithdrawalsFor(duration);
+        return _cumulIncrease.latest() - _cumulDecrease.upperLookupRecent(block.timestamp + duration);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -241,11 +263,14 @@ contract UniversalDelegator is
         if (duration >= VaultV2(vault).epochDuration()) {
             return 0;
         }
+        SlotStorage storage slot = slots[index];
         (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) =
-            _decodeSizeData(slots[index].size.upperLookupRecent(timestamp));
+            _decodeSizeData(slot.size.upperLookupRecent(timestamp));
         return Math.min(
             getBalanceAt(duration, timestamp).saturatingSub(_getPrevSumAt(index, timestamp)),
-            delayedTimestamp > 0 && delayedTimestamp <= timestamp + duration ? delayedSizes[delayedSizePos] : size
+            delayedTimestamp > 0 && delayedTimestamp <= timestamp + duration
+                ? Math.min(delayedSizes[delayedSizePos], size - slot.slashed.upperLookupRecent(timestamp))
+                : size - slot.slashed.upperLookupRecent(timestamp)
         );
     }
 
@@ -254,12 +279,13 @@ contract UniversalDelegator is
         if (duration >= VaultV2(vault).epochDuration()) {
             return 0;
         }
-        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slots[index].size.latest());
+        SlotStorage storage slot = slots[index];
+        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slot.size.latest());
         return Math.min(
             getBalance(duration).saturatingSub(_getPrevSum(index)),
             delayedTimestamp > 0 && delayedTimestamp <= uint48(block.timestamp) + duration
-                ? delayedSizes[delayedSizePos]
-                : size
+                ? Math.min(delayedSizes[delayedSizePos], size - slot.slashed.latest())
+                : size - slot.slashed.latest()
         );
     }
 
@@ -274,8 +300,8 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function getWithdrawalBuffer() public view returns (uint256) {
-        return getBalance(_maxDuration()).saturatingSub(_prevSums.total());
+    function totalAllocated() public syncPrevSums returns (uint256 allocated) {
+        return Math.min(getBalance(0), _prevSums.total());
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -347,7 +373,8 @@ contract UniversalDelegator is
             // - otherwise, revert.
             if (
                 _prevSums.total() > _prevSums.get(_indexToPos[index].latest())
-                    && _getPrevSum(index) + curSize < getBalance(0) && delta > getWithdrawalBuffer()
+                    && _getPrevSum(index) + curSize < getBalance(0)
+                    && delta > getBalance(_maxDuration()) - totalAllocated()
             ) {
                 revert NotEnoughBalance();
             }
@@ -461,6 +488,26 @@ contract UniversalDelegator is
 
     /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
 
+    function onDeposit(uint256 amount) public nonReentrant {
+        if (vault != msg.sender) {
+            revert NotVault();
+        }
+
+        _cumulIncrease.push(uint48(block.timestamp), _cumulIncrease.latest() + amount);
+
+        emit OnDeposit(amount);
+    }
+
+    function onWithdraw(uint256 amount) public nonReentrant {
+        if (vault != msg.sender) {
+            revert NotVault();
+        }
+
+        _cumulDecrease.push(uint48(block.timestamp) + VaultV2(vault).epochDuration(), _cumulDecrease.latest() + amount);
+
+        emit OnWithdraw(amount);
+    }
+
     /// @inheritdoc IUniversalDelegator
     function onSlash(bytes32 subnetwork, address operator, uint256 amount) public nonReentrant {
         if (VaultV2(vault).slasher() != msg.sender) {
@@ -490,18 +537,17 @@ contract UniversalDelegator is
         }
 
         SlotStorage storage slot = slots[index];
-        (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 curSize) = _decodeSizeData(slot.size.latest());
-        if (curSize < amount) {
-            // This is needed only for onSlashLegacy().
-            amount = curSize;
+        slot.slashedAt = uint48(block.timestamp);
+        slot.slashed.push(uint48(block.timestamp), slot.slashed.latest() + amount);
+        _cumulDecrease.push(
+            uint48(block.timestamp) + VaultV2(vault).epochDuration(),
+            _cumulDecrease.latest() + amount.mulDiv(VaultV2(vault).activeStake(), VaultV2(vault).totalStake())
+        );
+
+        if (indexToSyncIndex[index] == 0) {
+            indexesToSync.push(index);
+            indexToSyncIndex[index] = uint32(indexesToSync.length);
         }
-        uint128 newSize = uint128(curSize - amount);
-        if (delayedTimestamp > 0 && newSize < delayedSizes[delayedSizePos]) {
-            delayedSizePos = uint32(delayedSizes.length);
-            delayedSizes.push(newSize);
-        }
-        slot.size.push(uint48(block.timestamp), _encodeSizeData(delayedSizePos, delayedTimestamp, newSize));
-        _modifySize(index, -int256(amount));
 
         emit OnSlash(index, amount);
     }
@@ -520,8 +566,6 @@ contract UniversalDelegator is
         }
 
         InitParams memory params = abi.decode(initData, (InitParams));
-
-        __ReentrancyGuard_init();
 
         vault = initVault;
 

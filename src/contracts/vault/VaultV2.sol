@@ -11,7 +11,7 @@ import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
 import {VaultV2Migrate} from "./VaultV2Migrate.sol";
 import {VaultV2Storage} from "./VaultV2Storage.sol";
 
-import {Checkpoints as CheckpointsV2} from "../libraries/CheckpointsV2.sol";
+import {Checkpoints as CheckpointsV2} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {IAdapterBase} from "../../interfaces/vault/IAdapterBase.sol";
@@ -32,6 +32,7 @@ import {
     ALLOCATE_ADAPTER_ROLE,
     DEALLOCATE_ADAPTER_ROLE
 } from "../../interfaces/vault/IVaultV2.sol";
+import {IVaultV2Storage} from "../../interfaces/vault/IVaultV2Storage.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {UNIVERSAL_SLASHER_TYPE} from "../../interfaces/slasher/IUniversalSlasher.sol";
 import {VAULT_VERSION} from "../../interfaces/vault/IVault.sol";
@@ -62,7 +63,6 @@ contract VaultV2 is
     using SafeERC20 for address;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
-    using CheckpointsV2 for CheckpointsV2.Trace208;
     using CheckpointsV2 for CheckpointsV2.Trace256;
 
     /* IMMUTABLES */
@@ -127,60 +127,35 @@ contract VaultV2 is
     }
 
     /// @inheritdoc IVaultV2
-    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
-        if (duration > epochDuration) {
-            return 0;
-        }
-        uint208 curWithdrawalBucket = _unlockToBucket.upperLookupRecent(timestamp);
+    function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
+        uint256 curWithdrawalBucket =
+            _cumulSharesToBucket.upperLookupRecent(_claimableCumulShares.upperLookupRecent(timestamp));
         uint256 curWithdrawalShares = _withdrawalShares[curWithdrawalBucket].upperLookupRecent(timestamp);
         return curWithdrawalShares > 0
-            ? activeWithdrawalSharesForAt(duration, timestamp)
+            ? activeWithdrawalSharesAt(timestamp)
                 .fullMulDiv(_withdrawals[curWithdrawalBucket].upperLookupRecent(timestamp), curWithdrawalShares)
             : 0;
     }
 
     /// @inheritdoc IVaultV2
-    function activeWithdrawalsFor(uint48 duration) public view returns (uint256 amount) {
-        if (duration > epochDuration) {
-            return 0;
-        }
+    function activeWithdrawals() public view returns (uint256) {
         uint208 curWithdrawalBucket = withdrawalBucket();
         uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
         return curWithdrawalShares > 0
-            ? activeWithdrawalSharesFor(duration).fullMulDiv(withdrawals(curWithdrawalBucket), curWithdrawalShares)
+            ? activeWithdrawalShares().fullMulDiv(withdrawals(curWithdrawalBucket), curWithdrawalShares)
             : 0;
     }
 
     /// @inheritdoc IVaultV2
-    function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
-        return activeWithdrawalsForAt(0, timestamp);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeWithdrawals() public view returns (uint256) {
-        return activeWithdrawalsFor(0);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeWithdrawalSharesForAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
-        return _withdrawalSharesCumulative.upperLookupRecent(timestamp + epochDuration)
-            - _withdrawalSharesCumulative.upperLookupRecent(timestamp + duration);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeWithdrawalSharesFor(uint48 duration) public view returns (uint256) {
-        return _withdrawalSharesCumulative.latest()
-            - _withdrawalSharesCumulative.upperLookupRecent(uint48(block.timestamp + duration));
-    }
-
-    /// @inheritdoc IVaultV2
     function activeWithdrawalSharesAt(uint48 timestamp) public view returns (uint256) {
-        return activeWithdrawalSharesForAt(0, timestamp);
+        return
+            _withdrawalSharesCumulative.upperLookupRecent(timestamp)
+                - _claimableCumulShares.upperLookupRecent(timestamp);
     }
 
     /// @inheritdoc IVaultV2
     function activeWithdrawalShares() public view returns (uint256) {
-        return activeWithdrawalSharesFor(0);
+        return _withdrawalSharesCumulative.latest() - _claimableCumulShares.latest();
     }
 
     /// @inheritdoc IVaultV2
@@ -225,36 +200,36 @@ contract VaultV2 is
     }
 
     /// @inheritdoc IVaultV2
-    function withdrawalUnlockAt(uint256 index, address account) public view returns (uint48 timestamp) {
-        uint48 curMigrateTimestamp = migrateTimestamp;
-        if (curMigrateTimestamp > 0) {
-            // Legacy support.
-            uint48 migrateEpoch = __migrateEpoch;
-            if (index == migrateEpoch) {
-                return __migrateNextEpochTimestamp;
-            }
-            if (index == migrateEpoch + 1) {
-                return curMigrateTimestamp + epochDuration;
-            }
-        }
-
-        return _withdrawalUnlockAt[index][account];
-    }
-
-    /// @inheritdoc IVaultV2
     function withdrawalsOf(uint256 index, address account) public view returns (uint256 amount) {
         uint48 migrateEpoch = __migrateEpoch;
-        if (index >= migrateEpoch) {
-            uint48 unlockAt = withdrawalUnlockAt(index, account);
-            uint256 bucketIndex = _unlockToBucket.upperLookupRecent(unlockAt > 0 ? unlockAt - 1 : 0);
-            return
-                _previewRedeem(
-                    withdrawalSharesOf(index, account), withdrawals(bucketIndex), withdrawalShares(bucketIndex)
-                );
+        if (index < migrateEpoch) {
+            // Legacy support.
+            return _previewRedeem(_withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]);
         }
 
-        // Legacy support.
-        return _previewRedeem(_withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]);
+        uint256 shares = withdrawalSharesOf(index, account);
+        uint256 curWithdrawalCumulShares = _withdrawalCumulShares[index][account];
+        uint256 bucketIndex =
+            _cumulSharesToBucket.upperLookupRecent(curWithdrawalCumulShares > 0 ? curWithdrawalCumulShares - 1 : 0);
+        while (shares > 0) {
+            uint256 curBucketShares = _cumulSharesToBucket.length() <= bucketIndex + 1
+                ? shares
+                : Math.min(_cumulSharesToBucket.at(uint32(bucketIndex + 1))._key - curWithdrawalCumulShares, shares);
+            amount += _previewRedeem(curBucketShares, withdrawals(bucketIndex), withdrawalShares(bucketIndex));
+            curWithdrawalCumulShares += curBucketShares;
+            shares -= curBucketShares;
+            ++bucketIndex;
+        }
+    }
+
+    /// @inheritdoc IVaultV2Storage
+    function isWithdrawalsClaimed(uint256 index, address account)
+        public
+        view
+        override(VaultV2Storage, IVaultV2Storage)
+        returns (bool)
+    {
+        return super.isWithdrawalsClaimed(index, account);
     }
 
     /// @inheritdoc ERC20Upgradeable
@@ -325,6 +300,8 @@ contract VaultV2 is
         if (depositedAmount == amount && adapters.length > 0) {
             _allocateAdapter(adapters[0], depositedAmount);
         }
+
+        UniversalDelegator(delegator).onDeposit(depositedAmount);
     }
 
     /// @inheritdoc IVaultV2
@@ -366,68 +343,49 @@ contract VaultV2 is
     }
 
     /// @inheritdoc IVaultV2
-    function instantWithdraw(address recipient, uint256 amount)
-        public
-        nonReentrant
-        returns (uint256 withdrawnAssets, uint256 burnedShares)
-    {
-        skimAdapters();
-
-        _revertIfZero(recipient);
-
-        uint256 curActiveStake = activeStake();
-        uint256 curActiveShares = activeShares();
-        uint256 curActiveSharesOf = activeSharesOf(msg.sender);
-
-        withdrawnAssets = Math.min(amount, UniversalDelegator(delegator).getWithdrawalBuffer());
-
-        burnedShares = _previewWithdraw(withdrawnAssets, curActiveShares, curActiveStake);
-        if (burnedShares > curActiveSharesOf) {
-            revert TooMuchWithdraw();
-        }
-
-        _activeSharesOf[msg.sender].push(uint48(block.timestamp), curActiveSharesOf - burnedShares);
-        _activeStake.push(uint48(block.timestamp), curActiveStake - withdrawnAssets);
-        _activeShares.push(uint48(block.timestamp), curActiveShares - burnedShares);
-
-        deallocateAdapters();
-
-        if (totalStake() < adaptersAllocated) {
-            revert InsufficientAmount();
-        }
-
-        uint256 fees =
-            withdrawnAssets.fullMulDivUp(IFeeRegistry(FEE_REGISTRY).getInstantWithdrawFee(address(this)), MAX_FEE);
-        if (fees > 0) {
-            collateral.safeApprove(REWARDS, fees);
-            IRewards(REWARDS).distributeDonationRewards(address(this), fees);
-        }
-
-        _safeTransferOut(recipient, withdrawnAssets - fees);
-
-        emit InstantWithdraw(msg.sender, withdrawnAssets, burnedShares);
-        emit Transfer(msg.sender, address(0), burnedShares);
-    }
-
-    /// @inheritdoc IVaultV2
     function claim(address recipient, uint256 index) public nonReentrant returns (uint256 amount) {
         deallocateAdapters();
 
         _revertIfZero(recipient);
 
-        if (isWithdrawalsClaimed[index][msg.sender]) {
+        if (isWithdrawalsClaimed(index, msg.sender)) {
             revert AlreadyClaimed();
         }
-        if (block.timestamp < withdrawalUnlockAt(index, msg.sender)) {
-            revert WithdrawalNotMatured();
-        }
 
-        amount = withdrawalsOf(index, msg.sender);
+        uint48 migrateEpoch = __migrateEpoch;
+        if (index >= migrateEpoch) {
+            uint256 sharesToClaim = _claimableCumulShares.latest()
+                .saturatingSub(
+                    _withdrawalCumulShares[index][msg.sender] + _withdrawalSharesOf[index][msg.sender]
+                        - _withdrawalClaimedShares[index][msg.sender]
+                );
+            _withdrawalClaimedShares[index][msg.sender] += sharesToClaim;
+
+            uint256 curWithdrawalCumulShares =
+                _withdrawalCumulShares[index][msg.sender] + _withdrawalClaimedShares[index][msg.sender];
+            uint256 bucketIndex =
+                _cumulSharesToBucket.upperLookupRecent(curWithdrawalCumulShares > 0 ? curWithdrawalCumulShares - 1 : 0);
+            while (sharesToClaim > 0) {
+                uint256 curBucketShares = sharesToClaim;
+                if (_cumulSharesToBucket.length() > bucketIndex + 1) {
+                    curBucketShares = Math.min(
+                        _cumulSharesToBucket.at(uint32(bucketIndex + 1))._key - curWithdrawalCumulShares,
+                        curBucketShares
+                    );
+                }
+                amount += _previewRedeem(curBucketShares, withdrawals(bucketIndex), withdrawalShares(bucketIndex));
+                curWithdrawalCumulShares += curBucketShares;
+                sharesToClaim -= curBucketShares;
+                ++bucketIndex;
+            }
+        } else {
+            // Legacy support.
+            amount =
+                _previewRedeem(_withdrawalSharesOf[index][msg.sender], __withdrawals[index], __withdrawalShares[index]);
+        }
         if (amount > (totalStake() + unclaimed()).saturatingSub(adaptersAllocated)) {
             revert InsufficientAmount();
         }
-
-        isWithdrawalsClaimed[index][msg.sender] = true;
         _unclaimedRaw -= int256(amount);
 
         _safeTransferOut(recipient, amount);
@@ -461,6 +419,21 @@ contract VaultV2 is
         _activeStake.push(uint48(block.timestamp), curActiveStake + activeDonated);
 
         emit Donate(activeDonated, withdrawalsDonated);
+    }
+
+    /// @inheritdoc IVaultV2
+    function fulfill() public nonReentrant {
+        uint256 amount =
+            (activeStake() + activeWithdrawals()).saturatingSub(UniversalDelegator(delegator).totalAllocated());
+        uint208 curWithdrawalBucket = withdrawalBucket();
+        uint256 curWithdrawals = withdrawals(curWithdrawalBucket);
+        uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
+        uint256 shares = _previewDeposit(curWithdrawalBucket, curWithdrawalShares, curWithdrawals);
+        if (shares == 0) {
+            return;
+        }
+        _claimableCumulShares.push(uint48(block.timestamp), _claimableCumulShares.latest() + shares);
+        emit Fulfill(amount, shares);
     }
 
     // @dev Internal dev function to handle slashing.
@@ -516,19 +489,18 @@ contract VaultV2 is
         _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawalShares + mintedShares);
         _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawals + withdrawnAssets);
 
-        uint48 unlockAt = uint48(block.timestamp) + epochDuration;
         uint256 curWithdrawalsOfLength = withdrawalsOfLength(claimer);
-
         _withdrawalsOfLength[claimer] = curWithdrawalsOfLength + 1;
         _withdrawalSharesOf[curWithdrawalsOfLength][claimer] = mintedShares;
-        _withdrawalUnlockAt[curWithdrawalsOfLength][claimer] = unlockAt;
-        _withdrawalSharesCumulative.push(unlockAt, _withdrawalSharesCumulative.latest() + mintedShares);
-        _withdrawalSharesCumulativeOf[claimer].push(
-            unlockAt, _withdrawalSharesCumulativeOf[claimer].latest() + mintedShares
-        );
+        uint256 withdrawalSharesCumulative = _withdrawalSharesCumulative.latest();
+        _withdrawalCumulShares[curWithdrawalsOfLength][claimer] = withdrawalSharesCumulative;
+        _withdrawalSharesCumulative.push(uint48(block.timestamp), withdrawalSharesCumulative + mintedShares);
+        // TODO _withdrawalSharesCumulativeOf
 
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares, curWithdrawalsOfLength);
         emit Transfer(msg.sender, address(0), burnedShares);
+
+        UniversalDelegator(delegator).onWithdraw(withdrawnAssets);
     }
 
     /// @dev Reprice active withdrawals and roll claimable shares into a new bucket when a boundary is crossed.
@@ -545,7 +517,9 @@ contract VaultV2 is
 
             ++curWithdrawalBucket;
             _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curActiveWithdrawalShares);
-            _unlockToBucket.push(uint48(block.timestamp), curWithdrawalBucket);
+            _cumulSharesToBucket.push(
+                _withdrawalSharesCumulative.latest() - curActiveWithdrawalShares, curWithdrawalBucket
+            );
         }
         _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), newActiveWithdrawals);
     }

@@ -130,20 +130,16 @@ contract VaultV2UncheckedMathHandler is Test {
         if (vault.isWithdrawalsClaimed(index, user)) {
             return;
         }
-        if (vm.getBlockTimestamp() < vault.withdrawalUnlockAt(index, user)) {
-            return;
-        }
-
         uint256 amount = vault.withdrawalsOf(index, user);
         if (amount == 0) {
             return;
         }
 
         vm.prank(user);
-        uint256 claimedAmount = vault.claim(user, index);
-
-        totalClaimed += claimedAmount;
-        totalClaimedOf[user] += claimedAmount;
+        try vault.claim(user, index) returns (uint256 claimedAmount) {
+            totalClaimed += claimedAmount;
+            totalClaimedOf[user] += claimedAmount;
+        } catch {}
     }
 
     function donate(uint256 amount, uint256 timeJumpSeed) external {

@@ -25,7 +25,8 @@ abstract contract CoreV2StakeForInvariantHelper {
             totalStakeFor += IStakeForDelegator(delegator_).getAllocated(slots[i], duration);
         }
 
-        uint256 capacity = IVaultV2(vault_).activeStake() + IVaultV2(vault_).activeWithdrawalsFor(duration);
+        IVaultV2 vault = IVaultV2(vault_);
+        uint256 capacity = vault.activeStake() + (duration < vault.epochDuration() ? vault.activeWithdrawals() : 0);
         if (totalStakeFor > capacity) {
             revert StakeForSumExceedsCapacity(duration, totalStakeFor, capacity);
         }

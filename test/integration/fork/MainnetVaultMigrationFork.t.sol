@@ -453,26 +453,13 @@ contract MainnetVaultMigrationForkTest is Test {
             "current legacy withdrawal not migrated"
         );
         assertEq(
-            migratedVault.withdrawalUnlockAt(snapshot.currentEpoch, DEPOSITOR),
-            snapshot.currentEpochWithdrawalUnlockAt,
-            "current legacy withdrawal unlock mismatch"
-        );
-        assertEq(
             migratedVault.withdrawalsOf(snapshot.currentEpoch + 1, DEPOSITOR),
             snapshot.nextEpochDepositorWithdrawal,
             "next legacy withdrawal not migrated"
         );
-        assertEq(
-            migratedVault.withdrawalUnlockAt(snapshot.currentEpoch + 1, DEPOSITOR),
-            snapshot.nextEpochWithdrawalUnlockAt,
-            "next legacy withdrawal unlock mismatch"
-        );
 
         vm.startPrank(DEPOSITOR);
-        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
-        migratedVault.claim(currentRecipient, snapshot.currentEpoch);
-
-        vm.warp(snapshot.currentEpochWithdrawalUnlockAt);
+        migratedVault.fulfill();
         uint256 currentClaimed = migratedVault.claim(currentRecipient, snapshot.currentEpoch);
         assertEq(currentClaimed, snapshot.currentEpochDepositorWithdrawal, "current legacy claim mismatch");
         assertEq(
@@ -486,10 +473,7 @@ contract MainnetVaultMigrationForkTest is Test {
             "next withdrawal should remain active after current claim"
         );
 
-        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
-        migratedVault.claim(nextRecipient, snapshot.currentEpoch + 1);
-
-        vm.warp(snapshot.nextEpochWithdrawalUnlockAt);
+        migratedVault.fulfill();
         uint256 nextClaimed = migratedVault.claim(nextRecipient, snapshot.currentEpoch + 1);
         vm.stopPrank();
 
@@ -531,13 +515,7 @@ contract MainnetVaultMigrationForkTest is Test {
             "withdrawal amount mismatch"
         );
 
-        uint48 unlockAt = migratedVault.withdrawalUnlockAt(withdrawalIndex, DEPOSITOR);
-        assertEq(unlockAt, uint48(vm.getBlockTimestamp()) + migratedVault.epochDuration(), "withdrawal unlock mismatch");
-
-        vm.expectRevert(IVaultV2.WithdrawalNotMatured.selector);
-        migratedVault.claim(recipient, withdrawalIndex);
-
-        vm.warp(unlockAt);
+        migratedVault.fulfill();
         uint256 claimedAmount = migratedVault.claim(recipient, withdrawalIndex);
         vm.stopPrank();
 

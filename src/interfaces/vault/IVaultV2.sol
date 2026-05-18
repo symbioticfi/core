@@ -145,7 +145,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     error TooMuchWithdraw();
 
     /**
-     * @notice Raised when withdrawal is not yet matured.
+     * @notice Raised when a withdrawal is not yet fully fulfilled.
      */
     error WithdrawalNotMatured();
 
@@ -253,14 +253,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     );
 
     /**
-     * @notice Emitted when an instant withdrawal is made.
-     * @param withdrawer Account that made the instant withdrawal.
-     * @param amount Amount of the collateral withdrawn.
-     * @param burnedShares Amount of the active shares burned.
-     */
-    event InstantWithdraw(address indexed withdrawer, uint256 amount, uint256 burnedShares);
-
-    /**
      * @notice Emitted when a claim is made.
      * @param claimer Account that claimed.
      * @param recipient Account that received the collateral.
@@ -275,6 +267,13 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @param withdrawalsAmount Donated collateral amount credited to active withdrawals.
      */
     event Donate(uint256 activeAmount, uint256 withdrawalsAmount);
+
+    /**
+     * @notice Emitted when pending withdrawal shares become claimable.
+     * @param amount Amount of collateral capacity used for fulfillment.
+     * @param shares Amount of cumulative withdrawal shares fulfilled.
+     */
+    event Fulfill(uint256 amount, uint256 shares);
 
     /**
      * @notice Emitted when a slash happens.
@@ -413,21 +412,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function activeBalanceOf(address account) external view returns (uint256);
 
     /**
-     * @notice Get a total amount of the active withdrawals for a given duration at a given timestamp.
-     * @param duration Duration to get the active withdrawals for.
-     * @param timestamp Time point to get the active withdrawals at.
-     * @return Total Amount of the active withdrawals.
-     */
-    function activeWithdrawalsForAt(uint48 duration, uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of the active withdrawals for a given duration.
-     * @param duration Duration to get the active withdrawals for.
-     * @return Total Amount of the active withdrawals.
-     */
-    function activeWithdrawalsFor(uint48 duration) external view returns (uint256);
-
-    /**
      * @notice Get a total amount of the active withdrawals at a given timestamp.
      * @param timestamp Time point to get the active withdrawals at.
      * @return Total Amount of the active withdrawals.
@@ -439,21 +423,6 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @return Total Amount of active withdrawals.
      */
     function activeWithdrawals() external view returns (uint256);
-
-    /**
-     * @notice Get the total amount of active withdrawal shares for a duration at a given timestamp.
-     * @param duration Duration to get the active withdrawal shares for.
-     * @param timestamp Time point to get the active withdrawal shares at.
-     * @return Total amount of active withdrawal shares.
-     */
-    function activeWithdrawalSharesForAt(uint48 duration, uint48 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Get the total amount of active withdrawal shares for a given duration.
-     * @param duration Duration to get the active withdrawal shares for.
-     * @return Total amount of active withdrawal shares.
-     */
-    function activeWithdrawalSharesFor(uint48 duration) external view returns (uint256);
 
     /**
      * @notice Get the total amount of active withdrawal shares at a given timestamp.
@@ -494,16 +463,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function withdrawalSharesOf(uint256 index, address account) external view returns (uint256);
 
     /**
-     * @notice Get when the withdrawal becomes claimable for a particular account at a given index.
-     * @param index Index to check the withdrawals for the account at.
-     * @param account Account to check the withdrawal for.
-     * @return When The withdrawal is claimable for the account at the index.
-     * @dev Simplifies legacy epoch data by returning 0 for all epochs before migration.
-     */
-    function withdrawalUnlockAt(uint256 index, address account) external view returns (uint48);
-
-    /**
-     * @notice Get withdrawals for a particular account at a given index (zero if claimed).
+     * @notice Get withdrawals for a particular account at a given index.
      * @param index Index to get the withdrawals for the account at.
      * @param account Account to get the withdrawals for.
      * @return Withdrawals For the account at the index.
@@ -541,7 +501,7 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
         returns (uint256 depositedAmount, uint256 mintedShares);
 
     /**
-     * @notice Withdraw collateral from the vault (it will be claimable after the next epoch).
+     * @notice Withdraw collateral from the active stake into the fulfillment queue.
      * @param claimer Account that needs to claim the withdrawal.
      * @param amount Amount of the collateral to withdraw.
      * @return burnedShares Amount of the active shares burned.
@@ -550,24 +510,13 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
     function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares);
 
     /**
-     * @notice Redeem collateral from the vault (it will be claimable after the next epoch).
+     * @notice Redeem active shares into the fulfillment queue.
      * @param claimer Account that needs to claim the withdrawal.
      * @param shares Amount of the active shares to redeem.
      * @return withdrawnAssets Amount of the collateral withdrawn.
      * @return mintedShares Amount of the epoch withdrawal shares minted.
      */
     function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares);
-
-    /**
-     * @notice Instant withdraw collateral from the vault.
-     * @param recipient Account that received the collateral.
-     * @param amount Amount of the collateral withdrawn.
-     * @return withdrawnAssets Amount of collateral withdrawn.
-     * @return burnedShares Amount of active shares burned.
-     */
-    function instantWithdraw(address recipient, uint256 amount)
-        external
-        returns (uint256 withdrawnAssets, uint256 burnedShares);
 
     /**
      * @notice Claim collateral from the vault.
@@ -585,6 +534,11 @@ interface IVaultV2 is IMigratableEntity, IVaultV2Storage {
      * @dev Deprecated. Use `multicall()` of `claim()` calls instead.
      */
     function claimBatch(address recipient, uint256[] calldata indexes) external returns (uint256 amount);
+
+    /**
+     * @notice Fulfill as many queued withdrawal shares as current delegator allocation allows.
+     */
+    function fulfill() external;
 
     /**
      * @notice Donate collateral into vault accounting.

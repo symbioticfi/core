@@ -14,7 +14,7 @@ import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title BaseDelegator
 /// @notice Base contract for shared delegator allocation and slashing logic.
@@ -22,7 +22,7 @@ abstract contract BaseDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     IBaseDelegator
 {
     using Subnetwork for bytes32;
@@ -175,8 +175,6 @@ abstract contract BaseDelegator is
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
-
-        __ReentrancyGuard_init();
 
         vault = vault_;
 

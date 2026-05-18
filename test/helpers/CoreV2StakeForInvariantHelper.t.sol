@@ -19,27 +19,36 @@ contract MockStakeForDelegator {
 
 contract MockInvariantVault {
     uint256 internal _activeStake;
+    uint256 internal _activeWithdrawals;
     uint256 internal _totalStake;
-    mapping(uint48 => uint256) internal _activeWithdrawalsFor;
+    uint48 internal _epochDuration;
 
     function setActiveStake(uint256 value) external {
         _activeStake = value;
+    }
+
+    function setActiveWithdrawals(uint256 value) external {
+        _activeWithdrawals = value;
     }
 
     function setTotalStake(uint256 value) external {
         _totalStake = value;
     }
 
-    function setActiveWithdrawalsFor(uint48 duration, uint256 value) external {
-        _activeWithdrawalsFor[duration] = value;
+    function setEpochDuration(uint48 value) external {
+        _epochDuration = value;
     }
 
     function activeStake() external view returns (uint256) {
         return _activeStake;
     }
 
-    function activeWithdrawalsFor(uint48 duration) external view returns (uint256) {
-        return _activeWithdrawalsFor[duration];
+    function activeWithdrawals() external view returns (uint256) {
+        return _activeWithdrawals;
+    }
+
+    function epochDuration() external view returns (uint48) {
+        return _epochDuration;
     }
 
     function totalStake() external view returns (uint256) {
@@ -70,13 +79,14 @@ contract CoreV2StakeForInvariantHelperTest is Test {
     function setUp() public {
         delegator = new MockStakeForDelegator();
         vault = new MockInvariantVault();
+        vault.setEpochDuration(EPOCH_DURATION);
         harness = new CoreV2StakeForInvariantHarness();
     }
 
     function test_invariant_allowsWhenPerDurationCapacityUsesActiveWithdrawals() public {
         vault.setActiveStake(50);
+        vault.setActiveWithdrawals(50);
         vault.setTotalStake(50);
-        vault.setActiveWithdrawalsFor(0, 50);
 
         delegator.setAllocated(1, 0, 50);
         delegator.setAllocated(1, EPOCH_DURATION / 2, 20);

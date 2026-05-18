@@ -268,7 +268,6 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
         _assertSlot(delegator, operatorSlot3, subnetwork2, operator2.addr, 60 ether, "operator3");
 
         uint48 migrateTimestamp = IVaultV2(vault).migrateTimestamp();
-        uint48 epochDuration = IVaultV2(vault).epochDuration();
         assertGt(IVaultV2(vault).withdrawalsOfLength(curator.addr), 0, "legacy withdrawals length missing");
         assertGt(
             IVaultV2(vault).activeWithdrawalSharesOfAt(curator.addr, migrateTimestamp),
@@ -276,16 +275,6 @@ contract MigrateToVaultV2ActionScriptTest is SymbioticCoreInit {
             "legacy active withdrawal shares missing"
         );
         assertGt(IVaultV2(vault).withdrawalSharesOf(1, curator.addr), 0, "legacy withdrawal shares missing");
-        assertEq(
-            IVaultV2(vault).withdrawalUnlockAt(1, curator.addr),
-            migrateTimestamp + epochDuration,
-            "legacy current unlock mismatch"
-        );
-        assertEq(
-            IVaultV2(vault).withdrawalUnlockAt(2, curator.addr),
-            migrateTimestamp + epochDuration,
-            "legacy next unlock mismatch"
-        );
         assertEq(IVaultV2(vault).withdrawalsOf(0, curator.addr), 0, "legacy past withdrawal mismatch");
         assertGt(IVaultV2(vault).withdrawalsOf(1, curator.addr), 0, "legacy current withdrawal missing");
 
