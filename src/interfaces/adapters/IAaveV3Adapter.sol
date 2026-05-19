@@ -34,11 +34,4 @@ interface IAaveV3Adapter is IAdapter {
      * @return account Deterministic account address.
      */
     function getAccount(address vault) external view returns (address account);
-
-    /**
-     * @notice Returns the vault's live Aave-backed asset balance.
-     * @param vault Vault address.
-     * @return assets Vault assets represented in collateral units.
-     */
-    function getAssets(address vault) external view returns (uint256 assets);
 }

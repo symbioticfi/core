@@ -9,11 +9,9 @@ import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
 
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
-
-import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
-
-import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IERC2612 {
     function permit(address owner, address spender, uint256 shares, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
@@ -131,7 +129,7 @@ interface ICuratorRegistry {
 }
 
 contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
-    using SafeERC20 for address;
+    using SafeERC20 for IERC20;
     using Math for uint256;
 
     /* ERRORS */
@@ -179,13 +177,13 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
 
     function allocatable(address vault) public view returns (uint256) {
         address token = IVaultV2(vault).collateral();
-        return globalLimit[token].saturatingSub(token.balanceOf(address(this)));
+        return globalLimit[token].saturatingSub(IERC20(token).balanceOf(address(this)));
     }
 
     function deallocatable(address vault) public view returns (uint256) {
         address morphoVault = morphoVaults[vault];
         return Math.min(
-            Math.min(_getVaultAssets(vault), IMorphoVault(morphoVault).asset().balanceOf(morphoVault)),
+            Math.min(_getVaultAssets(vault), IERC20(IMorphoVault(morphoVault).asset()).balanceOf(morphoVault)),
             IVaultV2(vault).adapterAllocated(address(this))
         );
     }
@@ -200,13 +198,13 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
         if (amount > 0) {
             address collateral = IMorphoVault(morphoVault).asset();
             if (IERC20(collateral).allowance(address(this), msg.sender) == 0) {
-                collateral.safeApprove(msg.sender, type(uint256).max);
+                IERC20(collateral).forceApprove(msg.sender, type(uint256).max);
             }
 
             uint256 newShares =
                 ERC4626Math.previewDeposit(amount, totalVaultShares[morphoVault], _getAdapterAssets(morphoVault));
 
-            IMorphoVault(morphoVault).asset().safeApprove(address(morphoVault), amount);
+            IERC20(IMorphoVault(morphoVault).asset()).forceApprove(address(morphoVault), amount);
             IMorphoVault(morphoVault).deposit(amount, address(this));
 
             vaultShares[morphoVault][msg.sender] += newShares;
@@ -242,7 +240,7 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
         if (amount > 0) {
             IMorphoVault(morphoVault).withdraw(amount, address(this), address(this));
 
-            collateral.safeApprove(REWARDS, amount);
+            IERC20(collateral).forceApprove(REWARDS, amount);
             IRewardsDonate(REWARDS).donate(vault, amount);
         }
     }
@@ -250,7 +248,7 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
     /* INTERNAL FUNCTIONS */
 
     function _getAdapterAssets(address morphoVault) internal view returns (uint256) {
-        return IMorphoVault(morphoVault).previewRedeem(morphoVault.balanceOf(address(this)));
+        return IMorphoVault(morphoVault).previewRedeem(IERC20(morphoVault).balanceOf(address(this)));
     }
 
     function _getVaultAssets(address vault) internal view returns (uint256) {

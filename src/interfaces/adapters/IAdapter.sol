@@ -47,6 +47,12 @@ interface IAdapter {
     function multicall(bytes[] calldata data) external;
 
     /**
+     * @notice Returns the vault factory used to validate vault callers.
+     * @return vaultFactory Vault factory address.
+     */
+    function VAULT_FACTORY() external view returns (address vaultFactory);
+
+    /**
      * @notice Returns the adapter-wide allocation limit for an asset.
      * @param asset Asset address.
      * @return limit Allocation limit for the asset.
@@ -54,11 +60,25 @@ interface IAdapter {
     function globalLimit(address asset) external view returns (uint256 limit);
 
     /**
+     * @notice Returns the total allocation tracked by this adapter for an asset.
+     * @param asset Asset address.
+     * @return amount Tracked allocated amount.
+     */
+    function globalAllocated(address asset) external view returns (uint256 amount);
+
+    /**
      * @notice Sets the adapter-wide allocation limit for an asset.
      * @param asset Asset address.
      * @param limit Allocation limit for the asset.
      */
     function setGlobalLimit(address asset, uint256 limit) external;
+
+    /**
+     * @notice Get total assets managed by the adapter for a vault.
+     * @param vault Address of the vault.
+     * @return assets Total collateral-equivalent assets managed by the adapter.
+     */
+    function totalAssets(address vault) external view returns (uint256 assets);
 
     /**
      * @notice Get the current skimmable balance of the vault.

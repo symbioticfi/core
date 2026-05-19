@@ -2,72 +2,102 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {DelegatorFactory} from "../DelegatorFactory.sol";
-import {ERC4626Math} from "./common/ERC4626Math.sol";
 import {MigratableEntity} from "../common/MigratableEntity.sol";
-import {SlasherFactory} from "../SlasherFactory.sol";
-import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
-import {UniversalSlasher} from "../slasher/UniversalSlasher.sol";
-import {VaultV2Migrate} from "./VaultV2Migrate.sol";
-import {VaultV2Storage} from "./VaultV2Storage.sol";
+import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
-import {Checkpoints as CheckpointsV2} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
-import {Checkpoints} from "../libraries/Checkpoints.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
-import {IAdapterBase} from "../../interfaces/vault/IAdapterBase.sol";
+import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
-import {IFeeRegistry, MAX_FEE} from "../../interfaces/vault/IFeeRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IRewards} from "../../interfaces/vault/IRewards.sol";
 import {
     IVaultV2,
     MAX_DURATION,
-    MAX_ADAPTERS,
     DEPOSIT_WHITELIST_SET_ROLE,
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    SET_ADAPTER_LIMIT_ROLE,
-    SWAP_ADAPTERS_ROLE,
-    ALLOCATE_ADAPTER_ROLE,
-    DEALLOCATE_ADAPTER_ROLE
+    PERFORMANCE_FEE_SET_ROLE,
+    PERFORMANCE_FEE_RECIPIENT_SET_ROLE,
+    MANAGEMENT_FEE_SET_ROLE,
+    MANAGEMENT_FEE_RECIPIENT_SET_ROLE,
+    MAX_PERFORMANCE_FEE,
+    MAX_MANAGEMENT_FEE,
+    DECIMALS_OFFSET,
+    WAD
 } from "../../interfaces/vault/IVaultV2.sol";
-import {IVaultV2Storage} from "../../interfaces/vault/IVaultV2Storage.sol";
-import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {UNIVERSAL_SLASHER_TYPE} from "../../interfaces/slasher/IUniversalSlasher.sol";
-import {VAULT_VERSION} from "../../interfaces/vault/IVault.sol";
+import {GUARANTEES_DELEGATOR_TYPE} from "../../interfaces/delegator/IGuaranteesDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-import {SafeTransferLib as SafeERC20} from "@solady/src/utils/SafeTransferLib.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /// @title VaultV2
-/// @notice Contract for upgradeable vault collateral, withdrawals, adapters, and migrations.
-/// @dev Priority over funds utilization:
-///      1. Sync owed slashes draw from liquid balance.
-///      2. Claims are allowed only when leaving room for all outstanding owed slashes.
-///      3. Remaining funds are used for instant withdrawals and adapters allocation simultaneously.
-contract VaultV2 is
-    VaultV2Storage,
-    MigratableEntity,
-    AccessControlUpgradeable,
-    ERC20Upgradeable,
-    ERC4626Math,
-    IVaultV2
-{
+contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeable, IVaultV2 {
     using Math for uint256;
-    using SafeERC20 for address;
+    using SafeERC20 for IERC20;
     using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
-    using CheckpointsV2 for CheckpointsV2.Trace256;
 
     /* IMMUTABLES */
 
-    address internal immutable VAULT_V2_MIGRATE;
+    /// @dev Address of the rewards contract.
+    address internal immutable REWARDS;
+    /// @dev Address of the fee registry.
+    address internal immutable FEE_REGISTRY;
+    /// @dev Address of the slasher factory.
+    address internal immutable SLASHER_FACTORY;
+    /// @dev Address of the adapter registry.
+    address internal immutable ADAPTER_REGISTRY;
+    /// @dev Address of the delegator factory.
+    address internal immutable DELEGATOR_FACTORY;
+    /// @dev Address of the withdrawal queue implementation.
+    address internal immutable WITHDRAWAL_QUEUE_IMPL;
+
+    /* STATE VARIABLES */
+
+    /// @inheritdoc IVaultV2
+    address public burner;
+    /// @inheritdoc IVaultV2
+    address public delegator;
+    /// @inheritdoc IVaultV2
+    bool public isDepositLimit;
+    /// @inheritdoc IVaultV2
+    uint48 public epochDuration; // TODO: Remove?
+    /// @inheritdoc IVaultV2
+    uint256 public depositLimit;
+    /// @inheritdoc IVaultV2
+    bool public depositWhitelist;
+    /// @inheritdoc IVaultV2
+    address public withdrawalQueue;
+    /// @inheritdoc IVaultV2
+    mapping(address account => bool value) public isDepositorWhitelisted;
+
+    /// @inheritdoc IVaultV2
+    uint48 public lastUpdate;
+    /// @inheritdoc IVaultV2
+    uint96 public managementFee;
+    /// @inheritdoc IVaultV2
+    uint96 public performanceFee;
+    /// @inheritdoc IVaultV2
+    address public managementFeeRecipient;
+    /// @inheritdoc IVaultV2
+    address public performanceFeeRecipient;
+
+    /// @dev Total assets cached from delegator accounting.
+    uint256 internal _totalAssets;
+    /// @dev Checkpointed total active shares.
+    Checkpoints.Trace256 internal _totalSupply;
+    /// @dev Checkpointed active shares per account.
+    mapping(address account => Checkpoints.Trace256 shares) internal _balanceOf;
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] internal __gap;
+
+    /* MODIFIERS */
 
     /* MULTICALL */
 
@@ -86,696 +116,364 @@ contract VaultV2 is
     /* CONSTRUCTOR */
 
     constructor(
-        address delegatorFactory,
-        address slasherFactory,
-        address vaultFactory,
-        address feeRegistry,
         address rewards,
+        address feeRegistry,
+        address vaultFactory,
+        address slasherFactory,
         address adapterRegistry,
-        address vaultV2Migrate
-    )
-        VaultV2Storage(delegatorFactory, slasherFactory, feeRegistry, rewards, adapterRegistry)
-        MigratableEntity(vaultFactory)
-    {
-        VAULT_V2_MIGRATE = vaultV2Migrate;
+        address delegatorFactory,
+        address withdrawalQueueImpl
+    ) MigratableEntity(vaultFactory) {
+        REWARDS = rewards;
+        FEE_REGISTRY = feeRegistry;
+        SLASHER_FACTORY = slasherFactory;
+        ADAPTER_REGISTRY = adapterRegistry;
+        DELEGATOR_FACTORY = delegatorFactory;
+        WITHDRAWAL_QUEUE_IMPL = withdrawalQueueImpl;
     }
 
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IVaultV2
     function isInitialized() public view returns (bool) {
-        return _isDelegatorInitialized && _isSlasherInitialized;
+        return delegator != address(0);
+    }
+
+    /// @inheritdoc IVaultV2
+    function slasher() public view returns (address) {
+        return delegator;
+    }
+
+    /// @inheritdoc IVaultV2
+    function collateral() public view returns (address) {
+        return asset();
+    }
+
+    /// @inheritdoc IVaultV2
+    function totalAssets() public view override(ERC4626Upgradeable, IVaultV2) returns (uint256 assets) {
+        (assets,,) = getAccrueInterest();
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeStake() public view returns (uint256) {
+        return totalAssets();
     }
 
     /// @inheritdoc IVaultV2
     function totalStake() public view returns (uint256) {
-        return activeStake() + activeWithdrawals();
+        return activeStake();
     }
 
     /// @inheritdoc IVaultV2
-    function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
-        return _previewRedeem(
-            activeSharesOfAt(account, timestamp, Calldata.emptyBytes()),
-            activeStakeAt(timestamp, Calldata.emptyBytes()),
-            activeSharesAt(timestamp, Calldata.emptyBytes())
-        );
+    function activeSharesAt(uint48 timestamp, bytes calldata) public view returns (uint256) {
+        return _totalSupply.upperLookupRecent(timestamp);
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeShares() public view returns (uint256) {
+        return totalSupply();
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeSharesOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
+        return _balanceOf[account].upperLookupRecent(timestamp);
+    }
+
+    /// @inheritdoc IVaultV2
+    function activeSharesOf(address account) public view returns (uint256) {
+        return balanceOf(account);
     }
 
     /// @inheritdoc IVaultV2
     function activeBalanceOf(address account) public view returns (uint256) {
-        return _previewRedeem(activeSharesOf(account), activeStake(), activeShares());
+        return previewRedeem(balanceOf(account));
     }
 
     /// @inheritdoc IVaultV2
-    function activeWithdrawalsAt(uint48 timestamp) public view returns (uint256) {
-        uint256 curWithdrawalBucket =
-            _cumulSharesToBucket.upperLookupRecent(_claimableCumulShares.upperLookupRecent(timestamp));
-        uint256 curWithdrawalShares = _withdrawalShares[curWithdrawalBucket].upperLookupRecent(timestamp);
-        return curWithdrawalShares > 0
-            ? activeWithdrawalSharesAt(timestamp)
-                .fullMulDiv(_withdrawals[curWithdrawalBucket].upperLookupRecent(timestamp), curWithdrawalShares)
-            : 0;
+    function isWithdrawalsClaimed(uint256 tokenId, address) public view virtual returns (bool) {
+        (, uint256 shares, uint256 claimedShares,) = WithdrawalQueue(withdrawalQueue).requests(tokenId);
+        return claimedShares == shares;
     }
 
     /// @inheritdoc IVaultV2
-    function activeWithdrawals() public view returns (uint256) {
-        uint208 curWithdrawalBucket = withdrawalBucket();
-        uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
-        return curWithdrawalShares > 0
-            ? activeWithdrawalShares().fullMulDiv(withdrawals(curWithdrawalBucket), curWithdrawalShares)
-            : 0;
+    function withdrawalsOf(uint256, address) public pure returns (uint256) {
+        return 0; // TODO
     }
 
     /// @inheritdoc IVaultV2
-    function activeWithdrawalSharesAt(uint48 timestamp) public view returns (uint256) {
-        return
-            _withdrawalSharesCumulative.upperLookupRecent(timestamp)
-                - _claimableCumulShares.upperLookupRecent(timestamp);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeWithdrawalShares() public view returns (uint256) {
-        return _withdrawalSharesCumulative.latest() - _claimableCumulShares.latest();
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeWithdrawalSharesOfAt(address account, uint48 timestamp) public view returns (uint256 shares) {
-        shares = _withdrawalSharesCumulativeOf[account].upperLookupRecent(timestamp + epochDuration)
-            - _withdrawalSharesCumulativeOf[account].upperLookupRecent(timestamp);
-
-        // Legacy support.
-        uint48 curMigrateTimestamp = migrateTimestamp;
-        if (curMigrateTimestamp > 0 && timestamp >= curMigrateTimestamp) {
-            uint48 migrateEpoch = __migrateEpoch;
-            if (timestamp < __migrateNextEpochTimestamp) {
-                shares += withdrawalSharesOf(migrateEpoch, account);
-            }
-            if (timestamp < curMigrateTimestamp + epochDuration) {
-                shares += withdrawalSharesOf(migrateEpoch + 1, account);
-            }
-        }
-    }
-
-    /// @inheritdoc IVaultV2
-    function withdrawalsOfLength(address account) public view returns (uint256) {
-        if (migrateTimestamp == 0 || _withdrawalsOfLength[account] > 0) {
-            return _withdrawalsOfLength[account];
-        }
-
-        // Legacy support.
-        return __migrateEpoch + 2;
-    }
-
-    /// @inheritdoc IVaultV2
-    function withdrawalSharesOf(uint256 index, address account) public view returns (uint256 shares) {
-        shares = _withdrawalSharesOf[index][account];
-
-        // Legacy support.
-        if (migrateTimestamp > 0) {
-            uint48 migrateEpoch = __migrateEpoch;
-            if (index == migrateEpoch || index == migrateEpoch + 1) {
-                shares = _previewRedeem(shares, __withdrawals[index], __withdrawalShares[index]);
-            }
-        }
-    }
-
-    /// @inheritdoc IVaultV2
-    function withdrawalsOf(uint256 index, address account) public view returns (uint256 amount) {
-        uint48 migrateEpoch = __migrateEpoch;
-        if (index < migrateEpoch) {
-            // Legacy support.
-            return _previewRedeem(_withdrawalSharesOf[index][account], __withdrawals[index], __withdrawalShares[index]);
-        }
-
-        uint256 shares = withdrawalSharesOf(index, account);
-        uint256 curWithdrawalCumulShares = _withdrawalCumulShares[index][account];
-        uint256 bucketIndex =
-            _cumulSharesToBucket.upperLookupRecent(curWithdrawalCumulShares > 0 ? curWithdrawalCumulShares - 1 : 0);
-        while (shares > 0) {
-            uint256 curBucketShares = _cumulSharesToBucket.length() <= bucketIndex + 1
-                ? shares
-                : Math.min(_cumulSharesToBucket.at(uint32(bucketIndex + 1))._key - curWithdrawalCumulShares, shares);
-            amount += _previewRedeem(curBucketShares, withdrawals(bucketIndex), withdrawalShares(bucketIndex));
-            curWithdrawalCumulShares += curBucketShares;
-            shares -= curBucketShares;
-            ++bucketIndex;
-        }
-    }
-
-    /// @inheritdoc IVaultV2Storage
-    function isWithdrawalsClaimed(uint256 index, address account)
+    function getAccrueInterest()
         public
         view
-        override(VaultV2Storage, IVaultV2Storage)
-        returns (bool)
+        returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares)
     {
-        return super.isWithdrawalsClaimed(index, account);
+        newTotalAssets = IDelegator(delegator).totalAssets();
+        uint256 elapsed = block.timestamp - lastUpdate;
+        uint256 interest = newTotalAssets.saturatingSub(_totalAssets);
+
+        uint256 performanceFeeAssets = interest > 0 && performanceFee > 0 ? interest.mulDiv(performanceFee, WAD) : 0;
+        uint256 managementFeeAssets =
+            elapsed > 0 && managementFee > 0 ? (newTotalAssets * elapsed).mulDiv(managementFee, WAD) : 0;
+
+        uint256 newTotalAssetsWithoutFees = newTotalAssets - performanceFeeAssets - managementFeeAssets;
+        performanceFeeShares =
+            performanceFeeAssets.mulDiv(totalSupply + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
+        managementFeeShares =
+            managementFeeAssets.mulDiv(totalSupply + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
     }
 
-    /// @inheritdoc ERC20Upgradeable
-    function decimals() public view override returns (uint8) {
-        return IERC20Metadata(collateral).decimals() + _decimalsOffset();
+    /// @inheritdoc ERC4626Upgradeable
+    function previewDeposit(uint256 assets) public view virtual returns (uint256) {
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+        return assets.mulDiv(
+            totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(), newTotalAssets + 1
+        );
     }
 
-    /// @inheritdoc ERC20Upgradeable
-    function totalSupply() public view override returns (uint256) {
-        return activeShares();
+    /// @inheritdoc ERC4626Upgradeable
+    function previewMint(uint256 shares) public view virtual returns (uint256) {
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+        return shares.mulDiv(
+            newTotalAssets + 1,
+            totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
+            Math.Rounding.Ceil
+        );
     }
 
-    /// @inheritdoc ERC20Upgradeable
-    function balanceOf(address account) public view override returns (uint256) {
-        return activeSharesOf(account);
+    /// @inheritdoc ERC4626Upgradeable
+    function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+        return assets.mulDiv(
+            totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
+            newTotalAssets + 1,
+            Math.Rounding.Ceil
+        );
     }
 
-    /// @inheritdoc IVaultV2
-    function allocatable() public view returns (uint256) {
-        return totalStake().saturatingSub(adaptersAllocated);
-    }
-
-    /// @inheritdoc IVaultV2
-    function adaptersOwe() public view returns (uint256) {
-        return adaptersAllocated.saturatingSub(totalStake());
-    }
-
-    /// @inheritdoc IVaultV2
-    function unclaimed() public view returns (uint256) {
-        return uint256(int256(withdrawals(withdrawalBucket()) - activeWithdrawals()) + _unclaimedRaw);
+    /// @inheritdoc ERC4626Upgradeable
+    function previewRedeem(uint256 shares) public view virtual returns (uint256) {
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+        return shares.mulDiv(
+            newTotalAssets + 1, totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset()
+        );
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
-    function deposit(address onBehalfOf, uint256 amount)
+    function accrueInterest() public {
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+
+        _totalAssets = newTotalAssets;
+        lastUpdate = uint48(block.timestamp);
+        if (performanceFeeShares > 0) {
+            _mint(performanceFeeRecipient, performanceFeeShares);
+        }
+        if (managementFeeShares > 0) {
+            _mint(managementFeeRecipient, managementFeeShares);
+        }
+
+        emit AccrueInterest(newTotalAssets, performanceFeeShares, managementFeeShares);
+    }
+
+    /// @inheritdoc IVaultV2
+    function deposit(address onBehalfOf, uint256 assets)
         public
-        nonReentrant
         returns (uint256 depositedAmount, uint256 mintedShares)
     {
-        skimAdapters();
-
-        _revertIfZero(onBehalfOf);
-        if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
-            revert NotWhitelistedDepositor();
-        }
-
-        depositedAmount = _safeTransferIn(msg.sender, amount);
-
-        if (isDepositLimit && activeStake() + depositedAmount > depositLimit) {
-            revert DepositLimitReached();
-        }
-
-        uint256 curActiveStake = activeStake();
-        uint256 curActiveShares = activeShares();
-
-        mintedShares = _previewDeposit(depositedAmount, curActiveShares, curActiveStake);
-        _revertIfZero(mintedShares);
-
-        _activeShares.push(uint48(block.timestamp), curActiveShares + mintedShares);
-        _activeStake.push(uint48(block.timestamp), curActiveStake + depositedAmount);
-        _activeSharesOf[onBehalfOf].push(uint48(block.timestamp), activeSharesOf(onBehalfOf) + mintedShares);
-
-        emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
-        emit Transfer(address(0), onBehalfOf, mintedShares);
-
-        // Allocate only non-fee-on-transfer tokens.
-        if (depositedAmount == amount && adapters.length > 0) {
-            _allocateAdapter(adapters[0], depositedAmount);
-        }
-
-        UniversalDelegator(delegator).onDeposit(depositedAmount);
+        return (assets, deposit(assets, onBehalfOf));
     }
 
     /// @inheritdoc IVaultV2
-    function withdraw(address claimer, uint256 amount)
-        public
-        nonReentrant
-        returns (uint256 burnedShares, uint256 mintedShares)
-    {
-        skimAdapters();
-
-        _revertIfZero(claimer);
-        _revertIfZero(amount);
-
-        burnedShares = _previewWithdraw(amount, activeShares(), activeStake());
-        _revertIfZero(burnedShares);
-        if (burnedShares > activeSharesOf(msg.sender)) {
-            revert TooMuchWithdraw();
-        }
-        mintedShares = _withdraw(claimer, amount, burnedShares);
+    function withdraw(address receiver, uint256 assets) public returns (uint256 burnedShares, uint256 mintedShares) {
+        return (withdraw(assets, receiver, msg.sender), 0);
     }
 
     /// @inheritdoc IVaultV2
-    function redeem(address claimer, uint256 shares)
-        public
-        nonReentrant
-        returns (uint256 withdrawnAssets, uint256 mintedShares)
-    {
-        skimAdapters();
-
-        _revertIfZero(claimer);
-        _revertIfZero(shares);
-        if (shares > activeSharesOf(msg.sender)) {
-            revert TooMuchRedeem();
-        }
-
-        withdrawnAssets = _previewRedeem(shares, activeStake(), activeShares());
-        _revertIfZero(withdrawnAssets);
-        mintedShares = _withdraw(claimer, withdrawnAssets, shares);
+    function redeem(address receiver, uint256 shares) public returns (uint256 withdrawnAssets, uint256 mintedShares) {
+        return (redeem(shares, receiver, msg.sender), 0);
     }
 
     /// @inheritdoc IVaultV2
-    function claim(address recipient, uint256 index) public nonReentrant returns (uint256 amount) {
-        deallocateAdapters();
-
-        _revertIfZero(recipient);
-
-        if (isWithdrawalsClaimed(index, msg.sender)) {
-            revert AlreadyClaimed();
-        }
-
-        uint48 migrateEpoch = __migrateEpoch;
-        if (index >= migrateEpoch) {
-            uint256 sharesToClaim = _claimableCumulShares.latest()
-                .saturatingSub(
-                    _withdrawalCumulShares[index][msg.sender] + _withdrawalSharesOf[index][msg.sender]
-                        - _withdrawalClaimedShares[index][msg.sender]
-                );
-            _withdrawalClaimedShares[index][msg.sender] += sharesToClaim;
-
-            uint256 curWithdrawalCumulShares =
-                _withdrawalCumulShares[index][msg.sender] + _withdrawalClaimedShares[index][msg.sender];
-            uint256 bucketIndex =
-                _cumulSharesToBucket.upperLookupRecent(curWithdrawalCumulShares > 0 ? curWithdrawalCumulShares - 1 : 0);
-            while (sharesToClaim > 0) {
-                uint256 curBucketShares = sharesToClaim;
-                if (_cumulSharesToBucket.length() > bucketIndex + 1) {
-                    curBucketShares = Math.min(
-                        _cumulSharesToBucket.at(uint32(bucketIndex + 1))._key - curWithdrawalCumulShares,
-                        curBucketShares
-                    );
-                }
-                amount += _previewRedeem(curBucketShares, withdrawals(bucketIndex), withdrawalShares(bucketIndex));
-                curWithdrawalCumulShares += curBucketShares;
-                sharesToClaim -= curBucketShares;
-                ++bucketIndex;
-            }
-        } else {
-            // Legacy support.
-            amount =
-                _previewRedeem(_withdrawalSharesOf[index][msg.sender], __withdrawals[index], __withdrawalShares[index]);
-        }
-        if (amount > (totalStake() + unclaimed()).saturatingSub(adaptersAllocated)) {
-            revert InsufficientAmount();
-        }
-        _unclaimedRaw -= int256(amount);
-
-        _safeTransferOut(recipient, amount);
-
-        emit Claim(msg.sender, recipient, index, amount);
+    function claim(address receiver, uint256 tokenId) public returns (uint256 assets) {
+        (assets,) = WithdrawalQueue(withdrawalQueue).claim(tokenId, type(uint256).max);
+        emit Claim(msg.sender, receiver, tokenId, assets);
     }
 
     /// @inheritdoc IVaultV2
-    function claimBatch(address recipient, uint256[] calldata indexes) public returns (uint256 amount) {
+    function claimBatch(address receiver, uint256[] calldata indexes) public returns (uint256 assets) {
         for (uint256 i; i < indexes.length; ++i) {
-            amount += claim(recipient, indexes[i]);
+            assets += claim(receiver, indexes[i]);
         }
     }
 
     /// @inheritdoc IVaultV2
-    function donate(uint256 amount) public {
-        if (REWARDS != msg.sender) {
-            revert NotRewards();
+    function pull(uint256 assets, address receiver) public {
+        if (delegator != msg.sender) {
+            revert NotDelegator();
         }
 
-        amount = _safeTransferIn(msg.sender, amount);
+        IERC20(asset()).safeTransfer(receiver, assets);
 
-        uint256 curActiveStake = activeStake();
-        uint256 curActiveWithdrawals = activeWithdrawals();
-
-        uint256 withdrawalsDonated = amount.fullMulDiv(curActiveWithdrawals, curActiveStake + curActiveWithdrawals);
-        if (withdrawalsDonated > 0) {
-            _updateWithdrawalsSharePrice(curActiveWithdrawals + withdrawalsDonated);
-        }
-        uint256 activeDonated = amount - withdrawalsDonated;
-        _activeStake.push(uint48(block.timestamp), curActiveStake + activeDonated);
-
-        emit Donate(activeDonated, withdrawalsDonated);
+        emit Pull(assets, receiver);
     }
 
     /// @inheritdoc IVaultV2
-    function fulfill() public nonReentrant {
-        uint256 amount =
-            (activeStake() + activeWithdrawals()).saturatingSub(UniversalDelegator(delegator).totalAllocated());
-        uint208 curWithdrawalBucket = withdrawalBucket();
-        uint256 curWithdrawals = withdrawals(curWithdrawalBucket);
-        uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
-        uint256 shares = _previewDeposit(curWithdrawalBucket, curWithdrawalShares, curWithdrawals);
-        if (shares == 0) {
-            return;
+    function push(uint256 assets, address owner) public {
+        if (delegator != msg.sender) {
+            revert NotDelegator();
         }
-        _claimableCumulShares.push(uint48(block.timestamp), _claimableCumulShares.latest() + shares);
-        emit Fulfill(amount, shares);
+
+        IERC20(asset()).safeTransferFrom(owner, address(this), assets);
+
+        emit Push(assets, owner);
     }
 
-    // @dev Internal dev function to handle slashing.
-    function onSlash(uint256 amount) public nonReentrant returns (uint256 slashedAmount, uint256 owedAmount) {
-        if (slasher != msg.sender) {
-            revert NotSlasher();
+    /// @dev Apply a delegator slash to vault accounting.
+    function onSlash(uint256 assets) public returns (uint256 slashedAssets) {
+        if (delegator != msg.sender) {
+            revert NotDelegator();
         }
 
-        uint256 curActiveStake = activeStake();
-        uint256 curActiveWithdrawals = activeWithdrawals();
-        uint256 slashableStake = curActiveStake + curActiveWithdrawals;
-
-        uint256 activeSlashed;
-        uint256 withdrawalsSlashed;
-        slashedAmount = Math.min(amount, slashableStake);
-        if (slashedAmount > 0) {
-            activeSlashed = slashedAmount.fullMulDiv(curActiveStake, slashableStake);
-            _activeStake.push(uint48(block.timestamp), curActiveStake - activeSlashed);
-            if (curActiveWithdrawals > 0) {
-                withdrawalsSlashed = slashedAmount - activeSlashed;
-                _updateWithdrawalsSharePrice(curActiveWithdrawals - withdrawalsSlashed);
-            }
-
-            deallocateAdapters();
-            owedAmount = Math.min(slashedAmount, adaptersOwe());
-            if (slashedAmount > owedAmount) {
-                _safeTransferOut(burner, slashedAmount - owedAmount);
-            }
-        }
-
-        emit OnSlash(amount, activeSlashed, withdrawalsSlashed);
+        slashedAssets = Math.min(assets, _totalAssets);
+        _totalAssets -= slashedAssets;
     }
 
-    /* INTERNAL FUNCTIONS (ACCOUNTING) */
+    /// @inheritdoc ERC4626Upgradeable
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
+        accrueInterest();
 
-    /// @dev Convert active shares into a withdrawal request.
-    function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
+        super._deposit(caller, receiver, assets, shares);
+        _totalAssets += assets;
+
+        IDelegator(delegator).onDeposit(caller, receiver, assets, shares);
+
+        WithdrawalQueue(withdrawalQueue).fill(assets);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
         internal
-        virtual
-        returns (uint256 mintedShares)
+        override
     {
-        _activeSharesOf[msg.sender].push(uint48(block.timestamp), activeSharesOf(msg.sender) - burnedShares);
-        _activeShares.push(uint48(block.timestamp), activeShares() - burnedShares);
-        _activeStake.push(uint48(block.timestamp), activeStake() - withdrawnAssets);
+        accrueInterest();
 
-        uint208 curWithdrawalBucket = withdrawalBucket();
-        uint256 curWithdrawals = withdrawals(curWithdrawalBucket);
-        uint256 curWithdrawalShares = withdrawalShares(curWithdrawalBucket);
+        IDelegator(delegator).onWithdraw(caller, receiver, owner, assets, shares);
 
-        mintedShares = _previewDeposit(withdrawnAssets, curWithdrawalShares, curWithdrawals);
-        _revertIfZero(mintedShares);
-
-        _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawalShares + mintedShares);
-        _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curWithdrawals + withdrawnAssets);
-
-        uint256 curWithdrawalsOfLength = withdrawalsOfLength(claimer);
-        _withdrawalsOfLength[claimer] = curWithdrawalsOfLength + 1;
-        _withdrawalSharesOf[curWithdrawalsOfLength][claimer] = mintedShares;
-        uint256 withdrawalSharesCumulative = _withdrawalSharesCumulative.latest();
-        _withdrawalCumulShares[curWithdrawalsOfLength][claimer] = withdrawalSharesCumulative;
-        _withdrawalSharesCumulative.push(uint48(block.timestamp), withdrawalSharesCumulative + mintedShares);
-        // TODO _withdrawalSharesCumulativeOf
-
-        emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares, curWithdrawalsOfLength);
-        emit Transfer(msg.sender, address(0), burnedShares);
-
-        UniversalDelegator(delegator).onWithdraw(withdrawnAssets);
-    }
-
-    /// @dev Reprice active withdrawals and roll claimable shares into a new bucket when a boundary is crossed.
-    function _updateWithdrawalsSharePrice(uint256 newActiveWithdrawals) internal {
-        uint208 curWithdrawalBucket = withdrawalBucket();
-        uint256 curActiveWithdrawalShares = activeWithdrawalShares();
-        uint256 curClaimableWithdrawals = withdrawals(curWithdrawalBucket) - activeWithdrawals();
-        uint256 curClaimableWithdrawalShares = withdrawalShares(curWithdrawalBucket) - curActiveWithdrawalShares;
-
-        if (curClaimableWithdrawalShares > 0) {
-            _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawalShares);
-            _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), curClaimableWithdrawals);
-            _unclaimedRaw += int256(curClaimableWithdrawals);
-
-            ++curWithdrawalBucket;
-            _withdrawalShares[curWithdrawalBucket].push(uint48(block.timestamp), curActiveWithdrawalShares);
-            _cumulSharesToBucket.push(
-                _withdrawalSharesCumulative.latest() - curActiveWithdrawalShares, curWithdrawalBucket
-            );
-        }
-        _withdrawals[curWithdrawalBucket].push(uint48(block.timestamp), newActiveWithdrawals);
+        _totalAssets -= assets;
+        super._withdraw(caller, receiver, owner, assets, shares);
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IVaultV2
-    function setDepositWhitelist(bool newStatus) public nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
+    function setDepositWhitelist(bool newStatus) public onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         depositWhitelist = newStatus;
         emit SetDepositWhitelist(newStatus);
     }
 
     /// @inheritdoc IVaultV2
-    function setDepositorWhitelistStatus(address account, bool newStatus)
-        public
-        nonReentrant
-        onlyRole(DEPOSITOR_WHITELIST_ROLE)
-    {
-        _revertIfZero(account);
+    function setDepositorWhitelistStatus(address account, bool newStatus) public onlyRole(DEPOSITOR_WHITELIST_ROLE) {
+        if (account == address(0)) {
+            revert InvalidAddress();
+        }
         isDepositorWhitelisted[account] = newStatus;
         emit SetDepositorWhitelistStatus(account, newStatus);
     }
 
     /// @inheritdoc IVaultV2
-    function setIsDepositLimit(bool newStatus) public nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
+    function setIsDepositLimit(bool newStatus) public onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         isDepositLimit = newStatus;
         emit SetIsDepositLimit(newStatus);
     }
 
     /// @inheritdoc IVaultV2
-    function setDepositLimit(uint256 newLimit) public nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
+    function setDepositLimit(uint256 newLimit) public onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         depositLimit = newLimit;
         emit SetDepositLimit(newLimit);
     }
 
     /// @inheritdoc IVaultV2
-    function setAdapterLimit(address adapter, uint208 newLimit)
+    function setPerformanceFee(uint256 newPerformanceFee) public onlyRole(PERFORMANCE_FEE_SET_ROLE) {
+        if (newPerformanceFee > MAX_PERFORMANCE_FEE) {
+            revert FeeTooHigh();
+        }
+        if (performanceFeeRecipient == address(0) && newPerformanceFee != 0) {
+            revert FeeInvariantBroken();
+        }
+
+        accrueFees();
+
+        performanceFee = uint96(newPerformanceFee);
+
+        emit SetPerformanceFee(newPerformanceFee);
+    }
+
+    /// @inheritdoc IVaultV2
+    function setPerformanceFeeRecipient(address newPerformanceFeeRecipient)
         public
-        nonReentrant
-        onlyRole(SET_ADAPTER_LIMIT_ROLE)
-        returns (bool)
+        onlyRole(PERFORMANCE_FEE_RECIPIENT_SET_ROLE)
     {
-        _revertIfZero(adapter);
-
-        if (adapterAllocated[adapter] > newLimit) {
-            revert AdapterAllocated();
+        if (newPerformanceFeeRecipient == address(0) && performanceFee != 0) {
+            revert FeeInvariantBroken();
         }
 
-        uint256 curAdapterIndex = adapterIndex[adapter];
-        if (newLimit > 0) {
-            if (curAdapterIndex == 0) {
-                _addAdapter(adapter);
-                adapterAllowedAt[adapter] = uint48(block.timestamp) + adaptersAllowDelay;
-                return false;
-            }
-            if (block.timestamp < adapterAllowedAt[adapter]) {
-                return false;
-            }
-        } else {
-            if (curAdapterIndex == 0) {
-                return false;
-            }
-            address lastAdapter = adapters[adapters.length - 1];
-            adapters[curAdapterIndex - 1] = lastAdapter;
-            adapterIndex[lastAdapter] = curAdapterIndex;
-            adapters.pop();
-            adapterIndex[adapter] = 0;
-            super._revokeRole(ALLOCATE_ADAPTER_ROLE, adapter);
-            super._revokeRole(DEALLOCATE_ADAPTER_ROLE, adapter);
-            adapterAllowedAt[adapter] = 0;
-        }
-        adapterLimit[adapter] = newLimit;
+        accrueFees();
 
-        emit SetAdapterLimit(adapter, newLimit);
-        return true;
-    }
+        performanceFeeRecipient = newPerformanceFeeRecipient;
 
-    function _addAdapter(address adapter) internal {
-        if (adapterIndex[adapter] > 0) {
-            revert AlreadyAdded();
-        }
-        uint256 newAdapterIndex = adapters.length + 1;
-        if (newAdapterIndex > MAX_ADAPTERS) {
-            revert TooManyAdapters();
-        }
-        if (!IRegistry(ADAPTER_REGISTRY).isEntity(adapter)) {
-            revert NotAdapter();
-        }
-        adapters.push(adapter);
-        adapterIndex[adapter] = newAdapterIndex;
-        _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, adapter);
-        _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, adapter);
-
-        emit AddAdapter(adapter);
+        emit SetPerformanceFeeRecipient(newPerformanceFeeRecipient);
     }
 
     /// @inheritdoc IVaultV2
-    function swapAdapters(address adapter1, address adapter2) public nonReentrant onlyRole(SWAP_ADAPTERS_ROLE) {
-        uint256 index1 = adapterIndex[adapter1];
-        uint256 index2 = adapterIndex[adapter2];
-        uint256 pos1 = index1 - 1;
-        uint256 pos2 = index2 - 1;
-        (adapters[pos1], adapters[pos2]) = (adapters[pos2], adapters[pos1]);
-        (adapterIndex[adapter1], adapterIndex[adapter2]) = (index2, index1);
+    function setManagementFee(uint256 newManagementFee) public onlyRole(MANAGEMENT_FEE_SET_ROLE) {
+        if (newManagementFee > MAX_MANAGEMENT_FEE) {
+            revert FeeTooHigh();
+        }
+        if (managementFeeRecipient == address(0) && newManagementFee != 0) {
+            revert FeeInvariantBroken();
+        }
 
-        emit SwapAdapters(adapter1, adapter2);
+        accrueFees();
+
+        managementFee = uint96(newManagementFee);
+
+        emit SetManagementFee(newManagementFee);
     }
 
     /// @inheritdoc IVaultV2
-    function allocateAdapter(address adapter, uint256 amount)
+    function setManagementFeeRecipient(address newManagementFeeRecipient)
         public
-        onlyRole(ALLOCATE_ADAPTER_ROLE)
-        returns (uint256 allocated)
+        onlyRole(MANAGEMENT_FEE_RECIPIENT_SET_ROLE)
     {
-        return _allocateAdapter(adapter, amount);
-    }
-
-    /// @dev Allocate collateral to a adapter within configured limits.
-    function _allocateAdapter(address adapter, uint256 amount) internal returns (uint256 allocated) {
-        allocated = Math.min(
-            Math.min(Math.min(amount, adapterLimit[adapter] - adapterAllocated[adapter]), allocatable()),
-            IAdapterBase(adapter).allocatable(address(this))
-        );
-
-        if (allocated > 0) {
-            adaptersAllocated += allocated;
-            adapterAllocated[adapter] += allocated;
-
-            uint256 balanceBefore = collateral.balanceOf(adapter);
-            _safeTransferOut(adapter, allocated);
-            if (collateral.balanceOf(adapter) - balanceBefore < allocated) {
-                revert FeeOnTransferNotSupported();
-            }
-            IAdapterBase(adapter).allocate(allocated);
+        if (newManagementFeeRecipient == address(0) && managementFee != 0) {
+            revert FeeInvariantBroken();
         }
 
-        emit Allocate(adapter, allocated);
+        accrueFees();
+
+        managementFeeRecipient = newManagementFeeRecipient;
+
+        emit SetManagementFeeRecipient(newManagementFeeRecipient);
     }
 
-    /// @inheritdoc IVaultV2
-    function deallocateAdapter(address adapter, uint256 amount)
-        public
-        onlyRole(DEALLOCATE_ADAPTER_ROLE)
-        returns (uint256)
-    {
-        return _deallocateAdapter(adapter, amount);
-    }
+    /* PUBLIC FUNCTIONS (INTERNAL) */
 
-    /// @dev Deallocate collateral from a adapter and update accounting.
-    function _deallocateAdapter(address adapter, uint256 amount) internal returns (uint256 deallocated) {
-        deallocated = IAdapterBase(adapter).deallocate(amount);
-        if (deallocated > 0) {
-            deallocated = _safeTransferIn(adapter, deallocated);
-
-            adapterAllocated[adapter] -= deallocated;
-            adaptersAllocated -= deallocated;
-        }
-
-        emit Deallocate(adapter, deallocated);
-    }
-
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc IVaultV2
-    function skimAdapters() public {
-        for (uint256 i; i < adapters.length; ++i) {
-            IAdapterBase(adapters[i]).skim(address(this));
-        }
-    }
-
-    /// @inheritdoc IVaultV2
-    function deallocateAdapters() public {
-        for (uint256 i; i < adapters.length; ++i) {
-            uint256 toDeallocate = adaptersOwe();
-            if (toDeallocate == uint256(0)) {
-                break;
-            }
-            address adapter = adapters[i];
-            uint256 curAdapterAllocated = adapterAllocated[adapter];
-            if (curAdapterAllocated > 0) {
-                _deallocateAdapter(adapter, Math.min(curAdapterAllocated, toDeallocate));
-            }
-        }
-    }
-
-    /* INTERNAL FUNCTIONS (ADAPTERS) */
-
-    /// @inheritdoc AccessControlUpgradeable
-    function _revokeRole(bytes32 role, address account) internal override returns (bool) {
-        if (adapterLimit[account] > 0 && (role == ALLOCATE_ADAPTER_ROLE || role == DEALLOCATE_ADAPTER_ROLE)) {
-            return false;
-        }
-        return super._revokeRole(role, account);
-    }
-
-    /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
-
-    // @dev Internal dev function to handle owed slashing.
-    function syncOwedSlash(uint256 amount) public nonReentrant returns (uint256 slashedAmount) {
-        if (slasher != msg.sender) {
-            revert NotSlasher();
-        }
-
-        deallocateAdapters();
-
-        slashedAmount = Math.min(
-            amount,
-            (totalStake() + unclaimed() + UniversalSlasher(slasher).totalOwed()).saturatingSub(adaptersAllocated)
-        );
-        _safeTransferOut(burner, slashedAmount);
-
-        emit SyncOwedSlash(slashedAmount);
-    }
-
-    /// @dev Set the vault delegator once after validating registry membership and vault linkage.
-    function setDelegator(address newDelegator) public nonReentrant {
-        if (_isDelegatorInitialized) {
+    /// @dev Set the vault delegator once after deployment.
+    function setDelegator(address newDelegator) public {
+        if (delegator != address(0)) {
             revert DelegatorAlreadyInitialized();
         }
 
-        _validateEntity(newDelegator, DELEGATOR_FACTORY, UNIVERSAL_DELEGATOR_TYPE, InvalidDelegator.selector);
+        if (
+            !IRegistry(DELEGATOR_FACTORY).isEntity(newDelegator) || IDelegator(newDelegator).vault() != address(this)
+                || IEntity(newDelegator).TYPE() < GUARANTEES_DELEGATOR_TYPE
+        ) {
+            revert InvalidDelegator();
+        }
 
         delegator = newDelegator;
 
-        _isDelegatorInitialized = true;
-
         emit SetDelegator(newDelegator);
-    }
-
-    /// @dev Set the vault slasher once after validating registry membership and vault linkage.
-    function setSlasher(address newSlasher) public nonReentrant {
-        if (_isSlasherInitialized) {
-            revert SlasherAlreadyInitialized();
-        }
-
-        if (newSlasher != address(0)) {
-            _validateEntity(newSlasher, SLASHER_FACTORY, UNIVERSAL_SLASHER_TYPE, InvalidSlasher.selector);
-
-            slasher = newSlasher;
-        }
-
-        _isSlasherInitialized = true;
-
-        emit SetSlasher(newSlasher);
-    }
-
-    /* INTERNAL FUNCTIONS (ERC20) */
-
-    /// @inheritdoc ERC20Upgradeable
-    /// @dev Mirror ERC20 transfers into active share checkpoints.
-    function _update(address from, address to, uint256 value) internal override {
-        // _Update() is called only on transfers, so from == address(0) or to == address(0) is not possible.
-        _activeSharesOf[from].push(uint48(block.timestamp), balanceOf(from) - value);
-        _activeSharesOf[to].push(uint48(block.timestamp), balanceOf(to) + value);
-
-        emit Transfer(from, to, value);
     }
 
     /* INITIALIZATION */
@@ -784,29 +482,29 @@ contract VaultV2 is
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         InitParams memory params = abi.decode(data, (InitParams));
 
-        if (params.collateral == address(0)) {
+        if (params.asset == address(0)) {
             revert InvalidCollateral();
         }
 
         if (params.epochDuration == uint48(0) || params.epochDuration > MAX_DURATION) {
             revert TooLongDuration();
         }
-        if (params.adaptersAllowDelay <= params.epochDuration || params.adaptersAllowDelay > MAX_DURATION) {
-            revert InvalidAdaptersAddDelay();
-        }
-
         if (params.depositorToWhitelist == address(0)) {
             revert InvalidDepositorToWhitelist();
         }
 
         __ERC20_init(params.name, params.symbol);
-
-        collateral = params.collateral;
+        __ERC4626_init(IERC20(params.asset));
+        lastUpdate = uint48(block.timestamp);
 
         burner = params.burner;
+        withdrawalQueue = address(
+            new TransparentUpgradeableProxy(
+                WITHDRAWAL_QUEUE_IMPL, address(this), abi.encodeCall(WithdrawalQueue.initialize, ())
+            )
+        );
 
         epochDuration = params.epochDuration;
-        adaptersAllowDelay = params.adaptersAllowDelay;
 
         depositWhitelist = params.depositWhitelist;
         isDepositorWhitelisted[params.depositorToWhitelist] = true;
@@ -814,19 +512,15 @@ contract VaultV2 is
         isDepositLimit = params.isDepositLimit;
         depositLimit = params.depositLimit;
 
-        for (uint256 i; i < params.adapters.length; ++i) {
-            _addAdapter(params.adapters[i]);
-        }
-
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_WHITELIST_SET_ROLE, params.depositWhitelistSetRoleHolder);
         _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-        _grantRoleIfNotZero(SET_ADAPTER_LIMIT_ROLE, params.setAdapterLimitRoleHolder);
-        _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
-        _grantRoleIfNotZero(ALLOCATE_ADAPTER_ROLE, params.allocateAdapterRoleHolder);
-        _grantRoleIfNotZero(DEALLOCATE_ADAPTER_ROLE, params.deallocateAdapterRoleHolder);
+        _grantRoleIfNotZero(PERFORMANCE_FEE_SET_ROLE, params.performanceFeeSetRoleHolder);
+        _grantRoleIfNotZero(PERFORMANCE_FEE_RECIPIENT_SET_ROLE, params.performanceFeeRecipientSetRoleHolder);
+        _grantRoleIfNotZero(MANAGEMENT_FEE_SET_ROLE, params.managementFeeSetRoleHolder);
+        _grantRoleIfNotZero(MANAGEMENT_FEE_RECIPIENT_SET_ROLE, params.managementFeeRecipientSetRoleHolder);
 
         emit Initialize(params);
     }
@@ -835,41 +529,21 @@ contract VaultV2 is
 
     /// @dev Migrate vault state and deploy V2 delegator and slasher contracts.
     function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {
-        (bool success, bytes memory returnData) =
-            VAULT_V2_MIGRATE.delegatecall(abi.encodeCall(VaultV2Migrate.migrate, (oldVersion, data)));
-        if (!success) {
-            assembly ("memory-safe") {
-                revert(add(32, returnData), mload(returnData))
-            }
-        }
+        revert();
     }
 
     /* UTILITY FUNCTIONS */
 
-    /// @dev Revert when an address argument is zero.
-    function _revertIfZero(address value) internal pure {
-        if (value == address(0)) {
-            revert InvalidAddress();
-        }
-    }
+    /// @dev Update ERC20 balances and active share checkpoints.
+    function _update(address from, address to, uint256 value) internal override {
+        super._update(from, to, value);
 
-    /// @dev Revert when an amount argument is zero.
-    function _revertIfZero(uint256 amount) internal pure {
-        if (amount == uint256(0)) {
-            revert InsufficientAmount();
+        _totalSupply.push(uint48(block.timestamp), totalSupply());
+        if (from != address(0)) {
+            _balanceOf[from].push(uint48(block.timestamp), balanceOf(from));
         }
-    }
-
-    /// @dev Revert when an entity is invalid.
-    function _validateEntity(address entity, address factory, uint64 minType, bytes4 errorSelector) internal view {
-        if (
-            !IRegistry(factory).isEntity(entity) || UniversalDelegator(entity).vault() != address(this)
-                || IEntity(entity).TYPE() < minType
-        ) {
-            assembly ("memory-safe") {
-                mstore(0x00, errorSelector)
-                revert(0x00, 0x04)
-            }
+        if (to != address(0) && to != from) {
+            _balanceOf[to].push(uint48(block.timestamp), balanceOf(to));
         }
     }
 
@@ -880,22 +554,8 @@ contract VaultV2 is
         }
     }
 
-    /// @dev Transfer collateral from a source address to the vault.
-    function _safeTransferIn(address from, uint256 amount) internal returns (uint256 amountIn) {
-        uint256 balanceBefore = collateral.balanceOf(address(this));
-        collateral.safeTransferFrom(from, address(this), amount);
-        amountIn = collateral.balanceOf(address(this)) - balanceBefore;
-        _revertIfZero(amountIn);
-    }
-
-    /// @dev Transfer collateral from the vault to a recipient address.
-    function _safeTransferOut(address to, uint256 amount) internal {
-        _revertIfZero(amount);
-        collateral.safeTransfer(to, amount);
-    }
-
-    /// @inheritdoc ERC4626Math
+    /// @inheritdoc ERC4626Upgradeable
     function _decimalsOffset() internal view virtual override returns (uint8) {
-        return migrateTimestamp == 0 ? super._decimalsOffset() : 0;
+        return DECIMALS_OFFSET;
     }
 }

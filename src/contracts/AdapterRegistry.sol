@@ -6,12 +6,15 @@ import {Registry} from "./common/Registry.sol";
 
 import {IAdapterRegistry} from "../interfaces/IAdapterRegistry.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @title AdapterRegistry
 /// @notice Registry contract for whitelisted adapter contracts.
-contract AdapterRegistry is Registry, Ownable, IAdapterRegistry {
-    constructor(address initOwner) Ownable(initOwner) {}
+contract AdapterRegistry is Registry, OwnableUpgradeable, IAdapterRegistry {
+    /// @dev Initializes the contract with the given owner.
+    function initialize(address owner_) external initializer {
+        __Ownable_init(owner_);
+    }
 
     /// @inheritdoc IAdapterRegistry
     function whitelistAdapter(address adapter) external onlyOwner {

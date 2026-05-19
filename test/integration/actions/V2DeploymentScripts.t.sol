@@ -4,14 +4,13 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {UpgradeableBeacon} from "@solady/src/utils/UpgradeableBeacon.sol";
-
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
-import {AaveV3Adapter} from "../../../src/contracts/vault/adapters/AaveV3Adapter.sol";
-import {MorphoVaultV2Adapter} from "../../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
+import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
+import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
 import {IEntity} from "../../../src/interfaces/common/IEntity.sol";
 import {IFactory} from "../../../src/interfaces/common/IFactory.sol";
@@ -21,7 +20,7 @@ import {IRegistry} from "../../../src/interfaces/common/IRegistry.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {UNIVERSAL_SLASHER_TYPE} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
 import {VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
-import {IAaveV3Pool} from "../../../src/interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
+import {IAaveV3Pool} from "../../../src/interfaces/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
 
 import {SymbioticCoreConstants} from "../SymbioticCoreConstants.sol";
 import {

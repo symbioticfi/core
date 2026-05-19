@@ -1,261 +1,359 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {IWithdrawalQueue} from
+// import {IVaultSnapshotRewards} from "../../interfaces/vault/IVaultSnapshotRewards.sol";
+import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
+import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
+import {DECIMALS_OFFSET, IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 /// @title Withdrawal Queue
-/// @author Symbiotic Re contributors
-/// @notice Holds pending SymRe share withdrawal requests as ERC721 positions.
-contract WithdrawalQueue is ERC721, IWithdrawalQueue {
+/// @notice Holds pending share withdrawal requests as ERC721 positions.
+contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     using SafeERC20 for IERC4626;
     using SafeERC20 for IERC20;
     using Math for uint256;
     using Checkpoints for Checkpoints.Trace256;
 
-    /// @notice A pending withdrawal request.
-    /// @param shares The amount of SymRe shares pending withdrawal.
-    /// @param receiver The address that received the withdrawal NFT.
-    /// @param owner The address that supplied the SymRe shares.
-    struct WithdrawalRequest {
-        uint256 shares;
-        address receiver;
-        address owner;
-        uint256 claimedShares;
-        uint256 prevRequestSum;
-    }
+    /* IMMUTABLES */
 
-    struct SharePriceCheckpoint {
-        uint256 filledShares;
-        uint256 totalAssets;
-        uint256 totalShares;
-    }
+    /* STATE VARIABLES */
 
-    /// @notice Share price checkpoints.
-    SharePriceCheckpoint[] private _sharePriceCheckpoints;
-
-    /// @notice Emitted when a withdrawal request is created.
-    /// @param tokenId The withdrawal NFT id.
-    /// @param shares The amount of SymRe shares pending withdrawal.
-    /// @param receiver The address that received the withdrawal NFT.
-    /// @param owner The address that supplied the SymRe shares.
-    event WithdrawalRequested(uint256 indexed tokenId, uint256 shares, address indexed receiver, address indexed owner);
-
-    /// @notice Emitted when a withdrawal request is claimed.
-    /// @param tokenId The withdrawal NFT id.
-    /// @param assetsToClaim The amount of assets claimed.
-    event WithdrawalClaimed(uint256 indexed tokenId, uint256 assetsToClaim);
-
-    /// @notice Reverts when a request is made with zero shares.
-    error ZeroShares();
-    /// @notice Reverts when a request is made with too many shares.
-    error TooManySharesToFill();
-    /// @notice Reverts when a withdrawal request is already claimed.
-    error WithdrawalAlreadyClaimed();
-
-    /// @notice The SymRe share token accepted by the queue.
-    IERC4626 private immutable SYM_RE;
-
-    /// @notice Total SymRe shares requested for withdrawal.
-    uint256 public totalRequested;
-    /// @notice Total SymRe shares filled.
+    /// @inheritdoc IWithdrawalQueue
+    address public vault;
+    /// @inheritdoc IWithdrawalQueue
     uint256 public totalFilled;
-    /// @notice The next withdrawal NFT id.
-    uint256 private _nextTokenId = 1;
+    /// @inheritdoc IWithdrawalQueue
+    uint256 public totalRequested;
 
-    /// @notice Withdrawal requests.
-    mapping(uint256 tokenId => WithdrawalRequest request) private _requests;
+    /// @dev The next withdrawal NFT id.
+    uint256 internal _nextTokenId;
+    /// @dev The latest total assets.
+    uint256 internal _latestTotalAssets;
+    /// @dev The latest total shares.
+    uint256 internal _latestTotalShares;
+    /// @dev Share price checkpoints.
+    SharePriceCheckpoint[] internal _sharePriceCheckpoints;
+    /// @dev Cumulative shares filled to share price.
+    Checkpoints.Trace256 internal _totalFilledSharesToSharePrice;
+    /// @dev Total requested shares checkpoints by timestamp.
+    Checkpoints.Trace256 internal _totalRequestedAt;
+    /// @dev Total filled shares checkpoints by timestamp.
+    Checkpoints.Trace256 internal _totalFilledAt;
+    /// @inheritdoc IWithdrawalQueue
+    mapping(uint256 tokenId => WithdrawalRequest) public requests;
+    /// @dev Queue rewards claimed from vault snapshot rewards contracts.
+    mapping(
+        address vaultSnapshotRewards => mapping(address network => mapping(address token => RewardCheckpoint[]))
+    ) internal _rewards;
+    /// @inheritdoc IWithdrawalQueue
+    mapping(
+        uint256 tokenId
+            => mapping(address vaultSnapshotRewards => mapping(address network => mapping(address token => uint256)))
+    ) public lastClaimedReward;
 
-    /// @notice Cumulative shares filled to share price.
-    Checkpoints.Trace256 private _cumFilledSharesToSharePrice;
+    /* MULTICALL */
 
-    /// @notice The latest total assets.
-    uint256 private _latestTotalAssets;
-
-    /// @notice The latest total shares.
-    uint256 private _latestTotalShares;
-
-    /// @notice Initializes the withdrawal queue.
-    /// @param symRe_ The SymRe share token accepted by the queue.
-    constructor(address symRe_) ERC721("SymRe Withdrawal Queue", "symReWQ") {
-        SYM_RE = IERC4626(symRe_);
-
-        // init with 1 to have initial share price at 1
-        _latestTotalAssets = 1;
-        _latestTotalShares = 1;
+    /// @inheritdoc IWithdrawalQueue
+    function multicall(bytes[] calldata data) public {
+        for (uint256 i; i < data.length; ++i) {
+            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
+            if (!success) {
+                assembly ("memory-safe") {
+                    revert(add(32, returnData), mload(returnData))
+                }
+            }
+        }
     }
 
-    /// @notice Returns the SymRe share token accepted by the queue.
-    /// @return The SymRe share token.
-    function symRe() external view returns (IERC4626) {
-        return SYM_RE;
-    }
+    /* VIEW FUNCTIONS */
 
-    /// @notice Returns the pending assets in the queue.
-    /// @return The pending assets in the queue.
+    /// @inheritdoc IWithdrawalQueue
     function pendingAssets() public view returns (uint256) {
-        return SYM_RE.convertToAssets(pendingShares());
+        return IERC4626(vault).previewRedeem(pendingShares());
     }
 
-    /// @notice Returns the pending shares in the queue.
-    /// @return The pending shares in the queue.
+    /// @inheritdoc IWithdrawalQueue
     function pendingShares() public view returns (uint256) {
         return totalRequested - totalFilled;
     }
 
-    /// @notice Returns the pending request details for a withdrawal NFT.
-    /// @param tokenId The withdrawal NFT id.
-    /// @return withdrawalRequest The pending withdrawal request.
-    function getRequest(uint256 tokenId) external view returns (WithdrawalRequest memory withdrawalRequest) {
-        withdrawalRequest = _requests[tokenId];
+    /// @inheritdoc IWithdrawalQueue
+    function claimable(uint256 tokenId) public view returns (uint256 assetsClaimed, uint256 sharesClaimed) {
+        (assetsClaimed, sharesClaimed) = _claimable(tokenId, type(uint256).max);
     }
 
-    // function reportNavUpdate() external {
-    //     if (msg.sender != address(SYM_RE)) {
-    //         revert NotAuthorized();
-    //     }
-    //     _navUpdated = true;
-    // }
+    /// @inheritdoc IWithdrawalQueue
+    function rewards(address vaultSnapshotRewards, address network, address token, uint256 index)
+        public
+        view
+        returns (RewardCheckpoint memory checkpoint)
+    {
+        return _rewards[vaultSnapshotRewards][network][token][index];
+    }
 
-    /// @notice Transfers SymRe shares into the queue and mints a withdrawal NFT.
-    /// @param shares The amount of SymRe shares to request for withdrawal.
-    /// @param receiver The address that receives the withdrawal NFT.
-    /// @param owner The address supplying the SymRe shares.
-    /// @return tokenId The minted withdrawal NFT id.
-    function requestWithdrawal(uint256 shares, address receiver, address owner) external returns (uint256 tokenId) {
+    /// @inheritdoc IWithdrawalQueue
+    function rewardsLength(address vaultSnapshotRewards, address network, address token)
+        public
+        view
+        returns (uint256 length)
+    {
+        return _rewards[vaultSnapshotRewards][network][token].length;
+    }
+
+    /* PUBLIC FUNCTIONS */
+
+    /// @inheritdoc IWithdrawalQueue
+    function requestWithdraw(uint256 shares, address receiver) public returns (uint256 tokenId) {
         if (shares == 0) {
             revert ZeroShares();
         }
 
-        tokenId = _nextTokenId++;
-        _requests[tokenId] = WithdrawalRequest({
-            shares: shares,
-            receiver: receiver,
-            owner: owner,
-            claimedShares: 0,
-            prevRequestSum: totalRequested
-        });
-        totalRequested += shares;
+        IERC4626(vault).safeTransferFrom(msg.sender, address(this), shares);
 
-        SYM_RE.safeTransferFrom(owner, address(this), shares);
+        tokenId = _nextTokenId++;
+        requests[tokenId] =
+            WithdrawalRequest({receiver: receiver, shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
+        totalRequested += shares;
+        _totalRequestedAt.push(block.timestamp, totalRequested);
+
         _mint(receiver, tokenId);
 
-        emit WithdrawalRequested(tokenId, shares, receiver, owner);
+        IDelegator(IVaultV2(vault).delegator())
+            .onRequestWithdraw(msg.sender, receiver, IERC4626(vault).previewRedeem(shares), shares);
+
+        emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
     }
 
-    /// @notice Claims a completed withdrawal request.
-    /// @param tokenId The withdrawal NFT id.
-    /// @param maxIterations The maximum number of iterations to claim.
-    function claim(uint256 tokenId, uint256 maxIterations) external {
-        WithdrawalRequest memory request = _requests[tokenId];
+    /// @inheritdoc IWithdrawalQueue
+    function claim(uint256 tokenId, uint256 maxIterations)
+        public
+        returns (uint256 assetsClaimed, uint256 sharesClaimed)
+    {
+        (assetsClaimed, sharesClaimed) = _claimable(tokenId, maxIterations);
 
-        (uint256 assetsToClaim, uint256 sharesToClaim) = _claimable(tokenId, maxIterations);
+        WithdrawalRequest storage request = requests[tokenId];
 
-        // update in storage for next claims
-        _requests[tokenId].claimedShares = request.claimedShares + sharesToClaim;
+        request.claimedShares += sharesClaimed;
 
-        // transfer out claimed assets
-        IERC20(SYM_RE.asset()).safeTransfer(request.receiver, assetsToClaim);
+        IERC20(IERC4626(vault).asset()).safeTransfer(request.receiver, assetsClaimed);
 
-        emit WithdrawalClaimed(tokenId, assetsToClaim);
+        emit Claim(tokenId, assetsClaimed, sharesClaimed);
     }
 
-    /// @notice Returns the claimable assets and shares for a withdrawal request.
-    /// @param tokenId The withdrawal NFT id.
-    /// @return assetsToClaim The claimable assets.
-    /// @return sharesToClaim The claimable shares.
-    function claimable(uint256 tokenId) external view returns (uint256 assetsToClaim, uint256 sharesToClaim) {
-        (assetsToClaim, sharesToClaim) = _claimable(tokenId, type(uint256).max);
-    }
-
-    /// @notice Fills a partial withdrawal request.
-    /// @param amount The amount of assets to fill.
-    function fill(uint256 amount) external {
-        uint256 shares = SYM_RE.convertToShares(amount);
-        if (shares > totalRequested - totalFilled) {
-            revert TooManySharesToFill();
+    /*
+    /// @inheritdoc IWithdrawalQueue
+    function claimVaultSnapshotRewards(
+        address vaultSnapshotRewards,
+        address network,
+        address token,
+        uint256 rewardsToClaim,
+        bytes[] calldata activeSharesOfHints
+    ) public returns (uint256 amount, uint256 rewardsClaimed) {
+        IVaultSnapshotRewards snapshotRewards = IVaultSnapshotRewards(vaultSnapshotRewards);
+        uint256 firstRewardToClaim = snapshotRewards.lastUnclaimedReward(address(this), vault, network, token);
+        rewardsClaimed = Math.min(
+            rewardsToClaim, snapshotRewards.rewardsLength(vault, network, token).saturatingSub(firstRewardToClaim)
+        );
+        if (rewardsClaimed == 0) {
+            revert NoRewardsToClaim();
         }
 
-        // if no shares to fill, return
+        for (uint256 i; i < rewardsClaimed; ++i) {
+            bytes memory activeSharesOfHint;
+            if (i < activeSharesOfHints.length) {
+                activeSharesOfHint = activeSharesOfHints[i];
+            }
+            amount += _claimVaultSnapshotReward(
+                snapshotRewards, vaultSnapshotRewards, network, token, firstRewardToClaim + i, activeSharesOfHint
+            );
+        }
+
+        emit ClaimVaultSnapshotRewards(vaultSnapshotRewards, network, token, amount, firstRewardToClaim, rewardsClaimed);
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function claimRewards(
+        uint256 tokenId,
+        address vaultSnapshotRewards,
+        address network,
+        address token,
+        uint256 rewardsToClaim
+    ) public returns (uint256 amount, uint256 rewardsClaimed) {
+        ownerOf(tokenId);
+
+        uint256 firstRewardToClaim = lastClaimedReward[tokenId][vaultSnapshotRewards][network][token];
+        RewardCheckpoint[] storage rewards_ = _rewards[vaultSnapshotRewards][network][token];
+        rewardsClaimed = Math.min(rewardsToClaim, rewards_.length.saturatingSub(firstRewardToClaim));
+        if (rewardsClaimed == 0) {
+            revert NoRewardsToClaim();
+        }
+        WithdrawalRequest storage request = requests[tokenId];
+
+        for (uint256 i; i < rewardsClaimed; ++i) {
+            RewardCheckpoint storage reward = rewards_[firstRewardToClaim + i];
+            if (reward.totalShares == 0 || reward.amount == 0) {
+                continue;
+            }
+            amount += _activeSharesOfAt(request, reward.timestamp).mulDiv(reward.amount, reward.totalShares);
+        }
+
+        lastClaimedReward[tokenId][vaultSnapshotRewards][network][token] = firstRewardToClaim + rewardsClaimed;
+
+        if (amount != 0) {
+            IERC20(token).safeTransfer(request.receiver, amount);
+        }
+
+        emit ClaimRewards(tokenId, vaultSnapshotRewards, network, token, amount, firstRewardToClaim, rewardsClaimed);
+    }
+    */
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc IWithdrawalQueue
+    function fill(uint256 amount) public {
+        amount = Math.min(amount, pendingAssets());
+        uint256 shares = IERC4626(vault).previewWithdraw(amount);
         if (shares == 0) {
             return;
         }
 
-        IERC20 asset = IERC20(SYM_RE.asset());
-        asset.safeTransferFrom(msg.sender, address(SYM_RE), amount);
-
-        uint256 totalShares = SYM_RE.totalSupply();
-        uint256 totalAssets = SYM_RE.previewRedeem(totalShares);
-        SYM_RE.redeem(shares, address(this), address(this));
+        uint256 totalShares = IERC4626(vault).totalSupply();
+        uint256 totalAssets = IERC4626(vault).totalAssets();
+        IERC4626(vault).redeem(shares, address(this), address(this));
 
         // if share price has changed, update the checkpoint
-        if ( _latestTotalAssets * totalShares != _latestTotalShares * totalAssets) {
-            SharePriceCheckpoint memory checkpoint =
-                SharePriceCheckpoint({filledShares: totalFilled, totalAssets: _latestTotalAssets, totalShares: _latestTotalShares});
-
-            _sharePriceCheckpoints.push(checkpoint);
-            _cumFilledSharesToSharePrice.push(checkpoint.filledShares, _sharePriceCheckpoints.length);
+        if (_latestTotalAssets * totalShares != _latestTotalShares * totalAssets) {
+            _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
+            _sharePriceCheckpoints.push(
+                SharePriceCheckpoint({totalAssets: _latestTotalAssets, totalShares: _latestTotalShares})
+            );
 
             _latestTotalAssets = totalAssets;
             _latestTotalShares = totalShares;
         }
-
         totalFilled += shares;
+        _totalFilledAt.push(block.timestamp, totalFilled);
+
+        emit Fill(amount, shares);
     }
 
-    /// @notice Returns the claimable assets and shares for a withdrawal request.
+    /// @dev Returns the claimable assets and shares for a withdrawal request.
     /// @param tokenId The withdrawal NFT id.
     /// @param maxIterations The maximum number of iterations to claim.
-    /// @return assetsToClaim The claimable assets.
-    /// @return sharesToClaim The claimable shares.
+    /// @return assetsClaimed The claimable assets.
+    /// @return sharesClaimed The claimable shares.
     function _claimable(uint256 tokenId, uint256 maxIterations)
         internal
         view
-        returns (uint256 assetsToClaim, uint256 sharesToClaim)
+        returns (uint256 assetsClaimed, uint256 sharesClaimed)
     {
-        WithdrawalRequest memory request = _requests[tokenId];
+        WithdrawalRequest storage request = requests[tokenId];
 
         if (request.claimedShares == request.shares) {
             return (0, 0);
         }
 
+        uint256 maxSharesToClaim =
+            totalFilled.saturatingSub(request.prevRequestSum + request.shares - request.claimedShares);
         uint256 cumClaimedShares = request.prevRequestSum + request.claimedShares;
+        uint32 checkpointIndex =
+            uint32(_totalFilledSharesToSharePrice.upperLookupRecent(cumClaimedShares.saturatingSub(1)));
 
-        for (uint256 i = 0; i < maxIterations; i++) {
-            if (cumClaimedShares == totalFilled) {
-                break;
+        for (; maxSharesToClaim > 0 && maxIterations > 0; --maxIterations) {
+            SharePriceCheckpoint storage checkpoint = _sharePriceCheckpoints[checkpointIndex++];
+            uint256 curRequestShares = maxSharesToClaim;
+            if (_totalFilledSharesToSharePrice.length() > checkpointIndex) {
+                curRequestShares = Math.min(
+                    _totalFilledSharesToSharePrice.at(checkpointIndex)._key - cumClaimedShares, maxSharesToClaim
+                );
             }
-
-            uint256 filledShares = totalFilled;
-            uint256 totalAssets = _latestTotalAssets;
-            uint256 totalShares = _latestTotalShares;
-
-            uint256 checkpointIndex = _cumFilledSharesToSharePrice.lowerLookup(cumClaimedShares + 1);
-            if (checkpointIndex != 0) {
-                SharePriceCheckpoint memory checkpoint = _sharePriceCheckpoints[checkpointIndex - 1];
-                filledShares = checkpoint.filledShares;
-                totalAssets = checkpoint.totalAssets;
-                totalShares = checkpoint.totalShares;
-            }
-
-            uint256 requestClaimedShares = cumClaimedShares - request.prevRequestSum;
-            uint256 sharesToFill = Math.min(filledShares - cumClaimedShares, request.shares - requestClaimedShares);
-
-            if (sharesToFill == 0) {
-                break;
-            }
-
-            assetsToClaim += Math.mulDiv(sharesToFill, totalAssets, totalShares);
-            cumClaimedShares += sharesToFill;
-            sharesToClaim += sharesToFill;
+            assetsClaimed += curRequestShares.mulDiv(
+                checkpoint.totalAssets + 1,
+                checkpoint.totalShares + 10 ** DECIMALS_OFFSET // TODO: Not good
+            );
+            cumClaimedShares += curRequestShares;
+            maxSharesToClaim -= curRequestShares;
         }
 
-        return (assetsToClaim, sharesToClaim);
+        sharesClaimed = cumClaimedShares - request.prevRequestSum - request.claimedShares;
+    }
+
+    /// @dev Returns total active withdrawal shares at a timestamp.
+    /// @param timestamp Timestamp to query.
+    /// @return shares Total active withdrawal shares.
+    function _activeSharesAt(uint48 timestamp) internal view returns (uint256 shares) {
+        return _totalRequestedAt.upperLookupRecent(timestamp).saturatingSub(_totalFilledAt.upperLookupRecent(timestamp));
+    }
+
+    /// @dev Returns active withdrawal shares for a request at a timestamp.
+    /// @param request Withdrawal request to query.
+    /// @param timestamp Timestamp to query.
+    /// @return shares Request active withdrawal shares.
+    function _activeSharesOfAt(WithdrawalRequest storage request, uint48 timestamp)
+        internal
+        view
+        returns (uint256 shares)
+    {
+        uint256 requestStart = request.prevRequestSum;
+        uint256 requestEnd = requestStart + request.shares;
+        uint256 activeStart = Math.max(requestStart, _totalFilledAt.upperLookupRecent(timestamp));
+        uint256 activeEnd = Math.min(requestEnd, _totalRequestedAt.upperLookupRecent(timestamp));
+
+        return activeEnd.saturatingSub(activeStart);
+    }
+
+    /*
+    /// @dev Claims and records a single vault snapshot reward for the queue.
+    /// @param snapshotRewards Vault snapshot rewards contract.
+    /// @param vaultSnapshotRewards Vault snapshot rewards contract address.
+    /// @param network Network whose rewards are claimed.
+    /// @param token Reward token to claim.
+    /// @param rewardIndex Source reward index to claim.
+    /// @param activeSharesOfHint Hint for the queue active shares lookup in the rewards contract.
+    /// @return rewardAmount Amount of reward tokens claimed by the queue.
+    function _claimVaultSnapshotReward(
+        IVaultSnapshotRewards snapshotRewards,
+        address vaultSnapshotRewards,
+        address network,
+        address token,
+        uint256 rewardIndex,
+        bytes memory activeSharesOfHint
+    ) internal returns (uint256 rewardAmount) {
+        IVaultSnapshotRewards.RewardDistribution memory reward =
+            snapshotRewards.rewards(vault, network, token, rewardIndex);
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+        bytes[] memory activeSharesOfHints = new bytes[](1);
+        activeSharesOfHints[0] = activeSharesOfHint;
+
+        snapshotRewards.claimVaultSnapshotRewards(
+            address(this), network, token, vault, rewardIndex, rewardIndex, 1, activeSharesOfHints
+        );
+
+        rewardAmount = IERC20(token).balanceOf(address(this)) - balanceBefore;
+        uint256 totalShares = _activeSharesAt(reward.timestamp);
+
+        _rewards[vaultSnapshotRewards][network][token].push(
+            RewardCheckpoint({timestamp: reward.timestamp, amount: rewardAmount, totalShares: totalShares})
+        );
+    }
+    */
+
+    /* INITIALIZE */
+
+    /// @dev Initialize withdrawal queue metadata and bind it to the calling vault.
+    function initialize() public initializer {
+        __ERC721_init("Withdrawal Queue", "WQ");
+
+        vault = msg.sender;
+
+        _latestTotalAssets = 1;
+        _latestTotalShares = 10 ** DECIMALS_OFFSET;
     }
 }

@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
+import {IDelegator} from "./IDelegator.sol";
+
+uint64 constant GUARANTEES_DELEGATOR_TYPE = 4;
+
+uint256 constant BURNER_GAS_LIMIT = 150_000;
+uint256 constant BURNER_RESERVE = 20_000;
 
 // Keccak256("CREATE_SLOT_ROLE").
 bytes32 constant CREATE_SLOT_ROLE = 0x8aef711962d032b5812b71f6f4353b179696ada38e16233a26a539c32c729007;
@@ -13,10 +18,10 @@ bytes32 constant SWAP_SLOTS_ROLE = 0xffd98ac79bb60993f79efa77ec34b3f446950a5c284
 bytes32 constant REMOVE_SLOT_ROLE = 0x1cbee842b8b18f1dea4a0fb8117bb405b26bede02a0f7f47acb5d727ef90e6f4;
 
 /**
- * @title IUniversalDelegator
- * @notice Interface for the UniversalDelegator contract.
+ * @title IGuaranteesDelegator
+ * @notice Interface for the GuaranteesDelegator contract.
  */
-interface IUniversalDelegator {
+interface IGuaranteesDelegator is IDelegator {
     /* ERRORS */
 
     /**
@@ -25,9 +30,14 @@ interface IUniversalDelegator {
     error AlreadyAssigned();
 
     /**
-     * @notice Raised when a maximum network limit is already set.
+     * @notice Raised when there is not enough gas left for the burner hook call.
      */
-    error AlreadySet();
+    error InsufficientBurnerGas();
+
+    /**
+     * @notice Raised when the requested slash amount is zero after validation.
+     */
+    error InsufficientSlash();
 
     /**
      * @notice Raised when the provided subnetwork or operator is zero.
@@ -35,14 +45,19 @@ interface IUniversalDelegator {
     error InvalidNetOrOp();
 
     /**
-     * @notice Raised when the provided maximum network limit is not 2^256-1.
+     * @notice Raised when the resolver set delay is outside allowed bounds.
      */
-    error LimitNotUint256Max();
+    error InvalidResolverSetEpochsDelay();
 
     /**
-     * @notice Raised when no slot is assigned for the requested subject.
+     * @notice Raised when the veto duration is outside allowed bounds.
      */
-    error NotAssigned();
+    error InvalidVetoDuration();
+
+    /**
+     * @notice Raised when burner-hook mode is enabled but the vault has no burner.
+     */
+    error NoBurner();
 
     /**
      * @notice Raised when there is not enough balance for the operation.
@@ -50,14 +65,14 @@ interface IUniversalDelegator {
     error NotEnoughBalance();
 
     /**
-     * @notice Raised when migration functions are called outside migration mode.
-     */
-    error NotMigrating();
-
-    /**
      * @notice Raised when the caller is not a registered network.
      */
     error NotNetwork();
+
+    /**
+     * @notice Raised when the caller is not the network middleware for the subnetwork.
+     */
+    error NotNetworkMiddleware();
 
     /**
      * @notice Raised when the caller is neither a network nor its middleware.
@@ -65,19 +80,14 @@ interface IUniversalDelegator {
     error NotNetworkOrMiddleware();
 
     /**
+     * @notice Raised when the caller is not the configured resolver.
+     */
+    error NotResolver();
+
+    /**
      * @notice Raised when two slots are not in the same allocation state.
      */
     error NotSameAllocated();
-
-    /**
-     * @notice Raised when two slots do not have the same parent.
-     */
-    error NotSameParent();
-
-    /**
-     * @notice Raised when the caller is not the vault slasher.
-     */
-    error NotSlasher();
 
     /**
      * @notice Raised when the provided vault is invalid.
@@ -90,9 +100,9 @@ interface IUniversalDelegator {
     error OldVault();
 
     /**
-     * @notice Raised when a slot is only partially allocated and cannot be moved.
+     * @notice Raised when the requested slash request has already been completed.
      */
-    error PartiallyAllocated();
+    error SlashRequestCompleted();
 
     /**
      * @notice Raised when trying to remove a slot that still has allocation.
@@ -105,14 +115,14 @@ interface IUniversalDelegator {
     error SlotNotExists();
 
     /**
-     * @notice Raised when the maximum number of children for a slot is exceeded.
+     * @notice Raised when the resolver attempts to veto after the veto period ended.
      */
-    error TooManyChildren();
+    error VetoPeriodEnded();
 
     /**
-     * @notice Raised when a slot operation is attempted at an invalid hierarchy depth.
+     * @notice Raised when slash execution is attempted before the veto period ends.
      */
-    error WrongDepth();
+    error VetoPeriodNotEnded();
 
     /**
      * @notice Raised when slot ordering constraints are violated.
@@ -142,14 +152,35 @@ interface IUniversalDelegator {
     }
 
     /**
-     * @notice Initialization parameters for the universal delegator.
+     * @notice Slash request data.
+     * @param subnetwork Subnetwork that requested the slash.
+     * @param operator Operator subject to the slash request.
+     * @param createdAt Timestamp when the request was created.
+     * @param amount Maximum slash amount requested.
+     * @param resolver Resolver allowed to veto the request.
+     * @param vetoDeadline Timestamp before which the resolver can veto the request.
+     * @param completed Whether the request was executed or vetoed.
+     */
+    struct SlashRequest {
+        bytes32 subnetwork;
+        address operator;
+        uint48 createdAt;
+        uint256 amount;
+        address resolver;
+        uint48 vetoDeadline;
+        bool completed;
+    }
+
+    /**
+     * @notice Initialization parameters for the guarantees delegator.
      * @param defaultAdminRoleHolder Address of the initial DEFAULT_ADMIN_ROLE holder.
      * @param createSlotRoleHolder Address of the initial CREATE_SLOT_ROLE holder.
      * @param setSizeRoleHolder Address of the initial SET_SIZE_ROLE holder.
      * @param swapSlotsRoleHolder Address of the initial SWAP_SLOTS_ROLE holder.
      * @param removeSlotRoleHolder Address of the initial REMOVE_SLOT_ROLE holder.
-     * @param setWithdrawalBufferSizeRoleHolder Deprecated.
-     * @param withdrawalBufferSize Deprecated.
+     * @param isBurnerHook Whether burner hook calls are enabled on slashes.
+     * @param vetoDuration Duration of the veto period for slash requests.
+     * @param resolverSetDelay Delay before resolver updates become active.
      */
     struct InitParams {
         address defaultAdminRoleHolder;
@@ -157,8 +188,9 @@ interface IUniversalDelegator {
         address setSizeRoleHolder;
         address swapSlotsRoleHolder;
         address removeSlotRoleHolder;
-        address setWithdrawalBufferSizeRoleHolder;
-        uint128 withdrawalBufferSize;
+        bool isBurnerHook;
+        uint48 vetoDuration;
+        uint48 resolverSetDelay;
     }
 
     /**
@@ -188,7 +220,7 @@ interface IUniversalDelegator {
     event SetSize(uint32 indexed index, uint128 size);
 
     /**
-     * @notice Emitted when two sibling slots are swapped.
+     * @notice Emitted when two slots are swapped.
      * @param index1 First slot index.
      * @param index2 Second slot index.
      */
@@ -207,11 +239,41 @@ interface IUniversalDelegator {
     event ResetAllocation(uint32 indexed index);
 
     /**
-     * @notice Emitted when slash accounting is applied to a slot.
-     * @param index Slot index whose size was reduced.
-     * @param amount Slash amount applied to slot accounting.
+     * @notice Emitted when a slash request is created.
+     * @param slashIndex Index of the slash request.
+     * @param subnetwork Subnetwork that requested the slash.
+     * @param operator Operator subject to the slash request.
+     * @param slashAmount Maximum slash amount requested.
+     * @param vetoDeadline Timestamp before which the resolver can veto the request.
      */
-    event OnSlash(uint32 indexed index, uint256 amount);
+    event RequestSlash(
+        uint256 indexed slashIndex,
+        bytes32 indexed subnetwork,
+        address indexed operator,
+        uint256 slashAmount,
+        uint48 vetoDeadline
+    );
+
+    /**
+     * @notice Emitted when a slash request is executed.
+     * @param slashIndex Index of the slash request.
+     * @param slashedAmount Amount of collateral slashed.
+     */
+    event ExecuteSlash(uint256 indexed slashIndex, uint256 slashedAmount);
+
+    /**
+     * @notice Emitted when a slash request is vetoed.
+     * @param slashIndex Index of the slash request.
+     * @param resolver Address of the resolver that vetoed the request.
+     */
+    event VetoSlash(uint256 indexed slashIndex, address indexed resolver);
+
+    /**
+     * @notice Emitted when a resolver is set.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param resolver Address of the resolver.
+     */
+    event SetResolver(bytes32 indexed subnetwork, address resolver);
 
     /**
      * @notice Emitted when the delegator is initialized.
@@ -234,10 +296,29 @@ interface IUniversalDelegator {
     function VERSION() external view returns (uint64 version);
 
     /**
-     * @notice Get the associated vault address.
-     * @return vaultAddress Address of the vault.
+     * @notice Get whether burner hook calls are enabled on slashes.
+     * @return enabled Whether burner hook calls are enabled.
      */
-    function vault() external view returns (address vaultAddress);
+    function isBurnerHook() external view returns (bool enabled);
+
+    /**
+     * @notice Get the veto period duration for slash requests.
+     * @return duration Veto period duration.
+     */
+    function vetoDuration() external view returns (uint48 duration);
+
+    /**
+     * @notice Get the resolver update activation delay.
+     * @return delay Resolver update delay.
+     */
+    function resolverSetDelay() external view returns (uint48 delay);
+
+    /**
+     * @notice Get pending resolver activation data for a subnetwork.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @return data Encoded pending resolver address and activation timestamp.
+     */
+    function pendingResolverData(bytes32 subnetwork) external view returns (bytes32 data);
 
     /**
      * @notice Get the total number of slots ever created.
@@ -365,12 +446,6 @@ interface IUniversalDelegator {
     function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint32 index);
 
     /**
-     * @notice Get configured withdrawal buffer size.
-     * @return withdrawalBuffer Current withdrawal buffer size.
-     */
-    function getWithdrawalBuffer() external view returns (uint256 withdrawalBuffer);
-
-    /**
      * @notice Synchronize delayed slot-size changes and return currently allocated stake.
      * @return allocated Total stake currently allocated across slots, capped by vault balance.
      */
@@ -397,16 +472,84 @@ interface IUniversalDelegator {
         returns (uint128 syncedSize);
 
     /**
-     * @notice Get the timestamp when migration occurred.
-     * @return migrateTimestamp Timestamp when migration occurred.
+     * @notice Get the total number of slash requests.
+     * @return length Slash request count.
      */
-    function migrateTimestamp() external view returns (uint48 migrateTimestamp);
+    function slashRequestsLength() external view returns (uint256 length);
 
     /**
-     * @notice Get the address of the previous delegator before migration.
-     * @return oldDelegator Address of the previous delegator before migration.
+     * @notice Get a slash request by index.
+     * @param slashIndex Index of the slash request.
+     * @return request Slash request data.
      */
-    function oldDelegator() external view returns (address oldDelegator);
+    function slashRequests(uint256 slashIndex) external view returns (SlashRequest memory request);
+
+    /**
+     * @notice Get the active resolver for a subnetwork.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @return resolverAddress Active resolver address.
+     */
+    function resolver(bytes32 subnetwork) external view returns (address resolverAddress);
+
+    /**
+     * @notice Get slashable stake at a capture timestamp.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @param captureTimestamp Capture timestamp, or zero for the current timestamp.
+     * @return amount Slashable amount.
+     */
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes calldata)
+        external
+        view
+        returns (uint256 amount);
+
+    /**
+     * @notice Create and immediately execute a slash request when no veto blocks execution.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @param amount Maximum slash amount.
+     * @param captureTimestamp Reserved compatibility argument.
+     * @return slashedAmount Amount slashed.
+     */
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata)
+        external
+        returns (uint256 slashedAmount);
+
+    /**
+     * @notice Request a slash for a subnetwork/operator.
+     * @param subnetwork Full identifier of the subnetwork.
+     * @param operator Address of the operator.
+     * @param amount Maximum slash amount.
+     * @param captureTimestamp Reserved compatibility argument.
+     * @return slashIndex Index of the slash request.
+     * @dev Only the network middleware can call this function.
+     */
+    function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata)
+        external
+        returns (uint256 slashIndex);
+
+    /**
+     * @notice Execute a slash request after the veto period has elapsed.
+     * @param slashIndex Index of the slash request.
+     * @return slashedAmount Amount slashed.
+     * @dev Only the network middleware can call this function.
+     */
+    function executeSlash(uint256 slashIndex, bytes calldata) external returns (uint256 slashedAmount);
+
+    /**
+     * @notice Veto a slash request.
+     * @param slashIndex Index of the slash request.
+     * @dev Only the request resolver can call this function during the veto period.
+     */
+    function vetoSlash(uint256 slashIndex) external;
+
+    /**
+     * @notice Set a resolver for a subnetwork.
+     * @param identifier Subnetwork identifier.
+     * @param resolver Address of the resolver.
+     * @dev Only the network can call this function.
+     */
+    function setResolver(uint96 identifier, address resolver) external;
 
     /**
      * @notice Create a new network-operator slot.
@@ -442,36 +585,10 @@ interface IUniversalDelegator {
     function removeSlot(uint32 index) external;
 
     /**
-     * @notice Reset allocation for a subnetwork.
+     * @notice Reset allocation for a subnetwork/operator.
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Operator address.
      * @dev Only a network or its middleware can call this function.
-     *      Warning: this functions resets all the pending slash requests, too.
      */
     function resetAllocation(bytes32 subnetwork, address operator) external;
-
-    /**
-     * @notice Apply a slash to the current slot assigned to a subnetwork/operator.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
-     * @param amount Slash amount.
-     * @dev Only the vault slasher can call this function.
-     */
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount) external;
-
-    /**
-     * @notice Apply a slash to the migrated slot assigned to a subnetwork/operator.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
-     * @param amount Slash amount.
-     * @dev Only the vault slasher can call this function.
-     */
-    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) external;
-
-    /**
-     * @notice Record the previous delegator used before migration.
-     * @param oldDelegator_ Previous delegator address.
-     * @dev Only the vault can call this function.
-     */
-    function migrate(address oldDelegator_) external;
 }

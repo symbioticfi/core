@@ -16,40 +16,45 @@ import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
-    IUniversalDelegator,
+    IGuaranteesDelegator,
+    BURNER_GAS_LIMIT,
+    BURNER_RESERVE,
     CREATE_SLOT_ROLE,
     REMOVE_SLOT_ROLE,
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE
-} from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
+} from "../../interfaces/delegator/IGuaranteesDelegator.sol";
+import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
+import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {MAX_DURATION, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {FixedPointMathLib as Math} from "@solady/src/utils/FixedPointMathLib.sol";
-
-/// @title UniversalDelegator
+/// @title GuaranteesDelegator
 /// @notice Contract for stake allocation across network-operator slots.
-contract UniversalDelegator is
+contract GuaranteesDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
     ReentrancyGuard,
-    IUniversalDelegator
+    IGuaranteesDelegator
 {
     using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
     using Checkpoints for Checkpoints.Trace208;
+    using Checkpoints for Checkpoints.Trace256;
     using FenwickTreeCheckpoints for FenwickTreeCheckpoints.Tree;
 
     /* IMMUTABLES */
 
-    /// @dev Address of the network registry.
-    address internal immutable NETWORK_REGISTRY;
     /// @dev Address of the vault factory.
     address internal immutable VAULT_FACTORY;
+    /// @dev Address of the network registry.
+    address internal immutable NETWORK_REGISTRY;
     /// @dev Address of the network middleware service.
     address internal immutable NETWORK_MIDDLEWARE_SERVICE;
 
@@ -66,20 +71,20 @@ contract UniversalDelegator is
         Checkpoints.Trace208 slashed;
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IDelegator
     address public vault;
-    /// @inheritdoc IUniversalDelegator
+
+    Checkpoints.Trace256 internal _totalIncrease;
+    Checkpoints.Trace256 internal _totalDecrease;
+
+    /// @inheritdoc IGuaranteesDelegator
     uint32 public totalSlots;
-
-    Checkpoints.Trace256 internal _cumulIncrease;
-    Checkpoints.Trace256 internal _cumulDecrease;
-
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     uint32[] public indexesToSync;
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     mapping(uint32 index => uint32 toSyncIndex) public indexToSyncIndex;
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     uint128[] public delayedSizes;
     /// @dev Fenwick tree of synced slot size prefix sums by current slot position.
     FenwickTreeCheckpoints.Tree _prevSums;
@@ -92,10 +97,19 @@ contract UniversalDelegator is
     /// @dev Slot index checkpoints keyed by subnetwork and operator.
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace208 index)) internal _slotOf;
 
-    /// @inheritdoc IUniversalDelegator
-    uint48 public migrateTimestamp;
-    /// @inheritdoc IUniversalDelegator
-    address public oldDelegator;
+    /// @inheritdoc IGuaranteesDelegator
+    bool public isBurnerHook;
+    /// @inheritdoc IGuaranteesDelegator
+    uint48 public vetoDuration;
+    /// @inheritdoc IGuaranteesDelegator
+    uint48 public resolverSetDelay;
+    /// @inheritdoc IGuaranteesDelegator
+    mapping(bytes32 subnetwork => bytes32 value) public pendingResolverData;
+
+    /// @dev Slash request storage.
+    SlashRequest[] internal _slashRequests;
+    /// @dev Active resolver per subnetwork.
+    mapping(bytes32 subnetwork => address value) internal _resolver;
 
     /* MODIFIERS */
 
@@ -128,7 +142,7 @@ contract UniversalDelegator is
 
         if (slot.slashedAt > 0) {
             if (slot.slashedAt <= block.timestamp - VaultV2(vault).epochDuration()) {
-                newSize = newSize.saturatingSub(slot.slashed);
+                newSize = uint128(uint256(newSize).saturatingSub(slot.slashed.latest()));
                 slot.slashed.push(uint48(block.timestamp), 0);
                 slot.slashedAt = 0;
             }
@@ -136,7 +150,7 @@ contract UniversalDelegator is
         bool flag = true;
         if (delayedTimestamp > 0) {
             if (delayedTimestamp <= block.timestamp) {
-                newSize = Math.min(delayedSizes[delayedSizePos]);
+                newSize = uint128(Math.min(delayedSizes[delayedSizePos], newSize));
             } else {
                 flag = false;
             }
@@ -166,7 +180,7 @@ contract UniversalDelegator is
 
     /* MULTICALL */
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function multicall(bytes[] calldata data) public {
         for (uint256 i; i < data.length; ++i) {
             (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
@@ -181,25 +195,25 @@ contract UniversalDelegator is
     /* CONSTRUCTOR */
 
     constructor(
-        address networkRegistry,
-        address vaultFactory,
-        address delegatorFactory,
         uint64 entityType,
+        address vaultFactory,
+        address networkRegistry,
+        address delegatorFactory,
         address networkMiddlewareService
     ) Entity(delegatorFactory, entityType) {
-        NETWORK_REGISTRY = networkRegistry;
         VAULT_FACTORY = vaultFactory;
+        NETWORK_REGISTRY = networkRegistry;
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function VERSION() public pure returns (uint64) {
         return 2;
     }
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function stakeForAt(bytes32 subnetwork, address operator, uint48 duration, uint48 timestamp)
         public
         view
@@ -209,31 +223,27 @@ contract UniversalDelegator is
         return index > 0 ? getAllocatedAt(index, duration, timestamp) : 0;
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function stakeFor(bytes32 subnetwork, address operator, uint48 duration) public view returns (uint256) {
         uint32 index = getSlotOf(subnetwork, operator);
         return index > 0 ? getAllocated(index, duration) : 0;
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes calldata)
         public
         view
         returns (uint256)
     {
-        if (timestamp < migrateTimestamp) {
-            // Legacy support.
-            return IBaseDelegator(oldDelegator).stakeAt(subnetwork, operator, timestamp, "");
-        }
         return stakeForAt(subnetwork, operator, _maxDuration(), timestamp);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function stake(bytes32 subnetwork, address operator) public view returns (uint256) {
         return stakeFor(subnetwork, operator, _maxDuration());
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getSlot(uint32 index) public view returns (Slot memory) {
         SlotStorage storage slot = slots[index];
         (uint32 delayedSizePos, uint48 delayedTimestamp, uint128 size) = _decodeSizeData(slot.size.latest());
@@ -248,17 +258,22 @@ contract UniversalDelegator is
         });
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getBalanceAt(uint48 duration, uint48 timestamp) public view returns (uint256) {
-        return _cumulIncrease.upperLookupRecent(timestamp) - _cumulDecrease.upperLookupRecent(timestamp + duration);
+        return _totalIncrease.upperLookupRecent(timestamp) - _totalDecrease.upperLookupRecent(timestamp + duration);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getBalance(uint48 duration) public view returns (uint256) {
-        return _cumulIncrease.latest() - _cumulDecrease.upperLookupRecent(block.timestamp + duration);
+        return _totalIncrease.latest() - _totalDecrease.upperLookupRecent(block.timestamp + duration);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IDelegator
+    function totalAssets() public view returns (uint256) {
+        return IERC20(VAULTV2(vault).asset()).balanceOf(vault);
+    }
+
+    /// @inheritdoc IGuaranteesDelegator
     function getAllocatedAt(uint32 index, uint48 duration, uint48 timestamp) public view returns (uint256) {
         if (duration >= VaultV2(vault).epochDuration()) {
             return 0;
@@ -274,7 +289,7 @@ contract UniversalDelegator is
         );
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getAllocated(uint32 index, uint48 duration) public view returns (uint256) {
         if (duration >= VaultV2(vault).epochDuration()) {
             return 0;
@@ -289,27 +304,27 @@ contract UniversalDelegator is
         );
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getSlotOfAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint32) {
         return uint32(_slotOf[subnetwork][operator].upperLookupRecent(timestamp));
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getSlotOf(bytes32 subnetwork, address operator) public view returns (uint32) {
         return uint32(_slotOf[subnetwork][operator].latest());
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function totalAllocated() public syncPrevSums returns (uint256 allocated) {
         return Math.min(getBalance(0), _prevSums.total());
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getTotalSyncedSizeAt(bytes32 subnetwork, uint48 timestamp) public view returns (uint208) {
         return _totalSyncedSize[subnetwork].upperLookupRecent(timestamp);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function getSyncedSizeAt(bytes32 subnetwork, address operator, uint48 timestamp) public view returns (uint128) {
         uint32 index = getSlotOfAt(subnetwork, operator, timestamp);
         if (index == 0) {
@@ -318,9 +333,43 @@ contract UniversalDelegator is
         return uint128(slots[index].size.upperLookupRecent(timestamp));
     }
 
+    /// @inheritdoc IGuaranteesDelegator
+    function slashRequestsLength() public view returns (uint256) {
+        return _slashRequests.length;
+    }
+
+    /// @inheritdoc IGuaranteesDelegator
+    function slashRequests(uint256 slashIndex) public view returns (SlashRequest memory) {
+        return _slashRequests[slashIndex];
+    }
+
+    /// @inheritdoc IGuaranteesDelegator
+    function resolver(bytes32 subnetwork) public view returns (address) {
+        return uint48(uint256(pendingResolverData[subnetwork])) == 0
+            || block.timestamp < uint48(uint256(pendingResolverData[subnetwork]))
+            ? _resolver[subnetwork]
+            : address(uint160(uint256(pendingResolverData[subnetwork]) >> 48));
+    }
+
+    /// @inheritdoc IGuaranteesDelegator
+    function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes calldata)
+        public
+        view
+        returns (uint256)
+    {
+        if (
+            captureTimestamp > 0
+                && (captureTimestamp <= block.timestamp.saturatingSub(VaultV2(vault).epochDuration())
+                    || captureTimestamp > block.timestamp)
+        ) {
+            return 0;
+        }
+        return GuaranteesDelegator(VaultV2(vault).delegator()).stakeFor(subnetwork, operator, 0);
+    }
+
     /* PUBLIC FUNCTIONS (CURATOR) */
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function createSlot(bytes32 subnetwork, address operator, uint128 size)
         public
         onlyRole(CREATE_SLOT_ROLE)
@@ -356,7 +405,7 @@ contract UniversalDelegator is
         emit CreateSlot(index, subnetwork, operator, size);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function setSize(uint32 index, uint128 newSize) public onlyRole(SET_SIZE_ROLE) syncPrevSums {
         _revertIfNotExists(index);
         // clear pending size decrease
@@ -408,7 +457,7 @@ contract UniversalDelegator is
         emit SetSize(index, newSize);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function swapSlots(uint32 index1, uint32 index2) public onlyRole(SWAP_SLOTS_ROLE) syncPrevSums {
         _revertIfNotExists(index1);
         _revertIfNotExists(index2);
@@ -440,7 +489,7 @@ contract UniversalDelegator is
         emit SwapSlots(index1, index2);
     }
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function removeSlot(uint32 index) public onlyRole(REMOVE_SLOT_ROLE) syncPrevSums {
         _revertIfNotExists(index);
         if (getAllocated(index, 0) > 0) {
@@ -466,7 +515,7 @@ contract UniversalDelegator is
 
     /* PUBLIC FUNCTIONS (NETWORK) */
 
-    /// @inheritdoc IUniversalDelegator
+    /// @inheritdoc IGuaranteesDelegator
     function resetAllocation(bytes32 subnetwork, address operator) public {
         if (
             !IRegistry(NETWORK_REGISTRY).isEntity(subnetwork.network())
@@ -486,62 +535,81 @@ contract UniversalDelegator is
         emit ResetAllocation(index);
     }
 
-    /* PUBLIC FUNCTIONS (INTERNAL LOGIC) */
-
-    function onDeposit(uint256 amount) public nonReentrant {
-        if (vault != msg.sender) {
-            revert NotVault();
-        }
-
-        _cumulIncrease.push(uint48(block.timestamp), _cumulIncrease.latest() + amount);
-
-        emit OnDeposit(amount);
+    /// @inheritdoc IGuaranteesDelegator
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata)
+        external
+        returns (uint256)
+    {
+        return executeSlash(requestSlash(subnetwork, operator, amount, 0, Calldata.emptyBytes()), Calldata.emptyBytes());
     }
 
-    function onWithdraw(uint256 amount) public nonReentrant {
-        if (vault != msg.sender) {
-            revert NotVault();
+    /// @inheritdoc IGuaranteesDelegator
+    function requestSlash(bytes32 subnetwork, address operator, uint256 amount, uint48, bytes calldata)
+        public
+        nonReentrant
+        returns (uint256 slashIndex)
+    {
+        _checkNetworkMiddleware(subnetwork);
+
+        amount = Math.min(amount, slashableStake(subnetwork, operator, 0, Calldata.emptyBytes()));
+        if (amount == 0) {
+            revert InsufficientSlash();
         }
 
-        _cumulDecrease.push(uint48(block.timestamp) + VaultV2(vault).epochDuration(), _cumulDecrease.latest() + amount);
+        address curResolver = resolver(subnetwork);
+        uint48 vetoDeadline = uint48(block.timestamp) + (curResolver != address(0) ? vetoDuration : 0);
 
-        emit OnWithdraw(amount);
+        slashIndex = _slashRequests.length;
+        _slashRequests.push(
+            SlashRequest({
+                subnetwork: subnetwork,
+                operator: operator,
+                amount: amount,
+                createdAt: uint48(block.timestamp),
+                resolver: curResolver,
+                vetoDeadline: vetoDeadline,
+                completed: false
+            })
+        );
+
+        emit RequestSlash(slashIndex, subnetwork, operator, amount, vetoDeadline);
     }
 
-    /// @inheritdoc IUniversalDelegator
-    function onSlash(bytes32 subnetwork, address operator, uint256 amount) public nonReentrant {
-        if (VaultV2(vault).slasher() != msg.sender) {
-            revert NotSlasher();
+    /// @inheritdoc IGuaranteesDelegator
+    function executeSlash(uint256 slashIndex, bytes calldata) public nonReentrant returns (uint256 slashedAmount) {
+        SlashRequest memory request = slashRequests(slashIndex);
+
+        _checkNetworkMiddleware(request.subnetwork);
+
+        if (request.completed) {
+            revert SlashRequestCompleted();
         }
 
-        _onSlash(getSlotOf(subnetwork, operator), amount);
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function onSlashLegacy(bytes32 subnetwork, address operator, uint256 amount) public nonReentrant {
-        if (VaultV2(vault).slasher() != msg.sender) {
-            revert NotSlasher();
+        if (request.vetoDeadline > block.timestamp) {
+            revert VetoPeriodNotEnded();
         }
 
-        uint32 index = getSlotOf(subnetwork, operator);
-        if (index == 0 || !slots[index].exists) {
-            return;
+        slashedAmount = Math.min(
+            request.amount,
+            slashableStake(request.subnetwork, request.operator, request.createdAt, Calldata.emptyBytes())
+        );
+        if (slashedAmount == 0) {
+            revert InsufficientSlash();
         }
-        _onSlash(index, amount);
-    }
 
-    /// @dev Apply slash accounting updates to a slot and its pending checkpoint.
-    function _onSlash(uint32 index, uint256 amount) internal {
+        _slashRequests[slashIndex].completed = true;
+
+        uint32 index = getSlotOf(request.subnetwork, request.operator);
         if (_syncPrevSum(index)) {
             _removeSyncIndex(index);
         }
 
         SlotStorage storage slot = slots[index];
         slot.slashedAt = uint48(block.timestamp);
-        slot.slashed.push(uint48(block.timestamp), slot.slashed.latest() + amount);
-        _cumulDecrease.push(
+        slot.slashed.push(uint48(block.timestamp), slot.slashed.latest() + uint208(slashedAmount));
+        _totalDecrease.push(
             uint48(block.timestamp) + VaultV2(vault).epochDuration(),
-            _cumulDecrease.latest() + amount.mulDiv(VaultV2(vault).activeStake(), VaultV2(vault).totalStake())
+            _totalDecrease.latest() + slashedAmount.mulDiv(VaultV2(vault).activeStake(), VaultV2(vault).totalStake())
         );
 
         if (indexToSyncIndex[index] == 0) {
@@ -549,7 +617,93 @@ contract UniversalDelegator is
             indexToSyncIndex[index] = uint32(indexesToSync.length);
         }
 
-        emit OnSlash(index, amount);
+        VaultV2(vault).onSlash(slashedAmount);
+
+        _burnerOnSlash(request.subnetwork, request.operator, slashedAmount);
+
+        emit ExecuteSlash(slashIndex, slashedAmount);
+    }
+
+    /// @inheritdoc IGuaranteesDelegator
+    function vetoSlash(uint256 slashIndex) public nonReentrant {
+        SlashRequest memory request = slashRequests(slashIndex);
+
+        if (request.completed) {
+            revert SlashRequestCompleted();
+        }
+
+        if (request.resolver != msg.sender) {
+            revert NotResolver();
+        }
+
+        if (request.vetoDeadline <= block.timestamp) {
+            revert VetoPeriodEnded();
+        }
+
+        _slashRequests[slashIndex].completed = true;
+
+        emit VetoSlash(slashIndex, msg.sender);
+    }
+
+    /// @inheritdoc IGuaranteesDelegator
+    function setResolver(uint96 identifier, address newResolver) public nonReentrant {
+        if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
+            revert NotNetwork();
+        }
+
+        bytes32 subnetwork = (msg.sender).subnetwork(identifier);
+        address curResolver = resolver(subnetwork);
+
+        if (curResolver == address(0)) {
+            _resolver[subnetwork] = newResolver;
+            pendingResolverData[subnetwork] = 0;
+        } else {
+            _resolver[subnetwork] = curResolver;
+            pendingResolverData[subnetwork] =
+                bytes32(uint256(uint160(newResolver)) << 48 | (block.timestamp + resolverSetDelay));
+        }
+
+        emit SetResolver(subnetwork, newResolver);
+    }
+
+    /* PUBLIC FUNCTIONS (INTERNAL) */
+
+    /// @inheritdoc IDelegator
+    function onDeposit(address caller, address receiver, uint256 assets, uint256 shares) public nonReentrant {
+        if (vault != msg.sender) {
+            revert NotVault();
+        }
+
+        _totalIncrease.push(uint48(block.timestamp), _totalIncrease.latest() + assets);
+
+        emit OnDeposit(caller, receiver, assets, shares);
+    }
+
+    /// @inheritdoc IDelegator
+    function onRequestWithdraw(address caller, address receiver, uint256 assets, uint256 shares) public nonReentrant {
+        if (VaultV2(vault).withdrawalQueue() != msg.sender) {
+            revert NotVault();
+        }
+
+        _totalDecrease.push(uint48(block.timestamp) + VaultV2(vault).epochDuration(), _totalDecrease.latest() + assets);
+
+        emit OnRequestWithdraw(caller, receiver, assets, shares);
+    }
+
+    /// @inheritdoc IDelegator
+    function onWithdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+        public
+        nonReentrant
+    {
+        if (vault != msg.sender) {
+            revert NotVault();
+        }
+
+        if (VaultV2(vault).totalAssets() - assets < totalAllocated()) {
+            revert();
+        }
+
+        emit OnWithdraw(caller, receiver, owner, assets, shares);
     }
 
     /* INITIALIZATION */
@@ -571,6 +725,24 @@ contract UniversalDelegator is
 
         _prevSums.initialize(1);
 
+        if (params.vetoDuration >= VaultV2(initVault).epochDuration()) {
+            revert InvalidVetoDuration();
+        }
+
+        if (params.resolverSetDelay <= VaultV2(initVault).epochDuration() || params.resolverSetDelay > MAX_DURATION) {
+            revert InvalidResolverSetEpochsDelay();
+        }
+
+        if (VaultV2(initVault).burner() == address(0) && params.isBurnerHook) {
+            revert NoBurner();
+        }
+
+        vault = initVault;
+
+        isBurnerHook = params.isBurnerHook;
+        vetoDuration = params.vetoDuration;
+        resolverSetDelay = params.resolverSetDelay;
+
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(CREATE_SLOT_ROLE, params.createSlotRoleHolder);
         _grantRoleIfNotZero(SET_SIZE_ROLE, params.setSizeRoleHolder);
@@ -578,17 +750,6 @@ contract UniversalDelegator is
         _grantRoleIfNotZero(REMOVE_SLOT_ROLE, params.removeSlotRoleHolder);
 
         emit Initialize(params);
-    }
-
-    /* MIGRATION */
-
-    /// @inheritdoc IUniversalDelegator
-    function migrate(address oldDelegator_) public {
-        if (vault != msg.sender) {
-            revert NotVault();
-        }
-        migrateTimestamp = uint48(block.timestamp);
-        oldDelegator = oldDelegator_;
     }
 
     /* UTILITY FUNCTIONS */
@@ -654,6 +815,29 @@ contract UniversalDelegator is
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
         if (holder != address(0)) {
             _grantRole(role, holder);
+        }
+    }
+
+    /// @dev Revert unless caller is the middleware configured for the request subnetwork.
+    function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
+            revert NotNetworkMiddleware();
+        }
+    }
+
+    /// @dev Call the burner hook after a slash when burner hook mode is enabled.
+    function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
+        if (isBurnerHook) {
+            address burner = VaultV2(vault).burner();
+            bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
+
+            if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+                revert InsufficientBurnerGas();
+            }
+
+            assembly ("memory-safe") {
+                pop(call(BURNER_GAS_LIMIT, burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
+            }
         }
     }
 }

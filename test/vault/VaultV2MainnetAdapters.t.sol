@@ -25,30 +25,27 @@ import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
-import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
-import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
+import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/adapters/AaveV3Adapter.sol";
+import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IAdapter} from "../../src/interfaces/vault/adapters/IAdapter.sol";
+import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IVaultV2, DEALLOCATE_ADAPTER_ROLE} from "../../src/interfaces/vault/IVaultV2.sol";
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
-import {IAaveV3Pool} from "../../src/interfaces/vault/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
-import {
-    IMorphoVaultV2Factory
-} from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Factory.sol";
-import {IMorphoVaultV2} from "../../src/interfaces/vault/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
-import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
+import {IAaveV3Pool} from "../../src/interfaces/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
+import {IMorphoVaultV2Factory} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Factory.sol";
+import {IMorphoVaultV2} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
+import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
-
-import {UpgradeableBeacon} from "@solady/src/utils/UpgradeableBeacon.sol";
 
 contract MainnetCuratorRegistryHarness {
     mapping(address vault => address curator) public curators;
@@ -312,7 +309,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
 
         assertEq(aaveAdapter.allocatable(address(unsupportedVault)), 0);
         assertEq(aaveAdapter.deallocatable(address(unsupportedVault)), 0);
-        assertEq(aaveAdapter.getAssets(address(unsupportedVault)), 0);
+        assertEq(aaveAdapter.totalAssets(address(unsupportedVault)), 0);
     }
 
     function testFork_Mainnet_AaveDeallocateZeroAndZeroCapacityReturnZero() public {
@@ -363,7 +360,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
     function testFork_Mainnet_MorphoUnconfiguredVaultReturnsZeroCapacityAndAssets() public {
         assertEq(morphoAdapter.allocatable(address(aaveVault)), 0);
         assertEq(morphoAdapter.deallocatable(address(aaveVault)), 0);
-        assertEq(morphoAdapter.getAssets(address(aaveVault)), 0);
+        assertEq(morphoAdapter.totalAssets(address(aaveVault)), 0);
     }
 
     function testFork_Mainnet_MorphoLiveUsdcVaultsPassFactoryAndAdapterValidation() public {
@@ -451,7 +448,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         address morphoAccount = morphoAdapter.getAccount(address(morphoVault));
         deal(MORPHO_GAUNTLET_USDC_PRIME, morphoAccount, 0);
 
-        assertEq(morphoAdapter.getAssets(address(morphoVault)), 0);
+        assertEq(morphoAdapter.totalAssets(address(morphoVault)), 0);
         assertGt(morphoVault.adapterAllocated(address(morphoAdapter)), DEALLOCATE_BUFFER);
         assertEq(morphoAdapter.deallocatable(address(morphoVault)), 0);
     }
@@ -637,17 +634,21 @@ contract VaultV2MainnetAdaptersForkTest is Test {
     function _deployAaveAdapter() internal returns (AaveV3Adapter adapter) {
         uint256 nonce = vm.getNonce(address(this));
         address predictedAdapter = vm.computeCreateAddress(address(this), nonce + 2);
-        address beacon =
-            address(new UpgradeableBeacon(address(0), address(new AaveV3Account(AAVE_POOL, predictedAdapter))));
+        UpgradeableBeacon accountBeacon =
+            new UpgradeableBeacon(address(new AaveV3Account(AAVE_POOL, predictedAdapter)), address(this));
+        address beacon = address(accountBeacon);
 
         adapter =
             new AaveV3Adapter(AAVE_POOL, address(curatorRegistry), address(rewards), address(vaultFactory), beacon);
+        accountBeacon.renounceOwnership();
     }
 
     function _deployMorphoAdapter() internal returns (MorphoVaultV2Adapter adapter) {
         uint256 nonce = vm.getNonce(address(this));
         address predictedAdapter = vm.computeCreateAddress(address(this), nonce + 2);
-        address beacon = address(new UpgradeableBeacon(address(0), address(new MorphoVaultV2Account(predictedAdapter))));
+        UpgradeableBeacon accountBeacon =
+            new UpgradeableBeacon(address(new MorphoVaultV2Account(predictedAdapter)), address(this));
+        address beacon = address(accountBeacon);
 
         adapter = new MorphoVaultV2Adapter(
             MORPHO_VAULT_FACTORY,
@@ -657,6 +658,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
             address(vaultFactory),
             beacon
         );
+        accountBeacon.renounceOwnership();
     }
 
     function _prepareAdapter(IVaultV2 vault_, address adapter, uint208 limit) internal {

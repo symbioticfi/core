@@ -74,13 +74,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
     function getAccount(address vault) external view returns (address account);
 
     /**
-     * @notice Returns the vault's live claim on the configured Morpho vault.
-     * @param vault Vault address.
-     * @return assets Vault assets represented in collateral units.
-     */
-    function getAssets(address vault) external view returns (uint256 assets);
-
-    /**
      * @notice Force-deallocates collateral for a vault.
      * @param vault Vault address.
      * @param amount Requested amount to deallocate.

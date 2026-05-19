@@ -3,18 +3,14 @@ pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/Script.sol";
 
-import {UpgradeableBeacon} from "@solady/src/utils/UpgradeableBeacon.sol";
-
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
-import {Adapter} from "../../../src/contracts/vault/adapters/Adapter.sol";
-import {
-    MorphoVaultV2Account,
-    MorphoVaultV2Adapter
-} from "../../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
+import {Adapter} from "../../../src/contracts/adapters/Adapter.sol";
+import {MorphoVaultV2Account, MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
 contract MorphoVaultV2AdapterDeployBaseScript is Script {
     bytes32 internal constant ERC1967_ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
@@ -79,7 +75,8 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         address predictedAdapter = vm.computeCreateAddress(broadcaster, nonce + 3);
 
         accountImplementation = address(new MorphoVaultV2Account(predictedAdapter));
-        beacon = address(new UpgradeableBeacon(address(0), accountImplementation));
+        UpgradeableBeacon accountBeacon = new UpgradeableBeacon(accountImplementation, broadcaster);
+        beacon = address(accountBeacon);
 
         adapterImplementation = address(
             new MorphoVaultV2Adapter(
@@ -103,6 +100,7 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         if (deployedAdapter.owner() != params.adapterOwner) {
             deployedAdapter.transferOwnership(params.adapterOwner);
         }
+        accountBeacon.renounceOwnership();
     }
 
     function _validateParams(DeployParams memory params) internal pure {

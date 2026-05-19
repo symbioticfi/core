@@ -6,9 +6,8 @@ import {stdError} from "forge-std/StdError.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-import {UpgradeableBeacon} from "@solady/src/utils/UpgradeableBeacon.sol";
 
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
@@ -31,10 +30,10 @@ import {Vault as VaultV1} from "../../src/contracts/vault/Vault.sol";
 import {VaultTokenized} from "../../src/contracts/vault/VaultTokenized.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {VaultV2Migrate} from "../../src/contracts/vault/VaultV2Migrate.sol";
-import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/vault/adapters/AaveV3Adapter.sol";
-import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/vault/adapters/MorphoVaultV2Adapter.sol";
+import {AaveV3Adapter, AaveV3Account} from "../../src/contracts/adapters/AaveV3Adapter.sol";
+import {MorphoVaultV2Adapter, MorphoVaultV2Account} from "../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IAdapter} from "../../src/interfaces/vault/adapters/IAdapter.sol";
+import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {
     IVaultV2,
     ALLOCATE_ADAPTER_ROLE,
@@ -43,7 +42,7 @@ import {
 } from "../../src/interfaces/vault/IVaultV2.sol";
 import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IUniversalSlasher} from "../../src/interfaces/slasher/IUniversalSlasher.sol";
-import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/vault/adapters/IMorphoVaultV2Adapter.sol";
+import {DEALLOCATE_BUFFER, IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 
 import {MockFeeRegistry} from "../mocks/MockFeeRegistry.sol";
 import {MockMorphoVault} from "../mocks/MockMorphoVault.sol";
@@ -1151,7 +1150,7 @@ contract VaultV2AdaptersTest is Test {
 
         assertEq(morphoVault.balanceOf(account), 80);
         assertEq(morphoVault.balanceOf(address(morphoAdapter)), 0);
-        assertEq(morphoAdapter.getAssets(address(vault1)), 80);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 80);
     }
 
     function test_MorphoSetVaultCannotReplaceActivePosition() public {
@@ -1177,20 +1176,20 @@ contract VaultV2AdaptersTest is Test {
         deal(address(collateral), address(morphoVault), 0);
 
         assertEq(morphoVault.balanceOf(account), 80);
-        assertEq(morphoAdapter.getAssets(address(vault1)), 0);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 0);
 
         vm.prank(curator);
         morphoAdapter.setMorphoVault(address(vault1), address(otherMorphoVault));
 
         assertEq(morphoAdapter.morphoVaults(address(vault1)), address(otherMorphoVault));
-        assertEq(morphoAdapter.getAssets(address(vault1)), 0);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 0);
 
         collateral.approve(address(morphoVault), 10);
         morphoVault.donateYield(10);
         vm.prank(curator);
         morphoAdapter.setMorphoVault(address(vault1), address(morphoVault));
 
-        assertEq(morphoAdapter.getAssets(address(vault1)), 10);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 10);
     }
 
     function test_MorphoSetVaultCanClearWhenNoPosition() public {
@@ -1458,9 +1457,9 @@ contract VaultV2AdaptersTest is Test {
         uint256 shares = morphoVault.deposit(10_000, address(morphoAdapter));
 
         assertEq(morphoVault.balanceOf(address(morphoAdapter)), shares);
-        assertEq(morphoAdapter.getAssets(address(vault1)), 100);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 100);
         assertEq(vault2.adapterAllocated(address(morphoAdapter)), 100);
-        assertEq(morphoAdapter.getAssets(address(vault2)), 100);
+        assertEq(morphoAdapter.totalAssets(address(vault2)), 100);
         assertEq(morphoAdapter.deallocatable(address(vault2)), 100);
 
         uint256 victimRecovered = _deallocateFromVault(vault2, address(morphoAdapter), 100);
@@ -1487,7 +1486,7 @@ contract VaultV2AdaptersTest is Test {
         assertEq(collateral.balanceOf(address(vault2)), vault2BalanceBefore + 1);
         assertEq(vault2.adapterAllocated(address(morphoAdapter)), 0);
         assertEq(morphoAdapter.globalAllocated(address(collateral)), globalAllocatedBefore);
-        assertEq(morphoAdapter.getAssets(address(vault2)), 0);
+        assertEq(morphoAdapter.totalAssets(address(vault2)), 0);
         assertEq(morphoAdapter.deallocatable(address(vault2)), 0);
         assertEq(morphoAdapter.skimmable(address(vault1)), vault1SkimmableBefore);
     }
@@ -1516,7 +1515,7 @@ contract VaultV2AdaptersTest is Test {
 
         deal(address(collateral), address(morphoVault), liveAssets);
 
-        assertEq(morphoAdapter.getAssets(address(vault1)), liveAssets);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), liveAssets);
         assertEq(morphoAdapter.deallocatable(address(vault1)), liveAssets);
 
         uint256 deallocated = _deallocateFromVault(vault1, address(morphoAdapter), allocated);
@@ -1526,7 +1525,7 @@ contract VaultV2AdaptersTest is Test {
         assertEq(collateral.balanceOf(address(morphoVault)), 0);
         assertEq(vault1.adapterAllocated(address(morphoAdapter)), DEALLOCATE_BUFFER);
         assertEq(morphoAdapter.globalAllocated(address(collateral)), DEALLOCATE_BUFFER);
-        assertEq(morphoAdapter.getAssets(address(vault1)), 0);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 0);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 0);
     }
 
@@ -1539,7 +1538,7 @@ contract VaultV2AdaptersTest is Test {
 
         deal(address(collateral), address(morphoVault), liveAssets);
 
-        assertEq(morphoAdapter.getAssets(address(vault1)), liveAssets);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), liveAssets);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 0);
 
         vm.prank(curator);
@@ -1550,7 +1549,7 @@ contract VaultV2AdaptersTest is Test {
         assertEq(collateral.balanceOf(address(morphoVault)), 0);
         assertEq(vault1.adapterAllocated(address(morphoAdapter)), DEALLOCATE_BUFFER + 1);
         assertEq(morphoAdapter.globalAllocated(address(collateral)), DEALLOCATE_BUFFER + 1);
-        assertEq(morphoAdapter.getAssets(address(vault1)), 0);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 0);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 0);
     }
 
@@ -1571,7 +1570,7 @@ contract VaultV2AdaptersTest is Test {
         assertEq(collateral.balanceOf(address(morphoAdapter)), 0);
         assertEq(vault1.adapterAllocated(address(morphoAdapter)), 70);
         assertEq(morphoAdapter.globalAllocated(address(collateral)), 70);
-        assertEq(morphoAdapter.getAssets(address(vault1)), 70);
+        assertEq(morphoAdapter.totalAssets(address(vault1)), 70);
         assertEq(morphoAdapter.allocatable(address(vault1)), 30);
         assertEq(morphoAdapter.deallocatable(address(vault1)), 70);
         assertEq(morphoAdapter.skimmable(address(vault1)), 0);
@@ -1611,7 +1610,7 @@ contract VaultV2AdaptersTest is Test {
 
         assertEq(aToken.balanceOf(account), 80);
         assertEq(aToken.balanceOf(address(aaveAdapter)), 0);
-        assertEq(aaveAdapter.getAssets(address(vault1)), 80);
+        assertEq(aaveAdapter.totalAssets(address(vault1)), 80);
     }
 
     function test_AaveDeallocatableUsesVirtualUnderlyingBalance() public {
@@ -1850,7 +1849,7 @@ contract VaultV2AdaptersTest is Test {
 
         assertGt(aaveAdapter.skimmable(address(vault1)), 0);
         assertEq(vault2.adapterAllocated(address(aaveAdapter)), 100);
-        assertEq(aaveAdapter.getAssets(address(vault2)), 100);
+        assertEq(aaveAdapter.totalAssets(address(vault2)), 100);
         assertEq(aaveAdapter.deallocatable(address(vault2)), 100);
 
         uint256 victimRecovered = _deallocateFromVault(vault2, address(aaveAdapter), 100);
@@ -1886,7 +1885,7 @@ contract VaultV2AdaptersTest is Test {
         assertEq(collateral.balanceOf(address(aaveAdapter)), 0);
         assertEq(vault1.adapterAllocated(address(aaveAdapter)), 70);
         assertEq(aaveAdapter.globalAllocated(address(collateral)), 70);
-        assertEq(aaveAdapter.getAssets(address(vault1)), 70);
+        assertEq(aaveAdapter.totalAssets(address(vault1)), 70);
         assertEq(aaveAdapter.allocatable(address(vault1)), 30);
         assertEq(aaveAdapter.deallocatable(address(vault1)), 70);
         assertEq(aaveAdapter.skimmable(address(vault1)), 0);
@@ -1920,17 +1919,21 @@ contract VaultV2AdaptersTest is Test {
     function _deployAaveAdapter(address rewards_) internal returns (AaveV3Adapter adapter) {
         uint256 nonce = vm.getNonce(address(this));
         address predictedAdapter = vm.computeCreateAddress(address(this), nonce + 2);
-        address beacon =
-            address(new UpgradeableBeacon(address(0), address(new AaveV3Account(address(aavePool), predictedAdapter))));
+        UpgradeableBeacon accountBeacon =
+            new UpgradeableBeacon(address(new AaveV3Account(address(aavePool), predictedAdapter)), address(this));
+        address beacon = address(accountBeacon);
 
         adapter =
             new AaveV3Adapter(address(aavePool), address(curatorRegistry), rewards_, address(vaultFactory), beacon);
+        accountBeacon.renounceOwnership();
     }
 
     function _deployMorphoAdapter(address rewards_) internal returns (MorphoVaultV2Adapter adapter) {
         uint256 nonce = vm.getNonce(address(this));
         address predictedAdapter = vm.computeCreateAddress(address(this), nonce + 2);
-        address beacon = address(new UpgradeableBeacon(address(0), address(new MorphoVaultV2Account(predictedAdapter))));
+        UpgradeableBeacon accountBeacon =
+            new UpgradeableBeacon(address(new MorphoVaultV2Account(predictedAdapter)), address(this));
+        address beacon = address(accountBeacon);
 
         adapter = new MorphoVaultV2Adapter(
             address(morphoVaultFactory),
@@ -1940,6 +1943,7 @@ contract VaultV2AdaptersTest is Test {
             address(vaultFactory),
             beacon
         );
+        accountBeacon.renounceOwnership();
     }
 
     function _depositIntoVault(IVaultV2 vault_, Token collateral_, uint256 amount) internal {

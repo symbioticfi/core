@@ -404,13 +404,13 @@ def map_vault(children: list[tuple[str, int]]) -> list[tuple[str, int]]:
         ("Checkpoints::push", _push_by_occurrence(2)),
         ("Checkpoints::push", _push_by_occurrence(3)),
         (
-            "FixedPointMathLib::mulDiv",
-            _gas_by_occurrence(("FixedPointMathLib::mulDiv", "FixedPointMathLib::fullMulDiv"), required=False),
+            "Math::mulDiv",
+            _gas_by_occurrence("Math::mulDiv", required=False),
         ),
         ("Checkpoints::push", _push_by_occurrence(4)),
         ("Checkpoints::push", _push_by_occurrence(5)),
         ("VaultV2::_availableToSlash", _gas_by_occurrence("VaultV2::_availableToSlash", required=False)),
-        ("SafeTransferLib::safeTransfer", _gas_by_occurrence("SafeTransferLib::safeTransfer", required=False)),
+        ("SafeERC20::safeTransfer", _gas_by_occurrence("SafeERC20::safeTransfer", required=False)),
         ("ReentrancyGuard::_nonReentrantAfter", _gas_by_occurrence("ReentrancyGuard::_nonReentrantAfter", required=False)),
     ]
 
