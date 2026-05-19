@@ -3,31 +3,25 @@ pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/Script.sol";
 
-import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
-import {Adapter} from "../../../src/contracts/adapters/Adapter.sol";
-import {AaveV3Account, AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
+import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
+import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
 
 contract AaveV3AdapterDeployBaseScript is Script {
-    bytes32 internal constant ERC1967_ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
-
     struct DeployParams {
-        address adapterOwner;
+        address adapterFactoryOwner;
         address aavePool;
         address curatorRegistry;
         address rewards;
     }
 
     struct DeploymentData {
-        address accountImplementation;
-        address beacon;
+        address adapterFactory;
         address adapterImplementation;
-        address proxyAdmin;
-        address adapter;
     }
 
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
@@ -36,66 +30,42 @@ contract AaveV3AdapterDeployBaseScript is Script {
         address vaultFactory = address(SymbioticCoreConstants.core().vaultFactory);
 
         _startBroadcast();
-        (data.accountImplementation, data.beacon, data.adapterImplementation, data.proxyAdmin, data.adapter) =
-            _deployAdapter(params, vaultFactory);
+        (data.adapterFactory, data.adapterImplementation) = _deployAdapterFactory(params, vaultFactory);
         _stopBroadcast();
 
-        assert(AaveV3Adapter(data.adapter).owner() == params.adapterOwner);
+        assert(Ownable(data.adapterFactory).owner() == params.adapterFactoryOwner);
+        assert(AaveV3Adapter(data.adapterImplementation).FACTORY() == data.adapterFactory);
 
         Logs.log(
             string.concat(
-                "Deployed AaveV3 adapter",
-                "\n    accountImplementation:",
-                vm.toString(data.accountImplementation),
-                "\n    beacon:",
-                vm.toString(data.beacon),
+                "Deployed AaveV3 adapter factory",
+                "\n    adapterFactory:",
+                vm.toString(data.adapterFactory),
                 "\n    adapterImplementation:",
-                vm.toString(data.adapterImplementation),
-                "\n    proxyAdmin:",
-                vm.toString(data.proxyAdmin),
-                "\n    adapter:",
-                vm.toString(data.adapter)
+                vm.toString(data.adapterImplementation)
             )
         );
     }
 
-    function _deployAdapter(DeployParams memory params, address vaultFactory)
+    function _deployAdapterFactory(DeployParams memory params, address vaultFactory)
         internal
-        returns (
-            address accountImplementation,
-            address beacon,
-            address adapterImplementation,
-            address proxyAdmin,
-            address adapter
-        )
+        returns (address adapterFactory, address adapterImplementation)
     {
         address broadcaster = _scriptOwner();
-        uint256 nonce = vm.getNonce(broadcaster);
-        address predictedAdapter = vm.computeCreateAddress(broadcaster, nonce + 3);
 
-        accountImplementation = address(new AaveV3Account(params.aavePool, predictedAdapter));
-        UpgradeableBeacon accountBeacon = new UpgradeableBeacon(accountImplementation, broadcaster);
-        beacon = address(accountBeacon);
-
-        adapterImplementation =
-            address(new AaveV3Adapter(params.aavePool, params.curatorRegistry, params.rewards, vaultFactory, beacon));
-        adapter = address(
-            new TransparentUpgradeableProxy(
-                adapterImplementation, params.adapterOwner, abi.encodeCall(Adapter.initialize, ())
-            )
+        adapterFactory = address(new AdapterFactory(broadcaster));
+        adapterImplementation = address(
+            new AaveV3Adapter(adapterFactory, params.aavePool, params.curatorRegistry, params.rewards, vaultFactory)
         );
-        require(adapter == predictedAdapter, "unexpected Aave adapter address");
+        AdapterFactory(adapterFactory).whitelist(adapterImplementation);
 
-        proxyAdmin = _proxyAdmin(adapter);
-        AaveV3Adapter deployedAdapter = AaveV3Adapter(adapter);
-        if (deployedAdapter.owner() != params.adapterOwner) {
-            deployedAdapter.transferOwnership(params.adapterOwner);
+        if (params.adapterFactoryOwner != broadcaster) {
+            Ownable(adapterFactory).transferOwnership(params.adapterFactoryOwner);
         }
-        accountBeacon.renounceOwnership();
     }
 
     function _validateParams(DeployParams memory params) internal pure {
-        require(params.adapterOwner != address(0), "invalid adapter owner");
+        require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
         require(params.aavePool != address(0), "invalid Aave pool");
         require(params.curatorRegistry != address(0), "invalid curator registry");
         require(params.rewards != address(0), "invalid rewards");
@@ -104,10 +74,6 @@ contract AaveV3AdapterDeployBaseScript is Script {
     function _scriptOwner() internal view returns (address owner_) {
         (,, address origin) = vm.readCallers();
         return origin == address(0) ? msg.sender : origin;
-    }
-
-    function _proxyAdmin(address proxy) internal view returns (address) {
-        return address(uint160(uint256(vm.load(proxy, ERC1967_ADMIN_SLOT))));
     }
 
     function _startBroadcast() internal virtual {

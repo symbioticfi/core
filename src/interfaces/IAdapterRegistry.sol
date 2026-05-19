@@ -5,18 +5,18 @@ import {IRegistry} from "./common/IRegistry.sol";
 
 /**
  * @title IAdapterRegistry
- * @notice Interface for the AdapterRegistry contract.
+ * @notice Interface for the adapter factory registry contract.
  */
 interface IAdapterRegistry is IRegistry {
     /**
-     * @notice Raised when trying to whitelist a adapter that is already whitelisted.
+     * @notice Raised when trying to whitelist an adapter factory that is already whitelisted.
      */
-    error AdapterAlreadyWhitelisted();
+    error AdapterFactoryAlreadyWhitelisted();
 
     /**
-     * @notice Whitelist a adapter contract.
-     * @param adapter Address of the adapter to whitelist.
+     * @notice Whitelist an adapter factory contract.
+     * @param adapterFactory Address of the adapter factory to whitelist.
      * @dev Only the contract owner can call this function.
      */
-    function whitelistAdapter(address adapter) external;
+    function whitelistAdapterFactory(address adapterFactory) external;
 }

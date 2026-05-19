@@ -65,7 +65,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     }
 
     /// @inheritdoc IMigratablesFactory
-    function create(uint64 version, address owner_, bytes calldata data) external returns (address entity_) {
+    function create(uint64 version, address owner_, bytes calldata data) public virtual returns (address entity_) {
         entity_ = address(
             new MigratableEntityProxy{salt: keccak256(abi.encode(totalEntities(), version, owner_, data))}(
                 implementation(version), abi.encodeCall(IMigratableEntity.initialize, (version, owner_, data))

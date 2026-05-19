@@ -5,8 +5,6 @@ pragma solidity ^0.8.28;
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
-import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {
     IAllocationsDelegator,
@@ -17,11 +15,13 @@ import {
     DEALLOCATE_ROLE
 } from "../../interfaces/delegator/IAllocationsDelegator.sol";
 import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title AllocationsDelegator
 /// @notice Simple delegator that allocates vault collateral across ordered adapters.
@@ -108,7 +108,7 @@ contract AllocationsDelegator is
 
         assets = IVaultV2(curVault).balance();
         for (uint256 i; i < adapters.length; ++i) {
-            assets += IAdapter(adapters[i]).totalAssets(curVault);
+            assets += IAdapter(adapters[i]).totalAssets();
         }
     }
 
@@ -302,7 +302,7 @@ contract AllocationsDelegator is
         }
 
         if (adapterIndex[adapter] == 0) {
-            if (!IRegistry(ADAPTER_REGISTRY).isEntity(adapter)) {
+            if (!_isValidAdapter(adapter)) {
                 revert InvalidAdapter();
             }
 
@@ -326,7 +326,7 @@ contract AllocationsDelegator is
                 Math.min(assets, allocationLimit(adapter).saturatingSub(adapterAllocated[adapter])),
                 IVaultV2(vault).balance()
             ),
-            IAdapter(adapter).allocatable(vault)
+            IAdapter(adapter).allocatable()
         );
 
         if (allocated == 0) {
@@ -367,6 +367,23 @@ contract AllocationsDelegator is
     function _revertIfNotAdapter(address adapter) internal view {
         if (adapterIndex[adapter] == 0) {
             revert InvalidAdapter();
+        }
+    }
+
+    /// @dev Returns whether an adapter belongs to a whitelisted adapter factory and to this vault.
+    function _isValidAdapter(address adapter) internal view returns (bool) {
+        try IAdapter(adapter).FACTORY() returns (address adapterFactory) {
+            if (!IRegistry(ADAPTER_REGISTRY).isEntity(adapterFactory) || !IRegistry(adapterFactory).isEntity(adapter)) {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+
+        try IAdapter(adapter).vault() returns (address adapterVault) {
+            return adapterVault == vault;
+        } catch {
+            return false;
         }
     }
 

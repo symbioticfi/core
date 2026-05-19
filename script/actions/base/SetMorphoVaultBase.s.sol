@@ -6,13 +6,9 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract SetMorphoVaultBaseScript is ScriptBase {
-    function runBase(address adapter, address vault, address morphoVault)
-        public
-        virtual
-        returns (bytes memory data, address target)
-    {
+    function runBase(address adapter, address morphoVault) public virtual returns (bytes memory data, address target) {
         target = adapter;
-        data = abi.encodeCall(IMorphoVaultV2Adapter.setMorphoVault, (vault, morphoVault));
+        data = abi.encodeCall(IMorphoVaultV2Adapter.setMorphoVault, (morphoVault));
         sendTransaction(target, data);
 
         Logs.log(
@@ -20,8 +16,6 @@ contract SetMorphoVaultBaseScript is ScriptBase {
                 "Set Morpho vault",
                 "\n    adapter:",
                 vm.toString(adapter),
-                "\n    vault:",
-                vm.toString(vault),
                 "\n    morphoVault:",
                 vm.toString(morphoVault)
             )

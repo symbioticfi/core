@@ -6,13 +6,9 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract ForceDeallocateMorphoBaseScript is ScriptBase {
-    function runBase(address adapter, address vault, uint256 amount)
-        public
-        virtual
-        returns (bytes memory data, address target)
-    {
+    function runBase(address adapter, uint256 amount) public virtual returns (bytes memory data, address target) {
         target = adapter;
-        data = abi.encodeCall(IMorphoVaultV2Adapter.forceDeallocate, (vault, amount));
+        data = abi.encodeCall(IMorphoVaultV2Adapter.forceDeallocate, (amount));
         sendTransaction(target, data);
 
         Logs.log(
@@ -20,8 +16,6 @@ contract ForceDeallocateMorphoBaseScript is ScriptBase {
                 "Force deallocate Morpho adapter",
                 "\n    adapter:",
                 vm.toString(adapter),
-                "\n    vault:",
-                vm.toString(vault),
                 "\n    amount:",
                 vm.toString(amount)
             )

@@ -5,8 +5,7 @@ pragma solidity ^0.8.28;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
-import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
-
+import {GUARANTEES_DELEGATOR_TYPE} from "../../interfaces/delegator/IGuaranteesDelegator.sol";
 import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
@@ -26,13 +25,12 @@ import {
     DECIMALS_OFFSET,
     WAD
 } from "../../interfaces/vault/IVaultV2.sol";
-import {GUARANTEES_DELEGATOR_TYPE} from "../../interfaces/delegator/IGuaranteesDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /// @title VaultV2

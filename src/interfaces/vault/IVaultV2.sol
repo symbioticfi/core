@@ -49,9 +49,9 @@ interface IVaultV2 is IMigratableEntity {
     error DepositLimitReached();
 
     /**
-     * @notice Raised when the vault does not have enough free assets for the operation.
+     * @notice Raised when a non-zero fee would have no recipient.
      */
-    error InsufficientFreeAssets();
+    error FeeInvariantBroken();
 
     /**
      * @notice Raised when a fee exceeds the configured maximum.
@@ -59,9 +59,9 @@ interface IVaultV2 is IMigratableEntity {
     error FeeTooHigh();
 
     /**
-     * @notice Raised when a non-zero fee would have no recipient.
+     * @notice Raised when the vault does not have enough free assets for the operation.
      */
-    error FeeInvariantBroken();
+    error InsufficientFreeAssets();
 
     /**
      * @notice Raised when an address argument is invalid.

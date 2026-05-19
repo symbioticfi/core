@@ -15,8 +15,8 @@ import {ScriptBase} from "script/utils/ScriptBase.s.sol";
 contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     // Address that will own the new AdapterRegistry after both adapters are whitelisted.
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
-    // Address that will own both adapters after deployment.
-    address public constant ADAPTER_OWNER = 0x0000000000000000000000000000000000000001;
+    // Address that will own both adapter factories after deployment.
+    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000001;
     // FeeRegistry address used by VaultV2.
     address public constant FEE_REGISTRY = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
     // AaveV3 pool used by the Aave adapter.
@@ -31,7 +31,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
 
     struct DeployParams {
         address adapterRegistryOwner;
-        address adapterOwner;
+        address adapterFactoryOwner;
         address feeRegistry;
         address aavePool;
         address morphoVaultFactory;
@@ -44,10 +44,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         V2DeployBaseScript.DeploymentData v2;
         AaveV3AdapterDeployBaseScript.DeploymentData aave;
         MorphoVaultV2AdapterDeployBaseScript.DeploymentData morpho;
-        bytes whitelistAaveData;
-        address whitelistAaveTarget;
-        bytes whitelistMorphoData;
-        address whitelistMorphoTarget;
+        bytes whitelistAaveFactoryData;
+        address whitelistAaveFactoryTarget;
+        bytes whitelistMorphoFactoryData;
+        address whitelistMorphoFactoryTarget;
         bytes transferAdapterRegistryOwnershipData;
         address transferAdapterRegistryOwnershipTarget;
     }
@@ -56,7 +56,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         data = runBase(
             DeployParams({
                 adapterRegistryOwner: ADAPTER_REGISTRY_OWNER,
-                adapterOwner: ADAPTER_OWNER,
+                adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
                 feeRegistry: FEE_REGISTRY,
                 aavePool: AAVE_POOL,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
@@ -75,7 +75,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
 
         DeployParams memory deployParams = DeployParams({
             adapterRegistryOwner: deployer,
-            adapterOwner: params.adapterOwner,
+            adapterFactoryOwner: params.adapterFactoryOwner,
             feeRegistry: params.feeRegistry,
             aavePool: params.aavePool,
             morphoVaultFactory: params.morphoVaultFactory,
@@ -89,8 +89,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         data.morpho = _deployMorpho(params);
 
         address adapterRegistry = address(data.v2.adapterRegistry);
-        (data.whitelistAaveData, data.whitelistAaveTarget) = _whitelistAdapter(adapterRegistry, data.aave.adapter);
-        (data.whitelistMorphoData, data.whitelistMorphoTarget) = _whitelistAdapter(adapterRegistry, data.morpho.adapter);
+        (data.whitelistAaveFactoryData, data.whitelistAaveFactoryTarget) =
+            _whitelistAdapterFactory(adapterRegistry, data.aave.adapterFactory);
+        (data.whitelistMorphoFactoryData, data.whitelistMorphoFactoryTarget) =
+            _whitelistAdapterFactory(adapterRegistry, data.morpho.adapterFactory);
         (data.transferAdapterRegistryOwnershipData, data.transferAdapterRegistryOwnershipTarget) =
             _transferAdapterRegistryOwnership(adapterRegistry, adapterRegistryOwner);
 
@@ -99,10 +101,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 "DeployAndWhitelistAaveMorpho complete",
                 "\n    adapterRegistry:",
                 vm.toString(adapterRegistry),
-                "\n    aaveAdapter:",
-                vm.toString(data.aave.adapter),
-                "\n    morphoAdapter:",
-                vm.toString(data.morpho.adapter),
+                "\n    aaveAdapterFactory:",
+                vm.toString(data.aave.adapterFactory),
+                "\n    morphoAdapterFactory:",
+                vm.toString(data.morpho.adapterFactory),
                 "\n    adapterRegistryOwner:",
                 vm.toString(adapterRegistryOwner)
             )
@@ -122,15 +124,15 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         virtual
         returns (AaveV3AdapterDeployBaseScript.DeploymentData memory data)
     {
-        data = new AaveV3AdapterDeployBaseScript()
-            .runBase(
-                AaveV3AdapterDeployBaseScript.DeployParams({
-                adapterOwner: params.adapterOwner,
+        AaveV3AdapterDeployBaseScript script = new AaveV3AdapterDeployBaseScript();
+        data = script.runBase(
+            AaveV3AdapterDeployBaseScript.DeployParams({
+                adapterFactoryOwner: params.adapterFactoryOwner,
                 aavePool: params.aavePool,
                 curatorRegistry: params.curatorRegistry,
                 rewards: params.rewards
             })
-            );
+        );
     }
 
     function _deployMorpho(DeployParams memory params)
@@ -138,24 +140,24 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         virtual
         returns (MorphoVaultV2AdapterDeployBaseScript.DeploymentData memory data)
     {
-        data = new MorphoVaultV2AdapterDeployBaseScript()
-            .runBase(
-                MorphoVaultV2AdapterDeployBaseScript.DeployParams({
-                adapterOwner: params.adapterOwner,
+        MorphoVaultV2AdapterDeployBaseScript script = new MorphoVaultV2AdapterDeployBaseScript();
+        data = script.runBase(
+            MorphoVaultV2AdapterDeployBaseScript.DeployParams({
+                adapterFactoryOwner: params.adapterFactoryOwner,
                 morphoVaultFactory: params.morphoVaultFactory,
                 morphoAdapterRegistry: params.morphoAdapterRegistry,
                 curatorRegistry: params.curatorRegistry,
                 rewards: params.rewards
             })
-            );
+        );
     }
 
-    function _whitelistAdapter(address adapterRegistry, address adapter)
+    function _whitelistAdapterFactory(address adapterRegistry, address adapterFactory)
         internal
         virtual
         returns (bytes memory data, address target)
     {
-        (data, target) = new V2WhitelistAdaptersBaseScript().whitelistAdapter(adapterRegistry, adapter);
+        (data, target) = new V2WhitelistAdaptersBaseScript().whitelistAdapterFactory(adapterRegistry, adapterFactory);
     }
 
     function _transferAdapterRegistryOwnership(address adapterRegistry, address newOwner)

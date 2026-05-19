@@ -24,9 +24,14 @@ interface IAllocationsDelegator is IDelegator {
     /* ERRORS */
 
     /**
-     * @notice Raised when adapter arrays have inconsistent lengths.
+     * @notice Raised when an adapter has no allocation above its configured limit.
      */
-    error InvalidLength();
+    error AdapterNotOverLimit();
+
+    /**
+     * @notice Raised when the vault does not have enough liquid collateral after deallocation.
+     */
+    error InsufficientVaultBalance();
 
     /**
      * @notice Raised when an adapter address is invalid.
@@ -34,19 +39,14 @@ interface IAllocationsDelegator is IDelegator {
     error InvalidAdapter();
 
     /**
+     * @notice Raised when adapter arrays have inconsistent lengths.
+     */
+    error InvalidLength();
+
+    /**
      * @notice Raised when a share limit is above LIMIT_SHARE_SCALE.
      */
     error InvalidShareLimit();
-
-    /**
-     * @notice Raised when an adapter has no allocation above its configured limit.
-     */
-    error AdapterNotOverLimit();
-
-    /**
-     * @notice Raised when the connected vault version is older than required.
-     */
-    error OldVault();
 
     /**
      * @notice Raised when the caller is not the associated vault.
@@ -54,9 +54,9 @@ interface IAllocationsDelegator is IDelegator {
     error NotVault();
 
     /**
-     * @notice Raised when the vault does not have enough liquid collateral after deallocation.
+     * @notice Raised when the connected vault version is older than required.
      */
-    error InsufficientVaultBalance();
+    error OldVault();
 
     /* STRUCTS */
 

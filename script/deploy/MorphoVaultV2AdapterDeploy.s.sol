@@ -6,8 +6,8 @@ import {MorphoVaultV2AdapterDeployBaseScript} from "./base/MorphoVaultV2AdapterD
 // forge script script/deploy/MorphoVaultV2AdapterDeploy.s.sol:MorphoVaultV2AdapterDeployScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
 contract MorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScript {
-    // Address that will own the adapter after deployment.
-    address public constant ADAPTER_OWNER = 0x0000000000000000000000000000000000000000;
+    // Address that will own the adapter factory after deployment.
+    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
     // MorphoVaultV2 mocks from MorphoVaultV2MocksDeployScript output.
     address public constant MORPHO_VAULT_FACTORY = 0xA1D94F746dEfa1928926b84fB2596c06926C0405;
     address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
@@ -19,7 +19,7 @@ contract MorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScrip
     function run() public {
         runBase(
             DeployParams({
-                adapterOwner: ADAPTER_OWNER,
+                adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 curatorRegistry: CURATOR_REGISTRY,

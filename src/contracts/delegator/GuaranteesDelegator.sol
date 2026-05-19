@@ -6,15 +6,13 @@ import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
 
-import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {FenwickTreeCheckpoints} from "../libraries/FenwickTreeCheckpoints.sol";
 import {Subnetwork} from "../../contracts/libraries/Subnetwork.sol";
 
 import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
+import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
-import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IGuaranteesDelegator,
     BURNER_GAS_LIMIT,
@@ -24,14 +22,16 @@ import {
     SET_SIZE_ROLE,
     SWAP_SLOTS_ROLE
 } from "../../interfaces/delegator/IGuaranteesDelegator.sol";
-import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
-import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {MAX_DURATION, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Calldata} from "@openzeppelin/contracts/utils/Calldata.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title GuaranteesDelegator
 /// @notice Contract for stake allocation across network-operator slots.

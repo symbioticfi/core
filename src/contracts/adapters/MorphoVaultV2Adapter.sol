@@ -13,15 +13,12 @@ import {IRewards} from "../../interfaces/vault/IRewards.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title MorphoVaultV2Adapter
 /// @notice VaultV2 adapter for Morpho ERC4626 vaults.
-contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
+contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -29,8 +26,6 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
 
     /// @dev Morpho vault factory used for curator-side vault validation.
     address internal immutable MORPHO_VAULT_FACTORY;
-    /// @dev Beacon for deterministic Morpho vault accounts.
-    address internal immutable BEACON;
     /// @dev Required Morpho adapter registry for configured vaults.
     address internal immutable MORPHO_ADAPTER_REGISTRY;
     /// @dev Rewards contract that receives skimmed adapter yield.
@@ -39,7 +34,7 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     /* STATE VARIABLES */
 
     /// @inheritdoc IMorphoVaultV2Adapter
-    mapping(address vault => address morphoVault) public morphoVaults;
+    address public morphoVault;
 
     /* TRANSIENT STATE VARIABLES */
 
@@ -49,15 +44,14 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     /* CONSTRUCTOR */
 
     constructor(
+        address adapterFactory,
         address morphoVaultFactory,
         address morphoAdapterRegistry,
         address curatorRegistry,
         address rewards,
-        address vaultFactory,
-        address beacon
-    ) Adapter(vaultFactory, curatorRegistry) {
+        address vaultFactory
+    ) Adapter(adapterFactory, vaultFactory, curatorRegistry) {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
-        BEACON = beacon;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
         REWARDS = rewards;
     }
@@ -65,77 +59,67 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAdapter
-    function skimmable(address vault) public view returns (uint256) {
-        return totalAssets(vault).saturatingSub(_adapterAllocated(vault));
+    function skimmable() public view returns (uint256) {
+        return totalAssets().saturatingSub(_adapterAllocated());
     }
 
     /// @inheritdoc IAdapter
-    function allocatable(address vault) public view override(Adapter, IAdapter) returns (uint256) {
-        if (morphoVaults[vault] == address(0)) {
-            return 0;
-        }
-        return super.allocatable(vault);
-    }
-
-    /// @inheritdoc IAdapter
-    function deallocatable(address vault) public view returns (uint256) {
-        address morphoVault = morphoVaults[vault];
+    function allocatable() public view override(Adapter, IAdapter) returns (uint256) {
         if (morphoVault == address(0)) {
             return 0;
         }
-        uint256 assets = totalAssets(vault);
-        uint256 allocated = _adapterAllocated(vault);
+        return super.allocatable();
+    }
+
+    /// @inheritdoc IAdapter
+    function deallocatable() public view returns (uint256) {
+        address curMorphoVault = morphoVault;
+        if (curMorphoVault == address(0)) {
+            return 0;
+        }
+        uint256 assets = totalAssets();
+        uint256 allocated = _adapterAllocated();
         if (!_isForceDeallocate && allocated.saturatingSub(assets) > DEALLOCATE_BUFFER) {
             return 0;
         }
-        address collateral = IMorphoVaultV2(morphoVault).asset();
-        address liquidityAdapter = IMorphoVaultV2(morphoVault).liquidityAdapter();
+        address collateral = IMorphoVaultV2(curMorphoVault).asset();
+        address liquidityAdapter = IMorphoVaultV2(curMorphoVault).liquidityAdapter();
         return Math.min(
             Math.min(
                 assets,
-                IERC20(collateral).balanceOf(morphoVault)
+                IERC20(collateral).balanceOf(curMorphoVault)
                     + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
             ),
             allocated
         );
     }
 
-    /// @inheritdoc IMorphoVaultV2Adapter
-    function getAccount(address vault) public view returns (address account) {
-        return Create2.computeAddress(_accountSalt(vault), _accountProxyInitCodeHash(), address(this));
-    }
-
     /// @inheritdoc IAdapter
-    function totalAssets(address vault) public view override(Adapter, IAdapter) returns (uint256) {
-        address morphoVault = morphoVaults[vault];
-        if (morphoVault == address(0)) {
+    function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
+        address curMorphoVault = morphoVault;
+        if (curMorphoVault == address(0)) {
             return 0;
         }
-        return IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(getAccount(vault)));
+        return IMorphoVaultV2(curMorphoVault).previewRedeem(IMorphoVaultV2(curMorphoVault).balanceOf(address(this)));
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IMorphoVaultV2Adapter
-    function forceDeallocate(address vault, uint256 amount)
-        public
-        onlyVault(vault)
-        onlyCurator(vault)
-        returns (uint256 deallocated)
-    {
+    function forceDeallocate(uint256 amount) public onlyCurator returns (uint256 deallocated) {
         if (amount == 0) {
             revert InsufficientAmount();
         }
 
         _isForceDeallocate = true;
-        deallocated = _deallocateAdapter(vault, amount);
+        deallocated = _deallocateAdapter(amount);
         _isForceDeallocate = false;
 
-        emit ForceDeallocate(vault, amount, deallocated);
+        emit ForceDeallocate(amount, deallocated);
     }
 
     /// @inheritdoc IMorphoVaultV2Adapter
-    function setMorphoVault(address vault, address newMorphoVault) public onlyVault(vault) onlyCurator(vault) {
+    function setMorphoVault(address newMorphoVault) public onlyCurator {
         if (
             newMorphoVault != address(0)
                 && (!IMorphoVaultV2Factory(MORPHO_VAULT_FACTORY).isVaultV2(newMorphoVault)
@@ -145,29 +129,29 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
         ) {
             revert InvalidMorphoVault();
         }
-        address curMorphoVault = morphoVaults[vault];
-        if (curMorphoVault != address(0) && totalAssets(vault) > 0) {
+        address curMorphoVault = morphoVault;
+        if (curMorphoVault != address(0) && totalAssets() > 0) {
             revert ActivePosition();
         }
-        morphoVaults[vault] = newMorphoVault;
+        morphoVault = newMorphoVault;
 
-        emit SetMorphoVault(vault, newMorphoVault);
+        emit SetMorphoVault(newMorphoVault);
     }
 
     /* INTERNAL FUNCTIONS */
 
     /// @dev Withdraws excess Morpho yield back to the adapter and forwards it to rewards.
-    function _skim(address vault) internal override returns (uint256 amount) {
-        amount = skimmable(vault);
+    function _skim() internal override returns (uint256 amount) {
+        amount = skimmable();
         if (amount == 0) {
             return 0;
         }
-        address morphoVault = morphoVaults[vault];
-        try MorphoVaultV2Account(_deployAccount(vault)).withdraw(morphoVault, amount) {}
+        address curMorphoVault = morphoVault;
+        try IMorphoVaultV2(curMorphoVault).withdraw(amount, address(this), address(this)) returns (uint256) {}
         catch {
             return 0;
         }
-        address collateral = IMorphoVaultV2(morphoVault).asset();
+        address collateral = IMorphoVaultV2(curMorphoVault).asset();
         if (IERC20(collateral).allowance(address(this), REWARDS) < amount) {
             IERC20(collateral).forceApprove(REWARDS, type(uint256).max);
         }
@@ -175,9 +159,9 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
     }
 
     /// @dev Deposits collateral from the calling vault into the configured Morpho vault.
-    function _allocate(address vault, uint256 amount) internal override {
-        _skim(vault);
-        if (skimmable(vault) > 0) {
+    function _allocate(uint256 amount) internal override {
+        _skim();
+        if (skimmable() > 0) {
             revert SkimFailed();
         }
 
@@ -185,47 +169,45 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
             return;
         }
 
-        address morphoVault = morphoVaults[vault];
-        address collateral = IMorphoVaultV2(morphoVault).asset();
-        _increaseGlobalAllocated(collateral, amount);
+        address curMorphoVault = morphoVault;
+        address collateral = IMorphoVaultV2(curMorphoVault).asset();
 
-        if (IERC20(collateral).allowance(address(this), morphoVault) < amount) {
-            IERC20(collateral).forceApprove(morphoVault, type(uint256).max);
+        if (IERC20(collateral).allowance(address(this), curMorphoVault) < amount) {
+            IERC20(collateral).forceApprove(curMorphoVault, type(uint256).max);
         }
-        try this.deposit(morphoVault, amount, getAccount(vault)) {
+        try this.deposit(curMorphoVault, amount, address(this)) {
             return;
         } catch {}
 
-        _recover(vault, amount);
+        _recover(amount);
     }
 
     /// @dev Uses an external self-call so zero-share deposits revert and roll back the Morpho transfer.
-    function deposit(address morphoVault, uint256 amount, address onBehalfOf) external {
+    function deposit(address targetMorphoVault, uint256 amount, address onBehalfOf) external {
         if (address(this) != msg.sender) {
             revert NotSelf();
         }
-        if (IMorphoVaultV2(morphoVault).deposit(amount, onBehalfOf) == 0) {
+        if (IMorphoVaultV2(targetMorphoVault).deposit(amount, onBehalfOf) == 0) {
             revert InsufficientAmount();
         }
     }
 
     /// @dev Withdraws collateral for the calling vault from the configured Morpho vault.
-    function _deallocate(address vault, uint256 amount) internal override returns (uint256) {
-        _skim(vault);
+    function _deallocate(uint256 amount) internal override returns (uint256) {
+        _skim();
 
         if (amount == 0) {
             return 0;
         }
 
-        amount = Math.min(deallocatable(vault), amount);
+        amount = Math.min(deallocatable(), amount);
         if (amount == 0) {
             return 0;
         }
 
-        address morphoVault = morphoVaults[vault];
-        address collateral = IMorphoVaultV2(morphoVault).asset();
-        try MorphoVaultV2Account(_deployAccount(vault)).withdraw(morphoVault, amount) {
-            _decreaseGlobalAllocated(collateral, amount);
+        address curMorphoVault = morphoVault;
+        address collateral = IMorphoVaultV2(curMorphoVault).asset();
+        try IMorphoVaultV2(curMorphoVault).withdraw(amount, address(this), address(this)) returns (uint256) {
             if (IERC20(collateral).allowance(address(this), vault) < amount) {
                 IERC20(collateral).forceApprove(vault, type(uint256).max);
             }
@@ -234,48 +216,5 @@ contract MorphoVaultV2Adapter is Initializable, Adapter, IMorphoVaultV2Adapter {
         }
 
         return amount;
-    }
-
-    /// @dev Deploys the deterministic Morpho holding account for a vault on first use.
-    function _deployAccount(address vault) internal returns (address account) {
-        account = getAccount(vault);
-        if (account.code.length > 0) {
-            return account;
-        }
-        account = address(new BeaconProxy{salt: _accountSalt(vault)}(BEACON, ""));
-
-        emit DeployAccount(vault, account);
-    }
-
-    /// @dev Computes the OZ BeaconProxy creation-code hash for this adapter's beacon.
-    function _accountProxyInitCodeHash() internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(type(BeaconProxy).creationCode, abi.encode(BEACON, "")));
-    }
-
-    /// @dev Derives the deterministic clone salt for a vault account.
-    function _accountSalt(address vault) internal pure returns (bytes32) {
-        return bytes32(uint256(uint160(vault)));
-    }
-}
-
-contract MorphoVaultV2Account {
-    error NotAdapter();
-
-    /// @dev Adapter authorized to operate the account.
-    address internal immutable ADAPTER;
-
-    constructor(address adapter) {
-        ADAPTER = adapter;
-    }
-
-    modifier onlyAdapter() {
-        if (ADAPTER != msg.sender) {
-            revert NotAdapter();
-        }
-        _;
-    }
-
-    function withdraw(address morphoVault, uint256 assets) external onlyAdapter {
-        IMorphoVaultV2(morphoVault).withdraw(assets, ADAPTER, address(this));
     }
 }
