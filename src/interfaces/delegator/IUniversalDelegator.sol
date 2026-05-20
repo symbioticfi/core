@@ -3,9 +3,11 @@ pragma solidity ^0.8.0;
 
 import {IDelegator} from "./IDelegator.sol";
 
-uint64 constant UNIVERSAL_DELEGATOR_TYPE = 5;
+uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 
-uint256 constant LIMIT_SHARE_SCALE = 1e18;
+uint256 constant MAX_SHARE = 1e18;
+
+uint256 constant MAX_ADAPTERS = 256;
 
 // Keccak256("SET_ADAPTER_LIMITS_ROLE").
 bytes32 constant SET_ADAPTER_LIMITS_ROLE = 0x8c729dc4be31fd24714d9aa5498f0c485d31935b8850fc1f2d8fce2bfa1f0e35;

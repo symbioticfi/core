@@ -366,9 +366,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         super._deposit(caller, receiver, assets, shares);
         _totalAssets += assets;
 
-        IDelegator(delegator).onDeposit(caller, receiver, assets, shares);
-
         _fillWithdrawalQueue(assets);
+
+        IDelegator(delegator).onDeposit(caller, receiver, assets, shares);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -376,11 +376,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         internal
         override
     {
-        accrueInterest();
-
-        IDelegator(delegator).onWithdraw(caller, receiver, owner, assets, shares);
-
-        _fillWithdrawalQueue(assets);
+        if (withdrawalQueue != msg.sender) {
+            revert NotWithdrawalQueue();
+        }
 
         _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);

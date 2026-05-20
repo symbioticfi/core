@@ -104,18 +104,20 @@ abstract contract Adapter is MigratableEntity, IAdapter {
     }
 
     /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public virtual onlyDelegator returns (uint256 deallocated, uint256 pending) {
+    function deallocate(uint256 amount) public virtual onlyDelegator returns (uint256 deallocated) {
         if (IVaultV2(vault).delegator() != msg.sender) {
             revert NotVault();
         }
 
-        deallocated = _deallocate(amount);
-        pending = 0;
+        return _deallocate(amount);
     }
 
     /// @inheritdoc IAdapter
-    function sync() public {
-        return _sync();
+    function requestDeallocate(uint256 amount) public {
+        if (IVaultV2(vault).delegator() != msg.sender) {
+            revert NotVault();
+        }
+        return _requestDeallocate(amount);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -127,12 +129,7 @@ abstract contract Adapter is MigratableEntity, IAdapter {
     function _deallocate(uint256 amount) internal virtual returns (uint256);
 
     /// @dev Synchronizes adapter pending deallocation accounting.
-    function _sync() internal virtual {}
-
-    /// @dev Skims excess asset from the adapter.
-    function _skim() internal virtual returns (uint256) {
-        return 0;
-    }
+    function _requestDeallocate(uint256 amount) internal virtual {}
 
     /* INITIALIZATION */
 

@@ -125,9 +125,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         _mint(receiver, tokenId);
 
-        IDelegator(IVaultV2(vault).delegator())
-            .onRequestWithdraw(msg.sender, receiver, IERC4626(vault).previewRedeem(shares), shares);
-
         emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
     }
 
@@ -145,6 +142,42 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         IERC20(IERC4626(vault).asset()).safeTransfer(request.receiver, assetsClaimed);
 
         emit Claim(tokenId, assetsClaimed, sharesClaimed);
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function fill(uint256 amount) public {
+        amount = Math.min(amount, pendingAssets());
+        if (amount == 0) {
+            return;
+        }
+
+        VaultV2(vault).accrueInterest();
+
+        IDelegator(IVaultV2(vault).delegator()).sync();
+        amount = Math.min(amount, IERC20(IERC4626(vault).asset()).balanceOf(vault));
+        uint256 shares = IERC4626(vault).previewWithdraw(amount);
+        if (shares == 0) {
+            return;
+        }
+
+        uint256 totalShares = IERC4626(vault).totalSupply();
+        uint256 totalAssets = IERC4626(vault).totalAssets();
+        IERC4626(vault).redeem(shares, address(this), address(this));
+
+        // if share price has changed, update the checkpoint
+        if (_latestTotalAssets * totalShares != _latestTotalShares * totalAssets) {
+            _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
+            _sharePriceCheckpoints.push(
+                SharePriceCheckpoint({totalAssets: _latestTotalAssets, totalShares: _latestTotalShares})
+            );
+
+            _latestTotalAssets = totalAssets;
+            _latestTotalShares = totalShares;
+        }
+        totalFilled += shares;
+        _totalFilledAt.push(block.timestamp, totalFilled);
+
+        emit Fill(amount, shares);
     }
 
     /*
@@ -217,43 +250,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
     */
 
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc IWithdrawalQueue
-    function fill(uint256 amount) public {
-        amount = Math.min(amount, pendingAssets());
-        if (amount == 0) {
-            return;
-        }
-
-        address delegator = IVaultV2(vault).delegator();
-        IDelegator(delegator).sync();
-        amount = Math.min(amount, IERC20(IERC4626(vault).asset()).balanceOf(vault));
-
-        uint256 shares = IERC4626(vault).previewWithdraw(amount);
-        if (shares == 0) {
-            return;
-        }
-
-        uint256 totalShares = IERC4626(vault).totalSupply();
-        uint256 totalAssets = IERC4626(vault).totalAssets();
-        IERC4626(vault).redeem(shares, address(this), address(this));
-
-        // if share price has changed, update the checkpoint
-        if (_latestTotalAssets * totalShares != _latestTotalShares * totalAssets) {
-            _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
-            _sharePriceCheckpoints.push(
-                SharePriceCheckpoint({totalAssets: _latestTotalAssets, totalShares: _latestTotalShares})
-            );
-
-            _latestTotalAssets = totalAssets;
-            _latestTotalShares = totalShares;
-        }
-        totalFilled += shares;
-        _totalFilledAt.push(block.timestamp, totalFilled);
-
-        emit Fill(amount, shares);
-    }
+    /* INTERNAL FUNCTIONS */
 
     /// @dev Returns the claimable assets and shares for a withdrawal request.
     /// @param tokenId The withdrawal NFT id.
@@ -296,29 +293,29 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         sharesClaimed = cumClaimedShares - request.prevRequestSum - request.claimedShares;
     }
 
-    /// @dev Returns total active withdrawal shares at a timestamp.
-    /// @param timestamp Timestamp to query.
-    /// @return shares Total active withdrawal shares.
-    function _activeSharesAt(uint48 timestamp) internal view returns (uint256 shares) {
-        return _totalRequestedAt.upperLookupRecent(timestamp).saturatingSub(_totalFilledAt.upperLookupRecent(timestamp));
-    }
+    // /// @dev Returns total active withdrawal shares at a timestamp.
+    // /// @param timestamp Timestamp to query.
+    // /// @return shares Total active withdrawal shares.
+    // function _activeSharesAt(uint48 timestamp) internal view returns (uint256 shares) {
+    //     return _totalRequestedAt.upperLookupRecent(timestamp).saturatingSub(_totalFilledAt.upperLookupRecent(timestamp));
+    // }
 
-    /// @dev Returns active withdrawal shares for a request at a timestamp.
-    /// @param request Withdrawal request to query.
-    /// @param timestamp Timestamp to query.
-    /// @return shares Request active withdrawal shares.
-    function _activeSharesOfAt(WithdrawalRequest storage request, uint48 timestamp)
-        internal
-        view
-        returns (uint256 shares)
-    {
-        uint256 requestStart = request.prevRequestSum;
-        uint256 requestEnd = requestStart + request.shares;
-        uint256 activeStart = Math.max(requestStart, _totalFilledAt.upperLookupRecent(timestamp));
-        uint256 activeEnd = Math.min(requestEnd, _totalRequestedAt.upperLookupRecent(timestamp));
+    // /// @dev Returns active withdrawal shares for a request at a timestamp.
+    // /// @param request Withdrawal request to query.
+    // /// @param timestamp Timestamp to query.
+    // /// @return shares Request active withdrawal shares.
+    // function _activeSharesOfAt(WithdrawalRequest storage request, uint48 timestamp)
+    //     internal
+    //     view
+    //     returns (uint256 shares)
+    // {
+    //     uint256 requestStart = request.prevRequestSum;
+    //     uint256 requestEnd = requestStart + request.shares;
+    //     uint256 activeStart = Math.max(requestStart, _totalFilledAt.upperLookupRecent(timestamp));
+    //     uint256 activeEnd = Math.min(requestEnd, _totalRequestedAt.upperLookupRecent(timestamp));
 
-        return activeEnd.saturatingSub(activeStart);
-    }
+    //     return activeEnd.saturatingSub(activeStart);
+    // }
 
     /*
     /// @dev Claims and records a single vault snapshot reward for the queue.
