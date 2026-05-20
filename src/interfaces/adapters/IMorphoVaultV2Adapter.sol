@@ -34,13 +34,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
     error NotSelf();
 
     /**
-     * @notice Emitted when a curator force-deallocates funds for a vault.
-     * @param amount Requested amount to deallocate.
-     * @param deallocated Actual amount deallocated.
-     */
-    event ForceDeallocate(uint256 amount, uint256 deallocated);
-
-    /**
      * @notice Emitted when a Morpho vault is configured for a vault.
      * @param morphoVault Morpho vault address.
      */
@@ -53,13 +46,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
      * @return Configured Morpho vault.
      */
     function morphoVault() external view returns (address);
-
-    /**
-     * @notice Force-deallocates collateral for a vault.
-     * @param amount Requested amount to deallocate.
-     * @return deallocated Actual amount deallocated.
-     */
-    function forceDeallocate(uint256 amount) external returns (uint256 deallocated);
 
     /**
      * @notice Sets the Morpho vault for a vault.

@@ -24,20 +24,9 @@ interface IAdapter is IMigratableEntity {
     error NotCurator();
 
     /**
-     * @notice Raised when a zero amount is passed where a positive amount is required.
-     */
-    error ZeroAmount();
-
-    /**
      * @notice Raised when allocation is attempted while skimmable yield remains unsettled.
      */
     error SkimFailed();
-
-    /**
-     * @notice Emitted when curator-provided recovery collateral is returned to a vault.
-     * @param amount Recovered collateral amount.
-     */
-    event Recover(uint256 amount);
 
     /**
      * @notice Execute a batch of delegatecalls on the adapter.
@@ -83,12 +72,18 @@ interface IAdapter is IMigratableEntity {
     function allocate(uint256 amount) external;
 
     /**
-     * @notice Deallocate collateral from the adapter instantly.
+     * @notice Deallocate collateral from the adapter.
      * @param amount Amount of the collateral to deallocate.
-     * @return deallocated Amount of the collateral deallocated.
+     * @return deallocated Amount of the collateral deallocated now.
+     * @return pending Amount of collateral accepted for delayed deallocation.
      * @dev Must not revert.
      */
-    function deallocate(uint256 amount) external returns (uint256 deallocated);
+    function deallocate(uint256 amount) external returns (uint256 deallocated, uint256 pending);
+
+    /**
+     * @notice Synchronize adapter pending deallocation accounting.
+     */
+    function sync() external;
 
     /**
      * @notice Skim the collateral from the adapter.
@@ -96,10 +91,4 @@ interface IAdapter is IMigratableEntity {
      * @dev Must not revert.
      */
     function skim() external returns (uint256 amount);
-
-    /**
-     * @notice Replenish lost collateral and immediately return it to the vault.
-     * @param amount Amount of collateral supplied for recovery.
-     */
-    function recover(uint256 amount) external;
 }

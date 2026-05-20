@@ -9,5 +9,5 @@ import {IVaultFactory} from "../interfaces/IVaultFactory.sol";
 /// @title VaultFactory
 /// @notice Factory contract for migratable vault version deployments.
 contract VaultFactory is MigratablesFactory, IVaultFactory {
-    constructor(address owner_) MigratablesFactory(owner_) {}
+    constructor(address newOwner) MigratablesFactory(newOwner) {}
 }

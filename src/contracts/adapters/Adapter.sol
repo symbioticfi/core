@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IAllocationsDelegator} from "../../interfaces/delegator/IAllocationsDelegator.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {ICuratorRegistry} from "../../interfaces/adapters/ICuratorRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
@@ -44,6 +44,13 @@ abstract contract Adapter is MigratableEntity, IAdapter {
         _;
     }
 
+    modifier onlyDelegator() {
+        if (IVaultV2(vault).delegator() != msg.sender) {
+            revert NotVault();
+        }
+        _;
+    }
+
     /* MULTICALL */
 
     /// @inheritdoc IAdapter
@@ -60,7 +67,7 @@ abstract contract Adapter is MigratableEntity, IAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address adapterFactory, address vaultFactory, address curatorRegistry)
+    constructor(address vaultFactory, address adapterFactory, address curatorRegistry)
         MigratableEntity(adapterFactory)
     {
         VAULT_FACTORY = vaultFactory;
@@ -77,6 +84,11 @@ abstract contract Adapter is MigratableEntity, IAdapter {
     /// @inheritdoc IAdapter
     function totalAssets() public view virtual returns (uint256);
 
+    /// @inheritdoc IAdapter
+    function skimmable() public view virtual returns (uint256) {
+        return 0;
+    }
+
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IAdapter
@@ -84,75 +96,43 @@ abstract contract Adapter is MigratableEntity, IAdapter {
         return _skim();
     }
 
-    /* PUBLIC FUNCTIONS (CURATOR) */
-
-    /// @inheritdoc IAdapter
-    function recover(uint256 amount) public onlyCurator {
-        if (amount == 0) {
-            revert ZeroAmount();
-        }
-
-        IERC20(IVaultV2(vault).collateral()).safeTransferFrom(msg.sender, address(this), amount);
-        _recover(amount);
-        skim();
-
-        emit Recover(amount);
-    }
-
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @inheritdoc IAdapter
-    function allocate(uint256 amount) public {
-        if (IVaultV2(vault).delegator() != msg.sender) {
-            revert NotVault();
-        }
-
+    function allocate(uint256 amount) public onlyDelegator {
         _allocate(amount);
     }
 
     /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public returns (uint256) {
+    function deallocate(uint256 amount) public virtual onlyDelegator returns (uint256 deallocated, uint256 pending) {
         if (IVaultV2(vault).delegator() != msg.sender) {
             revert NotVault();
         }
 
-        if (_isRecover) {
-            address collateral = IVaultV2(vault).collateral();
-            if (IERC20(collateral).allowance(address(this), vault) < amount) {
-                IERC20(collateral).forceApprove(vault, type(uint256).max);
-            }
-            return amount;
-        }
-        return _deallocate(amount);
+        deallocated = _deallocate(amount);
+        pending = 0;
+    }
+
+    /// @inheritdoc IAdapter
+    function sync() public {
+        return _sync();
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns the delegator-tracked allocation for this adapter and vault.
-    function _adapterAllocated() internal view returns (uint256) {
-        return IAllocationsDelegator(IVaultV2(vault).delegator()).adapterAllocated(address(this));
-    }
+    /// @dev Allocates asset from the vault into the adapter position.
+    function _allocate(uint256 amount) internal virtual returns (uint256);
 
-    /// @dev Recovers collateral back to the vault via the delegator deallocation hook.
-    function _recover(uint256 amount) internal {
-        _isRecover = true;
-        _deallocateAdapter(amount);
-        _isRecover = false;
-    }
-
-    /// @dev Deallocates this adapter through the vault's allocations delegator.
-    function _deallocateAdapter(uint256 amount) internal returns (uint256) {
-        return IAllocationsDelegator(IVaultV2(vault).delegator()).deallocateAdapter(address(this), amount);
-    }
-
-    /// @dev Skims excess collateral yield from the adapter for a vault.
-    function _skim() internal virtual returns (uint256);
-
-    /// @dev Allocates collateral from the vault into the adapter position.
-    function _allocate(uint256 amount) internal virtual;
-
-    /// @dev Deallocates collateral from the vault's adapter position.
+    /// @dev Deallocates asset from the vault's adapter position.
     function _deallocate(uint256 amount) internal virtual returns (uint256);
+
+    /// @dev Synchronizes adapter pending deallocation accounting.
+    function _sync() internal virtual {}
+
+    /// @dev Skims excess asset from the adapter.
+    function _skim() internal virtual returns (uint256) {
+        return 0;
+    }
 
     /* INITIALIZATION */
 
@@ -163,19 +143,21 @@ abstract contract Adapter is MigratableEntity, IAdapter {
             revert InvalidVault();
         }
         vault = initVault;
-        __initialize(initData);
+
+        IERC20(IVaultV2(vault).asset()).forceApprove(vault, type(uint256).max);
+
+        __initialize(IVaultV2(vault).asset(), initData);
     }
 
     /// @dev Initializes adapter-specific state.
-    function __initialize(bytes memory) internal virtual {}
+    function __initialize(address, bytes memory) internal virtual {}
+
+    /* MIGRATION */
 
     /// @dev Migrates adapter-specific state.
-    function _migrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) internal override {
-        _migrateAdapter(oldVersion, newVersion, data);
+    function _migrate(uint64, uint64, bytes calldata) internal override {
+        revert();
     }
-
-    /// @dev Migrates adapter-specific state.
-    function _migrateAdapter(uint64, uint64, bytes calldata) internal virtual {}
 
     /* STORAGE GAP */
 

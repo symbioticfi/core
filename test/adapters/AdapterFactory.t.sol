@@ -11,21 +11,26 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
+import {Token} from "../mocks/Token.sol";
+
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 
 contract AdapterFactoryTest is Test {
     MockRegistry internal vaultFactory;
     AdapterFactory internal factory;
     MockAdapter internal implementation;
+    Token internal collateral;
 
     address internal owner = makeAddr("owner");
     address internal curator = makeAddr("curator");
-    address internal vault = makeAddr("vault");
+    address internal vault;
 
     function setUp() public {
         vaultFactory = new MockRegistry();
         factory = new AdapterFactory(owner);
-        implementation = new MockAdapter(address(factory), address(vaultFactory));
+        collateral = new Token("Collateral");
+        vault = address(new MockVault(address(collateral)));
+        implementation = new MockAdapter(address(vaultFactory), address(factory));
 
         vm.prank(owner);
         factory.whitelist(address(implementation));
@@ -83,7 +88,7 @@ contract AdapterFactoryTest is Test {
         vaultFactory.add(vault);
 
         AdapterFactory otherFactory = new AdapterFactory(owner);
-        MockAdapter otherImplementation = new MockAdapter(address(otherFactory), address(vaultFactory));
+        MockAdapter otherImplementation = new MockAdapter(address(vaultFactory), address(otherFactory));
         vm.prank(owner);
         otherFactory.whitelist(address(otherImplementation));
 
@@ -102,7 +107,7 @@ contract MockRegistry is Registry {
 }
 
 contract MockAdapter is Adapter {
-    constructor(address adapterFactory, address vaultFactory) Adapter(adapterFactory, vaultFactory, address(0)) {}
+    constructor(address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory, address(0)) {}
 
     function totalAssets() public view override returns (uint256) {
         return 0;
@@ -124,9 +129,19 @@ contract MockAdapter is Adapter {
         return 0;
     }
 
-    function _allocate(uint256) internal override {}
+    function _allocate(uint256 amount) internal override returns (uint256) {
+        return amount;
+    }
 
     function _deallocate(uint256) internal override returns (uint256) {
         return 0;
+    }
+}
+
+contract MockVault {
+    address public immutable asset;
+
+    constructor(address asset_) {
+        asset = asset_;
     }
 }

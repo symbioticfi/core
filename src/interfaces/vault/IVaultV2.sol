@@ -13,21 +13,7 @@ bytes32 constant DEPOSITOR_WHITELIST_ROLE = 0x9c56d972d63cbb4195b3c1484691dfc220
 bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573a3ba37167d03f4352c9ba5693678fac;
 // keccak256("DEPOSIT_LIMIT_SET_ROLE")
 bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
-// keccak256("PERFORMANCE_FEE_SET_ROLE")
-bytes32 constant PERFORMANCE_FEE_SET_ROLE = 0xd42ac500adffa2146c0920fb0410946b889b38f27bca86fa9f83338b18e928ab;
-// keccak256("PERFORMANCE_FEE_RECIPIENT_SET_ROLE")
-bytes32 constant PERFORMANCE_FEE_RECIPIENT_SET_ROLE =
-    0xc8debd42340550727e62cd69392b09b4fd7041d6fceabc3de3afb9dde93202dd;
-// keccak256("MANAGEMENT_FEE_SET_ROLE")
-bytes32 constant MANAGEMENT_FEE_SET_ROLE = 0x852ed6e61afb02451da7b9afca1c89e98e089903032cb00846bc9e5fdc1fd4a5;
-// keccak256("MANAGEMENT_FEE_RECIPIENT_SET_ROLE")
-bytes32 constant MANAGEMENT_FEE_RECIPIENT_SET_ROLE = 0x815ac840d15870ee6692a9d8b48a016a35e42700ad144bc684e5e8273b1d76e7;
 uint256 constant WAD = 1e18;
-
-uint256 constant MAX_PERFORMANCE_FEE = 5e17; // 50%
-uint256 constant MAX_MANAGEMENT_FEE = 5e16 / uint256(365 days); // 5% APR
-
-uint48 constant MAX_DURATION = 1000 * 365 days;
 
 uint8 constant DECIMALS_OFFSET = 6;
 
@@ -47,16 +33,6 @@ interface IVaultV2 is IMigratableEntity {
      * @notice Raised when a deposit would exceed the configured deposit limit.
      */
     error DepositLimitReached();
-
-    /**
-     * @notice Raised when a non-zero fee would have no recipient.
-     */
-    error FeeInvariantBroken();
-
-    /**
-     * @notice Raised when a fee exceeds the configured maximum.
-     */
-    error FeeTooHigh();
 
     /**
      * @notice Raised when the vault does not have enough free assets for the operation.
@@ -93,11 +69,6 @@ interface IVaultV2 is IMigratableEntity {
      */
     error NotWhitelistedDepositor();
 
-    /**
-     * @notice Raised when epoch duration is outside allowed bounds.
-     */
-    error TooLongDuration();
-
     /* STRUCTS */
 
     /**
@@ -106,7 +77,6 @@ interface IVaultV2 is IMigratableEntity {
      * @param symbol Symbol of the vault share token.
      * @param asset Vault's underlying collateral asset.
      * @param burner Vault's burner hook target.
-     * @param epochDuration Duration of the vault epoch.
      * @param depositWhitelist Whether the deposit whitelist is enabled.
      * @param depositorToWhitelist Initial depositor address to whitelist.
      * @param isDepositLimit Whether the deposit limit is enabled.
@@ -116,17 +86,12 @@ interface IVaultV2 is IMigratableEntity {
      * @param depositorWhitelistRoleHolder Address of the initial DEPOSITOR_WHITELIST_ROLE holder.
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositLimitSetRoleHolder Address of the initial DEPOSIT_LIMIT_SET_ROLE holder.
-     * @param performanceFeeSetRoleHolder Address of the initial PERFORMANCE_FEE_SET_ROLE holder.
-     * @param performanceFeeRecipientSetRoleHolder Address of the initial PERFORMANCE_FEE_RECIPIENT_SET_ROLE holder.
-     * @param managementFeeSetRoleHolder Address of the initial MANAGEMENT_FEE_SET_ROLE holder.
-     * @param managementFeeRecipientSetRoleHolder Address of the initial MANAGEMENT_FEE_RECIPIENT_SET_ROLE holder.
      */
     struct InitParams {
         string name;
         string symbol;
         address asset;
         address burner;
-        uint48 epochDuration;
         bool depositWhitelist;
         address depositorToWhitelist;
         bool isDepositLimit;
@@ -136,10 +101,6 @@ interface IVaultV2 is IMigratableEntity {
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
-        address performanceFeeSetRoleHolder;
-        address performanceFeeRecipientSetRoleHolder;
-        address managementFeeSetRoleHolder;
-        address managementFeeRecipientSetRoleHolder;
     }
 
     /* EVENTS */
@@ -163,30 +124,6 @@ interface IVaultV2 is IMigratableEntity {
     event AccrueInterest(
         uint256 previousTotalAssets, uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares
     );
-
-    /**
-     * @notice Emitted when the performance fee is set.
-     * @param fee Performance fee in WAD.
-     */
-    event SetPerformanceFee(uint256 fee);
-
-    /**
-     * @notice Emitted when the performance fee recipient is set.
-     * @param recipient Performance fee recipient.
-     */
-    event SetPerformanceFeeRecipient(address indexed recipient);
-
-    /**
-     * @notice Emitted when the management fee is set.
-     * @param fee Management fee per second in WAD.
-     */
-    event SetManagementFee(uint256 fee);
-
-    /**
-     * @notice Emitted when the management fee recipient is set.
-     * @param recipient Management fee recipient.
-     */
-    event SetManagementFeeRecipient(address indexed recipient);
 
     /**
      * @notice Emitted when the delegator pulls liquid collateral out of the vault.
@@ -249,6 +186,12 @@ interface IVaultV2 is IMigratableEntity {
     function collateral() external view returns (address asset);
 
     /**
+     * @notice Get the vault's underlying ERC4626 asset.
+     * @return asset Address of the underlying asset.
+     */
+    function asset() external view returns (address asset);
+
+    /**
      * @notice Get the burner used by the vault's slashing flow.
      * @return burnerAddress Address of the burner.
      */
@@ -285,12 +228,6 @@ interface IVaultV2 is IMigratableEntity {
     function isDepositLimit() external view returns (bool enabled);
 
     /**
-     * @notice Get the vault epoch duration.
-     * @return duration Vault epoch duration.
-     */
-    function epochDuration() external view returns (uint48 duration);
-
-    /**
      * @notice Get the configured deposit limit.
      * @return limit Deposit limit.
      */
@@ -298,9 +235,15 @@ interface IVaultV2 is IMigratableEntity {
 
     /**
      * @notice Get the performance fee.
-     * @return fee Performance fee in WAD.
+     * @return fee Current performance fee in WAD.
      */
     function performanceFee() external view returns (uint96 fee);
+
+    /**
+     * @notice Get the performance fee used by the latest accrual snapshot.
+     * @return fee Last performance fee in WAD.
+     */
+    function lastPerformanceFee() external view returns (uint96 fee);
 
     /**
      * @notice Get the performance fee recipient.
@@ -310,9 +253,15 @@ interface IVaultV2 is IMigratableEntity {
 
     /**
      * @notice Get the management fee.
-     * @return fee Management fee per second in WAD.
+     * @return fee Current management fee per second in WAD.
      */
     function managementFee() external view returns (uint96 fee);
+
+    /**
+     * @notice Get the management fee used by the latest accrual snapshot.
+     * @return fee Last management fee per second in WAD.
+     */
+    function lastManagementFee() external view returns (uint96 fee);
 
     /**
      * @notice Get the management fee recipient.
@@ -420,6 +369,17 @@ interface IVaultV2 is IMigratableEntity {
     function withdrawalsOf(uint256 tokenId, address account) external view returns (uint256 amount);
 
     /**
+     * @notice View total assets and fee shares that would be accrued at the current timestamp.
+     * @return newTotalAssets Total assets after the accounting update.
+     * @return performanceFeeShares Shares that would be minted to the performance fee recipient.
+     * @return managementFeeShares Shares that would be minted to the management fee recipient.
+     */
+    function getAccrueInterest()
+        external
+        view
+        returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares);
+
+    /**
      * @notice Accrue performance and management fees using the latest known total assets.
      * @return performanceFeeShares Shares minted to the performance fee recipient.
      * @return managementFeeShares Shares minted to the management fee recipient.
@@ -515,32 +475,4 @@ interface IVaultV2 is IMigratableEntity {
      * @dev Only a DEPOSIT_LIMIT_SET_ROLE holder can call this function.
      */
     function setDepositLimit(uint256 limit) external;
-
-    /**
-     * @notice Set the performance fee.
-     * @param fee Performance fee in WAD.
-     * @dev Only a PERFORMANCE_FEE_SET_ROLE holder can call this function.
-     */
-    function setPerformanceFee(uint256 fee) external;
-
-    /**
-     * @notice Set the performance fee recipient.
-     * @param recipient Performance fee recipient.
-     * @dev Only a PERFORMANCE_FEE_RECIPIENT_SET_ROLE holder can call this function.
-     */
-    function setPerformanceFeeRecipient(address recipient) external;
-
-    /**
-     * @notice Set the management fee.
-     * @param fee Management fee per second in WAD.
-     * @dev Only a MANAGEMENT_FEE_SET_ROLE holder can call this function.
-     */
-    function setManagementFee(uint256 fee) external;
-
-    /**
-     * @notice Set the management fee recipient.
-     * @param recipient Management fee recipient.
-     * @dev Only a MANAGEMENT_FEE_RECIPIENT_SET_ROLE holder can call this function.
-     */
-    function setManagementFeeRecipient(address recipient) external;
 }

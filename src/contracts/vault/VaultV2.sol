@@ -5,23 +5,17 @@ pragma solidity ^0.8.28;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
-import {GUARANTEES_DELEGATOR_TYPE} from "../../interfaces/delegator/IGuaranteesDelegator.sol";
+import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
 import {
     IVaultV2,
-    MAX_DURATION,
     DEPOSIT_WHITELIST_SET_ROLE,
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
-    PERFORMANCE_FEE_SET_ROLE,
-    PERFORMANCE_FEE_RECIPIENT_SET_ROLE,
-    MANAGEMENT_FEE_SET_ROLE,
-    MANAGEMENT_FEE_RECIPIENT_SET_ROLE,
-    MAX_PERFORMANCE_FEE,
-    MAX_MANAGEMENT_FEE,
     DECIMALS_OFFSET,
     WAD
 } from "../../interfaces/vault/IVaultV2.sol";
@@ -64,8 +58,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     bool public isDepositLimit;
     /// @inheritdoc IVaultV2
-    uint48 public epochDuration; // TODO: Remove?
-    /// @inheritdoc IVaultV2
     uint256 public depositLimit;
     /// @inheritdoc IVaultV2
     bool public depositWhitelist;
@@ -77,13 +69,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     uint48 public lastUpdate;
     /// @inheritdoc IVaultV2
-    uint96 public managementFee;
+    uint96 public lastManagementFee;
     /// @inheritdoc IVaultV2
-    uint96 public performanceFee;
-    /// @inheritdoc IVaultV2
-    address public managementFeeRecipient;
-    /// @inheritdoc IVaultV2
-    address public performanceFeeRecipient;
+    uint96 public lastPerformanceFee;
 
     /// @dev Total assets cached from delegator accounting.
     uint256 internal _totalAssets;
@@ -148,6 +136,11 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc IVaultV2
+    function asset() public view override(ERC4626Upgradeable, IVaultV2) returns (address) {
+        return super.asset();
+    }
+
+    /// @inheritdoc IVaultV2
     function totalAssets() public view override(ERC4626Upgradeable, IVaultV2) returns (uint256 assets) {
         (assets,,) = getAccrueInterest();
     }
@@ -198,7 +191,27 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         return 0; // TODO
     }
 
-    /// @dev Returns total assets and fee shares that would be accrued at the current timestamp.
+    /// @inheritdoc IVaultV2
+    function performanceFee() public view returns (uint96 fee) {
+        return uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
+    }
+
+    /// @inheritdoc IVaultV2
+    function performanceFeeRecipient() public view returns (address recipient) {
+        return IFeeRegistry(FEE_REGISTRY).getPerformanceFeeRecipient(address(this));
+    }
+
+    /// @inheritdoc IVaultV2
+    function managementFee() public view returns (uint96 fee) {
+        return uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
+    }
+
+    /// @inheritdoc IVaultV2
+    function managementFeeRecipient() public view returns (address recipient) {
+        return IFeeRegistry(FEE_REGISTRY).getManagementFeeRecipient(address(this));
+    }
+
+    /// @inheritdoc IVaultV2
     function getAccrueInterest()
         public
         view
@@ -208,9 +221,10 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         uint256 elapsed = block.timestamp - lastUpdate;
         uint256 interest = newTotalAssets.saturatingSub(_totalAssets);
 
-        uint256 performanceFeeAssets = interest > 0 && performanceFee > 0 ? interest.mulDiv(performanceFee, WAD) : 0;
+        uint256 performanceFeeAssets =
+            interest > 0 && lastPerformanceFee > 0 ? interest.mulDiv(lastPerformanceFee, WAD) : 0;
         uint256 managementFeeAssets =
-            elapsed > 0 && managementFee > 0 ? (newTotalAssets * elapsed).mulDiv(managementFee, WAD) : 0;
+            elapsed > 0 && lastManagementFee > 0 ? (newTotalAssets * elapsed).mulDiv(lastManagementFee, WAD) : 0;
 
         uint256 newTotalAssetsWithoutFees = newTotalAssets - performanceFeeAssets - managementFeeAssets;
         performanceFeeShares =
@@ -263,13 +277,19 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         uint256 newTotalAssets;
         (newTotalAssets, performanceFeeShares, managementFeeShares) = getAccrueInterest();
 
+        address feeRegistry = FEE_REGISTRY;
+        address performanceFeeRecipient_ = IFeeRegistry(feeRegistry).getPerformanceFeeRecipient(address(this));
+        address managementFeeRecipient_ = IFeeRegistry(feeRegistry).getManagementFeeRecipient(address(this));
+
         _totalAssets = newTotalAssets;
         lastUpdate = uint48(block.timestamp);
+        lastPerformanceFee = uint96(IFeeRegistry(feeRegistry).getPerformanceFee(address(this)));
+        lastManagementFee = uint96(IFeeRegistry(feeRegistry).getManagementFee(address(this)));
         if (performanceFeeShares > 0) {
-            _mint(performanceFeeRecipient, performanceFeeShares);
+            _mint(performanceFeeRecipient_, performanceFeeShares);
         }
         if (managementFeeShares > 0) {
-            _mint(managementFeeRecipient, managementFeeShares);
+            _mint(managementFeeRecipient_, managementFeeShares);
         }
 
         emit AccrueInterest(previousTotalAssets, newTotalAssets, performanceFeeShares, managementFeeShares);
@@ -313,7 +333,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         IERC20(asset()).safeTransfer(receiver, assets);
-        _tryFillWithdrawalQueue(assets);
 
         emit Pull(assets, receiver);
     }
@@ -325,7 +344,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         IERC20(asset()).safeTransferFrom(owner, address(this), assets);
-        _tryFillWithdrawalQueue(assets);
+        _fillWithdrawalQueue(assets);
 
         emit Push(assets, owner);
     }
@@ -361,12 +380,10 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         IDelegator(delegator).onWithdraw(caller, receiver, owner, assets, shares);
 
+        _fillWithdrawalQueue(assets);
+
         _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
-
-        if (caller != withdrawalQueue && receiver != withdrawalQueue && owner != withdrawalQueue) {
-            _fillWithdrawalQueue(assets);
-        }
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -398,70 +415,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         emit SetDepositLimit(newLimit);
     }
 
-    /// @inheritdoc IVaultV2
-    function setPerformanceFee(uint256 newPerformanceFee) public onlyRole(PERFORMANCE_FEE_SET_ROLE) {
-        if (newPerformanceFee > MAX_PERFORMANCE_FEE) {
-            revert FeeTooHigh();
-        }
-        if (performanceFeeRecipient == address(0) && newPerformanceFee != 0) {
-            revert FeeInvariantBroken();
-        }
-
-        accrueInterest();
-
-        performanceFee = uint96(newPerformanceFee);
-
-        emit SetPerformanceFee(newPerformanceFee);
-    }
-
-    /// @inheritdoc IVaultV2
-    function setPerformanceFeeRecipient(address newPerformanceFeeRecipient)
-        public
-        onlyRole(PERFORMANCE_FEE_RECIPIENT_SET_ROLE)
-    {
-        if (newPerformanceFeeRecipient == address(0) && performanceFee != 0) {
-            revert FeeInvariantBroken();
-        }
-
-        accrueInterest();
-
-        performanceFeeRecipient = newPerformanceFeeRecipient;
-
-        emit SetPerformanceFeeRecipient(newPerformanceFeeRecipient);
-    }
-
-    /// @inheritdoc IVaultV2
-    function setManagementFee(uint256 newManagementFee) public onlyRole(MANAGEMENT_FEE_SET_ROLE) {
-        if (newManagementFee > MAX_MANAGEMENT_FEE) {
-            revert FeeTooHigh();
-        }
-        if (managementFeeRecipient == address(0) && newManagementFee != 0) {
-            revert FeeInvariantBroken();
-        }
-
-        accrueInterest();
-
-        managementFee = uint96(newManagementFee);
-
-        emit SetManagementFee(newManagementFee);
-    }
-
-    /// @inheritdoc IVaultV2
-    function setManagementFeeRecipient(address newManagementFeeRecipient)
-        public
-        onlyRole(MANAGEMENT_FEE_RECIPIENT_SET_ROLE)
-    {
-        if (newManagementFeeRecipient == address(0) && managementFee != 0) {
-            revert FeeInvariantBroken();
-        }
-
-        accrueInterest();
-
-        managementFeeRecipient = newManagementFeeRecipient;
-
-        emit SetManagementFeeRecipient(newManagementFeeRecipient);
-    }
-
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @dev Set the vault delegator once after deployment.
@@ -472,7 +425,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         if (
             !IRegistry(DELEGATOR_FACTORY).isEntity(newDelegator) || IDelegator(newDelegator).vault() != address(this)
-                || IEntity(newDelegator).TYPE() < GUARANTEES_DELEGATOR_TYPE
+                || IEntity(newDelegator).TYPE() < UNIVERSAL_DELEGATOR_TYPE
         ) {
             revert InvalidDelegator();
         }
@@ -492,9 +445,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             revert InvalidCollateral();
         }
 
-        if (params.epochDuration == uint48(0) || params.epochDuration > MAX_DURATION) {
-            revert TooLongDuration();
-        }
         if (params.depositorToWhitelist == address(0)) {
             revert InvalidDepositorToWhitelist();
         }
@@ -509,9 +459,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
                 WITHDRAWAL_QUEUE_IMPL, address(this), abi.encodeCall(WithdrawalQueue.initialize, ())
             )
         );
-
-        epochDuration = params.epochDuration;
-
         depositWhitelist = params.depositWhitelist;
         isDepositorWhitelisted[params.depositorToWhitelist] = true;
 
@@ -523,10 +470,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
-        _grantRoleIfNotZero(PERFORMANCE_FEE_SET_ROLE, params.performanceFeeSetRoleHolder);
-        _grantRoleIfNotZero(PERFORMANCE_FEE_RECIPIENT_SET_ROLE, params.performanceFeeRecipientSetRoleHolder);
-        _grantRoleIfNotZero(MANAGEMENT_FEE_SET_ROLE, params.managementFeeSetRoleHolder);
-        _grantRoleIfNotZero(MANAGEMENT_FEE_RECIPIENT_SET_ROLE, params.managementFeeRecipientSetRoleHolder);
 
         emit Initialize(params);
     }
@@ -562,18 +505,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @dev Fill pending withdrawal queue requests with currently free assets.
     function _fillWithdrawalQueue(uint256 assets) internal {
-        if (assets != 0) {
-            WithdrawalQueue(withdrawalQueue).fill(assets);
-        }
-    }
-
-    /// @dev Best-effort withdrawal queue fill used while the delegator may already be executing.
-    function _tryFillWithdrawalQueue(uint256 assets) internal {
-        if (assets == 0) {
-            return;
-        }
-
-        try WithdrawalQueue(withdrawalQueue).fill(assets) {} catch {}
+        WithdrawalQueue(withdrawalQueue).fill(assets);
     }
 
     /// @inheritdoc ERC4626Upgradeable

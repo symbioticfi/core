@@ -8,13 +8,13 @@ import {VaultV2} from "../vault/VaultV2.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {
-    IAllocationsDelegator,
+    IUniversalDelegator,
     LIMIT_SHARE_SCALE,
     SET_ADAPTER_LIMITS_ROLE,
     SWAP_ADAPTERS_ROLE,
     ALLOCATE_ROLE,
     DEALLOCATE_ROLE
-} from "../../interfaces/delegator/IAllocationsDelegator.sol";
+} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
@@ -23,19 +23,21 @@ import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/// @title AllocationsDelegator
+/// @title UniversalDelegator
 /// @notice Simple delegator that allocates vault collateral across ordered adapters.
-contract AllocationsDelegator is
+contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
     ReentrancyGuard,
-    IAllocationsDelegator
+    IUniversalDelegator
 {
     using Math for uint256;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     /* IMMUTABLES */
 
@@ -49,27 +51,35 @@ contract AllocationsDelegator is
     /// @inheritdoc IDelegator
     address public vault;
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     address[] public adapters;
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     mapping(address adapter => uint256 index) public adapterIndex;
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     mapping(address adapter => uint256 assets) public adapterAllocated;
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     mapping(address adapter => uint256 limit) public absoluteLimitOf;
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     mapping(address adapter => uint256 limit) public shareLimitOf;
+
+    /// @inheritdoc IUniversalDelegator
+    uint256 public pendingAssets;
+
+    /// @inheritdoc IUniversalDelegator
+    mapping(address adapter => uint256 assets) public adapterPendingAssets;
 
     /// @dev Total tracked allocation across all adapters.
     uint256 internal _allocated;
+    /// @dev Adapters with non-zero pending deallocation.
+    EnumerableSet.AddressSet internal _adaptersWithPending;
 
     /* MULTICALL */
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function multicall(bytes[] calldata data) public {
         for (uint256 i; i < data.length; ++i) {
             (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
@@ -90,16 +100,26 @@ contract AllocationsDelegator is
         ADAPTER_REGISTRY = adapterRegistry;
     }
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function VERSION() public pure returns (uint64) {
         return 1;
     }
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function adaptersLength() public view returns (uint256) {
         return adapters.length;
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function adaptersWithPendingLength() public view returns (uint256) {
+        return _adaptersWithPending.length();
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function adaptersWithPending(uint256 index) public view returns (address) {
+        return _adaptersWithPending.at(index);
     }
 
     /// @inheritdoc IDelegator
@@ -114,7 +134,7 @@ contract AllocationsDelegator is
         }
     }
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function allocationLimit(address adapter) public view returns (uint256) {
         address curVault = vault;
         if (curVault == address(0)) {
@@ -127,7 +147,7 @@ contract AllocationsDelegator is
 
     /* PUBLIC FUNCTIONS (CURATOR) */
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function setAdapterLimits(address adapter, uint256 absoluteLimit, uint256 shareLimit)
         public
         onlyRole(SET_ADAPTER_LIMITS_ROLE)
@@ -135,7 +155,7 @@ contract AllocationsDelegator is
         _setAdapterLimits(adapter, absoluteLimit, shareLimit);
     }
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function swapAdapters(uint256 index1, uint256 index2) public onlyRole(SWAP_ADAPTERS_ROLE) {
         if (index1 >= adapters.length || index2 >= adapters.length) {
             revert InvalidAdapter();
@@ -157,17 +177,17 @@ contract AllocationsDelegator is
 
     /* PUBLIC FUNCTIONS (ALLOCATOR) */
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function allocate(address adapter, uint256 assets) public onlyRole(ALLOCATE_ROLE) nonReentrant returns (uint256) {
         return _allocate(adapter, assets);
     }
 
-    /// @inheritdoc IAllocationsDelegator
+    /// @inheritdoc IUniversalDelegator
     function deallocate(address adapter, uint256 assets)
         public
         onlyRole(DEALLOCATE_ROLE)
         nonReentrant
-        returns (uint256)
+        returns (uint256 deallocated, uint256 pending)
     {
         _revertIfNotAdapter(adapter);
         return _deallocate(adapter, assets);
@@ -175,8 +195,12 @@ contract AllocationsDelegator is
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
-    /// @inheritdoc IAllocationsDelegator
-    function forceDeallocate(address adapter, uint256 assets) public nonReentrant returns (uint256 deallocated) {
+    /// @inheritdoc IUniversalDelegator
+    function forceDeallocate(address adapter, uint256 assets)
+        public
+        nonReentrant
+        returns (uint256 deallocated, uint256 pending)
+    {
         _revertIfNotAdapter(adapter);
 
         uint256 excess = adapterAllocated[adapter].saturatingSub(allocationLimit(adapter));
@@ -184,7 +208,7 @@ contract AllocationsDelegator is
             revert AdapterNotOverLimit();
         }
 
-        deallocated = _deallocate(adapter, Math.min(assets, excess));
+        (deallocated, pending) = _deallocate(adapter, Math.min(assets, excess));
 
         emit ForceDeallocate(adapter, deallocated);
     }
@@ -199,21 +223,66 @@ contract AllocationsDelegator is
             revert NotVault();
         }
 
-        uint256 missing = IWithdrawalQueue(queue).pendingAssets().saturatingSub(_liquidAssets(curVault));
-        for (uint256 i; i < adapters.length && missing != 0; ++i) {
-            uint256 deallocated = _deallocate(adapters[i], missing);
-            missing = missing.saturatingSub(deallocated);
+        uint256 release =
+            Math.min(IWithdrawalQueue(queue).pendingAssets().saturatingSub(_liquidAssets(curVault)), pendingAssets);
+        for (uint256 i; i < _adaptersWithPending.length() && release != 0;) {
+            address adapter = _adaptersWithPending.at(i);
+            uint256 adapterPending = adapterPendingAssets[adapter];
+            if (adapterPending == 0) {
+                _adaptersWithPending.remove(adapter);
+                continue;
+            }
+
+            uint256 available = Math.min(IAdapter(adapter).deallocatable(), adapterPending);
+            if (available == 0) {
+                ++i;
+                continue;
+            }
+
+            (uint256 deallocated,) = _deallocate(adapter, Math.min(release, available));
+            release = release.saturatingSub(deallocated);
+            if (adapterPendingAssets[adapter] != 0) {
+                ++i;
+            }
         }
+
+        _syncPendingAdapters();
+
+        uint256 missing =
+            IWithdrawalQueue(queue).pendingAssets().saturatingSub(_liquidAssets(curVault)).saturatingSub(pendingAssets);
+        for (uint256 i; i < adapters.length && missing != 0; ++i) {
+            (uint256 deallocated, uint256 pending) = _deallocate(adapters[i], missing);
+            missing = missing.saturatingSub(deallocated).saturatingSub(pending);
+        }
+
+        _syncPendingAdapters();
     }
 
-    /// @inheritdoc IAllocationsDelegator
-    function deallocateAdapter(address adapter, uint256 assets) public returns (uint256 deallocated) {
+    /// @inheritdoc IUniversalDelegator
+    function deallocateAdapter(address adapter, uint256 assets) public returns (uint256 deallocated, uint256 pending) {
         _revertIfNotAdapter(adapter);
         if (msg.sender != adapter) {
             revert InvalidAdapter();
         }
 
-        deallocated = _deallocate(adapter, assets);
+        return _deallocate(adapter, assets);
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function onAdapterSlash(uint256 assets) public nonReentrant returns (uint256 slashed) {
+        _revertIfNotAdapter(msg.sender);
+
+        slashed = Math.min(assets, adapterAllocated[msg.sender]);
+        if (slashed == 0) {
+            return 0;
+        }
+
+        _closePending(msg.sender, slashed);
+
+        adapterAllocated[msg.sender] -= slashed;
+        _allocated -= slashed;
+
+        emit AdapterSlash(msg.sender, slashed);
     }
 
     /// @inheritdoc IDelegator
@@ -255,7 +324,7 @@ contract AllocationsDelegator is
         if (available < assets) {
             uint256 missing = assets - available;
             for (uint256 i; i < adapters.length && missing != 0; ++i) {
-                uint256 deallocated = _deallocate(adapters[i], missing);
+                (uint256 deallocated,) = _deallocate(adapters[i], missing);
                 missing = missing.saturatingSub(deallocated);
             }
         }
@@ -353,24 +422,62 @@ contract AllocationsDelegator is
     }
 
     /// @dev Deallocate adapter collateral back into the vault.
-    function _deallocate(address adapter, uint256 assets) internal returns (uint256 deallocated) {
+    function _deallocate(address adapter, uint256 assets) internal returns (uint256 deallocated, uint256 pending) {
         assets = Math.min(assets, adapterAllocated[adapter]);
         if (assets == 0) {
-            return 0;
+            return (0, 0);
         }
 
-        deallocated = IAdapter(adapter).deallocate(assets);
-        if (deallocated == 0) {
-            return 0;
+        (deallocated, pending) = IAdapter(adapter).deallocate(assets);
+
+        if (deallocated != 0) {
+            _closePending(adapter, deallocated);
+
+            uint256 tracked = Math.min(deallocated, adapterAllocated[adapter]);
+            adapterAllocated[adapter] -= tracked;
+            _allocated -= tracked;
+
+            IVaultV2(vault).push(deallocated, adapter);
+
+            emit Deallocate(adapter, deallocated);
         }
 
-        uint256 tracked = Math.min(deallocated, adapterAllocated[adapter]);
-        adapterAllocated[adapter] -= tracked;
-        _allocated -= tracked;
+        if (pending != 0) {
+            adapterPendingAssets[adapter] += pending;
+            pendingAssets += pending;
+            _adaptersWithPending.add(adapter);
 
-        IVaultV2(vault).push(deallocated, adapter);
+            emit PendingDeallocate(adapter, pending);
+        }
+    }
 
-        emit Deallocate(adapter, deallocated);
+    /// @dev Closes adapter pending deallocation without moving assets.
+    function _syncPendingAdapters() internal {
+        for (uint256 i; i < _adaptersWithPending.length();) {
+            address adapter = _adaptersWithPending.at(i);
+            uint256 pending = adapterPendingAssets[adapter];
+            if (pending == 0) {
+                _adaptersWithPending.remove(adapter);
+                continue;
+            }
+
+            IAdapter(adapter).sync();
+            _closePending(adapter, pending);
+        }
+    }
+
+    /// @dev Reduces tracked pending deallocation for an adapter.
+    function _closePending(address adapter, uint256 assets) internal {
+        uint256 closed = Math.min(assets, adapterPendingAssets[adapter]);
+        if (closed == 0) {
+            return;
+        }
+
+        adapterPendingAssets[adapter] -= closed;
+        pendingAssets -= closed;
+        if (adapterPendingAssets[adapter] == 0) {
+            _adaptersWithPending.remove(adapter);
+        }
     }
 
     /// @dev Revert when an adapter is not configured.
@@ -399,7 +506,7 @@ contract AllocationsDelegator is
 
     /// @dev Returns liquid collateral currently held by the vault.
     function _liquidAssets(address curVault) internal view returns (uint256) {
-        return IERC20(IVaultV2(curVault).collateral()).balanceOf(curVault);
+        return IERC20(IVaultV2(curVault).asset()).balanceOf(curVault);
     }
 
     /// @dev Grant a role when the holder address is not zero.
