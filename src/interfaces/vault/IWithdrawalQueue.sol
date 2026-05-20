@@ -277,6 +277,7 @@ interface IWithdrawalQueue is IERC721Metadata {
     /**
      * @notice Fills pending withdrawal requests with assets.
      * @param amount Amount of assets to fill.
+     * @dev Synchronizes the vault delegator and only uses liquid assets held by the vault.
      */
     function fill(uint256 amount) external;
 }

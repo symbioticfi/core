@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
+import {VaultV2} from "../vault/VaultV2.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {
@@ -18,8 +19,10 @@ import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
+import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -106,7 +109,6 @@ contract AllocationsDelegator is
             return 0;
         }
 
-        assets = IVaultV2(curVault).balance();
         for (uint256 i; i < adapters.length; ++i) {
             assets += IAdapter(adapters[i]).totalAssets();
         }
@@ -114,7 +116,13 @@ contract AllocationsDelegator is
 
     /// @inheritdoc IAllocationsDelegator
     function allocationLimit(address adapter) public view returns (uint256) {
-        return Math.min(absoluteLimitOf[adapter], totalAssets().mulDiv(shareLimitOf[adapter], LIMIT_SHARE_SCALE));
+        address curVault = vault;
+        if (curVault == address(0)) {
+            return 0;
+        }
+
+        uint256 vaultAssets = VaultV2(vault).totalAssets();
+        return Math.min(absoluteLimitOf[adapter], vaultAssets.mulDiv(shareLimitOf[adapter], LIMIT_SHARE_SCALE));
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -183,6 +191,21 @@ contract AllocationsDelegator is
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
+    /// @inheritdoc IDelegator
+    function sync() public nonReentrant {
+        address curVault = vault;
+        address queue = IVaultV2(curVault).withdrawalQueue();
+        if (queue != msg.sender) {
+            revert NotVault();
+        }
+
+        uint256 missing = IWithdrawalQueue(queue).pendingAssets().saturatingSub(_liquidAssets(curVault));
+        for (uint256 i; i < adapters.length && missing != 0; ++i) {
+            uint256 deallocated = _deallocate(adapters[i], missing);
+            missing = missing.saturatingSub(deallocated);
+        }
+    }
+
     /// @inheritdoc IAllocationsDelegator
     function deallocateAdapter(address adapter, uint256 assets) public returns (uint256 deallocated) {
         _revertIfNotAdapter(adapter);
@@ -216,15 +239,6 @@ contract AllocationsDelegator is
             revert NotVault();
         }
 
-        uint256 available = IVaultV2(vault).balance();
-        if (available < assets) {
-            uint256 missing = assets - available;
-            for (uint256 i; i < adapters.length && missing != 0; ++i) {
-                uint256 deallocated = _deallocate(adapters[i], missing);
-                missing = missing.saturatingSub(deallocated);
-            }
-        }
-
         emit OnRequestWithdraw(caller, receiver, assets, shares);
     }
 
@@ -237,16 +251,12 @@ contract AllocationsDelegator is
             revert NotVault();
         }
 
-        uint256 available = IVaultV2(vault).balance();
+        uint256 available = _liquidAssets(vault);
         if (available < assets) {
             uint256 missing = assets - available;
             for (uint256 i; i < adapters.length && missing != 0; ++i) {
                 uint256 deallocated = _deallocate(adapters[i], missing);
                 missing = missing.saturatingSub(deallocated);
-            }
-
-            if (IVaultV2(vault).balance() < assets) {
-                revert InsufficientVaultBalance();
             }
         }
 
@@ -324,7 +334,7 @@ contract AllocationsDelegator is
         allocated = Math.min(
             Math.min(
                 Math.min(assets, allocationLimit(adapter).saturatingSub(adapterAllocated[adapter])),
-                IVaultV2(vault).balance()
+                _liquidAssets(vault)
             ),
             IAdapter(adapter).allocatable()
         );
@@ -385,6 +395,11 @@ contract AllocationsDelegator is
         } catch {
             return false;
         }
+    }
+
+    /// @dev Returns liquid collateral currently held by the vault.
+    function _liquidAssets(address curVault) internal view returns (uint256) {
+        return IERC20(IVaultV2(curVault).collateral()).balanceOf(curVault);
     }
 
     /// @dev Grant a role when the holder address is not zero.

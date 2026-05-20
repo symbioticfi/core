@@ -156,10 +156,13 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         uint256 rewardsToClaim,
         bytes[] calldata activeSharesOfHints
     ) public returns (uint256 amount, uint256 rewardsClaimed) {
-        IVaultSnapshotRewards snapshotRewards = IVaultSnapshotRewards(vaultSnapshotRewards);
-        uint256 firstRewardToClaim = snapshotRewards.lastUnclaimedReward(address(this), vault, network, token);
+        uint256 firstRewardToClaim =
+            IVaultSnapshotRewards(vaultSnapshotRewards).lastUnclaimedReward(address(this), vault, network, token);
         rewardsClaimed = Math.min(
-            rewardsToClaim, snapshotRewards.rewardsLength(vault, network, token).saturatingSub(firstRewardToClaim)
+            rewardsToClaim,
+            IVaultSnapshotRewards(vaultSnapshotRewards).rewardsLength(vault, network, token).saturatingSub(
+                firstRewardToClaim
+            )
         );
         if (rewardsClaimed == 0) {
             revert NoRewardsToClaim();
@@ -171,7 +174,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
                 activeSharesOfHint = activeSharesOfHints[i];
             }
             amount += _claimVaultSnapshotReward(
-                snapshotRewards, vaultSnapshotRewards, network, token, firstRewardToClaim + i, activeSharesOfHint
+                vaultSnapshotRewards, network, token, firstRewardToClaim + i, activeSharesOfHint
             );
         }
 
@@ -219,6 +222,14 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     /// @inheritdoc IWithdrawalQueue
     function fill(uint256 amount) public {
         amount = Math.min(amount, pendingAssets());
+        if (amount == 0) {
+            return;
+        }
+
+        address delegator = IVaultV2(vault).delegator();
+        IDelegator(delegator).sync();
+        amount = Math.min(amount, IERC20(IERC4626(vault).asset()).balanceOf(vault));
+
         uint256 shares = IERC4626(vault).previewWithdraw(amount);
         if (shares == 0) {
             return;
@@ -311,7 +322,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
     /*
     /// @dev Claims and records a single vault snapshot reward for the queue.
-    /// @param snapshotRewards Vault snapshot rewards contract.
     /// @param vaultSnapshotRewards Vault snapshot rewards contract address.
     /// @param network Network whose rewards are claimed.
     /// @param token Reward token to claim.
@@ -319,7 +329,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     /// @param activeSharesOfHint Hint for the queue active shares lookup in the rewards contract.
     /// @return rewardAmount Amount of reward tokens claimed by the queue.
     function _claimVaultSnapshotReward(
-        IVaultSnapshotRewards snapshotRewards,
         address vaultSnapshotRewards,
         address network,
         address token,
@@ -327,12 +336,12 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         bytes memory activeSharesOfHint
     ) internal returns (uint256 rewardAmount) {
         IVaultSnapshotRewards.RewardDistribution memory reward =
-            snapshotRewards.rewards(vault, network, token, rewardIndex);
+            IVaultSnapshotRewards(vaultSnapshotRewards).rewards(vault, network, token, rewardIndex);
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
         bytes[] memory activeSharesOfHints = new bytes[](1);
         activeSharesOfHints[0] = activeSharesOfHint;
 
-        snapshotRewards.claimVaultSnapshotRewards(
+        IVaultSnapshotRewards(vaultSnapshotRewards).claimVaultSnapshotRewards(
             address(this), network, token, vault, rewardIndex, rewardIndex, 1, activeSharesOfHints
         );
 

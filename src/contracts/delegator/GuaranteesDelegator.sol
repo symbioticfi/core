@@ -270,7 +270,7 @@ contract GuaranteesDelegator is
 
     /// @inheritdoc IDelegator
     function totalAssets() public view returns (uint256) {
-        return IERC20(VAULTV2(vault).asset()).balanceOf(vault);
+        return 0;
     }
 
     /// @inheritdoc IGuaranteesDelegator
@@ -667,6 +667,15 @@ contract GuaranteesDelegator is
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
+
+    /// @inheritdoc IDelegator
+    function sync() public {
+        if (VaultV2(vault).withdrawalQueue() != msg.sender) {
+            revert NotVault();
+        }
+
+        _syncPrevSums();
+    }
 
     /// @inheritdoc IDelegator
     function onDeposit(address caller, address receiver, uint256 assets, uint256 shares) public nonReentrant {

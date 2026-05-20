@@ -198,13 +198,13 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         return 0; // TODO
     }
 
-    /// @inheritdoc IVaultV2
+    /// @dev Returns total assets and fee shares that would be accrued at the current timestamp.
     function getAccrueInterest()
         public
         view
         returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares)
     {
-        newTotalAssets = IDelegator(delegator).totalAssets();
+        newTotalAssets = IERC20(asset()).balanceOf(address(this)) + IDelegator(delegator).totalAssets();
         uint256 elapsed = block.timestamp - lastUpdate;
         uint256 interest = newTotalAssets.saturatingSub(_totalAssets);
 
@@ -214,52 +214,54 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         uint256 newTotalAssetsWithoutFees = newTotalAssets - performanceFeeAssets - managementFeeAssets;
         performanceFeeShares =
-            performanceFeeAssets.mulDiv(totalSupply + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
+            performanceFeeAssets.mulDiv(totalSupply() + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
         managementFeeShares =
-            managementFeeAssets.mulDiv(totalSupply + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
+            managementFeeAssets.mulDiv(totalSupply() + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewDeposit(uint256 assets) public view virtual returns (uint256) {
+    function previewDeposit(uint256 assets) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return assets.mulDiv(
-            totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(), newTotalAssets + 1
+            totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(), newTotalAssets + 1
         );
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewMint(uint256 shares) public view virtual returns (uint256) {
+    function previewMint(uint256 shares) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return shares.mulDiv(
             newTotalAssets + 1,
-            totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
+            totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
             Math.Rounding.Ceil
         );
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewWithdraw(uint256 assets) public view virtual returns (uint256) {
+    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return assets.mulDiv(
-            totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
+            totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
             newTotalAssets + 1,
             Math.Rounding.Ceil
         );
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewRedeem(uint256 shares) public view virtual returns (uint256) {
+    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return shares.mulDiv(
-            newTotalAssets + 1, totalSupply + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset()
+            newTotalAssets + 1, totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset()
         );
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
-    function accrueInterest() public {
-        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+    function accrueInterest() public returns (uint256 performanceFeeShares, uint256 managementFeeShares) {
+        uint256 previousTotalAssets = _totalAssets;
+        uint256 newTotalAssets;
+        (newTotalAssets, performanceFeeShares, managementFeeShares) = getAccrueInterest();
 
         _totalAssets = newTotalAssets;
         lastUpdate = uint48(block.timestamp);
@@ -270,7 +272,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             _mint(managementFeeRecipient, managementFeeShares);
         }
 
-        emit AccrueInterest(newTotalAssets, performanceFeeShares, managementFeeShares);
+        emit AccrueInterest(previousTotalAssets, newTotalAssets, performanceFeeShares, managementFeeShares);
     }
 
     /// @inheritdoc IVaultV2
@@ -311,6 +313,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         IERC20(asset()).safeTransfer(receiver, assets);
+        _tryFillWithdrawalQueue(assets);
 
         emit Pull(assets, receiver);
     }
@@ -322,6 +325,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         IERC20(asset()).safeTransferFrom(owner, address(this), assets);
+        _tryFillWithdrawalQueue(assets);
 
         emit Push(assets, owner);
     }
@@ -345,7 +349,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         IDelegator(delegator).onDeposit(caller, receiver, assets, shares);
 
-        WithdrawalQueue(withdrawalQueue).fill(assets);
+        _fillWithdrawalQueue(assets);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -359,6 +363,10 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
+
+        if (caller != withdrawalQueue && receiver != withdrawalQueue && owner != withdrawalQueue) {
+            _fillWithdrawalQueue(assets);
+        }
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -399,7 +407,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             revert FeeInvariantBroken();
         }
 
-        accrueFees();
+        accrueInterest();
 
         performanceFee = uint96(newPerformanceFee);
 
@@ -415,7 +423,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             revert FeeInvariantBroken();
         }
 
-        accrueFees();
+        accrueInterest();
 
         performanceFeeRecipient = newPerformanceFeeRecipient;
 
@@ -431,7 +439,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             revert FeeInvariantBroken();
         }
 
-        accrueFees();
+        accrueInterest();
 
         managementFee = uint96(newManagementFee);
 
@@ -447,7 +455,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             revert FeeInvariantBroken();
         }
 
-        accrueFees();
+        accrueInterest();
 
         managementFeeRecipient = newManagementFeeRecipient;
 
@@ -550,6 +558,22 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         if (holder != address(0)) {
             _grantRole(role, holder);
         }
+    }
+
+    /// @dev Fill pending withdrawal queue requests with currently free assets.
+    function _fillWithdrawalQueue(uint256 assets) internal {
+        if (assets != 0) {
+            WithdrawalQueue(withdrawalQueue).fill(assets);
+        }
+    }
+
+    /// @dev Best-effort withdrawal queue fill used while the delegator may already be executing.
+    function _tryFillWithdrawalQueue(uint256 assets) internal {
+        if (assets == 0) {
+            return;
+        }
+
+        try WithdrawalQueue(withdrawalQueue).fill(assets) {} catch {}
     }
 
     /// @inheritdoc ERC4626Upgradeable

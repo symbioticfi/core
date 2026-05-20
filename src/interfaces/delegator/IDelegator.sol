@@ -43,10 +43,16 @@ interface IDelegator {
     function vault() external view returns (address vaultAddress);
 
     /**
-     * @notice Get total assets observed by the delegator for vault accounting.
-     * @return assets Total assets.
+     * @notice Get total assets managed by the delegator outside the vault's liquid balance.
+     * @return assets Delegator-managed assets.
      */
     function totalAssets() external view returns (uint256 assets);
+
+    /**
+     * @notice Synchronize delegator liquidity before a withdrawal queue fill.
+     * @dev Only the vault's withdrawal queue can call this function.
+     */
+    function sync() external;
 
     /**
      * @notice Handle a vault deposit.

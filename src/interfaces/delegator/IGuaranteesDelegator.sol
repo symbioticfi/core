@@ -446,8 +446,8 @@ interface IGuaranteesDelegator is IDelegator {
     function getSlotOf(bytes32 subnetwork, address operator) external view returns (uint32 index);
 
     /**
-     * @notice Synchronize delayed slot-size changes and return currently allocated stake.
-     * @return allocated Total stake currently allocated across slots, capped by vault balance.
+     * @notice Get the total currently allocated guarantees.
+     * @return allocated Total allocated amount.
      */
     function totalAllocated() external returns (uint256 allocated);
 

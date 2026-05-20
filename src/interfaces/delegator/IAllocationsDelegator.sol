@@ -29,11 +29,6 @@ interface IAllocationsDelegator is IDelegator {
     error AdapterNotOverLimit();
 
     /**
-     * @notice Raised when the vault does not have enough liquid collateral after deallocation.
-     */
-    error InsufficientVaultBalance();
-
-    /**
      * @notice Raised when an adapter address is invalid.
      */
     error InvalidAdapter();

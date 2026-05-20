@@ -89,11 +89,6 @@ interface IVaultV2 is IMigratableEntity {
     error NotDelegator();
 
     /**
-     * @notice Raised when the caller is not the configured rewards address.
-     */
-    error NotRewards();
-
-    /**
      * @notice Raised when depositor is not in the whitelist while whitelist is enabled.
      */
     error NotWhitelistedDepositor();
@@ -159,25 +154,13 @@ interface IVaultV2 is IMigratableEntity {
     event Claim(address indexed claimer, address indexed receiver, uint256 tokenId, uint256 assets);
 
     /**
-     * @notice Emitted when collateral is donated into vault accounting.
-     * @param assets Donated collateral amount.
-     */
-    event Donate(uint256 assets);
-
-    /**
-     * @notice Emitted when total asset accounting is updated.
-     * @param assets Updated total assets.
-     */
-    event UpdateTotalAssets(uint256 assets);
-
-    /**
      * @notice Emitted when fee shares are accrued.
      * @param previousTotalAssets Total assets before the accounting update.
      * @param newTotalAssets Total assets after the accounting update.
      * @param performanceFeeShares Shares minted to the performance fee recipient.
      * @param managementFeeShares Shares minted to the management fee recipient.
      */
-    event AccrueFees(
+    event AccrueInterest(
         uint256 previousTotalAssets, uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares
     );
 
@@ -314,12 +297,6 @@ interface IVaultV2 is IMigratableEntity {
     function depositLimit() external view returns (uint256 limit);
 
     /**
-     * @notice Get the vault's liquid collateral balance tracked outside delegator accounting.
-     * @return amount Liquid collateral balance.
-     */
-    function balance() external view returns (uint256 amount);
-
-    /**
      * @notice Get the performance fee.
      * @return fee Performance fee in WAD.
      */
@@ -347,7 +324,7 @@ interface IVaultV2 is IMigratableEntity {
      * @notice Get the last timestamp when fees were accrued.
      * @return timestamp Last fee accrual timestamp.
      */
-    function lastFeeUpdate() external view returns (uint48 timestamp);
+    function lastUpdate() external view returns (uint48 timestamp);
 
     /**
      * @notice Get whether an account is whitelisted as a depositor.
@@ -415,7 +392,7 @@ interface IVaultV2 is IMigratableEntity {
 
     /**
      * @notice Get total assets tracked by the vault.
-     * @return assets Total assets.
+     * @return assets Vault liquid balance plus delegator-managed assets.
      */
     function totalAssets() external view returns (uint256 assets);
 
@@ -443,16 +420,11 @@ interface IVaultV2 is IMigratableEntity {
     function withdrawalsOf(uint256 tokenId, address account) external view returns (uint256 amount);
 
     /**
-     * @notice Update vault total asset accounting from the delegator.
-     */
-    function updateTotalAssets() external;
-
-    /**
      * @notice Accrue performance and management fees using the latest known total assets.
      * @return performanceFeeShares Shares minted to the performance fee recipient.
      * @return managementFeeShares Shares minted to the management fee recipient.
      */
-    function accrueFees() external returns (uint256 performanceFeeShares, uint256 managementFeeShares);
+    function accrueInterest() external returns (uint256 performanceFeeShares, uint256 managementFeeShares);
 
     /**
      * @notice Deposit collateral into the vault.
@@ -498,13 +470,6 @@ interface IVaultV2 is IMigratableEntity {
      * @return assets Amount of collateral claimed.
      */
     function claimBatch(address receiver, uint256[] calldata tokenIds) external returns (uint256 assets);
-
-    /**
-     * @notice Donate collateral into vault accounting.
-     * @param assets Amount of collateral to donate.
-     * @dev Only the configured rewards address can call this function.
-     */
-    function donate(uint256 assets) external;
 
     /**
      * @notice Pull liquid collateral from the vault to a receiver.
