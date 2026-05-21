@@ -6,13 +6,13 @@ import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
 contract V2WhitelistAdaptersBaseScript is ScriptBase {
-    function whitelistAdapterFactory(address adapterRegistry, address adapterFactory)
+    function whitelistAdapterFactory(address adapterRegistry, address vault, address adapterFactory)
         public
         virtual
         returns (bytes memory data, address target)
     {
         target = adapterRegistry;
-        data = abi.encodeCall(IAdapterRegistry.whitelistAdapterFactory, (adapterFactory));
+        data = abi.encodeCall(IAdapterRegistry.whitelist, (vault, adapterFactory));
         sendTransaction(target, data);
 
         Logs.log(
@@ -20,6 +20,8 @@ contract V2WhitelistAdaptersBaseScript is ScriptBase {
                 "Whitelist adapter factory",
                 "\n    adapterRegistry:",
                 vm.toString(adapterRegistry),
+                "\n    vault:",
+                vm.toString(vault),
                 "\n    adapterFactory:",
                 vm.toString(adapterFactory)
             )

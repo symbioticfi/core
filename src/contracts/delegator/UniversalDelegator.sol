@@ -142,7 +142,7 @@ contract UniversalDelegator is
         address adapterFactory = IEntity(adapter).FACTORY();
         if (
             !IRegistry(adapterFactory).isEntity(adapter)
-                || IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(address(this), adapterFactory)
+                || !IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(address(this), adapterFactory)
         ) {
             revert InvalidAdapter();
         }
@@ -156,7 +156,7 @@ contract UniversalDelegator is
         index = uint8(adapters.length);
         adapterIndex[adapter] = index;
 
-        grantRole(ALLOCATE_ROLE, adapter);
+        _grantRole(ALLOCATE_ROLE, adapter);
         _grantRole(DEALLOCATE_ROLE, adapter);
 
         emit AddAdapter(adapter, index);
@@ -168,8 +168,8 @@ contract UniversalDelegator is
         if (index == 0) {
             revert InvalidAdapter();
         }
-        adapters[index] = adapters[adapters.length - 1];
-        adapterIndex[adapters[index]] = index;
+        adapters[index - 1] = adapters[adapters.length - 1];
+        adapterIndex[adapters[index - 1]] = index;
 
         adapters.pop();
         for (uint256 i = index - 1; i < adaptersToAllocate.length - 1; ++i) {
@@ -276,12 +276,10 @@ contract UniversalDelegator is
         return _allocateAll(assets);
     }
 
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
     /// @inheritdoc IUniversalDelegator
     function forceDeallocate(address adapter, uint256 assets)
         public
-        onlyRole(DEALLOCATE_ROLE) // TODO create separate role
+        onlyRole(DEALLOCATE_ROLE)
         nonReentrant
         returns (uint256 deallocated, uint256 pending)
     {
@@ -329,6 +327,8 @@ contract UniversalDelegator is
 
         _sweepPending();
     }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     function sweepPending() public nonReentrant returns (uint256 pendingAssets) {
         return _sweepPending();
@@ -385,17 +385,17 @@ contract UniversalDelegator is
         uint256 queuePendingAssets = pendingAssets;
 
         uint256 newAdaptersWithPendingBitmap;
-        for (uint256 i; queuePendingAssets > 0; ++i) {
+        for (uint256 i; queuePendingAssets > 0 && i < adaptersToDeallocate.length; ++i) {
             uint256 index = adaptersToDeallocate[i];
-            uint256 toRequest = Math.min(queuePendingAssets, IAdapter(adapters[index]).totalAssets());
-            IAdapter(adapters[index]).requestDeallocate(toRequest);
+            uint256 toRequest = Math.min(queuePendingAssets, IAdapter(adapters[index - 1]).totalAssets());
+            IAdapter(adapters[index - 1]).requestDeallocate(toRequest);
             newAdaptersWithPendingBitmap |= 1 << index;
             queuePendingAssets -= toRequest;
         }
 
         uint256 bitmapToClear = adaptersWithPendingBitmap | newAdaptersWithPendingBitmap ^ newAdaptersWithPendingBitmap;
         if (bitmapToClear > 0) {
-            for (uint256 i; i < 256; ++i) {
+            for (uint256 i; i < adapters.length; ++i) {
                 if (bitmapToClear & (1 << i) > 0) {
                     IAdapter(adapters[i]).requestDeallocate(0);
                 }
@@ -428,7 +428,7 @@ contract UniversalDelegator is
 
     function _allocateAll(uint256 assets) internal returns (uint256 totalAllocated) {
         for (uint8 i; i < adaptersToAllocate.length && assets > 0; ++i) {
-            uint256 allocated = _allocateAdaptor(adapters[adaptersToAllocate[i]], assets);
+            uint256 allocated = _allocateAdaptor(adapters[adaptersToAllocate[i] - 1], assets);
             totalAllocated += allocated;
             assets -= allocated;
         }
@@ -436,7 +436,7 @@ contract UniversalDelegator is
 
     function _deallocateAll(uint256 assets) internal returns (uint256 totalDeallocated) {
         for (uint8 i; i < adaptersToDeallocate.length && assets > 0; ++i) {
-            uint256 deallocated = _deallocateAdaptor(adapters[adaptersToDeallocate[i]], assets);
+            uint256 deallocated = _deallocateAdaptor(adapters[adaptersToDeallocate[i] - 1], assets);
             totalDeallocated += deallocated;
             assets -= deallocated;
         }

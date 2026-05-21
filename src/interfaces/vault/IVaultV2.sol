@@ -392,51 +392,6 @@ interface IVaultV2 is IMigratableEntity {
     function accrueInterest() external returns (uint256 performanceFeeShares, uint256 managementFeeShares);
 
     /**
-     * @notice Deposit collateral into the vault.
-     * @param onBehalfOf Account the deposit is made on behalf of.
-     * @param assets Amount of collateral to deposit.
-     * @return depositedAmount Real amount of collateral deposited.
-     * @return mintedShares Amount of active shares minted.
-     */
-    function deposit(address onBehalfOf, uint256 assets)
-        external
-        returns (uint256 depositedAmount, uint256 mintedShares);
-
-    /**
-     * @notice Withdraw collateral from the active stake.
-     * @param receiver Account that receives the collateral.
-     * @param assets Amount of collateral to withdraw.
-     * @return burnedShares Amount of active shares burned.
-     * @return mintedShares Amount of withdrawal shares minted.
-     */
-    function withdraw(address receiver, uint256 assets) external returns (uint256 burnedShares, uint256 mintedShares);
-
-    /**
-     * @notice Redeem active shares into collateral.
-     * @param receiver Account that receives the collateral.
-     * @param shares Amount of active shares to redeem.
-     * @return withdrawnAssets Amount of collateral withdrawn.
-     * @return mintedShares Amount of withdrawal shares minted.
-     */
-    function redeem(address receiver, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares);
-
-    /**
-     * @notice Claim collateral from the withdrawal queue.
-     * @param receiver Account that receives the collateral.
-     * @param tokenId Withdrawal queue token id.
-     * @return assets Amount of collateral claimed.
-     */
-    function claim(address receiver, uint256 tokenId) external returns (uint256 assets);
-
-    /**
-     * @notice Claim collateral from the withdrawal queue for multiple token ids.
-     * @param receiver Account that receives the collateral.
-     * @param tokenIds Withdrawal queue token ids.
-     * @return assets Amount of collateral claimed.
-     */
-    function claimBatch(address receiver, uint256[] calldata tokenIds) external returns (uint256 assets);
-
-    /**
      * @notice Pull liquid collateral from the vault to a receiver.
      * @param assets Amount of collateral to pull.
      * @param receiver Account that receives the collateral.
@@ -451,6 +406,12 @@ interface IVaultV2 is IMigratableEntity {
      * @dev Only the configured delegator can call this function.
      */
     function push(uint256 assets, address owner) external;
+
+    /**
+     * @notice Get liquid collateral currently held by the vault.
+     * @return assets Liquid asset balance.
+     */
+    function freeAssets() external view returns (uint256 assets);
 
     /**
      * @notice Enable or disable deposit whitelist.

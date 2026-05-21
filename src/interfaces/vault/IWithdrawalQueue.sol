@@ -280,9 +280,7 @@ interface IWithdrawalQueue is IERC721Metadata {
     function claimable(uint256 tokenId) external view returns (uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
-     * @notice Fills pending withdrawal requests with assets.
-     * @param amount Amount of assets to fill.
-     * @dev Synchronizes the vault delegator and only uses liquid assets held by the vault.
+     * @notice Fills pending withdrawal requests with available vault assets.
      */
-    function fill(uint256 amount) external;
+    function fill() external;
 }

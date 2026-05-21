@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IRegistry} from "./common/IRegistry.sol";
-
 /**
  * @title IAdapterRegistry
  * @notice Interface for the adapter factory registry contract.
  */
-interface IAdapterRegistry is IRegistry {
+interface IAdapterRegistry {
     /**
-     * @notice Raised when trying to whitelist an adapter factory that is already whitelisted.
+     * @notice Emitted when an adapter factory is whitelisted for a vault.
+     * @param vault Vault address.
+     * @param adapterFactory Adapter factory address.
      */
-    error AdapterFactoryAlreadyWhitelisted();
+    event Whitelist(address indexed vault, address indexed adapterFactory);
 
     /**
-     * @notice Whitelist an adapter factory contract.
+     * @notice Whitelist an adapter factory contract for a vault.
+     * @param vault Vault address.
      * @param adapterFactory Address of the adapter factory to whitelist.
      * @dev Only the contract owner can call this function.
      */
-    function whitelistAdapterFactory(address adapterFactory) external;
+    function whitelist(address vault, address adapterFactory) external;
 
     /**
      * @notice Check whether an adapter factory is whitelisted.

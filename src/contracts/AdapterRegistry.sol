@@ -10,23 +10,18 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 
 /// @title AdapterRegistry
 /// @notice Registry contract for whitelisted adapter factories.
-contract AdapterRegistry is Registry, OwnableUpgradeable, IAdapterRegistry {
+contract AdapterRegistry is OwnableUpgradeable, IAdapterRegistry {
+    mapping(address vault => mapping(address adapterFactory => bool)) public isWhitelisted;
+
     /// @dev Initializes the contract with the given owner.
     function initialize(address owner_) external initializer {
         __Ownable_init(owner_);
     }
 
     /// @inheritdoc IAdapterRegistry
-    function whitelistAdapterFactory(address adapterFactory) external onlyOwner {
-        if (isEntity(adapterFactory)) {
-            revert AdapterFactoryAlreadyWhitelisted();
-        }
+    function whitelist(address vault, address adapterFactory) external onlyOwner {
+        isWhitelisted[vault][adapterFactory] = true;
 
-        _addEntity(adapterFactory);
-    }
-
-    /// @inheritdoc IAdapterRegistry
-    function isWhitelisted(address, address adapterFactory) external view returns (bool status) {
-        return isEntity(adapterFactory);
+        emit Whitelist(vault, adapterFactory);
     }
 }

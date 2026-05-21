@@ -33,11 +33,11 @@ contract WithdrawalQueueFillDelegator {
         return totalAssetsValue;
     }
 
-    function sync() external {
+    function onWithdrawRequest() external {
         ++syncCalls;
     }
 
-    function onDeposit(address, address, uint256, uint256) external {}
+    function onDeposit() external {}
 }
 
 contract WithdrawalQueueFillVault is ERC20 {
@@ -80,6 +80,10 @@ contract WithdrawalQueueFillVault is ERC20 {
         return managedAssets == 0 ? 0 : assets.mulDiv(totalSupply(), managedAssets, Math.Rounding.Ceil);
     }
 
+    function maxWithdraw(address) external view returns (uint256) {
+        return WithdrawalQueueFillToken(collateral).balanceOf(address(this));
+    }
+
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         assets = shares.mulDiv(managedAssets, totalSupply());
         _burn(owner, shares);
@@ -107,7 +111,7 @@ contract WithdrawalQueueFillTest is Test {
         WithdrawalQueue(queue).initialize();
     }
 
-    function test_FillSyncsDelegatorAndOnlyUsesLiquidVaultAssets() public {
+    function test_RequestWithdrawNotifiesDelegatorAndFillOnlyUsesLiquidVaultAssets() public {
         WithdrawalQueueFillToken(collateral).mint(vault, 30);
         WithdrawalQueueFillVault(vault).mintShares(alice, 100, 100);
         WithdrawalQueueFillDelegator(delegator).setTotalAssets(70);
@@ -117,7 +121,7 @@ contract WithdrawalQueueFillTest is Test {
         WithdrawalQueue(queue).requestWithdraw(100, alice);
         vm.stopPrank();
 
-        WithdrawalQueue(queue).fill(100);
+        WithdrawalQueue(queue).fill();
 
         assertEq(WithdrawalQueueFillDelegator(delegator).syncCalls(), 1);
         assertEq(WithdrawalQueue(queue).totalFilled(), 30);

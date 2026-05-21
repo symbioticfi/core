@@ -90,9 +90,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
 
         address adapterRegistry = address(data.v2.adapterRegistry);
         (data.whitelistAaveFactoryData, data.whitelistAaveFactoryTarget) =
-            _whitelistAdapterFactory(adapterRegistry, data.aave.adapterFactory);
+            _whitelistAdapterFactory(adapterRegistry, address(0), data.aave.adapterFactory);
         (data.whitelistMorphoFactoryData, data.whitelistMorphoFactoryTarget) =
-            _whitelistAdapterFactory(adapterRegistry, data.morpho.adapterFactory);
+            _whitelistAdapterFactory(adapterRegistry, address(0), data.morpho.adapterFactory);
         (data.transferAdapterRegistryOwnershipData, data.transferAdapterRegistryOwnershipTarget) =
             _transferAdapterRegistryOwnership(adapterRegistry, adapterRegistryOwner);
 
@@ -152,12 +152,13 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         );
     }
 
-    function _whitelistAdapterFactory(address adapterRegistry, address adapterFactory)
+    function _whitelistAdapterFactory(address adapterRegistry, address vault, address adapterFactory)
         internal
         virtual
         returns (bytes memory data, address target)
     {
-        (data, target) = new V2WhitelistAdaptersBaseScript().whitelistAdapterFactory(adapterRegistry, adapterFactory);
+        (data, target) =
+            new V2WhitelistAdaptersBaseScript().whitelistAdapterFactory(adapterRegistry, vault, adapterFactory);
     }
 
     function _transferAdapterRegistryOwnership(address adapterRegistry, address newOwner)

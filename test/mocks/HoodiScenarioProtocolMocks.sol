@@ -78,20 +78,17 @@ contract MockMorphoVaultFactoryUpgradeable is Initializable {
 }
 
 contract MockMorphoAdapterRegistryUpgradeable is Initializable, Registry, OwnableUpgradeable, IAdapterRegistry {
+    mapping(address vault => mapping(address adapterFactory => bool)) public isWhitelisted;
+
     function initialize(address owner_) external initializer {
         __Ownable_init(owner_);
     }
 
-    function whitelistAdapterFactory(address adapterFactory) external onlyOwner {
-        if (isEntity(adapterFactory)) {
-            revert AdapterFactoryAlreadyWhitelisted();
-        }
-
+    function whitelist(address vault, address adapterFactory) external onlyOwner {
+        isWhitelisted[vault][adapterFactory] = true;
         _addEntity(adapterFactory);
-    }
 
-    function isWhitelisted(address, address adapterFactory) external view returns (bool status) {
-        return isEntity(adapterFactory);
+        emit Whitelist(vault, adapterFactory);
     }
 }
 

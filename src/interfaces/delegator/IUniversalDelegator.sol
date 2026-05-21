@@ -146,15 +146,6 @@ interface IUniversalDelegator {
     event Deallocate(address indexed adapter, uint256 assets);
 
     /**
-     * @notice Emitted when vault deposit accounting is handled by the delegator.
-     * @param caller Account that supplied the collateral to the vault.
-     * @param receiver Account that received vault shares.
-     * @param assets Amount of collateral deposited.
-     * @param shares Amount of vault shares minted.
-     */
-    event OnDeposit(address indexed caller, address indexed receiver, uint256 assets, uint256 shares);
-
-    /**
      * @notice Emitted when the delegator is initialized.
      * @param params Initialization parameters.
      */
@@ -185,6 +176,12 @@ interface IUniversalDelegator {
      * @return assets Total adapter assets.
      */
     function totalAssets() external view returns (uint256 assets);
+
+    /**
+     * @notice Get liquid assets held by the connected vault.
+     * @return assets Free vault assets.
+     */
+    function freeAssets() external view returns (uint256 assets);
 
     /**
      * @notice Get an adapter's absolute allocation limit by one-based index.
@@ -226,12 +223,6 @@ interface IUniversalDelegator {
      * @return bitmap Pending adapter bitmap keyed by one-based adapter index.
      */
     function adaptersWithPendingBitmap() external view returns (uint256 bitmap);
-
-    /**
-     * @notice Get currently allocatable liquid assets in the vault.
-     * @return assets Allocatable assets.
-     */
-    function allocatable() external view returns (uint256 assets);
 
     /**
      * @notice Get currently allocatable assets for an adapter after limits.
@@ -282,6 +273,13 @@ interface IUniversalDelegator {
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated);
 
     /**
+     * @notice Allocate collateral through the configured allocation route.
+     * @param assets Amount of collateral to allocate.
+     * @return allocated Amount allocated.
+     */
+    function allocate(uint256 assets) external returns (uint256 allocated);
+
+    /**
      * @notice Deallocate collateral through the configured deallocation route.
      * @param assets Amount of collateral to deallocate.
      * @return deallocated Amount deallocated.
@@ -297,17 +295,36 @@ interface IUniversalDelegator {
     function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated);
 
     /**
-     * @notice Synchronize delegator liquidity before a withdrawal queue fill.
+     * @notice Deallocate an exact amount through the configured route.
+     * @param assets Amount of collateral to deallocate.
+     * @return deallocated Amount deallocated.
      */
-    function sync() external;
+    function deallocateExact(uint256 assets) external returns (uint256 deallocated);
+
+    /**
+     * @notice Force deallocation from a specific adapter and request any delayed remainder.
+     * @param adapter Adapter address.
+     * @param assets Amount of collateral to deallocate.
+     * @return deallocated Amount deallocated now.
+     * @return pending Amount requested for delayed deallocation.
+     */
+    function forceDeallocate(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
 
     /**
      * @notice Handle a vault deposit.
-     * @param caller Account that supplied the collateral to the vault.
-     * @param receiver Account that received vault shares.
-     * @param assets Amount of collateral deposited.
-     * @param shares Amount of vault shares minted.
      * @dev Only the vault can call this function.
      */
-    function onDeposit(address caller, address receiver, uint256 assets, uint256 shares) external;
+    function onDeposit() external;
+
+    /**
+     * @notice Handle a withdrawal queue request.
+     * @dev Only the vault can call this function.
+     */
+    function onWithdrawRequest() external;
+
+    /**
+     * @notice Sweep pending queue assets through deallocation and filling.
+     * @return pendingAssets Assets still pending after the sweep.
+     */
+    function sweepPending() external returns (uint256 pendingAssets);
 }
