@@ -35,10 +35,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
     /// @dev The next withdrawal NFT id.
     uint256 internal _nextTokenId;
-    /// @dev The latest total assets.
-    uint256 internal _latestTotalAssets;
-    /// @dev The latest total shares.
-    uint256 internal _latestTotalShares;
     /// @dev Share price checkpoints.
     SharePriceCheckpoint[] internal _sharePriceCheckpoints;
     /// @dev Cumulative shares filled to share price.
@@ -156,27 +152,24 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             return;
         }
 
+        VaultV2(vault).accrueInterest();
+
         amount = Math.min(amount, IERC4626(vault).maxWithdraw(address(this)));
         if (amount == 0) {
             return;
         }
-
         uint256 shares = IERC4626(vault).previewWithdraw(amount);
         if (shares == 0) {
             return;
         }
 
+        // if share price has changed, update the checkpoint
         uint256 totalShares = IERC4626(vault).totalSupply();
         uint256 totalAssets = IERC4626(vault).totalAssets();
-
-        // if share price has changed, update the checkpoint
-        if (_sharePriceCheckpoints.length == 0 || _latestTotalAssets * totalShares != _latestTotalShares * totalAssets)
-        {
+        SharePriceCheckpoint storage lastCheckpoint = _sharePriceCheckpoints[_sharePriceCheckpoints.length - 1];
+        if (lastCheckpoint.totalAssets * totalShares != lastCheckpoint.totalShares * totalAssets) {
             _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
-            _sharePriceCheckpoints.push(SharePriceCheckpoint({totalAssets: totalAssets, totalShares: totalShares}));
-
-            _latestTotalAssets = totalAssets;
-            _latestTotalShares = totalShares;
+            _sharePriceCheckpoints.push(SharePriceCheckpoint(totalAssets, totalShares));
         }
 
         IERC4626(vault).redeem(shares, address(this), address(this));
@@ -291,8 +284,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
                 );
             }
             assetsClaimed += curRequestShares.mulDiv(
-                checkpoint.totalAssets + 1,
-                checkpoint.totalShares + 10 ** DECIMALS_OFFSET // TODO: Not good
+                checkpoint.totalAssets + 1, checkpoint.totalShares + 10 ** DECIMALS_OFFSET
             );
             cumClaimedShares += curRequestShares;
             maxSharesToClaim -= curRequestShares;
@@ -367,7 +359,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         vault = msg.sender;
 
-        _latestTotalAssets = 1;
-        _latestTotalShares = 10 ** DECIMALS_OFFSET;
+        _sharePriceCheckpoints.push(SharePriceCheckpoint({totalAssets: 1, totalShares: 10 ** DECIMALS_OFFSET}));
     }
 }

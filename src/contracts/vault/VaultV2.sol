@@ -271,7 +271,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @inheritdoc ERC4626Upgradeable
     function maxWithdraw(address owner) public view override returns (uint256) {
-        return Math.min(super.maxWithdraw(owner), freeAssets());
+        return Math.min(previewRedeem(balanceOf(owner)), freeAssets());
     }
 
     /// @inheritdoc ERC4626Upgradeable
