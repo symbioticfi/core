@@ -270,8 +270,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function maxWithdraw(address owner) public view override returns (uint256) {
-        return Math.min(super.maxWithdraw(owner), IERC20(asset()).balanceOf(address(this)));
+    function maxWithdraw(address) public view override returns (uint256) {
+        return freeAssets();
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -306,44 +306,12 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc IVaultV2
-    function deposit(address onBehalfOf, uint256 assets)
-        public
-        returns (uint256 depositedAmount, uint256 mintedShares)
-    {
-        return (assets, deposit(assets, onBehalfOf));
-    }
-
-    /// @inheritdoc IVaultV2
-    function withdraw(address receiver, uint256 assets) public returns (uint256 burnedShares, uint256 mintedShares) {
-        return (withdraw(assets, receiver, msg.sender), 0);
-    }
-
-    /// @inheritdoc IVaultV2
-    function redeem(address receiver, uint256 shares) public returns (uint256 withdrawnAssets, uint256 mintedShares) {
-        return (redeem(shares, receiver, msg.sender), 0);
-    }
-
-    /// @inheritdoc IVaultV2
-    function claim(address receiver, uint256 tokenId) public returns (uint256 assets) {
-        (assets,) = WithdrawalQueue(withdrawalQueue).claim(tokenId, type(uint256).max);
-        emit Claim(msg.sender, receiver, tokenId, assets);
-    }
-
-    /// @inheritdoc IVaultV2
-    function claimBatch(address receiver, uint256[] calldata indexes) public returns (uint256 assets) {
-        for (uint256 i; i < indexes.length; ++i) {
-            assets += claim(receiver, indexes[i]);
-        }
-    }
-
-    /// @inheritdoc IVaultV2
     function pull(uint256 assets, address receiver) public {
         if (delegator != msg.sender) {
             revert NotDelegator();
         }
         accrueInterest();
 
-        _fillWithdrawalQueue();
         IERC20(asset()).safeTransfer(receiver, assets);
 
         emit Pull(assets, receiver);
@@ -356,19 +324,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         IERC20(asset()).safeTransferFrom(owner, address(this), assets);
-        _fillWithdrawalQueue();
 
         emit Push(assets, owner);
-    }
-
-    /// @dev Apply a delegator slash to vault accounting.
-    function onSlash(uint256 assets) public returns (uint256 slashedAssets) {
-        if (delegator != msg.sender) {
-            revert NotDelegator();
-        }
-
-        slashedAssets = Math.min(assets, _totalAssets);
-        _totalAssets -= slashedAssets;
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -378,9 +335,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         super._deposit(caller, receiver, assets, shares);
         _totalAssets += assets;
 
-        _fillWithdrawalQueue();
+        WithdrawalQueue(withdrawalQueue).fill();
 
-        UniversalDelegator(delegator).onDeposit(caller, receiver, assets, shares);
+        UniversalDelegator(delegator).onDeposit();
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -388,13 +345,14 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         internal
         override
     {
-        if (withdrawalQueue != msg.sender) {
-            revert NotWithdrawalQueue();
-        }
         accrueInterest();
 
         _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
+    }
+
+    function freeAssets() public view returns (uint256) {
+        return IERC20(asset()).balanceOf(address(this));
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -513,11 +471,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         if (holder != address(0)) {
             _grantRole(role, holder);
         }
-    }
-
-    /// @dev Fill pending withdrawal queue requests with currently free assets.
-    function _fillWithdrawalQueue() internal {
-        WithdrawalQueue(withdrawalQueue).fill();
     }
 
     /// @inheritdoc ERC4626Upgradeable

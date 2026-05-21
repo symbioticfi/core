@@ -111,20 +111,24 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocatable() public view returns (uint256) {
+    function freeAssets() public view returns (uint256) {
         return IERC20(VaultV2(vault).asset()).balanceOf(vault);
     }
 
-    /// @inheritdoc IUniversalDelegator
-    function allocatable(address adapter) public view returns (uint256) {
-        uint8 index = adapterIndex[adapter];
-        if (index == 0) {
-            return 0;
-        }
+    // /// @inheritdoc IUniversalDelegator
+    // function allocatable(address adapter) public view returns (uint256) {
+    //     uint8 index = adapterIndex[adapter];
+    //     if (index == 0) {
+    //         return 0;
+    //     }
 
-        uint256 limit =
-            Math.min(absoluteLimitOf[index], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[index], MAX_SHARE));
-        return Math.min(Math.min(limit, IAdapter(adapter).allocatable()), allocatable());
+    //     uint256 limit =
+    //         Math.min(absoluteLimitOf[index], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[index], MAX_SHARE));
+    //     return Math.min(Math.min(limit, IAdapter(adapter).allocatable()), allocatable());
+    // }
+
+    function allocatable(address adapter) public view returns (uint256) {
+        return _allocatable(adapter);
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -222,15 +226,16 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocate(address adapter, uint256 assets) public onlyRole(ALLOCATE_ROLE) nonReentrant returns (uint256) {
-        return _allocate(adapter, assets);
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function deallocate(uint256 assets) public onlyRole(DEALLOCATE_ROLE) nonReentrant returns (uint256 deallocated) {
-        for (uint8 i; i < adaptersToDeallocate.length; ++i) {
-            deallocated = _deallocate(adapters[adaptersToDeallocate[i]], assets);
+    function allocate(address adapter, uint256 assets)
+        public
+        onlyRole(ALLOCATE_ROLE)
+        nonReentrant
+        returns (uint256 deallocated)
+    {
+        if (sweepPending() > 0) {
+            return 0;
         }
+        return _allocateAdaptor(adapter, assets);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -240,75 +245,93 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 deallocated)
     {
-        return _deallocate(adapter, assets);
+        deallocated = _deallocateAdaptor(adapter, assets);
+        sweepPending();
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function deallocate(uint256 assets) public onlyRole(DEALLOCATE_ROLE) nonReentrant returns (uint256 deallocated) {
+        deallocated = _deallocateAll(assets);
+        sweepPending();
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function deallocateExact(uint256 assets)
+        public
+        onlyRole(DEALLOCATE_ROLE)
+        nonReentrant
+        returns (uint256 deallocated)
+    {
+        if (sweepPending() > 0) {
+            return 0;
+        }
+        return _deallocateAll(assets);
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function allocate(uint256 assets) public onlyRole(ALLOCATE_ROLE) nonReentrant returns (uint256 allocated) {
+        if (sweepPending() > 0) {
+            return 0;
+        }
+        return _allocateAll(assets);
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
-    // /// @inheritdoc IUniversalDelegator
-    // function forceDeallocate(address adapter, uint256 assets)
-    //     public
-    //     nonReentrant
-    //     returns (uint256 deallocated, uint256 pending)
-    // {
-    //     _revertIfNotAdapter(adapter);
-
-    //     uint256 excess = adapterAllocated[adapter].saturatingSub(allocationLimit(adapter));
-    //     if (excess == 0) {
-    //         revert AdapterNotOverLimit();
-    //     }
-
-    //     (deallocated, pending) = _deallocate(adapter, Math.min(assets, excess));
-
-    //     emit ForceDeallocate(adapter, deallocated);
-    // }
-
     /// @inheritdoc IUniversalDelegator
-    function sync() public nonReentrant {
-        uint256 queuePendingAssets =
-            WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets().saturatingSub(allocatable());
-        if (queuePendingAssets == 0) {
-            return;
+    function forceDeallocate(address adapter, uint256 assets)
+        public
+        onlyRole(DEALLOCATE_ROLE) // TODO create separate role
+        nonReentrant
+        returns (uint256 deallocated, uint256 pending)
+    {
+        uint256 totalAdapterAssets = IAdapter(adapter).totalAssets();
+        uint256 toDeallocate = Math.min(assets, totalAdapterAssets);
+
+        // try to deallocate full amount
+        deallocated = _deallocateAdaptor(adapter, toDeallocate);
+
+        // if deallocated is less than expected, request the remaining amount
+        if (deallocated < toDeallocate) {
+            IAdapter(adapter).requestDeallocate(toDeallocate - deallocated);
         }
 
-        queuePendingAssets = deallocate(queuePendingAssets);
+        // update adapter's absolute limit to avoid new allocations
+        uint256 newAbsoluteLimit = Math.min(absoluteLimitOf[adapterIndex[adapter]], totalAdapterAssets - toDeallocate);
+        _setLimits(adapter, newAbsoluteLimit, shareLimitOf[adapterIndex[adapter]]);
 
-        uint256 newAdaptersWithPendingBitmap;
-        for (uint256 i; queuePendingAssets > 0; ++i) {
-            uint256 index = adaptersToDeallocate[i];
-            uint256 toRequest = Math.min(queuePendingAssets, IAdapter(adapters[index]).totalAssets());
-            IAdapter(adapters[index]).requestDeallocate(toRequest);
-            newAdaptersWithPendingBitmap |= 1 << index;
-            queuePendingAssets -= toRequest;
-        }
+        sweepPending();
 
-        uint256 bitmapToClear = adaptersWithPendingBitmap | newAdaptersWithPendingBitmap ^ newAdaptersWithPendingBitmap;
-        if (bitmapToClear > 0) {
-            for (uint256 i; i < 256; ++i) {
-                if (bitmapToClear & (1 << i) > 0) {
-                    IAdapter(adapters[i]).requestDeallocate(0);
-                }
-            }
-        }
-        adaptersWithPendingBitmap = newAdaptersWithPendingBitmap;
+        return (deallocated, toDeallocate - deallocated);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
+    /// called after all pending tried to be filled
     /// @inheritdoc IUniversalDelegator
-    function onDeposit(address caller, address receiver, uint256 assets, uint256 shares) public nonReentrant {
+    function onDeposit() public nonReentrant {
         if (vault != msg.sender) {
             revert NotVault();
         }
-        for (uint256 i; assets > 0 && i < adaptersToAllocate.length; ++i) {
-            address adapter = adapters[adaptersToAllocate[i]];
-            uint256 toAllocate = Math.min(assets, allocatable(adapter));
-            if (toAllocate > 0) {
-                assets -= _allocate(adapter, toAllocate);
-            }
+
+        // if still have pending then don't allocate
+        if (_sweepPending() > 0) {
+            return;
         }
 
-        emit OnDeposit(caller, receiver, assets, shares);
+        _allocateAll(type(uint256).max);
+    }
+
+    function onWithdrawRequest() public nonReentrant {
+        if (vault != msg.sender) {
+            revert NotVault();
+        }
+
+        _sweepPending();
+    }
+
+    function sweepPending() public nonReentrant returns (uint256 pendingAssets) {
+        return _sweepPending();
     }
 
     /* INITIALIZATION */
@@ -351,34 +374,92 @@ contract UniversalDelegator is
 
     /* INTERNAL FUNCTIONS */
 
-    function _revokeRole(bytes32 role, address account) internal override returns (bool) {
-        if ((role == ALLOCATE_ROLE || role == DEALLOCATE_ROLE) && adapterIndex[account] > 0) {
-            revert InvalidRole();
+    function _sweepPending() internal returns (uint256 pendingAssets) {
+        pendingAssets = WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets();
+        if (pendingAssets > 0) {
+            pendingAssets -= _deallocateAll(pendingAssets);
         }
-        return super._revokeRole(role, account);
+        WithdrawalQueue(VaultV2(vault).withdrawalQueue()).fill();
+
+        // update requests or reset them
+        uint256 queuePendingAssets = pendingAssets;
+
+        uint256 newAdaptersWithPendingBitmap;
+        for (uint256 i; queuePendingAssets > 0; ++i) {
+            uint256 index = adaptersToDeallocate[i];
+            uint256 toRequest = Math.min(queuePendingAssets, IAdapter(adapters[index]).totalAssets());
+            IAdapter(adapters[index]).requestDeallocate(toRequest);
+            newAdaptersWithPendingBitmap |= 1 << index;
+            queuePendingAssets -= toRequest;
+        }
+
+        uint256 bitmapToClear = adaptersWithPendingBitmap | newAdaptersWithPendingBitmap ^ newAdaptersWithPendingBitmap;
+        if (bitmapToClear > 0) {
+            for (uint256 i; i < 256; ++i) {
+                if (bitmapToClear & (1 << i) > 0) {
+                    IAdapter(adapters[i]).requestDeallocate(0);
+                }
+            }
+        }
+        adaptersWithPendingBitmap = newAdaptersWithPendingBitmap;
     }
 
-    /// @dev Allocate vault collateral to an adapter.
-    function _allocate(address adapter, uint256 assets) internal returns (uint256 allocated) {
-        if (adapterIndex[adapter] == 0) {
-            revert InvalidAdapter();
-        }
-        uint256 toAllocate = Math.min(assets, allocatable(adapter));
-        if (toAllocate == 0) {
+    function _allocatable(address adapter) internal view returns (uint256) {
+        uint8 index = adapterIndex[adapter];
+        if (index == 0) {
             return 0;
         }
 
-        VaultV2(vault).pull(toAllocate, adapter);
-        allocated = IAdapter(adapter).allocate(toAllocate);
-        if (toAllocate > allocated) {
-            VaultV2(vault).push(toAllocate - allocated, adapter);
+        // delegator limit
+        uint256 limit =
+            Math.min(absoluteLimitOf[index], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[index], MAX_SHARE));
+
+        // apply delegator limit
+        uint256 toAllocate = limit.saturatingSub(IAdapter(adapter).totalAssets());
+
+        // apply free assets
+        toAllocate = Math.min(toAllocate, freeAssets());
+
+        // apply adapter limit
+        toAllocate = Math.min(toAllocate, IAdapter(adapter).allocatable());
+
+        return toAllocate;
+    }
+
+    function _allocateAll(uint256 assets) internal returns (uint256 totalAllocated) {
+        for (uint8 i; i < adaptersToAllocate.length && assets > 0; ++i) {
+            uint256 allocated = _allocateAdaptor(adapters[adaptersToAllocate[i]], assets);
+            totalAllocated += allocated;
+            assets -= allocated;
+        }
+    }
+
+    function _deallocateAll(uint256 assets) internal returns (uint256 totalDeallocated) {
+        for (uint8 i; i < adaptersToDeallocate.length && assets > 0; ++i) {
+            uint256 deallocated = _deallocateAdaptor(adapters[adaptersToDeallocate[i]], assets);
+            totalDeallocated += deallocated;
+            assets -= deallocated;
+        }
+        return totalDeallocated;
+    }
+
+    /// @dev Allocate vault collateral to an adapter.
+    function _allocateAdaptor(address adapter, uint256 assets) internal returns (uint256 allocated) {
+        assets = Math.min(assets, _allocatable(adapter));
+
+        VaultV2(vault).pull(assets, adapter);
+        allocated = IAdapter(adapter).allocate(assets);
+        if (allocated < assets) {
+            VaultV2(vault).push(assets - allocated, adapter);
         }
 
         emit Allocate(adapter, allocated);
     }
 
     /// @dev Deallocate adapter collateral back into the vault.
-    function _deallocate(address adapter, uint256 assets) internal returns (uint256 deallocated) {
+    function _deallocateAdaptor(address adapter, uint256 assets) internal returns (uint256 deallocated) {
+        assets = Math.min(assets, IAdapter(adapter).totalAssets());
+
         deallocated = IAdapter(adapter).deallocate(assets);
         if (deallocated > 0) {
             VaultV2(vault).push(deallocated, adapter);
@@ -392,5 +473,12 @@ contract UniversalDelegator is
         if (holder != address(0)) {
             _grantRole(role, holder);
         }
+    }
+
+    function _revokeRole(bytes32 role, address account) internal override returns (bool) {
+        if ((role == ALLOCATE_ROLE || role == DEALLOCATE_ROLE) && adapterIndex[account] > 0) {
+            revert InvalidRole();
+        }
+        return super._revokeRole(role, account);
     }
 }

@@ -53,6 +53,11 @@ interface IWithdrawalQueue is IERC721Metadata {
      */
     error ZeroShares();
 
+    /**
+     * @notice Reverts when a request is made by a non-vault account.
+     */
+    error NotVault();
+
     // /**
     //  * @notice Reverts when there are no rewards to claim.
     //  */

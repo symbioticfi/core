@@ -126,6 +126,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         _mint(receiver, tokenId);
 
+        UniversalDelegator(VaultV2(vault).delegator()).onWithdrawRequest();
+
         emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
     }
 
@@ -134,6 +136,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         public
         returns (uint256 assetsClaimed, uint256 sharesClaimed)
     {
+        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
+
         (assetsClaimed, sharesClaimed) = _claimable(tokenId, maxIterations);
 
         WithdrawalRequest storage request = requests[tokenId];
@@ -152,18 +156,19 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             return;
         }
 
-        VaultV2(vault).accrueInterest();
-
-        UniversalDelegator(VaultV2(vault).delegator()).sync();
         amount = Math.min(amount, IERC4626(vault).maxWithdraw(address(this)));
+        if (amount == 0) {
+            return;
+        }
+
         uint256 shares = IERC4626(vault).previewWithdraw(amount);
         if (shares == 0) {
             return;
         }
 
+        IERC4626(vault).redeem(shares, address(this), address(this));
         uint256 totalShares = IERC4626(vault).totalSupply();
         uint256 totalAssets = IERC4626(vault).totalAssets();
-        IERC4626(vault).redeem(shares, address(this), address(this));
 
         // if share price has changed, update the checkpoint
         if (_latestTotalAssets * totalShares != _latestTotalShares * totalAssets) {
