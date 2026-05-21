@@ -127,4 +127,24 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(WithdrawalQueue(queue).totalFilled(), 30);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 30);
     }
+
+    function test_ClaimableUsesFilledPortionOfRequest() public {
+        uint256 shares = 100 * 1e6;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 30);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
+        WithdrawalQueueFillDelegator(delegator).setTotalAssets(70);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0);
+
+        assertEq(assetsClaimed, 30);
+        assertEq(sharesClaimed, 30 * 1e6);
+    }
 }

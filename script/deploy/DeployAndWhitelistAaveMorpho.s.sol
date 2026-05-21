@@ -28,10 +28,13 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant CURATOR_REGISTRY = 0xF75D8d8F790178F0d7F2ee7656874567d382C21e;
     // Rewards contract address used by VaultV2 and adapters.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
+    // Vault for which the adapter factories are whitelisted.
+    address public constant VAULT = 0x0000000000000000000000000000000000000000;
 
     struct DeployParams {
         address adapterRegistryOwner;
         address adapterFactoryOwner;
+        address vault;
         address feeRegistry;
         address aavePool;
         address morphoVaultFactory;
@@ -57,6 +60,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             DeployParams({
                 adapterRegistryOwner: ADAPTER_REGISTRY_OWNER,
                 adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
+                vault: VAULT,
                 feeRegistry: FEE_REGISTRY,
                 aavePool: AAVE_POOL,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
@@ -70,12 +74,15 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
         address deployer = _scriptOwner();
         address adapterRegistryOwner = params.adapterRegistryOwner;
+        address vault = params.vault;
         require(deployer != address(0), "invalid deployer");
         require(adapterRegistryOwner != address(0), "invalid adapter registry owner");
+        require(vault != address(0), "invalid vault");
 
         DeployParams memory deployParams = DeployParams({
             adapterRegistryOwner: deployer,
             adapterFactoryOwner: params.adapterFactoryOwner,
+            vault: vault,
             feeRegistry: params.feeRegistry,
             aavePool: params.aavePool,
             morphoVaultFactory: params.morphoVaultFactory,
@@ -90,9 +97,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
 
         address adapterRegistry = address(data.v2.adapterRegistry);
         (data.whitelistAaveFactoryData, data.whitelistAaveFactoryTarget) =
-            _whitelistAdapterFactory(adapterRegistry, address(0), data.aave.adapterFactory);
+            _whitelistAdapterFactory(adapterRegistry, vault, data.aave.adapterFactory);
         (data.whitelistMorphoFactoryData, data.whitelistMorphoFactoryTarget) =
-            _whitelistAdapterFactory(adapterRegistry, address(0), data.morpho.adapterFactory);
+            _whitelistAdapterFactory(adapterRegistry, vault, data.morpho.adapterFactory);
         (data.transferAdapterRegistryOwnershipData, data.transferAdapterRegistryOwnershipTarget) =
             _transferAdapterRegistryOwnership(adapterRegistry, adapterRegistryOwner);
 

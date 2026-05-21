@@ -166,20 +166,20 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             return;
         }
 
-        IERC4626(vault).redeem(shares, address(this), address(this));
         uint256 totalShares = IERC4626(vault).totalSupply();
         uint256 totalAssets = IERC4626(vault).totalAssets();
 
         // if share price has changed, update the checkpoint
-        if (_latestTotalAssets * totalShares != _latestTotalShares * totalAssets) {
+        if (_sharePriceCheckpoints.length == 0 || _latestTotalAssets * totalShares != _latestTotalShares * totalAssets)
+        {
             _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
-            _sharePriceCheckpoints.push(
-                SharePriceCheckpoint({totalAssets: _latestTotalAssets, totalShares: _latestTotalShares})
-            );
+            _sharePriceCheckpoints.push(SharePriceCheckpoint({totalAssets: totalAssets, totalShares: totalShares}));
 
             _latestTotalAssets = totalAssets;
             _latestTotalShares = totalShares;
         }
+
+        IERC4626(vault).redeem(shares, address(this), address(this));
         totalFilled += shares;
         _totalFilledAt.push(block.timestamp, totalFilled);
 
@@ -274,8 +274,10 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             return (0, 0);
         }
 
-        uint256 maxSharesToClaim =
-            totalFilled.saturatingSub(request.prevRequestSum + request.shares - request.claimedShares);
+        uint256 maxSharesToClaim = Math.min(
+            request.shares - request.claimedShares,
+            totalFilled.saturatingSub(request.prevRequestSum + request.claimedShares)
+        );
         uint256 cumClaimedShares = request.prevRequestSum + request.claimedShares;
         uint32 checkpointIndex =
             uint32(_totalFilledSharesToSharePrice.upperLookupRecent(cumClaimedShares.saturatingSub(1)));

@@ -21,7 +21,6 @@ import {
     SET_ADAPTER_LIMITS_ROLE,
     SET_ADAPTERS_TO_ALLOCATE_ROLE,
     SET_ADAPTERS_TO_DEALLOCATE_ROLE,
-    SWAP_ADAPTERS_ROLE,
     ALLOCATE_ROLE,
     DEALLOCATE_ROLE
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -170,6 +169,7 @@ contract UniversalDelegator is
         }
         adapters[index - 1] = adapters[adapters.length - 1];
         adapterIndex[adapters[index - 1]] = index;
+        adapterIndex[adapter] = 0;
 
         adapters.pop();
         for (uint256 i = index - 1; i < adaptersToAllocate.length - 1; ++i) {
@@ -182,10 +182,13 @@ contract UniversalDelegator is
         }
         adaptersToDeallocate.pop();
 
-        adaptersWithPendingBitmap &= ~(1 << index);
+        adaptersWithPendingBitmap &= ~(1 << (index - 1));
 
         _revokeRole(ALLOCATE_ROLE, adapter);
         _revokeRole(DEALLOCATE_ROLE, adapter);
+
+        absoluteLimitOf[index] = 0;
+        shareLimitOf[index] = 0;
 
         emit RemoveAdapter(adapter, index);
     }
@@ -212,6 +215,7 @@ contract UniversalDelegator is
     }
 
     function setAdaptersToDeallocate(uint8[] calldata indexes) public onlyRole(SET_ADAPTERS_TO_DEALLOCATE_ROLE) {
+        // TODO fix
         delete adaptersToDeallocate;
         adaptersToDeallocate = indexes;
 
@@ -219,6 +223,7 @@ contract UniversalDelegator is
     }
 
     function setAdaptersToAllocate(uint8[] calldata indexes) public onlyRole(SET_ADAPTERS_TO_ALLOCATE_ROLE) {
+        // TODO fix
         delete adaptersToAllocate;
         adaptersToAllocate = indexes;
 
@@ -330,7 +335,7 @@ contract UniversalDelegator is
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
-    function sweepPending() public nonReentrant returns (uint256 pendingAssets) {
+    function sweepPending() public returns (uint256 pendingAssets) {
         return _sweepPending();
     }
 
@@ -359,8 +364,11 @@ contract UniversalDelegator is
         vault = initVault;
 
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        _grantRoleIfNotZero(ADD_ADAPTER_ROLE, params.addAdapterRoleHolder);
+        _grantRoleIfNotZero(REMOVE_ADAPTER_ROLE, params.removeAdapterRoleHolder);
         _grantRoleIfNotZero(SET_ADAPTER_LIMITS_ROLE, params.setAdapterLimitsRoleHolder);
-        _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
+        _grantRoleIfNotZero(SET_ADAPTERS_TO_ALLOCATE_ROLE, params.setAdaptersToAllocateRoleHolder);
+        _grantRoleIfNotZero(SET_ADAPTERS_TO_DEALLOCATE_ROLE, params.setAdaptersToDeallocateRoleHolder);
         _grantRoleIfNotZero(ALLOCATE_ROLE, params.allocateRoleHolder);
         _grantRoleIfNotZero(DEALLOCATE_ROLE, params.deallocateRoleHolder);
 
@@ -375,11 +383,9 @@ contract UniversalDelegator is
     /* INTERNAL FUNCTIONS */
 
     function _sweepPending() internal returns (uint256 pendingAssets) {
-        pendingAssets = WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets();
-        if (pendingAssets > 0) {
-            pendingAssets -= _deallocateAll(pendingAssets);
-        }
+        _deallocateAll(WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets());
         WithdrawalQueue(VaultV2(vault).withdrawalQueue()).fill();
+        pendingAssets = WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets();
 
         // update requests or reset them
         uint256 queuePendingAssets = pendingAssets;
@@ -389,11 +395,12 @@ contract UniversalDelegator is
             uint256 index = adaptersToDeallocate[i];
             uint256 toRequest = Math.min(queuePendingAssets, IAdapter(adapters[index - 1]).totalAssets());
             IAdapter(adapters[index - 1]).requestDeallocate(toRequest);
-            newAdaptersWithPendingBitmap |= 1 << index;
+            newAdaptersWithPendingBitmap |= 1 << (index - 1);
             queuePendingAssets -= toRequest;
         }
 
-        uint256 bitmapToClear = adaptersWithPendingBitmap | newAdaptersWithPendingBitmap ^ newAdaptersWithPendingBitmap;
+        uint256 bitmapToClear =
+            (adaptersWithPendingBitmap | newAdaptersWithPendingBitmap) ^ newAdaptersWithPendingBitmap;
         if (bitmapToClear > 0) {
             for (uint256 i; i < adapters.length; ++i) {
                 if (bitmapToClear & (1 << i) > 0) {

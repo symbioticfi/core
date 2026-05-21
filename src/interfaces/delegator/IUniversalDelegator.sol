@@ -17,8 +17,6 @@ bytes32 constant SET_ADAPTER_LIMITS_ROLE = 0x8c729dc4be31fd24714d9aa5498f0c485d3
 bytes32 constant SET_ADAPTERS_TO_ALLOCATE_ROLE = 0x10b3e9cae2bb111c36d08a51e95396e14c52560455d4c3e9c0a753e7c33f7c68;
 // Keccak256("SET_ADAPTERS_TO_DEALLOCATE_ROLE").
 bytes32 constant SET_ADAPTERS_TO_DEALLOCATE_ROLE = 0xcefed1db406f4d2d0e0782d5fa455a94967e3492ec94c21aa426d775251a2c02;
-// Keccak256("SWAP_ADAPTERS_ROLE").
-bytes32 constant SWAP_ADAPTERS_ROLE = 0x1d53409af49f741b77991b0584075fbe3113d2af2e558244c183033fd9dd74ce;
 // Keccak256("ALLOCATE_ROLE").
 bytes32 constant ALLOCATE_ROLE = 0x3e716b9e768f9140a805a7bd2ea8ed6273ee028841754af21433cf2650718e90;
 // Keccak256("DEALLOCATE_ROLE").
@@ -76,8 +74,11 @@ interface IUniversalDelegator {
     /**
      * @notice Initialization parameters for the universal delegator.
      * @param defaultAdminRoleHolder Address of the initial DEFAULT_ADMIN_ROLE holder.
+     * @param addAdapterRoleHolder Address of the initial ADD_ADAPTER_ROLE holder.
+     * @param removeAdapterRoleHolder Address of the initial REMOVE_ADAPTER_ROLE holder.
      * @param setAdapterLimitsRoleHolder Address of the initial SET_ADAPTER_LIMITS_ROLE holder.
-     * @param swapAdaptersRoleHolder Address of the initial SWAP_ADAPTERS_ROLE holder.
+     * @param setAdaptersToAllocateRoleHolder Address of the initial SET_ADAPTERS_TO_ALLOCATE_ROLE holder.
+     * @param setAdaptersToDeallocateRoleHolder Address of the initial SET_ADAPTERS_TO_DEALLOCATE_ROLE holder.
      * @param allocateRoleHolder Address of the initial ALLOCATE_ROLE holder.
      * @param deallocateRoleHolder Address of the initial DEALLOCATE_ROLE holder.
      * @param adapters Initial adapters.
@@ -86,8 +87,11 @@ interface IUniversalDelegator {
      */
     struct InitParams {
         address defaultAdminRoleHolder;
+        address addAdapterRoleHolder;
+        address removeAdapterRoleHolder;
         address setAdapterLimitsRoleHolder;
-        address swapAdaptersRoleHolder;
+        address setAdaptersToAllocateRoleHolder;
+        address setAdaptersToDeallocateRoleHolder;
         address allocateRoleHolder;
         address deallocateRoleHolder;
         address[] adapters;
