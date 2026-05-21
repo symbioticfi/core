@@ -13,10 +13,10 @@ bytes32 constant ADD_ADAPTER_ROLE = 0xc29e756aabdeb9fb0e411860f152453e1129350b43
 bytes32 constant REMOVE_ADAPTER_ROLE = 0xea290c8603ea61d0218a238127f9f470ebed6107d68e276ac9e0eef09c3a01ea;
 // Keccak256("SET_ADAPTER_LIMITS_ROLE").
 bytes32 constant SET_ADAPTER_LIMITS_ROLE = 0x8c729dc4be31fd24714d9aa5498f0c485d31935b8850fc1f2d8fce2bfa1f0e35;
-// Keccak256("SET_ADAPTERS_TO_ALLOCATE_ROLE").
-bytes32 constant SET_ADAPTERS_TO_ALLOCATE_ROLE = 0x10b3e9cae2bb111c36d08a51e95396e14c52560455d4c3e9c0a753e7c33f7c68;
-// Keccak256("SET_ADAPTERS_TO_DEALLOCATE_ROLE").
-bytes32 constant SET_ADAPTERS_TO_DEALLOCATE_ROLE = 0xcefed1db406f4d2d0e0782d5fa455a94967e3492ec94c21aa426d775251a2c02;
+// Keccak256("SET_AUTO_ALLOCATE_ADAPTERS_ROLE").
+bytes32 constant SET_AUTO_ALLOCATE_ADAPTERS_ROLE = 0x8080881212c2315eb2f081d4587881789d9a59344d4a0f0b4f3daeb6877ed049;
+// Keccak256("SWAP_ADAPTERS_ROLE").
+bytes32 constant SWAP_ADAPTERS_ROLE = 0x1d53409af49f741b77991b0584075fbe3113d2af2e558244c183033fd9dd74ce;
 // Keccak256("ALLOCATE_ROLE").
 bytes32 constant ALLOCATE_ROLE = 0x3e716b9e768f9140a805a7bd2ea8ed6273ee028841754af21433cf2650718e90;
 // Keccak256("DEALLOCATE_ROLE").
@@ -77,8 +77,8 @@ interface IUniversalDelegator {
      * @param addAdapterRoleHolder Address of the initial ADD_ADAPTER_ROLE holder.
      * @param removeAdapterRoleHolder Address of the initial REMOVE_ADAPTER_ROLE holder.
      * @param setAdapterLimitsRoleHolder Address of the initial SET_ADAPTER_LIMITS_ROLE holder.
-     * @param setAdaptersToAllocateRoleHolder Address of the initial SET_ADAPTERS_TO_ALLOCATE_ROLE holder.
-     * @param setAdaptersToDeallocateRoleHolder Address of the initial SET_ADAPTERS_TO_DEALLOCATE_ROLE holder.
+     * @param setAutoAllocateAdaptersRoleHolder Address of the initial SET_AUTO_ALLOCATE_ADAPTERS_ROLE holder.
+     * @param swapAdaptersRoleHolder Address of the initial SWAP_ADAPTERS_ROLE holder.
      * @param allocateRoleHolder Address of the initial ALLOCATE_ROLE holder.
      * @param deallocateRoleHolder Address of the initial DEALLOCATE_ROLE holder.
      * @param adapters Initial adapters.
@@ -90,8 +90,8 @@ interface IUniversalDelegator {
         address addAdapterRoleHolder;
         address removeAdapterRoleHolder;
         address setAdapterLimitsRoleHolder;
-        address setAdaptersToAllocateRoleHolder;
-        address setAdaptersToDeallocateRoleHolder;
+        address setAutoAllocateAdaptersRoleHolder;
+        address swapAdaptersRoleHolder;
         address allocateRoleHolder;
         address deallocateRoleHolder;
         address[] adapters;
@@ -117,23 +117,24 @@ interface IUniversalDelegator {
 
     /**
      * @notice Emitted when adapter limits are set.
-     * @param index One-based adapter index.
+     * @param adapter Adapter address.
      * @param absoluteLimit Absolute collateral limit.
      * @param shareLimit Share limit scaled by MAX_SHARE.
      */
-    event SetLimits(uint8 indexed index, uint256 absoluteLimit, uint256 shareLimit);
+    event SetLimits(address indexed adapter, uint256 absoluteLimit, uint256 shareLimit);
 
     /**
-     * @notice Emitted when the ordered allocation route is set.
-     * @param indexes One-based adapter indexes.
+     * @notice Emitted when the ordered auto-allocation route is set.
+     * @param adapters Adapter addresses.
      */
-    event SetAdaptersToAllocate(uint8[] indexes);
+    event SetAutoAllocateAdapters(address[] adapters);
 
     /**
-     * @notice Emitted when the ordered deallocation route is set.
-     * @param indexes One-based adapter indexes.
+     * @notice Emitted when two adapters are swapped in the adapter route.
+     * @param adapter1 First adapter address.
+     * @param adapter2 Second adapter address.
      */
-    event SetAdaptersToDeallocate(uint8[] indexes);
+    event SwapAdapters(address indexed adapter1, address indexed adapter2);
 
     /**
      * @notice Emitted when collateral is allocated to an adapter.
@@ -188,18 +189,38 @@ interface IUniversalDelegator {
     function freeAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get an adapter's absolute allocation limit by one-based index.
-     * @param index One-based adapter index.
-     * @return limit Absolute collateral limit.
+     * @notice Get the total number of unique adapter indexes assigned.
+     * @return count Total assigned adapter indexes.
      */
-    function absoluteLimitOf(uint8 index) external view returns (uint256 limit);
+    function totalAdapters() external view returns (uint16 count);
 
     /**
-     * @notice Get an adapter's relative share allocation limit by one-based index.
-     * @param index One-based adapter index.
+     * @notice Get the adapter assigned to a stable one-based index.
+     * @param index Stable one-based adapter index.
+     * @return adapter Adapter address.
+     */
+    function indexToAdapter(uint16 index) external view returns (address adapter);
+
+    /**
+     * @notice Get a stable one-based adapter index by address.
+     * @param adapter Adapter address.
+     * @return index Stable one-based adapter index.
+     */
+    function adapterToIndex(address adapter) external view returns (uint16 index);
+
+    /**
+     * @notice Get an adapter's absolute allocation limit.
+     * @param adapter Adapter address.
+     * @return limit Absolute collateral limit.
+     */
+    function absoluteLimitOf(address adapter) external view returns (uint256 limit);
+
+    /**
+     * @notice Get an adapter's relative share allocation limit.
+     * @param adapter Adapter address.
      * @return limit Share limit scaled by MAX_SHARE.
      */
-    function shareLimitOf(uint8 index) external view returns (uint256 limit);
+    function shareLimitOf(address adapter) external view returns (uint256 limit);
 
     /**
      * @notice Get an adapter at an ordered position.
@@ -209,24 +230,18 @@ interface IUniversalDelegator {
     function adapters(uint256 index) external view returns (address adapter);
 
     /**
-     * @notice Get an adapter index in the allocation route.
+     * @notice Get an adapter in the auto-allocation route.
      * @param index Route array index.
-     * @return adapterIndex One-based adapter index.
+     * @return adapter Adapter address.
      */
-    function adaptersToAllocate(uint256 index) external view returns (uint8 adapterIndex);
+    function autoAllocateAdapters(uint256 index) external view returns (address adapter);
 
     /**
-     * @notice Get an adapter index in the deallocation route.
-     * @param index Route array index.
-     * @return adapterIndex One-based adapter index.
+     * @notice Get a pending adapter index.
+     * @param index Pending adapter array index.
+     * @return pendingIndex Stable one-based adapter index.
      */
-    function adaptersToDeallocate(uint256 index) external view returns (uint8 adapterIndex);
-
-    /**
-     * @notice Get the pending-adapter bitmap.
-     * @return bitmap Pending adapter bitmap keyed by one-based adapter index.
-     */
-    function adaptersWithPendingBitmap() external view returns (uint256 bitmap);
+    function adaptersWithPending(uint256 index) external view returns (uint16 pendingIndex);
 
     /**
      * @notice Get currently allocatable assets for an adapter after limits.
@@ -238,9 +253,9 @@ interface IUniversalDelegator {
     /**
      * @notice Add an adapter.
      * @param adapter Adapter address.
-     * @return index One-based adapter index.
+     * @return index Stable one-based adapter index.
      */
-    function addAdapter(address adapter) external returns (uint8 index);
+    function addAdapter(address adapter) external returns (uint16 index);
 
     /**
      * @notice Remove an adapter.
@@ -257,16 +272,17 @@ interface IUniversalDelegator {
     function setLimits(address adapter, uint256 assets, uint256 share) external;
 
     /**
-     * @notice Set the ordered deallocation route.
-     * @param indexes One-based adapter indexes.
+     * @notice Swap two adapters in the ordered adapter route.
+     * @param adapter1 First adapter address.
+     * @param adapter2 Second adapter address.
      */
-    function setAdaptersToDeallocate(uint8[] calldata indexes) external;
+    function swapAdapters(address adapter1, address adapter2) external;
 
     /**
-     * @notice Set the ordered allocation route.
-     * @param indexes One-based adapter indexes.
+     * @notice Set the ordered auto-allocation route.
+     * @param adapters Adapter addresses.
      */
-    function setAdaptersToAllocate(uint8[] calldata indexes) external;
+    function setAutoAllocateAdapters(address[] calldata adapters) external;
 
     /**
      * @notice Allocate collateral to an adapter.

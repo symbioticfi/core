@@ -72,6 +72,8 @@ contract WithdrawalQueueFillVault is ERC20 {
         return managedAssets;
     }
 
+    function accrueInterest() external pure returns (uint256 performanceFeeShares, uint256 managementFeeShares) {}
+
     function previewRedeem(uint256 shares) external view returns (uint256) {
         return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
     }
