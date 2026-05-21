@@ -254,10 +254,6 @@ contract VaultV2SolvencyHandler is Test {
         totalAdapterYield += amount;
     }
 
-    function skim(uint256 timeJumpSeed) external {
-        _warp(timeJumpSeed);
-        VaultV2(address(vault)).skimAdapters();
-    }
 
     function allocate(uint256 amount, uint256 timeJumpSeed) external {
         _warp(timeJumpSeed);

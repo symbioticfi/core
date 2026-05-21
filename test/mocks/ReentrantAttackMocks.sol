@@ -32,15 +32,6 @@ contract MockReentrantAdapter is IAdapterBase {
         delete _reentryData;
     }
 
-    function skimmable(address vault_) external view returns (uint256) {
-        if (vault_ != vault) {
-            return 0;
-        }
-
-        uint256 balance = collateral.balanceOf(address(this));
-        return balance > allocated ? balance - allocated : 0;
-    }
-
     function allocatable(address) external pure returns (uint256) {
         return type(uint256).max;
     }
@@ -66,20 +57,6 @@ contract MockReentrantAdapter is IAdapterBase {
         if (deallocated > 0) {
             allocated = allocated > deallocated ? allocated - deallocated : 0;
             collateral.approve(vault, deallocated);
-        }
-    }
-
-    function skim(address vault_) external returns (uint256 amount) {
-        if (vault_ != vault) {
-            return 0;
-        }
-
-        _attemptReentry();
-
-        uint256 balance = collateral.balanceOf(address(this));
-        amount = balance > allocated ? balance - allocated : 0;
-        if (amount > 0) {
-            collateral.transfer(vault, amount);
         }
     }
 

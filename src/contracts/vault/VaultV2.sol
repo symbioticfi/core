@@ -3,10 +3,10 @@
 pragma solidity ^0.8.28;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
@@ -217,7 +217,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         view
         returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares)
     {
-        newTotalAssets = IERC20(asset()).balanceOf(address(this)) + IDelegator(delegator).totalAssets();
+        newTotalAssets = IERC20(asset()).balanceOf(address(this)) + UniversalDelegator(delegator).totalAssets();
         uint256 elapsed = block.timestamp - lastUpdate;
         uint256 interest = newTotalAssets.saturatingSub(_totalAssets);
 
@@ -368,7 +368,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         _fillWithdrawalQueue(assets);
 
-        IDelegator(delegator).onDeposit(caller, receiver, assets, shares);
+        UniversalDelegator(delegator).onDeposit(caller, receiver, assets, shares);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -422,7 +422,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         if (
-            !IRegistry(DELEGATOR_FACTORY).isEntity(newDelegator) || IDelegator(newDelegator).vault() != address(this)
+            !IRegistry(DELEGATOR_FACTORY).isEntity(newDelegator)
+                || UniversalDelegator(newDelegator).vault() != address(this)
                 || IEntity(newDelegator).TYPE() < UNIVERSAL_DELEGATOR_TYPE
         ) {
             revert InvalidDelegator();

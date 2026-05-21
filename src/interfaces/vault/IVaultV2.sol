@@ -65,6 +65,11 @@ interface IVaultV2 is IMigratableEntity {
     error NotDelegator();
 
     /**
+     * @notice Raised when the caller is not the configured withdrawal queue.
+     */
+    error NotWithdrawalQueue();
+
+    /**
      * @notice Raised when depositor is not in the whitelist while whitelist is enabled.
      */
     error NotWhitelistedDepositor();

@@ -67,42 +67,37 @@ contract AppAdapterTest is Test {
 
         _allocate(100);
 
-        assertEq(adapter.stake(subnetwork, operator), 100);
-        assertEq(adapter.stakeAt(subnetwork, operator, timestamp, ""), 100);
-        assertEq(adapter.stakeAt(subnetwork, operator, timestamp - 1, ""), 0);
+        assertEq(adapter.stake(), 100);
+        assertEq(adapter.stakeAt(timestamp, ""), 100);
+        assertEq(adapter.stakeAt(timestamp - 1, ""), 100);
     }
 
     function test_DeallocationImmediatelyUpdatesCheckpointedStakeAndSettlesAfterDuration() public {
         _allocate(100);
 
-        (uint256 deallocated, uint256 pending) = delegator.deallocate(address(adapter), 40);
+        delegator.requestDeallocate(address(adapter), 40);
 
-        assertEq(deallocated, 0);
-        assertEq(pending, 40);
-        assertEq(adapter.stake(subnetwork, operator), 60);
+        assertEq(adapter.stake(), 60);
 
         vm.warp(block.timestamp + duration);
 
-        assertEq(adapter.stake(subnetwork, operator), 60);
+        assertEq(adapter.stake(), 60);
 
-        (deallocated, pending) = delegator.deallocate(address(adapter), 40);
+        uint256 deallocated = delegator.deallocate(address(adapter), 40);
 
         assertEq(deallocated, 40);
-        assertEq(pending, 0);
-        assertEq(adapter.stake(subnetwork, operator), 60);
+        assertEq(adapter.stake(), 60);
     }
 
     function test_SyncClosesPendingByRestoringStake() public {
         _allocate(100);
 
-        (uint256 deallocated, uint256 pending) = delegator.deallocate(address(adapter), 40);
+        delegator.requestDeallocate(address(adapter), 40);
 
-        assertEq(deallocated, 0);
-        assertEq(pending, 40);
-        assertEq(adapter.stake(subnetwork, operator), 60);
+        assertEq(adapter.stake(), 60);
 
         delegator.sync(address(adapter));
-        assertEq(adapter.stake(subnetwork, operator), 100);
+        assertEq(adapter.stake(), 60);
     }
 
     function _allocate(uint256 amount) internal {
@@ -123,16 +118,16 @@ contract AppAdapterDelegatorMock {
         IAdapter(adapter).allocate(amount);
     }
 
-    function deallocate(address adapter, uint256 amount) external returns (uint256 deallocated, uint256 pending) {
+    function deallocate(address adapter, uint256 amount) external returns (uint256 deallocated) {
         return IAdapter(adapter).deallocate(amount);
     }
 
-    function onAdapterSlash(uint256 amount) external pure returns (uint256) {
-        return amount;
+    function requestDeallocate(address adapter, uint256 amount) external {
+        IAdapter(adapter).requestDeallocate(amount);
     }
 
     function sync(address adapter) external {
-        IAdapter(adapter).sync();
+        IAdapter(adapter).requestDeallocate(0);
     }
 }
 

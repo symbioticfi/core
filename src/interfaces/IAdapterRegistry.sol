@@ -19,4 +19,12 @@ interface IAdapterRegistry is IRegistry {
      * @dev Only the contract owner can call this function.
      */
     function whitelistAdapterFactory(address adapterFactory) external;
+
+    /**
+     * @notice Check whether an adapter factory is whitelisted.
+     * @param vault Vault or delegator context.
+     * @param adapterFactory Adapter factory address.
+     * @return status Whether the adapter factory is whitelisted.
+     */
+    function isWhitelisted(address vault, address adapterFactory) external view returns (bool status);
 }

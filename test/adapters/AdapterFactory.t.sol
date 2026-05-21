@@ -113,19 +113,11 @@ contract MockAdapter is Adapter {
         return 0;
     }
 
-    function skimmable() public view override returns (uint256) {
-        return 0;
-    }
-
     function allocatable() public view override returns (uint256) {
         return type(uint256).max;
     }
 
     function deallocatable() public view override returns (uint256) {
-        return 0;
-    }
-
-    function _skim() internal override returns (uint256) {
         return 0;
     }
 

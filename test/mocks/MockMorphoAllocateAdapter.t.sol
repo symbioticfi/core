@@ -117,32 +117,7 @@ contract MockMorphoAllocateAdapterTest is Test {
         assertEq(adapter.allocatable(address(vault)), 70);
     }
 
-    function test_Allocate_DepositsIntoMorphoAndDoesNotCreateSkimmableWithoutYield() public {
-        _allocateFromVault(80, 80);
 
-        assertEq(collateral.balanceOf(address(adapter)), 0);
-        assertEq(collateral.balanceOf(address(morphoVault)), 80);
-        assertEq(adapter.skimmable(address(vault)), 0);
-        assertEq(adapter.deallocatable(address(vault)), 80);
-    }
-
-    function test_Skim_DonatesAccruedYieldToVault() public {
-        _allocateFromVault(80, 80);
-
-        collateral.approve(address(morphoVault), 20);
-        morphoVault.donateYield(20);
-
-        uint256 expectedSkimmable = adapter.skimmable(address(vault));
-        assertGt(expectedSkimmable, 0);
-
-        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
-        uint256 skimmed = adapter.skim(address(vault));
-
-        assertEq(skimmed, expectedSkimmable);
-        assertEq(collateral.balanceOf(address(vault)) - vaultBalanceBefore, skimmed);
-        assertEq(vault.donated(), skimmed);
-        assertEq(adapter.skimmable(address(vault)), 0);
-    }
 
     function test_Deallocate_CapsToVaultReportedAdapterAllocation() public {
         _allocateFromVault(80, 50);
@@ -155,24 +130,6 @@ contract MockMorphoAllocateAdapterTest is Test {
         assertEq(collateral.balanceOf(address(morphoVault)), 30);
     }
 
-    function test_Allocate_SkimsYieldBeforeDepositingMore() public {
-        _allocateFromVault(80, 80);
-
-        collateral.approve(address(morphoVault), 20);
-        morphoVault.donateYield(20);
-
-        collateral.transfer(address(adapter), 10);
-        vault.setAdapterAllocated(address(adapter), 90);
-
-        vm.prank(address(vault));
-        adapter.allocate(10);
-
-        assertGt(vault.donated(), 0);
-        assertEq(collateral.balanceOf(address(vault)), vault.donated());
-        assertEq(collateral.balanceOf(address(adapter)), 0);
-        assertGt(collateral.balanceOf(address(morphoVault)), 80);
-        assertEq(adapter.skimmable(address(vault)), 0);
-    }
 
     function _allocateFromVault(uint256 amount, uint256 allocatedToAdapter) internal {
         collateral.transfer(address(adapter), amount);

@@ -7,12 +7,6 @@ pragma solidity ^0.8.0;
  */
 interface IAdapterBase {
     /**
-     * @notice Get the current skimmable balance of the vault.
-     * @param vault Address of the vault.
-     */
-    function skimmable(address vault) external view returns (uint256);
-
-    /**
      * @notice Get the amount of collateral that can be allocated to the adapter.
      * @param vault Address of the vault.
      * @return Amount Of collateral that can be allocated to the adapter.
@@ -40,11 +34,4 @@ interface IAdapterBase {
      */
     function deallocate(uint256 amount) external returns (uint256);
 
-    /**
-     * @notice Skim the collateral from the adapter.
-     * @param vault Address of the vault.
-     * @return Amount Of the collateral skimmed.
-     * @dev Must not revert.
-     */
-    function skim(address vault) external returns (uint256);
 }

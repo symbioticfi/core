@@ -42,7 +42,7 @@ interface IAppAdapter is IAdapter {
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Operator address.
      * @param duration Stake checkpoint lookahead duration.
-     * @param isBurnerHook Whether to call the vault burner hook on slashes.
+     * @param isBurnerHook Whether to require a burner during initialization.
      */
     struct InitParams {
         bytes32 subnetwork;
@@ -88,42 +88,32 @@ interface IAppAdapter is IAdapter {
     function duration() external view returns (uint48 duration);
 
     /**
-     * @notice Get the cumulative slashed amount.
-     * @return amount Slashed amount.
-     */
-    function slashed() external view returns (uint256 amount);
-
-    /**
-     * @notice Get the latest slash timestamp.
-     * @return timestamp Slash timestamp.
-     */
-    function slashedAt() external view returns (uint48 timestamp);
-
-    /**
-     * @notice Get whether burner hook calls are enabled.
-     * @return enabled Whether burner hook calls are enabled.
-     */
-    function isBurnerHook() external view returns (bool enabled);
-
-    /**
      * @notice Get current guaranteed stake for the configured pair.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
      * @return amount Guaranteed stake.
      */
-    function stake(bytes32 subnetwork, address operator) external view returns (uint256 amount);
+    function stake() external view returns (uint256 amount);
+
+    /**
+     * @notice Get current slashable stake for the configured pair.
+     * @return amount Slashable stake.
+     */
+    function slashable() external view returns (uint256 amount);
 
     /**
      * @notice Get guaranteed stake for the configured pair at a timestamp.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
      * @param timestamp Timestamp to read.
+     * @param hints Optional lookup hints.
      * @return amount Guaranteed stake.
      */
-    function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes calldata)
-        external
-        view
-        returns (uint256 amount);
+    function stakeAt(uint48 timestamp, bytes calldata hints) external view returns (uint256 amount);
+
+    /**
+     * @notice Get slashable stake for the configured pair at a timestamp.
+     * @param timestamp Timestamp to read.
+     * @param hints Optional lookup hints.
+     * @return amount Slashable stake.
+     */
+    function slashableAt(uint48 timestamp, bytes calldata hints) external view returns (uint256 amount);
 
     /**
      * @notice Slash the configured pair.
@@ -131,10 +121,11 @@ interface IAppAdapter is IAdapter {
      * @param operator Operator address.
      * @param amount Maximum amount to slash.
      * @param captureTimestamp Capture timestamp, or zero for current stake.
+     * @param data Extra slash data.
      * @return slashedAmount Amount slashed.
      * @dev Only the network middleware can call this function.
      */
-    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata)
+    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata data)
         external
         returns (uint256 slashedAmount);
 }

@@ -5,7 +5,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
-import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
 
 import {ERC4626Math} from "../../src/contracts/libraries/ERC4626Math.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
@@ -120,10 +119,6 @@ interface IMorphoVault is IERC4626, IERC2612 {
         returns (uint256 penaltyShares);
 }
 
-interface IRewardsDonate {
-    function donate(address vault, uint256 amount) external;
-}
-
 interface ICuratorRegistry {
     function getCurator(address vault) external view returns (address);
 }
@@ -171,10 +166,6 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
 
     /* VIEW FUNCTIONS */
 
-    function skimmable(address vault) public view returns (uint256) {
-        return _getVaultAssets(vault).saturatingSub(_lastBalance[vault]);
-    }
-
     function allocatable(address vault) public view returns (uint256) {
         address token = IVaultV2(vault).collateral();
         return globalLimit[token].saturatingSub(IERC20(token).balanceOf(address(this)));
@@ -191,8 +182,6 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
     /* PUBLIC FUNCTIONS */
 
     function allocate(uint256 amount) public {
-        skim(msg.sender);
-
         address morphoVault = morphoVaults[msg.sender];
 
         if (amount > 0) {
@@ -215,8 +204,6 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
     }
 
     function deallocate(uint256 amount) public returns (uint256) {
-        skim(msg.sender);
-
         address morphoVault = morphoVaults[msg.sender];
         uint256 deallocatableAmount = deallocatable(msg.sender);
 
@@ -230,19 +217,6 @@ contract MockMorphoAllocateAdapter is Ownable, IAdapterBase {
         }
 
         return amount;
-    }
-
-    function skim(address vault) public returns (uint256 amount) {
-        address morphoVault = morphoVaults[vault];
-        address collateral = IMorphoVault(morphoVault).asset();
-
-        amount = skimmable(vault);
-        if (amount > 0) {
-            IMorphoVault(morphoVault).withdraw(amount, address(this), address(this));
-
-            IERC20(collateral).forceApprove(REWARDS, amount);
-            IRewardsDonate(REWARDS).donate(vault, amount);
-        }
     }
 
     /* INTERNAL FUNCTIONS */

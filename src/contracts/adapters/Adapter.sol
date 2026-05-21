@@ -84,23 +84,11 @@ abstract contract Adapter is MigratableEntity, IAdapter {
     /// @inheritdoc IAdapter
     function totalAssets() public view virtual returns (uint256);
 
-    /// @inheritdoc IAdapter
-    function skimmable() public view virtual returns (uint256) {
-        return 0;
-    }
-
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc IAdapter
-    function skim() public returns (uint256 amount) {
-        return _skim();
-    }
-
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @inheritdoc IAdapter
-    function allocate(uint256 amount) public onlyDelegator {
-        _allocate(amount);
+    function allocate(uint256 amount) public onlyDelegator returns (uint256) {
+        return _allocate(amount);
     }
 
     /// @inheritdoc IAdapter

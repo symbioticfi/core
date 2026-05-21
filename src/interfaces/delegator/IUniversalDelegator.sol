@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IDelegator} from "./IDelegator.sol";
-
 uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 
 uint256 constant MAX_SHARE = 1e18;
 
 uint256 constant MAX_ADAPTERS = 256;
 
+// Keccak256("ADD_ADAPTER_ROLE").
+bytes32 constant ADD_ADAPTER_ROLE = 0xc29e756aabdeb9fb0e411860f152453e1129350b4366fdb14be986d3a939378b;
+// Keccak256("REMOVE_ADAPTER_ROLE").
+bytes32 constant REMOVE_ADAPTER_ROLE = 0xea290c8603ea61d0218a238127f9f470ebed6107d68e276ac9e0eef09c3a01ea;
 // Keccak256("SET_ADAPTER_LIMITS_ROLE").
 bytes32 constant SET_ADAPTER_LIMITS_ROLE = 0x8c729dc4be31fd24714d9aa5498f0c485d31935b8850fc1f2d8fce2bfa1f0e35;
+// Keccak256("SET_ADAPTERS_TO_ALLOCATE_ROLE").
+bytes32 constant SET_ADAPTERS_TO_ALLOCATE_ROLE = 0x10b3e9cae2bb111c36d08a51e95396e14c52560455d4c3e9c0a753e7c33f7c68;
+// Keccak256("SET_ADAPTERS_TO_DEALLOCATE_ROLE").
+bytes32 constant SET_ADAPTERS_TO_DEALLOCATE_ROLE = 0xcefed1db406f4d2d0e0782d5fa455a94967e3492ec94c21aa426d775251a2c02;
 // Keccak256("SWAP_ADAPTERS_ROLE").
 bytes32 constant SWAP_ADAPTERS_ROLE = 0x1d53409af49f741b77991b0584075fbe3113d2af2e558244c183033fd9dd74ce;
 // Keccak256("ALLOCATE_ROLE").
@@ -22,13 +28,13 @@ bytes32 constant DEALLOCATE_ROLE = 0x6fc880ed9b763496bee1eacc1616a9bd7192cd16545
  * @title IUniversalDelegator
  * @notice Interface for the adapter-based universal delegator.
  */
-interface IUniversalDelegator is IDelegator {
+interface IUniversalDelegator {
     /* ERRORS */
 
     /**
-     * @notice Raised when an adapter has no allocation above its configured limit.
+     * @notice Raised when an adapter is already configured.
      */
-    error AdapterNotOverLimit();
+    error AlreadyAdded();
 
     /**
      * @notice Raised when an adapter address is invalid.
@@ -41,7 +47,12 @@ interface IUniversalDelegator is IDelegator {
     error InvalidLength();
 
     /**
-     * @notice Raised when a share limit is above LIMIT_SHARE_SCALE.
+     * @notice Raised when a protected role operation is invalid.
+     */
+    error InvalidRole();
+
+    /**
+     * @notice Raised when a share limit is above MAX_SHARE.
      */
     error InvalidShareLimit();
 
@@ -55,6 +66,11 @@ interface IUniversalDelegator is IDelegator {
      */
     error OldVault();
 
+    /**
+     * @notice Raised when adding an adapter would exceed MAX_ADAPTERS.
+     */
+    error TooManyAdapters();
+
     /* STRUCTS */
 
     /**
@@ -64,9 +80,9 @@ interface IUniversalDelegator is IDelegator {
      * @param swapAdaptersRoleHolder Address of the initial SWAP_ADAPTERS_ROLE holder.
      * @param allocateRoleHolder Address of the initial ALLOCATE_ROLE holder.
      * @param deallocateRoleHolder Address of the initial DEALLOCATE_ROLE holder.
-     * @param adapters Initial adapters in allocation and withdrawal order.
+     * @param adapters Initial adapters.
      * @param absoluteLimits Initial absolute limits for each adapter.
-     * @param shareLimits Initial share limits for each adapter, scaled by LIMIT_SHARE_SCALE.
+     * @param shareLimits Initial share limits for each adapter, scaled by MAX_SHARE.
      */
     struct InitParams {
         address defaultAdminRoleHolder;
@@ -82,28 +98,38 @@ interface IUniversalDelegator is IDelegator {
     /* EVENTS */
 
     /**
-     * @notice Emitted when adapter limits are set.
+     * @notice Emitted when an adapter is added.
      * @param adapter Adapter address.
-     * @param absoluteLimit Absolute collateral limit.
-     * @param shareLimit Share limit scaled by LIMIT_SHARE_SCALE.
-     */
-    event SetAdapterLimits(address indexed adapter, uint256 absoluteLimit, uint256 shareLimit);
-
-    /**
-     * @notice Emitted when an adapter is added to the ordered adapter list.
-     * @param adapter Adapter address.
-     * @param index Adapter index in the ordered list.
+     * @param index One-based adapter index.
      */
     event AddAdapter(address indexed adapter, uint256 index);
 
     /**
-     * @notice Emitted when two adapter positions are swapped.
-     * @param index1 First adapter index.
-     * @param index2 Second adapter index.
-     * @param adapter1 Adapter moved into index2.
-     * @param adapter2 Adapter moved into index1.
+     * @notice Emitted when an adapter is removed.
+     * @param adapter Adapter address.
+     * @param index Former adapter index.
      */
-    event SwapAdapters(uint256 indexed index1, uint256 indexed index2, address adapter1, address adapter2);
+    event RemoveAdapter(address indexed adapter, uint256 index);
+
+    /**
+     * @notice Emitted when adapter limits are set.
+     * @param index One-based adapter index.
+     * @param absoluteLimit Absolute collateral limit.
+     * @param shareLimit Share limit scaled by MAX_SHARE.
+     */
+    event SetLimits(uint8 indexed index, uint256 absoluteLimit, uint256 shareLimit);
+
+    /**
+     * @notice Emitted when the ordered allocation route is set.
+     * @param indexes One-based adapter indexes.
+     */
+    event SetAdaptersToAllocate(uint8[] indexes);
+
+    /**
+     * @notice Emitted when the ordered deallocation route is set.
+     * @param indexes One-based adapter indexes.
+     */
+    event SetAdaptersToDeallocate(uint8[] indexes);
 
     /**
      * @notice Emitted when collateral is allocated to an adapter.
@@ -120,25 +146,13 @@ interface IUniversalDelegator is IDelegator {
     event Deallocate(address indexed adapter, uint256 assets);
 
     /**
-     * @notice Emitted when collateral deallocation from an adapter is pending.
-     * @param adapter Adapter address.
-     * @param assets Amount pending.
+     * @notice Emitted when vault deposit accounting is handled by the delegator.
+     * @param caller Account that supplied the collateral to the vault.
+     * @param receiver Account that received vault shares.
+     * @param assets Amount of collateral deposited.
+     * @param shares Amount of vault shares minted.
      */
-    event PendingDeallocate(address indexed adapter, uint256 assets);
-
-    /**
-     * @notice Emitted when an adapter reports slashed collateral.
-     * @param adapter Adapter address.
-     * @param assets Amount slashed.
-     */
-    event AdapterSlash(address indexed adapter, uint256 assets);
-
-    /**
-     * @notice Emitted when an over-limit adapter is deallocated permissionlessly.
-     * @param adapter Adapter address.
-     * @param assets Amount deallocated.
-     */
-    event ForceDeallocate(address indexed adapter, uint256 assets);
+    event OnDeposit(address indexed caller, address indexed receiver, uint256 assets, uint256 shares);
 
     /**
      * @notice Emitted when the delegator is initialized.
@@ -161,139 +175,140 @@ interface IUniversalDelegator is IDelegator {
     function VERSION() external view returns (uint64 version);
 
     /**
-     * @notice Get the number of configured adapters.
-     * @return length Adapter count.
+     * @notice Get the associated vault address.
+     * @return vaultAddress Address of the vault.
      */
-    function adaptersLength() external view returns (uint256 length);
+    function vault() external view returns (address vaultAddress);
 
     /**
-     * @notice Get the number of adapters with pending deallocation.
-     * @return length Pending adapter count.
+     * @notice Get total assets managed by all adapters.
+     * @return assets Total adapter assets.
      */
-    function adaptersWithPendingLength() external view returns (uint256 length);
+    function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get an adapter at an ordered index.
-     * @param index Adapter index.
+     * @notice Get an adapter's absolute allocation limit by one-based index.
+     * @param index One-based adapter index.
+     * @return limit Absolute collateral limit.
+     */
+    function absoluteLimitOf(uint8 index) external view returns (uint256 limit);
+
+    /**
+     * @notice Get an adapter's relative share allocation limit by one-based index.
+     * @param index One-based adapter index.
+     * @return limit Share limit scaled by MAX_SHARE.
+     */
+    function shareLimitOf(uint8 index) external view returns (uint256 limit);
+
+    /**
+     * @notice Get an adapter at an ordered position.
+     * @param index Zero-based adapter array index.
      * @return adapter Adapter address.
      */
     function adapters(uint256 index) external view returns (address adapter);
 
     /**
-     * @notice Get an adapter with pending deallocation at an enumerable index.
-     * @param index Pending adapter index.
-     * @return adapter Adapter address.
+     * @notice Get an adapter index in the allocation route.
+     * @param index Route array index.
+     * @return adapterIndex One-based adapter index.
      */
-    function adaptersWithPending(uint256 index) external view returns (address adapter);
+    function adaptersToAllocate(uint256 index) external view returns (uint8 adapterIndex);
 
     /**
-     * @notice Get an adapter's one-based ordered index.
+     * @notice Get an adapter index in the deallocation route.
+     * @param index Route array index.
+     * @return adapterIndex One-based adapter index.
+     */
+    function adaptersToDeallocate(uint256 index) external view returns (uint8 adapterIndex);
+
+    /**
+     * @notice Get the pending-adapter bitmap.
+     * @return bitmap Pending adapter bitmap keyed by one-based adapter index.
+     */
+    function adaptersWithPendingBitmap() external view returns (uint256 bitmap);
+
+    /**
+     * @notice Get currently allocatable liquid assets in the vault.
+     * @return assets Allocatable assets.
+     */
+    function allocatable() external view returns (uint256 assets);
+
+    /**
+     * @notice Get currently allocatable assets for an adapter after limits.
      * @param adapter Adapter address.
-     * @return index One-based adapter index, or zero if not configured.
+     * @return assets Allocatable assets.
      */
-    function adapterIndex(address adapter) external view returns (uint256 index);
+    function allocatable(address adapter) external view returns (uint256 assets);
 
     /**
-     * @notice Get an adapter's tracked allocation.
+     * @notice Add an adapter.
      * @param adapter Adapter address.
-     * @return assets Tracked allocated assets.
+     * @return index One-based adapter index.
      */
-    function adapterAllocated(address adapter) external view returns (uint256 assets);
+    function addAdapter(address adapter) external returns (uint8 index);
 
     /**
-     * @notice Get an adapter's absolute allocation limit.
+     * @notice Remove an adapter.
      * @param adapter Adapter address.
-     * @return limit Absolute collateral limit.
      */
-    function absoluteLimitOf(address adapter) external view returns (uint256 limit);
+    function removeAdapter(address adapter) external;
 
     /**
-     * @notice Get an adapter's relative share allocation limit.
+     * @notice Set adapter absolute and share limits.
      * @param adapter Adapter address.
-     * @return limit Share limit scaled by LIMIT_SHARE_SCALE.
+     * @param assets Absolute collateral limit.
+     * @param share Share limit scaled by MAX_SHARE.
      */
-    function shareLimitOf(address adapter) external view returns (uint256 limit);
+    function setLimits(address adapter, uint256 assets, uint256 share) external;
 
     /**
-     * @notice Get total pending adapter deallocations not yet returned to the vault.
-     * @return assets Pending collateral amount.
+     * @notice Set the ordered deallocation route.
+     * @param indexes One-based adapter indexes.
      */
-    function pendingAssets() external view returns (uint256 assets);
+    function setAdaptersToDeallocate(uint8[] calldata indexes) external;
 
     /**
-     * @notice Get pending deallocation for an adapter.
-     * @param adapter Adapter address.
-     * @return assets Pending collateral amount.
+     * @notice Set the ordered allocation route.
+     * @param indexes One-based adapter indexes.
      */
-    function adapterPendingAssets(address adapter) external view returns (uint256 assets);
-
-    /**
-     * @notice Get the active allocation limit for an adapter.
-     * @param adapter Adapter address.
-     * @return limit Effective allocation limit.
-     */
-    function allocationLimit(address adapter) external view returns (uint256 limit);
-
-    /**
-     * @notice Set adapter absolute and share limits, adding the adapter if needed.
-     * @param adapter Adapter address.
-     * @param absoluteLimit Absolute collateral limit.
-     * @param shareLimit Share limit scaled by LIMIT_SHARE_SCALE.
-     * @dev Only a SET_ADAPTER_LIMITS_ROLE holder can call this function.
-     */
-    function setAdapterLimits(address adapter, uint256 absoluteLimit, uint256 shareLimit) external;
-
-    /**
-     * @notice Swap two adapter positions in allocation and withdrawal order.
-     * @param index1 First adapter index.
-     * @param index2 Second adapter index.
-     * @dev Only a SWAP_ADAPTERS_ROLE holder can call this function.
-     */
-    function swapAdapters(uint256 index1, uint256 index2) external;
+    function setAdaptersToAllocate(uint8[] calldata indexes) external;
 
     /**
      * @notice Allocate collateral to an adapter.
      * @param adapter Adapter address.
      * @param assets Amount of collateral to allocate.
      * @return allocated Amount allocated.
-     * @dev Only an ALLOCATE_ROLE holder can call this function.
      */
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated);
 
     /**
-     * @notice Deallocate collateral from an adapter.
+     * @notice Deallocate collateral through the configured deallocation route.
+     * @param assets Amount of collateral to deallocate.
+     * @return deallocated Amount deallocated.
+     */
+    function deallocate(uint256 assets) external returns (uint256 deallocated);
+
+    /**
+     * @notice Deallocate collateral from a specific adapter.
      * @param adapter Adapter address.
      * @param assets Amount of collateral to deallocate.
-     * @return deallocated Amount deallocated now.
-     * @return pending Amount requested for delayed deallocation.
-     * @dev Only a DEALLOCATE_ROLE holder can call this function.
+     * @return deallocated Amount deallocated.
      */
-    function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
+    function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated);
 
     /**
-     * @notice Deallocate collateral from the calling adapter.
-     * @param adapter Adapter address.
-     * @param assets Amount of collateral to deallocate.
-     * @return deallocated Amount deallocated now.
-     * @return pending Amount requested for delayed deallocation.
-     * @dev Only the adapter itself can call this function.
+     * @notice Synchronize delegator liquidity before a withdrawal queue fill.
      */
-    function deallocateAdapter(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
+    function sync() external;
 
     /**
-     * @notice Account for collateral slashed by the calling adapter.
-     * @param assets Slashed collateral amount.
-     * @return slashed Amount accounted as slashed.
-     * @dev Only a configured adapter can call this function.
+     * @notice Handle a vault deposit.
+     * @param caller Account that supplied the collateral to the vault.
+     * @param receiver Account that received vault shares.
+     * @param assets Amount of collateral deposited.
+     * @param shares Amount of vault shares minted.
+     * @dev Only the vault can call this function.
      */
-    function onAdapterSlash(uint256 assets) external returns (uint256 slashed);
+    function onDeposit(address caller, address receiver, uint256 assets, uint256 shares) external;
 
-    /**
-     * @notice Permissionlessly deallocate an adapter that exceeds its configured limit.
-     * @param adapter Adapter address.
-     * @param assets Maximum amount to deallocate.
-     * @return deallocated Amount deallocated now.
-     * @return pending Amount requested for delayed deallocation.
-     */
-    function forceDeallocate(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
 }

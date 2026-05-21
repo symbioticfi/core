@@ -7,11 +7,6 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
-import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
-
-interface IRewardsDonateBorrow {
-    function donate(address vault, uint256 amount) external;
-}
 
 contract MockMorphoBorrowAdapter is IAdapterBase {
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -29,13 +24,6 @@ contract MockMorphoBorrowAdapter is IAdapterBase {
         collateral = IERC20(collateral_);
         morphoVault = IERC4626(morphoVault_);
         rewards = rewards_;
-    }
-
-    function skimmable(address vault_) external view returns (uint256) {
-        if (vault_ != vault) {
-            return 0;
-        }
-        return collateral.balanceOf(address(this));
     }
 
     function allocatable(address) external view returns (uint256) {
@@ -70,8 +58,6 @@ contract MockMorphoBorrowAdapter is IAdapterBase {
             return 0;
         }
 
-        skim(vault);
-
         if (amount == 0) {
             return 0;
         }
@@ -97,28 +83,6 @@ contract MockMorphoBorrowAdapter is IAdapterBase {
             }
         }
         return deallocated;
-    }
-
-    function skim(address vault_) public returns (uint256) {
-        if (vault_ != vault) {
-            return 0;
-        }
-
-        uint256 position = collateral.balanceOf(address(this)) + morphoVault.maxWithdraw(address(this));
-        uint256 allocated = IVaultV2Storage(vault).adapterAllocated(address(this));
-        if (position <= allocated) {
-            return 0;
-        }
-
-        uint256 amount = position - allocated;
-        uint256 balance = collateral.balanceOf(address(this));
-        if (balance < amount) {
-            morphoVault.withdraw(amount - balance, address(this), address(this));
-        }
-
-        collateral.transfer(rewards, amount);
-        IRewardsDonateBorrow(rewards).donate(vault, amount);
-        return amount;
     }
 
     function borrow(uint256 amount) external returns (uint256 borrowed) {

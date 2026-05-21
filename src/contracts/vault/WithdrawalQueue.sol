@@ -9,9 +9,10 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // import {IVaultSnapshotRewards} from "../../interfaces/vault/IVaultSnapshotRewards.sol";
-import {IDelegator} from "../../interfaces/delegator/IDelegator.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
+import {VaultV2} from "./VaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
-import {DECIMALS_OFFSET, IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {DECIMALS_OFFSET} from "../../interfaces/vault/IVaultV2.sol";
 
 /// @title Withdrawal Queue
 /// @notice Holds pending share withdrawal requests as ERC721 positions.
@@ -153,7 +154,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         VaultV2(vault).accrueInterest();
 
-        IDelegator(IVaultV2(vault).delegator()).sync();
+        UniversalDelegator(VaultV2(vault).delegator()).sync();
         amount = Math.min(amount, IERC20(IERC4626(vault).asset()).balanceOf(vault));
         uint256 shares = IERC4626(vault).previewWithdraw(amount);
         if (shares == 0) {

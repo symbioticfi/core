@@ -24,11 +24,6 @@ interface IAdapter is IMigratableEntity {
     error NotCurator();
 
     /**
-     * @notice Raised when allocation is attempted while skimmable yield remains unsettled.
-     */
-    error SkimFailed();
-
-    /**
      * @notice Execute a batch of delegatecalls on the adapter.
      * @param data Calldata items to execute.
      */
@@ -47,12 +42,6 @@ interface IAdapter is IMigratableEntity {
     function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get the current skimmable balance of the vault.
-     * @return amount Amount of collateral that can be skimmed.
-     */
-    function skimmable() external view returns (uint256 amount);
-
-    /**
      * @notice Get the amount of collateral that can be allocated to the adapter.
      * @return amount Amount of collateral that can be allocated to the adapter.
      */
@@ -67,28 +56,23 @@ interface IAdapter is IMigratableEntity {
     /**
      * @notice Allocate collateral to the adapter.
      * @param amount Amount of the collateral to allocate.
+     * @return allocated Amount of the collateral allocated.
      * @dev Should not revert (except extreme cases to mitigate external manipulations).
      */
-    function allocate(uint256 amount) external;
+    function allocate(uint256 amount) external returns (uint256 allocated);
 
     /**
      * @notice Deallocate collateral from the adapter.
      * @param amount Amount of the collateral to deallocate.
      * @return deallocated Amount of the collateral deallocated now.
-     * @return pending Amount of collateral accepted for delayed deallocation.
      * @dev Must not revert.
      */
-    function deallocate(uint256 amount) external returns (uint256 deallocated, uint256 pending);
+    function deallocate(uint256 amount) external returns (uint256 deallocated);
 
     /**
-     * @notice Synchronize adapter pending deallocation accounting.
+     * @notice Request delayed deallocation from the adapter.
+     * @param amount Amount of collateral requested for delayed deallocation.
      */
-    function sync() external;
+    function requestDeallocate(uint256 amount) external;
 
-    /**
-     * @notice Skim the collateral from the adapter.
-     * @return amount Amount of the collateral skimmed.
-     * @dev Must not revert.
-     */
-    function skim() external returns (uint256 amount);
 }

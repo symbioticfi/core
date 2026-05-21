@@ -4,7 +4,6 @@ pragma solidity ^0.8.25;
 import {Test} from "forge-std/Test.sol";
 
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
-import {IDelegator} from "../../src/interfaces/delegator/IDelegator.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -17,7 +16,7 @@ contract WithdrawalQueueFillToken is ERC20 {
     }
 }
 
-contract WithdrawalQueueFillDelegator is IDelegator {
+contract WithdrawalQueueFillDelegator {
     address public vault;
     uint256 public totalAssetsValue;
     uint256 public syncCalls;
@@ -39,10 +38,6 @@ contract WithdrawalQueueFillDelegator is IDelegator {
     }
 
     function onDeposit(address, address, uint256, uint256) external {}
-
-    function onRequestWithdraw(address, address, uint256, uint256) external {}
-
-    function onWithdraw(address, address, address, uint256, uint256) external {}
 }
 
 contract WithdrawalQueueFillVault is ERC20 {

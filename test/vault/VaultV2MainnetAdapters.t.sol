@@ -163,100 +163,10 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         morphoAdapter.setMorphoVault(address(morphoVault), MORPHO_GAUNTLET_USDC_PRIME);
     }
 
-    function testFork_Mainnet_AaveAdapter_RepeatedHealthyAllocateWithOutstandingYieldDoesNotRevert() public {
-        _fundAndDeposit(aaveVault, DEPOSIT_AMOUNT);
-        _prepareAdapter(aaveVault, address(aaveAdapter), type(uint208).max);
 
-        vm.prank(alice);
-        aaveVault.allocateAdapter(address(aaveAdapter), ALLOCATE_AMOUNT);
 
-        _assertAaveHealthyReallocation(25e6, 50e6);
-        _assertAaveHealthyReallocation(7e6, 25e6);
-        _assertAaveHealthyReallocation(2e6, 10e6);
-    }
 
-    function testFork_Mainnet_MorphoAdapter_RepeatedHealthyAllocateWithOutstandingYieldDoesNotRevert() public {
-        _fundAndDeposit(morphoVault, DEPOSIT_AMOUNT);
-        _prepareAdapter(morphoVault, address(morphoAdapter), type(uint208).max);
 
-        vm.prank(alice);
-        morphoVault.allocateAdapter(address(morphoAdapter), ALLOCATE_AMOUNT);
-
-        _assertMorphoHealthyReallocation(25e6, 50e6);
-        _assertMorphoHealthyReallocation(7e6, 25e6);
-        _assertMorphoHealthyReallocation(2e6, 10e6);
-    }
-
-    function testFork_Mainnet_AaveAdapter_Gas() public {
-        _fundAndDeposit(aaveVault, DEPOSIT_AMOUNT);
-        _prepareAdapter(aaveVault, address(aaveAdapter), type(uint208).max);
-
-        vm.prank(alice);
-        aaveVault.allocateAdapter(address(aaveAdapter), ALLOCATE_AMOUNT);
-        uint256 allocateGas = vm.lastCallGas().gasTotalUsed;
-
-        address aaveAccount = aaveAdapter.getAccount(address(aaveVault));
-        _fundUsdc(address(this), YIELD_AMOUNT);
-        IERC20(USDC).forceApprove(AAVE_POOL, YIELD_AMOUNT);
-        IAaveV3Pool(AAVE_POOL).supply(USDC, YIELD_AMOUNT, aaveAccount, 0);
-
-        uint256 skimmable = aaveAdapter.skimmable(address(aaveVault));
-        assertGt(skimmable, 0);
-
-        VaultV2(address(aaveVault)).skimAdapters();
-        uint256 skimGas = vm.lastCallGas().gasTotalUsed;
-
-        vm.prank(alice);
-        aaveVault.deallocateAdapter(address(aaveAdapter), DEALLOCATE_AMOUNT);
-        uint256 deallocateGas = vm.lastCallGas().gasTotalUsed;
-
-        console2.log("Aave mainnet allocateAdapter gas", allocateGas);
-        console2.log("Aave mainnet skimAdapters gas", skimGas);
-        console2.log("Aave mainnet deallocateAdapter gas", deallocateGas);
-        console2.log("Aave mainnet skimmable", skimmable);
-
-        assertEq(aaveVault.adapterAllocated(address(aaveAdapter)), ALLOCATE_AMOUNT - DEALLOCATE_AMOUNT);
-        assertEq(aaveVault.adaptersAllocated(), ALLOCATE_AMOUNT - DEALLOCATE_AMOUNT);
-        assertGt(IERC20(USDC).balanceOf(address(aaveVault)), DEPOSIT_AMOUNT - ALLOCATE_AMOUNT);
-    }
-
-    function testFork_Mainnet_MorphoAdapter_Gas() public {
-        _fundAndDeposit(morphoVault, DEPOSIT_AMOUNT);
-        _prepareAdapter(morphoVault, address(morphoAdapter), type(uint208).max);
-
-        vm.prank(alice);
-        morphoVault.allocateAdapter(address(morphoAdapter), ALLOCATE_AMOUNT);
-        uint256 allocateGas = vm.lastCallGas().gasTotalUsed;
-
-        address morphoAccount = morphoAdapter.getAccount(address(morphoVault));
-        _fundUsdc(address(this), YIELD_AMOUNT);
-        IERC20(USDC).forceApprove(MORPHO_GAUNTLET_USDC_PRIME, YIELD_AMOUNT);
-        IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).deposit(YIELD_AMOUNT, morphoAccount);
-
-        uint256 skimmable = morphoAdapter.skimmable(address(morphoVault));
-        assertGt(skimmable, 0);
-
-        VaultV2(address(morphoVault)).skimAdapters();
-        uint256 skimGas = vm.lastCallGas().gasTotalUsed;
-
-        vm.prank(alice);
-        morphoVault.deallocateAdapter(address(morphoAdapter), DEALLOCATE_AMOUNT);
-        uint256 deallocateGas = vm.lastCallGas().gasTotalUsed;
-
-        console2.log("Morpho mainnet allocateAdapter gas", allocateGas);
-        console2.log("Morpho mainnet skimAdapters gas", skimGas);
-        console2.log("Morpho mainnet deallocateAdapter gas", deallocateGas);
-        console2.log("Morpho mainnet skimmable", skimmable);
-
-        assertEq(morphoVault.adapterAllocated(address(morphoAdapter)), ALLOCATE_AMOUNT - DEALLOCATE_AMOUNT);
-        assertEq(morphoVault.adaptersAllocated(), ALLOCATE_AMOUNT - DEALLOCATE_AMOUNT);
-        assertGt(IERC20(USDC).balanceOf(address(morphoVault)), DEPOSIT_AMOUNT - ALLOCATE_AMOUNT);
-    }
-
-    function testFork_Mainnet_AdapterRejectsNonVault() public {
-        vm.expectRevert(IAdapter.NotVault.selector);
-        aaveAdapter.skim(address(this));
-    }
 
     function testFork_Mainnet_AdapterRejectsNonCurator() public {
         vm.expectRevert(IAdapter.NotCurator.selector);
@@ -320,25 +230,6 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         assertEq(aaveAdapter.deallocate(1), 0);
     }
 
-    function testFork_Mainnet_AaveWithdrawFailureCoversSkimAndDeallocateGuards() public {
-        _fundAndDeposit(aaveVault, DEPOSIT_AMOUNT);
-        _prepareAdapter(aaveVault, address(aaveAdapter), type(uint208).max);
-
-        vm.prank(alice);
-        aaveVault.allocateAdapter(address(aaveAdapter), ALLOCATE_AMOUNT);
-
-        _donateAaveYield(YIELD_AMOUNT);
-        assertGt(aaveAdapter.skimmable(address(aaveVault)), 0);
-
-        vm.mockCallRevert(AAVE_POOL, IAaveV3Pool.withdraw.selector, bytes("AAVE_WITHDRAW_FAILED"));
-
-        vm.prank(alice);
-        vm.expectRevert(IAdapter.SkimFailed.selector);
-        aaveVault.allocateAdapter(address(aaveAdapter), 1);
-
-        vm.prank(address(aaveVault));
-        assertEq(aaveAdapter.deallocate(DEALLOCATE_AMOUNT), 0);
-    }
 
     function testFork_Mainnet_AaveAccountRejectsNonAdapterWithdraw() public {
         _fundAndDeposit(aaveVault, DEPOSIT_AMOUNT);
@@ -453,25 +344,6 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         assertEq(morphoAdapter.deallocatable(address(morphoVault)), 0);
     }
 
-    function testFork_Mainnet_MorphoWithdrawFailureCoversSkimAndDeallocateGuards() public {
-        _fundAndDeposit(morphoVault, DEPOSIT_AMOUNT);
-        _prepareAdapter(morphoVault, address(morphoAdapter), type(uint208).max);
-
-        vm.prank(alice);
-        morphoVault.allocateAdapter(address(morphoAdapter), ALLOCATE_AMOUNT);
-
-        _donateMorphoYield(YIELD_AMOUNT);
-        assertGt(morphoAdapter.skimmable(address(morphoVault)), 0);
-
-        vm.mockCallRevert(MORPHO_GAUNTLET_USDC_PRIME, IERC4626.withdraw.selector, bytes("MORPHO_WITHDRAW_FAILED"));
-
-        vm.prank(alice);
-        vm.expectRevert(IAdapter.SkimFailed.selector);
-        morphoVault.allocateAdapter(address(morphoAdapter), 1);
-
-        vm.prank(address(morphoVault));
-        assertEq(morphoAdapter.deallocate(DEALLOCATE_AMOUNT), 0);
-    }
 
     function testFork_Mainnet_MorphoDepositRejectsNonSelfCall() public {
         address morphoAccount = morphoAdapter.getAccount(address(morphoVault));
@@ -527,67 +399,7 @@ contract VaultV2MainnetAdaptersForkTest is Test {
         MorphoVaultV2Account(morphoAccount).withdraw(MORPHO_GAUNTLET_USDC_PRIME, 1);
     }
 
-    function _assertAaveHealthyReallocation(uint256 yieldAmount, uint256 allocateAmount) internal {
-        address aaveAccount = aaveAdapter.getAccount(address(aaveVault));
-        _fundUsdc(address(this), yieldAmount);
-        IERC20(USDC).forceApprove(AAVE_POOL, yieldAmount);
-        IAaveV3Pool(AAVE_POOL).supply(USDC, yieldAmount, aaveAccount, 0);
 
-        uint256 skimmableBefore = aaveAdapter.skimmable(address(aaveVault));
-        uint256 vaultBalanceBefore = IERC20(USDC).balanceOf(address(aaveVault));
-        uint256 allocatedBefore = aaveVault.adapterAllocated(address(aaveAdapter));
-        assertGt(skimmableBefore, 0);
-
-        vm.prank(alice);
-        uint256 allocated = aaveVault.allocateAdapter(address(aaveAdapter), allocateAmount);
-        uint256 vaultBalanceAfterAllocate = IERC20(USDC).balanceOf(address(aaveVault));
-        uint256 skimmableAfterAllocate = aaveAdapter.skimmable(address(aaveVault));
-
-        assertEq(allocated, allocateAmount);
-        assertEq(aaveVault.adapterAllocated(address(aaveAdapter)), allocatedBefore + allocateAmount);
-        assertEq(aaveVault.adaptersAllocated(), allocatedBefore + allocateAmount);
-        assertEq(aaveAdapter.globalAllocated(USDC), allocatedBefore + allocateAmount);
-        assertEq(vaultBalanceAfterAllocate, vaultBalanceBefore - allocateAmount);
-        assertLe(skimmableAfterAllocate, skimmableBefore + 1);
-
-        VaultV2(address(aaveVault)).skimAdapters();
-
-        assertEq(aaveAdapter.skimmable(address(aaveVault)), 0);
-        assertApproxEqAbs(
-            IERC20(USDC).balanceOf(address(aaveVault)), vaultBalanceAfterAllocate + skimmableAfterAllocate, 1
-        );
-    }
-
-    function _assertMorphoHealthyReallocation(uint256 yieldAmount, uint256 allocateAmount) internal {
-        address morphoAccount = morphoAdapter.getAccount(address(morphoVault));
-        _fundUsdc(address(this), yieldAmount);
-        IERC20(USDC).forceApprove(MORPHO_GAUNTLET_USDC_PRIME, yieldAmount);
-        IMorphoVaultV2(MORPHO_GAUNTLET_USDC_PRIME).deposit(yieldAmount, morphoAccount);
-
-        uint256 skimmableBefore = morphoAdapter.skimmable(address(morphoVault));
-        uint256 vaultBalanceBefore = IERC20(USDC).balanceOf(address(morphoVault));
-        uint256 allocatedBefore = morphoVault.adapterAllocated(address(morphoAdapter));
-        assertGt(skimmableBefore, 0);
-
-        vm.prank(alice);
-        uint256 allocated = morphoVault.allocateAdapter(address(morphoAdapter), allocateAmount);
-        uint256 vaultBalanceAfterAllocate = IERC20(USDC).balanceOf(address(morphoVault));
-        uint256 skimmableAfterAllocate = morphoAdapter.skimmable(address(morphoVault));
-
-        assertEq(allocated, allocateAmount);
-        assertEq(morphoVault.adapterAllocated(address(morphoAdapter)), allocatedBefore + allocateAmount);
-        assertEq(morphoVault.adaptersAllocated(), allocatedBefore + allocateAmount);
-        assertEq(morphoAdapter.globalAllocated(USDC), allocatedBefore + allocateAmount);
-        assertEq(vaultBalanceAfterAllocate, vaultBalanceBefore - allocateAmount);
-        assertLe(skimmableAfterAllocate, skimmableBefore + 1);
-
-        VaultV2(address(morphoVault)).skimAdapters();
-
-        assertEq(morphoAdapter.skimmable(address(morphoVault)), 0);
-        assertApproxEqAbs(
-            IERC20(USDC).balanceOf(address(morphoVault)), vaultBalanceAfterAllocate + skimmableAfterAllocate, 1
-        );
-    }
 
     function _donateAaveYield(uint256 yieldAmount) internal {
         address aaveAccount = aaveAdapter.getAccount(address(aaveVault));

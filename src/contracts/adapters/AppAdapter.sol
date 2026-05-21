@@ -8,7 +8,6 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
@@ -26,7 +25,6 @@ contract AppAdapter is Adapter, IAppAdapter {
     using Subnetwork for bytes32;
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
-
 
     struct Stake {
         uint256 initialStake;
@@ -51,7 +49,6 @@ contract AppAdapter is Adapter, IAppAdapter {
     address public operator;
     /// @inheritdoc IAppAdapter
     uint48 public duration;
-
 
     /* CONSTRUCTOR */
 
@@ -84,30 +81,33 @@ contract AppAdapter is Adapter, IAppAdapter {
     }
 
     /// @inheritdoc IAppAdapter
-    function stakeAt(uint48 timestamp, bytes calldata) public view returns (uint256) {
+    function stakeAt(uint48, bytes calldata) public view returns (uint256) {
         return _stakeAt(uint48(block.timestamp));
     }
 
-    function slashableAt(uint48 timestamp, bytes calldata) public view returns (uint256) {
+    /// @inheritdoc IAppAdapter
+    function slashableAt(uint48, bytes calldata) public view returns (uint256) {
         return _slashableAt(uint48(block.timestamp));
     }
 
-    /// @inheritdoc IAppAdapter
+    /// @dev Returns slashable stake at a timestamp.
     function _slashableAt(uint48 timestamp) internal view returns (uint256) {
         Stake storage curStake = _stakes[_timestampToStake.upperLookupRecent(timestamp)];
-        return curStake.initialStake.saturatingSub(curStake.slashed.at(timestamp)).saturatingSub(curStake.debt.at(timestamp));
+        return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
+            .saturatingSub(curStake.debt.upperLookupRecent(timestamp));
     }
 
-    /// @inheritdoc IAppAdapter
+    /// @dev Returns guaranteed stake at a timestamp.
     function _stakeAt(uint48 timestamp) internal view returns (uint256) {
         Stake storage curStake = _stakes[_timestampToStake.upperLookupRecent(timestamp)];
-        return curStake.initialStake.saturatingSub(curStake.slashed.at(timestamp)).saturatingSub(curStake.debt.at(timestamp + duration));
+        return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
+            .saturatingSub(curStake.debt.upperLookupRecent(timestamp + duration));
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(bytes32 subnetwork_, address operator_, uint256 amount, uint48 captureTimestamp, bytes calldata data)
+    function slash(bytes32 subnetwork_, address operator_, uint256 amount, uint48 captureTimestamp, bytes calldata)
         public
         returns (uint256 slashedAmount)
     {
@@ -123,15 +123,13 @@ contract AppAdapter is Adapter, IAppAdapter {
             revert NoBurner();
         }
 
-
         Stake storage curStake = _stakes[_timestampToStake.latest()];
         curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + slashedAmount);
-        
+
         _timestampTotalAssets.push(uint48(block.timestamp), _timestampTotalAssets.latest() - slashedAmount);
 
         // idk what is this
         IERC20(IVaultV2(vault).asset()).safeTransfer(burner, slashedAmount);
-        IUniversalDelegator(IVaultV2(vault).delegator()).onAdapterSlash(slashedAmount);
         _burnerOnSlash(subnetwork_, operator_, slashedAmount, captureTimestamp);
 
         emit Slash(subnetwork_, operator_, slashedAmount);
@@ -139,35 +137,21 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
-    /// @inheritdoc IAdapter
-    function deallocate(uint256 amount)
-        public
-        override(Adapter, IAdapter)
-        returns (uint256 deallocated, uint256 pending)
-    {
-        if (IVaultV2(vault).delegator() != msg.sender) {
-            revert NotVault();
-        }
-
+    /// @dev Deallocates assets that are not slashable.
+    function _deallocate(uint256 amount) internal override returns (uint256 deallocated) {
         uint256 curTotalAssets = _timestampTotalAssets.latest();
         if (curTotalAssets == 0) {
-            return (0, 0);
+            return 0;
         }
 
         deallocated = Math.min(amount, curTotalAssets.saturatingSub(slashable()));
         if (deallocated != 0) {
             _timestampTotalAssets.push(uint48(block.timestamp), curTotalAssets.saturatingSub(deallocated));
         }
-
-        // TODO: idk wtf is this
-        pending = 0;
     }
 
-    function onDebt(uint256 amount) public {
-        if (IVaultV2(vault).delegator() != msg.sender) {
-            revert NotVault();
-        }
-
+    /// @dev Requests delayed deallocation debt accounting.
+    function _requestDeallocate(uint256 amount) internal override {
         uint256 curTotalAssets = totalAssets();
         uint256 curSlashable = slashable();
 
@@ -176,8 +160,7 @@ contract AppAdapter is Adapter, IAppAdapter {
             Stake storage newStake = _stakes.push();
             newStake.initialStake = curSlashable;
             _timestampToStake.push(uint48(block.timestamp), uint208(_stakes.length - 1));
-        }
-        else {
+        } else {
             Stake storage curStake = _stakes[_timestampToStake.latest()];
             // if debt is increased we keep increasing it
             if (curStake.debt.latest() < amount) {
@@ -187,11 +170,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         }
     }
 
-    function _allocate(uint256 amount) 
-        internal
-        virtual
-        returns (uint256)
-    {
+    function _allocate(uint256 amount) internal override returns (uint256) {
         if (amount == 0) {
             return 0;
         }
@@ -236,12 +215,12 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @dev Calls the burner hook after a slash when hook mode is enabled.
     function _burnerOnSlash(bytes32 subnetwork_, address operator_, uint256 amount, uint48 captureTimestamp) internal {
-            address burner = IVaultV2(vault).burner();
-            bytes memory burnerCalldata =
-                abi.encodeCall(IBurner.onSlash, (subnetwork_, operator_, amount, captureTimestamp));
+        address burner = IVaultV2(vault).burner();
+        bytes memory burnerCalldata =
+            abi.encodeCall(IBurner.onSlash, (subnetwork_, operator_, amount, captureTimestamp));
 
-            assembly ("memory-safe") {
-                pop(call(gas(), burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
-            }
+        assembly ("memory-safe") {
+            pop(call(gas(), burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
+        }
     }
 }

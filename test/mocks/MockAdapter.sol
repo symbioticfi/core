@@ -20,14 +20,6 @@ contract MockAdapter is IAdapterBase {
         shouldFail = value;
     }
 
-    function skimmable(address vault_) external view returns (uint256) {
-        if (vault_ != vault || shouldFail) {
-            return 0;
-        }
-        uint256 balance = collateral.balanceOf(address(this));
-        return balance > allocated ? balance - allocated : 0;
-    }
-
     function allocatable(address) external view returns (uint256) {
         if (shouldFail) {
             return 0;
@@ -58,19 +50,6 @@ contract MockAdapter is IAdapterBase {
             collateral.approve(vault, deallocated);
         }
         return deallocated;
-    }
-
-    function skim(address vault_) external returns (uint256 amount) {
-        if (vault_ != vault || shouldFail) {
-            return 0;
-        }
-
-        uint256 balance = collateral.balanceOf(address(this));
-        amount = balance > allocated ? balance - allocated : 0;
-        if (amount > 0) {
-            collateral.transfer(vault, amount);
-        }
-        return amount;
     }
 
     function triggerPush(uint256 amount) external returns (bool) {

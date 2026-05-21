@@ -12,19 +12,18 @@ contract VaultV2SolvencyInvariantsTest is StdInvariant, Test {
     function setUp() public {
         handler = new VaultV2SolvencyHandler();
 
-        bytes4[] memory selectors = new bytes4[](12);
+        bytes4[] memory selectors = new bytes4[](11);
         selectors[0] = VaultV2SolvencyHandler.deposit.selector;
         selectors[1] = VaultV2SolvencyHandler.withdraw.selector;
         selectors[2] = VaultV2SolvencyHandler.redeem.selector;
         selectors[3] = VaultV2SolvencyHandler.claim.selector;
         selectors[4] = VaultV2SolvencyHandler.donate.selector;
         selectors[5] = VaultV2SolvencyHandler.addAdapterYield.selector;
-        selectors[6] = VaultV2SolvencyHandler.skim.selector;
-        selectors[7] = VaultV2SolvencyHandler.allocate.selector;
-        selectors[8] = VaultV2SolvencyHandler.deallocate.selector;
-        selectors[9] = VaultV2SolvencyHandler.slash.selector;
-        selectors[10] = VaultV2SolvencyHandler.setAdapterFailure.selector;
-        selectors[11] = VaultV2SolvencyHandler.syncOwedSlash.selector;
+        selectors[6] = VaultV2SolvencyHandler.allocate.selector;
+        selectors[7] = VaultV2SolvencyHandler.deallocate.selector;
+        selectors[8] = VaultV2SolvencyHandler.slash.selector;
+        selectors[9] = VaultV2SolvencyHandler.setAdapterFailure.selector;
+        selectors[10] = VaultV2SolvencyHandler.syncOwedSlash.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

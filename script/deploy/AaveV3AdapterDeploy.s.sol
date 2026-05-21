@@ -12,7 +12,7 @@ contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // CuratorRegistry used by the adapter for curator-only recovery/configuration paths.
     address public constant CURATOR_REGISTRY = 0xF75D8d8F790178F0d7F2ee7656874567d382C21e;
-    // Rewards contract address used by the adapter when skimming yield.
+    // Rewards contract address used by the adapter.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
 
     function run() public {

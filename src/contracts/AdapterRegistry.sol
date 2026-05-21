@@ -24,4 +24,9 @@ contract AdapterRegistry is Registry, OwnableUpgradeable, IAdapterRegistry {
 
         _addEntity(adapterFactory);
     }
+
+    /// @inheritdoc IAdapterRegistry
+    function isWhitelisted(address, address adapterFactory) external view returns (bool status) {
+        return isEntity(adapterFactory);
+    }
 }
