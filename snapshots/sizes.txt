@@ -1,102 +1,292 @@
-Unable to resolve imports:
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/VetoSlashBase.s.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeployAndUpgradeActionScript.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeployAndUpgradeActionScript.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/test/UniversalDelegator.s.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/HoodiScenarioProtocolMocks.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/MigrateToVaultV2.s.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/SetResolverBase.s.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/ResetAllocationBase.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/SwapSlotsBase.s.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/SyncOwedSlashBase.s.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/RemoveSlotBase.s.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../../src/contracts/vault/common/ERC4626Math.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/common/ERC4626Math.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/test/UniversalDelegator.s.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeployAndUpgradeActionScript.t.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/MockMorphoAllocateAdapter.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/MigrateToVaultV2Base.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeploymentScripts.t.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/MockRewards.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/ExecuteSlashBase.s.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/RequestSlashBase.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/CreateSlotBase.s.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../src/contracts/vault/VaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/helpers/VaultV2TestHelper.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/SlashBase.s.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/MockMorphoBorrowAdapter.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/upgrade/base/V2UpgradeBase.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/SetSizeBase.s.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/delegator/UniversalDelegatorFlatCoverage.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeploymentScripts.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/test/UniversalDelegator.s.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/delegator/UniversalDelegatorFlatCoverage.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/upgrade/base/V2UpgradeBase.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/MigrateToVaultV2Base.s.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-with remappings:
-      forge-std/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/forge-std/src/
-      @openzeppelin/contracts/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts/contracts/
-      @openzeppelin/contracts-upgradeable/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/contracts/
-      erc4626-tests/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
-      halmos-cheatcodes/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/src/
-      openzeppelin-contracts-upgradeable/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/
-      openzeppelin-contracts/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts/
-Compiling 388 files with Solc 0.8.28
-Solc 0.8.28 finished in 449.70ms
+No files changed, compilation skipped
+
+╭----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------╮
+| Contract                                                                         | Runtime Size (B) | Initcode Size (B) | Runtime Margin (B) | Initcode Margin (B) |
++====================================================================================================================================================================+
+| AaveV3Adapter                                                                    | 5,477            | 5,983             | 19,099             | 43,169              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AdapterFactory                                                                   | 5,055            | 5,295             | 19,521             | 43,857              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AdapterRegistry                                                                  | 1,155            | 1,183             | 23,421             | 47,969              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Address                                                                          | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AppAdapter                                                                       | 8,534            | 9,009             | 16,042             | 40,143              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AppAdapterDelegatorMock                                                          | 700              | 728               | 23,876             | 48,424              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AppAdapterNetworkMiddlewareServiceMock                                           | 306              | 334               | 24,270             | 48,818              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AppAdapterRegistryMock                                                           | 608              | 636               | 23,968             | 48,516              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| AppAdapterVaultMock                                                              | 397              | 588               | 24,179             | 48,564              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Arrays                                                                           | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| BaseDelegatorDefaultsHarness                                                     | 6,180            | 6,622             | 18,396             | 42,530              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| BaseDelegatorHints                                                               | 2,721            | 18,511            | 21,855             | 30,641              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| BaseSlasherDefaultsHarness                                                       | 5,162            | 5,531             | 19,414             | 43,621              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| BaseSlasherHints                                                                 | 3,166            | 9,097             | 21,410             | 40,055              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Bytes                                                                            | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Checkpoints (lib/openzeppelin-contracts/contracts/utils/structs/Checkpoints.sol) | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Checkpoints (src/contracts/libraries/Checkpoints.sol)                            | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Checkpoints (src/contracts/libraries/CheckpointsV2.sol)                          | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Clones                                                                           | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Comparators                                                                      | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Create2                                                                          | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| CreateXWrapper                                                                   | 2,703            | 2,731             | 21,873             | 46,421              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| DAILikeToken                                                                     | 3,014            | 4,190             | 21,562             | 44,962              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| DelegatorFactory                                                                 | 2,400            | 2,640             | 22,176             | 46,512              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ECDSA                                                                            | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ERC1967Proxy                                                                     | 122              | 878               | 24,454             | 48,274              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ERC1967Utils                                                                     | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ERC4626Math                                                                      | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ERC721Utils                                                                      | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| EnumerableSet                                                                    | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Errors                                                                           | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Factory                                                                          | 2,400            | 2,638             | 22,176             | 46,514              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| FakeEntity                                                                       | 373              | 563               | 24,203             | 48,589              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| FeeOnTransferToken                                                               | 1,770            | 3,182             | 22,806             | 45,970              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| FenwickTreeCheckpoints                                                           | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| FullRestakeDelegator                                                             | 10,847           | 11,475            | 13,729             | 37,677              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| FullRestakeDelegatorHints                                                        | 3,697            | 3,909             | 20,879             | 45,243              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| FullRestakeDelegatorHintsTarget                                                  | 5,205            | 5,417             | 19,371             | 43,735              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| HintsHarness                                                                     | 1,647            | 1,704             | 22,929             | 47,448              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Logs                                                                             | 4,225            | 4,277             | 20,351             | 44,875              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| LowLevelCall                                                                     | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Math                                                                             | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Memory                                                                           | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MessageHashUtils                                                                 | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MetadataService                                                                  | 1,546            | 1,678             | 23,030             | 47,474              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MigratableEntityDefaultsHarness                                                  | 2,095            | 2,384             | 22,481             | 46,768              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MigratableEntityProxy                                                            | 923              | 1,932             | 23,653             | 47,220              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MigratablesFactory                                                               | 5,055            | 5,293             | 19,521             | 43,859              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAaveAToken                                                                   | 2,401            | 2,977             | 22,175             | 46,175              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAaveATokenUpgradeable                                                        | 3,319            | 3,347             | 21,257             | 45,805              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAavePool                                                                     | 2,725            | 2,927             | 21,851             | 46,225              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAavePoolAddressesProvider                                                    | 349              | 377               | 24,227             | 48,775              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAavePoolAddressesProviderUpgradeable                                         | 626              | 654               | 23,950             | 48,498              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAavePoolDataProvider                                                         | 407              | 435               | 24,169             | 48,717              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAavePoolDataProviderUpgradeable                                              | 684              | 712               | 23,892             | 48,440              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAavePoolUpgradeable                                                          | 3,049            | 3,077             | 21,527             | 46,075              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAdapter (test/adapters/AdapterFactory.t.sol)                                 | 3,932            | 4,360             | 20,644             | 44,792              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockAdapter (test/mocks/MockAdapter.sol)                                         | 2,110            | 2,365             | 22,466             | 46,787              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockCuratorRegistry                                                              | 360              | 388               | 24,216             | 48,764              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockFeeRegistry                                                                  | 796              | 824               | 23,780             | 48,328              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockHoodiTokenUpgradeable                                                        | 3,147            | 3,175             | 21,429             | 45,977              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoAdapterRegistryUpgradeable                                             | 1,155            | 1,183             | 23,421             | 47,969              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoVault                                                                  | 2,230            | 2,410             | 22,346             | 46,742              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoVaultConfigurable                                                      | 2,523            | 2,742             | 22,053             | 46,410              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoVaultFactory                                                           | 297              | 325               | 24,279             | 48,827              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoVaultFactoryUpgradeable                                                | 7,105            | 7,133             | 17,471             | 42,019              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoVaultHarness                                                           | 2,383            | 2,609             | 22,193             | 46,543              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockMorphoVaultHarnessUpgradeable                                                | 2,543            | 2,571             | 22,033             | 46,581              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockReentrantAdapter                                                             | 2,295            | 2,508             | 22,281             | 46,644              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockReentrantBurner                                                              | 1,612            | 1,640             | 22,964             | 47,512              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockRegistry                                                                     | 608              | 636               | 23,968             | 48,516              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockRewards                                                                      | 1,074            | 1,138             | 23,502             | 48,014              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockRewardsDistributor                                                           | 1,185            | 1,334             | 23,391             | 47,818              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockVault                                                                        | 121              | 244               | 24,455             | 48,908              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MorphoVaultV2Adapter                                                             | 6,692            | 7,203             | 17,884             | 41,949              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| NetworkMiddlewareService                                                         | 622              | 753               | 23,954             | 48,399              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| NetworkRegistry                                                                  | 635              | 663               | 23,941             | 48,489              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| NetworkRestakeDelegator                                                          | 11,378           | 12,006            | 13,198             | 37,146              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| NetworkRestakeDelegatorHints                                                     | 4,008            | 4,227             | 20,568             | 44,925              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| NetworkRestakeDelegatorHintsTarget                                               | 5,569            | 5,788             | 19,007             | 43,364              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorNetworkSpecificDelegator                                                 | 9,810            | 10,488            | 14,766             | 38,664              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorNetworkSpecificDelegatorHints                                            | 3,291            | 3,495             | 21,285             | 45,657              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorNetworkSpecificDelegatorHintsTarget                                      | 4,649            | 4,853             | 19,927             | 44,299              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorRegistry                                                                 | 635              | 663               | 23,941             | 48,489              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorSpecificDelegator                                                        | 10,389           | 11,060            | 14,187             | 38,092              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorSpecificDelegatorHints                                                   | 3,257            | 3,461             | 21,319             | 45,691              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OperatorSpecificDelegatorHintsTarget                                             | 4,615            | 4,820             | 19,961             | 44,332              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OptInService                                                                     | 6,138            | 7,307             | 18,438             | 41,845              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OptInServiceHints                                                                | 2,234            | 2,276             | 22,342             | 46,876              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| OptInServiceHintsTarget                                                          | 3,124            | 3,167             | 21,452             | 45,985              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Panic                                                                            | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| PermitToken                                                                      | 3,654            | 5,160             | 20,922             | 43,992              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ProxyAdmin                                                                       | 1,017            | 1,253             | 23,559             | 47,899              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| RebaseToken                                                                      | 2,384            | 3,689             | 22,192             | 45,463              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Rewards                                                                          | 374              | 438               | 24,202             | 48,714              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SafeCast                                                                         | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SafeERC20                                                                        | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| ShortStrings                                                                     | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SignatureChecker                                                                 | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SignedMath                                                                       | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleBurner                                                                     | 821              | 960               | 23,755             | 48,192              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleEntity                                                                     | 685              | 1,062             | 23,891             | 48,090              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleFullRestakeDelegatorHook                                                   | 1,406            | 1,434             | 23,170             | 47,718              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleMigratableEntity                                                           | 1,854            | 2,216             | 22,722             | 46,936              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleMigratableEntityV2                                                         | 2,056            | 2,418             | 22,520             | 46,734              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleNetworkRestakeDelegatorHook                                                | 1,406            | 1,434             | 23,170             | 47,718              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleOperatorNetworkSpecificDelegatorHook                                       | 445              | 473               | 24,131             | 48,679              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleOperatorSpecificDelegatorHook                                              | 536              | 564               | 24,040             | 48,588              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SimpleRegistry                                                                   | 598              | 626               | 23,978             | 48,526              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Simulation                                                                       | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Slasher                                                                          | 8,087            | 8,623             | 16,489             | 40,529              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SlasherFactory                                                                   | 2,400            | 2,640             | 22,176             | 46,512              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SlasherHints                                                                     | 1,019            | 1,161             | 23,557             | 47,991              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SlotDerivation                                                                   | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| StorageSlot                                                                      | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Strings                                                                          | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Subnetwork                                                                       | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SymbioticCoreBytecode                                                            | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SymbioticCoreConstants                                                           | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| SymbioticUtils                                                                   | 80               | 109               | 24,496             | 49,043              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Time                                                                             | 44               | 94                | 24,532             | 49,058              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Token                                                                            | 1,708            | 3,050             | 22,868             | 46,102              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| TransparentUpgradeableProxy                                                      | 1,015            | 3,371             | 23,561             | 45,781              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| UniversalDelegator                                                               | 12,565           | 13,071            | 12,011             | 36,081              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| Vault                                                                            | 15,576           | 16,039            | 9,000              | 33,113              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultConfigurator                                                                | 1,802            | 2,028             | 22,774             | 47,124              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultFactory                                                                     | 5,055            | 5,295             | 19,521             | 43,857              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultHints                                                                       | 3,678            | 3,735             | 20,898             | 45,417              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultHintsTarget                                                                 | 5,086            | 5,143             | 19,490             | 44,009              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultMigrateHarness (test/vault/Vault.t.sol)                                     | 15,675           | 16,014            | 8,901              | 33,138              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultMigrateHarness (test/vault/VaultV2.t.sol)                                   | 15,675           | 16,014            | 8,901              | 33,138              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultStorageTarget                                                               | 199              | 332               | 24,377             | 48,820              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultTokenized                                                                   | 18,383           | 18,852            | 6,193              | 30,300              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultTokenizedUpdateHarness                                                      | 18,413           | 18,758            | 6,163              | 30,394              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultV1                                                                          | 15,576           | 16,039            | 9,000              | 33,113              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VaultV2                                                                          | 19,605           | 20,193            | 4,971              | 28,959              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VetoSlasher                                                                      | 12,633           | 13,214            | 11,943             | 35,938              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VetoSlasherHints                                                                 | 4,276            | 4,435             | 20,300             | 44,717              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| VetoSlasherHintsTarget                                                           | 6,255            | 6,414             | 18,321             | 42,738              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| WithdrawalQueue                                                                  | 10,610           | 10,638            | 13,966             | 38,514              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| WithdrawalQueueFillDelegator                                                     | 315              | 449               | 24,261             | 48,703              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| WithdrawalQueueFillToken                                                         | 1,806            | 2,267             | 22,770             | 46,885              |
+|----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| WithdrawalQueueFillVault                                                         | 3,330            | 3,917             | 21,246             | 45,235              |
+╰----------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------╯
+

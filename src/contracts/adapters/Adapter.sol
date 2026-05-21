@@ -5,9 +5,9 @@ pragma solidity ^0.8.28;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {ICuratorRegistry} from "../../interfaces/adapters/ICuratorRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

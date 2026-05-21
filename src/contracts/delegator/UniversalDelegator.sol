@@ -7,8 +7,11 @@ import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
 import {WithdrawalQueue} from "../vault/WithdrawalQueue.sol";
 
-import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAdapterRegistry} from "../../interfaces/IAdapterRegistry.sol";
+import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
+import {IEntity} from "../../interfaces/common/IEntity.sol";
+import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IUniversalDelegator,
     MAX_ADAPTERS,
@@ -22,14 +25,11 @@ import {
     ALLOCATE_ROLE,
     DEALLOCATE_ROLE
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {IEntity} from "../../interfaces/common/IEntity.sol";
-import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 

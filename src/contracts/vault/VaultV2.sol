@@ -6,10 +6,9 @@ import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
-import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IVaultV2,
     DEPOSIT_WHITELIST_SET_ROLE,
@@ -19,6 +18,7 @@ import {
     DECIMALS_OFFSET,
     WAD
 } from "../../interfaces/vault/IVaultV2.sol";
+import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";

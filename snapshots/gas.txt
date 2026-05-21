@@ -1,87 +1,560 @@
-Unable to resolve imports:
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeploymentScripts.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/MockMorphoBorrowAdapter.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/delegator/UniversalDelegatorFlatCoverage.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/delegator/UniversalDelegatorFlatCoverage.t.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/HoodiScenarioProtocolMocks.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeploymentScripts.t.sol"
-      "../../src/contracts/vault/VaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/helpers/VaultV2TestHelper.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/upgrade/base/V2UpgradeBase.s.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/MockMorphoAllocateAdapter.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../src/interfaces/vault/IVaultV2Storage.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/mocks/MockRewards.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/deploy/base/V2DeployBase.s.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/upgrade/base/V2UpgradeBase.s.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeployAndUpgradeActionScript.t.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2UncheckedMathHandler.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeployAndUpgradeActionScript.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/V2DeployAndUpgradeActionScript.t.sol"
-      "../../../src/contracts/vault/common/ERC4626Math.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/common/ERC4626Math.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-      "../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/MigrateToVaultV2Base.s.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/DeployVaultV2Script.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/VaultV2SolvencyHandler.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2MainnetAdapters.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../src/interfaces/slasher/IUniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../../src/contracts/vault/VaultV2Migrate.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/actions/MigrateToVaultV2ActionScript.t.sol"
-      "../../src/contracts/slasher/UniversalSlasher.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/base/DeployVaultV2Base.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/vault/VaultV2Adapters.t.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/script/actions/base/MigrateToVaultV2Base.s.sol"
-      "../../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/integration/fork/MainnetVaultMigrationFork.t.sol"
-      "../../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/invariant/handlers/UniversalDelegatorArithmeticHandler.sol"
-      "../../src/contracts/delegator/UniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/slasher/UniversalSlasher.t.sol"
-      "../../src/interfaces/delegator/IUniversalDelegator.sol" in "/Users/andreikorokhov/symbiotic/mirror/core-mirror/test/benchmarks/UniversalDelegatorGasBenchmark.t.sol"
-with remappings:
-      forge-std/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/forge-std/src/
-      @openzeppelin/contracts/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts/contracts/
-      @openzeppelin/contracts-upgradeable/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/contracts/
-      erc4626-tests/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
-      halmos-cheatcodes/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/src/
-      openzeppelin-contracts-upgradeable/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts-upgradeable/
-      openzeppelin-contracts/=/Users/andreikorokhov/symbiotic/mirror/core-mirror/lib/openzeppelin-contracts/
-Compiling 305 files with Solc 0.8.28
-Solc 0.8.28 finished in 436.31ms
+No files changed, compilation skipped
+
+Ran 3 tests for test/libraries/CheckpointsBranches.t.sol:CheckpointsV2BranchesTest
+[PASS] test_trace208_allReachableBranches() (gas: 195919)
+[PASS] test_trace256_allReachableBranches() (gas: 330771)
+[PASS] test_trace512_allReachableBranches() (gas: 418987)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.29s (133.98ms CPU time)
+
+Ran 1 test for test/slasher/BaseSlasher.t.sol:BaseSlasherTest
+[PASS] test_DefaultInitializeHookReturnsZeroValues() (gas: 1276040)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.32s (158.48ms CPU time)
+
+Ran 1 test for test/delegator/BaseDelegator.t.sol:BaseDelegatorTest
+[PASS] test_DefaultHooksReturnZeroValues() (gas: 1529580)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.32s (158.41ms CPU time)
+
+Ran 1 test for test/vault/VaultV2FeeRegistry.t.sol:VaultV2FeeRegistryApiTest
+[PASS] test_feeRegistryAndVaultExposeSnapshotFeeApi() (gas: 716)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 337.04µs (26.50µs CPU time)
+
+Ran 1 test for test/adapters/AdapterNoAccountShape.t.sol:AdapterNoAccountShapeTest
+[PASS] test_ConstructorsDoNotRequireAccountBeacon() (gas: 14430)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.48s (315.06ms CPU time)
+
+Ran 3 tests for test/AdapterRegistry.t.sol:AdapterRegistryTest
+[PASS] test_whitelistAdapterFactory() (gas: 66629)
+[PASS] test_whitelistAdapterFactoryCanBeRepeated() (gas: 95872)
+[PASS] test_whitelistAdapterFactoryRevertNotOwner() (gas: 39603)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.57s (255.29ms CPU time)
+
+Ran 3 tests for test/NetworkRegistry.t.sol:NetworkRegistryTest
+[PASS] test_Create() (gas: 30503)
+[PASS] test_Register() (gas: 121609)
+[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143835)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 255.11ms (254.74ms CPU time)
+
+Ran 3 tests for test/OperatorRegistry.t.sol:OperatorRegistryTest
+[PASS] test_Create() (gas: 30503)
+[PASS] test_Register() (gas: 121587)
+[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143791)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.57s (280.64ms CPU time)
+
+Ran 3 tests for test/adapters/AppAdapter.t.sol:AppAdapterTest
+[PASS] test_DeallocationImmediatelyUpdatesCheckpointedStakeAndSettlesAfterDuration() (gas: 594782)
+[PASS] test_StakeUsesDurationShiftedCheckpoint() (gas: 336012)
+[PASS] test_SyncClosesPendingByRestoringStake() (gas: 530943)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 2.28s (394.88µs CPU time)
+
+Ran 5 tests for test/adapters/AdapterFactory.t.sol:AdapterFactoryTest
+[PASS] test_CreateAllowsMultipleAdaptersForSameVault() (gas: 1075767)
+[PASS] test_CreateRevertsForNonVault() (gas: 158670)
+[PASS] test_CreateUsesMigratablesFactorySaltAndInitializesAdapterVault() (gas: 622475)
+[PASS] test_InitializeRevertsForNonVault() (gas: 210014)
+[PASS] test_SeparateFactoriesCanCreateForSameVault() (gas: 3363137)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 2.34s (509.49ms CPU time)
+
+Ran 2 tests for test/libraries/CheckpointsBranches.t.sol:CheckpointsV1BranchesTest
+[PASS] test_trace208_hintBranchesAndBoundaryLookups() (gas: 191187)
+[PASS] test_trace256_hintBranchesAndEmptyPopRevert() (gas: 317099)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 489.92µs (266.00µs CPU time)
+
+Ran 10 tests for test/common/MigratablesFactory.t.sol:MigratablesFactoryTest
+[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 720424)
+[PASS] test_BlacklistRevertInvalidVersion() (gas: 32504)
+[PASS] test_Create() (gas: 2471734)
+[PASS] test_CreateRevertInvalidVersion() (gas: 728322)
+[PASS] test_Migrate(uint256) (runs: 100, μ: 2468815, ~: 2468950)
+[PASS] test_MigrateRevertImproperOwner() (gas: 1767761)
+[PASS] test_MigrateRevertInvalidVersion() (gas: 1771928)
+[PASS] test_MigrateRevertOldVersion() (gas: 1759135)
+[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 671498)
+[PASS] test_WhitelistRevertInvalidImplementation() (gas: 572974)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 2.36s (1.04s CPU time)
+
+Ran 3 tests for test/service/NetworkMiddlewareService.t.sol:MiddlewareServiceTest
+[PASS] test_Create(address) (runs: 100, μ: 201561, ~: 201617)
+[PASS] test_SetMiddlewareRevertAlreadySet(address) (runs: 100, μ: 207870, ~: 207982)
+[PASS] test_SetMiddlewareRevertNotNetwork(address) (runs: 100, μ: 59673, ~: 59729)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 37.62ms (37.24ms CPU time)
+
+Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace208Test
+[PASS] testAt(uint48[],uint208[],uint32) (runs: 100, μ: 4446704, ~: 4799281)
+[PASS] testLatest(uint48[],uint208[]) (runs: 100, μ: 4148372, ~: 4453381)
+[PASS] testLatestCheckpoint(uint48[],uint208[]) (runs: 100, μ: 4171274, ~: 4477579)
+[PASS] testLength(uint48[],uint208[]) (runs: 100, μ: 4117993, ~: 4421484)
+[PASS] testLookup(uint48[],uint208[],uint48) (runs: 100, μ: 4317191, ~: 4739719)
+[PASS] testPop(uint48[],uint208[]) (runs: 100, μ: 4010795, ~: 4308930)
+[PASS] testPush(uint48[],uint208[],uint48) (runs: 100, μ: 4734478, ~: 5194124)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint208[],uint48) (runs: 100, μ: 4519127, ~: 4904706)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4131798, ~: 4328009)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4131607, ~: 4327771)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 2.54s (1.38s CPU time)
+
+Ran 9 tests for test/integration/actions/ActionScripts.t.sol:ActionScriptsTest
+[PASS] test_OptInNetwork() (gas: 894606)
+Logs:
+  Opt in network 
+      network:0xec4C0A328Ed00dA9afb2a33E015F13c87f565650
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0x7133415b33B438843D581013f98A08704316633c&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0xb1138ad1000000000000000000000000ec4c0a328ed00da9afb2a33e015f13c87f565650
+
+[PASS] test_OptInVault() (gas: 893669)
+Logs:
+  Opt in vault 
+      vault:0x73978491d0fc78C23479bE0Ac207331CEf28EEa0
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0xb361894bC06cbBA7Ea8098BF0e32EB1906A5F891&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0xb1138ad100000000000000000000000073978491d0fc78c23479be0ac207331cef28eea0
+
+[PASS] test_RegisterOperator() (gas: 771912)
+Logs:
+  Register operator
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0xAd817a6Bc954F678451A71363f04150FDD81Af9F&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0x2acde098
+
+[PASS] test_SetHook() (gas: 621856)
+Logs:
+  Set hook 
+      vault:0x73978491d0fc78C23479bE0Ac207331CEf28EEa0
+      hook:0x000000000000000000000000000000000000dEaD
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0x248BebF5095F71F9ec35251582EC8214eac8EdFB&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0x3dfd3873000000000000000000000000000000000000000000000000000000000000dead
+
+[PASS] test_SetMaxNetworkLimit() (gas: 675810)
+Logs:
+  Set max network limit 
+      vault:0x73978491d0fc78C23479bE0Ac207331CEf28EEa0
+      identifier:1
+      maxNetworkLimit:1000000000000000000000
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0x248BebF5095F71F9ec35251582EC8214eac8EdFB&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0x23f752d5000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000003635c9adc5dea00000
+
+[PASS] test_SetNetworkLimit() (gas: 824062)
+Logs:
+  Set network limit 
+      vault:0x73978491d0fc78C23479bE0Ac207331CEf28EEa0
+      subnetwork:0xec4c0a328ed00da9afb2a33e015f13c87f565650000000000000000000000001
+      networkLimit:500000000000000000000
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0x248BebF5095F71F9ec35251582EC8214eac8EdFB&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0x02145348ec4c0a328ed00da9afb2a33e015f13c87f56565000000000000000000000000100000000000000000000000000000000000000000000001b1ae4d6e2ef500000
+
+[PASS] test_SetOperatorNetworkShares() (gas: 968580)
+Logs:
+  Set operator network shares 
+      vault:0x73978491d0fc78C23479bE0Ac207331CEf28EEa0
+      subnetwork:0xec4c0a328ed00da9afb2a33e015f13c87f565650000000000000000000000001
+      operator:0x1A7265dd7ab8D8491FE129dB3752D290Ca573eeF
+      operatorNetworkShares:1000
+  Simulation link:
+  https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0x248BebF5095F71F9ec35251582EC8214eac8EdFB&from=0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38&rawFunctionInput=0xa33bc287ec4c0a328ed00da9afb2a33e015f13c87f5656500000000000000000000000010000000000000000000000001a7265dd7ab8d8491fe129db3752d290ca573eef00000000000000000000000000000000000000000000000000000000000003e8
+
+[PASS] test_SetResolver() (gas: 473673)
+[PASS] test_VetoSlash() (gas: 2858627)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 2.64s (5.47ms CPU time)
+
+Ran 1 test for test/vault/WithdrawalQueueFill.t.sol:WithdrawalQueueFillTest
+[PASS] test_RequestWithdrawNotifiesDelegatorAndFillOnlyUsesLiquidVaultAssets() (gas: 850652)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 158.29ms (157.82ms CPU time)
+
+Ran 12 tests for test/service/OptInService.t.sol:OperatorOptInServiceTest
+[PASS] test_Create() (gas: 732060)
+[PASS] test_IncreaseNonce() (gas: 328535)
+[PASS] test_OptInRevertAlreadyOptedIn() (gas: 365990)
+[PASS] test_OptInRevertNotEntity() (gas: 157336)
+[PASS] test_OptInRevertNotWhereEntity() (gas: 162769)
+[PASS] test_OptInWithExpiredDeadline() (gas: 265207)
+[PASS] test_OptInWithInvalidSignature() (gas: 271169)
+[FAIL: InvalidSignature()] test_OptInWithSignature() (gas: 270950)
+Traces:
+  [270950] OperatorOptInServiceTest::test_OptInWithSignature()
+    ├─ [0] VM::getBlockTimestamp() [staticcall]
+    │   └─ ← [Return] 1779365699 [1.779e9]
+    ├─ [0] VM::warp(3500066647 [3.5e9])
+    │   └─ ← [Return]
+    ├─ [0] VM::deployCode("src/contracts/service/OptInService.sol:OptInService", 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f0000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000001b4f70657261746f724e6574776f726b4f7074496e536572766963650000000000)
+    │   ├─ [1230816] → new OptInService@0xF62849F9A0B5Bf2913b396098F7c7019b51A820a
+    │   │   └─ ← [Return] 6138 bytes of code
+    │   └─ ← [Return] OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a]
+    ├─ [0] VM::startPrank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Return]
+    ├─ [89480] OperatorRegistry::registerOperator()
+    │   ├─ emit AddEntity(entity: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Stop]
+    ├─ [0] VM::stopPrank()
+    │   └─ ← [Return]
+    ├─ [0] VM::startPrank(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Return]
+    ├─ [89502] NetworkRegistry::registerNetwork()
+    │   ├─ emit AddEntity(entity: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Stop]
+    ├─ [0] VM::stopPrank()
+    │   └─ ← [Return]
+    ├─ [1683] OptInService::eip712Domain() [staticcall]
+    │   └─ ← [Return] 0x0f, "OperatorNetworkOptInService", "1", 1, OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a], 0x0000000000000000000000000000000000000000000000000000000000000000, []
+    ├─ [0] VM::sign("<pk>", 0xbbd45361ba76ef8ca6f3bfc8f5196b0045888e05677d134324ff57393d0f1bf6) [staticcall]
+    │   └─ ← [Return] 27, 0xbd06388c5c0c57f0ecccf52eb974537f598fdd52c195f9cc4cc643c57f183792, 0x6769ffba8e2126fe160de2c9c8d864edc42d349dfe1c952ad82f5871825c9895
+    ├─ [33296] OptInService::optIn(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 3500066647 [3.5e9], 0xbd06388c5c0c57f0ecccf52eb974537f598fdd52c195f9cc4cc643c57f1837926769ffba8e2126fe160de2c9c8d864edc42d349dfe1c952ad82f5871825c98951b)
+    │   ├─ [110] alice::1626ba7e(bbd45361ba76ef8ca6f3bfc8f5196b0045888e05677d134324ff57393d0f1bf600000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000041bd06388c5c0c57f0ecccf52eb974537f598fdd52c195f9cc4cc643c57f1837926769ffba8e2126fe160de2c9c8d864edc42d349dfe1c952ad82f5871825c98951b) [staticcall]
+    │   │   └─ ← [Revert] EvmError: Revert
+    │   └─ ← [Revert] InvalidSignature()
+    └─ ← [Revert] InvalidSignature()
+
+Backtrace:
+  at alice
+  at OptInService.optIn
+  at OperatorOptInServiceTest.test_OptInWithSignature
+
+[PASS] test_OptOutRevertNotOptedIn() (gas: 247492)
+[PASS] test_OptOutWithExpiredDeadline() (gas: 370722)
+[PASS] test_OptOutWithInvalidSignature() (gas: 376914)
+[FAIL: InvalidSignature()] test_OptOutWithSignature() (gas: 376508)
+Traces:
+  [376508] OperatorOptInServiceTest::test_OptOutWithSignature()
+    ├─ [0] VM::getBlockTimestamp() [staticcall]
+    │   └─ ← [Return] 1779365699 [1.779e9]
+    ├─ [0] VM::warp(3500066647 [3.5e9])
+    │   └─ ← [Return]
+    ├─ [0] VM::deployCode("src/contracts/service/OptInService.sol:OptInService", 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f0000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000001b4f70657261746f724e6574776f726b4f7074496e536572766963650000000000)
+    │   ├─ [1230816] → new OptInService@0xF62849F9A0B5Bf2913b396098F7c7019b51A820a
+    │   │   └─ ← [Return] 6138 bytes of code
+    │   └─ ← [Return] OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a]
+    ├─ [0] VM::startPrank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Return]
+    ├─ [89480] OperatorRegistry::registerOperator()
+    │   ├─ emit AddEntity(entity: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Stop]
+    ├─ [0] VM::stopPrank()
+    │   └─ ← [Return]
+    ├─ [0] VM::startPrank(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Return]
+    ├─ [89502] NetworkRegistry::registerNetwork()
+    │   ├─ emit AddEntity(entity: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Stop]
+    ├─ [0] VM::stopPrank()
+    │   └─ ← [Return]
+    ├─ [0] VM::startPrank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Return]
+    ├─ [103862] OptInService::optIn(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   ├─ [2551] OperatorRegistry::isEntity(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6]) [staticcall]
+    │   │   └─ ← [Return] true
+    │   ├─ [2551] NetworkRegistry::isEntity(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e]) [staticcall]
+    │   │   └─ ← [Return] true
+    │   ├─ emit IncreaseNonce(who: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], where: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   ├─ emit OptIn(who: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], where: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Stop]
+    ├─ [0] VM::stopPrank()
+    │   └─ ← [Return]
+    ├─ [0] VM::warp(3500066648 [3.5e9])
+    │   └─ ← [Return]
+    ├─ [1683] OptInService::eip712Domain() [staticcall]
+    │   └─ ← [Return] 0x0f, "OperatorNetworkOptInService", "1", 1, OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a], 0x0000000000000000000000000000000000000000000000000000000000000000, []
+    ├─ [0] VM::sign("<pk>", 0x19551eda6a8da2712d89072db20482b658599d6bd2cb245d103edbae82325ded) [staticcall]
+    │   └─ ← [Return] 27, 0x30d8e3dbb9faecf4232e03479e22891f61932e997e096a82be4d5c8fc10f6450, 0x14370519b959454ee57ad93dba3710d9da40cefaca9f151c0dddf800df6e241e
+    ├─ [33205] OptInService::optOut(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 3500066648 [3.5e9], 0x30d8e3dbb9faecf4232e03479e22891f61932e997e096a82be4d5c8fc10f645014370519b959454ee57ad93dba3710d9da40cefaca9f151c0dddf800df6e241e1b)
+    │   ├─ [110] alice::1626ba7e(19551eda6a8da2712d89072db20482b658599d6bd2cb245d103edbae82325ded0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000004130d8e3dbb9faecf4232e03479e22891f61932e997e096a82be4d5c8fc10f645014370519b959454ee57ad93dba3710d9da40cefaca9f151c0dddf800df6e241e1b) [staticcall]
+    │   │   └─ ← [Revert] EvmError: Revert
+    │   └─ ← [Revert] InvalidSignature()
+    └─ ← [Revert] InvalidSignature()
+
+Backtrace:
+  at alice
+  at OptInService.optOut
+  at OperatorOptInServiceTest.test_OptOutWithSignature
+
+Suite result: FAILED. 10 passed; 2 failed; 0 skipped; finished in 171.13ms (170.37ms CPU time)
+
+Ran 1 test for test/common/Registry.t.sol:FactoryTest
+[PASS] test_Create() (gas: 304423)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 430.25µs (123.67µs CPU time)
+
+Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace256Test
+[PASS] testAt(uint48[],uint256[],uint32) (runs: 100, μ: 8653382, ~: 9411283)
+[PASS] testLatest(uint48[],uint256[]) (runs: 100, μ: 8031273, ~: 8598497)
+[PASS] testLatestCheckpoint(uint48[],uint256[]) (runs: 100, μ: 8050193, ~: 8618492)
+[PASS] testLength(uint48[],uint256[]) (runs: 100, μ: 7947113, ~: 8509763)
+[PASS] testLookup(uint48[],uint256[],uint48) (runs: 100, μ: 8369718, ~: 9217677)
+[PASS] testPop(uint48[],uint256[]) (runs: 100, μ: 7821566, ~: 8378655)
+[PASS] testPush(uint48[],uint256[],uint48) (runs: 100, μ: 8888937, ~: 9789714)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint256[],uint48) (runs: 100, μ: 8654234, ~: 9353400)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8029653, ~: 8404080)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8029006, ~: 8403382)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 3.02s (1.86s CPU time)
+
+Ran 1 test for test/VaultFactory.t.sol:VaultFactoryTest
+[PASS] test_Create() (gas: 977667)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 984.26ms (292.62ms CPU time)
+
+Ran 1 test for test/SlasherFactory.t.sol:SlasherFactoryTest
+[PASS] test_Create() (gas: 1417061)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.34s (621.12ms CPU time)
+
+Ran 1 test for test/DelegatorFactory.t.sol:DelegatorFactoryTest
+[PASS] test_Create() (gas: 1568892)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 3.07s (646.79ms CPU time)
+
+Ran 2 tests for test/libraries/ERC4626Math.t.sol:ERC4626MathTest
+[PASS] test_previewFunctionsBootstrapWithVirtualBalances() (gas: 4405)
+[PASS] test_previewFunctionsUseExpectedRounding() (gas: 4303)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 223.88µs (63.21µs CPU time)
+
+Ran 1 test for test/vault/common/ERC4626Math.t.sol:VaultCommonERC4626MathTest
+[FAIL: assertion failed: 6 != 2] test_PreviewMintRoundsUpWithVirtualBalances() (gas: 4293)
+Traces:
+  [4293] VaultCommonERC4626MathTest::test_PreviewMintRoundsUpWithVirtualBalances()
+    ├─ [0] VM::assertEq(6, 2) [staticcall]
+    │   └─ ← [Revert] assertion failed: 6 != 2
+    └─ ← [Revert] assertion failed: 6 != 2
+
+Backtrace:
+  at VM.assertEq
+  at VaultCommonERC4626MathTest.test_PreviewMintRoundsUpWithVirtualBalances
+
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 1.30ms (1.16ms CPU time)
+
+Ran 1 test for test/common/Entity.t.sol:EntityTest
+[PASS] test_Create() (gas: 1094859)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 372.30ms (371.95ms CPU time)
+
+Ran 7 tests for test/common/Factory.t.sol:FactoryTest
+[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 453889)
+[PASS] test_BlacklistRevertIinvalidType() (gas: 34539)
+[PASS] test_Create() (gas: 1028031)
+[PASS] test_CreateRevertInvalidIndex() (gas: 781312)
+[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 375152)
+[PASS] test_WhitelistRevertInvalidImplementation1() (gas: 305846)
+[PASS] test_WhitelistRevertInvalidImplementation2() (gas: 675971)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 186.11ms (185.67ms CPU time)
+
+Ran 2 tests for test/invariant/VaultInvariants.t.sol:VaultInvariantsTest
+[PASS] invariant_Totals() (runs: 1, calls: 8, reverts: 0)
+
+╭--------------+----------+-------+---------+----------╮
+| Contract     | Selector | Calls | Reverts | Discards |
++======================================================+
+| VaultHandler | claim    | 2     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | deposit  | 2     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | redeem   | 1     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | slash    | 1     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | withdraw | 2     | 0       | 0        |
+╰--------------+----------+-------+---------+----------╯
+
+[PASS] invariant_UserBalance() (runs: 1, calls: 8, reverts: 0)
+
+╭--------------+----------+-------+---------+----------╮
+| Contract     | Selector | Calls | Reverts | Discards |
++======================================================+
+| VaultHandler | claim    | 2     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | deposit  | 2     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | redeem   | 1     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | slash    | 1     | 0       | 0        |
+|--------------+----------+-------+---------+----------|
+| VaultHandler | withdraw | 2     | 0       | 0        |
+╰--------------+----------+-------+---------+----------╯
+
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 6.60s (1.91s CPU time)
+
+Ran 3 tests for test/integration/SymbioticCoreIntegrationExample.t.sol:SymbioticCoreIntegrationExample
+[PASS] test_Network() (gas: 3154181)
+Logs:
+  Network: 0x8C723B6ccC052cb6d3a7Be06025C8523c0B623Bd
+  Identifier: 0
+  Collateral: 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0
+  Network Vaults: 1
+  Confirmed Network Vaults: 1
+  Operators: 20
+  Confirmed Network Operators: 3
+  Confirmed Network Vault: 0x837D1A3EFebD7F39268BF20F070B531Ca9362E9E
+  Confirmed Network Operators: 3
+  Operator: 0x6880B692B02B3A371936A1D96B6aEB6E9355b4Ca
+  Stake: 16092931963518258664009
+  Operator: 0xaB8292098AF7386472D47F417c5b1552dA69D029
+  Stake: 16092931963518258664009
+  Operator: 0x96374191071a61a473fA79F4552E0112488a24BC
+  Stake: 16092931963518258664009
+
+[PASS] test_NetworkAdvanced() (gas: 135698122)
+Logs:
+  Network: 0x8C723B6ccC052cb6d3a7Be06025C8523c0B623Bd
+  Identifier: 0
+  Collateral: 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0
+  Network Vaults: 6
+  Confirmed Network Vaults: 4
+  Operators: 20
+  Confirmed Network Operators: 14
+  Confirmed Network Operators: 11
+  Confirmed Network Operators: 12
+  Confirmed Network Operators: 11
+  Confirmed Network Vault: 0x837D1A3EFebD7F39268BF20F070B531Ca9362E9E
+  Confirmed Network Operators: 14
+  Operator: 0xcecBF6Cc5c0523Ef83dDEB3DEc5247cd53807110
+  Stake: 16092931963518258664009
+  Operator: 0x5d688a44045450e7c9CEeF35249664b513Af7D2a
+  Stake: 16092931963518258664009
+  Operator: 0xb0D7cc79b25922371a7383E5c8ed7baC04656fB0
+  Stake: 16092931963518258664009
+  Operator: 0xBC9bA3d93bb33e1CFaB4b5F3E6a3c6ea3e9751dc
+  Stake: 16092931963518258664009
+  Operator: 0xCC03F380A161fCa336c83692bD2F62fA9904cF81
+  Stake: 16092931963518258664009
+  Operator: 0x596a38B62cb02899BD67C7bD847Da91E27b36eE0
+  Stake: 16092931963518258664009
+  Operator: 0x9E629bc9630737FF3D886C58D24C8147eFA6B141
+  Stake: 16092931963518258664009
+  Operator: 0x9E02354204E0103bEaa96Df5c613466aA7edCA02
+  Stake: 16092931963518258664009
+  Operator: 0xe426132370c7429e7A21D66b7Ca49C608047F93B
+  Stake: 16092931963518258664009
+  Operator: 0x45bBA2B6dd8867B9b45FA7F5A72C9ad2616ba778
+  Stake: 16092931963518258664009
+  Operator: 0xaB8292098AF7386472D47F417c5b1552dA69D029
+  Stake: 16092931963518258664009
+  Operator: 0x438bc2FD6569178e4Ed893906EF8f37a08698C73
+  Stake: 16092931963518258664009
+  Operator: 0x4d8C3b57886111d47F741eb9A685Be3986D28387
+  Stake: 16092931963518258664009
+  Operator: 0xE0853837c2709aF04eD8dF24f9e735b9EcE9f619
+  Stake: 16092931963518258664009
+  Confirmed Network Vault: 0x9569300D333504b62F17de7151A8778106BB8feE
+  Confirmed Network Operators: 11
+  Operator: 0x6880B692B02B3A371936A1D96B6aEB6E9355b4Ca
+  Stake: 31189569139709374989543
+  Operator: 0xb0D7cc79b25922371a7383E5c8ed7baC04656fB0
+  Stake: 31189569139709374989543
+  Operator: 0x596a38B62cb02899BD67C7bD847Da91E27b36eE0
+  Stake: 31189569139709374989543
+  Operator: 0x9eDE936E7c626F72D1fba93695982EB7913BEDd7
+  Stake: 31189569139709374989543
+  Operator: 0x9E629bc9630737FF3D886C58D24C8147eFA6B141
+  Stake: 31189569139709374989543
+  Operator: 0x9E02354204E0103bEaa96Df5c613466aA7edCA02
+  Stake: 31189569139709374989543
+  Operator: 0x45bBA2B6dd8867B9b45FA7F5A72C9ad2616ba778
+  Stake: 31189569139709374989543
+  Operator: 0xa743A5307e9E37c53B145C7FfAED04Fd80CFcFDf
+  Stake: 31189569139709374989543
+  Operator: 0x3792ed7B960FCe31484f2624322a4EC5bDCc498f
+  Stake: 31189569139709374989543
+  Operator: 0x438bc2FD6569178e4Ed893906EF8f37a08698C73
+  Stake: 31189569139709374989543
+  Operator: 0x96374191071a61a473fA79F4552E0112488a24BC
+  Stake: 31189569139709374989543
+  Confirmed Network Vault: 0xfafeE41ff376f47A38d730a44Bd0B57eCBF1B52C
+  Confirmed Network Operators: 12
+  Operator: 0x6880B692B02B3A371936A1D96B6aEB6E9355b4Ca
+  Stake: 31780384076768689188274
+  Operator: 0x5d688a44045450e7c9CEeF35249664b513Af7D2a
+  Stake: 31780384076768689188274
+  Operator: 0xb0D7cc79b25922371a7383E5c8ed7baC04656fB0
+  Stake: 31780384076768689188274
+  Operator: 0xBC9bA3d93bb33e1CFaB4b5F3E6a3c6ea3e9751dc
+  Stake: 31780384076768689188274
+  Operator: 0xCC03F380A161fCa336c83692bD2F62fA9904cF81
+  Stake: 31780384076768689188274
+  Operator: 0x85A40F51a504F6Cb692b354526eB96512FdD512b
+  Stake: 31780384076768689188274
+  Operator: 0x9E629bc9630737FF3D886C58D24C8147eFA6B141
+  Stake: 31780384076768689188274
+  Operator: 0xe426132370c7429e7A21D66b7Ca49C608047F93B
+  Stake: 31780384076768689188274
+  Operator: 0xa743A5307e9E37c53B145C7FfAED04Fd80CFcFDf
+  Stake: 31780384076768689188274
+  Operator: 0x3792ed7B960FCe31484f2624322a4EC5bDCc498f
+  Stake: 31780384076768689188274
+  Operator: 0x438bc2FD6569178e4Ed893906EF8f37a08698C73
+  Stake: 31780384076768689188274
+  Operator: 0x4d8C3b57886111d47F741eb9A685Be3986D28387
+  Stake: 31780384076768689188274
+  Confirmed Network Vault: 0x20268922898be5E428E6Ab66474E7029931E4Ddb
+  Confirmed Network Operators: 11
+  Operator: 0x5d688a44045450e7c9CEeF35249664b513Af7D2a
+  Stake: 11949219383374583449354
+  Operator: 0xb0D7cc79b25922371a7383E5c8ed7baC04656fB0
+  Stake: 11949219383374583449354
+  Operator: 0xCC03F380A161fCa336c83692bD2F62fA9904cF81
+  Stake: 11949219383374583449354
+  Operator: 0x596a38B62cb02899BD67C7bD847Da91E27b36eE0
+  Stake: 11949219383374583449354
+  Operator: 0x85A40F51a504F6Cb692b354526eB96512FdD512b
+  Stake: 11949219383374583449354
+  Operator: 0x9eDE936E7c626F72D1fba93695982EB7913BEDd7
+  Stake: 11949219383374583449354
+  Operator: 0x9E629bc9630737FF3D886C58D24C8147eFA6B141
+  Stake: 11949219383374583449354
+  Operator: 0x9E02354204E0103bEaa96Df5c613466aA7edCA02
+  Stake: 11949219383374583449354
+  Operator: 0xe426132370c7429e7A21D66b7Ca49C608047F93B
+  Stake: 11949219383374583449354
+  Operator: 0x45bBA2B6dd8867B9b45FA7F5A72C9ad2616ba778
+  Stake: 11949219383374583449354
+  Operator: 0x3792ed7B960FCe31484f2624322a4EC5bDCc498f
+  Stake: 11949219383374583449354
+  Confirmed Network Vault: 0x837D1A3EFebD7F39268BF20F070B531Ca9362E9E
+  Neighbor Networks: 4
+  Neighbor Network: 0x9baadc917ff56e4b59518649676208c974825364000000000000000000000000
+  Neighbor Network: 0xf6f5b53151ec3b32c6966858901c1fe685815b9d000000000000000000000000
+  Neighbor Network: 0xc8b8d2313e3655958140bc1dcb3fa0991f20d137000000000000000000000000
+  Neighbor Network: 0xc8b8d2313e3655958140bc1dcb3fa0991f20d137000000000000000000000001
+  Confirmed Network Vault: 0x9569300D333504b62F17de7151A8778106BB8feE
+  Neighbor Networks: 0
+  Confirmed Network Vault: 0xfafeE41ff376f47A38d730a44Bd0B57eCBF1B52C
+  Neighbor Networks: 0
+  Confirmed Network Vault: 0x20268922898be5E428E6Ab66474E7029931E4Ddb
+  Neighbor Networks: 0
+
+[PASS] test_Simple() (gas: 9681627)
+Logs:
+  Vault: 0xFb7136816E1119B344C9F11f0A10b37D521cd6D9
+  Vault: 0x50A19bE52bfDc7fBFC8651219BeE77C98d12ab08
+  Vault: 0x353C2539c5d508c47443e7B9361aBF837965017B
+  Vault: 0x20871db3b9a5ADCB09c1962000C0f8cC754A4630
+  Stake before new staker: 205352103463932365975
+  Total stake before new staker: 2568101292322814879321
+  Stake after new staker: 897997123048615803321
+  Total stake after new staker: 11230211589278252598196
+  User stake: 8662110296955437718875
+
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 5.17s (110.84ms CPU time)
+
+Ran 3 tests for test/service/MetadataService.t.sol:MetadataServiceTest
+[PASS] test_Create(string) (runs: 100, μ: 232190, ~: 251790)
+[PASS] test_SetMetadataURLRevertAlreadySet(string) (runs: 100, μ: 241934, ~: 261581)
+[PASS] test_SetMetadataURLRevertNotEntity(string) (runs: 100, μ: 60779, ~: 60835)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 48.97ms (48.61ms CPU time)
+
+Ran 5 tests for test/common/MigratableEntity.t.sol:MigratableEntityTest
+[PASS] test_Create() (gas: 1076772)
+[PASS] test_DefaultInitializeAndMigrateHooksDoNotRevert() (gas: 635683)
+[PASS] test_Migrate(uint256,uint256,uint256,uint256) (runs: 100, μ: 2627329, ~: 2627483)
+[PASS] test_MigrateRevertNotFactory() (gas: 1777738)
+[PASS] test_ReinitRevertAlreadyInitialized() (gas: 1705654)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 35.62ms (35.26ms CPU time)
+
+Ran 1 test for test/common/MigratableEntityProxy.t.sol:MigratableEntityProxyTest
+[PASS] test_MigrateRevertProxyDeniedAdminAccess() (gas: 1742459)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 532.17µs (194.12µs CPU time)
+
+Ran 1 test for test/POC.t.sol:POCTest
+[PASS] test_POC() (gas: 450)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.60s (56.00µs CPU time)
+
+Ran 12 tests for test/hints/Hints.t.sol:HintsTest
+[PASS] test_baseDelegatorDispatchesFullRestakeHints() (gas: 116768)
+[PASS] test_baseDelegatorDispatchesNetworkRestakeHints() (gas: 131676)
+[PASS] test_baseDelegatorDispatchesOperatorNetworkSpecificHints() (gas: 102915)
+[PASS] test_baseDelegatorDispatchesOperatorSpecificHints() (gas: 101958)
+[PASS] test_directDelegatorHintReadersAndLateBranchEvaluation() (gas: 4557571)
+[PASS] test_directSlasherHintReadersReturnEncodedCheckpoints() (gas: 63738)
+[PASS] test_hints_selfStaticDelegateCallCoversSuccessAndReverts() (gas: 78911)
+[PASS] test_optInServiceHintReturnsEncodedCheckpoint() (gas: 54813)
+[PASS] test_slasherHintsWrapSlashableStakeHints() (gas: 460589)
+[PASS] test_subnetworkHelpersRoundTrip() (gas: 2789)
+[PASS] test_vaultHintsReturnEncodedCheckpoints() (gas: 158551)
+[PASS] test_vetoSlasherHintBuildersReturnEncodedCheckpoints() (gas: 435471)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 3.17s (1.19s CPU time)

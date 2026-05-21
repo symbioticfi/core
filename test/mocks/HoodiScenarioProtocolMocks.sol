@@ -9,7 +9,6 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapterRegistry} from "../../src/interfaces/IAdapterRegistry.sol";
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
 import {MockMorphoVault} from "./MockMorphoVault.sol";
@@ -77,7 +76,7 @@ contract MockMorphoVaultFactoryUpgradeable is Initializable {
     }
 }
 
-contract MockMorphoAdapterRegistryUpgradeable is Initializable, Registry, OwnableUpgradeable, IAdapterRegistry {
+contract MockMorphoAdapterRegistryUpgradeable is Initializable, OwnableUpgradeable, IAdapterRegistry {
     mapping(address vault => mapping(address adapterFactory => bool)) public isWhitelisted;
 
     function initialize(address owner_) external initializer {
@@ -86,7 +85,6 @@ contract MockMorphoAdapterRegistryUpgradeable is Initializable, Registry, Ownabl
 
     function whitelist(address vault, address adapterFactory) external onlyOwner {
         isWhitelisted[vault][adapterFactory] = true;
-        _addEntity(adapterFactory);
 
         emit Whitelist(vault, adapterFactory);
     }

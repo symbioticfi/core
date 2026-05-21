@@ -49,11 +49,6 @@ interface IWithdrawalQueue is IERC721Metadata {
     /* ERRORS */
 
     /**
-     * @notice Reverts when a request is made with zero shares.
-     */
-    error ZeroShares();
-
-    /**
      * @notice Reverts when a request is made by a non-vault account.
      */
     error NotVault();
@@ -62,6 +57,11 @@ interface IWithdrawalQueue is IERC721Metadata {
     //  * @notice Reverts when there are no rewards to claim.
     //  */
     // error NoRewardsToClaim();
+
+    /**
+     * @notice Reverts when a request is made with zero shares.
+     */
+    error ZeroShares();
 
     /* EVENTS */
 

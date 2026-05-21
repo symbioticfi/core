@@ -16,14 +16,14 @@ interface IAppAdapter is IAdapter {
     error InsufficientSlash();
 
     /**
-     * @notice Raised when the configured subnetwork or operator is invalid.
-     */
-    error InvalidNetOrOp();
-
-    /**
      * @notice Raised when the configured duration is invalid.
      */
     error InvalidDuration();
+
+    /**
+     * @notice Raised when the configured subnetwork or operator is invalid.
+     */
+    error InvalidNetOrOp();
 
     /**
      * @notice Raised when a slash needs a burner but the vault has none.
