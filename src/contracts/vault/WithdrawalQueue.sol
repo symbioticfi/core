@@ -146,8 +146,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function fill(uint256 amount) public {
-        amount = Math.min(amount, pendingAssets());
+    function fill() public {
+        uint256 amount = pendingAssets();
         if (amount == 0) {
             return;
         }
@@ -155,7 +155,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         VaultV2(vault).accrueInterest();
 
         UniversalDelegator(VaultV2(vault).delegator()).sync();
-        amount = Math.min(amount, IERC20(IERC4626(vault).asset()).balanceOf(vault));
+        amount = Math.min(amount, IERC4626(vault).maxWithdraw(address(this)));
         uint256 shares = IERC4626(vault).previewWithdraw(amount);
         if (shares == 0) {
             return;

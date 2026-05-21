@@ -33,5 +33,4 @@ interface IAdapterBase {
      * @dev Must not revert.
      */
     function deallocate(uint256 amount) external returns (uint256);
-
 }

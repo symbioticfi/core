@@ -12,11 +12,14 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapterRegistry} from "../../src/interfaces/IAdapterRegistry.sol";
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
-import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
 import {MockMorphoVault} from "./MockMorphoVault.sol";
 
 interface IVaultDonateHoodiScenario {
     function donate(uint256 amount) external;
+}
+
+interface IVaultCollateralHoodiScenario {
+    function collateral() external view returns (address);
 }
 
 contract MockCuratorRegistry {
@@ -79,12 +82,16 @@ contract MockMorphoAdapterRegistryUpgradeable is Initializable, Registry, Ownabl
         __Ownable_init(owner_);
     }
 
-    function whitelistAdapter(address adapter) external onlyOwner {
-        if (isEntity(adapter)) {
-            revert AdapterAlreadyWhitelisted();
+    function whitelistAdapterFactory(address adapterFactory) external onlyOwner {
+        if (isEntity(adapterFactory)) {
+            revert AdapterFactoryAlreadyWhitelisted();
         }
 
-        _addEntity(adapter);
+        _addEntity(adapterFactory);
+    }
+
+    function isWhitelisted(address, address adapterFactory) external view returns (bool status) {
+        return isEntity(adapterFactory);
     }
 }
 
@@ -110,7 +117,7 @@ contract MockRewardsDistributor is IRewards, ReentrancyGuard {
         lastDonationAmount = amount;
 
         if (pullIntoVault) {
-            IERC20 collateral = IERC20(IVaultV2Storage(vault).collateral());
+            IERC20 collateral = IERC20(IVaultCollateralHoodiScenario(vault).collateral());
             if (!collateral.transferFrom(msg.sender, address(this), amount)) {
                 revert();
             }

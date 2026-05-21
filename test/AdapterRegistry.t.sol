@@ -16,27 +16,28 @@ contract AdapterRegistryTest is Test {
         owner = makeAddr("owner");
         alice = makeAddr("alice");
         adapter = makeAddr("adapter");
-        registry = new AdapterRegistry(owner);
+        registry = new AdapterRegistry();
+        registry.initialize(owner);
     }
 
-    function test_whitelistAdapter() public {
+    function test_whitelistAdapterFactory() public {
         vm.prank(owner);
-        registry.whitelistAdapter(adapter);
+        registry.whitelistAdapterFactory(adapter);
 
         assertTrue(registry.isEntity(adapter));
     }
 
-    function test_whitelistAdapterRevertAdapterAlreadyWhitelisted() public {
+    function test_whitelistAdapterFactoryRevertAdapterAlreadyWhitelisted() public {
         vm.startPrank(owner);
-        registry.whitelistAdapter(adapter);
-        vm.expectRevert(IAdapterRegistry.AdapterAlreadyWhitelisted.selector);
-        registry.whitelistAdapter(adapter);
+        registry.whitelistAdapterFactory(adapter);
+        vm.expectRevert(IAdapterRegistry.AdapterFactoryAlreadyWhitelisted.selector);
+        registry.whitelistAdapterFactory(adapter);
         vm.stopPrank();
     }
 
-    function test_whitelistAdapterRevertNotOwner() public {
+    function test_whitelistAdapterFactoryRevertNotOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        registry.whitelistAdapter(adapter);
+        registry.whitelistAdapterFactory(adapter);
     }
 }

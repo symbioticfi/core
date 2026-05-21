@@ -11,8 +11,8 @@ contract DeallocateAdapterBaseScript is ScriptBase {
         virtual
         returns (bytes memory data, address target)
     {
-        target = vault;
-        data = abi.encodeCall(IVaultV2.deallocateAdapter, (adapter, amount));
+        target = IVaultV2(vault).delegator();
+        data = abi.encodeWithSignature("deallocate(address,uint256)", adapter, amount);
         sendTransaction(target, data);
 
         Logs.log(

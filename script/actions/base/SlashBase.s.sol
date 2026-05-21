@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IVault} from "../../../src/interfaces/vault/IVault.sol";
-import {IUniversalSlasher} from "../../../src/interfaces/slasher/IUniversalSlasher.sol";
+import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {ScriptBase} from "../../utils/ScriptBase.s.sol";
 
@@ -13,7 +13,7 @@ contract SlashBaseScript is ScriptBase {
         returns (bytes memory data, address target)
     {
         target = IVault(vault).slasher();
-        data = abi.encodeCall(IUniversalSlasher.slash, (subnetwork, operator, amount, 0, new bytes(0)));
+        data = abi.encodeCall(ISlasher.slash, (subnetwork, operator, amount, 0, new bytes(0)));
         sendTransaction(target, data);
 
         Logs.log(

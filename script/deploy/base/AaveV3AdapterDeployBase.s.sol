@@ -54,9 +54,8 @@ contract AaveV3AdapterDeployBaseScript is Script {
         address broadcaster = _scriptOwner();
 
         adapterFactory = address(new AdapterFactory(broadcaster));
-        adapterImplementation = address(
-            new AaveV3Adapter(adapterFactory, params.aavePool, params.curatorRegistry, params.rewards, vaultFactory)
-        );
+        adapterImplementation =
+            address(new AaveV3Adapter(params.aavePool, vaultFactory, adapterFactory, params.curatorRegistry));
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
 
         if (params.adapterFactoryOwner != broadcaster) {

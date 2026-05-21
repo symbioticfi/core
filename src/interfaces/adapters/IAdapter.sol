@@ -74,5 +74,4 @@ interface IAdapter is IMigratableEntity {
      * @param amount Amount of collateral requested for delayed deallocation.
      */
     function requestDeallocate(uint256 amount) external;
-
 }

@@ -5,8 +5,9 @@ import "./base/DeallocateAdaptersBase.s.sol";
 
 contract DeallocateAdaptersScript is DeallocateAdaptersBaseScript {
     address constant VAULT = 0x0000000000000000000000000000000000000000;
+    uint256 constant AMOUNT = 0;
 
     function run() public {
-        runBase(VAULT);
+        runBase(VAULT, AMOUNT);
     }
 }

@@ -269,6 +269,16 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         );
     }
 
+    /// @inheritdoc ERC4626Upgradeable
+    function maxWithdraw(address owner) public view override returns (uint256) {
+        return Math.min(super.maxWithdraw(owner), IERC20(asset()).balanceOf(address(this)));
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxRedeem(address owner) public view override returns (uint256) {
+        return previewWithdraw(maxWithdraw(owner));
+    }
+
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
@@ -331,7 +341,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         if (delegator != msg.sender) {
             revert NotDelegator();
         }
+        accrueInterest();
 
+        _fillWithdrawalQueue();
         IERC20(asset()).safeTransfer(receiver, assets);
 
         emit Pull(assets, receiver);
@@ -344,7 +356,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         }
 
         IERC20(asset()).safeTransferFrom(owner, address(this), assets);
-        _fillWithdrawalQueue(assets);
+        _fillWithdrawalQueue();
 
         emit Push(assets, owner);
     }
@@ -366,7 +378,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         super._deposit(caller, receiver, assets, shares);
         _totalAssets += assets;
 
-        _fillWithdrawalQueue(assets);
+        _fillWithdrawalQueue();
 
         UniversalDelegator(delegator).onDeposit(caller, receiver, assets, shares);
     }
@@ -379,6 +391,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         if (withdrawalQueue != msg.sender) {
             revert NotWithdrawalQueue();
         }
+        accrueInterest();
 
         _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
@@ -503,8 +516,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @dev Fill pending withdrawal queue requests with currently free assets.
-    function _fillWithdrawalQueue(uint256 assets) internal {
-        WithdrawalQueue(withdrawalQueue).fill(assets);
+    function _fillWithdrawalQueue() internal {
+        WithdrawalQueue(withdrawalQueue).fill();
     }
 
     /// @inheritdoc ERC4626Upgradeable

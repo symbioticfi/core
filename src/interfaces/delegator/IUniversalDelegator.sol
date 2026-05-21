@@ -310,5 +310,4 @@ interface IUniversalDelegator {
      * @dev Only the vault can call this function.
      */
     function onDeposit(address caller, address receiver, uint256 assets, uint256 shares) external;
-
 }

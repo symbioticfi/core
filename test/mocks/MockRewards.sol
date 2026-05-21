@@ -5,10 +5,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
-import {IVaultV2Storage} from "../../src/interfaces/vault/IVaultV2Storage.sol";
 
 interface IVaultDonate {
     function donate(uint256 amount) external;
+}
+
+interface IVaultCollateral {
+    function collateral() external view returns (address);
 }
 
 contract MockRewards is IRewards, ReentrancyGuard {
@@ -19,7 +22,7 @@ contract MockRewards is IRewards, ReentrancyGuard {
     uint256 public lastDonationAmount;
 
     function donate(address vault, uint256 amount) external nonReentrant {
-        IERC20 collateral = IERC20(IVaultV2Storage(vault).collateral());
+        IERC20 collateral = IERC20(IVaultCollateral(vault).collateral());
         if (!collateral.transferFrom(msg.sender, address(this), amount)) {
             revert();
         }
