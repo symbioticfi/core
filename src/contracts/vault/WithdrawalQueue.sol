@@ -119,11 +119,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         VaultV2(vault).accrueInterest();
 
-        shares = Math.min(shares, IERC4626(vault).maxRedeem(address(this)));
-        if (shares == 0) {
-            return;
-        }
-
         // if share price has changed, update the checkpoint
         uint256 totalShares = IERC4626(vault).totalSupply();
         uint256 totalAssets = IERC4626(vault).totalAssets();
