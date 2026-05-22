@@ -113,11 +113,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function freeAssets() public view returns (uint256) {
-        return IERC20(VaultV2(vault).asset()).balanceOf(vault);
-    }
-
-    /// @inheritdoc IUniversalDelegator
     function limitOf(address adapter) public view returns (uint256) {
         return Math.min(absoluteLimitOf[adapter], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[adapter], MAX_SHARE));
     }
@@ -132,12 +127,20 @@ contract UniversalDelegator is
         uint256 toAllocate = limit.saturatingSub(IAdapter(adapter).totalAssets());
 
         // apply free assets
-        toAllocate = Math.min(toAllocate, freeAssets());
+        toAllocate = Math.min(toAllocate, VaultV2(vault).freeAssets());
 
         // apply adapter limit
         toAllocate = Math.min(toAllocate, IAdapter(adapter).allocatable());
 
         return toAllocate;
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function deallocatable() public returns (uint256 amount) {
+        (, bytes memory returnData) = address(this).call(abi.encodeCall(this.__deallocateAll, ()));
+        assembly {
+            amount := mload(add(returnData, 0x20))
+        }
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -417,7 +420,7 @@ contract UniversalDelegator is
 
     function _sweepPending() internal returns (uint256 pendingAssets) {
         address queue = VaultV2(vault).withdrawalQueue();
-        _deallocateAll(WithdrawalQueue(queue).pendingAssets().saturatingSub(freeAssets()));
+        _deallocateAll(WithdrawalQueue(queue).pendingAssets().saturatingSub(VaultV2(vault).freeAssets()));
         WithdrawalQueue(queue).fill();
         pendingAssets = WithdrawalQueue(queue).pendingAssets();
 
@@ -451,21 +454,20 @@ contract UniversalDelegator is
         }
     }
 
-    function _allocateAll(uint256 assets) internal returns (uint256 totalAllocated) {
+    function _allocateAll(uint256 assets) internal returns (uint256 allocated) {
         for (uint256 i; i < autoAllocateAdapters.length && assets > 0; ++i) {
-            uint256 allocated = _allocate(autoAllocateAdapters[i], assets);
-            totalAllocated += allocated;
-            assets -= allocated;
+            uint256 curAllocated = _allocate(autoAllocateAdapters[i], assets);
+            allocated += curAllocated;
+            assets -= curAllocated;
         }
     }
 
-    function _deallocateAll(uint256 assets) internal returns (uint256 totalDeallocated) {
+    function _deallocateAll(uint256 assets) internal returns (uint256 deallocated) {
         for (uint256 i; i < adapters.length && assets > 0; ++i) {
-            uint256 deallocated = _deallocate(adapters[i], assets);
-            totalDeallocated += deallocated;
-            assets -= deallocated;
+            uint256 curDeallocated = _deallocate(adapters[i], assets);
+            deallocated += curDeallocated;
+            assets -= curDeallocated;
         }
-        return totalDeallocated;
     }
 
     /// @dev Allocate vault collateral to an adapter.
@@ -517,5 +519,17 @@ contract UniversalDelegator is
             revert InvalidRole();
         }
         return super._revokeRole(role, account);
+    }
+
+    /// @dev Internal self-call target used by deallocatable().
+    function __deallocateAll() public {
+        if (address(this) != msg.sender) {
+            revert NotSelf();
+        }
+        uint256 deallocated = _deallocateAll(type(uint256).max);
+        assembly {
+            mstore(0x00, deallocated)
+            revert(0x00, 0x20)
+        }
     }
 }

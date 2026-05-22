@@ -42,24 +42,20 @@ interface IAppAdapter is IAdapter {
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Operator address.
      * @param duration Stake checkpoint lookahead duration.
-     * @param isBurnerHook Whether to require a burner during initialization.
      */
     struct InitParams {
         bytes32 subnetwork;
         address operator;
         uint48 duration;
-        bool isBurnerHook;
     }
 
     /* EVENTS */
 
     /**
      * @notice Emitted when stake is slashed.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
      * @param amount Slashed amount.
      */
-    event Slash(bytes32 indexed subnetwork, address indexed operator, uint256 amount);
+    event Slash(uint256 amount);
 
     /**
      * @notice Emitted when the adapter is initialized.
@@ -117,15 +113,13 @@ interface IAppAdapter is IAdapter {
 
     /**
      * @notice Slash the configured pair.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
      * @param amount Maximum amount to slash.
      * @param captureTimestamp Capture timestamp, or zero for current stake.
      * @param data Extra slash data.
      * @return slashedAmount Amount slashed.
-     * @dev Only the network middleware can call this function.
+     * @dev Only the configured network middleware can call this function.
      */
-    function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata data)
+    function slash(uint256 amount, uint48 captureTimestamp, bytes calldata data)
         external
         returns (uint256 slashedAmount);
 }

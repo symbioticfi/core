@@ -60,9 +60,25 @@ interface IUniversalDelegator {
     error NotVault();
 
     /**
+     * @notice Raised when a function can only be called by the contract itself.
+     */
+    error NotSelf();
+
+    /**
      * @notice Raised when the connected vault version is older than required.
      */
     error OldVault();
+
+    /**
+     * @notice Internal sentinel used to return simulated deallocation through a revert.
+     * @param amount Simulated deallocated amount.
+     */
+    error SimulatedDeallocate(uint256 amount);
+
+    /**
+     * @notice Raised if the self-call simulation unexpectedly returns normally.
+     */
+    error UnexpectedSimulationSuccess();
 
     /**
      * @notice Raised when adding an adapter would exceed MAX_ADAPTERS.
@@ -183,10 +199,11 @@ interface IUniversalDelegator {
     function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get liquid assets held by the connected vault.
-     * @return assets Free vault assets.
+     * @notice Simulate the amount that can be deallocated immediately through the configured route.
+     * @dev Intentionally non-view because it uses a reverting self-call to roll back adapter state changes.
+     * @return amount Simulated deallocated amount.
      */
-    function freeAssets() external view returns (uint256 assets);
+    function deallocatable() external returns (uint256 amount);
 
     /**
      * @notice Get the total number of unique adapter indexes assigned.
@@ -221,6 +238,13 @@ interface IUniversalDelegator {
      * @return limit Share limit scaled by MAX_SHARE.
      */
     function shareLimitOf(address adapter) external view returns (uint256 limit);
+
+    /**
+     * @notice Get an adapter's limit.
+     * @param adapter Adapter address.
+     * @return limit Limit.
+     */
+    function limitOf(address adapter) external view returns (uint256 limit);
 
     /**
      * @notice Get an adapter at an ordered position.

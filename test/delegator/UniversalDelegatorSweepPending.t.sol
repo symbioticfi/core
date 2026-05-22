@@ -136,6 +136,38 @@ contract UniversalDelegatorSweepAdapter {
     }
 }
 
+error UniversalDelegatorSweepAdapterBoom();
+
+contract UniversalDelegatorSweepRevertingAdapter {
+    address public immutable FACTORY;
+    address public immutable vault;
+    uint256 public totalAssets;
+
+    constructor(address factory, address vault_, uint256 totalAssets_) {
+        FACTORY = factory;
+        vault = vault_;
+        totalAssets = totalAssets_;
+    }
+
+    function allocatable() external pure returns (uint256) {
+        return 0;
+    }
+
+    function deallocatable() external view returns (uint256) {
+        return totalAssets;
+    }
+
+    function allocate(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function deallocate(uint256) external pure returns (uint256) {
+        revert UniversalDelegatorSweepAdapterBoom();
+    }
+
+    function requestDeallocate(uint256) external {}
+}
+
 contract UniversalDelegatorSweepPendingTest is Test {
     UniversalDelegatorAdapterFactoryMock internal adapterFactory;
     UniversalDelegatorAdapterRegistryMock internal adapterRegistry;
@@ -233,6 +265,43 @@ contract UniversalDelegatorSweepPendingTest is Test {
         route[1] = address(adapter);
         vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
         delegator.setAutoAllocateAdapters(route);
+    }
+
+    function test_DeallocatableSimulatesFullDeallocationWithoutMutatingState() public {
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(0));
+        delegator.setVault(address(vault));
+        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
+
+        UniversalDelegatorSweepAdapter adapter1 = _newAdapter(100, 40);
+        UniversalDelegatorSweepAdapter adapter2 = _newAdapter(80, 25);
+        delegator.addAdapterForTest(address(adapter1));
+        delegator.addAdapterForTest(address(adapter2));
+
+        assertEq(delegator.deallocatable(), 65);
+        assertEq(adapter1.totalAssets(), 100);
+        assertEq(adapter2.totalAssets(), 80);
+        assertEq(adapter1.lastDeallocateAmount(), 0);
+        assertEq(adapter2.lastDeallocateAmount(), 0);
+        assertEq(vault.pushedAssets(), 0);
+    }
+
+    function test_DeallocateAllRevertsUnlessCalledBySelf() public {
+        vm.expectRevert(IUniversalDelegator.NotSelf.selector);
+        delegator.__deallocateAll();
+    }
+
+    function test_DeallocatableBubblesUnexpectedAdapterRevert() public {
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(0));
+        delegator.setVault(address(vault));
+        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
+
+        UniversalDelegatorSweepRevertingAdapter adapter =
+            new UniversalDelegatorSweepRevertingAdapter(address(adapterFactory), address(vault), 100);
+        adapterFactory.setEntity(address(adapter), true);
+        delegator.addAdapterForTest(address(adapter));
+
+        vm.expectRevert(UniversalDelegatorSweepAdapterBoom.selector);
+        delegator.deallocatable();
     }
 
     function test_AddAdapterRevertsIfAdapterVaultDoesNotMatchDelegatorVault() public {

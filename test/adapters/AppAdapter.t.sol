@@ -51,15 +51,7 @@ contract AppAdapterTest is Test {
             new AppAdapter(address(vaultFactory), address(factory), address(0), address(networkMiddlewareService));
         factory.whitelist(address(implementation));
 
-        bytes memory initData = abi.encode(
-            address(vault),
-            abi.encode(
-                IAppAdapter.InitParams({
-                    subnetwork: subnetwork, operator: operator, duration: duration, isBurnerHook: false
-                })
-            )
-        );
-        adapter = IAppAdapter(factory.create(1, curator, initData));
+        adapter = _createAdapter();
     }
 
     function test_StakeUsesDurationShiftedCheckpoint() public {
@@ -100,10 +92,74 @@ contract AppAdapterTest is Test {
         assertEq(adapter.stake(), 60);
     }
 
-    function _allocate(uint256 amount) internal {
-        collateral.transfer(address(adapter), amount);
+    function test_SlashRejectsCallerOutsideConfiguredNetworkMiddleware() public {
+        _allocate(100);
 
-        delegator.allocate(address(adapter), amount);
+        address otherNetwork = makeAddr("otherNetwork");
+        address otherMiddleware = makeAddr("otherMiddleware");
+        networkMiddlewareService.setMiddleware(otherNetwork, otherMiddleware);
+
+        vm.expectRevert(IAppAdapter.NotNetworkMiddleware.selector);
+        vm.prank(otherMiddleware);
+        adapter.slash(100, uint48(block.timestamp), "");
+    }
+
+    function test_SlashUsesConfiguredPairAndReturnsSlashedAmount() public {
+        _allocate(100);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Slash(40);
+
+        vm.prank(networkMiddleware);
+        uint256 slashedAmount = adapter.slash(40, uint48(block.timestamp), "");
+
+        assertEq(slashedAmount, 40);
+        assertEq(adapter.totalAssets(), 60);
+        assertEq(adapter.slashable(), 60);
+        assertEq(collateral.balanceOf(burner), 40);
+    }
+
+    function test_SlashTransfersToBurnerWithoutCallback() public {
+        AppAdapterBurnerMock burnerMock = new AppAdapterBurnerMock();
+        vault.setBurner(address(burnerMock));
+        _allocate(100);
+
+        vm.prank(networkMiddleware);
+        adapter.slash(40, uint48(block.timestamp), "");
+
+        assertEq(burnerMock.calls(), 0);
+        assertEq(collateral.balanceOf(address(burnerMock)), 40);
+    }
+
+    function test_ZeroStateViewsReturnZeroAndSlashRevertsInsufficientSlash() public {
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.deallocatable(), 0);
+
+        vm.expectRevert(IAppAdapter.InsufficientSlash.selector);
+        vm.prank(networkMiddleware);
+        adapter.slash(1, uint48(block.timestamp), "");
+    }
+
+    function _allocate(uint256 amount) internal {
+        _allocate(adapter, amount);
+    }
+
+    function _allocate(IAppAdapter targetAdapter, uint256 amount) internal {
+        collateral.transfer(address(targetAdapter), amount);
+
+        delegator.allocate(address(targetAdapter), amount);
+    }
+
+    function _createAdapter() internal returns (IAppAdapter) {
+        return IAppAdapter(factory.create(1, curator, _initData()));
+    }
+
+    function _initData() internal view returns (bytes memory) {
+        return abi.encode(
+            address(vault),
+            abi.encode(IAppAdapter.InitParams({subnetwork: subnetwork, operator: operator, duration: duration}))
+        );
     }
 }
 
@@ -128,6 +184,10 @@ contract AppAdapterDelegatorMock {
 
     function sync(address adapter) external {
         IAdapter(adapter).requestDeallocate(0);
+    }
+
+    function limitOf(address adapter) external view returns (uint256) {
+        return IAdapter(adapter).totalAssets();
     }
 }
 
@@ -159,5 +219,21 @@ contract AppAdapterVaultMock {
 
     function asset() external view returns (address) {
         return collateral;
+    }
+}
+
+contract AppAdapterBurnerMock {
+    uint256 public calls;
+    bytes32 public lastSubnetwork;
+    address public lastOperator;
+    uint256 public lastAmount;
+    uint48 public lastCaptureTimestamp;
+
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) external {
+        ++calls;
+        lastSubnetwork = subnetwork;
+        lastOperator = operator;
+        lastAmount = amount;
+        lastCaptureTimestamp = captureTimestamp;
     }
 }

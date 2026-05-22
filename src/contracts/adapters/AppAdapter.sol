@@ -8,7 +8,7 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
-import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
@@ -92,6 +92,9 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @dev Returns slashable stake at a timestamp.
     function _slashableAt(uint48 timestamp) internal view returns (uint256) {
+        if (_stakes.length == 0) {
+            return 0;
+        }
         Stake storage curStake = _stakes[_timestampToStake.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(timestamp));
@@ -99,6 +102,9 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @dev Returns guaranteed stake at a timestamp.
     function _stakeAt(uint48 timestamp) internal view returns (uint256) {
+        if (_stakes.length == 0) {
+            return 0;
+        }
         Stake storage curStake = _stakes[_timestampToStake.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(timestamp + duration));
@@ -107,11 +113,10 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(bytes32 subnetwork_, address operator_, uint256 amount, uint48 captureTimestamp, bytes calldata)
-        public
-        returns (uint256 slashedAmount)
-    {
-        _checkNetworkMiddleware(subnetwork_);
+    function slash(uint256 amount) public returns (uint256 slashedAmount) {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
+            revert NotNetworkMiddleware();
+        }
 
         slashedAmount = Math.min(amount, slashable());
         if (slashedAmount == 0) {
@@ -128,11 +133,10 @@ contract AppAdapter is Adapter, IAppAdapter {
 
         _timestampTotalAssets.push(uint48(block.timestamp), _timestampTotalAssets.latest() - slashedAmount);
 
-        // idk what is this
+        // Send slashed collateral to the vault burner.
         IERC20(IVaultV2(vault).asset()).safeTransfer(burner, slashedAmount);
-        _burnerOnSlash(subnetwork_, operator_, slashedAmount, captureTimestamp);
 
-        emit Slash(subnetwork_, operator_, slashedAmount);
+        emit Slash(slashedAmount);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
@@ -152,11 +156,13 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @dev Requests delayed deallocation debt accounting.
     function _requestDeallocate(uint256 amount) internal override {
-        uint256 curTotalAssets = totalAssets();
         uint256 curSlashable = slashable();
 
         // it means the debt was somehow reduced and we can reset stake/debt/slashed
-        if (UniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)) - amount >= curSlashable) {
+        if (
+            IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)).saturatingSub(amount)
+                >= curSlashable
+        ) {
             Stake storage newStake = _stakes.push();
             newStake.initialStake = curSlashable;
             _timestampToStake.push(uint48(block.timestamp), uint208(_stakes.length - 1));
@@ -195,32 +201,10 @@ contract AppAdapter is Adapter, IAppAdapter {
         if (params.duration == 0) {
             revert InvalidDuration();
         }
-        if (params.isBurnerHook && IVaultV2(vault).burner() == address(0)) {
-            revert NoBurner();
-        }
-
         subnetwork = params.subnetwork;
         operator = params.operator;
         duration = params.duration;
 
         emit Initialize(params);
-    }
-
-    /// @dev Reverts unless the caller is the network middleware for the subnetwork.
-    function _checkNetworkMiddleware(bytes32 subnetwork_) internal view {
-        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork_.network()) != msg.sender) {
-            revert NotNetworkMiddleware();
-        }
-    }
-
-    /// @dev Calls the burner hook after a slash when hook mode is enabled.
-    function _burnerOnSlash(bytes32 subnetwork_, address operator_, uint256 amount, uint48 captureTimestamp) internal {
-        address burner = IVaultV2(vault).burner();
-        bytes memory burnerCalldata =
-            abi.encodeCall(IBurner.onSlash, (subnetwork_, operator_, amount, captureTimestamp));
-
-        assembly ("memory-safe") {
-            pop(call(gas(), burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
-        }
     }
 }

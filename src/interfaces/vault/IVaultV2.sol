@@ -124,14 +124,11 @@ interface IVaultV2 is IMigratableEntity, IERC4626 {
 
     /**
      * @notice Emitted when fee shares are accrued.
-     * @param previousTotalAssets Total assets before the accounting update.
      * @param newTotalAssets Total assets after the accounting update.
      * @param performanceFeeShares Shares minted to the performance fee recipient.
      * @param managementFeeShares Shares minted to the management fee recipient.
      */
-    event AccrueInterest(
-        uint256 previousTotalAssets, uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares
-    );
+    event AccrueInterest(uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares);
 
     /**
      * @notice Emitted when the delegator pulls liquid collateral out of the vault.

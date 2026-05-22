@@ -282,26 +282,19 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @inheritdoc IVaultV2
     function accrueInterest() public returns (uint256 performanceFeeShares, uint256 managementFeeShares) {
-        uint256 previousTotalAssets = _totalAssets;
-        uint256 newTotalAssets;
-        (newTotalAssets, performanceFeeShares, managementFeeShares) = getAccrueInterest();
+        (_totalAssets, performanceFeeShares, managementFeeShares) = getAccrueInterest();
 
-        address feeRegistry = FEE_REGISTRY;
-        address performanceFeeRecipient_ = IFeeRegistry(feeRegistry).getPerformanceFeeRecipient(address(this));
-        address managementFeeRecipient_ = IFeeRegistry(feeRegistry).getManagementFeeRecipient(address(this));
-
-        _totalAssets = newTotalAssets;
         lastUpdate = uint48(block.timestamp);
-        lastPerformanceFee = uint96(IFeeRegistry(feeRegistry).getPerformanceFee(address(this)));
-        lastManagementFee = uint96(IFeeRegistry(feeRegistry).getManagementFee(address(this)));
+        lastPerformanceFee = uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
+        lastManagementFee = uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
         if (performanceFeeShares > 0) {
-            _mint(performanceFeeRecipient_, performanceFeeShares);
+            _mint(IFeeRegistry(FEE_REGISTRY).getPerformanceFeeRecipient(address(this)), performanceFeeShares);
         }
         if (managementFeeShares > 0) {
-            _mint(managementFeeRecipient_, managementFeeShares);
+            _mint(IFeeRegistry(FEE_REGISTRY).getManagementFeeRecipient(address(this)), managementFeeShares);
         }
 
-        emit AccrueInterest(previousTotalAssets, newTotalAssets, performanceFeeShares, managementFeeShares);
+        emit AccrueInterest(_totalAssets, performanceFeeShares, managementFeeShares);
     }
 
     /// @inheritdoc IVaultV2
