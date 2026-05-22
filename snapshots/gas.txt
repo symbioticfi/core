@@ -1,50 +1,103 @@
 No files changed, compilation skipped
 
+Ran 1 test for test/vault/common/ERC4626Math.t.sol:VaultCommonERC4626MathTest
+[PASS] test_PreviewMintRoundsUpWithVirtualBalances() (gas: 1429)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.48s (137.39ms CPU time)
+
+Ran 2 tests for test/libraries/ERC4626Math.t.sol:ERC4626MathTest
+[PASS] test_previewFunctionsBootstrapWithVirtualBalances() (gas: 4405)
+[PASS] test_previewFunctionsUseExpectedRounding() (gas: 4303)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 1.48s (137.34ms CPU time)
+
+Ran 2 tests for test/libraries/CheckpointsBranches.t.sol:CheckpointsV1BranchesTest
+[PASS] test_trace208_hintBranchesAndBoundaryLookups() (gas: 191187)
+[PASS] test_trace256_hintBranchesAndEmptyPopRevert() (gas: 317099)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 1.48s (138.40ms CPU time)
+
 Ran 3 tests for test/libraries/CheckpointsBranches.t.sol:CheckpointsV2BranchesTest
 [PASS] test_trace208_allReachableBranches() (gas: 195919)
 [PASS] test_trace256_allReachableBranches() (gas: 330771)
 [PASS] test_trace512_allReachableBranches() (gas: 418987)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.29s (133.98ms CPU time)
-
-Ran 1 test for test/slasher/BaseSlasher.t.sol:BaseSlasherTest
-[PASS] test_DefaultInitializeHookReturnsZeroValues() (gas: 1276040)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.32s (158.48ms CPU time)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 686.46µs (491.79µs CPU time)
 
 Ran 1 test for test/delegator/BaseDelegator.t.sol:BaseDelegatorTest
 [PASS] test_DefaultHooksReturnZeroValues() (gas: 1529580)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.32s (158.41ms CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.50s (161.44ms CPU time)
 
-Ran 1 test for test/vault/VaultV2FeeRegistry.t.sol:VaultV2FeeRegistryApiTest
-[PASS] test_feeRegistryAndVaultExposeSnapshotFeeApi() (gas: 716)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 337.04µs (26.50µs CPU time)
+Ran 1 test for test/slasher/BaseSlasher.t.sol:BaseSlasherTest
+[PASS] test_DefaultInitializeHookReturnsZeroValues() (gas: 1276040)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 328.25µs (94.79µs CPU time)
 
 Ran 1 test for test/adapters/AdapterNoAccountShape.t.sol:AdapterNoAccountShapeTest
 [PASS] test_ConstructorsDoNotRequireAccountBeacon() (gas: 14430)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.48s (315.06ms CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.66s (321.69ms CPU time)
 
 Ran 3 tests for test/AdapterRegistry.t.sol:AdapterRegistryTest
 [PASS] test_whitelistAdapterFactory() (gas: 66629)
 [PASS] test_whitelistAdapterFactoryCanBeRepeated() (gas: 95872)
 [PASS] test_whitelistAdapterFactoryRevertNotOwner() (gas: 39603)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.57s (255.29ms CPU time)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 148.89ms (148.25ms CPU time)
+
+Ran 3 tests for test/service/NetworkMiddlewareService.t.sol:MiddlewareServiceTest
+[PASS] test_Create(address) (runs: 100, μ: 201584, ~: 201617)
+[PASS] test_SetMiddlewareRevertAlreadySet(address) (runs: 100, μ: 207916, ~: 207982)
+[PASS] test_SetMiddlewareRevertNotNetwork(address) (runs: 100, μ: 59696, ~: 59729)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.85s (344.50ms CPU time)
 
 Ran 3 tests for test/NetworkRegistry.t.sol:NetworkRegistryTest
 [PASS] test_Create() (gas: 30503)
 [PASS] test_Register() (gas: 121609)
 [PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143835)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 255.11ms (254.74ms CPU time)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 575.67µs (320.00µs CPU time)
 
-Ran 3 tests for test/OperatorRegistry.t.sol:OperatorRegistryTest
-[PASS] test_Create() (gas: 30503)
-[PASS] test_Register() (gas: 121587)
-[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143791)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.57s (280.64ms CPU time)
+Ran 1 test for test/common/Entity.t.sol:EntityTest
+[PASS] test_Create() (gas: 1094859)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 742.59ms (718.64ms CPU time)
+
+Ran 7 tests for test/common/Factory.t.sol:FactoryTest
+[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 453889)
+[PASS] test_BlacklistRevertIinvalidType() (gas: 34539)
+[PASS] test_Create() (gas: 1028031)
+[PASS] test_CreateRevertInvalidIndex() (gas: 781312)
+[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 375152)
+[PASS] test_WhitelistRevertInvalidImplementation1() (gas: 305846)
+[PASS] test_WhitelistRevertInvalidImplementation2() (gas: 675971)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 136.29ms (135.89ms CPU time)
+
+Ran 1 test for test/vault/VaultV2FeeRegistry.t.sol:VaultV2FeeRegistryApiTest
+[PASS] test_feeRegistryAndVaultExposeSnapshotFeeApi() (gas: 716)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 206.17µs (32.50µs CPU time)
+
+Ran 5 tests for test/common/MigratableEntity.t.sol:MigratableEntityTest
+[PASS] test_Create() (gas: 1076772)
+[PASS] test_DefaultInitializeAndMigrateHooksDoNotRevert() (gas: 635683)
+[PASS] test_Migrate(uint256,uint256,uint256,uint256) (runs: 100, μ: 2627358, ~: 2627489)
+[PASS] test_MigrateRevertNotFactory() (gas: 1777738)
+[PASS] test_ReinitRevertAlreadyInitialized() (gas: 1705654)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 994.43ms (970.55ms CPU time)
+
+Ran 1 test for test/common/MigratableEntityProxy.t.sol:MigratableEntityProxyTest
+[PASS] test_MigrateRevertProxyDeniedAdminAccess() (gas: 1742459)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 552.71µs (188.25µs CPU time)
 
 Ran 3 tests for test/adapters/AppAdapter.t.sol:AppAdapterTest
 [PASS] test_DeallocationImmediatelyUpdatesCheckpointedStakeAndSettlesAfterDuration() (gas: 594782)
 [PASS] test_StakeUsesDurationShiftedCheckpoint() (gas: 336012)
 [PASS] test_SyncClosesPendingByRestoringStake() (gas: 530943)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 2.28s (394.88µs CPU time)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 791.77ms (372.25µs CPU time)
+
+Ran 10 tests for test/common/MigratablesFactory.t.sol:MigratablesFactoryTest
+[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 720424)
+[PASS] test_BlacklistRevertInvalidVersion() (gas: 32504)
+[PASS] test_Create() (gas: 2471734)
+[PASS] test_CreateRevertInvalidVersion() (gas: 728322)
+[PASS] test_Migrate(uint256) (runs: 100, μ: 2468807, ~: 2468950)
+[PASS] test_MigrateRevertImproperOwner() (gas: 1767761)
+[PASS] test_MigrateRevertInvalidVersion() (gas: 1771928)
+[PASS] test_MigrateRevertOldVersion() (gas: 1759135)
+[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 671498)
+[PASS] test_WhitelistRevertInvalidImplementation() (gas: 572974)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 196.10ms (195.74ms CPU time)
 
 Ran 5 tests for test/adapters/AdapterFactory.t.sol:AdapterFactoryTest
 [PASS] test_CreateAllowsMultipleAdaptersForSameVault() (gas: 1075767)
@@ -52,44 +105,59 @@ Ran 5 tests for test/adapters/AdapterFactory.t.sol:AdapterFactoryTest
 [PASS] test_CreateUsesMigratablesFactorySaltAndInitializesAdapterVault() (gas: 622475)
 [PASS] test_InitializeRevertsForNonVault() (gas: 210014)
 [PASS] test_SeparateFactoriesCanCreateForSameVault() (gas: 3363137)
-Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 2.34s (509.49ms CPU time)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 2.74s (617.75ms CPU time)
 
-Ran 2 tests for test/libraries/CheckpointsBranches.t.sol:CheckpointsV1BranchesTest
-[PASS] test_trace208_hintBranchesAndBoundaryLookups() (gas: 191187)
-[PASS] test_trace256_hintBranchesAndEmptyPopRevert() (gas: 317099)
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 489.92µs (266.00µs CPU time)
+Ran 3 tests for test/service/MetadataService.t.sol:MetadataServiceTest
+[PASS] test_Create(string) (runs: 100, μ: 227977, ~: 214857)
+[PASS] test_SetMetadataURLRevertAlreadySet(string) (runs: 100, μ: 237677, ~: 224485)
+[PASS] test_SetMetadataURLRevertNotEntity(string) (runs: 100, μ: 60732, ~: 60650)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 48.14ms (47.76ms CPU time)
 
-Ran 10 tests for test/common/MigratablesFactory.t.sol:MigratablesFactoryTest
-[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 720424)
-[PASS] test_BlacklistRevertInvalidVersion() (gas: 32504)
-[PASS] test_Create() (gas: 2471734)
-[PASS] test_CreateRevertInvalidVersion() (gas: 728322)
-[PASS] test_Migrate(uint256) (runs: 100, μ: 2468815, ~: 2468950)
-[PASS] test_MigrateRevertImproperOwner() (gas: 1767761)
-[PASS] test_MigrateRevertInvalidVersion() (gas: 1771928)
-[PASS] test_MigrateRevertOldVersion() (gas: 1759135)
-[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 671498)
-[PASS] test_WhitelistRevertInvalidImplementation() (gas: 572974)
-Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 2.36s (1.04s CPU time)
-
-Ran 3 tests for test/service/NetworkMiddlewareService.t.sol:MiddlewareServiceTest
-[PASS] test_Create(address) (runs: 100, μ: 201561, ~: 201617)
-[PASS] test_SetMiddlewareRevertAlreadySet(address) (runs: 100, μ: 207870, ~: 207982)
-[PASS] test_SetMiddlewareRevertNotNetwork(address) (runs: 100, μ: 59673, ~: 59729)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 37.62ms (37.24ms CPU time)
+Ran 2 tests for test/vault/WithdrawalQueueFill.t.sol:WithdrawalQueueFillTest
+[PASS] test_ClaimableUsesFilledPortionOfRequest() (gas: 755606)
+[PASS] test_RequestWithdrawNotifiesDelegatorAndFillOnlyUsesLiquidVaultAssets() (gas: 849048)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 135.59ms (184.51ms CPU time)
 
 Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace208Test
-[PASS] testAt(uint48[],uint208[],uint32) (runs: 100, μ: 4446704, ~: 4799281)
-[PASS] testLatest(uint48[],uint208[]) (runs: 100, μ: 4148372, ~: 4453381)
-[PASS] testLatestCheckpoint(uint48[],uint208[]) (runs: 100, μ: 4171274, ~: 4477579)
-[PASS] testLength(uint48[],uint208[]) (runs: 100, μ: 4117993, ~: 4421484)
-[PASS] testLookup(uint48[],uint208[],uint48) (runs: 100, μ: 4317191, ~: 4739719)
-[PASS] testPop(uint48[],uint208[]) (runs: 100, μ: 4010795, ~: 4308930)
-[PASS] testPush(uint48[],uint208[],uint48) (runs: 100, μ: 4734478, ~: 5194124)
-[PASS] testUpperLookupRecentCheckpoint(uint48[],uint208[],uint48) (runs: 100, μ: 4519127, ~: 4904706)
-[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4131798, ~: 4328009)
-[PASS] testUpperLookupRecentWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4131607, ~: 4327771)
-Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 2.54s (1.38s CPU time)
+[PASS] testAt(uint48[],uint208[],uint32) (runs: 100, μ: 4200120, ~: 4397831)
+[PASS] testLatest(uint48[],uint208[]) (runs: 100, μ: 4222997, ~: 4480789)
+[PASS] testLatestCheckpoint(uint48[],uint208[]) (runs: 100, μ: 4246243, ~: 4505187)
+[PASS] testLength(uint48[],uint208[]) (runs: 100, μ: 4192200, ~: 4446699)
+[PASS] testLookup(uint48[],uint208[],uint48) (runs: 100, μ: 4063287, ~: 4242302)
+[PASS] testPop(uint48[],uint208[]) (runs: 100, μ: 4083594, ~: 4330252)
+[PASS] testPush(uint48[],uint208[],uint48) (runs: 100, μ: 4459053, ~: 4682081)
+[PASS] testUpperLookupRecentCheckpoint(uint48[],uint208[],uint48) (runs: 100, μ: 4245061, ~: 4524192)
+[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4244303, ~: 4411423)
+[PASS] testUpperLookupRecentWithHint(uint48[],uint208[],uint48,uint32) (runs: 100, μ: 4244145, ~: 4411448)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 1.37s (1.37s CPU time)
+
+Ran 1 test for test/common/Registry.t.sol:FactoryTest
+[PASS] test_Create() (gas: 304423)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 463.17µs (145.83µs CPU time)
+
+Ran 6 tests for test/delegator/UniversalDelegatorSweepPending.t.sol:UniversalDelegatorSweepPendingTest
+[PASS] test_AddAdapterAddsToDeallocationRouteAndReusesStableIndex() (gas: 798737)
+[PASS] test_LimitsAreStoredByAdapterAddress() (gas: 638160)
+[PASS] test_SetAutoAllocateAdaptersRevertsIfAdapterIsNotInAdapters() (gas: 943703)
+[PASS] test_SwapAdaptersSwapsAdaptersInRoute() (gas: 1547459)
+[PASS] test_SweepPendingDoesNotRequestStalePendingAfterFill() (gas: 1072169)
+[PASS] test_SweepPendingStoresPendingAdapterIndexes() (gas: 1129259)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 1.71ms (1.23ms CPU time)
+
+Ran 12 tests for test/service/OptInService.t.sol:OperatorOptInServiceTest
+[PASS] test_Create() (gas: 732060)
+[PASS] test_IncreaseNonce() (gas: 329227)
+[PASS] test_OptInRevertAlreadyOptedIn() (gas: 365990)
+[PASS] test_OptInRevertNotEntity() (gas: 157336)
+[PASS] test_OptInRevertNotWhereEntity() (gas: 162769)
+[PASS] test_OptInWithExpiredDeadline() (gas: 265207)
+[PASS] test_OptInWithInvalidSignature() (gas: 271873)
+[PASS] test_OptInWithSignature() (gas: 365268)
+[PASS] test_OptOutRevertNotOptedIn() (gas: 247492)
+[PASS] test_OptOutWithExpiredDeadline() (gas: 370722)
+[PASS] test_OptOutWithInvalidSignature() (gas: 377606)
+[PASS] test_OptOutWithSignature() (gas: 428474)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 142.49ms (141.89ms CPU time)
 
 Ran 9 tests for test/integration/actions/ActionScripts.t.sol:ActionScriptsTest
 [PASS] test_OptInNetwork() (gas: 894606)
@@ -150,180 +218,32 @@ Logs:
 
 [PASS] test_SetResolver() (gas: 473673)
 [PASS] test_VetoSlash() (gas: 2858627)
-Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 2.64s (5.47ms CPU time)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 3.22s (4.32ms CPU time)
 
-Ran 1 test for test/vault/WithdrawalQueueFill.t.sol:WithdrawalQueueFillTest
-[PASS] test_RequestWithdrawNotifiesDelegatorAndFillOnlyUsesLiquidVaultAssets() (gas: 850652)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 158.29ms (157.82ms CPU time)
-
-Ran 12 tests for test/service/OptInService.t.sol:OperatorOptInServiceTest
-[PASS] test_Create() (gas: 732060)
-[PASS] test_IncreaseNonce() (gas: 328535)
-[PASS] test_OptInRevertAlreadyOptedIn() (gas: 365990)
-[PASS] test_OptInRevertNotEntity() (gas: 157336)
-[PASS] test_OptInRevertNotWhereEntity() (gas: 162769)
-[PASS] test_OptInWithExpiredDeadline() (gas: 265207)
-[PASS] test_OptInWithInvalidSignature() (gas: 271169)
-[FAIL: InvalidSignature()] test_OptInWithSignature() (gas: 270950)
-Traces:
-  [270950] OperatorOptInServiceTest::test_OptInWithSignature()
-    ├─ [0] VM::getBlockTimestamp() [staticcall]
-    │   └─ ← [Return] 1779365699 [1.779e9]
-    ├─ [0] VM::warp(3500066647 [3.5e9])
-    │   └─ ← [Return]
-    ├─ [0] VM::deployCode("src/contracts/service/OptInService.sol:OptInService", 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f0000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000001b4f70657261746f724e6574776f726b4f7074496e536572766963650000000000)
-    │   ├─ [1230816] → new OptInService@0xF62849F9A0B5Bf2913b396098F7c7019b51A820a
-    │   │   └─ ← [Return] 6138 bytes of code
-    │   └─ ← [Return] OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a]
-    ├─ [0] VM::startPrank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
-    │   └─ ← [Return]
-    ├─ [89480] OperatorRegistry::registerOperator()
-    │   ├─ emit AddEntity(entity: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
-    │   └─ ← [Stop]
-    ├─ [0] VM::stopPrank()
-    │   └─ ← [Return]
-    ├─ [0] VM::startPrank(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   └─ ← [Return]
-    ├─ [89502] NetworkRegistry::registerNetwork()
-    │   ├─ emit AddEntity(entity: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   └─ ← [Stop]
-    ├─ [0] VM::stopPrank()
-    │   └─ ← [Return]
-    ├─ [1683] OptInService::eip712Domain() [staticcall]
-    │   └─ ← [Return] 0x0f, "OperatorNetworkOptInService", "1", 1, OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a], 0x0000000000000000000000000000000000000000000000000000000000000000, []
-    ├─ [0] VM::sign("<pk>", 0xbbd45361ba76ef8ca6f3bfc8f5196b0045888e05677d134324ff57393d0f1bf6) [staticcall]
-    │   └─ ← [Return] 27, 0xbd06388c5c0c57f0ecccf52eb974537f598fdd52c195f9cc4cc643c57f183792, 0x6769ffba8e2126fe160de2c9c8d864edc42d349dfe1c952ad82f5871825c9895
-    ├─ [33296] OptInService::optIn(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 3500066647 [3.5e9], 0xbd06388c5c0c57f0ecccf52eb974537f598fdd52c195f9cc4cc643c57f1837926769ffba8e2126fe160de2c9c8d864edc42d349dfe1c952ad82f5871825c98951b)
-    │   ├─ [110] alice::1626ba7e(bbd45361ba76ef8ca6f3bfc8f5196b0045888e05677d134324ff57393d0f1bf600000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000041bd06388c5c0c57f0ecccf52eb974537f598fdd52c195f9cc4cc643c57f1837926769ffba8e2126fe160de2c9c8d864edc42d349dfe1c952ad82f5871825c98951b) [staticcall]
-    │   │   └─ ← [Revert] EvmError: Revert
-    │   └─ ← [Revert] InvalidSignature()
-    └─ ← [Revert] InvalidSignature()
-
-Backtrace:
-  at alice
-  at OptInService.optIn
-  at OperatorOptInServiceTest.test_OptInWithSignature
-
-[PASS] test_OptOutRevertNotOptedIn() (gas: 247492)
-[PASS] test_OptOutWithExpiredDeadline() (gas: 370722)
-[PASS] test_OptOutWithInvalidSignature() (gas: 376914)
-[FAIL: InvalidSignature()] test_OptOutWithSignature() (gas: 376508)
-Traces:
-  [376508] OperatorOptInServiceTest::test_OptOutWithSignature()
-    ├─ [0] VM::getBlockTimestamp() [staticcall]
-    │   └─ ← [Return] 1779365699 [1.779e9]
-    ├─ [0] VM::warp(3500066647 [3.5e9])
-    │   └─ ← [Return]
-    ├─ [0] VM::deployCode("src/contracts/service/OptInService.sol:OptInService", 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f0000000000000000000000002e234dae75c793f67a35089c9d99245e1c58470b0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000001b4f70657261746f724e6574776f726b4f7074496e536572766963650000000000)
-    │   ├─ [1230816] → new OptInService@0xF62849F9A0B5Bf2913b396098F7c7019b51A820a
-    │   │   └─ ← [Return] 6138 bytes of code
-    │   └─ ← [Return] OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a]
-    ├─ [0] VM::startPrank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
-    │   └─ ← [Return]
-    ├─ [89480] OperatorRegistry::registerOperator()
-    │   ├─ emit AddEntity(entity: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
-    │   └─ ← [Stop]
-    ├─ [0] VM::stopPrank()
-    │   └─ ← [Return]
-    ├─ [0] VM::startPrank(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   └─ ← [Return]
-    ├─ [89502] NetworkRegistry::registerNetwork()
-    │   ├─ emit AddEntity(entity: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   └─ ← [Stop]
-    ├─ [0] VM::stopPrank()
-    │   └─ ← [Return]
-    ├─ [0] VM::startPrank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
-    │   └─ ← [Return]
-    ├─ [103862] OptInService::optIn(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   ├─ [2551] OperatorRegistry::isEntity(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6]) [staticcall]
-    │   │   └─ ← [Return] true
-    │   ├─ [2551] NetworkRegistry::isEntity(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e]) [staticcall]
-    │   │   └─ ← [Return] true
-    │   ├─ emit IncreaseNonce(who: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], where: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   ├─ emit OptIn(who: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], where: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
-    │   └─ ← [Stop]
-    ├─ [0] VM::stopPrank()
-    │   └─ ← [Return]
-    ├─ [0] VM::warp(3500066648 [3.5e9])
-    │   └─ ← [Return]
-    ├─ [1683] OptInService::eip712Domain() [staticcall]
-    │   └─ ← [Return] 0x0f, "OperatorNetworkOptInService", "1", 1, OptInService: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a], 0x0000000000000000000000000000000000000000000000000000000000000000, []
-    ├─ [0] VM::sign("<pk>", 0x19551eda6a8da2712d89072db20482b658599d6bd2cb245d103edbae82325ded) [staticcall]
-    │   └─ ← [Return] 27, 0x30d8e3dbb9faecf4232e03479e22891f61932e997e096a82be4d5c8fc10f6450, 0x14370519b959454ee57ad93dba3710d9da40cefaca9f151c0dddf800df6e241e
-    ├─ [33205] OptInService::optOut(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 3500066648 [3.5e9], 0x30d8e3dbb9faecf4232e03479e22891f61932e997e096a82be4d5c8fc10f645014370519b959454ee57ad93dba3710d9da40cefaca9f151c0dddf800df6e241e1b)
-    │   ├─ [110] alice::1626ba7e(19551eda6a8da2712d89072db20482b658599d6bd2cb245d103edbae82325ded0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000004130d8e3dbb9faecf4232e03479e22891f61932e997e096a82be4d5c8fc10f645014370519b959454ee57ad93dba3710d9da40cefaca9f151c0dddf800df6e241e1b) [staticcall]
-    │   │   └─ ← [Revert] EvmError: Revert
-    │   └─ ← [Revert] InvalidSignature()
-    └─ ← [Revert] InvalidSignature()
-
-Backtrace:
-  at alice
-  at OptInService.optOut
-  at OperatorOptInServiceTest.test_OptOutWithSignature
-
-Suite result: FAILED. 10 passed; 2 failed; 0 skipped; finished in 171.13ms (170.37ms CPU time)
-
-Ran 1 test for test/common/Registry.t.sol:FactoryTest
-[PASS] test_Create() (gas: 304423)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 430.25µs (123.67µs CPU time)
-
-Ran 10 tests for test/libraries/Checkpoints.t.sol:CheckpointsTrace256Test
-[PASS] testAt(uint48[],uint256[],uint32) (runs: 100, μ: 8653382, ~: 9411283)
-[PASS] testLatest(uint48[],uint256[]) (runs: 100, μ: 8031273, ~: 8598497)
-[PASS] testLatestCheckpoint(uint48[],uint256[]) (runs: 100, μ: 8050193, ~: 8618492)
-[PASS] testLength(uint48[],uint256[]) (runs: 100, μ: 7947113, ~: 8509763)
-[PASS] testLookup(uint48[],uint256[],uint48) (runs: 100, μ: 8369718, ~: 9217677)
-[PASS] testPop(uint48[],uint256[]) (runs: 100, μ: 7821566, ~: 8378655)
-[PASS] testPush(uint48[],uint256[],uint48) (runs: 100, μ: 8888937, ~: 9789714)
-[PASS] testUpperLookupRecentCheckpoint(uint48[],uint256[],uint48) (runs: 100, μ: 8654234, ~: 9353400)
-[PASS] testUpperLookupRecentCheckpointWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8029653, ~: 8404080)
-[PASS] testUpperLookupRecentWithHint(uint48[],uint256[],uint48,uint32) (runs: 100, μ: 8029006, ~: 8403382)
-Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 3.02s (1.86s CPU time)
-
-Ran 1 test for test/VaultFactory.t.sol:VaultFactoryTest
-[PASS] test_Create() (gas: 977667)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 984.26ms (292.62ms CPU time)
-
-Ran 1 test for test/SlasherFactory.t.sol:SlasherFactoryTest
-[PASS] test_Create() (gas: 1417061)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.34s (621.12ms CPU time)
+Ran 3 tests for test/OperatorRegistry.t.sol:OperatorRegistryTest
+[PASS] test_Create() (gas: 30503)
+[PASS] test_Register() (gas: 121587)
+[PASS] test_RegisterRevertEntityAlreadyRegistered() (gas: 143791)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 571.75µs (332.13µs CPU time)
 
 Ran 1 test for test/DelegatorFactory.t.sol:DelegatorFactoryTest
 [PASS] test_Create() (gas: 1568892)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 3.07s (646.79ms CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.45s (617.83ms CPU time)
 
-Ran 2 tests for test/libraries/ERC4626Math.t.sol:ERC4626MathTest
-[PASS] test_previewFunctionsBootstrapWithVirtualBalances() (gas: 4405)
-[PASS] test_previewFunctionsUseExpectedRounding() (gas: 4303)
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 223.88µs (63.21µs CPU time)
-
-Ran 1 test for test/vault/common/ERC4626Math.t.sol:VaultCommonERC4626MathTest
-[FAIL: assertion failed: 6 != 2] test_PreviewMintRoundsUpWithVirtualBalances() (gas: 4293)
-Traces:
-  [4293] VaultCommonERC4626MathTest::test_PreviewMintRoundsUpWithVirtualBalances()
-    ├─ [0] VM::assertEq(6, 2) [staticcall]
-    │   └─ ← [Revert] assertion failed: 6 != 2
-    └─ ← [Revert] assertion failed: 6 != 2
-
-Backtrace:
-  at VM.assertEq
-  at VaultCommonERC4626MathTest.test_PreviewMintRoundsUpWithVirtualBalances
-
-Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 1.30ms (1.16ms CPU time)
-
-Ran 1 test for test/common/Entity.t.sol:EntityTest
-[PASS] test_Create() (gas: 1094859)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 372.30ms (371.95ms CPU time)
-
-Ran 7 tests for test/common/Factory.t.sol:FactoryTest
-[PASS] test_BlacklistRevertAlreadyBlacklisted() (gas: 453889)
-[PASS] test_BlacklistRevertIinvalidType() (gas: 34539)
-[PASS] test_Create() (gas: 1028031)
-[PASS] test_CreateRevertInvalidIndex() (gas: 781312)
-[PASS] test_WhitelistRevertAlreadyWhitelisted() (gas: 375152)
-[PASS] test_WhitelistRevertInvalidImplementation1() (gas: 305846)
-[PASS] test_WhitelistRevertInvalidImplementation2() (gas: 675971)
-Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 186.11ms (185.67ms CPU time)
+Ran 12 tests for test/hints/Hints.t.sol:HintsTest
+[PASS] test_baseDelegatorDispatchesFullRestakeHints() (gas: 116768)
+[PASS] test_baseDelegatorDispatchesNetworkRestakeHints() (gas: 131676)
+[PASS] test_baseDelegatorDispatchesOperatorNetworkSpecificHints() (gas: 102915)
+[PASS] test_baseDelegatorDispatchesOperatorSpecificHints() (gas: 101958)
+[PASS] test_directDelegatorHintReadersAndLateBranchEvaluation() (gas: 4557571)
+[PASS] test_directSlasherHintReadersReturnEncodedCheckpoints() (gas: 63738)
+[PASS] test_hints_selfStaticDelegateCallCoversSuccessAndReverts() (gas: 78911)
+[PASS] test_optInServiceHintReturnsEncodedCheckpoint() (gas: 54813)
+[PASS] test_slasherHintsWrapSlashableStakeHints() (gas: 460589)
+[PASS] test_subnetworkHelpersRoundTrip() (gas: 2789)
+[PASS] test_vaultHintsReturnEncodedCheckpoints() (gas: 158551)
+[PASS] test_vetoSlasherHintBuildersReturnEncodedCheckpoints() (gas: 435471)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 2.32s (406.74ms CPU time)
 
 Ran 2 tests for test/invariant/VaultInvariants.t.sol:VaultInvariantsTest
 [PASS] invariant_Totals() (runs: 1, calls: 8, reverts: 0)
@@ -331,13 +251,11 @@ Ran 2 tests for test/invariant/VaultInvariants.t.sol:VaultInvariantsTest
 ╭--------------+----------+-------+---------+----------╮
 | Contract     | Selector | Calls | Reverts | Discards |
 +======================================================+
-| VaultHandler | claim    | 2     | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | deposit  | 2     | 0       | 0        |
+| VaultHandler | claim    | 3     | 0       | 0        |
 |--------------+----------+-------+---------+----------|
 | VaultHandler | redeem   | 1     | 0       | 0        |
 |--------------+----------+-------+---------+----------|
-| VaultHandler | slash    | 1     | 0       | 0        |
+| VaultHandler | slash    | 2     | 0       | 0        |
 |--------------+----------+-------+---------+----------|
 | VaultHandler | withdraw | 2     | 0       | 0        |
 ╰--------------+----------+-------+---------+----------╯
@@ -347,18 +265,16 @@ Ran 2 tests for test/invariant/VaultInvariants.t.sol:VaultInvariantsTest
 ╭--------------+----------+-------+---------+----------╮
 | Contract     | Selector | Calls | Reverts | Discards |
 +======================================================+
-| VaultHandler | claim    | 2     | 0       | 0        |
-|--------------+----------+-------+---------+----------|
-| VaultHandler | deposit  | 2     | 0       | 0        |
+| VaultHandler | claim    | 3     | 0       | 0        |
 |--------------+----------+-------+---------+----------|
 | VaultHandler | redeem   | 1     | 0       | 0        |
 |--------------+----------+-------+---------+----------|
-| VaultHandler | slash    | 1     | 0       | 0        |
+| VaultHandler | slash    | 2     | 0       | 0        |
 |--------------+----------+-------+---------+----------|
 | VaultHandler | withdraw | 2     | 0       | 0        |
 ╰--------------+----------+-------+---------+----------╯
 
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 6.60s (1.91s CPU time)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 5.97s (1.16s CPU time)
 
 Ran 3 tests for test/integration/SymbioticCoreIntegrationExample.t.sol:SymbioticCoreIntegrationExample
 [PASS] test_Network() (gas: 3154181)
@@ -520,41 +436,293 @@ Logs:
   Total stake after new staker: 11230211589278252598196
   User stake: 8662110296955437718875
 
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 5.17s (110.84ms CPU time)
-
-Ran 3 tests for test/service/MetadataService.t.sol:MetadataServiceTest
-[PASS] test_Create(string) (runs: 100, μ: 232190, ~: 251790)
-[PASS] test_SetMetadataURLRevertAlreadySet(string) (runs: 100, μ: 241934, ~: 261581)
-[PASS] test_SetMetadataURLRevertNotEntity(string) (runs: 100, μ: 60779, ~: 60835)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 48.97ms (48.61ms CPU time)
-
-Ran 5 tests for test/common/MigratableEntity.t.sol:MigratableEntityTest
-[PASS] test_Create() (gas: 1076772)
-[PASS] test_DefaultInitializeAndMigrateHooksDoNotRevert() (gas: 635683)
-[PASS] test_Migrate(uint256,uint256,uint256,uint256) (runs: 100, μ: 2627329, ~: 2627483)
-[PASS] test_MigrateRevertNotFactory() (gas: 1777738)
-[PASS] test_ReinitRevertAlreadyInitialized() (gas: 1705654)
-Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 35.62ms (35.26ms CPU time)
-
-Ran 1 test for test/common/MigratableEntityProxy.t.sol:MigratableEntityProxyTest
-[PASS] test_MigrateRevertProxyDeniedAdminAccess() (gas: 1742459)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 532.17µs (194.12µs CPU time)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 6.60s (115.36ms CPU time)
 
 Ran 1 test for test/POC.t.sol:POCTest
 [PASS] test_POC() (gas: 450)
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 5.60s (56.00µs CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.90s (52.62µs CPU time)
 
-Ran 12 tests for test/hints/Hints.t.sol:HintsTest
-[PASS] test_baseDelegatorDispatchesFullRestakeHints() (gas: 116768)
-[PASS] test_baseDelegatorDispatchesNetworkRestakeHints() (gas: 131676)
-[PASS] test_baseDelegatorDispatchesOperatorNetworkSpecificHints() (gas: 102915)
-[PASS] test_baseDelegatorDispatchesOperatorSpecificHints() (gas: 101958)
-[PASS] test_directDelegatorHintReadersAndLateBranchEvaluation() (gas: 4557571)
-[PASS] test_directSlasherHintReadersReturnEncodedCheckpoints() (gas: 63738)
-[PASS] test_hints_selfStaticDelegateCallCoversSuccessAndReverts() (gas: 78911)
-[PASS] test_optInServiceHintReturnsEncodedCheckpoint() (gas: 54813)
-[PASS] test_slasherHintsWrapSlashableStakeHints() (gas: 460589)
-[PASS] test_subnetworkHelpersRoundTrip() (gas: 2789)
-[PASS] test_vaultHintsReturnEncodedCheckpoints() (gas: 158551)
-[PASS] test_vetoSlasherHintBuildersReturnEncodedCheckpoints() (gas: 435471)
-Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 3.17s (1.19s CPU time)
+Ran 1 test for test/SlasherFactory.t.sol:SlasherFactoryTest
+[PASS] test_Create() (gas: 1417061)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 165.57ms (162.95ms CPU time)
+
+Ran 57 tests for test/vault/Vault.t.sol:VaultTest
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 1909045, ~: 1909795)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2250694, ~: 2250585)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2125681, ~: 2125572)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2135410, ~: 2135301)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2125568, ~: 2125459)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2061020, ~: 2060911)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2091979, ~: 2091870)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1887428, ~: 1888178)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1797134, ~: 1797788)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1787159, ~: 1787813)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1782403, ~: 1783057)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1939779, ~: 1939904)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 177289, ~: 177092)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 179345)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 167582, ~: 167385)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 167341, ~: 167144)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 167598, ~: 167401)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 167481, ~: 167284)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 167619, ~: 167422)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2452530, ~: 2452580)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1051593)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1034140, ~: 1033845)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3091510, ~: 3091560)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3124741, ~: 3124781)
+[PASS] test_MigrateRevertsForBaseVault() (gas: 3553471)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1035389)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1498287, ~: 1498007)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1470382, ~: 1470110)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1479563, ~: 1479291)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3441380, ~: 3441271)
+[PASS] test_SetDelegator() (gas: 1100869)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1086621)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1606641)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 692214)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1720543, ~: 1720463)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1228649, ~: 1228545)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1804500, ~: 1804638)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1261614, ~: 1261561)
+[PASS] test_SetDepositWhitelist() (gas: 1147218)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1124257)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1561896)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1871015)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1232620)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1173053)
+[PASS] test_SetIsDepositLimit() (gas: 1147325)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1124027)
+[PASS] test_SetSlasher() (gas: 1000201)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1509566)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 924598)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 989685)
+[PASS] test_SetSlasherZeroAddress() (gas: 704778)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4392438, ~: 4395274)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1470748, ~: 1470468)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1470778, ~: 1470506)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1498777, ~: 1498505)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3441833, ~: 3441724)
+[PASS] test_WithdrawalsOfReturnsNextEpochAmountAndRejectsFutureCaptureEpoch() (gas: 1868707)
+Suite result: ok. 57 passed; 0 failed; 0 skipped; finished in 81.00s (78.49s CPU time)
+
+Ran 57 tests for test/vault/VaultV2.t.sol:VaultTest
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 1909045, ~: 1909795)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2250694, ~: 2250585)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2125681, ~: 2125572)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2135410, ~: 2135301)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2125568, ~: 2125459)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2061020, ~: 2060911)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2091979, ~: 2091870)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1887428, ~: 1888178)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1797134, ~: 1797788)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1787159, ~: 1787813)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1782403, ~: 1783057)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 1939779, ~: 1939904)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 177289, ~: 177092)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 179345)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 167582, ~: 167385)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 167341, ~: 167144)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 167598, ~: 167401)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 167481, ~: 167284)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 167619, ~: 167422)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2452530, ~: 2452580)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1051593)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1034140, ~: 1033845)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3091510, ~: 3091560)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3124741, ~: 3124781)
+[PASS] test_MigrateRevertsForBaseVault() (gas: 3553471)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1035389)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1498287, ~: 1498007)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1470382, ~: 1470110)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1479563, ~: 1479291)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3441380, ~: 3441271)
+[PASS] test_SetDelegator() (gas: 1100869)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1086621)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1606641)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 692214)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1720543, ~: 1720463)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1228649, ~: 1228545)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1804500, ~: 1804638)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1261614, ~: 1261561)
+[PASS] test_SetDepositWhitelist() (gas: 1147218)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1124257)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1561896)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1871015)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1232620)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1173053)
+[PASS] test_SetIsDepositLimit() (gas: 1147325)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1124027)
+[PASS] test_SetSlasher() (gas: 1000201)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1509566)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 924598)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 989685)
+[PASS] test_SetSlasherZeroAddress() (gas: 704778)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4392438, ~: 4395274)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1470748, ~: 1470468)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1470778, ~: 1470506)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1498777, ~: 1498505)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3441833, ~: 3441724)
+[PASS] test_WithdrawalsOfReturnsNextEpochAmountAndRejectsFutureCaptureEpoch() (gas: 1868707)
+Suite result: ok. 57 passed; 0 failed; 0 skipped; finished in 93.51s (122.22s CPU time)
+
+Ran 1 test for test/VaultFactory.t.sol:VaultFactoryTest
+[PASS] test_Create() (gas: 977667)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 4.84ms (319.08µs CPU time)
+
+Ran 20 tests for test/delegator/OperatorSpecificDelegator.t.sol:OperatorSpecificDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1281399, ~: 1281223)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1337606, ~: 1337432)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1302320, ~: 1302146)
+[PASS] test_CreateRevertNotOperator(uint48) (runs: 100, μ: 1311151, ~: 1310977)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1281933, ~: 1281757)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1308793, ~: 1308619)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1182590, ~: 1182414)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1664883, ~: 1664667)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1432279, ~: 1432063)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1788723, ~: 1790409)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1391840, ~: 1391732)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1328145, ~: 1327985)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 2014442, ~: 2015133)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1520057, ~: 1519919)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1385816, ~: 1385729)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3431490, ~: 3437241)
+[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 100, μ: 3271986, ~: 3263547)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 100, μ: 3299547, ~: 3318004)
+[PASS] test_StakeAtReturnsZeroForWrongOperatorEvenWithHints() (gas: 1134508)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3350442, ~: 3351963)
+Suite result: ok. 20 passed; 0 failed; 0 skipped; finished in 119.10s (233.90s CPU time)
+
+Ran 1 test for test/VaultConfigurator.t.sol:VaultConfiguratorTest
+[PASS] test_Create(address,address,uint48,bool,bool,uint256,bool,address) (runs: 100, μ: 1471319, ~: 1462270)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 39.11s (39.11s CPU time)
+
+Ran 15 tests for test/delegator/OperatorNetworkSpecificDelegator.t.sol:OperatorNetworkSpecificDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1413032, ~: 1412821)
+[PASS] test_CreateRevertNotNetwork(uint48) (runs: 100, μ: 1463642, ~: 1463432)
+[PASS] test_CreateRevertNotOperator(uint48) (runs: 100, μ: 1469309, ~: 1469099)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1435285, ~: 1435074)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1339090, ~: 1338879)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1781801, ~: 1781550)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1569026, ~: 1568775)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1971541, ~: 1971990)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1488843, ~: 1488742)
+[PASS] test_SetMaxNetworkLimitRevertInvalidNetwork(uint48,uint256) (runs: 100, μ: 1645642, ~: 1645541)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1331032, ~: 1330864)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3388947, ~: 3395152)
+[PASS] test_SlashWithHook(uint256,uint256,uint256) (runs: 100, μ: 3159641, ~: 3151599)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256) (runs: 100, μ: 3011113, ~: 3027034)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 3430992, ~: 3432597)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 121.96s (180.69s CPU time)
+
+Ran 58 tests for test/vault/VaultTokenized.t.sol:VaultTokenizedTest
+[PASS] test_Claim(uint256,uint256) (runs: 100, μ: 1963514, ~: 1964266)
+[PASS] test_ClaimBatch(uint256,uint256,uint256) (runs: 100, μ: 2307199, ~: 2307083)
+[PASS] test_ClaimBatchRevertAlreadyClaimed(uint256,uint256,uint256) (runs: 100, μ: 2182068, ~: 2181952)
+[PASS] test_ClaimBatchRevertInsufficientClaim(uint256,uint256,uint256) (runs: 100, μ: 2191793, ~: 2191677)
+[PASS] test_ClaimBatchRevertInvalidEpoch(uint256,uint256,uint256) (runs: 100, μ: 2181933, ~: 2181817)
+[PASS] test_ClaimBatchRevertInvalidLengthEpochs(uint256,uint256,uint256) (runs: 100, μ: 2118072, ~: 2117956)
+[PASS] test_ClaimBatchRevertInvalidRecipient(uint256,uint256,uint256) (runs: 100, μ: 2148348, ~: 2148232)
+[PASS] test_ClaimRevertAlreadyClaimed(uint256,uint256) (runs: 100, μ: 1942172, ~: 1942924)
+[PASS] test_ClaimRevertInsufficientClaim(uint256,uint256) (runs: 100, μ: 1851877, ~: 1852533)
+[PASS] test_ClaimRevertInvalidEpoch(uint256,uint256) (runs: 100, μ: 1841884, ~: 1842540)
+[PASS] test_ClaimRevertInvalidRecipient(uint256,uint256) (runs: 100, μ: 1837150, ~: 1837806)
+[PASS] test_Create2(address,uint48,bool,bool,uint256) (runs: 100, μ: 2089167, ~: 2089318)
+[PASS] test_CreateRevertInvalidCollateral(uint48) (runs: 100, μ: 184044, ~: 183840)
+[PASS] test_CreateRevertInvalidEpochDuration() (gas: 185188)
+[PASS] test_CreateRevertMissingRoles1(uint48) (runs: 100, μ: 173319, ~: 173115)
+[PASS] test_CreateRevertMissingRoles2(uint48) (runs: 100, μ: 173078, ~: 172874)
+[PASS] test_CreateRevertMissingRoles3(uint48) (runs: 100, μ: 173335, ~: 173131)
+[PASS] test_CreateRevertMissingRoles4(uint48) (runs: 100, μ: 173218, ~: 173014)
+[PASS] test_CreateRevertMissingRoles5(uint48) (runs: 100, μ: 173356, ~: 173152)
+[PASS] test_DepositAndWithdrawMaintainTokenizedShareAccounting() (gas: 1813173)
+[PASS] test_DepositBoth(uint256,uint256) (runs: 100, μ: 2594134, ~: 2594166)
+[PASS] test_DepositRevertInsufficientDeposit() (gas: 1102829)
+[PASS] test_DepositRevertInvalidOnBehalfOf(uint256) (runs: 100, μ: 1085384, ~: 1085081)
+[PASS] test_DepositTwice(uint256,uint256) (runs: 100, μ: 3231338, ~: 3231370)
+[PASS] test_DepositTwiceFeeOnTransferCollateral(uint256,uint256) (runs: 100, μ: 3184261, ~: 3184283)
+[PASS] test_InternalUpdateHandlesMintAndBurnPaths() (gas: 4432582)
+[PASS] test_OnSlashRevertNotSlasher() (gas: 1086953)
+[PASS] test_RedeemRevertInsufficientRedeemption(uint256) (runs: 100, μ: 1551482, ~: 1551195)
+[PASS] test_RedeemRevertInvalidClaimer(uint256) (runs: 100, μ: 1523582, ~: 1523302)
+[PASS] test_RedeemRevertTooMuchRedeem(uint256) (runs: 100, μ: 1533116, ~: 1532842)
+[PASS] test_RedeemTwice(uint256,uint256,uint256) (runs: 100, μ: 3494848, ~: 3494732)
+[PASS] test_SetDelegator() (gas: 1152509)
+[PASS] test_SetDelegatorRevertDelegatorAlreadyInitialized() (gas: 1138045)
+[PASS] test_SetDelegatorRevertInvalidDelegator() (gas: 1709379)
+[PASS] test_SetDelegatorRevertNotDelegator() (gas: 743593)
+[PASS] test_SetDepositLimit(uint256,uint256,uint256) (runs: 100, μ: 1774147, ~: 1774101)
+[PASS] test_SetDepositLimitRevertAlreadySet(uint256) (runs: 100, μ: 1280558, ~: 1280451)
+[PASS] test_SetDepositLimitRevertDepositLimitReached(uint256,uint256) (runs: 100, μ: 1857713, ~: 1857962)
+[PASS] test_SetDepositLimitToNull(uint256) (runs: 100, μ: 1313632, ~: 1313577)
+[PASS] test_SetDepositWhitelist() (gas: 1198396)
+[PASS] test_SetDepositWhitelistRevertAlreadySet() (gas: 1175281)
+[PASS] test_SetDepositWhitelistRevertNotWhitelistedDepositor() (gas: 1614561)
+[PASS] test_SetDepositorWhitelistStatus() (gas: 1925207)
+[PASS] test_SetDepositorWhitelistStatusRevertAlreadySet() (gas: 1284239)
+[PASS] test_SetDepositorWhitelistStatusRevertInvalidAccount() (gas: 1224606)
+[PASS] test_SetIsDepositLimit() (gas: 1199231)
+[PASS] test_SetIsDepositLimitRevertAlreadySet() (gas: 1175779)
+[PASS] test_SetSlasher() (gas: 1051900)
+[PASS] test_SetSlasherRevertInvalidSlasher() (gas: 1612383)
+[PASS] test_SetSlasherRevertNotSlasher() (gas: 976058)
+[PASS] test_SetSlasherRevertSlasherAlreadyInitialized() (gas: 1041167)
+[PASS] test_SetSlasherZeroAddress() (gas: 756135)
+[PASS] test_Slash(uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4449738, ~: 4451596)
+[PASS] test_Transfer(uint256,uint256) (runs: 100, μ: 1817686, ~: 1619328)
+[PASS] test_WithdrawRevertInsufficientWithdrawal(uint256) (runs: 100, μ: 1523925, ~: 1523638)
+[PASS] test_WithdrawRevertInvalidClaimer(uint256) (runs: 100, μ: 1523934, ~: 1523654)
+[PASS] test_WithdrawRevertTooMuchWithdraw(uint256) (runs: 100, μ: 1551929, ~: 1551655)
+[PASS] test_WithdrawTwice(uint256,uint256,uint256) (runs: 100, μ: 3573863, ~: 3573747)
+Suite result: ok. 58 passed; 0 failed; 0 skipped; finished in 145.26s (124.04s CPU time)
+
+Ran 22 tests for test/delegator/NetworkRestakeDelegator.t.sol:NetworkRestakeDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1217843, ~: 1217629)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1234366, ~: 1234153)
+[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 100, μ: 1259304, ~: 1259091)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1206594, ~: 1206381)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1183761, ~: 1183547)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1207575, ~: 1207362)
+[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 100, μ: 1232512, ~: 1232299)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1083551, ~: 1083337)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1942323, ~: 1942070)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1521518, ~: 1521265)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1692550, ~: 1693909)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1292781, ~: 1292677)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1229088, ~: 1228918)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1918186, ~: 1918863)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1420970, ~: 1420864)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1289267, ~: 1289164)
+[PASS] test_SetOperatorNetworkSharesBoth(uint48,uint256,uint256,uint256) (runs: 100, μ: 3557002, ~: 3559236)
+[PASS] test_SetOperatorNetworkSharesRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1529920, ~: 1529774)
+[PASS] test_SlashBase(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4363578, ~: 4363310)
+[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 100, μ: 4373356, ~: 4367503)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 4332422, ~: 4493125)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4748800, ~: 4742752)
+Suite result: ok. 22 passed; 0 failed; 0 skipped; finished in 249.38s (283.74s CPU time)
+
+Ran 23 tests for test/delegator/FullRestakeDelegator.t.sol:FullRestakeDelegatorTest
+[PASS] test_Create(uint48) (runs: 100, μ: 1207512, ~: 1207312)
+[PASS] test_CreateRevertDuplicateRoleHolder1(uint48) (runs: 100, μ: 1234349, ~: 1234151)
+[PASS] test_CreateRevertDuplicateRoleHolder2(uint48) (runs: 100, μ: 1259331, ~: 1259133)
+[PASS] test_CreateRevertMissingRoleHolders(uint48) (runs: 100, μ: 1206599, ~: 1206401)
+[PASS] test_CreateRevertNotVault(uint48) (runs: 100, μ: 1183705, ~: 1183505)
+[PASS] test_CreateRevertZeroAddressRoleHolder1(uint48) (runs: 100, μ: 1207536, ~: 1207338)
+[PASS] test_CreateRevertZeroAddressRoleHolder2(uint48) (runs: 100, μ: 1232517, ~: 1232319)
+[PASS] test_OnSlashRevertNotSlasher(uint48) (runs: 100, μ: 1083533, ~: 1083333)
+[PASS] test_SetHook(uint48) (runs: 100, μ: 1942481, ~: 1942242)
+[PASS] test_SetHookRevertAlreadySet(uint48) (runs: 100, μ: 1521544, ~: 1521305)
+[PASS] test_SetMaxNetworkLimit(uint48,uint256,uint256,uint256) (runs: 100, μ: 1690829, ~: 1692187)
+[PASS] test_SetMaxNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1292853, ~: 1292809)
+[PASS] test_SetMaxNetworkLimitRevertNotNetwork(uint48,uint256) (runs: 100, μ: 1229132, ~: 1228990)
+[PASS] test_SetNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1914469, ~: 1915121)
+[PASS] test_SetNetworkLimitRevertAlreadySet(uint48,uint256,uint256) (runs: 100, μ: 1421067, ~: 1420932)
+[PASS] test_SetNetworkLimitRevertExceedsMaxNetworkLimit(uint48,uint256,uint256) (runs: 100, μ: 1289273, ~: 1289180)
+[PASS] test_SetOperatorNetworkLimit(uint48,uint256,uint256,uint256,uint256) (runs: 100, μ: 1929868, ~: 1930874)
+[PASS] test_SetOperatorNetworkLimitBoth(uint48,uint256,uint256,uint256) (runs: 100, μ: 1837120, ~: 1837927)
+[PASS] test_SetOperatorNetworkLimitRevertAlreadySet(uint48,uint256) (runs: 100, μ: 1436461, ~: 1436375)
+[PASS] test_Slash(uint48,uint256,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 3672348, ~: 3678764)
+[PASS] test_SlashWithHookBase(uint256,uint256,uint256,uint256) (runs: 100, μ: 4121073, ~: 4129478)
+[PASS] test_SlashWithHookGas(uint256,uint256,uint256,uint256) (runs: 100, μ: 4137473, ~: 4261534)
+[PASS] test_Stakes(uint48,uint256,uint256,uint256,uint256,uint256) (runs: 100, μ: 4872598, ~: 4873117)
+Suite result: ok. 23 passed; 0 failed; 0 skipped; finished in 279.10s (296.44s CPU time)

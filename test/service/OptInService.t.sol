@@ -29,6 +29,8 @@ contract OperatorOptInServiceTest is Test {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
+        vm.etch(alice, "");
+        vm.etch(bob, "");
 
         operatorRegistry = new OperatorRegistry();
         networkRegistry = new NetworkRegistry();

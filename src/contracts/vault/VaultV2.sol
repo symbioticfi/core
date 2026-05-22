@@ -23,6 +23,7 @@ import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDel
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -136,11 +137,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc IVaultV2
-    function asset() public view override(ERC4626Upgradeable, IVaultV2) returns (address) {
-        return super.asset();
-    }
-
-    /// @inheritdoc IVaultV2
     function totalAssets() public view override(ERC4626Upgradeable, IVaultV2) returns (uint256 assets) {
         (assets,,) = getAccrueInterest();
     }
@@ -181,37 +177,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc IVaultV2
-    function isWithdrawalsClaimed(uint256 tokenId, address) public view virtual returns (bool) {
-        (, uint256 shares, uint256 claimedShares,) = WithdrawalQueue(withdrawalQueue).requests(tokenId);
-        return claimedShares == shares;
-    }
-
-    /// @inheritdoc IVaultV2
-    function withdrawalsOf(uint256, address) public pure returns (uint256) {
-        return 0; // TODO
-    }
-
-    /// @inheritdoc IVaultV2
-    function performanceFee() public view returns (uint96 fee) {
-        return uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
-    }
-
-    /// @inheritdoc IVaultV2
-    function performanceFeeRecipient() public view returns (address recipient) {
-        return IFeeRegistry(FEE_REGISTRY).getPerformanceFeeRecipient(address(this));
-    }
-
-    /// @inheritdoc IVaultV2
-    function managementFee() public view returns (uint96 fee) {
-        return uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
-    }
-
-    /// @inheritdoc IVaultV2
-    function managementFeeRecipient() public view returns (address recipient) {
-        return IFeeRegistry(FEE_REGISTRY).getManagementFeeRecipient(address(this));
-    }
-
-    /// @inheritdoc IVaultV2
     function getAccrueInterest()
         public
         view
@@ -234,7 +199,13 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewDeposit(uint256 assets) public view virtual override returns (uint256) {
+    function previewDeposit(uint256 assets)
+        public
+        view
+        virtual
+        override(ERC4626Upgradeable, IERC4626)
+        returns (uint256)
+    {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return assets.mulDiv(
             totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(), newTotalAssets + 1
@@ -242,7 +213,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewMint(uint256 shares) public view virtual override returns (uint256) {
+    function previewMint(uint256 shares) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return shares.mulDiv(
             newTotalAssets + 1,
@@ -252,7 +223,13 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
+    function previewWithdraw(uint256 assets)
+        public
+        view
+        virtual
+        override(ERC4626Upgradeable, IERC4626)
+        returns (uint256)
+    {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return assets.mulDiv(
             totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset(),
@@ -262,7 +239,13 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
+    function previewRedeem(uint256 shares)
+        public
+        view
+        virtual
+        override(ERC4626Upgradeable, IERC4626)
+        returns (uint256)
+    {
         (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
         return shares.mulDiv(
             newTotalAssets + 1, totalSupply() + performanceFeeShares + managementFeeShares + 10 ** _decimalsOffset()
@@ -270,12 +253,12 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function maxWithdraw(address owner) public view override returns (uint256) {
+    function maxWithdraw(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
         return Math.min(previewRedeem(balanceOf(owner)), freeAssets());
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function maxRedeem(address owner) public view override returns (uint256) {
+    function maxRedeem(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
         return previewWithdraw(maxWithdraw(owner));
     }
 

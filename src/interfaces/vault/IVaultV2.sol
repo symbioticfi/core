@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 uint64 constant VAULT_V2_VERSION = 3;
 
 // keccak256("DEPOSIT_WHITELIST_SET_ROLE")
@@ -21,7 +23,7 @@ uint8 constant DECIMALS_OFFSET = 6;
  * @title IVaultV2
  * @notice Interface for the VaultV2 contract.
  */
-interface IVaultV2 is IMigratableEntity {
+interface IVaultV2 is IMigratableEntity, IERC4626 {
     /* ERRORS */
 
     /**
@@ -191,12 +193,6 @@ interface IVaultV2 is IMigratableEntity {
     function collateral() external view returns (address asset);
 
     /**
-     * @notice Get the vault's underlying ERC4626 asset.
-     * @return asset Address of the underlying asset.
-     */
-    function asset() external view returns (address asset);
-
-    /**
      * @notice Get the burner used by the vault's slashing flow.
      * @return burnerAddress Address of the burner.
      */
@@ -239,40 +235,16 @@ interface IVaultV2 is IMigratableEntity {
     function depositLimit() external view returns (uint256 limit);
 
     /**
-     * @notice Get the performance fee.
-     * @return fee Current performance fee in WAD.
-     */
-    function performanceFee() external view returns (uint96 fee);
-
-    /**
      * @notice Get the performance fee used by the latest accrual snapshot.
      * @return fee Last performance fee in WAD.
      */
     function lastPerformanceFee() external view returns (uint96 fee);
 
     /**
-     * @notice Get the performance fee recipient.
-     * @return recipient Performance fee recipient.
-     */
-    function performanceFeeRecipient() external view returns (address recipient);
-
-    /**
-     * @notice Get the management fee.
-     * @return fee Current management fee per second in WAD.
-     */
-    function managementFee() external view returns (uint96 fee);
-
-    /**
      * @notice Get the management fee used by the latest accrual snapshot.
      * @return fee Last management fee per second in WAD.
      */
     function lastManagementFee() external view returns (uint96 fee);
-
-    /**
-     * @notice Get the management fee recipient.
-     * @return recipient Management fee recipient.
-     */
-    function managementFeeRecipient() external view returns (address recipient);
 
     /**
      * @notice Get the last timestamp when fees were accrued.
@@ -356,22 +328,6 @@ interface IVaultV2 is IMigratableEntity {
      * @return balance Active balance for the account.
      */
     function activeBalanceOf(address account) external view returns (uint256 balance);
-
-    /**
-     * @notice Get whether a withdrawal queue request is fully claimed for an account.
-     * @param tokenId Withdrawal queue token id.
-     * @param account Account to check.
-     * @return claimed Whether the withdrawal queue request is fully claimed.
-     */
-    function isWithdrawalsClaimed(uint256 tokenId, address account) external view returns (bool claimed);
-
-    /**
-     * @notice Get withdrawal assets for an account at a withdrawal queue token id.
-     * @param tokenId Withdrawal queue token id.
-     * @param account Account to get the withdrawals for.
-     * @return amount Withdrawal assets for the account.
-     */
-    function withdrawalsOf(uint256 tokenId, address account) external view returns (uint256 amount);
 
     /**
      * @notice View total assets and fee shares that would be accrued at the current timestamp.
