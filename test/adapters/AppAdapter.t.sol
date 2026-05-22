@@ -101,7 +101,7 @@ contract AppAdapterTest is Test {
 
         vm.expectRevert(IAppAdapter.NotNetworkMiddleware.selector);
         vm.prank(otherMiddleware);
-        adapter.slash(100, uint48(block.timestamp), "");
+        adapter.slash(100);
     }
 
     function test_SlashUsesConfiguredPairAndReturnsSlashedAmount() public {
@@ -111,7 +111,7 @@ contract AppAdapterTest is Test {
         emit IAppAdapter.Slash(40);
 
         vm.prank(networkMiddleware);
-        uint256 slashedAmount = adapter.slash(40, uint48(block.timestamp), "");
+        uint256 slashedAmount = adapter.slash(40);
 
         assertEq(slashedAmount, 40);
         assertEq(adapter.totalAssets(), 60);
@@ -125,7 +125,7 @@ contract AppAdapterTest is Test {
         _allocate(100);
 
         vm.prank(networkMiddleware);
-        adapter.slash(40, uint48(block.timestamp), "");
+        adapter.slash(40);
 
         assertEq(burnerMock.calls(), 0);
         assertEq(collateral.balanceOf(address(burnerMock)), 40);
@@ -138,7 +138,7 @@ contract AppAdapterTest is Test {
 
         vm.expectRevert(IAppAdapter.InsufficientSlash.selector);
         vm.prank(networkMiddleware);
-        adapter.slash(1, uint48(block.timestamp), "");
+        adapter.slash(1);
     }
 
     function _allocate(uint256 amount) internal {

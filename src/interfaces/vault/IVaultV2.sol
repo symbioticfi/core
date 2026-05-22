@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 uint64 constant VAULT_V2_VERSION = 3;
 
@@ -17,14 +18,14 @@ bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573
 bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
 uint256 constant WAD = 1e18;
 
-uint8 constant DECIMALS_OFFSET = 6;
+uint8 constant SHARES_DECIMALS = 18;
 
 /**
  * @title IVaultV2
  * @notice Interface for the VaultV2 contract.
  * @dev VaultV2 supports standard ERC20 collateral only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
  */
-interface IVaultV2 is IMigratableEntity, IERC4626 {
+interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /* ERRORS */
 
     /**
@@ -266,18 +267,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626 {
     function activeShares() external view returns (uint256 shares);
 
     /**
-     * @notice Get current active stake.
-     * @return amount Current active stake.
-     */
-    function activeStake() external view returns (uint256 amount);
-
-    /**
-     * @notice Get total slashable stake.
-     * @return amount Total slashable stake.
-     */
-    function totalStake() external view returns (uint256 amount);
-
-    /**
      * @notice Get active shares for an account at a timestamp using a checkpoint hint.
      * @param account Account to read.
      * @param timestamp Timestamp to read.
@@ -295,6 +284,12 @@ interface IVaultV2 is IMigratableEntity, IERC4626 {
      * @return shares Current active shares for the account.
      */
     function activeSharesOf(address account) external view returns (uint256 shares);
+
+    /**
+     * @notice Get the virtual shares used for ERC4626 conversion math.
+     * @return shares Virtual shares.
+     */
+    function virtualShares() external view returns (uint256 shares);
 
     /**
      * @notice Execute a batch of delegatecalls on the vault.

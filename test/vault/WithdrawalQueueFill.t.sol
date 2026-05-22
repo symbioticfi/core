@@ -9,7 +9,17 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract WithdrawalQueueFillToken is ERC20 {
+    uint8 public tokenDecimals = 18;
+
     constructor() ERC20("Token", "TKN") {}
+
+    function setDecimals(uint8 decimals_) external {
+        tokenDecimals = decimals_;
+    }
+
+    function decimals() public view override returns (uint8) {
+        return tokenDecimals;
+    }
 
     function mint(address account, uint256 amount) external {
         _mint(account, amount);
@@ -50,6 +60,9 @@ contract WithdrawalQueueFillVault is ERC20 {
     address public immutable collateral;
     address public delegatorContract;
     uint256 public managedAssets;
+    uint256 public accrueInterestCalls;
+    uint8 public shareDecimals = 18;
+    uint256 public virtualSharesValue = 1;
 
     constructor(address collateral_) ERC20("Vault Share", "vTKN") {
         collateral = collateral_;
@@ -57,6 +70,11 @@ contract WithdrawalQueueFillVault is ERC20 {
 
     function setDelegator(address delegator_) external {
         delegatorContract = delegator_;
+    }
+
+    function setShareConfig(uint8 shareDecimals_, uint256 virtualShares_) external {
+        shareDecimals = shareDecimals_;
+        virtualSharesValue = virtualShares_;
     }
 
     function mintShares(address account, uint256 shares, uint256 assets) external {
@@ -76,11 +94,21 @@ contract WithdrawalQueueFillVault is ERC20 {
         return delegatorContract;
     }
 
+    function decimals() public view override returns (uint8) {
+        return shareDecimals;
+    }
+
+    function virtualShares() external view returns (uint256) {
+        return virtualSharesValue;
+    }
+
     function totalAssets() external view returns (uint256) {
         return managedAssets;
     }
 
-    function accrueInterest() external pure returns (uint256 performanceFeeShares, uint256 managementFeeShares) {}
+    function accrueInterest() external returns (uint256 performanceFeeShares, uint256 managementFeeShares) {
+        ++accrueInterestCalls;
+    }
 
     function previewRedeem(uint256 shares) external view returns (uint256) {
         return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
@@ -135,10 +163,9 @@ contract WithdrawalQueueFillTest is Test {
         WithdrawalQueue(queue).initialize();
     }
 
-    function test_RequestWithdrawNotifiesDelegatorAndFillOnlyUsesLiquidVaultAssets() public {
-        WithdrawalQueueFillToken(collateral).mint(vault, 30);
+    function test_RequestWithdrawNotifiesDelegatorAndFillRedeemsPendingShares() public {
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
         WithdrawalQueueFillVault(vault).mintShares(alice, 100, 100);
-        WithdrawalQueueFillDelegator(delegator).setTotalAssets(70);
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, 100);
@@ -148,16 +175,31 @@ contract WithdrawalQueueFillTest is Test {
         WithdrawalQueue(queue).fill();
 
         assertEq(WithdrawalQueueFillDelegator(delegator).syncCalls(), 1);
-        assertEq(WithdrawalQueue(queue).totalFilled(), 30);
-        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 30);
+        assertEq(WithdrawalQueueFillVault(vault).accrueInterestCalls(), 0);
+        assertEq(WithdrawalQueue(queue).totalFilled(), 100);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 100);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(vault), 0);
     }
 
-    function test_ClaimableUsesFilledPortionOfRequest() public {
-        uint256 shares = 100 * 1e6;
+    function test_PendingAssetsUsesPreviewRedeemOfPendingShares() public {
+        uint256 shares = 100;
 
-        WithdrawalQueueFillToken(collateral).mint(vault, 30);
         WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
-        WithdrawalQueueFillDelegator(delegator).setTotalAssets(70);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        assertEq(WithdrawalQueue(queue).pendingShares(), shares);
+        assertEq(WithdrawalQueue(queue).pendingAssets(), 100);
+    }
+
+    function test_ClaimableUsesFilledRequest() public {
+        uint256 shares = 100;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
@@ -168,13 +210,13 @@ contract WithdrawalQueueFillTest is Test {
 
         (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0);
 
-        assertEq(assetsClaimed, 30);
-        assertEq(sharesClaimed, 30 * 1e6);
+        assertEq(assetsClaimed, 100);
+        assertEq(sharesClaimed, shares);
     }
 
-    function test_FillSkipsDustLiquidityBelowOneRedeemableShare() public {
+    function test_FillMarksSharesFilledEvenWhenRedeemRoundsToZero() public {
         WithdrawalQueueFillToken(collateral).mint(vault, 1);
-        WithdrawalQueueFillVault(vault).mintShares(alice, 2, 4);
+        WithdrawalQueueFillVault(vault).mintShares(alice, 2, 1);
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, 1);
@@ -183,40 +225,130 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        assertEq(WithdrawalQueue(queue).totalFilled(), 0);
+        assertEq(WithdrawalQueue(queue).totalFilled(), 1);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(vault), 1);
-    }
-
-    function test_ClaimableSplitsRequestAcrossSharePriceCheckpoints() public {
-        uint256 shares = 200 * 1e6;
-
-        WithdrawalQueueFillToken(collateral).mint(vault, 100);
-        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 200);
-        WithdrawalQueueFillDelegator(delegator).setTotalAssets(100);
-
-        vm.startPrank(alice);
-        WithdrawalQueueFillVault(vault).approve(queue, shares);
-        WithdrawalQueue(queue).requestWithdraw(shares, alice);
-        vm.stopPrank();
-
-        WithdrawalQueue(queue).fill();
-        assertEq(WithdrawalQueue(queue).totalFilled(), 100 * 1e6);
-
-        WithdrawalQueueFillVault(vault).setManagedAssets(50);
-        WithdrawalQueueFillToken(collateral).mint(vault, 50);
-
-        WithdrawalQueue(queue).fill();
 
         (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0);
 
-        assertEq(assetsClaimed, 150);
+        assertEq(assetsClaimed, 0);
+        assertEq(sharesClaimed, 1);
+    }
+
+    function test_ClaimableUsesSharePriceCheckpointsAcrossFills() public {
+        uint256 shares = 100;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 firstTokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 50);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 50);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 secondTokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 firstAssetsClaimed, uint256 firstSharesClaimed) = WithdrawalQueue(queue).claimable(firstTokenId);
+        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) = WithdrawalQueue(queue).claimable(secondTokenId);
+
+        assertEq(firstAssetsClaimed, 100);
+        assertEq(firstSharesClaimed, shares);
+        assertEq(secondAssetsClaimed, 50);
+        assertEq(secondSharesClaimed, shares);
+    }
+
+    function test_FillSkipsUpwardSharePriceDriftBelowOneTenthMicroToken() public {
+        uint256 shares = 1 ether;
+        uint256 assets = 1 ether;
+        uint256 drift = 1e11 - 1;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, assets + drift);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, assets + drift);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+
+        assertEq(assetsClaimed, assets);
+        assertEq(sharesClaimed, shares);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), assets + drift);
+
+        WithdrawalQueue(queue).claim(tokenId, type(uint256).max);
+
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), assets);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), drift);
+    }
+
+    function test_FillCheckpointsOneAtomUpwardDriftWithSixDecimalSharePriceTolerance() public {
+        uint256 virtualShares = 1e12;
+        uint256 deadShares = 1e18;
+        uint256 seedAssets = 1e6;
+        uint256 shares = 1e18;
+        uint256 assets = 1e6;
+        uint256 drift = 3;
+
+        WithdrawalQueueFillToken(collateral).setDecimals(6);
+        WithdrawalQueueFillVault(vault).setShareConfig(18, virtualShares);
+        queue = address(new WithdrawalQueue());
+        vm.prank(vault);
+        WithdrawalQueue(queue).initialize();
+
+        WithdrawalQueueFillToken(collateral).mint(vault, seedAssets + assets + drift);
+        WithdrawalQueueFillVault(vault).mintShares(address(0xDEAD), deadShares, seedAssets);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, assets);
+        WithdrawalQueueFillVault(vault).setManagedAssets(seedAssets + assets + drift);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+
+        assertEq(assetsClaimed, assets + 1);
+        assertEq(sharesClaimed, shares);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), assets + 1);
+    }
+
+    function test_FillCheckpointsSmallDownwardSharePriceDrift() public {
+        uint256 shares = 20_000;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 19_999);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 19_999);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+
+        assertEq(assetsClaimed, 19_999);
         assertEq(sharesClaimed, shares);
     }
 
     function test_ClaimPaysCurrentNftOwner() public {
         address bob = address(0xB0B);
-        uint256 shares = 100 * 1e6;
+        uint256 shares = 100;
 
         WithdrawalQueueFillToken(collateral).mint(vault, 100);
         WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);

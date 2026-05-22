@@ -17,11 +17,11 @@ contract MockERC4626OffsetVaultTest is Test {
         asset.approve(address(vault), type(uint256).max);
     }
 
-    function test_UsesSixDecimalOffsetAndAllowsTotalAssetsChanges() public {
+    function test_UsesAssetAdjustedDecimalOffsetAndAllowsTotalAssetsChanges() public {
         vault.deposit(1000 ether, address(this));
 
-        assertEq(vault.decimalsOffset(), 6);
-        assertEq(vault.decimals(), asset.decimals() + 6);
+        assertEq(vault.decimalsOffset(), 0);
+        assertEq(vault.decimals(), 18);
         assertEq(vault.totalAssets(), 1000 ether);
 
         vault.increaseTotalAssets(100 ether);
@@ -53,10 +53,9 @@ contract MockERC4626OffsetVaultTest is Test {
         assertLt(_sharePrice(), maxSharePrice);
     }
 
-    function test_SimulatesMaximumRawSharePriceChangeAfterNearFullWithdraw() public {
+    function test_SimulatesVirtualSharePriceChangeAfterNearFullWithdraw() public {
         vault.deposit(1000 ether, address(this));
         uint256 initialVirtualSharePrice = _sharePrice();
-        uint256 initialRawSharePrice = _rawSharePrice();
 
         vault.deposit(500 ether, address(this));
         vault.withdraw(200 ether, address(this), address(this));
@@ -70,33 +69,33 @@ contract MockERC4626OffsetVaultTest is Test {
 
         vault.withdraw(vault.maxWithdraw(address(this)) - 1, address(this), address(this));
 
-        assertEq(_sharePrice(), maxVirtualSharePrice);
-        assertEq(_rawSharePrice(), initialRawSharePrice * 10_000);
+        assertEq(vault.totalAssets(), 100);
+        assertEq(vault.totalSupply(), 0);
+        assertEq(_sharePrice(), maxVirtualSharePrice + 1 ether);
     }
 
     function test_SimulatesConvertToAssetsPriceDeltaAfterDepositAndWithdraw() public {
         uint256 virtualShares = 10 ** vault.decimalsOffset();
-        uint256 initialSharePrice = _offsetScaledSharePrice();
+        uint256 initialSharePrice = _sharePrice();
         uint256 maxSharePrice = initialSharePrice * 100;
         uint256 maxAllowedDelta = maxSharePrice / virtualShares;
         uint256 maxPossibleDelta = maxSharePrice - maxSharePrice * virtualShares / (virtualShares + 1);
 
-        assertEq(initialSharePrice, 1e6);
+        assertEq(initialSharePrice, 1 ether);
 
-        vault.mint(224_755, address(this));
-        vault.increaseTotalAssets(109);
+        vault.deposit(100 ether, address(this));
 
-        uint256 depositPriceBefore = _offsetScaledSharePrice();
-        vault.deposit(1, address(this));
-        uint256 depositDelta = _offsetScaledSharePrice() - depositPriceBefore;
+        uint256 depositPriceBefore = _sharePrice();
+        vault.deposit(1 ether, address(this));
+        uint256 depositDelta = _sharePrice() - depositPriceBefore;
 
-        assertEq(depositDelta, 61);
+        assertEq(depositDelta, 0);
         assertLt(depositDelta, maxAllowedDelta);
 
         vault = new MockERC4626OffsetVault(asset);
         asset.approve(address(vault), type(uint256).max);
 
-        uint256 k = 1e15;
+        uint256 k = 1e20;
         uint256 denominatorBefore = (virtualShares + 1) * k - 1;
         uint256 assetsBefore = 100 * k - 1;
         uint256 sharesBefore = denominatorBefore - virtualShares;
@@ -104,25 +103,21 @@ contract MockERC4626OffsetVaultTest is Test {
         vault.mint(sharesBefore, address(this));
         vault.increaseTotalAssets(assetsBefore - vault.totalAssets());
 
-        uint256 withdrawPriceBefore = _offsetScaledSharePrice();
+        uint256 withdrawPriceBefore = _sharePrice();
         vault.withdraw(assetsBefore - 99, address(this), address(this));
-        uint256 withdrawDelta = _offsetScaledSharePrice() - withdrawPriceBefore;
+        uint256 withdrawDelta = _sharePrice() - withdrawPriceBefore;
 
         assertEq(vault.totalAssets(), 99);
         assertEq(vault.totalSupply(), 0);
-        assertEq(_offsetScaledSharePrice(), maxSharePrice);
+        assertEq(_sharePrice(), maxSharePrice);
         assertEq(withdrawDelta, maxPossibleDelta);
-        assertEq(withdrawDelta, 100);
-        assertEq(withdrawDelta, maxAllowedDelta);
+        assertEq(withdrawDelta, 50 ether);
+        assertLt(withdrawDelta, maxAllowedDelta);
         assertGt(withdrawDelta, depositDelta);
     }
 
     function _sharePrice() internal view returns (uint256) {
         return vault.convertToAssets(10 ** vault.decimals());
-    }
-
-    function _offsetScaledSharePrice() internal view returns (uint256) {
-        return vault.convertToAssets(10 ** (vault.decimalsOffset() * 2));
     }
 
     function _rawSharePrice() internal view returns (uint256) {

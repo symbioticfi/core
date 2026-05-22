@@ -239,6 +239,11 @@ interface IWithdrawalQueue is IERC721Metadata {
     function claimable(uint256 tokenId) external view returns (uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
+     * @notice Initialize withdrawal queue metadata and bind it to the calling vault.
+     */
+    function initialize() external;
+
+    /**
      * @notice Fills pending withdrawal requests with available vault assets.
      */
     function fill() external;
