@@ -23,7 +23,7 @@ interface IAdapterRegistry {
 
     /**
      * @notice Check whether an adapter factory is whitelisted.
-     * @param vault Vault or delegator context.
+     * @param vault Vault context.
      * @param adapterFactory Adapter factory address.
      * @return status Whether the adapter factory is whitelisted.
      */

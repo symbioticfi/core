@@ -275,7 +275,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @inheritdoc ERC4626Upgradeable
     function maxRedeem(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return previewWithdraw(maxWithdraw(owner));
+        return Math.min(balanceOf(owner), previewDeposit(freeAssets()));
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */

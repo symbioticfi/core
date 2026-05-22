@@ -31,6 +31,4 @@ interface IFeeRegistry {
      * @return recipient Performance fee recipient.
      */
     function getPerformanceFeeRecipient(address vault) external view returns (address recipient);
-
-    function getInstantWithdrawFee(address vault) external view returns (uint256 fee);
 }

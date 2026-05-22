@@ -94,8 +94,22 @@ contract WithdrawalQueueFillVault is ERC20 {
         return WithdrawalQueueFillToken(collateral).balanceOf(address(this));
     }
 
+    function maxRedeem(address owner) external view returns (uint256) {
+        uint256 byLiquidity = managedAssets == 0
+            ? 0
+            : WithdrawalQueueFillToken(collateral).balanceOf(address(this)).mulDiv(totalSupply(), managedAssets);
+        return Math.min(balanceOf(owner), byLiquidity);
+    }
+
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         assets = shares.mulDiv(managedAssets, totalSupply());
+        _burn(owner, shares);
+        managedAssets -= assets;
+        WithdrawalQueueFillToken(collateral).transfer(receiver, assets);
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+        shares = assets.mulDiv(totalSupply(), managedAssets, Math.Rounding.Ceil);
         _burn(owner, shares);
         managedAssets -= assets;
         WithdrawalQueueFillToken(collateral).transfer(receiver, assets);
@@ -156,6 +170,22 @@ contract WithdrawalQueueFillTest is Test {
 
         assertEq(assetsClaimed, 30);
         assertEq(sharesClaimed, 30 * 1e6);
+    }
+
+    function test_FillSkipsDustLiquidityBelowOneRedeemableShare() public {
+        WithdrawalQueueFillToken(collateral).mint(vault, 1);
+        WithdrawalQueueFillVault(vault).mintShares(alice, 2, 4);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, 1);
+        WithdrawalQueue(queue).requestWithdraw(1, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        assertEq(WithdrawalQueue(queue).totalFilled(), 0);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(vault), 1);
     }
 
     function test_ClaimableSplitsRequestAcrossSharePriceCheckpoints() public {

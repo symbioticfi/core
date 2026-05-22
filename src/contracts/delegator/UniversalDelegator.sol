@@ -118,6 +118,11 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
+    function limitOf(address adapter) public view returns (uint256) {
+        return Math.min(absoluteLimitOf[adapter], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[adapter], MAX_SHARE));
+    }
+
+    /// @inheritdoc IUniversalDelegator
     function allocatable(address adapter) public view returns (uint256) {
         // delegator limit
         uint256 limit =
@@ -146,7 +151,7 @@ contract UniversalDelegator is
         address adapterFactory = IEntity(adapter).FACTORY();
         if (
             !IRegistry(adapterFactory).isEntity(adapter)
-                || !IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(address(this), adapterFactory)
+                || !IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(vault, adapterFactory)
                 || IAdapter(adapter).vault() != vault
         ) {
             revert InvalidAdapter();
@@ -420,15 +425,16 @@ contract UniversalDelegator is
         uint16[] memory previousAdaptersWithPending = adaptersWithPending;
         delete adaptersWithPending;
 
-        for (uint256 i; pendingAssets > 0 && i < adapters.length; ++i) {
+        uint256 remainingPendingAssets = pendingAssets;
+        for (uint256 i; remainingPendingAssets > 0 && i < adapters.length; ++i) {
             address adapter = adapters[i];
-            uint256 toRequest = Math.min(pendingAssets, IAdapter(adapter).totalAssets());
+            uint256 toRequest = Math.min(remainingPendingAssets, IAdapter(adapter).totalAssets());
             if (toRequest == 0) {
                 continue;
             }
             IAdapter(adapter).requestDeallocate(toRequest);
             adaptersWithPending.push(adapterToIndex[adapter]);
-            pendingAssets -= toRequest;
+            remainingPendingAssets -= toRequest;
         }
 
         for (uint256 i; i < previousAdaptersWithPending.length; ++i) {

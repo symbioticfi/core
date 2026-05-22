@@ -51,10 +51,6 @@ contract VaultV2FeeRegistryMock is IFeeRegistry {
     function getPerformanceFeeRecipient(address) external view returns (address) {
         return PERFORMANCE_FEE_RECIPIENT;
     }
-
-    function getInstantWithdrawFee(address) external pure returns (uint256) {
-        return 0;
-    }
 }
 
 contract VaultV2MigratableEntityMock is MigratableEntity {

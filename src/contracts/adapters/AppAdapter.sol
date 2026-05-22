@@ -156,7 +156,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         uint256 curSlashable = slashable();
 
         // it means the debt was somehow reduced and we can reset stake/debt/slashed
-        if (curTotalAssets - amount >= curSlashable) {
+        if (UniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)) - amount >= curSlashable) {
             Stake storage newStake = _stakes.push();
             newStake.initialStake = curSlashable;
             _timestampToStake.push(uint48(block.timestamp), uint208(_stakes.length - 1));

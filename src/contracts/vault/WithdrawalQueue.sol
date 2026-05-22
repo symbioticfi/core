@@ -112,18 +112,14 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
     /// @inheritdoc IWithdrawalQueue
     function fill() public {
-        uint256 amount = pendingAssets();
-        if (amount == 0) {
+        uint256 shares = pendingShares();
+        if (shares == 0) {
             return;
         }
 
         VaultV2(vault).accrueInterest();
 
-        amount = Math.min(amount, IERC4626(vault).maxWithdraw(address(this)));
-        if (amount == 0) {
-            return;
-        }
-        uint256 shares = IERC4626(vault).previewWithdraw(amount);
+        shares = Math.min(shares, IERC4626(vault).maxRedeem(address(this)));
         if (shares == 0) {
             return;
         }
@@ -137,7 +133,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             _sharePriceCheckpoints.push(SharePriceCheckpoint(totalAssets, totalShares));
         }
 
-        IERC4626(vault).redeem(shares, address(this), address(this));
+        uint256 amount = IERC4626(vault).redeem(shares, address(this), address(this));
         totalFilled += shares;
 
         emit Fill(amount, shares);
@@ -185,7 +181,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         sharesClaimed = cumClaimedShares - request.prevRequestSum - request.claimedShares;
     }
-
 
     /* INITIALIZE */
 
