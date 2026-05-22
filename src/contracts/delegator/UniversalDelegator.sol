@@ -178,24 +178,8 @@ contract UniversalDelegator is
             revert InvalidAdapter();
         }
         _isAdapterAdded[adapter] = false;
-        for (uint256 i; i < adapters.length; ++i) {
-            if (adapters[i] == adapter) {
-                for (uint256 j = i; j < adapters.length - 1; ++j) {
-                    adapters[j] = adapters[j + 1];
-                }
-                adapters.pop();
-                break;
-            }
-        }
-        for (uint256 i; i < autoAllocateAdapters.length; ++i) {
-            if (autoAllocateAdapters[i] == adapter) {
-                for (uint256 j = i; j < autoAllocateAdapters.length - 1; ++j) {
-                    autoAllocateAdapters[j] = autoAllocateAdapters[j + 1];
-                }
-                autoAllocateAdapters.pop();
-                break;
-            }
-        }
+        _removeOrdered(adapters, adapter);
+        _removeOrdered(autoAllocateAdapters, adapter);
         for (uint256 i; i < adaptersWithPending.length; ++i) {
             if (adaptersWithPending[i] == index) {
                 adaptersWithPending[i] = adaptersWithPending[adaptersWithPending.length - 1];
@@ -501,6 +485,18 @@ contract UniversalDelegator is
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
         if (holder != address(0)) {
             _grantRole(role, holder);
+        }
+    }
+
+    function _removeOrdered(address[] storage values, address value) internal {
+        for (uint256 i; i < values.length; ++i) {
+            if (values[i] == value) {
+                for (uint256 j = i; j < values.length - 1; ++j) {
+                    values[j] = values[j + 1];
+                }
+                values.pop();
+                return;
+            }
         }
     }
 
