@@ -166,7 +166,6 @@ interface IWithdrawalQueue is IERC721Metadata {
     /**
      * @notice Returns the request details for a withdrawal NFT.
      * @param tokenId Withdrawal NFT id.
-     * @return receiver Address that received the withdrawal NFT and receives claimed assets.
      * @return shares Amount of vault shares requested for withdrawal.
      * @return claimedShares Amount of request shares already claimed.
      * @return prevRequestSum Cumulative requested shares before this request.
@@ -174,45 +173,7 @@ interface IWithdrawalQueue is IERC721Metadata {
     function requests(uint256 tokenId)
         external
         view
-        returns (address receiver, uint256 shares, uint256 claimedShares, uint256 prevRequestSum);
-
-    /**
-     * @notice Returns a queue reward checkpoint.
-     * @param vaultSnapshotRewards Vault snapshot rewards contract.
-     * @param network Network whose rewards were claimed.
-     * @param token Reward token claimed.
-     * @param index Queue reward index.
-     * @return checkpoint Queue reward checkpoint.
-     */
-    function rewards(address vaultSnapshotRewards, address network, address token, uint256 index)
-        external
-        view
-        returns (RewardCheckpoint memory checkpoint);
-
-    /**
-     * @notice Returns the number of queue reward checkpoints.
-     * @param vaultSnapshotRewards Vault snapshot rewards contract.
-     * @param network Network whose rewards were claimed.
-     * @param token Reward token claimed.
-     * @return length Number of queue reward checkpoints.
-     */
-    function rewardsLength(address vaultSnapshotRewards, address network, address token)
-        external
-        view
-        returns (uint256 length);
-
-    /**
-     * @notice Returns the next queue reward index for a withdrawal NFT to claim.
-     * @param tokenId Withdrawal NFT id.
-     * @param vaultSnapshotRewards Vault snapshot rewards contract.
-     * @param network Network whose rewards were claimed.
-     * @param token Reward token claimed.
-     * @return rewardIndex Next queue reward index to claim.
-     */
-    function lastClaimedReward(uint256 tokenId, address vaultSnapshotRewards, address network, address token)
-        external
-        view
-        returns (uint256 rewardIndex);
+        returns (uint256 shares, uint256 claimedShares, uint256 prevRequestSum);
 
     /**
      * @notice Transfers vault shares into the queue and mints a withdrawal NFT.

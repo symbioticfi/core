@@ -39,21 +39,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     SharePriceCheckpoint[] internal _sharePriceCheckpoints;
     /// @dev Cumulative shares filled to share price.
     Checkpoints.Trace256 internal _totalFilledSharesToSharePrice;
-    /// @dev Total requested shares checkpoints by timestamp.
-    Checkpoints.Trace256 internal _totalRequestedAt;
-    /// @dev Total filled shares checkpoints by timestamp.
-    Checkpoints.Trace256 internal _totalFilledAt;
     /// @inheritdoc IWithdrawalQueue
     mapping(uint256 tokenId => WithdrawalRequest) public requests;
-    /// @dev Queue rewards claimed from vault snapshot rewards contracts.
-    mapping(
-        address vaultSnapshotRewards => mapping(address network => mapping(address token => RewardCheckpoint[]))
-    ) internal _rewards;
-    /// @inheritdoc IWithdrawalQueue
-    mapping(
-        uint256 tokenId
-            => mapping(address vaultSnapshotRewards => mapping(address network => mapping(address token => uint256)))
-    ) public lastClaimedReward;
 
     /* MULTICALL */
 
@@ -86,24 +73,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         (assetsClaimed, sharesClaimed) = _claimable(tokenId, type(uint256).max);
     }
 
-    /// @inheritdoc IWithdrawalQueue
-    function rewards(address vaultSnapshotRewards, address network, address token, uint256 index)
-        public
-        view
-        returns (RewardCheckpoint memory checkpoint)
-    {
-        return _rewards[vaultSnapshotRewards][network][token][index];
-    }
-
-    /// @inheritdoc IWithdrawalQueue
-    function rewardsLength(address vaultSnapshotRewards, address network, address token)
-        public
-        view
-        returns (uint256 length)
-    {
-        return _rewards[vaultSnapshotRewards][network][token].length;
-    }
-
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IWithdrawalQueue
@@ -117,7 +86,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         tokenId = _nextTokenId++;
         requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
         totalRequested += shares;
-        _totalRequestedAt.push(block.timestamp, totalRequested);
 
         _mint(receiver, tokenId);
 
@@ -135,9 +103,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         (assetsClaimed, sharesClaimed) = _claimable(tokenId, maxIterations);
 
-        WithdrawalRequest storage request = requests[tokenId];
-
-        request.claimedShares += sharesClaimed;
+        requests[tokenId].claimedShares += sharesClaimed;
 
         IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assetsClaimed);
 
@@ -173,80 +139,9 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         IERC4626(vault).redeem(shares, address(this), address(this));
         totalFilled += shares;
-        _totalFilledAt.push(block.timestamp, totalFilled);
 
         emit Fill(amount, shares);
     }
-
-    /*
-    /// @inheritdoc IWithdrawalQueue
-    function claimVaultSnapshotRewards(
-        address vaultSnapshotRewards,
-        address network,
-        address token,
-        uint256 rewardsToClaim,
-        bytes[] calldata activeSharesOfHints
-    ) public returns (uint256 amount, uint256 rewardsClaimed) {
-        uint256 firstRewardToClaim =
-            IVaultSnapshotRewards(vaultSnapshotRewards).lastUnclaimedReward(address(this), vault, network, token);
-        rewardsClaimed = Math.min(
-            rewardsToClaim,
-            IVaultSnapshotRewards(vaultSnapshotRewards).rewardsLength(vault, network, token).saturatingSub(
-                firstRewardToClaim
-            )
-        );
-        if (rewardsClaimed == 0) {
-            revert NoRewardsToClaim();
-        }
-
-        for (uint256 i; i < rewardsClaimed; ++i) {
-            bytes memory activeSharesOfHint;
-            if (i < activeSharesOfHints.length) {
-                activeSharesOfHint = activeSharesOfHints[i];
-            }
-            amount += _claimVaultSnapshotReward(
-                vaultSnapshotRewards, network, token, firstRewardToClaim + i, activeSharesOfHint
-            );
-        }
-
-        emit ClaimVaultSnapshotRewards(vaultSnapshotRewards, network, token, amount, firstRewardToClaim, rewardsClaimed);
-    }
-
-    /// @inheritdoc IWithdrawalQueue
-    function claimRewards(
-        uint256 tokenId,
-        address vaultSnapshotRewards,
-        address network,
-        address token,
-        uint256 rewardsToClaim
-    ) public returns (uint256 amount, uint256 rewardsClaimed) {
-        ownerOf(tokenId);
-
-        uint256 firstRewardToClaim = lastClaimedReward[tokenId][vaultSnapshotRewards][network][token];
-        RewardCheckpoint[] storage rewards_ = _rewards[vaultSnapshotRewards][network][token];
-        rewardsClaimed = Math.min(rewardsToClaim, rewards_.length.saturatingSub(firstRewardToClaim));
-        if (rewardsClaimed == 0) {
-            revert NoRewardsToClaim();
-        }
-        WithdrawalRequest storage request = requests[tokenId];
-
-        for (uint256 i; i < rewardsClaimed; ++i) {
-            RewardCheckpoint storage reward = rewards_[firstRewardToClaim + i];
-            if (reward.totalShares == 0 || reward.amount == 0) {
-                continue;
-            }
-            amount += _activeSharesOfAt(request, reward.timestamp).mulDiv(reward.amount, reward.totalShares);
-        }
-
-        lastClaimedReward[tokenId][vaultSnapshotRewards][network][token] = firstRewardToClaim + rewardsClaimed;
-
-        if (amount != 0) {
-            IERC20(token).safeTransfer(request.receiver, amount);
-        }
-
-        emit ClaimRewards(tokenId, vaultSnapshotRewards, network, token, amount, firstRewardToClaim, rewardsClaimed);
-    }
-    */
 
     /* INTERNAL FUNCTIONS */
 
@@ -291,63 +186,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         sharesClaimed = cumClaimedShares - request.prevRequestSum - request.claimedShares;
     }
 
-    // /// @dev Returns total active withdrawal shares at a timestamp.
-    // /// @param timestamp Timestamp to query.
-    // /// @return shares Total active withdrawal shares.
-    // function _activeSharesAt(uint48 timestamp) internal view returns (uint256 shares) {
-    //     return _totalRequestedAt.upperLookupRecent(timestamp).saturatingSub(_totalFilledAt.upperLookupRecent(timestamp));
-    // }
-
-    // /// @dev Returns active withdrawal shares for a request at a timestamp.
-    // /// @param request Withdrawal request to query.
-    // /// @param timestamp Timestamp to query.
-    // /// @return shares Request active withdrawal shares.
-    // function _activeSharesOfAt(WithdrawalRequest storage request, uint48 timestamp)
-    //     internal
-    //     view
-    //     returns (uint256 shares)
-    // {
-    //     uint256 requestStart = request.prevRequestSum;
-    //     uint256 requestEnd = requestStart + request.shares;
-    //     uint256 activeStart = Math.max(requestStart, _totalFilledAt.upperLookupRecent(timestamp));
-    //     uint256 activeEnd = Math.min(requestEnd, _totalRequestedAt.upperLookupRecent(timestamp));
-
-    //     return activeEnd.saturatingSub(activeStart);
-    // }
-
-    /*
-    /// @dev Claims and records a single vault snapshot reward for the queue.
-    /// @param vaultSnapshotRewards Vault snapshot rewards contract address.
-    /// @param network Network whose rewards are claimed.
-    /// @param token Reward token to claim.
-    /// @param rewardIndex Source reward index to claim.
-    /// @param activeSharesOfHint Hint for the queue active shares lookup in the rewards contract.
-    /// @return rewardAmount Amount of reward tokens claimed by the queue.
-    function _claimVaultSnapshotReward(
-        address vaultSnapshotRewards,
-        address network,
-        address token,
-        uint256 rewardIndex,
-        bytes memory activeSharesOfHint
-    ) internal returns (uint256 rewardAmount) {
-        IVaultSnapshotRewards.RewardDistribution memory reward =
-            IVaultSnapshotRewards(vaultSnapshotRewards).rewards(vault, network, token, rewardIndex);
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-        bytes[] memory activeSharesOfHints = new bytes[](1);
-        activeSharesOfHints[0] = activeSharesOfHint;
-
-        IVaultSnapshotRewards(vaultSnapshotRewards).claimVaultSnapshotRewards(
-            address(this), network, token, vault, rewardIndex, rewardIndex, 1, activeSharesOfHints
-        );
-
-        rewardAmount = IERC20(token).balanceOf(address(this)) - balanceBefore;
-        uint256 totalShares = _activeSharesAt(reward.timestamp);
-
-        _rewards[vaultSnapshotRewards][network][token].push(
-            RewardCheckpoint({timestamp: reward.timestamp, amount: rewardAmount, totalShares: totalShares})
-        );
-    }
-    */
 
     /* INITIALIZE */
 
