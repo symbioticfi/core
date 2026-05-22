@@ -114,12 +114,8 @@ interface IAppAdapter is IAdapter {
     /**
      * @notice Slash the configured pair.
      * @param amount Maximum amount to slash.
-     * @param captureTimestamp Capture timestamp, or zero for current stake.
-     * @param data Extra slash data.
      * @return slashedAmount Amount slashed.
      * @dev Only the configured network middleware can call this function.
      */
-    function slash(uint256 amount, uint48 captureTimestamp, bytes calldata data)
-        external
-        returns (uint256 slashedAmount);
+    function slash(uint256 amount) external returns (uint256 slashedAmount);
 }
