@@ -147,6 +147,7 @@ contract UniversalDelegator is
         if (
             !IRegistry(adapterFactory).isEntity(adapter)
                 || !IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(address(this), adapterFactory)
+                || IAdapter(adapter).vault() != vault
         ) {
             revert InvalidAdapter();
         }
@@ -241,6 +242,11 @@ contract UniversalDelegator is
         for (uint256 i; i < newAutoAllocateAdapters.length; ++i) {
             if (!_isAdapterAdded[newAutoAllocateAdapters[i]]) {
                 revert InvalidAdapter();
+            }
+            for (uint256 j; j < i; ++j) {
+                if (newAutoAllocateAdapters[j] == newAutoAllocateAdapters[i]) {
+                    revert InvalidAdapter();
+                }
             }
         }
 
@@ -347,7 +353,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function onWithdrawRequest() public nonReentrant {
-        if (vault != msg.sender) {
+        if (VaultV2(vault).withdrawalQueue() != msg.sender) {
             revert NotVault();
         }
 
@@ -405,24 +411,24 @@ contract UniversalDelegator is
     /* INTERNAL FUNCTIONS */
 
     function _sweepPending() internal returns (uint256 pendingAssets) {
-        _deallocateAll(WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets());
-        WithdrawalQueue(VaultV2(vault).withdrawalQueue()).fill();
-        pendingAssets = WithdrawalQueue(VaultV2(vault).withdrawalQueue()).pendingAssets();
+        address queue = VaultV2(vault).withdrawalQueue();
+        _deallocateAll(WithdrawalQueue(queue).pendingAssets().saturatingSub(freeAssets()));
+        WithdrawalQueue(queue).fill();
+        pendingAssets = WithdrawalQueue(queue).pendingAssets();
 
         // update requests or reset them
         uint16[] memory previousAdaptersWithPending = adaptersWithPending;
         delete adaptersWithPending;
-        uint256 queuePendingAssets = pendingAssets;
 
-        for (uint256 i; queuePendingAssets > 0 && i < adapters.length; ++i) {
+        for (uint256 i; pendingAssets > 0 && i < adapters.length; ++i) {
             address adapter = adapters[i];
-            uint256 toRequest = Math.min(queuePendingAssets, IAdapter(adapter).totalAssets());
+            uint256 toRequest = Math.min(pendingAssets, IAdapter(adapter).totalAssets());
             if (toRequest == 0) {
                 continue;
             }
             IAdapter(adapter).requestDeallocate(toRequest);
             adaptersWithPending.push(adapterToIndex[adapter]);
-            queuePendingAssets -= toRequest;
+            pendingAssets -= toRequest;
         }
 
         for (uint256 i; i < previousAdaptersWithPending.length; ++i) {

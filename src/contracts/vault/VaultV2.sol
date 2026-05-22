@@ -29,6 +29,7 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /// @title VaultV2
+/// @dev Supports standard ERC20 collateral only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
 contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeable, IVaultV2 {
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -124,11 +125,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     function isInitialized() public view returns (bool) {
         return delegator != address(0);
-    }
-
-    /// @inheritdoc IVaultV2
-    function slasher() public view returns (address) {
-        return delegator;
     }
 
     /// @inheritdoc IVaultV2
@@ -253,6 +249,26 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
+    function maxDeposit(address receiver) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+        if (depositWhitelist && !isDepositorWhitelisted[receiver]) {
+            return 0;
+        }
+        return isDepositLimit ? depositLimit.saturatingSub(totalAssets()) : type(uint256).max;
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function maxMint(address receiver) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+        uint256 assets = maxDeposit(receiver);
+        if (assets == type(uint256).max) {
+            return type(uint256).max;
+        }
+        if (assets == 0) {
+            return 0;
+        }
+        return previewDeposit(assets);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
     function maxWithdraw(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
         return Math.min(previewRedeem(balanceOf(owner)), freeAssets());
     }
@@ -369,7 +385,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
-    /// @dev Set the vault delegator once after deployment.
+    /// @dev Public one-shot initializer for a factory-registered delegator already bound to this vault.
     function setDelegator(address newDelegator) public {
         if (delegator != address(0)) {
             revert DelegatorAlreadyInitialized();
@@ -405,6 +421,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         __ERC20_init(params.name, params.symbol);
         __ERC4626_init(IERC20(params.asset));
         lastUpdate = uint48(block.timestamp);
+        lastPerformanceFee = uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
+        lastManagementFee = uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
 
         burner = params.burner;
         withdrawalQueue = address(

@@ -12,13 +12,11 @@ interface IWithdrawalQueue is IERC721Metadata {
 
     /**
      * @notice A pending withdrawal request.
-     * @param receiver Address that received the withdrawal NFT and receives claimed assets.
      * @param shares Amount of vault shares requested for withdrawal.
      * @param claimedShares Amount of request shares already claimed.
      * @param prevRequestSum Cumulative requested shares before this request.
      */
     struct WithdrawalRequest {
-        address receiver;
         uint256 shares;
         uint256 claimedShares;
         uint256 prevRequestSum;

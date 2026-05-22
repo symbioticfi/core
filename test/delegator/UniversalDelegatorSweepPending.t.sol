@@ -12,6 +12,15 @@ import {
     SET_AUTO_ALLOCATE_ADAPTERS_ROLE,
     SWAP_ADAPTERS_ROLE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract UniversalDelegatorSweepToken is ERC20 {
+    constructor() ERC20("Token", "TKN") {}
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+}
 
 contract UniversalDelegatorSweepHarness is UniversalDelegator {
     constructor(address adapterRegistry)
@@ -68,11 +77,17 @@ contract UniversalDelegatorSweepQueue {
 
 contract UniversalDelegatorSweepVault {
     address public withdrawalQueue;
+    address public immutable asset;
     uint256 public pushedAssets;
     address public lastPushAdapter;
 
     constructor(address withdrawalQueue_) {
         withdrawalQueue = withdrawalQueue_;
+        asset = address(new UniversalDelegatorSweepToken());
+    }
+
+    function mintFreeAssets(uint256 assets) external {
+        UniversalDelegatorSweepToken(asset).mint(address(this), assets);
     }
 
     function push(uint256 assets, address adapter) external {
@@ -83,14 +98,16 @@ contract UniversalDelegatorSweepVault {
 
 contract UniversalDelegatorSweepAdapter {
     address public immutable FACTORY;
+    address public immutable vault;
     uint256 public totalAssets;
     uint256 public deallocateReturn;
     uint256 public lastDeallocateAmount;
     uint256 public lastRequestDeallocateAmount;
     uint256 public requestDeallocateCalls;
 
-    constructor(address factory, uint256 totalAssets_, uint256 deallocateReturn_) {
+    constructor(address factory, address vault_, uint256 totalAssets_, uint256 deallocateReturn_) {
         FACTORY = factory;
+        vault = vault_;
         totalAssets = totalAssets_;
         deallocateReturn = deallocateReturn_;
     }
@@ -135,7 +152,17 @@ contract UniversalDelegatorSweepPendingTest is Test {
         internal
         returns (UniversalDelegatorSweepAdapter adapter)
     {
-        adapter = new UniversalDelegatorSweepAdapter(address(adapterFactory), totalAssets, deallocateReturn);
+        adapter = new UniversalDelegatorSweepAdapter(
+            address(adapterFactory), delegator.vault(), totalAssets, deallocateReturn
+        );
+        adapterFactory.setEntity(address(adapter), true);
+    }
+
+    function _newAdapterForVault(address vault, uint256 totalAssets, uint256 deallocateReturn)
+        internal
+        returns (UniversalDelegatorSweepAdapter adapter)
+    {
+        adapter = new UniversalDelegatorSweepAdapter(address(adapterFactory), vault, totalAssets, deallocateReturn);
         adapterFactory.setEntity(address(adapter), true);
     }
 
@@ -194,6 +221,27 @@ contract UniversalDelegatorSweepPendingTest is Test {
         delegator.setAutoAllocateAdapters(route);
     }
 
+    function test_SetAutoAllocateAdaptersRevertsOnDuplicateAdapters() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 0);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, address(this));
+
+        address[] memory route = new address[](2);
+        route[0] = address(adapter);
+        route[1] = address(adapter);
+        vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
+        delegator.setAutoAllocateAdapters(route);
+    }
+
+    function test_AddAdapterRevertsIfAdapterVaultDoesNotMatchDelegatorVault() public {
+        delegator.setVault(address(0xBEEF));
+        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(0xCAFE), 100, 0);
+
+        vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
+        delegator.addAdapterForTest(address(adapter));
+    }
+
     function test_LimitsAreStoredByAdapterAddress() public {
         UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 0);
 
@@ -208,10 +256,10 @@ contract UniversalDelegatorSweepPendingTest is Test {
     function test_SweepPendingStoresPendingAdapterIndexes() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(100);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
         UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 0);
         queue.setPendingAfterFill(100);
 
-        delegator.setVault(address(vault));
         uint16 index = delegator.addAdapterForTest(address(adapter));
 
         uint256 pendingAssets = delegator.sweepPending();
@@ -224,9 +272,9 @@ contract UniversalDelegatorSweepPendingTest is Test {
     function test_SweepPendingDoesNotRequestStalePendingAfterFill() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(100);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
         UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 60);
 
-        delegator.setVault(address(vault));
         delegator.addAdapterForTest(address(adapter));
 
         uint256 pendingAssets = delegator.sweepPending();
@@ -238,5 +286,31 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(adapter.lastDeallocateAmount(), 100);
         assertEq(adapter.requestDeallocateCalls(), 0);
         assertEq(adapter.lastRequestDeallocateAmount(), 0);
+    }
+
+    function test_SweepPendingOnlyDeallocatesPendingAssetsNetOfVaultFreeAssets() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(100);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(30);
+        queue.setPendingAfterFill(0);
+
+        delegator.setVault(address(vault));
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 70);
+        delegator.addAdapterForTest(address(adapter));
+
+        uint256 pendingAssets = delegator.sweepPending();
+
+        assertEq(pendingAssets, 0);
+        assertEq(adapter.lastDeallocateAmount(), 70);
+        assertEq(vault.pushedAssets(), 70);
+    }
+
+    function test_OnWithdrawRequestAllowsWithdrawalQueueCaller() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
+
+        vm.prank(address(queue));
+        delegator.onWithdrawRequest();
     }
 }

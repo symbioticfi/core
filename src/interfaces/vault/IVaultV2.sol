@@ -22,6 +22,7 @@ uint8 constant DECIMALS_OFFSET = 6;
 /**
  * @title IVaultV2
  * @notice Interface for the VaultV2 contract.
+ * @dev VaultV2 supports standard ERC20 collateral only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
  */
 interface IVaultV2 is IMigratableEntity, IERC4626 {
     /* ERRORS */
@@ -203,12 +204,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626 {
      * @return delegatorAddress Address of the delegator.
      */
     function delegator() external view returns (address delegatorAddress);
-
-    /**
-     * @notice Get the slashing entrypoint associated with the vault.
-     * @return slasherAddress Address of the slashing entrypoint.
-     */
-    function slasher() external view returns (address slasherAddress);
 
     /**
      * @notice Get the withdrawal queue associated with the vault.

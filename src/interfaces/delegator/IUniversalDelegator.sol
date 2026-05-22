@@ -260,6 +260,7 @@ interface IUniversalDelegator {
     /**
      * @notice Remove an adapter.
      * @param adapter Adapter address.
+     * @dev Only updates the configured route and delegator accounting; callers must handle adapter assets and pending state before removal.
      */
     function removeAdapter(address adapter) external;
 
@@ -338,7 +339,7 @@ interface IUniversalDelegator {
 
     /**
      * @notice Handle a withdrawal queue request.
-     * @dev Only the vault can call this function.
+     * @dev Only the associated withdrawal queue can call this function.
      */
     function onWithdrawRequest() external;
 

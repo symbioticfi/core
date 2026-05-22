@@ -115,8 +115,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         IERC4626(vault).safeTransferFrom(msg.sender, address(this), shares);
 
         tokenId = _nextTokenId++;
-        requests[tokenId] =
-            WithdrawalRequest({receiver: receiver, shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
+        requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
         totalRequested += shares;
         _totalRequestedAt.push(block.timestamp, totalRequested);
 
@@ -140,7 +139,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         request.claimedShares += sharesClaimed;
 
-        IERC20(IERC4626(vault).asset()).safeTransfer(request.receiver, assetsClaimed);
+        IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assetsClaimed);
 
         emit Claim(tokenId, assetsClaimed, sharesClaimed);
     }
@@ -272,17 +271,16 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             totalFilled.saturatingSub(request.prevRequestSum + request.claimedShares)
         );
         uint256 cumClaimedShares = request.prevRequestSum + request.claimedShares;
-        uint32 checkpointIndex =
-            uint32(_totalFilledSharesToSharePrice.upperLookupRecent(cumClaimedShares.saturatingSub(1)));
+        uint32 checkpointIndex = uint32(_totalFilledSharesToSharePrice.upperLookupRecent(cumClaimedShares));
 
         for (; maxSharesToClaim > 0 && maxIterations > 0; --maxIterations) {
-            SharePriceCheckpoint storage checkpoint = _sharePriceCheckpoints[checkpointIndex++];
             uint256 curRequestShares = maxSharesToClaim;
             if (_totalFilledSharesToSharePrice.length() > checkpointIndex) {
                 curRequestShares = Math.min(
                     _totalFilledSharesToSharePrice.at(checkpointIndex)._key - cumClaimedShares, maxSharesToClaim
                 );
             }
+            SharePriceCheckpoint storage checkpoint = _sharePriceCheckpoints[checkpointIndex++];
             assetsClaimed += curRequestShares.mulDiv(
                 checkpoint.totalAssets + 1, checkpoint.totalShares + 10 ** DECIMALS_OFFSET
             );

@@ -38,6 +38,10 @@ contract WithdrawalQueueFillDelegator {
     }
 
     function onDeposit() external {}
+
+    function sweepPending() external pure returns (uint256) {
+        return 0;
+    }
 }
 
 contract WithdrawalQueueFillVault is ERC20 {
@@ -58,6 +62,10 @@ contract WithdrawalQueueFillVault is ERC20 {
     function mintShares(address account, uint256 shares, uint256 assets) external {
         _mint(account, shares);
         managedAssets += assets;
+    }
+
+    function setManagedAssets(uint256 assets) external {
+        managedAssets = assets;
     }
 
     function asset() external view returns (address) {
@@ -148,5 +156,51 @@ contract WithdrawalQueueFillTest is Test {
 
         assertEq(assetsClaimed, 30);
         assertEq(sharesClaimed, 30 * 1e6);
+    }
+
+    function test_ClaimableSplitsRequestAcrossSharePriceCheckpoints() public {
+        uint256 shares = 200 * 1e6;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 200);
+        WithdrawalQueueFillDelegator(delegator).setTotalAssets(100);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+        assertEq(WithdrawalQueue(queue).totalFilled(), 100 * 1e6);
+
+        WithdrawalQueueFillVault(vault).setManagedAssets(50);
+        WithdrawalQueueFillToken(collateral).mint(vault, 50);
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0);
+
+        assertEq(assetsClaimed, 150);
+        assertEq(sharesClaimed, shares);
+    }
+
+    function test_ClaimPaysCurrentNftOwner() public {
+        address bob = address(0xB0B);
+        uint256 shares = 100 * 1e6;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        WithdrawalQueue(queue).transferFrom(alice, bob, tokenId);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+        WithdrawalQueue(queue).claim(tokenId, type(uint256).max);
+
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(bob), 100);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 0);
     }
 }
