@@ -74,7 +74,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function claimable(uint256 tokenId, uint256) public view returns (uint256 assets, uint256 shares) {
+    function claimable(uint256 tokenId) public view returns (uint256 assets, uint256 shares) {
         WithdrawalRequest storage request = requests[tokenId];
 
         if (request.claimedShares == request.shares) {
@@ -127,11 +127,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function claim(uint256 tokenId, uint256 maxIterations)
-        public
-        returns (uint256 assetsClaimed, uint256 sharesClaimed)
-    {
-        (assetsClaimed, sharesClaimed) = claimable(tokenId, maxIterations);
+    function claim(uint256 tokenId) public returns (uint256 assetsClaimed, uint256 sharesClaimed) {
+        (assetsClaimed, sharesClaimed) = claimable(tokenId);
 
         requests[tokenId].claimedShares += sharesClaimed;
 

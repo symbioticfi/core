@@ -198,7 +198,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(queue.pendingShares(), shares);
         assertEq(adapter.totalAssets(), adapterAssets);
         assertEq(adapter.stakeAt(requestedAt), observedStake);
-        (, uint256 claimableShares) = queue.claimable(tokenId, type(uint256).max);
+        (, uint256 claimableShares) = queue.claimable(tokenId);
 
         assertEq(claimableShares, 0);
     }
@@ -241,13 +241,13 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(queue.totalFilled(), shares);
         assertLt(adapter.totalAssets(), adapterAssetsBefore);
 
-        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId, type(uint256).max);
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId);
         uint256 aliceBalanceBefore = collateral.balanceOf(alice);
 
         assertGt(claimableAssets, 0);
         assertEq(claimableShares, shares);
 
-        queue.claim(tokenId, type(uint256).max);
+        queue.claim(tokenId);
 
         assertEq(collateral.balanceOf(alice), aliceBalanceBefore + claimableAssets);
     }
@@ -266,13 +266,13 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(queue.pendingShares(), 0);
         assertLt(adapter.totalAssets(), adapterAssetsBefore);
 
-        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId, type(uint256).max);
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId);
         uint256 aliceBalanceBefore = collateral.balanceOf(address(0xA11CE));
 
         assertEq(claimableAssets, assetsFilled);
         assertEq(claimableShares, shares);
 
-        queue.claim(tokenId, type(uint256).max);
+        queue.claim(tokenId);
 
         assertEq(collateral.balanceOf(address(0xA11CE)), aliceBalanceBefore + assetsFilled);
     }

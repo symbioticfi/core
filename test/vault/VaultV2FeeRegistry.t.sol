@@ -177,6 +177,103 @@ contract VaultV2BehaviorTest is Test {
         _assertNoLegacyShareGetters(vault);
     }
 
+    function test_InitializeRejectsInvalidAssetAndOwner() public {
+        vm.expectRevert(IVaultV2.InvalidCollateral.selector);
+        vaultFactory.create(VAULT_V2_VERSION, address(this), _vaultParamsWithAsset(address(0), false, false, 0));
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vaultFactory.create(VAULT_V2_VERSION, address(0), _vaultParams(false, false, 0));
+    }
+
+    function test_BasicViewsAndDepositLimitControls() public {
+        VaultV2 vault = _createVault(false, false, 0);
+
+        assertTrue(vault.isInitialized());
+        assertEq(vault.collateral(), address(collateral));
+        assertEq(vault.maxDeposit(alice), type(uint256).max);
+        assertEq(vault.maxMint(alice), type(uint256).max);
+        assertEq(vault.activeBalanceOf(alice), 0);
+        assertEq(vault.nonces(alice), 0);
+
+        vault.setDepositWhitelist(true);
+        assertEq(vault.maxDeposit(bob), 0);
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vault.setDepositorWhitelistStatus(address(0), true);
+
+        vault.setDepositorWhitelistStatus(bob, true);
+        vault.setIsDepositLimit(true);
+        vault.setDepositLimit(100);
+
+        assertEq(vault.maxDeposit(bob), 100);
+
+        vault.setSlasher(address(0xBEEF));
+    }
+
+    function test_MulticallAppliesCallsAndBubblesReverts() public {
+        VaultV2 vault = _createVault(false, false, 0);
+
+        bytes[] memory calls = new bytes[](2);
+        calls[0] = abi.encodeCall(IVaultV2.setIsDepositLimit, (true));
+        calls[1] = abi.encodeCall(IVaultV2.setDepositLimit, (123));
+        vault.multicall(calls);
+
+        assertTrue(vault.isDepositLimit());
+        assertEq(vault.depositLimit(), 123);
+
+        calls = new bytes[](1);
+        calls[0] = abi.encodeCall(IVaultV2.setDepositorWhitelistStatus, (address(0), true));
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vault.multicall(calls);
+    }
+
+    function test_DepositWithdrawRedeemPullAndPush() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        _deposit(vault, alice, 100 ether);
+
+        assertEq(vault.activeBalanceOf(alice), 100 ether);
+
+        vm.startPrank(alice);
+        vault.withdraw(40 ether, bob, alice);
+        uint256 remainingShares = vault.balanceOf(alice);
+        vault.redeem(remainingShares, bob, alice);
+        vm.stopPrank();
+
+        assertEq(vault.balanceOf(alice), 0);
+        assertEq(collateral.balanceOf(bob), 100 ether);
+
+        _deposit(vault, alice, 20 ether);
+
+        vm.expectRevert(IVaultV2.NotDelegator.selector);
+        vault.pull(1, bob);
+
+        vm.expectRevert(IVaultV2.NotDelegator.selector);
+        vault.push(1, bob);
+
+        vm.prank(vault.delegator());
+        vault.pull(10 ether, bob);
+
+        vm.startPrank(bob);
+        collateral.approve(address(vault), 10 ether);
+        vm.stopPrank();
+
+        vm.prank(vault.delegator());
+        vault.push(10 ether, bob);
+    }
+
+    function test_PreviewMintAndWithdrawRoundUpWithFees() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        _setCuratorFees(vault);
+        _deposit(vault, alice, 100 ether);
+
+        vm.warp(block.timestamp + 30 days);
+        collateral.transfer(address(vault), 100 ether);
+
+        assertGt(vault.previewMint(1 ether), 0);
+        assertGt(vault.previewWithdraw(1 ether), 0);
+    }
+
     function test_SetCuratorFeesEnforcesCapsReceiversAndRoles() public {
         VaultV2 vault = _createVault(false, false, 0);
 
@@ -337,11 +434,19 @@ contract VaultV2BehaviorTest is Test {
         view
         returns (bytes memory)
     {
+        return _vaultParamsWithAsset(address(collateral), depositWhitelist, isDepositLimit, depositLimit);
+    }
+
+    function _vaultParamsWithAsset(address asset, bool depositWhitelist, bool isDepositLimit, uint256 depositLimit)
+        internal
+        view
+        returns (bytes memory)
+    {
         return abi.encode(
             IVaultV2.InitParams({
                 name: "Vault",
                 symbol: "vTKN",
-                asset: address(collateral),
+                asset: asset,
                 depositWhitelist: depositWhitelist,
                 depositorToWhitelist: alice,
                 isDepositLimit: isDepositLimit,

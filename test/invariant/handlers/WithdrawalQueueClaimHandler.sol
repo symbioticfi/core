@@ -226,11 +226,7 @@ contract WithdrawalQueueClaimHandler is Test {
     }
 
     function claim(uint256 tokenSeed) external {
-        _claim(tokenSeed, type(uint256).max);
-    }
-
-    function claimLimited(uint256 tokenSeed, uint256 maxIterationsSeed) external {
-        _claim(tokenSeed, bound(maxIterationsSeed, 0, 3));
+        _claim(tokenSeed);
     }
 
     function transferPosition(uint256 tokenSeed, uint256 actorSeed) external {
@@ -260,7 +256,7 @@ contract WithdrawalQueueClaimHandler is Test {
         uint256 requestAccountedShares;
         for (uint256 tokenId; tokenId < _requests.length; ++tokenId) {
             (uint256 expectedAssets, uint256 expectedShares) = modelClaimable(tokenId);
-            (uint256 actualAssets, uint256 actualShares) = queue.claimable(tokenId, type(uint256).max);
+            (uint256 actualAssets, uint256 actualShares) = queue.claimable(tokenId);
             (, uint256 actualClaimedShares,) = queue.requests(tokenId);
 
             assertEq(actualAssets, expectedAssets);
@@ -289,14 +285,14 @@ contract WithdrawalQueueClaimHandler is Test {
     }
 
     function modelClaimable(uint256 tokenId) public view returns (uint256 assetsClaimed, uint256 sharesClaimed) {
-        return _modelClaimable(tokenId, type(uint256).max);
+        return _modelClaimable(tokenId);
     }
 
     function requestCount() external view returns (uint256) {
         return _requests.length;
     }
 
-    function _claim(uint256 tokenSeed, uint256 maxIterations) internal {
+    function _claim(uint256 tokenSeed) internal {
         if (_requests.length == 0) {
             return;
         }
@@ -307,7 +303,7 @@ contract WithdrawalQueueClaimHandler is Test {
         address owner = queue.ownerOf(tokenId);
         uint256 ownerBalanceBefore = collateral.balanceOf(owner);
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = queue.claim(tokenId, maxIterations);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = queue.claim(tokenId);
 
         assertEq(assetsClaimed, expectedAssets);
         assertEq(sharesClaimed, expectedShares);
@@ -320,14 +316,6 @@ contract WithdrawalQueueClaimHandler is Test {
 
         assertLe(modelClaimedAssets, modelFilledAssets);
         assertEq(actualClaimedShares, _requests[tokenId].claimedShares);
-    }
-
-    function _modelClaimable(uint256 tokenId, uint256)
-        internal
-        view
-        returns (uint256 assetsClaimed, uint256 sharesClaimed)
-    {
-        return _modelClaimable(tokenId);
     }
 
     function _modelClaimable(uint256 tokenId) internal view returns (uint256 assetsClaimed, uint256 sharesClaimed) {

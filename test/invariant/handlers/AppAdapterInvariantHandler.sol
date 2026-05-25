@@ -120,7 +120,7 @@ contract AppAdapterInvariantHandler is Test {
         }
 
         uint256 tokenId = requestTokenIds[tokenSeed % requestTokenIds.length];
-        try queue.claim(tokenId, type(uint256).max) {} catch {}
+        try queue.claim(tokenId) {} catch {}
 
         _afterAction(false);
     }
@@ -192,7 +192,7 @@ contract AppAdapterInvariantHandler is Test {
     function assertQueueInvariant() external view {
         uint256 claimableAssets;
         for (uint256 i; i < requestTokenIds.length; ++i) {
-            (uint256 assets,) = queue.claimable(requestTokenIds[i], type(uint256).max);
+            (uint256 assets,) = queue.claimable(requestTokenIds[i]);
             claimableAssets += assets;
         }
 

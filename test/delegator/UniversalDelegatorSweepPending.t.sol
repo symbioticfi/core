@@ -8,6 +8,7 @@ import {
     IUniversalDelegator,
     UNIVERSAL_DELEGATOR_TYPE,
     MAX_SHARE,
+    ALLOCATE_ROLE,
     REMOVE_ADAPTER_ROLE,
     SET_ADAPTER_LIMITS_ROLE,
     SET_AUTO_ALLOCATE_ADAPTERS_ROLE,
@@ -89,7 +90,9 @@ contract UniversalDelegatorSweepVault {
     address public withdrawalQueue;
     address public immutable asset;
     uint256 public pushedAssets;
+    uint256 public pulledAssets;
     address public lastPushAdapter;
+    address public lastPullAdapter;
 
     constructor(address withdrawalQueue_) {
         withdrawalQueue = withdrawalQueue_;
@@ -104,6 +107,16 @@ contract UniversalDelegatorSweepVault {
         return UniversalDelegatorSweepToken(asset).balanceOf(address(this));
     }
 
+    function totalAssets() external view returns (uint256) {
+        return UniversalDelegatorSweepToken(asset).balanceOf(address(this));
+    }
+
+    function pull(uint256 assets, address adapter) external {
+        pulledAssets += assets;
+        lastPullAdapter = adapter;
+        UniversalDelegatorSweepToken(asset).transfer(adapter, assets);
+    }
+
     function push(uint256 assets, address adapter) external {
         pushedAssets += assets;
         lastPushAdapter = adapter;
@@ -115,6 +128,9 @@ contract UniversalDelegatorSweepAdapter {
     address public immutable vault;
     uint256 public totalAssets;
     uint256 public deallocateReturn;
+    uint256 public allocatableValue;
+    uint256 public allocateReturn;
+    uint256 public lastAllocateAmount;
     uint256 public lastDeallocateAmount;
     uint256 public lastRequestDeallocateAmount;
     uint256 public requestDeallocateCalls;
@@ -126,16 +142,26 @@ contract UniversalDelegatorSweepAdapter {
         deallocateReturn = deallocateReturn_;
     }
 
-    function allocatable() external pure returns (uint256) {
-        return 0;
+    function setAllocatable(uint256 allocatableValue_) external {
+        allocatableValue = allocatableValue_;
+    }
+
+    function setAllocateReturn(uint256 allocateReturn_) external {
+        allocateReturn = allocateReturn_;
+    }
+
+    function allocatable() external view returns (uint256) {
+        return allocatableValue;
     }
 
     function deallocatable() external view returns (uint256) {
         return totalAssets;
     }
 
-    function allocate(uint256) external pure returns (uint256) {
-        return 0;
+    function allocate(uint256 amount) external returns (uint256 allocated) {
+        lastAllocateAmount = amount;
+        allocated = allocateReturn > amount ? amount : allocateReturn;
+        totalAssets += allocated;
     }
 
     function deallocate(uint256 amount) external returns (uint256 deallocated) {
@@ -232,6 +258,104 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(secondIndex, firstIndex);
         assertEq(delegator.totalAdapters(), 1);
         assertEq(delegator.adapters(0), address(adapter));
+    }
+
+    function test_AddAdapterRevertsAlreadyAdded() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
+
+        delegator.addAdapterForTest(address(adapter));
+
+        vm.expectRevert(IUniversalDelegator.AlreadyAdded.selector);
+        delegator.addAdapterForTest(address(adapter));
+    }
+
+    function test_RemoveAdapterRevertsInvalidAdapter() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
+
+        delegator.grantRoleForTest(REMOVE_ADAPTER_ROLE, address(this));
+
+        vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
+        delegator.removeAdapter(address(adapter));
+    }
+
+    function test_SetLimitsRevertsInvalidAdapterAndInvalidShare() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
+
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+
+        vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
+        delegator.setLimits(address(adapter), 1, 1);
+
+        delegator.addAdapterForTest(address(adapter));
+
+        vm.expectRevert(IUniversalDelegator.InvalidShareLimit.selector);
+        delegator.setLimits(address(adapter), 1, MAX_SHARE + 1);
+    }
+
+    function test_RevokeAdapterRolesRevertsWhileConfigured() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(bytes32(0), address(this));
+
+        vm.expectRevert(IUniversalDelegator.InvalidRole.selector);
+        delegator.revokeRole(ALLOCATE_ROLE, address(adapter));
+    }
+
+    function test_MulticallAppliesCallsAndBubblesReverts() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeCall(IUniversalDelegator.setLimits, (address(adapter), 10, 20));
+        delegator.multicall(calls);
+
+        assertEq(delegator.absoluteLimitOf(address(adapter)), 10);
+        assertEq(delegator.shareLimitOf(address(adapter)), 20);
+
+        calls[0] = abi.encodeCall(IUniversalDelegator.setLimits, (address(adapter), 10, MAX_SHARE + 1));
+
+        vm.expectRevert(IUniversalDelegator.InvalidShareLimit.selector);
+        delegator.multicall(calls);
+    }
+
+    function test_OnDepositAndOnWithdrawRejectNonVault() public {
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(0));
+        delegator.setVault(address(vault));
+
+        vm.expectRevert(IUniversalDelegator.NotVault.selector);
+        delegator.onDeposit();
+
+        vm.expectRevert(IUniversalDelegator.NotVault.selector);
+        delegator.onWithdraw(1);
+    }
+
+    function test_AllocateUsesLimitsAndRefundsUnallocatedAssets() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(100);
+        delegator.setVault(address(vault));
+
+        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(vault), 0, 0);
+        adapter.setAllocatable(70);
+        adapter.setAllocateReturn(40);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(adapter));
+        uint256 allocated = delegator.allocate(address(adapter), 100);
+
+        assertEq(allocated, 40);
+        assertEq(adapter.lastAllocateAmount(), 70);
+        assertEq(adapter.totalAssets(), 40);
+        assertEq(vault.pulledAssets(), 70);
+        assertEq(vault.pushedAssets(), 30);
+        assertEq(vault.lastPullAdapter(), address(adapter));
+        assertEq(vault.lastPushAdapter(), address(adapter));
     }
 
     function test_SwapAdaptersSwapsAdaptersInRoute() public {
