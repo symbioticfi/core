@@ -143,8 +143,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
     /// @inheritdoc IWithdrawalQueue
     function fill() public {
-        uint256 shares =
-            Math.min(pendingShares(), Math.min(VaultV2(vault).maxRedeem(address(this)), VaultV2(vault).withdrawable()));
+        uint256 shares = Math.min(pendingShares(), VaultV2(vault).withdrawable());
         if (shares == 0) {
             return;
         }
