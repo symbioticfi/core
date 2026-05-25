@@ -90,6 +90,46 @@ contract AppAdapterTest is Test {
         assertEq(adapter.stake(), 60);
     }
 
+    function test_RequestDeallocateDoesNotDecreaseStakeInSameBlock() public {
+        _allocate(100);
+
+        uint256 beforeStake = adapter.stake();
+
+        delegator.requestDeallocate(address(adapter), 40);
+
+        assertGe(adapter.stake(), beforeStake);
+    }
+
+    function test_StakeAtPreservesEndOfBlockStakeAfterLaterRequestDeallocate() public {
+        _allocate(100);
+
+        uint48 timestamp = uint48(block.timestamp);
+        uint256 endOfBlockStake = adapter.stake();
+
+        vm.warp(block.timestamp + 1);
+        delegator.requestDeallocate(address(adapter), 40);
+
+        assertEq(adapter.stakeAt(timestamp), endOfBlockStake);
+    }
+
+    function test_GuaranteeRemainsSlashableUntilHalfOpenExpiry() public {
+        _allocate(100);
+
+        uint48 timestamp = uint48(block.timestamp);
+        uint256 guaranteed = adapter.stake();
+
+        delegator.requestDeallocate(address(adapter), 40);
+
+        for (uint48 dt; dt < duration; ++dt) {
+            vm.warp(timestamp + dt);
+            assertGe(adapter.slashable(), guaranteed);
+        }
+
+        vm.warp(timestamp + duration);
+
+        assertEq(adapter.slashable(), guaranteed - 40);
+    }
+
     function test_DeallocationDebtUsesCurrentAssetsWhenLimitExceedsAssets() public {
         _allocate(100);
         delegator.setLimit(type(uint256).max);
