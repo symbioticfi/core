@@ -37,7 +37,13 @@ contract AppAdapterInvariantHandler is Test {
         bool active;
     }
 
-    uint256 internal constant OBSERVATIONS = 16;
+    struct HistoryObservation {
+        uint48 timestamp;
+        uint256 stake;
+        bool active;
+    }
+
+    uint256 internal constant OBSERVATIONS = 256;
     address internal constant BURNER = address(0xB);
     address internal constant CURATOR = address(0xC);
 
@@ -54,18 +60,23 @@ contract AppAdapterInvariantHandler is Test {
     uint48 internal duration = 10;
 
     Observation[OBSERVATIONS] internal observations;
+    HistoryObservation[OBSERVATIONS] internal historyObservations;
     uint256[] internal requestTokenIds;
     uint256 internal nextObservation;
+    uint256 internal nextHistoryObservation;
     uint256 internal lastTimestamp;
     uint256 internal lastStake;
     bool internal singleBlockViolated;
     bool internal crossTimeViolated;
+    bool internal historyViolated;
     bool internal emptyQueuePendingRouteViolated;
 
     constructor() {
         _initialize();
         lastTimestamp = block.timestamp;
         lastStake = adapter.stake();
+        _rememberHistory(uint48(lastTimestamp), lastStake);
+        _rememberObservation(uint48(lastTimestamp));
     }
 
     function deposit(uint256 actorSeed, uint256 assets) external {
@@ -90,6 +101,43 @@ contract AppAdapterInvariantHandler is Test {
 
         assets = bound(assets, 1, totalAssets);
         try delegator.forceDeallocate(address(adapter), assets) {} catch {}
+
+        _afterAction(false);
+    }
+
+    function allocate(uint256 mode, uint256 assets) external {
+        assets = bound(assets, 0, vault.freeAssets() + 1000 ether);
+        mode %= 2;
+        if (mode == 0) {
+            try delegator.allocate(address(adapter), assets) {} catch {}
+        } else {
+            try delegator.allocateAll(assets) {} catch {}
+        }
+
+        _afterAction(false);
+    }
+
+    function deallocate(uint256 mode, uint256 assets) external {
+        uint256 totalAssets = adapter.totalAssets();
+        assets = bound(assets, 0, totalAssets + 1000 ether);
+        mode %= 3;
+        if (mode == 0) {
+            try delegator.deallocate(address(adapter), assets) {} catch {}
+        } else if (mode == 1) {
+            try delegator.deallocateAll(assets) {} catch {}
+        } else {
+            try delegator.deallocateExact(assets) {} catch {}
+        }
+
+        _afterAction(false);
+    }
+
+    function setAutoAllocate(uint256 enabled) external {
+        address[] memory autoAllocateAdapters = new address[](enabled % 2);
+        if (autoAllocateAdapters.length != 0) {
+            autoAllocateAdapters[0] = address(adapter);
+        }
+        try delegator.setAutoAllocateAdapters(autoAllocateAdapters) {} catch {}
 
         _afterAction(false);
     }
@@ -134,7 +182,20 @@ contract AppAdapterInvariantHandler is Test {
     function setLimits(uint256 assets, uint256 share) external {
         assets = bound(assets, 0, adapter.totalAssets() + 1000 ether);
         share = bound(share, 0, MAX_SHARE);
-        delegator.setLimits(address(adapter), assets, share);
+        try delegator.setLimits(address(adapter), assets, share) {} catch {}
+
+        _afterAction(false);
+    }
+
+    function configureAdapter(uint256 mode) external {
+        mode %= 3;
+        if (mode == 0) {
+            try delegator.addAdapter(address(adapter)) {} catch {}
+        } else if (mode == 1) {
+            try delegator.removeAdapter(address(adapter)) {} catch {}
+        } else {
+            try delegator.swapAdapters(address(adapter), address(adapter)) {} catch {}
+        }
 
         _afterAction(false);
     }
@@ -167,12 +228,31 @@ contract AppAdapterInvariantHandler is Test {
         _afterAction(false);
     }
 
+    function warpToBoundary(uint256 boundarySeed) external {
+        uint256 boundary = boundarySeed % 4;
+        if (boundary == 0) {
+            vm.warp(block.timestamp + 1);
+        } else if (boundary == 1) {
+            vm.warp(block.timestamp + duration - 1);
+        } else if (boundary == 2) {
+            vm.warp(block.timestamp + duration);
+        } else {
+            vm.warp(block.timestamp + duration + 1);
+        }
+
+        _afterAction(false);
+    }
+
     function assertSingleBlockInvariant() external view {
         assertFalse(singleBlockViolated);
     }
 
     function assertCrossTimeInvariant() external view {
         assertFalse(crossTimeViolated);
+    }
+
+    function assertHistoryInvariant() external view {
+        assertFalse(historyViolated);
     }
 
     function assertAccountingInvariant() external view {
@@ -212,6 +292,8 @@ contract AppAdapterInvariantHandler is Test {
 
         lastTimestamp = currentTimestamp;
         lastStake = currentStake;
+        _checkHistory(uint48(currentTimestamp));
+        _rememberHistory(uint48(currentTimestamp), currentStake);
         _checkObservations();
         _checkQueuePendingRoute();
         if (!slashAction) {
@@ -242,6 +324,31 @@ contract AppAdapterInvariantHandler is Test {
     function _clearObservations() internal {
         for (uint256 i; i < OBSERVATIONS; ++i) {
             delete observations[i];
+        }
+    }
+
+    function _rememberHistory(uint48 timestamp, uint256 stake) internal {
+        for (uint256 i; i < OBSERVATIONS; ++i) {
+            if (historyObservations[i].active && historyObservations[i].timestamp == timestamp) {
+                historyObservations[i].stake = stake;
+                return;
+            }
+        }
+
+        historyObservations[nextHistoryObservation] =
+            HistoryObservation({timestamp: timestamp, stake: stake, active: true});
+        nextHistoryObservation = (nextHistoryObservation + 1) % OBSERVATIONS;
+    }
+
+    function _checkHistory(uint48 currentTimestamp) internal {
+        for (uint256 i; i < OBSERVATIONS; ++i) {
+            HistoryObservation memory observation = historyObservations[i];
+            if (
+                observation.active && observation.timestamp < currentTimestamp
+                    && adapter.stakeAt(observation.timestamp) != observation.stake
+            ) {
+                historyViolated = true;
+            }
         }
     }
 
