@@ -21,11 +21,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /// @title AppAdapter
 /// @notice Single network-operator guarantee adapter.
 contract AppAdapter is Adapter, IAppAdapter {
-    using Math for uint256;
-    using SafeERC20 for IERC20;
-    using Subnetwork for bytes32;
-    using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
+    using Checkpoints for Checkpoints.Trace208;
+    using Subnetwork for bytes32;
+    using SafeERC20 for IERC20;
+    using Math for uint256;
 
     /* IMMUTABLES */
 

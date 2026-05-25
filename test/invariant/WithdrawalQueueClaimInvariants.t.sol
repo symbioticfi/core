@@ -25,11 +25,11 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
         targetContract(address(handler));
     }
 
-    function invariant_ClaimableMatchesFillPriceModel() public {
+    function invariant_ClaimableMatchesFillCurveModel() public {
         handler.assertClaimableMatchesModel();
     }
 
-    function invariant_ClaimTransfersMatchFillPriceModel() public {
+    function invariant_ClaimTransfersMatchFillCurveModel() public {
         handler.assertActorBalancesMatchClaims();
     }
 

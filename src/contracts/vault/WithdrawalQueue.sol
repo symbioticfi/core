@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // import {IVaultSnapshotRewards} from "../../interfaces/vault/IVaultSnapshotRewards.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
@@ -17,30 +17,22 @@ import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 /// @title Withdrawal Queue
 /// @notice Holds pending share withdrawal requests as ERC721 positions.
 contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
-    using SafeERC20 for IERC4626;
-    using SafeERC20 for IERC20;
-    using Math for uint256;
     using Checkpoints for Checkpoints.Trace256;
-
-    uint256 internal constant SHARE_PRICE_TOLERANCE_DECIMALS = 7;
-
-    /* IMMUTABLES */
+    using SafeERC20 for IERC20;
+    using SafeCast for uint256;
+    using Math for uint256;
 
     /* STATE VARIABLES */
 
     /// @inheritdoc IWithdrawalQueue
     address public vault;
     /// @inheritdoc IWithdrawalQueue
-    uint256 public totalFilled;
-    /// @inheritdoc IWithdrawalQueue
     uint256 public totalRequested;
 
     /// @dev The next withdrawal NFT id.
     uint256 internal _nextTokenId;
-    /// @dev Share price checkpoints.
-    SharePriceCheckpoint[] internal _sharePriceCheckpoints;
-    /// @dev Cumulative shares filled to share price.
-    Checkpoints.Trace256 internal _totalFilledSharesToSharePrice;
+    /// @dev Cumulative filled shares to packed fill index and cumulative assets.
+    Checkpoints.Trace256 internal _cumulSharesToCumulAssets;
     /// @inheritdoc IWithdrawalQueue
     mapping(uint256 tokenId => WithdrawalRequest) public requests;
 
@@ -67,49 +59,50 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IWithdrawalQueue
+    function totalFilled() public view returns (uint256) {
+        return _cumulSharesToCumulAssets.at(uint32(_cumulSharesToCumulAssets.length() - 1))._key;
+    }
+
+    /// @inheritdoc IWithdrawalQueue
     function pendingAssets() public view returns (uint256) {
         return IERC4626(vault).previewRedeem(pendingShares());
     }
 
     /// @inheritdoc IWithdrawalQueue
     function pendingShares() public view returns (uint256) {
-        return totalRequested - totalFilled;
+        return totalRequested - totalFilled();
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function claimable(uint256 tokenId, uint256 maxIterations)
-        public
-        view
-        returns (uint256 assetsClaimed, uint256 sharesClaimed)
-    {
+    function claimable(uint256 tokenId, uint256) public view returns (uint256 assets, uint256 shares) {
         WithdrawalRequest storage request = requests[tokenId];
 
         if (request.claimedShares == request.shares) {
             return (0, 0);
         }
 
-        uint256 maxSharesToClaim = Math.min(
-            request.shares - request.claimedShares,
-            totalFilled.saturatingSub(request.prevRequestSum + request.claimedShares)
-        );
-        uint256 cumClaimedShares = request.prevRequestSum + request.claimedShares;
-        uint32 checkpointIndex = uint32(_totalFilledSharesToSharePrice.upperLookupRecent(cumClaimedShares));
-        uint256 virtualShares = VaultV2(vault).virtualShares();
-
-        for (; maxSharesToClaim > 0 && maxIterations > 0; --maxIterations) {
-            uint256 curRequestShares = maxSharesToClaim;
-            if (_totalFilledSharesToSharePrice.length() > checkpointIndex) {
-                curRequestShares = Math.min(
-                    _totalFilledSharesToSharePrice.at(checkpointIndex)._key - cumClaimedShares, maxSharesToClaim
-                );
-            }
-            SharePriceCheckpoint storage checkpoint = _sharePriceCheckpoints[checkpointIndex++];
-            assetsClaimed += curRequestShares.mulDiv(checkpoint.totalAssets + 1, checkpoint.totalShares + virtualShares);
-            cumClaimedShares += curRequestShares;
-            maxSharesToClaim -= curRequestShares;
+        uint256 startShares = request.prevRequestSum + request.claimedShares;
+        uint256 endShares = Math.min(request.prevRequestSum + request.shares, totalFilled());
+        shares = endShares.saturatingSub(startShares);
+        if (shares == 0) {
+            return (0, 0);
         }
 
-        sharesClaimed = cumClaimedShares - request.prevRequestSum - request.claimedShares;
+        uint32 pos = uint32(_cumulSharesToCumulAssets.upperLookupRecent(startShares) >> 224);
+        Checkpoints.Checkpoint256 memory checkpoint = _cumulSharesToCumulAssets.at(pos);
+        Checkpoints.Checkpoint256 memory nextCheckpoint = _cumulSharesToCumulAssets.at(pos + 1);
+        uint256 startAssets = uint224(checkpoint._value)
+            + (startShares - checkpoint._key)
+            .mulDiv(uint224(nextCheckpoint._value) - uint224(checkpoint._value), nextCheckpoint._key - checkpoint._key);
+
+        pos = uint32(_cumulSharesToCumulAssets.upperLookupRecent(endShares - 1) >> 224);
+        checkpoint = _cumulSharesToCumulAssets.at(pos);
+        nextCheckpoint = _cumulSharesToCumulAssets.at(pos + 1);
+        uint256 endAssets = uint224(checkpoint._value)
+            + (endShares - checkpoint._key)
+            .mulDiv(uint224(nextCheckpoint._value) - uint224(checkpoint._value), nextCheckpoint._key - checkpoint._key);
+
+        assets = endAssets - startAssets;
     }
 
     /* PUBLIC FUNCTIONS */
@@ -120,7 +113,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             revert ZeroShares();
         }
 
-        IERC4626(vault).safeTransferFrom(msg.sender, address(this), shares);
+        IERC20(vault).safeTransferFrom(msg.sender, address(this), shares);
 
         tokenId = _nextTokenId++;
         requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
@@ -158,29 +151,13 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             return (0, 0);
         }
 
-        // Update the checkpoint when price decreases or increases past tolerance.
-        uint256 totalShares = IERC4626(vault).totalSupply();
-        uint256 totalAssets = IERC4626(vault).totalAssets();
-        uint256 virtualShares = VaultV2(vault).virtualShares();
-        SharePriceCheckpoint storage lastCheckpoint = _sharePriceCheckpoints[_sharePriceCheckpoints.length - 1];
-
-        uint256 sharePriceScale = 10 ** IERC4626(vault).decimals();
-        uint256 lastSharePrice =
-            sharePriceScale.mulDiv(lastCheckpoint.totalAssets + 1, lastCheckpoint.totalShares + virtualShares);
-        uint256 newSharePrice = sharePriceScale.mulDiv(totalAssets + 1, totalShares + virtualShares);
-        if (
-            newSharePrice < lastSharePrice
-                || newSharePrice - lastSharePrice
-                    >= 10
-                        ** (uint256(IERC20Metadata(IERC4626(vault).asset()).decimals()))
-                        .saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)
-        ) {
-            _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
-            _sharePriceCheckpoints.push(SharePriceCheckpoint(totalAssets, totalShares));
-        }
-
         assets = IERC4626(vault).redeem(shares, address(this), address(this));
-        totalFilled += shares;
+
+        _cumulSharesToCumulAssets.push(
+            totalFilled() + shares,
+            _cumulSharesToCumulAssets.length() << 224
+                | (uint224(_cumulSharesToCumulAssets.latest()) + assets).toUint224()
+        );
 
         emit Fill(assets, shares);
     }
@@ -192,6 +169,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         __ERC721_init("Withdrawal Queue", "WQ");
 
         vault = msg.sender;
-        _sharePriceCheckpoints.push(SharePriceCheckpoint({totalAssets: 1, totalShares: VaultV2(vault).virtualShares()}));
+        _cumulSharesToCumulAssets.push(0, 0);
     }
 }

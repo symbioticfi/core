@@ -22,16 +22,6 @@ interface IWithdrawalQueue is IERC721Metadata {
         uint256 prevRequestSum;
     }
 
-    /**
-     * @notice Share price checkpoint used for partial withdrawal claims.
-     * @param totalAssets Total assets used for the checkpoint share price.
-     * @param totalShares Total shares used for the checkpoint share price.
-     */
-    struct SharePriceCheckpoint {
-        uint256 totalAssets;
-        uint256 totalShares;
-    }
-
     /* ERRORS */
 
     /**
@@ -131,7 +121,7 @@ interface IWithdrawalQueue is IERC721Metadata {
     /**
      * @notice Claims a withdrawal request.
      * @param tokenId Withdrawal NFT id.
-     * @param maxIterations Maximum number of share price checkpoints to process.
+     * @param maxIterations Unused legacy parameter.
      * @return assetsClaimed Amount of assets claimed.
      * @return sharesClaimed Amount of request shares claimed.
      */
@@ -142,7 +132,7 @@ interface IWithdrawalQueue is IERC721Metadata {
     /**
      * @notice Returns the claimable assets and shares for a withdrawal request.
      * @param tokenId Withdrawal NFT id.
-     * @param maxIterations Maximum number of share price checkpoints to process.
+     * @param maxIterations Unused legacy parameter.
      * @return assetsClaimed Claimable assets.
      * @return sharesClaimed Claimable shares.
      */

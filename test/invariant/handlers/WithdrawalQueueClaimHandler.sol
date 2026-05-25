@@ -115,14 +115,8 @@ contract WithdrawalQueueClaimHandler is Test {
         address owner;
     }
 
-    struct PriceCheckpoint {
-        uint256 totalAssets;
-        uint256 totalShares;
-    }
-
     uint256 internal constant MAX_REQUEST_SHARES = 1e18;
     uint256 internal constant MAX_ASSET_CHANGE = 10e18;
-    uint256 internal constant SHARE_PRICE_TOLERANCE_DECIMALS = 7;
 
     WithdrawalQueueInvariantToken public collateral;
     WithdrawalQueueInvariantVault public vault;
@@ -136,8 +130,8 @@ contract WithdrawalQueueClaimHandler is Test {
 
     address[] internal _actors;
     RequestModel[] internal _requests;
-    PriceCheckpoint[] internal _checkpoints;
-    uint256[] internal _checkpointKeys;
+    uint256[] internal _cumulShares;
+    uint256[] internal _cumulAssets;
 
     constructor() {
         collateral = new WithdrawalQueueInvariantToken();
@@ -155,8 +149,6 @@ contract WithdrawalQueueClaimHandler is Test {
         _actors.push(address(0xB0B));
         _actors.push(address(0xCAFE));
         _actors.push(address(0xD00D));
-
-        _checkpoints.push(PriceCheckpoint({totalAssets: 1, totalShares: vault.virtualShares()}));
     }
 
     function request(uint256 actorSeed, uint256 sharesSeed) external {
@@ -212,7 +204,6 @@ contract WithdrawalQueueClaimHandler is Test {
         uint256 withdrawableBefore = vault.withdrawable();
         uint256 expectedMaxFilledShares = Math.min(pendingSharesBefore, vault.previewDeposit(withdrawableBefore));
         uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
-        PriceCheckpoint memory checkpoint = _checkpointForNextFill();
 
         (uint256 assetsReceived, uint256 shares) = queue.fill();
 
@@ -226,14 +217,10 @@ contract WithdrawalQueueClaimHandler is Test {
             return;
         }
 
-        (bool pushCheckpoint, PriceCheckpoint memory checkpointToPush) = _checkpointToPush(checkpoint);
-        if (pushCheckpoint) {
-            _checkpointKeys.push(modelTotalFilled);
-            _checkpoints.push(checkpointToPush);
-        }
-
         modelFilledAssets += collateral.balanceOf(address(queue)) - queueBalanceBefore;
         modelTotalFilled += shares;
+        _cumulShares.push(modelTotalFilled);
+        _cumulAssets.push(modelFilledAssets);
         assertEq(queue.totalFilled(), modelTotalFilled);
         assertEq(queue.pendingAssets(), vault.previewRedeem(queue.pendingShares()));
     }
@@ -315,7 +302,7 @@ contract WithdrawalQueueClaimHandler is Test {
         }
 
         uint256 tokenId = tokenSeed % _requests.length;
-        (uint256 expectedAssets, uint256 expectedShares) = _modelClaimable(tokenId, maxIterations);
+        (uint256 expectedAssets, uint256 expectedShares) = _modelClaimable(tokenId);
 
         address owner = queue.ownerOf(tokenId);
         uint256 ownerBalanceBefore = collateral.balanceOf(owner);
@@ -335,83 +322,60 @@ contract WithdrawalQueueClaimHandler is Test {
         assertEq(actualClaimedShares, _requests[tokenId].claimedShares);
     }
 
-    function _modelClaimable(uint256 tokenId, uint256 maxIterations)
+    function _modelClaimable(uint256 tokenId, uint256)
         internal
         view
         returns (uint256 assetsClaimed, uint256 sharesClaimed)
     {
+        return _modelClaimable(tokenId);
+    }
+
+    function _modelClaimable(uint256 tokenId) internal view returns (uint256 assetsClaimed, uint256 sharesClaimed) {
         RequestModel storage requestModel = _requests[tokenId];
 
-        uint256 claimStart = requestModel.prevRequestSum + requestModel.claimedShares;
-        uint256 maxSharesToClaim =
-            Math.min(requestModel.shares - requestModel.claimedShares, modelTotalFilled.saturatingSub(claimStart));
-        uint256 cumClaimedShares = claimStart;
-        uint256 checkpointIndex = _checkpointIndex(cumClaimedShares);
+        uint256 start = requestModel.prevRequestSum + requestModel.claimedShares;
+        uint256 end = Math.min(requestModel.prevRequestSum + requestModel.shares, modelTotalFilled);
+        if (end <= start) {
+            return (0, 0);
+        }
 
-        while (maxSharesToClaim > 0 && maxIterations > 0) {
-            --maxIterations;
-            uint256 curRequestShares = maxSharesToClaim;
-            if (_checkpointKeys.length > checkpointIndex) {
-                curRequestShares = Math.min(_checkpointKeys[checkpointIndex] - cumClaimedShares, maxSharesToClaim);
+        assetsClaimed = _assetsAt(end) - _assetsAt(start);
+        sharesClaimed = end - start;
+    }
+
+    function _assetsAt(uint256 sharePos) internal view returns (uint256) {
+        if (sharePos == 0) {
+            return 0;
+        }
+
+        uint256 length = _cumulShares.length;
+        if (length == 0) {
+            return 0;
+        }
+
+        if (sharePos >= modelTotalFilled) {
+            return _cumulAssets[length - 1];
+        }
+
+        uint256 lo;
+        uint256 hi = length - 1;
+        while (lo < hi) {
+            uint256 mid = (lo + hi) >> 1;
+            if (_cumulShares[mid] < sharePos) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
             }
-
-            PriceCheckpoint storage checkpoint = _checkpoints[checkpointIndex++];
-            assetsClaimed += curRequestShares.mulDiv(
-                checkpoint.totalAssets + 1, checkpoint.totalShares + vault.virtualShares()
-            );
-            cumClaimedShares += curRequestShares;
-            maxSharesToClaim -= curRequestShares;
         }
 
-        sharesClaimed = cumClaimedShares - claimStart;
-    }
-
-    function _checkpointForNextFill() internal view returns (PriceCheckpoint memory) {
-        return PriceCheckpoint({totalAssets: vault.managedAssets(), totalShares: vault.totalSupply()});
-    }
-
-    function _checkpointToPush(PriceCheckpoint memory checkpoint)
-        internal
-        view
-        returns (bool pushCheckpoint, PriceCheckpoint memory checkpointToPush)
-    {
-        PriceCheckpoint storage lastCheckpoint = _checkpoints[_checkpoints.length - 1];
-        checkpointToPush = checkpoint;
-
-        uint256 sharePriceScale = 10 ** vault.decimals();
-        uint256 virtualShares = vault.virtualShares();
-        uint256 lastSharePrice =
-            sharePriceScale.mulDiv(lastCheckpoint.totalAssets + 1, lastCheckpoint.totalShares + virtualShares);
-        uint256 newSharePrice =
-            sharePriceScale.mulDiv(checkpoint.totalAssets + 1, checkpoint.totalShares + virtualShares);
-
-        if (newSharePrice < lastSharePrice) {
-            return (true, checkpointToPush);
+        uint256 prevShares;
+        uint256 prevAssets;
+        if (lo != 0) {
+            prevShares = _cumulShares[lo - 1];
+            prevAssets = _cumulAssets[lo - 1];
         }
 
-        if (
-            newSharePrice - lastSharePrice
-                >= 10 ** uint256(collateral.decimals()).saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)
-        ) {
-            return (true, checkpointToPush);
-        }
-
-        bool needsFillBoundary = _checkpointKeys.length == 0
-            ? modelTotalFilled != 0
-            : _checkpointKeys[_checkpointKeys.length - 1] < modelTotalFilled;
-        if (needsFillBoundary) {
-            checkpointToPush = lastCheckpoint;
-            return (true, checkpointToPush);
-        }
-    }
-
-    function _checkpointIndex(uint256 sharePosition) internal view returns (uint256 index) {
-        for (uint256 i; i < _checkpointKeys.length; ++i) {
-            if (_checkpointKeys[i] > sharePosition) {
-                break;
-            }
-            index = i + 1;
-        }
+        return prevAssets + (sharePos - prevShares).mulDiv(_cumulAssets[lo] - prevAssets, _cumulShares[lo] - prevShares);
     }
 
     function _actor(uint256 actorSeed) internal view returns (address) {

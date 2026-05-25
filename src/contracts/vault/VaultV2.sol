@@ -41,10 +41,10 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 /// @title VaultV2
 /// @dev Supports standard ERC20 collateral only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
 contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeable, ERC20PermitUpgradeable, IVaultV2 {
-    using Math for uint256;
-    using SafeERC20 for IERC20;
-    using Checkpoints for Checkpoints.Trace208;
     using Checkpoints for Checkpoints.Trace256;
+    using Checkpoints for Checkpoints.Trace208;
+    using SafeERC20 for IERC20;
+    using Math for uint256;
 
     address internal constant DEAD_SHARES_RECIPIENT = 0x000000000000000000000000000000000000dEaD;
     uint256 internal constant MIN_DEAD_SHARES = 1e9;
@@ -102,9 +102,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     uint8 internal __decimalsOffset;
 
     /// @dev Reserved storage gap for future upgrades.
-    uint256[49] internal __gap;
-
-    /* MODIFIERS */
+    uint256[50] internal __gap;
 
     /* MULTICALL */
 
