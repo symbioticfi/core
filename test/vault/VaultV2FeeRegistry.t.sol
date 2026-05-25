@@ -87,6 +87,7 @@ contract VaultV2FeeRegistryApiTest is Test {
         assertEq(IVaultV2.lastPerformanceFee.selector, bytes4(keccak256("lastPerformanceFee()")));
         assertEq(IVaultV2.getAccrueInterest.selector, bytes4(keccak256("getAccrueInterest()")));
         assertEq(IVaultV2.virtualShares.selector, bytes4(keccak256("virtualShares()")));
+        assertEq(IVaultV2.withdrawable.selector, bytes4(keccak256("withdrawable()")));
         assertEq(
             IERC20Permit.permit.selector,
             bytes4(keccak256("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)"))
@@ -157,6 +158,13 @@ contract VaultV2BehaviorTest is Test {
 
         assertEq(vault.maxDeposit(alice), 60);
         assertEq(vault.maxMint(alice), vault.previewDeposit(60));
+    }
+
+    function test_WithdrawableIncludesFreeAssets() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        _deposit(vault, alice, 100 ether);
+
+        assertEq(vault.withdrawable(), vault.freeAssets());
     }
 
     function test_InitializeSnapshotsCurrentFees() public {

@@ -318,6 +318,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     {
         accrueInterest();
 
+        UniversalDelegator(delegator).onWithdraw(assets.saturatingSub(freeAssets()));
+
         _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
     }

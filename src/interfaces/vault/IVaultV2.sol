@@ -316,6 +316,12 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function freeAssets() external view returns (uint256 assets);
 
     /**
+     * @notice Get assets available for instant withdrawal from free and deallocatable collateral.
+     * @return assets Withdrawable asset amount.
+     */
+    function withdrawable() external returns (uint256 assets);
+
+    /**
      * @notice Enable or disable deposit whitelist.
      * @param status Whether to enable deposit whitelist.
      * @dev Only a DEPOSIT_WHITELIST_SET_ROLE holder can call this function.

@@ -336,7 +336,7 @@ interface IUniversalDelegator {
      * @param assets Amount of collateral to deallocate.
      * @return deallocated Amount deallocated.
      */
-    function deallocate(uint256 assets) external returns (uint256 deallocated);
+    function deallocateAll(uint256 assets) external returns (uint256 deallocated);
 
     /**
      * @notice Deallocate collateral from a specific adapter.
@@ -380,6 +380,13 @@ interface IUniversalDelegator {
      * @dev Only the associated withdrawal queue can call this function.
      */
     function onWithdrawRequest() external;
+
+    /**
+     * @notice Handle a withdrawal from the vault.
+     * @dev Only the associated vault can call this function.
+     * @param assets Amount of collateral to deallocate.
+     */
+    function onWithdraw(uint256 assets) external;
 
     /**
      * @notice Sweep pending queue assets through deallocation and filling.

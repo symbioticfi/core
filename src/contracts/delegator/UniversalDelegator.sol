@@ -390,6 +390,15 @@ contract UniversalDelegator is
         _sweepPending();
     }
 
+    /// @inheritdoc IUniversalDelegator
+    function onWithdraw(uint256 assets) public nonReentrant {
+        if (vault != msg.sender) {
+            revert NotVault();
+        }
+
+        _deallocateAll(assets);
+    }
+
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IUniversalDelegator
